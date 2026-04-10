@@ -1,6 +1,6 @@
 # Reporte de Avances — Tesis P2P Colombia
 
-**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-10 06:24
+**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-10 07:36
 **Asesores:** Andrés Pantoja · Germán Obando | **Udenar, 2026**
 
 ---
@@ -31,10 +31,10 @@
 
 | Escenario | Ganancia neta (COP) | SC | SS | IE |
 |-----------|--------------------------|-----|-----|-----|
-| P2P (Stackelberg + RD) | -172,034 | 0.113 | 1.000 | 0.1006 |
-| C1 CREG 174/2021 | -1,190,254 | 0.088 | 0.785 | 1.0000 |
+| P2P (Stackelberg + RD) | -172,034 | 0.113 | 1.000 | 0.0984 |
+| C1 CREG 174/2021 | -1,199,097 | 0.088 | 0.785 | 1.0000 |
 | C2 Bilateral PPA | 145,203 | 0.088 | 0.785 | -1.0000 |
-| C3 Mercado spot | -1,190,254 | 0.088 | 0.785 | 1.0000 |
+| C3 Mercado spot | -1,199,097 | 0.088 | 0.785 | 1.0000 |
 | C4 CREG 101 072 ★ | -1,208,239 | 0.088 | 0.785 | 1.0000 |
 
 **Price of Fairness (P2P vs C4):** 6.0233
@@ -44,11 +44,11 @@
 
 | Institución | P2P (COP) | C4 (COP) | Ventaja P2P (COP) |
 |-------------|---------|---------|-----------------|
-| Udenar | 35,280 | -65,363 | +100,643 ✓ P2P mejor |
-| Mariana | 2,130 | -159,727 | +161,857 ✓ P2P mejor |
-| UCC | -196,637 | -587,183 | +390,546 ✓ P2P mejor |
-| HUDN | -6,430 | -285,592 | +279,161 ✓ P2P mejor |
-| Cesmag | -6,377 | -110,374 | +103,997 ✓ P2P mejor |
+| Udenar | 35,292 | -65,363 | +100,655 ✓ P2P mejor |
+| Mariana | 2,128 | -159,727 | +161,856 ✓ P2P mejor |
+| UCC | -196,635 | -587,183 | +390,548 ✓ P2P mejor |
+| HUDN | -6,435 | -285,592 | +279,157 ✓ P2P mejor |
+| Cesmag | -6,384 | -110,374 | +103,990 ✓ P2P mejor |
 
 ### 3.2 Nota sobre C1 = C3
 
@@ -65,10 +65,54 @@ y en días con baja demanda institucional (fines de semana, festivos).
 |---------|-------|----------------|
 | SC (P2P) | 0.113 | Fracción demanda cubierta internamente |
 | SS (P2P) | 1.000 | Fracción generación usada en comunidad |
-| IE (P2P) | 0.1006 | Distribución beneficio (0=equitativo) |
+| IE (P2P) | 0.0984 | Distribución beneficio (0=equitativo) |
 | IE (C4)  | 1.0000 | Referencia regulatoria vigente |
 | PoF      | 6.0233 | Pérdida eficiencia por equidad P2P vs C4 |
 
+## 5. Análisis de sensibilidad
+
+### SA-1: Variación precio de bolsa PGB
+
+| PGB (COP/kWh) | P2P (COP) | C4 (COP) | IE P2P | PoF |
+|---------------|---------|---------|--------|-----|
+| 200 | -167,665 | -1,208,239 | 0.098 | 6.206 |
+| 250 | -170,396 | -1,208,239 | 0.098 | 6.091 |
+| 280 | -172,034 | -1,208,239 | 0.098 | 6.023 |
+| 300 | -173,126 | -1,208,239 | 0.098 | 5.979 |
+| 350 | -175,857 | -1,208,239 | 0.098 | 5.871 |
+| 400 | -178,588 | -1,208,239 | 0.098 | 5.766 |
+| 450 | -181,319 | -1,208,239 | 0.098 | 5.664 |
+| 500 | -184,049 | -1,208,239 | 0.098 | 5.565 |
+
+### SA-2: Variación cobertura PV
+
+| Factor PV | Cobertura (%) | P2P (COP) | C4 (COP) | Horas mercado | kWh P2P |
+|-----------|--------------|---------|---------|--------------|---------|
+| 1.00x | 11% | -172,034 | -1,208,239 | 7 | 54.6 |
+| 1.78x | 20% | -78,975 | -1,037,393 | 9 | 120.4 |
+| 2.93x | 33% | 165,669 | -792,074 | 10 | 223.8 |
+| 4.44x | 50% | 373,199 | -453,507 | 10 | 245.3 |
+| 6.66x | 75% | 530,802 | -82,414 | 9 | 195.2 |
+| 8.88x | 100% | 613,270 | 151,546 | 8 | 136.9 |
+
+## 6. Análisis de factibilidad
+
+### FA-1: Condición de deserción del P2P
+
+- Precio P2P nunca menor que bolsa: **Sí**
+- Umbral crítico precio bolsa: **473 COP/kWh**
+
+### FA-2: Cumplimiento CREG 101 072/2025
+
+| Institución | Participación (%) | Cumple 10% | Cap. max (kW) | Cumple 100kW |
+|-------------|------------------|-----------|--------------|-------------|
+| Udenar | 4.20% | ✓ | 12.7 | ✓ |
+| Mariana | 1.88% | ✓ | 5.8 | ✓ |
+| UCC | 2.36% | ✓ | 7.0 | ✓ |
+| HUDN | 1.79% | ✓ | 5.6 | ✓ |
+| Cesmag | 1.04% | ✓ | 2.9 | ✓ |
+
+**Score de robustez C4:** 1.00 (1=máxima robustez)
 
 ---
 
@@ -80,4 +124,4 @@ y en días con baja demanda institucional (fines de semana, festivos).
 - [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
 
 ---
-*Generado automáticamente por main_simulation.py · 2026-04-10 06:24*
+*Generado automáticamente por main_simulation.py · 2026-04-10 07:36*

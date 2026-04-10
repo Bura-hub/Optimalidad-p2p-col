@@ -227,6 +227,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         # Gráficas 7-9
         generate_sensitivity_plots(
             sa_pgb=sa_pgb, sa_pv=sa_pv,
+            findings=thresholds,
             fa_desertion=fa_des, fa_creg=fa_creg_rep,
             p2p_results=p2p_results, pi_bolsa=pi_bolsa,
             D=D, agent_names=agent_names,

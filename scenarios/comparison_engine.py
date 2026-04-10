@@ -102,18 +102,51 @@ def run_comparison(
     cr.net_benefit_per_agent["P2P"] = p2p_net
 
     # ── SC / SS ─────────────────────────────────────────────────────────
-    # Para C1–C4: SC y SS de autoconsumo individual sin mercado dinámico
+    # PUNTO 3 — SS unificada: misma definición para todos los escenarios.
+    #
+    # Definición única (comparable entre P2P y C1-C4):
+    #   SC = (autoconsumo_local + energía_P2P_recibida) / D_total
+    #   SS = (autoconsumo_local + energía_P2P_recibida) / G_total
+    #
+    # Para C1–C4: no hay mercado P2P → energía_P2P = 0
+    #   SC_C1 = sum(min(G,D)) / sum(D)
+    #   SS_C1 = sum(min(G,D)) / sum(G)
+    #
+    # Para P2P: se suma el autoconsumo local más lo intercambiado en mercado
+    #   SC_P2P = (sum_k [autoconsumo_k + P2P_k]) / D_total
+    #   SS_P2P = (sum_k [autoconsumo_k + P2P_k]) / G_total
+    #
+    # Esto corrige la paradoja SS_P2P < SS_C1 que aparecía porque la versión
+    # anterior solo contaba energía del mercado, ignorando el autoconsumo local.
+
     sc_base = _sc_index_static(G_klim, D)
     ss_base = _ss_index_static(G_klim, D)
     for esc in ["C1", "C2", "C3", "C4"]:
         cr.self_consumption[esc] = sc_base
         cr.self_sufficiency[esc] = ss_base
 
-    # Para P2P: promedio de las métricas horarias
+    # Para P2P: SC/SS unificados incluyendo autoconsumo + mercado
     active = [r for r in p2p_results
               if r.P_star is not None and np.sum(r.P_star) > 1e-6]
-    cr.self_consumption["P2P"] = np.mean([r.SC for r in active]) if active else 0.0
-    cr.self_sufficiency["P2P"] = np.mean([r.SS for r in active]) if active else 0.0
+
+    # Calcular SS/SC P2P sobre el período completo (no solo horas activas)
+    T_total   = len(p2p_results)
+    D_total   = float(np.sum(np.maximum(D, 0)))
+    G_total   = float(np.sum(np.maximum(G_klim, 0)))
+
+    energia_util_total = 0.0   # autoconsumo local + intercambio P2P
+    for k, r in enumerate(p2p_results):
+        # Autoconsumo local en esta hora (todos los nodos, independiente de si hay mercado)
+        autoconsumo_k = float(np.sum(np.minimum(
+            np.maximum(G_klim[:, k], 0),
+            np.maximum(D[:, k], 0)
+        )))
+        # Energía adicional cubierta por el mercado P2P esta hora
+        p2p_k = float(np.sum(r.P_star)) if r.P_star is not None else 0.0
+        energia_util_total += autoconsumo_k + p2p_k
+
+    cr.self_consumption["P2P"] = energia_util_total / D_total if D_total > 1e-10 else 0.0
+    cr.self_sufficiency["P2P"] = energia_util_total / G_total if G_total > 1e-10 else 0.0
 
     # ── Equidad (IE) ─────────────────────────────────────────────────────
     cr.equity_index["P2P"] = np.mean([r.IE for r in active]) if active else 0.0

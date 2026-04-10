@@ -1,0 +1,250 @@
+"""
+sensitivity.py  — Análisis de sensibilidad (Objetivo 4 de la tesis)
+--------------------------------------------------------------------
+Brayan S. Lopez-Mendez · Udenar 2026
+
+Implementa dos barridos paramétricos:
+
+  SA-1: Variación del precio de bolsa PGB (200 → 500 COP/kWh)
+        Representa: año normal, sequía severa, El Niño extremo, escasez
+        Pregunta: ¿cuándo C3 supera a C1? ¿cuándo el P2P sigue siendo óptimo?
+
+  SA-2: Variación de cobertura PV (11% → 100%)
+        Representa: escalar los sistemas solares de las instituciones
+        Pregunta: ¿qué cobertura mínima hace que P2P domine claramente?
+
+Cada barrido corre la simulación completa y recopila:
+  - Ganancia neta por escenario
+  - IE (equidad) del P2P
+  - PoF (Price of Fairness) P2P vs C4
+  - Horas de mercado activo
+"""
+
+import time
+import numpy as np
+from dataclasses import dataclass, field
+from typing import Optional
+
+
+@dataclass
+class SensitivityResult:
+    """Resultado de un punto del barrido paramétrico."""
+    param_name:  str
+    param_value: float
+    net_benefit: dict = field(default_factory=dict)   # por escenario
+    net_per_agent: dict = field(default_factory=dict) # P2P y C4 por agente
+    ie_p2p:      float = 0.0
+    pof:         float = 0.0
+    ss_p2p:      float = 0.0
+    sc_p2p:      float = 0.0
+    market_hours: int  = 0
+    kwh_p2p:     float = 0.0
+
+
+def run_sensitivity_pgb(
+    D: np.ndarray,
+    G: np.ndarray,
+    G_klim: np.ndarray,
+    agents,
+    grid_base,
+    solver,
+    p2p_results_base: list,
+    pi_gb_range: Optional[np.ndarray] = None,
+    pde: Optional[np.ndarray] = None,
+    prosumer_ids: Optional[list] = None,
+    verbose: bool = True,
+) -> list:
+    """
+    SA-1: Varía PGB entre pi_gb_range y recalcula los escenarios C1-C4.
+    El mercado P2P (p2p_results_base) se mantiene fijo — su despacho no
+    cambia con el precio de bolsa, solo cambia la valoración monetaria.
+
+    pi_gb_range: array de precios PGB a evaluar (COP/kWh)
+                 default: [200, 250, 300, 350, 400, 450, 500]
+    """
+    import sys; sys.path.insert(0, '..')
+    from scenarios import run_comparison
+
+    if pi_gb_range is None:
+        pi_gb_range = np.array([200, 250, 280, 300, 350, 400, 450, 500])
+    if prosumer_ids is None:
+        prosumer_ids = list(range(D.shape[0]))
+
+    T  = D.shape[1]
+    N  = D.shape[0]
+    results = []
+
+    if verbose:
+        print(f"\n  SA-1: Sensibilidad PGB  ({len(pi_gb_range)} puntos)")
+        print(f"  {'PGB':>6}  {'P2P':>10}  {'C1':>10}  {'C3':>10}  "
+              f"{'C4':>10}  {'IE':>6}  {'PoF':>6}")
+        print("  " + "─"*68)
+
+    for pgb in pi_gb_range:
+        pi_bolsa = np.full(T, pgb)
+        pde_v    = pde if pde is not None else np.ones(N)/N
+
+        cr = run_comparison(
+            D=D, G_klim=G_klim, G_raw=G,
+            p2p_results=p2p_results_base,
+            pi_gs=grid_base.pi_gs, pi_gb=pgb,
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids, consumer_ids=[],
+            pde=pde_v, pi_ppa=pgb + 0.5*(grid_base.pi_gs - pgb),
+            capacity=np.maximum(G.mean(axis=1), 0),
+        )
+
+        active = [r for r in p2p_results_base
+                  if r.P_star is not None and np.sum(r.P_star) > 1e-4]
+        kwh = sum(float(np.sum(r.P_star)) for r in active)
+
+        sr = SensitivityResult(
+            param_name="PGB_COP_kWh", param_value=float(pgb),
+            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            net_per_agent={
+                "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
+                "C4":  cr.net_benefit_per_agent["C4"].tolist(),
+            },
+            ie_p2p=cr.equity_index.get("P2P", 0),
+            pof=cr.price_of_fairness or 0,
+            ss_p2p=cr.self_sufficiency.get("P2P", 0),
+            sc_p2p=cr.self_consumption.get("P2P", 0),
+            market_hours=len(active),
+            kwh_p2p=kwh,
+        )
+        results.append(sr)
+
+        if verbose:
+            nb = sr.net_benefit
+            print(f"  {pgb:>6.0f}  {nb['P2P']:>10,.0f}  {nb['C1']:>10,.0f}  "
+                  f"{nb['C3']:>10,.0f}  {nb['C4']:>10,.0f}  "
+                  f"{sr.ie_p2p:>6.3f}  {sr.pof:>6.3f}")
+
+    return results
+
+
+def run_sensitivity_pv(
+    D: np.ndarray,
+    G_base: np.ndarray,
+    agents,
+    grid,
+    solver,
+    pv_factors: Optional[np.ndarray] = None,
+    pde: Optional[np.ndarray] = None,
+    prosumer_ids: Optional[list] = None,
+    verbose: bool = True,
+) -> list:
+    """
+    SA-2: Escala la generación G multiplicando por pv_factors.
+    Simula qué pasaría si las instituciones instalan más capacidad solar.
+
+    pv_factors: factores de escala sobre G_base (1.0 = actual)
+                [1.0, 2.0, 3.0, 4.5, 9.1] → coberturas [11%,22%,33%,50%,100%]
+    """
+    import sys; sys.path.insert(0, '..')
+    from core.ems_p2p import EMSP2P
+    from core.market_prep import compute_generation_limit
+    from scenarios import run_comparison
+
+    if pv_factors is None:
+        # Factores para coberturas: 11%, 20%, 33%, 50%, 75%, 100%
+        baseline_cov = float(G_base.mean() / max(D.mean(), 1e-6))
+        targets = [0.11, 0.20, 0.33, 0.50, 0.75, 1.00]
+        pv_factors = np.array([t / max(baseline_cov, 0.01) for t in targets])
+        pv_factors = pv_factors[pv_factors >= 0.99]  # no reducir
+
+    if prosumer_ids is None:
+        prosumer_ids = list(range(D.shape[0]))
+
+    T, N = D.shape[1], D.shape[0]
+    results = []
+
+    if verbose:
+        print(f"\n  SA-2: Sensibilidad cobertura PV  ({len(pv_factors)} puntos)")
+        print(f"  {'Factor':>7}  {'Cob%':>6}  {'P2P':>10}  {'C4':>10}  "
+              f"{'IE':>6}  {'Horas':>6}  {'kWh':>7}")
+        print("  " + "─"*62)
+
+    ems = EMSP2P(agents, grid, solver)
+
+    for factor in pv_factors:
+        G_scaled = G_base * factor
+        G_klim_s = np.zeros((N, T))
+        for k in range(T):
+            G_klim_s[:, k] = compute_generation_limit(
+                G_scaled[:, k], agents.a, agents.b, agents.c, grid.pi_gs)
+
+        p2p_res, _ = ems.run(D, G_scaled)
+
+        cov = G_scaled.sum() / max(D.sum(), 1)
+        pde_v = pde if pde is not None else np.ones(N)/N
+        pi_bolsa = np.full(T, grid.pi_gb)
+
+        cr = run_comparison(
+            D=D, G_klim=G_klim_s, G_raw=G_scaled,
+            p2p_results=p2p_res,
+            pi_gs=grid.pi_gs, pi_gb=grid.pi_gb,
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids, consumer_ids=[],
+            pde=pde_v, pi_ppa=grid.pi_gb + 0.5*(grid.pi_gs - grid.pi_gb),
+            capacity=np.maximum(G_scaled.mean(axis=1), 0),
+        )
+
+        active = [r for r in p2p_res
+                  if r.P_star is not None and np.sum(r.P_star) > 1e-4]
+        kwh = sum(float(np.sum(r.P_star)) for r in active)
+
+        sr = SensitivityResult(
+            param_name="PV_factor", param_value=float(factor),
+            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            net_per_agent={
+                "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
+                "C4":  cr.net_benefit_per_agent["C4"].tolist(),
+            },
+            ie_p2p=cr.equity_index.get("P2P", 0),
+            pof=cr.price_of_fairness or 0,
+            ss_p2p=cr.self_sufficiency.get("P2P", 0),
+            sc_p2p=cr.self_consumption.get("P2P", 0),
+            market_hours=len(active),
+            kwh_p2p=kwh,
+        )
+        results.append(sr)
+
+        if verbose:
+            nb = sr.net_benefit
+            print(f"  {factor:>7.2f}  {cov*100:>5.0f}%  "
+                  f"{nb['P2P']:>10,.0f}  {nb['C4']:>10,.0f}  "
+                  f"{sr.ie_p2p:>6.3f}  {len(active):>6}  {kwh:>7.1f}")
+
+    return results
+
+
+def find_dominance_threshold(sa_pgb: list, sa_pv: list) -> dict:
+    """
+    Identifica los umbrales donde P2P pasa a dominar (ser óptimo).
+    Retorna dict con hallazgos para el documento de la tesis.
+    """
+    findings = {}
+
+    # SA-1: umbral PGB donde P2P > C4
+    pgb_vals = [r.param_value for r in sa_pgb]
+    p2p_gt_c4 = [r.net_benefit["P2P"] > r.net_benefit["C4"] for r in sa_pgb]
+    p2p_gt_c1 = [r.net_benefit["P2P"] > r.net_benefit["C1"] for r in sa_pgb]
+
+    thr_c4 = next((pgb_vals[i] for i, v in enumerate(p2p_gt_c4) if v), None)
+    thr_c1 = next((pgb_vals[i] for i, v in enumerate(p2p_gt_c1) if v), None)
+    findings["pgb_threshold_vs_C4"] = thr_c4
+    findings["pgb_threshold_vs_C1"] = thr_c1
+    findings["p2p_always_beats_c4"] = all(p2p_gt_c4)
+
+    # SA-2: cobertura mínima donde P2P > C4
+    if sa_pv:
+        pv_coverage = [r.param_value for r in sa_pv]
+        pv_p2p_gt_c4 = [r.net_benefit["P2P"] > r.net_benefit["C4"] for r in sa_pv]
+        thr_pv = next((pv_coverage[i] for i, v in enumerate(pv_p2p_gt_c4) if v), None)
+        findings["pv_threshold_vs_C4"] = thr_pv
+        # horas de mercado en cada punto
+        findings["market_hours_by_pv"] = {
+            r.param_value: r.market_hours for r in sa_pv}
+
+    return findings

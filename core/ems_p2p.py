@@ -170,8 +170,8 @@ def _run_hour_worker(args):
                                   seller_ids, buyer_ids)
     res.P_int = settle["P_int"]; res.P_ext = settle["P_ext"]
 
-    res.SC = self_consumption_index(P_star, D_k)
-    res.SS = self_sufficiency_index(P_star, G_klim_k)
+    res.SC = self_consumption_index(P_star, D_k, G_klim_k)
+    res.SS = self_sufficiency_index(P_star, G_klim_k, D_k)
     S_i, SR_j = compute_savings(P_star, pi_i, pi_gs, pi_gb)
     res.IE = equity_index(S_i, SR_j)
     dist   = welfare_distribution(S_i, SR_j)

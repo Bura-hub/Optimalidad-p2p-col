@@ -3,8 +3,15 @@ ems_p2p.py
 ----------
 Motor del EMS P2P para la tesis de Brayan López.
 
-SIN programa DR. D es insumo fijo (datos reales).
-Pipeline: G_klim → GDR → Stackelberg (RD+LR) → liquidación → métricas.
+Implementa el EMS completo del modelo base de Chacón et al. (2025):
+  Pipeline: G_klim (Alg.1 pasos 1-14) → DR program (Alg.1 pasos 15-22)
+            → GDR → Stackelberg (RD+LR, Alg.2-3) → liquidación → métricas.
+
+Si AgentParams.alpha = 0 (o no se pasa):
+  El DR program devuelve D sin modificar (equivalente al caso "SIN DR"
+  para datos reales donde la demanda es insumo fijo observado).
+Si AgentParams.alpha > 0:
+  El DR program optimiza la demanda flexible sobre el horizonte completo.
 """
 
 import sys
@@ -21,6 +28,7 @@ from .settlement         import (
     residual_settlement, self_consumption_index, self_sufficiency_index,
     compute_savings, equity_index, welfare_distribution,
 )
+from .dr_program         import run_dr_program, compute_price_signal
 
 # ── Barra de progreso ─────────────────────────────────────────────────────────
 # Usa tqdm si está instalado; si no, implementación propia sin dependencias.
@@ -90,6 +98,15 @@ class AgentParams:
     lam:   np.ndarray
     theta: np.ndarray
     etha:  np.ndarray
+    # DR Program (Algoritmo 1, pasos 15-22)
+    # alpha_n ∈ [0,1]: fracción máxima de demanda flexible por agente.
+    # 0.0 (defecto) = demanda fija (datos reales MTE sin gestión de carga).
+    # >0            = demanda gestionable (datos sintéticos / validación Chacón).
+    alpha: Optional[np.ndarray] = None
+
+    def __post_init__(self):
+        if self.alpha is None:
+            self.alpha = np.zeros(self.N)
 
 
 @dataclass
@@ -100,9 +117,15 @@ class GridParams:
 
 @dataclass
 class SolverParams:
-    tau:               float = 0.001
-    t_span:            tuple = (0.0, 0.005)
-    n_points:          int   = 150
+    # Parámetros calibrados contra JoinFinal.m de Chacón et al. (2025):
+    #   t_span  = [0, 0.01]  →  10 constantes de tiempo del filtro (τ=0.001)
+    #   n_points = 500        →  densidad de la integración numérica
+    #   tau_sellers = 0.001  →  filtro de paso bajo λ/β (Generadoresfiltro.m)
+    #   tau_buyers  = 0.01   →  tau3 de JoinFinal.m (bloque comprador)
+    tau:               float = 0.001    # filtro vendedores (τ en JoinFinal.m)
+    tau_buyers:        float = 0.01     # tau3 en JoinFinal.m (escala comprador)
+    t_span:            tuple = (0.0, 0.01)   # iguala t_span=[0,0.01] de JoinFinal.m
+    n_points:          int   = 500           # linspace(0,0.01,500) de JoinFinal.m
     stackelberg_iters: int   = 2
     parallel:          bool  = True
 
@@ -165,7 +188,7 @@ class HourlyResult:
 def _run_hour_worker(args):
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
-     pi_gs, pi_gb, tau, t_span, n_points, n_iters) = args
+     pi_gs, pi_gb, tau, tau_buyers, t_span, n_points, n_iters) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -189,11 +212,13 @@ def _run_hour_worker(args):
     pi_i   = np.full(I, pi_gb)
 
     for _ in range(n_iters):
+        # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
         P_star = solve_sellers(pi_i, G_net_j, D_net_i, a_j, b_j,
                                tau=tau, t_span=t_span, n_points=n_points)
+        # Algoritmo 3: RD compradores (tau_buyers = tau3 de JoinFinal.m)
         pi_i   = solve_buyers(P_star, a_j, b_j, etha_i,
                               pi_gs=pi_gs, pi_gb=pi_gb,
-                              tau=tau, t_span=t_span, n_points=n_points)
+                              tau=tau_buyers, t_span=t_span, n_points=n_points)
         pi_i   = np.clip(pi_i, pi_gb, pi_gs)
 
     res.P_star = P_star; res.pi_star = pi_i
@@ -209,7 +234,7 @@ def _run_hour_worker(args):
     res.IE = equity_index(S_i, SR_j)
     dist   = welfare_distribution(S_i, SR_j)
     res.PS = dist["PS"]; res.PSR = dist["PSR"]
-    res.Wj_total = seller_welfare(P_star, D_j, a_j, b_j, lam_j, theta_j, pi_i)
+    res.Wj_total = seller_welfare(P_star, G_net_j, a_j, b_j, lam_j, theta_j, pi_i)
     res.Wi_total = buyer_welfare(pi_i, P_star, G_klim_i, lam_i, theta_i, etha_i)
     return res
 
@@ -217,7 +242,17 @@ def _run_hour_worker(args):
 # ── Motor principal ───────────────────────────────────────────────────────────
 
 class EMSP2P:
-    """EMS P2P sin DR para la tesis de Brayan López."""
+    """
+    EMS P2P para la tesis de Brayan López.
+
+    Implementa el Algoritmo 1 completo de Chacón et al. (2025):
+      Paso 1-14 : cálculo de G_klim (límite de generación)
+      Paso 15-22: programa DR → D* (demanda óptima)
+    Seguido de los Algoritmos 2-3 (RD + Stackelberg).
+
+    Si agents.alpha == 0 (defecto): el DR retorna D sin modificar,
+    equivalente al modo datos-reales donde D es insumo fijo observado.
+    """
 
     def __init__(self, agents: AgentParams, grid: GridParams,
                  solver: Optional[SolverParams] = None):
@@ -225,30 +260,39 @@ class EMSP2P:
         self.grid   = grid
         self.solver = solver or SolverParams()
 
-    def run(self, D: np.ndarray, G: np.ndarray) -> tuple:
+    def run(self, D: np.ndarray, G: np.ndarray,
+            verbose_dr: bool = False) -> tuple:
         """
-        D : (N, T) demanda real fija [kW]
+        D : (N, T) demanda base [kW]  (medida o sintética)
         G : (N, T) generación bruta [kW]
-        Retorna (results: list[HourlyResult], G_klim: ndarray(N,T))
+        Retorna (results: list[HourlyResult], G_klim: ndarray(N,T), D_star: ndarray(N,T))
+
+        D_star == D cuando alpha==0 (sin DR).
+        D_star != D cuando alpha>0  (con DR activo).
         """
         N, T = D.shape
         ag = self.agents; gr = self.grid; sv = self.solver
 
-        # G_klim para todo el horizonte
+        # ── Algoritmo 1, pasos 1-14: límite de generación ────────────────
         G_klim = np.zeros((N, T))
         for k in range(T):
             G_klim[:, k] = compute_generation_limit(
                 G[:, k], ag.a, ag.b, ag.c, gr.pi_gs)
 
-        # Empaquetar trabajos por hora
+        # ── Algoritmo 1, pasos 15-22: programa DR ────────────────────────
+        # Si alpha=0 en todos los agentes, run_dr_program devuelve D sin cambios.
+        pi_k   = compute_price_signal(D, G_klim, gr.pi_gs, gr.pi_gb)
+        D_star = run_dr_program(D, G_klim, pi_k, ag.alpha, verbose=verbose_dr)
+
+        # Empaquetar trabajos por hora (usa D_star como demanda)
         jobs = []
         for k in range(T):
-            _, sids, bids = classify_agents(G_klim[:, k], D[:, k])
-            jobs.append((k, G_klim[:, k].copy(), D[:, k].copy(), G[:, k].copy(),
+            _, sids, bids = classify_agents(G_klim[:, k], D_star[:, k])
+            jobs.append((k, G_klim[:, k].copy(), D_star[:, k].copy(), G[:, k].copy(),
                          sids, bids,
                          ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                          gr.pi_gs, gr.pi_gb,
-                         sv.tau, sv.t_span, sv.n_points, sv.stackelberg_iters))
+                         sv.tau, sv.tau_buyers, sv.t_span, sv.n_points, sv.stackelberg_iters))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -270,7 +314,7 @@ class EMSP2P:
                     bar.update(1)
 
         results = [rmap[k] for k in range(T)]
-        return results, G_klim
+        return results, G_klim, D_star
 
     def run_convergence(
         self,
@@ -379,7 +423,7 @@ class EMSP2P:
                 )
                 pi_i = np.clip(pi_i, gr.pi_gb, gr.pi_gs)
 
-                Wj = seller_welfare(P_star, D_j, a_j, b_j, lam_j, theta_j, pi_i)
+                Wj = seller_welfare(P_star, G_net_j, a_j, b_j, lam_j, theta_j, pi_i)
                 Wi = buyer_welfare(pi_i, P_star, G_klim_i, lam_i, theta_i, etha_i)
                 welfare_iters.append((Wj, Wi))
                 P_star_iters.append(P_star.copy())
@@ -415,4 +459,4 @@ class EMSP2P:
         return _run_hour_worker((k, G_klim_k, D[:, k].copy(), G[:, k].copy(),
                                   sids, bids, ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                                   gr.pi_gs, gr.pi_gb,
-                                  sv.tau, sv.t_span, sv.n_points, sv.stackelberg_iters))
+                                  sv.tau, sv.tau_buyers, sv.t_span, sv.n_points, sv.stackelberg_iters))

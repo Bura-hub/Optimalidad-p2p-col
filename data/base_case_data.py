@@ -47,6 +47,11 @@ def get_agent_params() -> dict:
         "lam":   100.0 * np.ones(6),
         "theta":   0.5 * np.ones(6),
         "etha":    0.1 * np.ones(6),
+        # DR Program: fracción de demanda flexible por agente (Algoritmo 1, paso 15-22)
+        # Agentes 0-3 (prosumidores): 20% de flexibilidad (carga gestionable).
+        # Agentes 4-5 (consumidores): 10% de flexibilidad (baja gestión de carga).
+        # Referencia: Chacón et al. (2025) §III-A, perfil típico EC académica.
+        "alpha": np.array([0.20, 0.20, 0.20, 0.20, 0.10, 0.10]),
     }
 
 def get_generation_profiles() -> np.ndarray:

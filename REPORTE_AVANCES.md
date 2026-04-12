@@ -1,6 +1,6 @@
 # Reporte de Avances — Tesis P2P Colombia
 
-**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-12 01:31
+**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-12 09:28
 **Asesores:** Andrés Pantoja · Germán Obando | **Udenar, 2026**
 
 ---
@@ -71,7 +71,7 @@ y en días con baja demanda institucional (fines de semana, festivos).
 | IE (C4)  | -1.0000 | Referencia regulatoria vigente |
 | PoF      | 0.2166 | Pérdida eficiencia por equidad P2P vs C4 |
 
-## 5. Análisis de sensibilidad
+## 5. Análisis de sensibilidad y factibilidad
 
 ### SA-1: Variación precio de bolsa PGB
 
@@ -91,6 +91,16 @@ y en días con baja demanda institucional (fines de semana, festivos).
 | Factor PV | Cobertura (%) | P2P ($) | C4 ($) | Horas mercado | kWh P2P |
 |-----------|--------------|---------|---------|--------------|---------|
 | 1.00x | 11% | 138,809 | 108,745 | 24 | 36.6 |
+
+### SA-3: Variación precio al usuario π_gs
+
+Barrido automático sobre rango típico de tarifa regulada colombiana.
+Resultados disponibles en `resultados_analisis.xlsx` → hoja `SA3_PGS`.
+
+### SA-PPA: Sensibilidad precio bilateral (π_ppa)
+
+Barrido entre π_gb y π_gs para identificar precio PPA óptimo.
+Resultados disponibles en `resultados_analisis.xlsx` → hoja `SA_PPA`.
 
 ## 6. Análisis de factibilidad
 
@@ -146,9 +156,45 @@ Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.
 | 450 | -4,984 | -13,265 | -7,166 | -6 | +2,569 | +2,070 | -20,782 |
 | 500 | -5,387 | -14,803 | -7,771 | -399 | +2,569 | +2,070 | -23,721 |
 
+## 7. Módulos implementados (estado actual)
+
+| Módulo | Descripción | Estado |
+|--------|-------------|--------|
+| `core/ems_p2p.py` | EMS P2P paralelo + convergencia RD+Stackelberg | ✓ |
+| `core/dr_program.py` | DR program (alpha=0 en datos reales) | ✓ |
+| `core/settlement.py` | Liquidación + SS/SC/Gini unificadas | ✓ |
+| `scenarios/comparison_engine.py` | 5 escenarios + Gini + desglose flujos + PS/PSR | ✓ |
+| `scenarios/scenario_c1_creg174.py` | CREG 174 con balance mensual real (--full) | ✓ |
+| `analysis/sensitivity.py` | SA-1 PGB · SA-2 PV · SA-3 π_gs · SA-PPA · umbrales | ✓ |
+| `analysis/feasibility.py` | FA-1 deserción horaria · FA-1b IR individual · FA-2 CREG | ✓ |
+| `analysis/p2p_breakdown.py` | §3.12 Desglose P2P hora a hora → CSV + Excel | ✓ |
+| `analysis/monthly_report.py` | Reporte mes a mes para horizonte completo | ✓ |
+| `analysis/optimality.py` | Activity 4.2: dominancia P2P vs C4 + GDR | ✓ |
+| `visualization/plots.py` | 15 figuras automáticas (fig1–fig15) | ✓ |
+
+## 8. Figuras generadas
+
+| Figura | Descripción | Cuándo |
+|--------|-------------|--------|
+| fig1_perfiles.png | Perfiles D y G por nodo | Siempre |
+| fig2_clasificacion.png | Vendedor/comprador por hora | Siempre |
+| fig3_mercado_p2p.png | Energía y precios de equilibrio | Siempre |
+| fig4_metricas_horarias.png | SC, SS, IE, bienestar por hora | Siempre |
+| fig5_comparacion_regulatoria.png | Comparación 5 escenarios | Siempre |
+| fig6_ganancia_por_agente.png | Ganancia por institución | Siempre |
+| fig7_sensibilidad_pgb.png | SA-1: P2P vs PGB | --analysis |
+| fig8_sensibilidad_pv.png | SA-2: P2P vs cobertura PV | --analysis |
+| fig9_factibilidad.png | FA-1 + FA-2 CREG 101 072 | --analysis |
+| fig10_sensibilidad_ppa.png | SA-PPA: sensibilidad precio bilateral | --analysis |
+| fig11_convergencia_h*.png | Convergencia RD+Stackelberg | --analysis |
+| fig12_comparacion_mensual.png | Comparación mensual | --full |
+| fig13_desglose_flujos.png | Desglose flujos por componente | Siempre |
+| fig14_optimalidad_horaria.png | Dominancia P2P vs C4 por hora | --analysis |
+| fig15_c1_vs_c4.png | Comparación directa C1 vs C4 | Siempre |
+
 ---
 
-## 7. Pendiente
+## 9. Pendiente
 
 - [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
 - [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
@@ -156,4 +202,4 @@ Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.
 - [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
 
 ---
-*Generado automáticamente por main_simulation.py · 2026-04-12 01:31*
+*Generado automáticamente por main_simulation.py · 2026-04-12 09:28*

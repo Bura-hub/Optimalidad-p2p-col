@@ -175,7 +175,7 @@ def run_sensitivity_pv(
             G_klim_s[:, k] = compute_generation_limit(
                 G_scaled[:, k], agents.a, agents.b, agents.c, grid.pi_gs)
 
-        p2p_res, _ = ems.run(D, G_scaled)
+        p2p_res, _, _d = ems.run(D, G_scaled)
 
         cov = G_scaled.sum() / max(D.sum(), 1)
         pde_v = pde if pde is not None else np.ones(N)/N
@@ -381,3 +381,136 @@ def _find_descending_threshold(sa_pgb: list, alt: str) -> Optional[float]:
             frac = delta_i / (delta_i - delta_ip1 + 1e-12)
             return float(pgb_vals[i] + frac * (pgb_vals[i+1] - pgb_vals[i]))
     return None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SA-3 (precio al usuario π_gs) — Actividad 4.1 de la propuesta de tesis
+# ─────────────────────────────────────────────────────────────────────────────
+
+def run_sensitivity_pgs(
+    D:           np.ndarray,
+    G:           np.ndarray,
+    agents,
+    grid_base,
+    solver,
+    pde:          Optional[np.ndarray] = None,
+    prosumer_ids: Optional[list]       = None,
+    consumer_ids: Optional[list]       = None,
+    pi_gs_range:  Optional[np.ndarray] = None,
+    verbose: bool = True,
+) -> list:
+    """
+    SA-3: Varía π_gs (precio al usuario / tarifa retail) y re-ejecuta el EMS completo.
+
+    Motivación (propuesta §VI.D, Actividad 4.1):
+      "Sensibilidad relativa: cómo las ganancias netas se afectan ante cambios
+       en parámetros operativos: precios de bolsa, irradiancia y variaciones
+       regulatorias."
+
+    π_gs es el precio que los usuarios pagan a la red por cada kWh.
+    Si π_gs sube → el ahorro por autoconsumo y P2P crece → P2P más atractivo.
+    Si π_gs baja → la ventaja del P2P se reduce.
+
+    A diferencia de SA-1 (PGB fijo), SA-3 re-ejecuta el EMS P2P porque G_klim
+    depende de π_gs (Algoritmo 1: la restricción de generación usa pi_gs en la
+    ecuación cuadrática de costo).
+
+    pi_gs_range: array de precios π_gs a evaluar [COP/kWh o adimensional]
+                 default: 7 puntos entre 0.5×π_gs_base y 2.0×π_gs_base
+    """
+    from core.ems_p2p       import EMSP2P, GridParams
+    from core.market_prep   import compute_generation_limit
+    from scenarios          import run_comparison
+
+    if prosumer_ids is None:
+        prosumer_ids = list(range(D.shape[0]))
+    if consumer_ids is None:
+        consumer_ids = []
+
+    pi_gs_base = grid_base.pi_gs
+    pi_gb      = grid_base.pi_gb
+
+    if pi_gs_range is None:
+        pi_gs_range = np.round(
+            np.linspace(0.5 * pi_gs_base, 2.0 * pi_gs_base, 7), 0
+        )
+
+    N, T  = D.shape
+    results = []
+
+    if verbose:
+        print(f"\n  SA-3: Sensibilidad π_gs  (π_gs_base={pi_gs_base:.0f}, "
+              f"π_gb={pi_gb:.0f})  — {len(pi_gs_range)} puntos")
+        print(f"  {'π_gs':>7}  {'Ratio':>6}  {'P2P':>10}  {'C1':>10}  "
+              f"{'C4':>10}  {'IE':>6}  {'PoF':>6}  {'Gini-P2P':>9}")
+        print("  " + "─"*75)
+
+    ems = EMSP2P(agents, grid_base, solver)
+
+    for pgs in pi_gs_range:
+        # Re-calcular G_klim con el nuevo π_gs (depende de la condición de costo)
+        G_klim_new = np.zeros((N, T))
+        for k in range(T):
+            G_klim_new[:, k] = compute_generation_limit(
+                G[:, k], agents.a, agents.b, agents.c, float(pgs))
+
+        # Re-ejecutar EMS P2P con π_gs nuevo (afecta G_klim y funciones de bienestar)
+        grid_new = GridParams(pi_gs=float(pgs), pi_gb=pi_gb)
+        ems_new  = EMSP2P(agents, grid_new, solver)
+        p2p_res, G_klim_new, D_star = ems_new.run(D, G)
+
+        pde_v    = pde if pde is not None else np.ones(N) / N
+        pi_bolsa = np.full(T, pi_gb)   # precio bolsa fijo en este barrido
+
+        cr = run_comparison(
+            D=D_star, G_klim=G_klim_new, G_raw=G,
+            p2p_results=p2p_res,
+            pi_gs=float(pgs), pi_gb=pi_gb,
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            pde=pde_v,
+            pi_ppa=pi_gb + 0.5 * (float(pgs) - pi_gb),
+            capacity=np.maximum(G.mean(axis=1), 0),
+        )
+
+        active    = [r for r in p2p_res
+                     if r.P_star is not None and np.sum(r.P_star) > 1e-4]
+        kwh       = sum(float(np.sum(r.P_star)) for r in active)
+        gini_p2p  = cr.gini.get("P2P", 0.0)
+
+        sr = SensitivityResult(
+            param_name="pi_gs",
+            param_value=float(pgs),
+            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            net_per_agent={
+                "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
+                "C1":  cr.net_benefit_per_agent["C1"].tolist(),
+                "C4":  cr.net_benefit_per_agent["C4"].tolist(),
+            },
+            ie_p2p=cr.equity_index.get("P2P", 0),
+            pof=cr.price_of_fairness or 0,
+            ss_p2p=cr.self_sufficiency.get("P2P", 0),
+            sc_p2p=cr.self_consumption.get("P2P", 0),
+            market_hours=len(active),
+            kwh_p2p=kwh,
+        )
+        results.append(sr)
+
+        if verbose:
+            nb    = sr.net_benefit
+            ratio = float(pgs) / pi_gs_base
+            print(f"  {pgs:>7.0f}  {ratio:>6.2f}  {nb['P2P']:>10,.0f}  "
+                  f"{nb['C1']:>10,.0f}  {nb['C4']:>10,.0f}  "
+                  f"{sr.ie_p2p:>6.3f}  {sr.pof:>6.3f}  {gini_p2p:>9.4f}")
+
+    if verbose:
+        # Resumen: tendencia de la ventaja P2P al variar π_gs
+        deltas = [r.net_benefit["P2P"] - r.net_benefit["C4"] for r in results]
+        increasing = all(deltas[i] <= deltas[i+1] for i in range(len(deltas)-1))
+        sign = "↑ creciente" if increasing else "no monótona"
+        print(f"\n  Tendencia ventaja P2P-C4 vs π_gs: {sign}")
+        best = max(results, key=lambda r: r.net_benefit["P2P"] - r.net_benefit["C4"])
+        print(f"  Mayor ventaja P2P vs C4 en π_gs = {best.param_value:.0f}  "
+              f"(Δ = {best.net_benefit['P2P']-best.net_benefit['C4']:+,.0f})")
+
+    return results

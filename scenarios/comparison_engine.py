@@ -22,6 +22,7 @@ from .scenario_c3_spot       import run_c3_spot
 from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights, static_spread_c4_vs_p2p,
 )
+from core.settlement import gini_index
 
 
 @dataclass
@@ -29,6 +30,7 @@ class ComparisonResult:
     net_benefit:           dict  = field(default_factory=dict)
     net_benefit_per_agent: dict  = field(default_factory=dict)
     equity_index:          dict  = field(default_factory=dict)
+    gini:                  dict  = field(default_factory=dict)   # Índice de Gini por escenario
     self_sufficiency:      dict  = field(default_factory=dict)
     self_consumption:      dict  = field(default_factory=dict)
     price_of_fairness:     Optional[float]      = None
@@ -224,6 +226,13 @@ def run_comparison(
             s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
             total  = abs(s_alta) + abs(s_baja)
             cr.equity_index[esc] = (s_baja - s_alta) / total if total > 1e-10 else 0.0
+
+    # ── Gini (Índice de desigualdad, propuesta §VI.C Nivel 2) ───────────────
+    # Se calcula sobre beneficios netos por agente para todos los escenarios.
+    # Gini=0: todos los agentes ganan lo mismo; Gini=1: máxima concentración.
+    for esc, net in [("P2P", p2p_net), ("C1", c1_net),
+                     ("C2", c2_net), ("C3", c3_net), ("C4", c4_net)]:
+        cr.gini[esc] = gini_index(net)
 
     # ── Desglose de flujos por componente (Activity 3.2 — Nivel 1) ──────────
     #
@@ -441,26 +450,29 @@ def print_comparison_report(cr: ComparisonResult) -> None:
     scenarios = ["P2P", "C1", "C2", "C3", "C4"]
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
-        "C1":  "C1  CREG 174/2021",
+        "C1":  "C1  Individual CREG 174/2021",
         "C2":  f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)",
-        "C3":  "C3  Mercado spot",
-        "C4":  "C4  CREG 101 072 (AGRC)",
+        "C3":  "C3  Spot (bolsa mayorista)",
+        "C4":  "C4  Colectivo CREG 101 072",
     }
-    print("\n" + "="*68)
+    print("\n" + "="*80)
     print("  COMPARACIÓN REGULATORIA  —  BENEFICIO ECONÓMICO DEL SISTEMA SOLAR")
     print("  (ahorro en factura + ingresos; no incluye compras residuales a red)")
-    print("="*68)
-    print(f"  {'Escenario':<32} {'Beneficio':>12}  {'SC':>6}  {'SS':>6}  {'IE':>8}")
-    print(f"  {'':32} {'COP/período':>12}  {'[0-1]':>6}  {'[0-1]':>6}  {'[-1,+1]':>8}")
-    print("-"*68)
+    print("="*80)
+    print(f"  {'Escenario':<32} {'Beneficio':>12}  {'SC':>6}  {'SS':>6}  "
+          f"{'IE':>8}  {'Gini':>6}")
+    print(f"  {'':32} {'COP/período':>12}  {'[0-1]':>6}  {'[0-1]':>6}  "
+          f"{'[-1,+1]':>8}  {'[0-1]':>6}")
+    print("-"*80)
     for esc in scenarios:
-        nb = cr.net_benefit.get(esc, 0.0)
-        sc = cr.self_consumption.get(esc, 0.0)
-        ss = cr.self_sufficiency.get(esc, 0.0)
-        ie = cr.equity_index.get(esc, 0.0)
+        nb   = cr.net_benefit.get(esc, 0.0)
+        sc   = cr.self_consumption.get(esc, 0.0)
+        ss   = cr.self_sufficiency.get(esc, 0.0)
+        ie   = cr.equity_index.get(esc, 0.0)
+        gini = cr.gini.get(esc, 0.0)
         print(f"  {labels[esc]:<32} ${nb:>11,.0f}  {sc:>6.3f}  "
-              f"{ss:>6.3f}  {ie:>8.4f}")
-    print("="*68)
+              f"{ss:>6.3f}  {ie:>8.4f}  {gini:>6.4f}")
+    print("="*80)
     print(f"  Price of Fairness (P2P vs C4):  {cr.price_of_fairness:.4f}")
     if cr.static_spread_24h is not None:
         print(f"  Spread inef. estática C4 total: "

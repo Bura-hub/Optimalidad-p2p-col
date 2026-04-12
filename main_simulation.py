@@ -1,6 +1,9 @@
 """
 main_simulation.py  — Tesis Brayan López, Udenar 2026
-Sin programa DR. D es insumo fijo (datos reales de la comunidad MTE).
+
+Implementa el EMS completo de Chacón et al. (2025):
+  Algoritmo 1: G_klim + DR program (D* = D cuando alpha=0 para datos reales)
+  Algoritmos 2-3: RD + Stackelberg (vendedores y compradores)
 
 Modos:
   python main_simulation.py                              # datos sintéticos (24h)
@@ -127,7 +130,19 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
                           n_points=150, stackelberg_iters=2, parallel=True)
     ems    = EMSP2P(agents, grid, solver)
-    p2p_results, G_klim = ems.run(D, G)
+    p2p_results, G_klim, D_star = ems.run(D, G)
+
+    # Reportar impacto del DR (solo si hay flexibilidad activa)
+    dr_active = np.any(agents.alpha > 1e-9)
+    if dr_active:
+        from core.dr_program import dr_impact_report
+        dr_rep = dr_impact_report(D, D_star, G_klim, agent_names)
+        print(f"    DR activo: {dr_rep['shift_total_kwh']:.3f} kWh desplazados "
+              f"({dr_rep['shift_pct']:.2f}% demanda)  "
+              f"SC: {dr_rep['sc_before']:.3f}→{dr_rep['sc_after']:.3f}  "
+              f"SS: {dr_rep['ss_before']:.3f}→{dr_rep['ss_after']:.3f}")
+        # Usar D_star para los escenarios comparativos
+        D = D_star
     t_p2p = time.time() - t0
 
     active = [r for r in p2p_results
@@ -155,16 +170,26 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
     from scenarios.comparison_engine import print_flow_breakdown
     print_flow_breakdown(cr, currency=currency)
 
+    # Nota: en la propuesta de tesis, el escenario "Individual" = C1 (CREG 174),
+    # y los escenarios "C1"→"C3" de la propuesta corresponden a C2→C4 del código.
+    # Los encabezados ya reflejan esto: "C1 Individual", "C4 Colectivo", etc.
     esc = ["P2P", "C1", "C2", "C3", "C4"]
+    esc_labels = {
+        "P2P": "P2P", "C1": "C1-Indiv", "C2": "C2-Bilat",
+        "C3": "C3-Spot", "C4": "C4-Colect",
+    }
     print(f"\n  Ganancia neta por agente ({currency}/período):")
-    print(f"  {'Institución':<12}" + "".join(f"{'  '+e:>14}" for e in esc))
+    print(f"  {'Institución':<12}" + "".join(f"{esc_labels[e]:>14}" for e in esc))
     print("  " + "─"*82)
     for n in range(N):
         name = agent_names[n] if n < len(agent_names) else f"A{n+1}"
         print(f"  {name:<12}" +
               "".join(f"{cr.net_benefit_per_agent[e][n]:>14,.0f}" for e in esc))
 
-    print(f"\n  Ventaja P2P vs C4:")
+    print(f"\n  Gini por escenario (0=equitativo, 1=concentrado):")
+    print(f"  " + "  ".join(f"{esc_labels[e]}: {cr.gini.get(e, 0):.4f}" for e in esc))
+
+    print(f"\n  Ventaja P2P vs C4 (Colectivo CREG 101 072):")
     for n in range(N):
         name  = agent_names[n] if n < len(agent_names) else f"A{n+1}"
         delta = (cr.net_benefit_per_agent["P2P"][n]
@@ -197,8 +222,20 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
     excel_path = _export_base(cr, p2p_results, G_klim, D, base_dir, currency)
     print(f"    Excel → {excel_path}")
 
+    from analysis.p2p_breakdown import export_p2p_hourly, print_p2p_sample
+    flows_rows, summary_rows = export_p2p_hourly(
+        p2p_results=p2p_results,
+        agent_names=agent_names,
+        pi_gs=grid_params["pi_gs"],
+        pi_gb=grid_params["pi_gb"],
+        out_dir=base_dir,
+        prefix="p2p_breakdown",
+        verbose=True,
+    )
+    print_p2p_sample(flows_rows, summary_rows, n_hours=2)
+
     from visualization.plots import (generate_all_plots, plot_monthly_comparison,
-                                     plot_flow_breakdown)
+                                     plot_flow_breakdown, plot_c1_vs_c4)
     plots_dir = os.path.join(base_dir, "graficas")
     generate_all_plots(D=D, G=G, G_klim=G_klim, p2p_results=p2p_results,
                        cr=cr, agent_names=agent_names,
@@ -213,6 +250,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         if p:
             print(f"    ✓ Fig 12 — Comparación mensual")
 
+    p = plot_c1_vs_c4(
+        cr=cr, agent_names=agent_names,
+        D=D, G_klim=G_klim, pi_bolsa=pi_bolsa,
+        pde=pde, pi_gs=grid_params["pi_gs"],
+        out_dir=plots_dir, currency=currency,
+    )
+    if p:
+        print(f"    ✓ Fig 15 — Comparación directa C1 vs C4")
+
     # ── 6. Análisis de sensibilidad y factibilidad (--analysis) ──────────
     sa_pgb, sa_pv, sa_ppa = [], [], []
     fa_des, fa_creg_rep, fa_ir = None, None, None
@@ -224,11 +270,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
 
         from analysis.sensitivity import (
             run_sensitivity_pgb, run_sensitivity_pv,
-            run_sensitivity_ppa, find_dominance_threshold)
+            run_sensitivity_ppa, run_sensitivity_pgs,
+            find_dominance_threshold)
         from analysis.feasibility import (
             analyze_desertion, analyze_desertion_individual_rationality,
             analyze_creg_101072_compliance)
-        from analysis.p2p_breakdown import export_p2p_hourly, print_p2p_sample
         from visualization.plots import generate_sensitivity_plots
 
         # SA-1: variación PGB
@@ -250,6 +296,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
             D=D, G_base=G, agents=agents, grid=grid, solver=solver,
             pv_factors=pv_factors, pde=pde,
             prosumer_ids=prosumer_ids, verbose=True,
+        )
+
+        # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)
+        print(f"\n  SA-3: Ejecutando barrido de precio al usuario (π_gs)...")
+        sa_pgs = run_sensitivity_pgs(
+            D=D, G=G, agents=agents, grid_base=grid, solver=solver,
+            pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            verbose=True,
         )
 
         # Umbrales de dominancia
@@ -310,18 +364,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
             verbose=True,
         )
 
-        # §3.12: Desglose P2P hora a hora
-        print(f"\n  §3.12 Exportando desglose P2P hora a hora...")
-        flows_rows, summary_rows = export_p2p_hourly(
-            p2p_results=p2p_results,
-            agent_names=agent_names,
-            pi_gs=grid_params["pi_gs"],
-            pi_gb=grid_params["pi_gb"],
-            out_dir=base_dir,
-            prefix="p2p_breakdown",
-            verbose=True,
-        )
-        print_p2p_sample(flows_rows, summary_rows, n_hours=3)
+        # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)
+        print(f"\n  §3.12 Desglose P2P hora a hora (muestra ampliada):")
+        print_p2p_sample(flows_rows, summary_rows, n_hours=5)
 
         # FA-2: cumplimiento CREG 101 072
         fa_creg_rep = analyze_creg_101072_compliance(
@@ -380,6 +425,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
             sa_ppa=sa_ppa,
             pi_gb=grid_params["pi_gb"],
             pi_gs=grid_params["pi_gs"],
+            sa_pgs=sa_pgs,
         )
 
         # Exportar análisis a Excel

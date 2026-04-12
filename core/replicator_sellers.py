@@ -123,12 +123,19 @@ def solve_sellers(
     return P_star
 
 
-def seller_welfare(P, D_j, a_j, b_j, lam_j, theta_j, pi_i) -> float:
-    """W_j total (fiel a Welfarejgen de GraficasWel.m)."""
+def seller_welfare(P, G_j, a_j, b_j, lam_j, theta_j, pi_i) -> float:
+    """W_j total (fiel a Welfarejgen de ConArtLatin.m).
+
+    G_j[j] = excedente neto del vendedor j: G_klim[j] - D[j].
+    Revenue: -sum_i P_ji/log(1+pi_i)  (alineado con Welfarei de compradores).
+    """
     total = 0.0
+    log_pi = np.log1p(np.asarray(pi_i, dtype=float))
+    log_pi = np.where(log_pi < 1e-12, 1e-12, log_pi)   # evitar div/0
     for j in range(len(a_j)):
         sumP = float(np.sum(P[j, :]))
-        total += (lam_j[j] * D_j[j] - theta_j[j] * D_j[j]**2
-                  + float(np.dot(P[j, :], pi_i))
+        revenue = -float(np.sum(P[j, :] / log_pi))
+        total += (lam_j[j] * G_j[j] - theta_j[j] * G_j[j]**2
+                  + revenue
                   - a_j[j] * sumP**2 - b_j[j] * sumP)
     return total

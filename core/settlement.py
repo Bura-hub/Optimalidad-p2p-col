@@ -99,3 +99,33 @@ def welfare_distribution(S_i, SR_j) -> dict:
         return {"PS": 50.0, "PSR": 50.0}
     return {"PS":  100.0 * float(np.sum(S_i))  / total,
             "PSR": 100.0 * float(np.sum(SR_j)) / total}
+
+
+def gini_index(values: np.ndarray) -> float:
+    """
+    Coeficiente de Gini sobre beneficios netos por agente.
+
+    Mide la desigualdad en la distribución del beneficio económico
+    entre los N agentes de la comunidad energética.
+
+    Rango: [0, 1]
+      0 → distribución perfectamente igualitaria (todos ganan lo mismo)
+      1 → máxima desigualdad (un agente captura todo el beneficio)
+
+    Referencia: propuesta de tesis §VI.C, Nivel 2 — Equidad.
+    Se evalúa sobre valores absolutos para capturar dispersión incluyendo
+    agentes con beneficio cero (consumidores puros sin PV).
+
+    Parámetro
+    ---------
+    values : (N,)  beneficio neto por agente [$/período]
+    """
+    v = np.abs(np.asarray(values, dtype=float))
+    v = np.sort(v)
+    n = len(v)
+    if n == 0 or np.sum(v) < 1e-12:
+        return 0.0
+    # Fórmula: G = (2 Σ i·v_i) / (n Σ v_i) − (n+1)/n
+    idx  = np.arange(1, n + 1)
+    gini = (2.0 * np.dot(idx, v)) / (n * np.sum(v)) - (n + 1.0) / n
+    return float(np.clip(gini, 0.0, 1.0))

@@ -17,24 +17,30 @@ tesis_p2p/
 │   ├── market_prep.py          ← G_klim + clasificación GDR
 │   ├── replicator_sellers.py   ← Algoritmo 2: RD vendedores
 │   ├── replicator_buyers.py    ← Algoritmo 3: RD compradores
-│   └── settlement.py           ← liquidación + métricas SS/SC unificadas (v3)
+│   ├── settlement.py           ← liquidación + métricas SS/SC/Gini unificadas
+│   └── dr_program.py           ← DR program (alpha=0 en datos reales, sin DR)
 ├── scenarios/
-│   ├── scenario_c1_creg174.py       ← CREG 174/2021 créditos 1:1
+│   ├── scenario_c1_creg174.py       ← CREG 174/2021 créditos 1:1 (balance mensual real)
 │   ├── scenario_c2_bilateral.py     ← Bilateral PPA
 │   ├── scenario_c3_spot.py          ← Mercado spot precio bolsa
 │   ├── scenario_c4_creg101072.py    ← AGRC + PDE (escenario vigente)
-│   └── comparison_engine.py         ← 5 escenarios, métricas Nivel 1 y 2
+│   └── comparison_engine.py         ← 5 escenarios, Nivel 1 y 2 + Gini + desglose flujos
 ├── data/
 │   ├── base_case_data.py       ← parámetros + GRID_PARAMS (sintético) + GRID_PARAMS_REAL (COP)
 │   ├── xm_data_loader.py       ← cargador CSV MTE (pandas 3.x compatible)
 │   └── xm_prices.py            ← precios XM reales/sintéticos + calibración parámetro b
 ├── analysis/
-│   ├── sensitivity.py          ← SA-1 (PGB 200-500) + SA-2 (cobertura PV 11-100%)
-│   └── feasibility.py          ← FA-1 (deserción) + FA-2 (CREG 101 072)
+│   ├── sensitivity.py          ← SA-1 (PGB) + SA-2 (PV) + SA-3 (π_gs) + SA-PPA + umbrales
+│   ├── feasibility.py          ← FA-1 (deserción horaria + IR individual) + FA-2 (CREG 101 072)
+│   ├── p2p_breakdown.py        ← §3.12 Desglose P2P hora a hora → CSV + Excel
+│   ├── monthly_report.py       ← Reporte mes a mes para horizonte completo (--full)
+│   └── optimality.py           ← Activity 4.2: dominancia P2P vs C4 por hora (GDR)
 ├── visualization/
-│   └── plots.py                ← 8 figuras automáticas (P2P + sensibilidad)
+│   └── plots.py                ← 15 figuras automáticas
 ├── tests/
-│   └── validate_base_model.py
+│   ├── validate_base_model.py
+│   ├── calibration_study.py    ← estudio de calibración de parámetro b
+│   └── profile_stress_test.py  ← stress test perfiles extremos
 └── diagnostico_datos.py
 ```
 
@@ -49,11 +55,14 @@ python main_simulation.py
 # Modo 2 — Perfil diario promedio MTE (24h, ~2 min)
 python main_simulation.py --data real
 
-# Modo 3 — Sensibilidad + factibilidad MTE (Objetivo 4, ~15 min)
+# Modo 3 — Perfil diario + sensibilidad y factibilidad (~15 min)
 python main_simulation.py --data real --analysis
 
-# Modo 4 — Horizonte completo 5160h / 215 días (~20 min) [AL FINAL]
+# Modo 4 — Horizonte completo 5160h / 215 días (~20 min)
 python main_simulation.py --data real --full
+
+# Modo 5 — Horizonte completo + todos los análisis
+python main_simulation.py --data real --full --analysis
 
 # Con rutas explícitas
 $env:MTE_ROOT="C:\ruta\a\MedicionesMTE"
@@ -87,50 +96,79 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 
 ---
 
-## Resultados — Perfil diario promedio
-
-```
-P2P (Stackelberg + RD)    $ -307,653   SC=0.083  SS=0.248  IE=-0.182
-C1  CREG 174/2021         $-2,317,311  SC=0.088  SS=0.785  IE=+1.000
-C2  Bilateral PPA         $  +256,054  SC=0.088  SS=0.785  IE=-1.000
-C3  Mercado spot          $-2,317,311  SC=0.088  SS=0.785  IE=+1.000
-C4  CREG 101 072 (AGRC)   $-2,323,537  SC=0.088  SS=0.785  IE=+1.000
-
-P2P supera a C4 en los 5 nodos.
-C1=C3: correcto — G < D en todas las horas con perfil promedio.
-IE_P2P≈0: único mecanismo con distribución equitativa del beneficio.
-```
-
----
-
 ## Archivos generados automáticamente
+
+### Excel / CSV
 
 | Archivo | Contenido |
 |---------|-----------|
-| `resultados_comparacion.xlsx` | Resumen + por agente + P2P horario |
-| `resultados_sensibilidad.xlsx` | SA-1 (PGB) + SA-2 (PV) + hallazgos |
-| `resultados_factibilidad.xlsx` | FA-1 (deserción) + FA-2 (CREG) |
-| `graficas/fig1_perfiles.png` | Perfiles D y G por nodo |
-| `graficas/fig2_clasificacion.png` | Vendedor/comprador por hora |
-| `graficas/fig3_mercado_p2p.png` | Energía y precios de equilibrio |
-| `graficas/fig4_metricas_horarias.png` | SC, SS, IE, bienestar por hora |
-| `graficas/fig5_comparacion_regulatoria.png` | Comparación 5 escenarios |
-| `graficas/fig6_ganancia_por_agente.png` | Ganancia por institución |
-| `graficas/fig7_sensibilidad_pgb.png` | SA-1: P2P vs PGB |
-| `graficas/fig8_sensibilidad_pv.png` | SA-2: P2P vs cobertura |
+| `resultados_comparacion.xlsx` | Resumen + por agente + P2P horario + métricas extra |
+| `resultados_analisis.xlsx` | SA-1 (PGB) + SA-2 (PV) + FA-1 + FA-2 + IR individual |
+| `p2p_breakdown.xlsx` | Desglose P2P hora a hora (flujos + resumen horario) |
+| `p2p_breakdown_flujos.csv` | Flujos de transacción por par vendedor-comprador-hora |
+| `p2p_breakdown_resumen_horario.csv` | Resumen horario: kWh, precio, SC, SS, IE |
+
+### Figuras (graficas/)
+
+| Figura | Contenido |
+|--------|-----------|
+| `fig1_perfiles.png` | Perfiles D y G por nodo |
+| `fig2_clasificacion.png` | Vendedor/comprador por hora |
+| `fig3_mercado_p2p.png` | Energía y precios de equilibrio |
+| `fig4_metricas_horarias.png` | SC, SS, IE, bienestar por hora |
+| `fig5_comparacion_regulatoria.png` | Comparación 5 escenarios |
+| `fig6_ganancia_por_agente.png` | Ganancia por institución |
+| `fig7_sensibilidad_pgb.png` | SA-1: P2P vs PGB |
+| `fig8_sensibilidad_pv.png` | SA-2: P2P vs cobertura PV |
+| `fig9_factibilidad.png` | FA-1 + FA-2 CREG 101 072 |
+| `fig10_sensibilidad_ppa.png` | SA-PPA: sensibilidad precio bilateral |
+| `fig11_convergencia_h*.png` | Convergencia RD+Stackelberg (por hora) |
+| `fig12_comparacion_mensual.png` | Comparación mensual (solo --full) |
+| `fig13_desglose_flujos.png` | Desglose flujos por componente (Activity 3.2) |
+| `fig14_optimalidad_horaria.png` | Dominancia P2P vs C4 por hora (Activity 4.2) |
+| `fig15_c1_vs_c4.png` | Comparación directa C1 vs C4 |
 
 ---
 
-## Módulos implementados (últimas versiones)
+## Módulos implementados
 
 - **Punto 2** — Precios XM reales integrados (`data/xm_prices.py`): usa CSV si existe, sino sintético calibrado
-- **Punto 3** — SS unificada (`scenarios/comparison_engine.py`): SS = (autoconsumo + P2P) / G_total
+- **Punto 3** — SS/SC unificadas (`scenarios/comparison_engine.py`): misma definición para P2P y C1–C4 (autoconsumo + intercambio P2P)
 - **Punto 4** — Parámetro b calibrado (`data/xm_prices.py`): LCOE solar Pasto 2025 ≈ 210-225 COP/kWh
-- **Punto 5** — Sensibilidad SA-1/SA-2 (`analysis/sensitivity.py`): barrido PGB y cobertura PV
-- **Punto 6** — Factibilidad FA-1/FA-2 (`analysis/feasibility.py`): deserción y CREG 101 072
+- **Punto 5** — Sensibilidad SA-1/SA-2/SA-3/SA-PPA (`analysis/sensitivity.py`): barrido PGB, cobertura PV, precio al usuario, precio PPA
+- **Punto 6** — Factibilidad FA-1/FA-2 + IR individual (`analysis/feasibility.py`): deserción horaria, racionalidad individual por agente, CREG 101 072
+- **Activity 3.2** — Desglose de flujos por componente (`scenarios/comparison_engine.py` + `analysis/p2p_breakdown.py`)
+- **Activity 4.2** — Optimalidad horaria P2P vs C4 + GDR (`analysis/optimality.py`)
+- **Índice Gini** — distribución del beneficio por escenario (`core/settlement.py`)
+- **Balance mensual C1** — permutación mensual real para horizonte --full (`scenarios/scenario_c1_creg174.py`)
+- **Reporte mensual** — desglose mes a mes para horizonte --full (`analysis/monthly_report.py`)
+- **DR program** — integrado (`core/dr_program.py`), inactivo con datos reales (alpha=0)
+
+---
+
+## Métricas de Nivel 2 (propuesta tesis)
+
+| Métrica | Descripción | Rango |
+|---------|-------------|-------|
+| SC | Self-Consumption: fracción de D cubierta localmente | [0, 1] |
+| SS | Self-Sufficiency: fracción de G usada en comunidad | [0, 1] |
+| IE | Equity Index: distribución del beneficio entre roles | [-1, +1] |
+| Gini | Índice de Gini por escenario (concentración del beneficio) | [0, 1] |
+| PoF | Price of Fairness: eficiencia cedida por equidad (P2P vs C4) | [0, 1] |
+| GDR | Global Dispatch Ratio: eficiencia de clearing del mercado | [0, 1] |
+| PS / PSR | Fracción del excedente P2P capturada por compradores / vendedores | [0%, 100%] |
 
 ---
 
 ## Hallazgo C1 = C3 (perfil promedio)
 
-Con la comunidad MTE, G < D en el 100% de horas del perfil promedio (cobertura PV = 11%). Sin excedente individual, vender a bolsa (C3) y tener créditos 1:1 (C1) producen idéntica ganancia neta. Los dos escenarios divergirán en el análisis --full con precios XM horarios reales, cuando días de baja demanda (fines de semana) puedan generar excedente puntual. Este es un hallazgo correcto y documentado.
+Con la comunidad MTE, G < D en el 100% de horas del perfil promedio (cobertura PV = 11%). Sin excedente individual, vender a bolsa (C3) y tener créditos 1:1 (C1) producen idéntica ganancia neta. Los dos escenarios divergirán en el análisis `--full` con precios XM horarios reales, cuando días de baja demanda (fines de semana) puedan generar excedente puntual.
+
+---
+
+## Pendiente
+
+- [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
+- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
+- [ ] Verificar LCOE real de inversores instalados en cada institución
+- [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero

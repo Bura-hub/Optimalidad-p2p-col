@@ -1237,11 +1237,254 @@ def plot_optimality(
     return _save(fig, path)
 
 
+def plot_sensitivity_pgs(sa_pgs_results: list, out_dir: str,
+                         currency: str = "COP") -> str:
+    """Fig 11 — SA-3: Sensibilidad al precio al usuario π_gs (tarifa retail).
+
+    Panel superior : beneficio neto total  P2P vs C1 vs C4 en función de π_gs.
+    Panel inferior : ventaja diferencial  ΔB = B_P2P − B_C4  e  IE_P2P.
+
+    sa_pgs_results : lista de SensitivityResult (param_name='pi_gs').
+    """
+    if not sa_pgs_results:
+        return ""
+
+    pgs_vals  = [r.param_value      for r in sa_pgs_results]
+    b_p2p     = [r.net_benefit["P2P"] for r in sa_pgs_results]
+    b_c1      = [r.net_benefit["C1"]  for r in sa_pgs_results]
+    b_c4      = [r.net_benefit["C4"]  for r in sa_pgs_results]
+    delta_c4  = [p - c for p, c in zip(b_p2p, b_c4)]
+    delta_c1  = [p - c for p, c in zip(b_p2p, b_c1)]
+    ie_vals   = [r.ie_p2p            for r in sa_pgs_results]
+    sc_vals   = [r.sc_p2p            for r in sa_pgs_results]
+    ss_vals   = [r.ss_p2p            for r in sa_pgs_results]
+
+    pi_gs_base = pgs_vals[len(pgs_vals) // 2]   # punto central del barrido
+
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+    fig.suptitle(
+        f"Fig 11 — SA-3: Sensibilidad al precio al usuario π_gs\n"
+        f"(π_gs base ≈ {pi_gs_base:.0f} {currency}/kWh — "
+        f"re-ejecuta EMS completo en cada punto)",
+        fontsize=11, fontweight="bold")
+
+    clr = {"P2P": "#1f77b4", "C1": "#ff7f0e", "C4": "#2ca02c",
+           "ΔC4": "#d62728", "ΔC1": "#9467bd"}
+
+    # ── Panel A: beneficios absolutos ──────────────────────────────────────
+    ax = axes[0, 0]
+    ax.plot(pgs_vals, b_p2p, "o-", color=clr["P2P"], lw=2, label="P2P (Stackelberg+RD)")
+    ax.plot(pgs_vals, b_c1,  "s--", color=clr["C1"], lw=1.5, label="C1 CREG 174/2021")
+    ax.plot(pgs_vals, b_c4,  "^--", color=clr["C4"], lw=1.5, label="C4 CREG 101 072")
+    ax.axvline(pi_gs_base, color="gray", lw=1, ls=":", alpha=0.7, label="π_gs base")
+    ax.set_xlabel(f"π_gs ({currency}/kWh)"); ax.set_ylabel(f"Beneficio neto ({currency})")
+    ax.set_title("A — Beneficio total por escenario")
+    ax.legend(fontsize=8); ax.grid(alpha=0.3)
+    ax.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, _: f"{x:,.0f}"))
+
+    # ── Panel B: ventaja diferencial P2P vs C4 y vs C1 ────────────────────
+    ax = axes[0, 1]
+    ax.plot(pgs_vals, delta_c4, "o-", color=clr["ΔC4"], lw=2,
+            label="P2P − C4 (ventaja vs regulación vigente)")
+    ax.plot(pgs_vals, delta_c1, "s-", color=clr["ΔC1"], lw=1.5,
+            label="P2P − C1 (ventaja vs CREG 174)")
+    ax.axhline(0, color="black", lw=0.8, ls="--")
+    ax.axvline(pi_gs_base, color="gray", lw=1, ls=":", alpha=0.7)
+    ax.fill_between(pgs_vals, delta_c4, 0,
+                    where=[d > 0 for d in delta_c4],
+                    alpha=0.12, color=clr["ΔC4"], label="P2P superior a C4")
+    ax.fill_between(pgs_vals, delta_c4, 0,
+                    where=[d <= 0 for d in delta_c4],
+                    alpha=0.12, color="red", label="C4 superior a P2P")
+    ax.set_xlabel(f"π_gs ({currency}/kWh)"); ax.set_ylabel(f"Δ beneficio ({currency})")
+    ax.set_title("B — Ventaja diferencial P2P")
+    ax.legend(fontsize=8); ax.grid(alpha=0.3)
+    ax.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, _: f"{x:+,.0f}"))
+
+    # ── Panel C: SC y SS ───────────────────────────────────────────────────
+    ax = axes[1, 0]
+    ax.plot(pgs_vals, sc_vals, "o-", color="#17becf", lw=2, label="SC (autoconsumo)")
+    ax.plot(pgs_vals, ss_vals, "s-", color="#bcbd22", lw=2, label="SS (autosuficiencia)")
+    ax.axvline(pi_gs_base, color="gray", lw=1, ls=":", alpha=0.7)
+    ax.set_xlabel(f"π_gs ({currency}/kWh)"); ax.set_ylabel("Índice [0–1]")
+    ax.set_title("C — SC y SS vs π_gs")
+    ax.legend(fontsize=8); ax.grid(alpha=0.3)
+    ax.set_ylim(0, 1.05)
+
+    # ── Panel D: IE y cuadro resumen ──────────────────────────────────────
+    ax = axes[1, 1]
+    colors_ie = ["#d62728" if ie < 0 else "#2ca02c" for ie in ie_vals]
+    ax.bar(pgs_vals, ie_vals, color=colors_ie, alpha=0.7, width=(pgs_vals[-1]-pgs_vals[0])/(len(pgs_vals)*1.5))
+    ax.axhline(0, color="black", lw=0.8)
+    ax.axvline(pi_gs_base, color="gray", lw=1, ls=":", alpha=0.7)
+    ax.set_xlabel(f"π_gs ({currency}/kWh)"); ax.set_ylabel("IE P2P")
+    ax.set_title("D — Índice de Equidad vs π_gs\n(rojo: vendedores > compradores)")
+    ax.grid(alpha=0.3, axis="y")
+    ax.set_ylim(-1.05, 1.05)
+
+    # Anotaciones de tendencia
+    increasing = all(delta_c4[i] <= delta_c4[i+1] for i in range(len(delta_c4)-1))
+    tend_label = "↑ creciente" if increasing else "no monótona"
+    best_pgs   = pgs_vals[delta_c4.index(max(delta_c4))]
+    axes[0, 1].annotate(
+        f"Máx ventaja: π_gs={best_pgs:.0f}\nTendencia: {tend_label}",
+        xy=(best_pgs, max(delta_c4)),
+        xytext=(0.05, 0.85), textcoords="axes fraction",
+        fontsize=8, color=clr["ΔC4"],
+        arrowprops=dict(arrowstyle="->", color=clr["ΔC4"], lw=1),
+    )
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig11_sensibilidad_pgs.png")
+    return _save(fig, path)
+
+
+def plot_c1_vs_c4(
+    cr,
+    agent_names: list,
+    D: np.ndarray,
+    G_klim: np.ndarray,
+    pi_bolsa: np.ndarray,
+    pde: np.ndarray,
+    pi_gs: float,
+    out_dir: str,
+    currency: str = "COP",
+) -> str:
+    """
+    Fig 15 — Comparación directa C1 (CREG 174 AGPE) vs C4 (CREG 101 072 AGRC).
+
+    Panel A: beneficio neto por agente — barras enfrentadas C1 vs C4
+    Panel B: diferencia horaria ΔB = B_C1_k - B_C4_k a lo largo del período
+    Panel C: ΔB vs pi_bolsa horario (dispersión con regresión local)
+    """
+    N = cr.n_agents
+    T = D.shape[1]
+    names = (agent_names[:N] if len(agent_names) >= N
+             else [f"A{n+1}" for n in range(N)])
+
+    b_c1 = cr.net_benefit_per_agent.get("C1", np.zeros(N))
+    b_c4 = cr.net_benefit_per_agent.get("C4", np.zeros(N))
+    nb_c1 = cr.net_benefit.get("C1", 0.0)
+    nb_c4 = cr.net_benefit.get("C4", 0.0)
+
+    # ── Diferencia horaria C1 vs C4 (per-hour, lightweight) ─────────────────
+    # C4 hora k: autoconsumo + crédito PDE efectivo + excedente propio
+    # C1 hora k: autoconsumo solo (permutación se evalúa mensual/total)
+    # Aproximación para la dispersión: C1_k = autoconsumo_k × pi_gs + balance
+    # Usamos la diferencia de beneficio total dividida como proxy horario:
+    # Delta_total / T como línea de referencia, y spread C4 como variación.
+    D_pos = np.maximum(D, 0.0)
+    G_pos = np.maximum(G_klim, 0.0)
+    auto_k  = np.sum(np.minimum(G_pos, D_pos), axis=0)       # (T,)
+    surp_k  = np.sum(np.maximum(G_pos - D_pos, 0.0), axis=0) # (T,)
+    def_k   = np.sum(np.maximum(D_pos - G_pos, 0.0), axis=0) # (T,)
+    comm_surp_k = np.maximum(np.sum(G_pos, axis=0) - np.sum(D_pos, axis=0), 0.0)
+    credits_k   = np.sum(np.minimum(
+        pde[:, None] * comm_surp_k[None, :],
+        np.maximum(D_pos - G_pos, 0.0)
+    ), axis=0)   # (T,) crédito PDE efectivo total
+
+    # B_C4_k (aproximado a nivel comunitario)
+    b_c4_k = auto_k * pi_gs + credits_k * pi_gs + surp_k * pi_bolsa
+
+    # B_C1_k: asignamos el delta total mensual/uniforme como proxy per-hora
+    # La lógica C1 acumula el mes — per-hora solo tiene el autoconsumo
+    b_c1_k_proxy = auto_k * pi_gs + def_k * 0.0 + surp_k * pi_bolsa
+    # Ajustamos con el factor de permutación promedio
+    perm_total = nb_c1 - (float(np.sum(auto_k)) * pi_gs
+                          + float(np.sum(surp_k * pi_bolsa)))
+    perm_per_h = perm_total / max(T, 1)
+    b_c1_k = b_c1_k_proxy + perm_per_h   # proxy horario corregido
+
+    delta_k = b_c1_k - b_c4_k     # C1 − C4 por hora
+
+    # ── Figura ───────────────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(15, 5))
+    gs  = GridSpec(1, 3, figure=fig, wspace=0.35)
+
+    # ── Panel A: beneficio por agente ────────────────────────────────────────
+    ax_a = fig.add_subplot(gs[0])
+    x = np.arange(N)
+    w = 0.35
+    bars_c1 = ax_a.bar(x - w/2, b_c1, w, label="C1 CREG 174/2021",
+                       color=COLORS_ESC["C1"], alpha=0.85)
+    bars_c4 = ax_a.bar(x + w/2, b_c4, w, label="C4 CREG 101 072/2025",
+                       color=COLORS_ESC["C4"], alpha=0.85)
+    ax_a.axhline(0, color="black", lw=0.8)
+    ax_a.set_xticks(x); ax_a.set_xticklabels(names, rotation=15, ha="right")
+    ax_a.set_ylabel(f"{currency}/período")
+    ax_a.set_title("A — Beneficio neto por agente:\nC1 (AGPE) vs C4 (AGRC)",
+                   fontweight="bold")
+    ax_a.legend(fontsize=8)
+
+    # Anotación delta total
+    delta_total = nb_c1 - nb_c4
+    sign  = "C1 > C4" if delta_total > 0 else "C4 > C1"
+    color = COLORS_ESC["C1"] if delta_total > 0 else COLORS_ESC["C4"]
+    ax_a.text(0.98, 0.97,
+              f"Δ total = {delta_total:+,.0f} {currency}\n({sign})",
+              transform=ax_a.transAxes, ha="right", va="top", fontsize=8,
+              color=color,
+              bbox=dict(boxstyle="round,pad=0.3", fc="white", ec=color, alpha=0.85))
+
+    # ── Panel B: diferencia horaria ──────────────────────────────────────────
+    ax_b = fig.add_subplot(gs[1])
+    hours = np.arange(T)
+    ax_b.bar(hours, delta_k, color=np.where(delta_k >= 0,
+             COLORS_ESC["C1"], COLORS_ESC["C4"]),
+             alpha=0.65, width=1.0)
+    ax_b.axhline(0, color="black", lw=0.9, ls="--")
+    ax_b.set_xlabel("Hora k")
+    ax_b.set_ylabel(f"ΔB = B_C1 − B_C4  ({currency})")
+    ax_b.set_title("B — Diferencia horaria C1 − C4\n(positivo = C1 mejor)",
+                   fontweight="bold")
+    # parches de leyenda
+    ax_b.legend(handles=[
+        mpatches.Patch(color=COLORS_ESC["C1"], alpha=0.7, label="C1 > C4"),
+        mpatches.Patch(color=COLORS_ESC["C4"], alpha=0.7, label="C4 > C1"),
+    ], fontsize=8)
+
+    # ── Panel C: dispersión ΔB vs pi_bolsa ───────────────────────────────────
+    ax_c = fig.add_subplot(gs[2])
+    sc = ax_c.scatter(pi_bolsa, delta_k,
+                      c=delta_k, cmap="RdYlGn",
+                      vmin=-abs(delta_k).max(), vmax=abs(delta_k).max(),
+                      s=20, alpha=0.65, edgecolors="none")
+    ax_c.axhline(0, color="black", lw=0.9, ls="--")
+    # Tendencia suavizada (ventana móvil sobre datos ordenados)
+    sort_idx  = np.argsort(pi_bolsa)
+    pb_sorted = pi_bolsa[sort_idx]
+    dk_sorted = delta_k[sort_idx]
+    win = max(3, len(pb_sorted) // 8)
+    if len(pb_sorted) >= win:
+        smooth = np.convolve(dk_sorted, np.ones(win)/win, mode="valid")
+        x_sm   = pb_sorted[win//2: win//2 + len(smooth)]
+        ax_c.plot(x_sm, smooth, color="#222222", lw=1.5, ls="-",
+                  label=f"Media móvil (w={win})")
+        ax_c.legend(fontsize=8)
+    fig.colorbar(sc, ax=ax_c, shrink=0.8, label=f"ΔB ({currency})")
+    ax_c.set_xlabel("pi_bolsa (COP/kWh)")
+    ax_c.set_ylabel(f"ΔB = B_C1 − B_C4  ({currency})")
+    ax_c.set_title("C — ΔB vs precio de bolsa\n(depende de hidrología)",
+                   fontweight="bold")
+
+    fig.suptitle(
+        "Fig 15 — Comparación directa C1 (CREG 174/2021 AGPE) vs C4 (CREG 101 072/2025 AGRC)\n"
+        "Diferencia por agente, por hora y en función del precio de bolsa",
+        fontsize=10, fontweight="bold")
+
+    path = os.path.join(out_dir, "fig15_c1_vs_c4.png")
+    return _save(fig, path)
+
+
 def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
                                 agent_names, out_dir, currency="COP",
                                 fa_desertion=None, fa_creg=None,
                                 p2p_results=None, pi_bolsa=None, D=None,
-                                sa_ppa=None, pi_gb=None, pi_gs=None):
+                                sa_ppa=None, pi_gb=None, pi_gs=None,
+                                **kwargs):
     """Genera las figuras 7 y 8 del análisis de sensibilidad.
     Firma compatible con la llamada desde main_simulation (findings como dict).
     """
@@ -1266,6 +1509,13 @@ def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
         steps.append(("Fig 10 — Sensibilidad PPA",
                       lambda: plot_sensitivity_ppa(
                           sa_ppa, agent_names, pi_gb, pi_gs, out_dir, currency)))
+
+    # Fig 11: sensibilidad π_gs  (SA-3)
+    if "sa_pgs" in kwargs and kwargs["sa_pgs"]:
+        sa_pgs = kwargs["sa_pgs"]
+        steps.append(("Fig 11 — Sensibilidad π_gs (SA-3)",
+                      lambda _sa=sa_pgs: plot_sensitivity_pgs(
+                          _sa, out_dir, currency)))
 
     for label, fn in steps:
         try:

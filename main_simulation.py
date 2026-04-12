@@ -13,6 +13,11 @@ import sys, os, time, argparse, warnings
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Windows: forzar UTF-8 en stdout para soportar caracteres Unicode (█, etc.)
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+
 import numpy as np
 import pandas as pd
 
@@ -64,10 +69,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         if full_horizon:
             D, G = D_full, G_full
             T    = D.shape[1]
+            # Etiquetas de período de facturación (YYYYMM) para C1 (CREG 174)
+            month_labels = np.array([ts.year * 100 + ts.month
+                                     for ts in index_full], dtype=int)
             print(f"\n    Modo: COMPLETO  N={N}  T={T}h ({T//24} días)")
+            n_periods = len(set(month_labels))
+            print(f"    Períodos de facturación C1: {n_periods} meses")
         else:
             D, G = daily_profiles(D_full, G_full, index_full)
             T    = 24
+            month_labels = None   # perfil promedio → un único período
             print(f"\n    Modo: PERFIL DIARIO PROMEDIO  N={N}  T=24h")
             print(f"    Basado en {D_full.shape[1]} horas reales")
             print(f"    Para horizonte completo: --full")
@@ -98,6 +109,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         prosumer_ids = [0, 1, 2, 3]
         consumer_ids = [4, 5]
         cap          = np.array([3., 4., 3., 2., 0., 0.])
+        month_labels = None   # período único (24h sintéticas)
         print(f"    N={N}  T={T}h  |  PGS={PGS} · PGB={PGB} (modelo base)")
 
     # ── 2. EMS P2P ───────────────────────────────────────────────────────
@@ -133,11 +145,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
         pde=pde, pi_ppa=grid_params["pi_gb"] + 0.5*(grid_params["pi_gs"]-grid_params["pi_gb"]),
         capacity=cap,
+        month_labels=month_labels,
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
     print("\n[4/5] Reporte:")
     print_comparison_report(cr)
+
+    from scenarios.comparison_engine import print_flow_breakdown
+    print_flow_breakdown(cr, currency=currency)
 
     esc = ["P2P", "C1", "C2", "C3", "C4"]
     print(f"\n  Ganancia neta por agente ({currency}/período):")
@@ -156,20 +172,50 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         print(f"    {name:<12}: {'+'if delta>=0 else ''}{delta:>12,.0f} {currency}  "
               f"({'P2P mejor' if delta > 0 else 'C4 mejor'})")
 
+    # ── 4b. Reporte mensual (solo modo --full con datos reales) ─────────────
+    monthly_data = []
+    if use_real_data and full_horizon and month_labels is not None:
+        print("\n  Reporte mensual (horizonte completo)...")
+        from analysis.monthly_report import compute_monthly_metrics, print_monthly_table
+        monthly_data = compute_monthly_metrics(
+            D=D, G_klim=G_klim, G_raw=G,
+            p2p_results=p2p_results,
+            pi_gs=grid_params["pi_gs"],
+            pi_gb=grid_params["pi_gb"],
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids,
+            consumer_ids=consumer_ids,
+            month_labels=month_labels,
+            pde=pde,
+            capacity=cap,
+        )
+        print_monthly_table(monthly_data, currency=currency)
+
     # ── 5. Exportar base ─────────────────────────────────────────────────
     print("\n[5/5] Exportando resultados y gráficas...")
     base_dir  = os.path.dirname(os.path.abspath(__file__))
     excel_path = _export_base(cr, p2p_results, G_klim, D, base_dir, currency)
     print(f"    Excel → {excel_path}")
 
-    from visualization.plots import generate_all_plots
+    from visualization.plots import (generate_all_plots, plot_monthly_comparison,
+                                     plot_flow_breakdown)
     plots_dir = os.path.join(base_dir, "graficas")
     generate_all_plots(D=D, G=G, G_klim=G_klim, p2p_results=p2p_results,
                        cr=cr, agent_names=agent_names,
                        out_dir=plots_dir, currency=currency)
 
+    p = plot_flow_breakdown(cr, out_dir=plots_dir, currency=currency)
+    if p:
+        print(f"    ✓ Fig 13 — Desglose de flujos por componente")
+
+    if monthly_data:
+        p = plot_monthly_comparison(monthly_data, out_dir=plots_dir, currency=currency)
+        if p:
+            print(f"    ✓ Fig 12 — Comparación mensual")
+
     # ── 6. Análisis de sensibilidad y factibilidad (--analysis) ──────────
-    sa_pgb, sa_pv, fa_des, fa_creg_rep = [], [], None, None
+    sa_pgb, sa_pv, sa_ppa = [], [], []
+    fa_des, fa_creg_rep, fa_ir = None, None, None
 
     if run_analysis:
         print("\n" + "="*65)
@@ -177,9 +223,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         print("="*65)
 
         from analysis.sensitivity import (
-            run_sensitivity_pgb, run_sensitivity_pv, find_dominance_threshold)
+            run_sensitivity_pgb, run_sensitivity_pv,
+            run_sensitivity_ppa, find_dominance_threshold)
         from analysis.feasibility import (
-            analyze_desertion, analyze_creg_101072_compliance)
+            analyze_desertion, analyze_desertion_individual_rationality,
+            analyze_creg_101072_compliance)
+        from analysis.p2p_breakdown import export_p2p_hourly, print_p2p_sample
         from visualization.plots import generate_sensitivity_plots
 
         # SA-1: variación PGB
@@ -206,23 +255,119 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         # Umbrales de dominancia
         thresholds = find_dominance_threshold(sa_pgb, sa_pv)
         print(f"\n  Umbrales de dominancia P2P:")
-        print(f"    P2P > C4 para todo PGB testado: {thresholds.get('p2p_always_beats_c4')}")
-        if thresholds.get("pgb_threshold_vs_C4"):
-            print(f"    PGB umbral vs C4: {thresholds['pgb_threshold_vs_C4']:.0f} COP/kWh")
+        print(f"    P2P siempre > C4: {thresholds.get('p2p_always_beats_c4')}")
+        t_c4 = thresholds.get("pgb_threshold_vs_C4")
+        t_c1 = thresholds.get("pgb_threshold_vs_C1")
+        if isinstance(t_c4, float):
+            print(f"    PGB umbral P2P = C4: {t_c4:.0f} COP/kWh")
+        else:
+            print(f"    PGB umbral P2P = C4: {t_c4}")
+        if isinstance(t_c1, float):
+            print(f"    PGB umbral P2P = C1: {t_c1:.0f} COP/kWh  ← deserción posible aquí")
+        else:
+            print(f"    PGB umbral P2P = C1: {t_c1}")
         if thresholds.get("pv_threshold_vs_C4"):
             print(f"    Factor PV umbral vs C4: {thresholds['pv_threshold_vs_C4']:.2f}x")
 
-        # FA-1: deserción
+        # FA-1: deserción horaria (precio P2P vs precio bolsa)
         fa_des = analyze_desertion(
             p2p_results=p2p_results, pi_bolsa=pi_bolsa,
             agent_names=agent_names, prosumer_ids=prosumer_ids, verbose=True,
         )
+
+        # FA-1b: Condición de Racionalidad Individual por agente (§3.14)
+        # Pasamos los beneficios reales del caso nominal (XM variable) para
+        # que la evaluación base use precios correctos, no el SA-1 constante.
+        pi_gb_nom = grid_params["pi_gb"]
+        fa_ir = analyze_desertion_individual_rationality(
+            sa_pgb_results=sa_pgb,
+            agent_names=agent_names,
+            pi_gb_nominal=pi_gb_nom,
+            base_net_p2p=cr.net_benefit_per_agent.get("P2P"),
+            base_net_c1=cr.net_benefit_per_agent.get("C1"),
+            base_net_c4=cr.net_benefit_per_agent.get("C4"),
+            verbose=True,
+        )
+
+        # §3.6: Análisis de fuente y calibración de precios
+        from data.xm_prices import price_source_analysis
+        price_source_analysis(
+            pi_bolsa=pi_bolsa,
+            pi_gs=grid_params["pi_gs"],
+            verbose=True,
+        )
+
+        # SA-3: sensibilidad precio bilateral PPA (§3.8)
+        print(f"\n  SA-3: Sensibilidad al precio PPA (pi_ppa)...")
+        sa_ppa = run_sensitivity_ppa(
+            D=D, G_klim=G_klim, G_raw=G,
+            pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
+            pi_bolsa=pi_bolsa,
+            p2p_results=p2p_results,
+            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            pde=pde,
+            capacity=cap if 'cap' in dir() else None,
+            verbose=True,
+        )
+
+        # §3.12: Desglose P2P hora a hora
+        print(f"\n  §3.12 Exportando desglose P2P hora a hora...")
+        flows_rows, summary_rows = export_p2p_hourly(
+            p2p_results=p2p_results,
+            agent_names=agent_names,
+            pi_gs=grid_params["pi_gs"],
+            pi_gb=grid_params["pi_gb"],
+            out_dir=base_dir,
+            prefix="p2p_breakdown",
+            verbose=True,
+        )
+        print_p2p_sample(flows_rows, summary_rows, n_hours=3)
 
         # FA-2: cumplimiento CREG 101 072
         fa_creg_rep = analyze_creg_101072_compliance(
             D=D, G=G, agent_names=agent_names,
             prosumer_ids=prosumer_ids, verbose=True,
         )
+
+        # ── Convergencia RD + Stackelberg (Objetivo 2 / Validación) ──────
+        print(f"\n  Convergencia RD+Stackelberg (horas representativas)...")
+        from visualization.plots import plot_convergence
+        conv_data = ems.run_convergence(
+            D=D, G=G, G_klim=G_klim,
+            p2p_results=p2p_results,
+            n_iters_conv=8,
+            max_hours=2,
+        )
+        if conv_data:
+            conv_paths = plot_convergence(
+                conv_list=conv_data,
+                agent_names=agent_names,
+                out_dir=plots_dir,
+                currency=currency,
+            )
+            for p in conv_paths:
+                print(f"    ✓ {os.path.basename(p)}")
+        else:
+            print("    (sin horas activas para análisis de convergencia)")
+
+        # Activity 4.2: Análisis cualitativo de optimalidad P2P vs C4
+        print(f"\n  Activity 4.2: Análisis de optimalidad P2P vs C4 hora a hora...")
+        from analysis.optimality import analyze_hourly_dominance, print_optimality_report
+        from visualization.plots import plot_optimality
+        opt_summary = analyze_hourly_dominance(
+            D=D, G_klim=G_klim,
+            p2p_results=p2p_results,
+            pde=pde,
+            pi_gs=grid_params["pi_gs"],
+            pi_gb=grid_params["pi_gb"],
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids,
+            consumer_ids=consumer_ids,
+        )
+        print_optimality_report(opt_summary, agent_names=agent_names, currency=currency)
+        p = plot_optimality(opt_summary, out_dir=plots_dir, currency=currency)
+        if p:
+            print(f"    ✓ Fig 14 — Análisis de optimalidad P2P vs C4")
 
         # Gráficas 7-9
         generate_sensitivity_plots(
@@ -232,11 +377,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
             p2p_results=p2p_results, pi_bolsa=pi_bolsa,
             D=D, agent_names=agent_names,
             out_dir=plots_dir, currency=currency,
+            sa_ppa=sa_ppa,
+            pi_gb=grid_params["pi_gb"],
+            pi_gs=grid_params["pi_gs"],
         )
 
         # Exportar análisis a Excel
         _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg_rep,
-                          thresholds, base_dir, agent_names)
+                          thresholds, base_dir, agent_names, fa_ir=fa_ir)
 
     # ── Reporte de avances para asesores ─────────────────────────────────
     _generate_progress_report(
@@ -244,7 +392,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         agent_names=agent_names, currency=currency,
         use_real_data=use_real_data, full_horizon=full_horizon,
         sa_pgb=sa_pgb, sa_pv=sa_pv,
-        fa_des=fa_des, fa_creg=fa_creg_rep,
+        fa_des=fa_des, fa_creg=fa_creg_rep, fa_ir=fa_ir,
         base_dir=base_dir,
     )
 
@@ -288,7 +436,8 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
 
 # ── Exportar análisis de sensibilidad a Excel ─────────────────────────────────
 
-def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent_names):
+def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent_names,
+                     fa_ir=None):
     path = os.path.join(base_dir, "resultados_analisis.xlsx")
     with pd.ExcelWriter(path, engine="openpyxl") as w:
         if sa_pgb:
@@ -329,6 +478,35 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
             pd.DataFrame(rows).to_excel(w, sheet_name="FA_CREG101072", index=False)
 
         pd.DataFrame([thresholds]).to_excel(w, sheet_name="Umbrales", index=False)
+
+        # §3.14 — Racionalidad Individual
+        if fa_ir:
+            rows_ir = []
+            for name in agent_names:
+                rows_ir.append({
+                    "Agente":         name,
+                    "B_P2P_COP":      fa_ir.benefit_p2p.get(name, 0),
+                    "B_C4_COP":       fa_ir.benefit_c4.get(name, 0),
+                    "Delta_n_COP":    fa_ir.surplus_vs_c4.get(name, 0),
+                    "Delta_n_rel":    fa_ir.surplus_rel.get(name, 0),
+                    "pi_gb_critico":  fa_ir.critical_pgb.get(name, 0),
+                    "Estado":         ("estable" if name in fa_ir.stable_agents
+                                       else "en_riesgo"),
+                })
+            pd.DataFrame(rows_ir).to_excel(
+                w, sheet_name="FA_DesercionIR", index=False)
+
+            # Tabla de sensibilidad Δ_n(pi_gb)
+            rows_sens = []
+            for pgb_v, row_d in sorted(fa_ir.pgb_vs_surplus.items()):
+                row = {"pi_gb": pgb_v}
+                for name in agent_names:
+                    row[f"delta_{name}"] = row_d.get(name, 0)
+                row["delta_total"] = sum(row_d.values())
+                rows_sens.append(row)
+            pd.DataFrame(rows_sens).to_excel(
+                w, sheet_name="DesercionIR_Sensibilidad", index=False)
+
     print(f"    Excel análisis → {path}")
     return path
 
@@ -338,7 +516,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
 def _generate_progress_report(cr, p2p_results, G_klim, D, G,
                                agent_names, currency, use_real_data,
                                full_horizon, sa_pgb, sa_pv,
-                               fa_des, fa_creg, base_dir):
+                               fa_des, fa_creg, base_dir, fa_ir=None):
     """
     Genera un reporte Markdown con los resultados actuales para presentar
     a los asesores Andrés Pantoja y Germán Obando.
@@ -521,6 +699,68 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
             f"**Score de robustez C4:** {fa_creg.robustness_score:.2f} (1=máxima robustez)",
         ]
 
+    # §3.14 — Racionalidad Individual
+    if fa_ir:
+        lines += [
+            "",
+            "### FA-1b: Deserción — Condición de Racionalidad Individual (§3.14)",
+            "",
+            "**Definición formal (Restricción IR):**",
+            "Agente n permanece en P2P sii `B_n^P2P(π) ≥ max(B_n^C1, B_n^C4)(π)`",
+            "",
+            "Donde `Δ_n = B_n^P2P − max(B_n^C1, B_n^C4)` (>0 → agente prefiere P2P). ",
+            "Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.",
+            "",
+            f"| Agente | B_P2P ({currency}) | B_alt ({currency}) | Δ_n ({currency}) | Δ_n/B_alt | π_gb^*_n | Estado |",
+            "|--------|---------|---------|---------|----------|---------|--------|",
+        ]
+        for name in agent_names:
+            b_p2p = fa_ir.benefit_p2p.get(name, 0)
+            b_c4  = fa_ir.benefit_c4.get(name, 0)
+            delta = fa_ir.surplus_vs_c4.get(name, 0)
+            rel   = fa_ir.surplus_rel.get(name, 0)
+            thr   = fa_ir.critical_pgb.get(name, 0)
+            estado = "estable" if name in fa_ir.stable_agents else "en riesgo"
+            pgb_arr = sorted(fa_ir.pgb_vs_surplus.keys())
+            thr_str = f">rango" if pgb_arr and thr > max(pgb_arr) * 1.05 else f"{thr:.0f}"
+            sign = "+" if delta >= 0 else ""
+            lines.append(
+                f"| {name} | {b_p2p:,.0f} | {b_c4:,.0f} | "
+                f"{sign}{delta:,.0f} | {rel:+.1%} | {thr_str} | {estado} |")
+
+        comm_thr = fa_ir.community_critical_pgb
+        agg_thr  = fa_ir.community_agg_critical_pgb
+        pgb_arr  = sorted(fa_ir.pgb_vs_surplus.keys())
+        comm_str = (f"{comm_thr:.0f}" if pgb_arr and comm_thr < max(pgb_arr) * 1.05
+                    else f">rango (>{max(pgb_arr) if pgb_arr else '?'})")
+        agg_str  = (f"{agg_thr:.0f}" if pgb_arr and agg_thr < max(pgb_arr) * 1.05
+                    else f">rango (>{max(pgb_arr) if pgb_arr else '?'})")
+        lines += [
+            "",
+            f"**Agentes estables ({len(fa_ir.stable_agents)}/{len(agent_names)}):** "
+            f"{', '.join(fa_ir.stable_agents) or 'ninguno'}",
+            f"**Umbral comunitario (mediana individual):** {comm_str} COP/kWh",
+            f"**Umbral agregado P2P < max(C1,C4):** {agg_str} COP/kWh",
+            "",
+            "**Tabla Δ_n(pi_gb) — sensibilidad a precio de bolsa:**",
+            "",
+        ]
+        # Header de la tabla sensibilidad
+        hdr = "| pi_gb |" + "".join(f" {n} |" for n in agent_names) + " Σ Δ |"
+        sep = "|-------|" + "".join("--------|" for _ in agent_names) + "--------|"
+        lines += [hdr, sep]
+        for pgb_v in sorted(fa_ir.pgb_vs_surplus.keys()):
+            row_d = fa_ir.pgb_vs_surplus[pgb_v]
+            total = sum(row_d.values())
+            sign_t = "+" if total >= 0 else ""
+            row = f"| {pgb_v:.0f} |"
+            for name in agent_names:
+                d = row_d.get(name, 0)
+                sign_d = "+" if d >= 0 else ""
+                row += f" {sign_d}{d:,.0f} |"
+            row += f" {sign_t}{total:,.0f} |"
+            lines.append(row)
+
     lines += [
         "",
         "---",
@@ -546,6 +786,11 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
 # ── Punto de entrada ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    # CRÍTICO en Windows: freeze_support evita que ProcessPoolExecutor
+    # re-ejecute este script en cada worker (produce banner duplicado).
+    import multiprocessing
+    multiprocessing.freeze_support()
+
     ap = argparse.ArgumentParser(
         description="Simulación P2P — Tesis Brayan López, Udenar 2026")
     ap.add_argument("--data", choices=["synthetic", "real"], default="synthetic")

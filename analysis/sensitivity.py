@@ -103,6 +103,7 @@ def run_sensitivity_pgb(
             net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
             net_per_agent={
                 "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
+                "C1":  cr.net_benefit_per_agent["C1"].tolist(),
                 "C4":  cr.net_benefit_per_agent["C4"].tolist(),
             },
             ie_p2p=cr.equity_index.get("P2P", 0),
@@ -219,23 +220,138 @@ def run_sensitivity_pv(
     return results
 
 
+def run_sensitivity_ppa(
+    D: np.ndarray,
+    G_klim: np.ndarray,
+    G_raw: np.ndarray,
+    pi_gs: float,
+    pi_gb: float,
+    pi_bolsa: np.ndarray,
+    p2p_results: list,
+    prosumer_ids: list,
+    consumer_ids: list,
+    pde: Optional[np.ndarray] = None,
+    capacity: Optional[np.ndarray] = None,
+    ppa_factors: Optional[list] = None,
+    verbose: bool = True,
+) -> list:
+    """
+    SA-3 — §3.8: Sensibilidad al precio del contrato bilateral (pi_ppa).
+
+    Varía pi_ppa como fracción del rango [pi_gb, pi_gs]:
+        pi_ppa(f) = pi_gb + f × (pi_gs - pi_gb),  f ∈ [0, 1]
+
+    f = 0 → pi_ppa = pi_gb  (todo el beneficio al comprador)
+    f = 1 → pi_ppa = pi_gs  (todo el beneficio al vendedor/generador)
+    f = 0.5 → punto medio (default actual)
+
+    No re-ejecuta el EMS P2P — los despachos P2P son fijos.
+    Solo re-evalúa C2 en cada punto; los demás escenarios (C1, C3, C4, P2P)
+    son independientes de pi_ppa y sirven como referencia constante.
+
+    Retorna lista de dicts con:
+        ppa_factor, pi_ppa, net_benefit (por escenario),
+        net_per_agent_c2, surplus_gen_c2, saving_cons_c2
+    """
+    from scenarios import run_comparison
+
+    if ppa_factors is None:
+        ppa_factors = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
+                       0.6, 0.7, 0.8, 0.9, 1.0]
+
+    N = D.shape[0]
+    results = []
+
+    if verbose:
+        spread = pi_gs - pi_gb
+        print(f"\n  SA-3: Sensibilidad PPA  (pi_gb={pi_gb:.0f} → pi_gs={pi_gs:.0f} "
+              f"COP/kWh, Δ={spread:.0f})")
+        print(f"  {'Factor':>7}  {'pi_ppa':>7}  {'C2 total':>10}  "
+              f"{'P2P total':>10}  {'C1 total':>10}  {'C4 total':>10}  "
+              f"{'C2>P2P':>7}")
+        print("  " + "─"*72)
+
+    for f in ppa_factors:
+        pi_ppa = pi_gb + f * (pi_gs - pi_gb)
+
+        cr = run_comparison(
+            D=D, G_klim=G_klim, G_raw=G_raw,
+            p2p_results=p2p_results,
+            pi_gs=pi_gs, pi_gb=pi_gb,
+            pi_bolsa=pi_bolsa,
+            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            pde=pde, pi_ppa=pi_ppa,
+            capacity=capacity,
+        )
+
+        nb = {e: cr.net_benefit.get(e, 0.0) for e in ["P2P", "C1", "C2", "C3", "C4"]}
+        c2_per = cr.net_benefit_per_agent["C2"].tolist()
+
+        # Desglose de C2: re-cálculo directo para obtener saving_cons y surplus_gen
+        from scenarios.scenario_c2_bilateral import run_c2_bilateral
+        c2_raw = run_c2_bilateral(D, G_klim, pi_gs, pi_gb, pi_ppa,
+                                   prosumer_ids, consumer_ids)
+        agg = c2_raw["aggregate"]
+
+        row = {
+            "ppa_factor":       round(f, 2),
+            "pi_ppa":           round(pi_ppa, 2),
+            "net_benefit":      nb,
+            "net_per_agent_c2": c2_per,
+            "surplus_gen_c2":   agg["total_savings_gen"],
+            "saving_cons_c2":   agg["total_savings_cons"],
+            "c2_beats_p2p":     nb["C2"] > nb["P2P"],
+        }
+        results.append(row)
+
+        if verbose:
+            beats = "SI" if row["c2_beats_p2p"] else "no"
+            print(f"  {f:>7.2f}  {pi_ppa:>7.0f}  {nb['C2']:>10,.0f}  "
+                  f"{nb['P2P']:>10,.0f}  {nb['C1']:>10,.0f}  {nb['C4']:>10,.0f}  "
+                  f"{beats:>7}")
+
+    if verbose:
+        # Precio óptimo para C2 (max net_benefit)
+        best = max(results, key=lambda r: r["net_benefit"]["C2"])
+        print(f"\n  Precio óptimo C2: {best['pi_ppa']:.0f} COP/kWh "
+              f"(factor={best['ppa_factor']:.2f})  →  {best['net_benefit']['C2']:,.0f} COP")
+        never_beats = not any(r["c2_beats_p2p"] for r in results)
+        if never_beats:
+            print(f"  C2 nunca supera P2P en el rango evaluado.")
+        else:
+            cross = next(r for r in results if r["c2_beats_p2p"])
+            print(f"  C2 supera P2P a partir de pi_ppa ≥ {cross['pi_ppa']:.0f} COP/kWh "
+                  f"(factor={cross['ppa_factor']:.2f})")
+
+    return results
+
+
 def find_dominance_threshold(sa_pgb: list, sa_pv: list) -> dict:
     """
-    Identifica los umbrales donde P2P pasa a dominar (ser óptimo).
+    Identifica los umbrales donde P2P deja de dominar (cruces de rentabilidad).
+
+    Para cada alternativa X ∈ {C1, C4}:
+      - Si P2P siempre supera X: reporta "siempre_mejor"
+      - Si P2P siempre pierde vs X: reporta "nunca_mejor"
+      - Si hay cruce: reporta el pi_gb donde P2P deja de ser mejor (interpolado)
+
     Retorna dict con hallazgos para el documento de la tesis.
     """
     findings = {}
 
-    # SA-1: umbral PGB donde P2P > C4
     pgb_vals = [r.param_value for r in sa_pgb]
     p2p_gt_c4 = [r.net_benefit["P2P"] > r.net_benefit["C4"] for r in sa_pgb]
     p2p_gt_c1 = [r.net_benefit["P2P"] > r.net_benefit["C1"] for r in sa_pgb]
 
-    thr_c4 = next((pgb_vals[i] for i, v in enumerate(p2p_gt_c4) if v), None)
-    thr_c1 = next((pgb_vals[i] for i, v in enumerate(p2p_gt_c1) if v), None)
-    findings["pgb_threshold_vs_C4"] = thr_c4
-    findings["pgb_threshold_vs_C1"] = thr_c1
+    # Umbral vs C4: buscar cruce descendente (P2P deja de > C4)
+    thr_c4 = _find_descending_threshold(sa_pgb, "C4")
     findings["p2p_always_beats_c4"] = all(p2p_gt_c4)
+    findings["pgb_threshold_vs_C4"] = thr_c4 if thr_c4 else ("siempre_mejor" if all(p2p_gt_c4) else "nunca_mejor")
+
+    # Umbral vs C1: buscar cruce descendente (P2P deja de > C1)
+    thr_c1 = _find_descending_threshold(sa_pgb, "C1")
+    findings["p2p_always_beats_c1"] = all(p2p_gt_c1)
+    findings["pgb_threshold_vs_C1"] = thr_c1 if thr_c1 else ("siempre_mejor" if all(p2p_gt_c1) else "nunca_mejor")
 
     # SA-2: cobertura mínima donde P2P > C4
     if sa_pv:
@@ -248,3 +364,20 @@ def find_dominance_threshold(sa_pgb: list, sa_pv: list) -> dict:
             r.param_value: r.market_hours for r in sa_pv}
 
     return findings
+
+
+def _find_descending_threshold(sa_pgb: list, alt: str) -> Optional[float]:
+    """
+    Encuentra el pi_gb donde P2P deja de superar la alternativa `alt`
+    (cruce descendente: P2P > alt → P2P < alt, al aumentar pi_gb).
+    Retorna None si no hay cruce en el rango del barrido.
+    """
+    pgb_vals = [r.param_value for r in sa_pgb]
+    for i in range(len(sa_pgb) - 1):
+        delta_i   = sa_pgb[i].net_benefit.get("P2P", 0) - sa_pgb[i].net_benefit.get(alt, 0)
+        delta_ip1 = sa_pgb[i+1].net_benefit.get("P2P", 0) - sa_pgb[i+1].net_benefit.get(alt, 0)
+        if delta_i > 0 and delta_ip1 <= 0:
+            # Interpolación lineal en el cruce
+            frac = delta_i / (delta_i - delta_ip1 + 1e-12)
+            return float(pgb_vals[i] + frac * (pgb_vals[i+1] - pgb_vals[i]))
+    return None

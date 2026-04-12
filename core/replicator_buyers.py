@@ -18,20 +18,24 @@ PGS     = 1250.0
 
 
 def solve_buyers(
-    P_mat:   np.ndarray,   # (J, I)
-    a_j:     np.ndarray,
-    b_j:     np.ndarray,
-    etha_i:  np.ndarray,   # (I,)
-    pi_gs:   float = PGS,
-    pi_gb:   float = PGB,
-    tau:     float = 0.001,
-    t_span:  tuple = (0.0, 0.01),
-    n_points:int   = 500,
-) -> np.ndarray:
+    P_mat:       np.ndarray,   # (J, I)
+    a_j:         np.ndarray,
+    b_j:         np.ndarray,
+    etha_i:      np.ndarray,   # (I,)
+    pi_gs:       float = PGS,
+    pi_gb:       float = PGB,
+    tau:         float = 0.001,
+    t_span:      tuple = (0.0, 0.01),
+    n_points:    int   = 500,
+    return_traj: bool  = False,
+):
     """
     Resuelve la dinámica de compradores con Euler implícito
     (equivalente a ode15s de MATLAB para sistemas stiff).
     Retorna pi_star (I,).
+    Si return_traj=True, retorna (pi_star, t_arr, pi_traj) donde
+      t_arr   : (n_points,)  eje de tiempo
+      pi_traj : (I, n_points)  trayectoria de precios de compradores reales
     """
     J, I  = P_mat.shape
     simple = pi_gs * I
@@ -43,8 +47,13 @@ def solve_buyers(
 
     dt = (t_span[1] - t_span[0]) / n_points
     etha_s = float(np.mean(etha_i))
+    t0 = t_span[0]
 
-    for _ in range(n_points):
+    if return_traj:
+        pi_history = np.zeros((I, n_points))
+        t_arr      = np.zeros(n_points)
+
+    for step in range(n_points):
         pi_real = pi_all[:I]
         pi_p    = pi_all[I]
 
@@ -93,7 +102,16 @@ def solve_buyers(
         d_filt = (raw_gamma - y_filt) / tau
         y_filt = y_filt + dt * d_filt
 
-    return np.clip(pi_all[:I], pi_gb, pi_gs)
+        if return_traj:
+            pi_history[:, step] = np.clip(pi_all[:I], pi_gb, pi_gs)
+            t_arr[step] = t0 + (step + 1) * dt
+
+    pi_star = np.clip(pi_all[:I], pi_gb, pi_gs)
+
+    if return_traj:
+        return pi_star, t_arr, pi_history
+
+    return pi_star
 
 
 def buyer_welfare(pi_i, P_mat, G_klim_i, lam_i, theta_i, etha_i) -> float:

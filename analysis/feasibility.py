@@ -3,12 +3,27 @@ feasibility.py  — Análisis de factibilidad (Actividad 4.2 de la tesis)
 -----------------------------------------------------------------------
 Brayan S. Lopez-Mendez · Udenar 2026
 
-Dos análisis:
+Cuatro análisis:
 
-  FA-1: Condición de deserción del mercado P2P
-        Un prosumidor abandona el P2P cuando:
-          precio_p2p < precio_bolsa  (vender fuera es más rentable)
-        Se computa la fracción de horas donde se cumple la condición.
+  FA-1: Condición de deserción del mercado P2P (§3.14)
+        Restricción de Racionalidad Individual (IR):
+          Agente n permanece en P2P sólo si B_n^P2P ≥ B_n^{mejor_alt}
+        Se define formalmente y se calcula el umbral crítico pi_gb^*_n
+        para cada agente (precio de bolsa que hace al agente indiferente).
+
+  FA-1b: Análisis de racionalidad individual con barrido de pi_gb
+        Usando los resultados del SA-1, se determina:
+          - ¿Qué agentes actualmente tienen incentivo a quedarse en P2P?
+          - ¿A qué precio de bolsa cada agente preferiría salirse?
+          - ¿Cuál es el umbral comunitario (pi_gb donde la mayoría deserta)?
+
+  FA-1c: Sensibilidad de deserción al precio al usuario pi_gs (§3.14.4)
+        Análisis analítico de primer orden:
+          B_n^C1(pi_gs) = autoconsumo_n × pi_gs + excedente_n × pi_bolsa (exacto)
+          B_n^C4(pi_gs) ≈ autoconsumo_n × pi_gs              (PDE≈0, exacto)
+          B_n^P2P(pi_gs) ≈ B_nom_n × (pi_gs / pi_gs_nom)    (aproximado)
+        Resultado teórico: dΔ_n/dπ_gs > 0 → P2P más atractivo a pi_gs alto.
+        Umbral pi_gs^*_n: precio retail donde el agente sería indiferente.
 
   FA-2: Riesgo regulatorio del escenario C4 (CREG 101 072/2025)
         La CREG 101 072 impone:
@@ -26,7 +41,7 @@ from typing import Optional
 @dataclass
 class FeasibilityReport:
     """Reporte completo de factibilidad."""
-    # FA-1: Deserción
+    # FA-1: Deserción (versión horaria — precio P2P vs precio bolsa)
     desertion_hours_by_agent:  dict = field(default_factory=dict)
     desertion_pct_by_agent:    dict = field(default_factory=dict)
     avg_p2p_price_by_hour:     np.ndarray = field(default_factory=lambda: np.array([]))
@@ -41,6 +56,52 @@ class FeasibilityReport:
     max_supply_share_by_agent: dict  = field(default_factory=dict)
     max_capacity_by_agent:     dict  = field(default_factory=dict)
     robustness_score:          float = 1.0   # 1=máxima robustez, 0=ninguna
+
+
+@dataclass
+class IndividualRationalityReport:
+    """
+    §3.14 Condición formal de deserción — Restricción IR por agente.
+
+    Definición matemática:
+        Agente n participa en P2P sii  B_n^P2P(π) ≥ B_n^{alt}(π)
+
+    donde:
+        B_n^P2P = ahorro_autoconsumo + prima_vendedor (o ahorro_comprador)
+        B_n^C4  = ahorro_autoconsumo + créditos_PDE + excedente_bolsa
+        π       = (pi_gs, pi_gb, pi_p2p)
+
+    Condición de deserción del agente n:
+        Δ_n(pi_gb) = B_n^P2P(pi_gb) - B_n^C4(pi_gb) < 0
+
+    Umbral crítico pi_gb^*_n:
+        pi_gb^*_n = sup{ pi_gb : B_n^P2P(pi_gb) ≥ B_n^C4(pi_gb) }
+
+    Deserción comunitaria: cuando la mayoría de agentes tiene Δ_n < 0
+    """
+    # Beneficio a pi_gb nominal por agente
+    benefit_p2p:    dict = field(default_factory=dict)   # nombre → B_n^P2P
+    benefit_c4:     dict = field(default_factory=dict)   # nombre → B_n^C4
+    surplus_vs_c4:  dict = field(default_factory=dict)   # Δ_n = B_n^P2P − B_n^C4
+    surplus_rel:    dict = field(default_factory=dict)   # Δ_n / B_n^C4 (relativo)
+
+    # Clasificación
+    stable_agents:  list = field(default_factory=list)   # Δ_n > 0 → prefieren P2P
+    risk_agents:    list = field(default_factory=list)   # Δ_n ≤ 0 → prefieren salirse
+
+    # Umbrales críticos por agente (interpolados del barrido PGB)
+    critical_pgb:   dict = field(default_factory=dict)   # nombre → pi_gb^*_n
+
+    # Umbral comunitario: pi_gb donde ≥ 50% de agentes desertan
+    community_critical_pgb: float = 0.0
+    # pi_gb donde P2P deja de ser óptimo a nivel comunidad (B^P2P < B^C4 agregado)
+    community_agg_critical_pgb: float = 0.0
+
+    # Tabla de sensibilidad: pgb → {agente: Δ_n(pgb)}
+    pgb_vs_surplus: dict = field(default_factory=dict)
+
+    # Resumen textual para el reporte
+    summary_lines:  list = field(default_factory=list)
 
 
 def analyze_desertion(
@@ -113,6 +174,350 @@ def analyze_desertion(
                   f"{report.critical_pgb_threshold:.0f} COP/kWh")
 
     return report
+
+
+def analyze_desertion_individual_rationality(
+    sa_pgb_results: list,
+    agent_names: list,
+    pi_gb_nominal: float,
+    base_net_p2p: Optional[np.ndarray] = None,    # caso nominal real (no SA-1)
+    base_net_c1: Optional[np.ndarray] = None,     # caso nominal real C1
+    base_net_c4: Optional[np.ndarray] = None,     # caso nominal real C4
+    verbose: bool = True,
+) -> IndividualRationalityReport:
+    """
+    Sec.3.14 — Condición formal de deserción: Restricción de Racionalidad Individual.
+
+    Utiliza los resultados del barrido SA-1 (que ya almacena B_n^P2P y B_n^C4/C1
+    por agente a cada valor de pi_gb) para:
+
+      1. Identificar qué agentes actualmente tienen incentivo a quedarse en P2P
+         (Delta_n = B_n^P2P − B_n^best_alt > 0 al pi_gb nominal).
+         Si se pasan base_net_p2p/c1/c4, usa los valores REALES del caso nominal
+         (precios XM variables), no los del SA-1 (pi_bolsa constante). Esto es
+         importante porque el SA-1 a pi_gb=280 constante difiere del caso nominal
+         donde pi_bolsa_solar ~ 100 COP/kWh.
+
+      2. Para cada agente n, encontrar el umbral crítico pi_gb^*_n:
+         el pi_gb donde Delta_n cambia de signo (interpolando entre puntos del barrido)
+
+      3. Calcular el umbral comunitario: pi_gb donde la mayoría deserta
+
+    Parámetros
+    ----------
+    sa_pgb_results : lista de SensitivityResult con campo net_per_agent
+    agent_names    : nombres de los agentes (misma indexación)
+    pi_gb_nominal  : precio de bolsa base (COP/kWh)
+    """
+    report = IndividualRationalityReport()
+    if not sa_pgb_results:
+        return report
+
+    N = len(agent_names)
+
+    # ── 1. Beneficio a pi_gb_nominal ─────────────────────────────────────
+    pgb_vals = [r.param_value for r in sa_pgb_results]
+    closest_idx = int(np.argmin(np.abs(np.array(pgb_vals) - pi_gb_nominal)))
+    base_res = sa_pgb_results[closest_idx]
+
+    has_c1 = "C1" in (base_res.net_per_agent or {}) or (base_net_c1 is not None)
+
+    for n, name in enumerate(agent_names):
+        # Preferir datos reales (caso nominal variable) sobre SA-1 (constante)
+        if base_net_p2p is not None:
+            b_p2p = float(base_net_p2p[n])
+        else:
+            b_p2p = float(base_res.net_per_agent["P2P"][n])
+
+        if base_net_c4 is not None:
+            b_c4 = float(base_net_c4[n])
+        else:
+            b_c4 = float(base_res.net_per_agent["C4"][n])
+
+        if base_net_c1 is not None:
+            b_c1 = float(base_net_c1[n])
+        elif "C1" in (base_res.net_per_agent or {}):
+            b_c1 = float(base_res.net_per_agent["C1"][n])
+        else:
+            b_c1 = b_c4  # sin C1 disponible → usar C4 como único benchmark
+
+        b_alt = max(b_c4, b_c1)
+        delta = b_p2p - b_alt
+        report.benefit_p2p[name]   = b_p2p
+        report.benefit_c4[name]    = b_alt
+        report.surplus_vs_c4[name] = delta
+        report.surplus_rel[name]   = delta / abs(b_alt) if abs(b_alt) > 1e-10 else 0.0
+        if delta > 0:
+            report.stable_agents.append(name)
+        else:
+            report.risk_agents.append(name)
+
+    # ── 2. Umbral crítico pi_gb^*_n por agente ───────────────────────────
+    # Para cada agente, Δ_n(pgb) = B_n^P2P(pgb) − max(B_n^C1, B_n^C4)(pgb)
+    # Buscar el cruce de signo (o extrapolar si no cruza dentro del rango)
+
+    pgb_arr = np.array(pgb_vals)
+    delta_by_agent = {name: np.zeros(len(pgb_vals)) for name in agent_names}
+
+    for i, r in enumerate(sa_pgb_results):
+        pgb_surplus_row = {}
+        has_c1_i = "C1" in r.net_per_agent
+        for n, name in enumerate(agent_names):
+            b_p2p = float(r.net_per_agent["P2P"][n])
+            b_c4  = float(r.net_per_agent["C4"][n])
+            b_c1  = float(r.net_per_agent["C1"][n]) if has_c1_i else b_c4
+            b_alt = max(b_c4, b_c1)
+            delta_by_agent[name][i] = b_p2p - b_alt
+            pgb_surplus_row[name] = b_p2p - b_alt
+        report.pgb_vs_surplus[float(r.param_value)] = pgb_surplus_row
+
+    for name in agent_names:
+        deltas = delta_by_agent[name]
+        threshold = None
+        for i in range(len(pgb_arr) - 1):
+            if deltas[i] >= 0 and deltas[i + 1] < 0:
+                frac = deltas[i] / (deltas[i] - deltas[i + 1])
+                threshold = float(pgb_arr[i] + frac * (pgb_arr[i + 1] - pgb_arr[i]))
+                break
+        if threshold is None:
+            if deltas[-1] >= 0:
+                threshold = float(pgb_arr[-1]) * 1.1
+            else:
+                threshold = float(pgb_arr[0]) * 0.9
+        report.critical_pgb[name] = round(threshold, 1)
+
+    # ── 3. Umbral comunitario ────────────────────────────────────────────
+    thresholds_per_agent = [report.critical_pgb[n] for n in agent_names]
+    if thresholds_per_agent:
+        report.community_critical_pgb = float(np.median(thresholds_per_agent))
+    else:
+        report.community_critical_pgb = float(pgb_arr[-1]) * 1.1
+
+    # Umbral agregado: cruce de P2P_total vs mejor_alternativa_total
+    for i, r in enumerate(sa_pgb_results):
+        b_p2p_tot = r.net_benefit.get("P2P", 0)
+        b_c4_tot  = r.net_benefit.get("C4", 0)
+        b_c1_tot  = r.net_benefit.get("C1", b_c4_tot)
+        b_alt_tot = max(b_c4_tot, b_c1_tot)
+        delta_agg = b_p2p_tot - b_alt_tot
+        if i > 0:
+            prev_p2p  = sa_pgb_results[i-1].net_benefit.get("P2P", 0)
+            prev_c4   = sa_pgb_results[i-1].net_benefit.get("C4", 0)
+            prev_c1   = sa_pgb_results[i-1].net_benefit.get("C1", prev_c4)
+            prev_alt  = max(prev_c4, prev_c1)
+            prev_delta = prev_p2p - prev_alt
+            if prev_delta >= 0 and delta_agg < 0:
+                frac = prev_delta / (prev_delta - delta_agg + 1e-12)
+                report.community_agg_critical_pgb = float(
+                    pgb_vals[i-1] + frac * (pgb_vals[i] - pgb_vals[i-1]))
+                break
+    if report.community_agg_critical_pgb == 0.0:
+        report.community_agg_critical_pgb = float(pgb_arr[-1]) * 1.1
+
+    # ── 4. Verbose ───────────────────────────────────────────────────────
+    alt_label = "max(C1,C4)" if has_c1 else "C4"
+    lines = []
+    lines.append(f"\n  Sec.3.14 Desercion -- Condicion de Racionalidad Individual (IR)")
+    lines.append(f"  " + "-"*63)
+    lines.append(f"  Definicion formal:")
+    lines.append(f"    Agente n permanece en P2P sii  B_n^P2P(pi) >= B_n^{{{alt_label}}}(pi)")
+    lines.append(f"    Delta_n = B_n^P2P - B_n^{alt_label}  (>0 -> P2P preferido)")
+    lines.append(f"    pi_gb^*_n = pi_gb donde Delta_n = 0  (punto de indiferencia)")
+    lines.append(f"")
+    lines.append(f"  A pi_gb ~= {pi_gb_nominal:.0f} COP/kWh (alt={alt_label}):")
+    lines.append(f"  {'Agente':<12} {'B_P2P':>10} {'B_alt':>10} {'Delta_n':>10}"
+                 f"  {'Dn/B_alt':>9}  {'pi_gb*':>9}  {'Estado'}")
+    lines.append(f"  {'-'*12} {'-'*10} {'-'*10} {'-'*10}"
+                 f"  {'-'*9}  {'-'*9}  {'-'*15}")
+
+    for name in agent_names:
+        b_p2p = report.benefit_p2p[name]
+        b_alt = report.benefit_c4[name]
+        delta = report.surplus_vs_c4[name]
+        rel   = report.surplus_rel[name]
+        thr   = report.critical_pgb[name]
+        estado = "OK estable" if name in report.stable_agents else "!! en riesgo"
+        thr_str = f">rango" if thr > pgb_arr[-1] * 1.05 else f"{thr:.0f}"
+        lines.append(f"  {name:<12} {b_p2p:>10,.0f} {b_alt:>10,.0f} {delta:>+10,.0f}"
+                     f"  {rel:>+8.1%}  {thr_str:>9}  {estado}")
+
+    lines.append(f"")
+    lines.append(f"  Agentes estables (P2P > {alt_label}): {len(report.stable_agents)}/{N} "
+                 f"({', '.join(report.stable_agents) or 'ninguno'})")
+    lines.append(f"  Agentes en riesgo (P2P <= {alt_label}): {len(report.risk_agents)}/{N} "
+                 f"({', '.join(report.risk_agents) or 'ninguno'})")
+    lines.append(f"")
+    thr_agg_str = (f"{report.community_agg_critical_pgb:.0f}"
+                   if report.community_agg_critical_pgb < pgb_arr[-1] * 1.05
+                   else f">rango (>{pgb_arr[-1]:.0f})")
+    lines.append(f"  Umbral comunitario (mediana individual): "
+                 f"{report.community_critical_pgb:.0f} COP/kWh")
+    lines.append(f"  Umbral agregado P2P < {alt_label}:      {thr_agg_str} COP/kWh")
+    lines.append(f"")
+    lines.append(f"  Tabla sensibilidad Delta_n(pi_gb):")
+    header = "  " + f"{'pi_gb':>6}" + "".join(f"  {n:>9}" for n in agent_names) + f"  {'Sum-D':>9}"
+    lines.append(header)
+    lines.append("  " + "-" * (6 + 11 * (N + 1)))
+    for r in sa_pgb_results:
+        pgb_v = r.param_value
+        row_deltas = report.pgb_vs_surplus.get(pgb_v, {})
+        total_delta = sum(row_deltas.values())
+        row_str = f"  {pgb_v:>6.0f}"
+        for name in agent_names:
+            d = row_deltas.get(name, 0)
+            row_str += f"  {d:>+9,.0f}"
+        row_str += f"  {total_delta:>+9,.0f}"
+        lines.append(row_str)
+
+    report.summary_lines = lines
+
+    if verbose:
+        for line in lines:
+            print(line)
+
+    return report
+
+
+def analyze_desertion_sensitivity_pgs(
+    D: np.ndarray,
+    G_klim: np.ndarray,
+    pi_gs_nominal: float,
+    pi_bolsa: np.ndarray,
+    agent_names: list,
+    prosumer_ids: list,
+    base_net_p2p: np.ndarray,
+    base_net_c4: np.ndarray,
+    base_net_c1: Optional[np.ndarray] = None,
+    pgs_multipliers: Optional[list] = None,
+    verbose: bool = True,
+) -> dict:
+    """
+    FA-1c — §3.14.4: Sensibilidad de la condición IR al precio retail pi_gs.
+
+    Metodología (analítica de primer orden):
+      - C1_n(pi_gs) = autoconsumo_n × pi_gs + excedente_n × mean(pi_bolsa)
+        (exacto: el crédito escala con pi_gs, el excedente no)
+      - C4_n(pi_gs) ≈ autoconsumo_n × pi_gs
+        (exacto para esta comunidad: excedente comunitario neto = 0)
+      - P2P_n(pi_gs) ≈ base_net_p2p[n] × (pi_gs / pi_gs_nominal)
+        (aproximado: pi_star fijado por Stackelberg en función de pi_gb;
+         todos los términos escalan proporcional a pi_gs)
+
+    Resultado teórico: dΔ_n/dπ_gs = (escala P2P - escala mejor_alt) × ... ≥ 0
+    → a mayor pi_gs, el P2P es relativamente más atractivo (compradores ahorran
+      más en cada kWh que compran a pi_star < pi_gs).
+
+    Retorna:
+        {
+          "pgs_values": [...],
+          "delta_by_agent": {nombre: [Δ_n(pgs_1), Δ_n(pgs_2), ...]},
+          "stable_at_pgs": {nombre: [bool, bool, ...]},
+          "critical_pgs": {nombre: float},   # pi_gs donde Δ_n = 0 (None si >rango)
+          "summary_lines": [...]
+        }
+    """
+    if pgs_multipliers is None:
+        pgs_multipliers = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.5, 2.0]
+
+    pi_bolsa_mean = float(np.mean(pi_bolsa))
+    pgs_values = [pi_gs_nominal * m for m in pgs_multipliers]
+
+    # Pre-calcular autoconsumo y excedente individuales (usando D y G_klim)
+    autoconsumo = np.array([
+        float(np.sum(np.minimum(np.maximum(G_klim[n], 0), np.maximum(D[n], 0))))
+        for n in range(D.shape[0])
+    ])
+    excedente = np.array([
+        float(np.sum(np.maximum(G_klim[n] - D[n], 0)))
+        for n in range(D.shape[0])
+    ])
+
+    result = {
+        "pgs_values": pgs_values,
+        "delta_by_agent": {name: [] for name in agent_names},
+        "stable_at_pgs": {name: [] for name in agent_names},
+        "critical_pgs": {},
+        "summary_lines": [],
+    }
+
+    table = []
+    for pgs in pgs_values:
+        row = {"pgs": pgs}
+        for n, name in enumerate(prosumer_ids if prosumer_ids else range(D.shape[0])):
+            idx = n  # index into agent_names and benefit arrays
+            # C1: exacto
+            b_c1 = autoconsumo[name] * pgs + excedente[name] * pi_bolsa_mean
+            if base_net_c1 is not None:
+                # Re-escalar usando proporción: C1 sin surplus = autoconsumo × pi_gs
+                b_c1_nom = float(base_net_c1[name])
+                auto_nom  = autoconsumo[name] * pi_gs_nominal
+                surplus_nom = float(base_net_c1[name]) - auto_nom
+                b_c1 = autoconsumo[name] * pgs + surplus_nom
+            # C4: exacto (PDE≈0)
+            b_c4 = float(base_net_c4[name]) * (pgs / pi_gs_nominal)
+            # P2P: proporcional (aproximación)
+            b_p2p = float(base_net_p2p[name]) * (pgs / pi_gs_nominal)
+            b_alt = max(b_c1, b_c4)
+            delta = b_p2p - b_alt
+            result["delta_by_agent"][agent_names[idx]].append(delta)
+            result["stable_at_pgs"][agent_names[idx]].append(delta > 0)
+            row[agent_names[idx]] = delta
+        table.append(row)
+
+    # Umbral crítico pi_gs^*_n (interpolación)
+    for name in agent_names:
+        deltas = result["delta_by_agent"][name]
+        threshold = None
+        for i in range(len(pgs_values) - 1):
+            if deltas[i] < 0 and deltas[i + 1] >= 0:
+                frac = -deltas[i] / (deltas[i + 1] - deltas[i] + 1e-12)
+                threshold = pgs_values[i] + frac * (pgs_values[i + 1] - pgs_values[i])
+                break
+        result["critical_pgs"][name] = round(threshold, 1) if threshold else None
+
+    # Verbose / summary lines
+    lines = []
+    lines.append("\n  FA-1c — §3.14.4: Sensibilidad IR al precio al usuario (pi_gs)")
+    lines.append("  " + "-"*60)
+    lines.append(f"  Base: pi_gs_nom = {pi_gs_nominal:.0f} COP/kWh")
+    lines.append(f"  C1/C4: calculados analíticamente (autoconsumo × pi_gs)")
+    lines.append(f"  P2P: escala proporcional a pi_gs (aprox. Stackelberg)")
+    lines.append(f"  Interpretación: Δ_n > 0 → agente prefiere P2P")
+    lines.append(f"")
+    header = f"  {'pi_gs':>7}" + "".join(f"  {n:>9}" for n in agent_names)
+    lines.append(header)
+    lines.append("  " + "-" * (7 + 11 * len(agent_names)))
+    for row in table:
+        pgs = row["pgs"]
+        mark = " ←nom" if abs(pgs - pi_gs_nominal) < 1 else ""
+        row_str = f"  {pgs:>7.0f}"
+        for name in agent_names:
+            d = row.get(name, 0)
+            row_str += f"  {d:>+9,.0f}"
+        row_str += mark
+        lines.append(row_str)
+
+    lines.append(f"")
+    lines.append(f"  Umbrales pi_gs^*_n (indiferencia):")
+    for name in agent_names:
+        thr = result["critical_pgs"][name]
+        if thr is None:
+            s = f"    {name:<12}: P2P estable en todo el rango evaluado"
+        else:
+            s = f"    {name:<12}: pi_gs^* ≈ {thr:.0f} COP/kWh"
+        lines.append(s)
+
+    lines.append(f"")
+    lines.append(f"  Conclusión teórica:")
+    lines.append(f"  dΔ_n/dπ_gs ≈ (escala_P2P − escala_C1/C4) > 0 para compradores P2P")
+    lines.append(f"  → mayor CU fortalece el incentivo a quedarse en P2P.")
+
+    result["summary_lines"] = lines
+    if verbose:
+        for line in lines:
+            print(line)
+
+    return result
 
 
 def analyze_creg_101072_compliance(

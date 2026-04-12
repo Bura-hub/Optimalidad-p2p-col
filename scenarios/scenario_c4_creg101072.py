@@ -152,8 +152,10 @@ def run_c4_creg101072(
                 own_surplus = max(0.0, surplus_ind_k[n])
                 surplus_sell[n] += own_surplus * pi_bolsa[k]
 
-    # Ganancia económica neta por agente
-    net_benefit = savings + credits_pde + surplus_sell - grid_cost
+    # Ganancia = ahorro por autoconsumo + créditos PDE + ingresos excedentes.
+    # No se resta grid_cost: esa energía la compraría la comunidad igual sin
+    # tener el sistema solar — no es una pérdida del mecanismo AGRC.
+    net_benefit = savings + credits_pde + surplus_sell
 
     results_per_agent = {}
     for n in range(N):

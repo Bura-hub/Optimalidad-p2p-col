@@ -37,6 +37,15 @@ class ComparisonResult:
     n_agents:  int   = 6
     pi_ppa:    float = 0.0
     pde:       Optional[np.ndarray] = None
+    # Distribución del excedente P2P (solo aplica al escenario P2P)
+    # PS  = (Σ S_i)  / (Σ S_i + Σ SR_j) × 100  → fracción capturada por compradores
+    # PSR = (Σ SR_j) / (Σ S_i + Σ SR_j) × 100  → fracción capturada por vendedores
+    # Ref: Tabla VII modelo base Sofía Chacón (2025)
+    ps_p2p:    float = 50.0   # % excedente P2P hacia compradores
+    psr_p2p:   float = 50.0   # % excedente P2P hacia vendedores
+    # Desglose de flujos por componente (Activity 3.2 — Nivel 1)
+    # {escenario: {componente: COP_total}}
+    flow_breakdown: dict = field(default_factory=dict)
 
 
 def run_comparison(
@@ -52,6 +61,7 @@ def run_comparison(
     pde:          Optional[np.ndarray] = None,
     pi_ppa:       Optional[float]      = None,
     capacity:     Optional[np.ndarray] = None,
+    month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (YYYYMM)
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -70,7 +80,10 @@ def run_comparison(
     cr.pi_ppa = pi_ppa
 
     # ── C1 ──────────────────────────────────────────────────────────────
-    c1 = run_c1_creg174(D, G_klim, pi_gs, pi_bolsa, prosumer_ids)
+    # month_labels habilita el balance mensual real de CREG 174 (permutación).
+    # Si None (perfil 24h o sintético), todo el horizonte es un único período.
+    c1 = run_c1_creg174(D, G_klim, pi_gs, pi_bolsa, prosumer_ids,
+                        month_labels=month_labels)
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
     cr.net_benefit["C1"]           = float(np.sum(c1_net))
@@ -149,13 +162,127 @@ def run_comparison(
     cr.self_sufficiency["P2P"] = energia_util_total / G_total if G_total > 1e-10 else 0.0
 
     # ── Equidad (IE) ─────────────────────────────────────────────────────
+    #
+    # P2P: fórmula del mercado hora a hora (settlement.py)
+    #   IE = (ΣS_i − ΣSR_j) / (ΣS_i + ΣSR_j)
+    #   S_i  = (pi_gs − pi_star) × P_comprado  ← ahorro comprador
+    #   SR_j = (pi_star − pi_gb) × P_vendido   ← prima vendedor
+    #   IE = +1 → compradores capturan todo el excedente del mercado
+    #   IE = −1 → vendedores/generadores capturan todo
+    #   IE =  0 → reparto exactamente igual
+    #
+    # C1–C4: cuando toda la comunidad son prosumidores (consumer_ids=[]),
+    #   la fórmula prosumidor/consumidor colapsa siempre a −1.0 (artefacto).
+    #   Fix: clasificar agentes por COBERTURA PV (ratio G/D promedio):
+    #     "alta cobertura" = G/D por encima de la mediana → rol vendedor natural
+    #     "baja cobertura" = G/D por debajo de la mediana → rol comprador natural
+    #   IE = (beneficio_baja_cobertura − beneficio_alta_cobertura) / total
+    #   IE = +1 → mecanismo redistribuye hacia quienes menos generan (equitativo)
+    #   IE = −1 → mecanismo concentra beneficios en el mayor generador
+    #   IE =  0 → distribución proporcional a capacidad instalada
+
     cr.equity_index["P2P"] = np.mean([r.IE for r in active]) if active else 0.0
-    for esc, net in [("C1", c1_net), ("C2", c2_net),
-                     ("C3", c3_net), ("C4", c4_net)]:
-        s_gen  = float(np.sum(net[prosumer_ids]))
-        s_cons = float(np.sum(net[consumer_ids]))
-        total  = abs(s_gen) + abs(s_cons)
-        cr.equity_index[esc] = (s_cons - s_gen) / total if total > 1e-10 else 0.0
+
+    # ── PS / PSR agregados (distribución del excedente P2P) ──────────────
+    # Ponderado por kWh transados en cada hora activa:
+    #   PS_agg  = Σ_k (PS_k  × kWh_k) / Σ_k kWh_k
+    #   PSR_agg = Σ_k (PSR_k × kWh_k) / Σ_k kWh_k
+    # Esto es equivalente a calcular (Σ S_i) / (Σ S_i + Σ SR_j) global.
+    if active:
+        kwh_arr = np.array([float(np.sum(r.P_star)) for r in active])
+        ps_arr  = np.array([r.PS  for r in active])
+        psr_arr = np.array([r.PSR for r in active])
+        total_kwh = float(np.sum(kwh_arr))
+        if total_kwh > 1e-9:
+            cr.ps_p2p  = float(np.dot(ps_arr,  kwh_arr) / total_kwh)
+            cr.psr_p2p = float(np.dot(psr_arr, kwh_arr) / total_kwh)
+        else:
+            cr.ps_p2p = cr.psr_p2p = 50.0
+    else:
+        cr.ps_p2p = cr.psr_p2p = 50.0
+
+    if len(consumer_ids) > 0:
+        # Comunidad mixta (prosumidores + consumidores puros): fórmula original
+        for esc, net in [("C1", c1_net), ("C2", c2_net),
+                         ("C3", c3_net), ("C4", c4_net)]:
+            s_gen  = float(np.sum(net[prosumer_ids]))
+            s_cons = float(np.sum(net[consumer_ids]))
+            total  = abs(s_gen) + abs(s_cons)
+            cr.equity_index[esc] = (s_cons - s_gen) / total if total > 1e-10 else 0.0
+    else:
+        # Comunidad 100% prosumidores: clasificar por cobertura PV (G/D ratio)
+        g_mean = np.mean(G_raw, axis=1)                       # (N,)
+        d_mean = np.mean(D,     axis=1)                       # (N,)
+        gd_ratio = g_mean / np.maximum(d_mean, 1e-9)         # cobertura individual
+        gd_median = np.median(gd_ratio)
+        high_cov = [n for n in prosumer_ids if gd_ratio[n] >= gd_median]  # vendedores natos
+        low_cov  = [n for n in prosumer_ids if gd_ratio[n] <  gd_median]  # compradores natos
+
+        for esc, net in [("C1", c1_net), ("C2", c2_net),
+                         ("C3", c3_net), ("C4", c4_net)]:
+            s_alta = float(np.sum(net[high_cov])) if high_cov else 0.0
+            s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
+            total  = abs(s_alta) + abs(s_baja)
+            cr.equity_index[esc] = (s_baja - s_alta) / total if total > 1e-10 else 0.0
+
+    # ── Desglose de flujos por componente (Activity 3.2 — Nivel 1) ──────────
+    #
+    # Para cada escenario, el beneficio neto se descompone en sus fuentes:
+    #   Autoconsumo : energía solar consumida en sitio  → valorada a pi_gs
+    #   Permutación : energía inyectada que compensa retiros del período (C1)
+    #   Excedente   : energía neta exportada            → valorada a pi_bolsa
+    #   Prima vend. : ganancia P2P del vendedor sobre pi_gb  (solo P2P)
+    #   Ahorro comp.: ahorro del comprador respecto a pi_gs  (solo P2P)
+    #   Créditos PDE: distribución administrativa de excedentes (C4)
+    #
+    # Autoconsumo es IDÉNTICO en todos los escenarios (no depende del mecanismo).
+    # Lo que varía es el valor asignado a la energía que pasa por la red.
+
+    # Autoconsumo total (prosumidores) — igual en todos los escenarios
+    auto_kwh = float(np.sum(np.minimum(
+        np.maximum(G_klim[prosumer_ids, :], 0),
+        np.maximum(D[prosumer_ids, :], 0),
+    )))
+    auto_cop = auto_kwh * pi_gs
+
+    # C1 breakdown
+    c1_savings_total = c1["aggregate"]["total_savings"]      # auto + permutación
+    c1_permutacion   = max(0.0, c1_savings_total - auto_cop) # solo permutación
+    c1_excedente     = c1["aggregate"]["total_surplus_revenue"]
+
+    # C3 breakdown
+    c3_auto_total    = c3["aggregate"]["total_savings"]
+    c3_excedente     = c3["aggregate"]["total_revenues"]
+
+    # C4 breakdown
+    c4_auto_total    = c4["aggregate"]["total_savings"]
+    c4_pde_credits   = c4["aggregate"]["total_pde_credits"]
+    c4_excedente     = c4["aggregate"]["total_surplus_revenue"]
+
+    # P2P breakdown: prima vendedor + ahorro comprador + autoconsumo propio
+    p2p_prima, p2p_ahorro = _p2p_flow_breakdown(p2p_results, pi_gs, pi_gb)
+
+    cr.flow_breakdown = {
+        "P2P": {
+            "Autoconsumo":      auto_cop,
+            "Prima vendedor":   p2p_prima,
+            "Ahorro comprador": p2p_ahorro,
+        },
+        "C1": {
+            "Autoconsumo":    auto_cop,
+            "Permutación":    c1_permutacion,
+            "Excedente neto": c1_excedente,
+        },
+        "C3": {
+            "Autoconsumo":     c3_auto_total,
+            "Excedente bolsa": c3_excedente,
+        },
+        "C4": {
+            "Autoconsumo":   c4_auto_total,
+            "Créditos PDE":  c4_pde_credits,
+            "Excedente bolsa": c4_excedente,
+        },
+    }
 
     # ── Price of Fairness (P2P vs C4) ────────────────────────────────────
     w_eff  = cr.net_benefit["P2P"]
@@ -198,18 +325,16 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             net[j] += income - baseline
 
-        # Compradores: pagaron menos que comprando toda a la red
+        # Compradores: ahorro por pagar pi_star < pi_gs en vez de comprar todo a la red
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             if r.pi_star is not None:
                 paid = r.pi_star[idx_i] * received
             else:
                 paid = received * pi_gs
-            net[i] += received * pi_gs - paid   # ahorro positivo
-
-            # Costo del déficit residual
-            if r.P_int is not None:
-                net[i] -= r.P_int[idx_i] * pi_gs
+            net[i] += received * pi_gs - paid   # ahorro = (pi_gs - pi_star) × kWh_P2P
+            # No se resta el déficit residual: esa energía la comprará a la red
+            # igual que sin solar — no es una pérdida del mecanismo P2P.
 
     # Autoconsumo propio de prosumidores (igual en todos los escenarios,
     # pero lo incluimos para comparación completa)
@@ -220,6 +345,80 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             net[n] += auto * pi_gs
 
     return net
+
+
+def _p2p_flow_breakdown(results, pi_gs: float, pi_gb: float) -> tuple:
+    """
+    Descompone el beneficio P2P en:
+      prima_vendedor  : Σ_k Σ_j max(0, ingreso_j - baseline_j)
+      ahorro_comprador: Σ_k Σ_i max(0, pi_gs×P_comprado - pagado)
+
+    El autoconsumo propio se contabiliza por separado (es igual en todos los
+    escenarios y no depende del mecanismo de mercado).
+    """
+    prima  = 0.0
+    ahorro = 0.0
+    for r in results:
+        if r.P_star is None:
+            continue
+        for idx_j, j in enumerate(r.seller_ids):
+            if r.pi_star is not None:
+                income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
+            else:
+                income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
+            baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
+            prima += max(0.0, income - baseline)
+        for idx_i, i in enumerate(r.buyer_ids):
+            received = float(np.sum(r.P_star[:, idx_i]))
+            paid     = (r.pi_star[idx_i] * received if r.pi_star is not None
+                        else received * pi_gs)
+            ahorro  += max(0.0, received * pi_gs - paid)
+    return prima, ahorro
+
+
+def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
+    """
+    Imprime el desglose de flujos por componente para cada escenario.
+    Activity 3.2 — Nivel 1: flujos de caja netos por fuente de valor.
+    """
+    if not cr.flow_breakdown:
+        return
+
+    print("\n" + "="*68)
+    print("  DESGLOSE DE FLUJOS POR COMPONENTE  (Activity 3.2 — Nivel 1)")
+    print("  (muestra cómo se genera el beneficio neto en cada escenario)")
+    print("="*68)
+
+    esc_order = ["P2P", "C1", "C3", "C4"]
+    labels = {
+        "P2P": "P2P (Stackelberg + RD)",
+        "C1":  "C1  CREG 174 — AGPE",
+        "C3":  "C3  Mercado spot",
+        "C4":  "C4  CREG 101 072 — AGRC",
+    }
+    col_w = 16
+
+    for esc in esc_order:
+        bd = cr.flow_breakdown.get(esc)
+        if not bd:
+            continue
+        total = sum(bd.values())
+        print(f"\n  {labels[esc]}")
+        print(f"  {'Componente':<24} {'COP':>{col_w}} {'%':>7}")
+        print(f"  {'-'*50}")
+        for comp, val in bd.items():
+            pct = val / total * 100 if total > 1e-6 else 0.0
+            print(f"  {comp:<24} {val:>{col_w},.0f} {pct:>7.1f}%")
+        print(f"  {'TOTAL':<24} {total:>{col_w},.0f} {'100.0%':>7}")
+
+    print("="*68)
+    # Nota interpretativa
+    auto_p2p = cr.flow_breakdown.get("P2P", {}).get("Autoconsumo", 0)
+    auto_c1  = cr.flow_breakdown.get("C1",  {}).get("Autoconsumo", 0)
+    if auto_p2p > 0 and abs(auto_p2p - auto_c1) < 1.0:
+        print("  Nota: el autoconsumo es idéntico en todos los escenarios —")
+        print(f"        lo que varía es el valor asignado a los excedentes.")
+    print("="*68)
 
 
 def _sc_index_static(G_klim, D) -> float:
@@ -248,9 +447,11 @@ def print_comparison_report(cr: ComparisonResult) -> None:
         "C4":  "C4  CREG 101 072 (AGRC)",
     }
     print("\n" + "="*68)
-    print("  COMPARACIÓN REGULATORIA  —  GANANCIA ECONÓMICA NETA")
+    print("  COMPARACIÓN REGULATORIA  —  BENEFICIO ECONÓMICO DEL SISTEMA SOLAR")
+    print("  (ahorro en factura + ingresos; no incluye compras residuales a red)")
     print("="*68)
-    print(f"  {'Escenario':<32} {'Gan. neta':>12}  {'SC':>6}  {'SS':>6}  {'IE':>8}")
+    print(f"  {'Escenario':<32} {'Beneficio':>12}  {'SC':>6}  {'SS':>6}  {'IE':>8}")
+    print(f"  {'':32} {'COP/período':>12}  {'[0-1]':>6}  {'[0-1]':>6}  {'[-1,+1]':>8}")
     print("-"*68)
     for esc in scenarios:
         nb = cr.net_benefit.get(esc, 0.0)
@@ -264,4 +465,14 @@ def print_comparison_report(cr: ComparisonResult) -> None:
     if cr.static_spread_24h is not None:
         print(f"  Spread inef. estática C4 total: "
               f"{np.sum(cr.static_spread_24h):.3f} kWh")
+    print("-"*68)
+    print(f"  Distribución del excedente P2P (ref. Tabla VII Sofía Chacón):")
+    print(f"    PS  (compradores):  {cr.ps_p2p:6.2f}%  "
+          f"← fracción del surplus P2P capturada por compradores")
+    print(f"    PSR (vendedores):   {cr.psr_p2p:6.2f}%  "
+          f"← fracción del surplus P2P capturada por vendedores")
+    psr_gap = abs(cr.ps_p2p - cr.psr_p2p)
+    dominant = "compradores" if cr.ps_p2p > cr.psr_p2p else "vendedores"
+    print(f"    → Asimetría: {psr_gap:.2f} pp a favor de {dominant}  "
+          f"(IE={cr.equity_index.get('P2P', 0):.4f})")
     print("="*68)

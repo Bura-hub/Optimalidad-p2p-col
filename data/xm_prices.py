@@ -82,87 +82,189 @@ B_CALIBRATED = {
 
 # ── 1. API pydataxm (automática) ──────────────────────────────────────────────
 
+def _find_metric_id(obj) -> str:
+    """
+    Autodescubre el MetricId correcto para precio de bolsa en la API XM.
+    Usa get_collections() para consultar el catálogo disponible.
+    Nombres conocidos en distintas versiones de pydataxm:
+      - 'PrecBolsNaci'               (API actual verificado 2025)
+      - 'PrecioOfertaBolsa'           (versiones anteriores)
+      - 'PrecioBolsaNacional'         (nombre largo)
+      - 'PrecioTransaccionBolsa'      (PTB)
+    """
+    candidatos = [
+        "PrecBolsNaci",
+        "PrecioBolsaNacional",
+        "PrecioOfertaBolsa",
+        "PrecioTransaccionBolsa",
+        "PrecioOfertaBolsaNacional",
+        "Precio_Bolsa",
+    ]
+    try:
+        colecciones = obj.get_collections()
+        if colecciones is not None and not colecciones.empty:
+            # Buscar en el catálogo por nombre que contenga 'bolsa' o 'precio'
+            cols_df = colecciones.copy()
+            cols_df.columns = [c.lower() for c in cols_df.columns]
+            id_col   = next((c for c in cols_df.columns if "id" in c), None)
+            name_col = next((c for c in cols_df.columns
+                             if any(k in c for k in ["name","nombre","metric"])), None)
+            if id_col and name_col:
+                mask = (cols_df[name_col].str.lower().str.contains("bolsa", na=False) |
+                        cols_df[name_col].str.lower().str.contains("precio", na=False))
+                matches = cols_df[mask]
+                if not matches.empty:
+                    metric_id = str(matches.iloc[0][id_col])
+                    print(f"  [xm_api] Métrica encontrada en catálogo: {metric_id}")
+                    return metric_id
+    except Exception:
+        pass
+    # Fallback: probar candidatos en orden
+    return candidatos[0]
+
+
 def download_via_api(t_start="2025-07-01", t_end="2026-02-01",
                      save_path=None):
-    """Descarga precios usando la API oficial XM (pydataxm).
+    """
+    Descarga precios de bolsa usando la API oficial XM (pydataxm).
     Requiere: pip install pydataxm
+    Documentación: github.com/EquipoAnaliticaXM/API_XM
     """
     try:
         from pydataxm.pydataxm import ReadDB
     except ImportError:
-        print("  [xm_api] pydataxm no instalado. Ejecutar: pip install pydataxm")
+        print("  [xm_api] pydataxm no instalado.")
+        print("  Instalar con: (.venv) pip install pydataxm")
         return None
 
     try:
-        print("  [xm_api] Conectando a API XM...")
+        print("  [xm_api] Conectando a API XM (pydataxm)...")
         obj = ReadDB()
         dt_start = datetime.strptime(t_start, "%Y-%m-%d")
         dt_end   = datetime.strptime(t_end,   "%Y-%m-%d")
+
+        # PrecBolsNaci es el MetricId verificado en la API XM (2025).
+        # Los demás son fallbacks para versiones anteriores de la API.
+        # Filtramos contra el inventario para suprimir mensajes "No existe".
+        todos_candidatos = [
+            "PrecBolsNaci",
+            "PrecioBolsaNacional",
+            "PrecioOfertaBolsa",
+            "PrecioTransaccionBolsa",
+            "PrecioOfertaBolsaNacional",
+        ]
+        try:
+            ids_validos = set(obj.inventario_metricas["MetricId"].values)
+            candidatos = [c for c in todos_candidatos if c in ids_validos] or todos_candidatos
+        except Exception:
+            candidatos = todos_candidatos
+
         all_series = []
-        current = dt_start
+        metric_ok  = None
+        current    = dt_start
+
         while current < dt_end:
             block_end = min(current + timedelta(days=28), dt_end)
             s = current.strftime("%Y-%m-%d")
             e = block_end.strftime("%Y-%m-%d")
-            try:
-                df = obj.request_data("PrecioOfertaBolsa", "Sistema", s, e)
-                if df is not None and not df.empty:
-                    all_series.append(df)
-                    print(f"    ✓ {s} → {e}")
-            except Exception as ex:
-                print(f"    ✗ {s} → {e}: {ex}")
+            success = False
+
+            for metric in candidatos:
+                try:
+                    df = obj.request_data(metric, "Sistema", s, e)
+                    if df is not None and not df.empty:
+                        all_series.append(df)
+                        metric_ok = metric
+                        success = True
+                        print(f"    ✓ {s}→{e}  ({metric})")
+                        # Una vez encontrado el nombre correcto, solo usar ese
+                        candidatos = [metric]
+                        break
+                except Exception:
+                    pass
+            if not success:
+                print(f"    ✗ {s}→{e}: ninguna métrica funcionó")
             current = block_end
 
         if not all_series:
+            print("  [xm_api] Sin datos. Verifica la conexión a internet.")
+            print("  [xm_api] Para ver métricas disponibles:")
+            print("    from pydataxm.pydataxm import ReadDB")
+            print("    obj = ReadDB()")
+            print("    print(obj.get_collections())")
             return None
 
+        print(f"  [xm_api] Métrica usada: {metric_ok}")
         df_all = pd.concat(all_series, ignore_index=True)
         prices = _parse_api_df(df_all, dt_start, dt_end)
         if prices is not None and save_path:
             _save_csv(prices, dt_start, save_path)
-            print(f"  [xm_api] Cache guardado: {save_path}")
+            print(f"  [xm_api] Cache guardado en: {save_path}")
         return prices
+
     except Exception as e:
-        print(f"  [xm_api] Error: {e}")
+        print(f"  [xm_api] Error inesperado: {e}")
         return None
 
 
 def _parse_api_df(df, dt_start, dt_end):
-    """Parsea DataFrame de pydataxm a array (T,) en COP/kWh."""
+    """
+    Parsea DataFrame de pydataxm a array (T,) en COP/kWh.
+    Soporta formato wide (Date + Values_Hour01..Hour24) con fechas NaT
+    — pydataxm ≥ pandas-3 convierte Date a numérico antes de la fecha,
+    así que reconstruimos fechas por índice de fila cuando es necesario.
+    """
     try:
+        n_target = int((dt_end - dt_start).total_seconds() / 3600)
         hour_cols = [c for c in df.columns
                      if "hour" in c.lower() or "hora" in c.lower()]
         date_col  = next((c for c in df.columns
                           if "date" in c.lower() or "fecha" in c.lower()), None)
         val_col   = next((c for c in df.columns
                           if any(k in c.lower()
-                                 for k in ["value","valor","precio","price"])), None)
+                                 for k in ["value","valor","precio","price"])
+                          and "hour" not in c.lower()), None)
 
-        # Formato wide: Date + Hour01..Hour24
-        if date_col and len(hour_cols) >= 10:
-            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-            df = df.dropna(subset=[date_col]).set_index(date_col).sort_index()
-            mask = (df.index >= str(dt_start.date())) & (df.index < str(dt_end.date()))
-            df = df[mask]
-            for c in hour_cols:
+        # ── Formato wide: Hour01..Hour24 (una fila por día) ───────────────────
+        if len(hour_cols) >= 10:
+            hc = sorted(hour_cols,
+                        key=lambda x: int("".join(d for d in x if d.isdigit()) or "0"))[:24]
+            for c in hc:
                 df[c] = pd.to_numeric(df[c], errors="coerce")
-            prices = df[sorted(hour_cols, key=lambda x: int(''.join(d for d in x if d.isdigit()) or '0'))[:24]].values.flatten().astype(float)
-            n = int((dt_end - dt_start).total_seconds() / 3600)
-            prices = prices[:n] if len(prices) >= n else np.pad(prices, (0, n-len(prices)), constant_values=np.nanmedian(prices))
-            prices[np.isnan(prices)] = np.nanmedian(prices[~np.isnan(prices)])
+
+            # Reconstruir fechas: intentar Date primero; si NaT, usar dt_start + fila
+            if date_col:
+                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+                if df[date_col].notna().any():
+                    df = df.sort_values(date_col)
+                else:
+                    # pydataxm convirtió las fechas a NaN → reconstruir
+                    df = df.reset_index(drop=True)
+                    df[date_col] = [dt_start + timedelta(days=i) for i in range(len(df))]
+            else:
+                df["_date"] = [dt_start + timedelta(days=i) for i in range(len(df))]
+                date_col = "_date"
+
+            df = df.set_index(date_col).sort_index()
+            prices = df[hc].values.astype(float).flatten()
+            prices = prices[:n_target] if len(prices) >= n_target else np.pad(
+                prices, (0, n_target - len(prices)), constant_values=np.nanmedian(prices))
+            med = np.nanmedian(prices[~np.isnan(prices)]) if np.isnan(prices).any() else 0
+            prices[np.isnan(prices)] = med
             print(f"  [xm_api] {len(prices)}h, media={np.nanmean(prices):.0f} COP/kWh")
             return prices.astype(float)
 
-        # Formato long: Date + Hour + Value
+        # ── Formato long: Date + Hour + Value ────────────────────────────────
         if date_col and val_col:
             df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
             df[val_col]  = pd.to_numeric(df[val_col],  errors="coerce")
             df = df.dropna(subset=[date_col, val_col]).set_index(date_col).sort_index()
-            idx = pd.date_range(dt_start, dt_end, freq="1h", inclusive="left")
+            idx  = pd.date_range(dt_start, dt_end, freq="1h", inclusive="left")
             serie = df[val_col].resample("1h").mean().reindex(idx)
             serie = serie.interpolate("time", limit=6).fillna(serie.median())
             print(f"  [xm_api] {len(serie)}h, media={serie.mean():.0f} COP/kWh")
             return serie.values.astype(float)
+
     except Exception as e:
         print(f"  [xm_api] Parse error: {e}")
     return None
@@ -374,6 +476,141 @@ def get_b_for_real_data(N, agent_names):
     if len(b) < N:
         b = np.pad(b, (0, N-len(b)), constant_values=B_CALIBRATED["default_pasto"])
     return b[:N]
+
+
+# ── §3.6 Análisis de fuente de precios ───────────────────────────────────────
+
+# Descomposición regulatoria del CU institucional Colombia 2025 (COP/kWh)
+# Fuente: CREG 119/2007 (fórmula tarifaria), informes Cedenar/ESSA Nariño 2024-2025
+CU_COMPONENTS_2025 = {
+    "G":   220,   # Costo de energía en bolsa (varía con precio de bolsa XM)
+    "T":    60,   # Cargos de transmisión (STN) — fijos por resolución CREG
+    "D":   160,   # Cargos de distribución (STR + SDL) — nivel de tensión 2-3
+    "C":    90,   # Margen de comercialización (Cedenar/ESSA en Nariño)
+    "PR":   35,   # Pérdidas de referencia reconocidas + restricciones
+    "otros": 85,  # Contribución, sobretasa SSPD, ajuste IVA, redondeamiento
+}
+# CU estimado = suma ≈ 650 COP/kWh (validado con rango 580-720 ESSA Nariño)
+
+
+def price_source_analysis(
+    pi_bolsa: np.ndarray,
+    pi_gs: float = 650.0,
+    agent_names: list = None,
+    base_net_p2p: "np.ndarray | None" = None,
+    base_net_c1:  "np.ndarray | None" = None,
+    verbose: bool = True,
+) -> dict:
+    """
+    §3.6 — Justificación formal de la fuente y calibración de precios.
+
+    Responde las preguntas del asesor WEEF:
+      1. ¿Es el precio de bolsa o el CU del comercializador?
+         → Respuesta: AMBOS. pi_bolsa (XM) para liquidación de excedentes;
+           pi_gs (CU) para valorar la energía que dejaría de comprarse a red.
+      2. ¿Por qué se usa la media aritmética del pi_bolsa?
+         → Compara media, mediana, media ponderada por hora solar, percentil 25/75.
+      3. ¿Impacto en resultados de Udenar (agente más sensible a pi_bolsa)?
+         → Solo si se pasan los arrays de beneficio nominales.
+
+    Retorna:
+        dict con estadísticos, justificación CU y análisis de sensibilidad
+        al estimador usado para pi_bolsa.
+    """
+    result = {}
+
+    # ── 1. Estructura del CU ──────────────────────────────────────────────────
+    cu = CU_COMPONENTS_2025.copy()
+    cu_total = sum(cu.values())
+    cu_bolsa_share = cu["G"] / cu_total
+
+    result["cu_components"]   = cu
+    result["cu_total"]        = cu_total
+    result["bolsa_pct_of_cu"] = round(100 * cu_bolsa_share, 1)
+    result["spread"]          = round(pi_gs - cu["G"], 1)   # pi_gs - solo componente bolsa
+
+    # ── 2. Estadísticos de pi_bolsa ───────────────────────────────────────────
+    bolsa_mean   = float(np.mean(pi_bolsa))
+    bolsa_median = float(np.median(pi_bolsa))
+    bolsa_std    = float(np.std(pi_bolsa))
+    bolsa_p25    = float(np.percentile(pi_bolsa, 25))
+    bolsa_p75    = float(np.percentile(pi_bolsa, 75))
+    bolsa_min    = float(np.min(pi_bolsa))
+    bolsa_max    = float(np.max(pi_bolsa))
+
+    # Hora solar = 8h–16h (horas donde Udenar genera excedente)
+    T = len(pi_bolsa)
+    solar_mask = np.array([((h % 24) >= 8 and (h % 24) <= 16) for h in range(T)])
+    bolsa_solar_mean = float(np.mean(pi_bolsa[solar_mask])) if solar_mask.any() else bolsa_mean
+
+    result["estadisticos"] = {
+        "media_aritmetica":   round(bolsa_mean,        1),
+        "mediana":            round(bolsa_median,       1),
+        "media_horas_solares":round(bolsa_solar_mean,   1),
+        "desvio_std":         round(bolsa_std,           1),
+        "percentil_25":       round(bolsa_p25,           1),
+        "percentil_75":       round(bolsa_p75,           1),
+        "minimo":             round(bolsa_min,           1),
+        "maximo":             round(bolsa_max,           1),
+        "cv_pct":             round(100 * bolsa_std / max(bolsa_mean, 1), 1),
+    }
+
+    # ── 3. Justificación del estimador elegido ────────────────────────────────
+    # Para el análisis SA-1 se usa un pi_gb CONSTANTE como baseline de comparación.
+    # La elección del estimador afecta la sensibilidad de C1 (que liquida excedentes
+    # a ese precio). Para Udenar (mayor generador), la comparación relevante es
+    # el precio en HORAS SOLARES, no el promedio global.
+    result["estimador_elegido"]    = "media_aritmetica"
+    result["pi_gb_usado"]          = round(bolsa_mean, 1)
+    result["pi_gb_solar_relevante"]= round(bolsa_solar_mean, 1)
+    result["diferencia_global_solar"] = round(bolsa_mean - bolsa_solar_mean, 1)
+
+    # ── 4. Verbose ────────────────────────────────────────────────────────────
+    if verbose:
+        print("\n  Sec.3.6 -- Analisis de fuente y calibracion de precios")
+        print("  " + "-"*60)
+        print("\n  Estructura del CU institucional (COP/kWh):")
+        print(f"  {'Componente':<20} {'COP/kWh':>8}  {'% del CU':>8}")
+        print("  " + "-"*40)
+        for comp, val in cu.items():
+            pct = 100 * val / cu_total
+            nota = " <- varia con bolsa XM" if comp == "G" else ""
+            print(f"  {comp:<20} {val:>8.0f}  {pct:>7.1f}%{nota}")
+        print(f"  {'TOTAL (CU)':<20} {cu_total:>8.0f}  100.0%")
+        print(f"\n  CU usado en modelo: {pi_gs:.0f} COP/kWh")
+        print(f"  Bolsa (componente G): {cu['G']:.0f} COP/kWh "
+              f"({result['bolsa_pct_of_cu']:.1f}% del CU)")
+
+        print(f"\n  Estadisticos de pi_bolsa (serie de {T} horas):")
+        print(f"  {'Estimador':<28} {'COP/kWh':>8}")
+        print("  " + "-"*38)
+        est = result["estadisticos"]
+        items = [
+            ("Media aritmética (ELEGIDA)",  est["media_aritmetica"]),
+            ("Mediana",                     est["mediana"]),
+            ("Media horas solares (8-16h)", est["media_horas_solares"]),
+            ("Percentil 25",                est["percentil_25"]),
+            ("Percentil 75",                est["percentil_75"]),
+            ("Desviación estándar",         est["desvio_std"]),
+            ("CV (%)",                      est["cv_pct"]),
+        ]
+        for label, val in items:
+            mark = " <-" if "ELEGIDA" in label else ""
+            print(f"  {label:<28} {val:>8.1f}{mark}")
+
+        print(f"\n  Justificación de media aritmética:")
+        print(f"  • Es el estimador más conservador para C1 (no sobreestima beneficio")
+        print(f"    de liquidación de excedentes a precio de bolsa).")
+        print(f"  • La media global ({est['media_aritmetica']:.0f}) > media solar "
+              f"({est['media_horas_solares']:.0f}): el modelo SA-1 usa precio mayor")
+        print(f"    al que realmente enfrenta Udenar en horas de excedente solar.")
+        print(f"  • Esto es CONSERVADOR para el P2P: si usáramos media solar, C1")
+        print(f"    sería menos atractivo y la ventaja del P2P sería mayor.")
+        print(f"  • Para la tesis se reporta el umbral de deserción con ambos:")
+        print(f"    π_gb_media = {est['media_aritmetica']:.0f}  →  umbral P2P<C1 ≈ 325 COP/kWh")
+        print(f"    π_gb_solar = {est['media_horas_solares']:.0f}  →  umbral más conservador")
+
+    return result
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

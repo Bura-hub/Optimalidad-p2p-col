@@ -65,17 +65,23 @@ def _sellers_ode(t, y, a, b, pi_i, simplex, J, I, D_net_i, G_net_j, tau):
 
 
 def solve_sellers(
-    pi_i:     np.ndarray,
-    G_net_j:  np.ndarray,
-    D_net_i:  np.ndarray,
-    a_j:      np.ndarray,
-    b_j:      np.ndarray,
-    tau:      float = 0.001,
-    t_span:   tuple = (0.0, 0.01),
-    n_points: int   = 500,
-    rng_seed: int   = 42,
-) -> np.ndarray:
-    """Retorna P_star (J, I)."""
+    pi_i:        np.ndarray,
+    G_net_j:     np.ndarray,
+    D_net_i:     np.ndarray,
+    a_j:         np.ndarray,
+    b_j:         np.ndarray,
+    tau:         float = 0.001,
+    t_span:      tuple = (0.0, 0.01),
+    n_points:    int   = 500,
+    rng_seed:    int   = 42,
+    return_traj: bool  = False,
+):
+    """
+    Retorna P_star (J, I).
+    Si return_traj=True, retorna (P_star, t_arr, P_traj) donde
+      t_arr  : (n_points,)  eje de tiempo de integración
+      P_traj : (J, I, n_points)  trayectoria de potencias
+    """
     J = len(G_net_j)
     I = len(D_net_i)
     sum_G = float(np.sum(G_net_j))
@@ -83,6 +89,9 @@ def solve_sellers(
     simplex = min(sum_G, sum_D)
 
     if simplex < 1e-10:
+        if return_traj:
+            t_arr = np.linspace(t_span[0], t_span[1], n_points)
+            return np.zeros((J, I)), t_arr, np.zeros((J, I, n_points))
         return np.zeros((J, I))
 
     # CI de P — idénticas a JoinFinal.m
@@ -105,6 +114,12 @@ def solve_sellers(
         rtol=1e-6, atol=1e-9,
     )
     P_star = np.clip(sol.y[:J*I, -1].reshape(J, I), 0.0, None)
+
+    if return_traj:
+        n_actual = sol.y.shape[1]
+        P_traj = np.clip(sol.y[:J*I, :], 0.0, None).reshape(J, I, n_actual)
+        return P_star, sol.t, P_traj
+
     return P_star
 
 

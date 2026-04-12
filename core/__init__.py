@@ -20,4 +20,5 @@ from .ems_p2p import (
     GridParams,
     SolverParams,
     HourlyResult,
+    ConvergenceData,
 )

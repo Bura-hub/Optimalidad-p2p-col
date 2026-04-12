@@ -1,78 +1,141 @@
 """
 scenario_c1_creg174.py
 ----------------------
-Escenario C1: Autogeneración individual a pequeña escala
-Resolución CREG 174 de 2021
+Escenario C1: Autogeneración a Pequeña Escala (AGPE)
+Resolución CREG 174 de 2021 — balance por período de facturación
 
-Mecanismo:
-  - Créditos de energía 1:1 entre horas de inyección y consumo
-  - Excedentes netos liquidados a precio de bolsa (Pbolsa)
-  - Cada prosumidor actúa independientemente (sin comunidad)
+Mecanismo (alineado con arts. 22-23 CREG 174 y Decreto 2469/2014):
+  1. Autoconsumo directo hora a hora  → valor = pi_gs  (no se compra a la red)
+  2. Energía inyectada vs energía retirada se PERMUTAN dentro del período
+     de facturación (mes) → cada kWh permutado vale pi_gs (reemplaza compra)
+  3. Excedente NETO del período = max(0, Σ inyectado − Σ retirado)
+     → remunerado a precio de bolsa promedio ponderado del período
 
-El ingreso neto del agente n en el período evaluado es:
-    Ingreso_n = Σ_k [crédito(k) + excedente(k) * pi_bolsa(k)]
-    Ahorro_n  = Σ_k credito(k) * pi_gs   (energía que no compró a la red)
+Diferencia estructural con C3:
+  C1 (este módulo):  liquidación en el período de facturación (mes).
+     La energía permutada se valora a pi_gs, no a bolsa.
+     Solo el excedente neto del período llega a bolsa.
+  C3 (scenario_c3_spot): liquidación hora a hora.
+     Cada kWh excedente de cada hora → bolsa(h).
+     El agente asume volatilidad spot completa.
+
+Cuando pi_bolsa < pi_gs (caso habitual en Colombia), C1 es más favorable
+porque más energía se valora a pi_gs (vía permutación) en vez de bolsa.
+
+Parámetros
+----------
+month_labels : array (T,) de enteros con etiqueta del período de facturación
+               (p.ej. año×100+mes: 202507, 202508, …).
+               Si None, todo el horizonte se trata como un único período
+               (equivalente al modo perfil-diario de 24 h).
 
 Referencia regulatoria:
-    CREG 174 de 2021 - Artículo 5 (pequeña escala <= 1 MW)
-    Tarifa de red: pi_gs (precio regulado al usuario)
+    CREG 174 de 2021 - Artículo 5 (pequeña escala ≤ 1 MW)
+    Decreto MinEnergía 2469 de 2014 - art. 2.2.3.2.4.1
 """
 
+from __future__ import annotations
+
 import numpy as np
+from collections import defaultdict
+from typing import Optional
 
 
 def run_c1_creg174(
-    D: np.ndarray,           # (N, T) demanda base [kWh]
-    G: np.ndarray,           # (N, T) generación bruta [kWh]
-    pi_gs: float,            # precio de venta red al usuario $/kWh (precio regulado)
-    pi_bolsa: np.ndarray,    # (T,) precio de bolsa horario $/kWh
-    agent_ids: list,         # índices de agentes autogeneradores
+    D:            np.ndarray,                # (N, T) demanda base [kWh]
+    G:            np.ndarray,                # (N, T) generación bruta [kWh]
+    pi_gs:        float,                     # precio regulado al usuario $/kWh
+    pi_bolsa:     np.ndarray,               # (T,) precio de bolsa horario $/kWh
+    agent_ids:    list,                      # índices de agentes autogeneradores
+    month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (ej. YYYYMM)
 ) -> dict:
     """
-    Simula el esquema CREG 174 para cada autogenerador individualmente.
+    Simula el esquema CREG 174 con balance por período de facturación.
 
-    Lógica créditos 1:1:
-        - Si G[n,k] <= D[n,k]: crédito = G[n,k] (autoconsumo total)
-        - Si G[n,k] >  D[n,k]: crédito = D[n,k], excedente = G[n,k] - D[n,k]
+    Para cada agente n y cada período de facturación m:
 
-    El excedente se liquida a precio de bolsa.
+        G_total_m  = Σ_{k∈m} max(G[n,k], 0)
+        D_total_m  = Σ_{k∈m} max(D[n,k], 0)
+        auto_m     = Σ_{k∈m} min(G[n,k], D[n,k])          ← autoconsumo directo
+        surplus_h  = Σ_{k∈m} max(G[n,k]-D[n,k], 0)        ← inyectado a la red
+        deficit_h  = Σ_{k∈m} max(D[n,k]-G[n,k], 0)        ← retirado de la red
 
-    Retorna dict con métricas por agente y agregadas.
+        E_permuted_m    = min(surplus_h, deficit_h)
+        E_net_surplus_m = max(0, surplus_h - deficit_h)
+
+        savings_m  = (auto_m + E_permuted_m) × pi_gs
+                   = min(G_total_m, D_total_m) × pi_gs
+        revenue_m  = E_net_surplus_m × π̄_bolsa_m
+                     donde π̄_bolsa_m es el promedio ponderado de bolsa
+                     en las horas de excedente del período
+
+        net_benefit_n = Σ_m (savings_m + revenue_m)
     """
     T = D.shape[1]
-    results = {}
 
-    total_savings   = 0.0
+    # ── Construir índice de períodos ─────────────────────────────────────────
+    if month_labels is None:
+        # Período único (modo perfil diario 24h o sintético)
+        period_hours: dict[int, list[int]] = {0: list(range(T))}
+    else:
+        period_hours = defaultdict(list)
+        for k, m in enumerate(month_labels):
+            period_hours[int(m)].append(k)
+
+    results: dict = {}
+    total_savings         = 0.0
     total_surplus_revenue = 0.0
-    total_grid_cost = 0.0
+    total_grid_cost       = 0.0
 
     for n in agent_ids:
         savings_n  = 0.0
         surplus_n  = 0.0
         grid_cost_n = 0.0
 
-        for k in range(T):
-            gen  = max(0.0, G[n, k])
-            dem  = max(0.0, D[n, k])
+        for _m, hours in period_hours.items():
+            # ── Vectores del período ─────────────────────────────────────
+            G_h = np.maximum(G[n, hours], 0.0)  # generación  (≥0)
+            D_h = np.maximum(D[n, hours], 0.0)  # demanda     (≥0)
+            pb_h = pi_bolsa[hours]               # precios bolsa del período
 
-            if gen <= dem:
-                # Autoconsumo parcial: crédito por toda la generación
-                credit = gen
-                deficit = dem - gen
-                grid_cost_n += deficit * pi_gs
+            # ── Flujos horarios ──────────────────────────────────────────
+            auto_h     = np.minimum(G_h, D_h)   # autoconsumo directo (kWh)
+            surplus_h  = G_h - auto_h            # inyectado a la red  (≥0)
+            deficit_h  = D_h - auto_h            # retirado de la red  (≥0)
+
+            # ── Totales del período ──────────────────────────────────────
+            E_auto    = float(np.sum(auto_h))
+            E_surplus = float(np.sum(surplus_h))
+            E_deficit = float(np.sum(deficit_h))
+
+            # ── Permutación y excedente neto ─────────────────────────────
+            E_permuted    = min(E_surplus, E_deficit)
+            E_net_surplus = max(0.0, E_surplus - E_deficit)
+
+            # ── Valoración ───────────────────────────────────────────────
+            # Autoconsumo + permutación → valorados a pi_gs
+            savings_m = (E_auto + E_permuted) * pi_gs  # ≡ min(G_total, D_total) × pi_gs
+
+            # Excedente neto → bolsa promedio ponderado por excedente horario
+            if E_net_surplus > 1e-9 and E_surplus > 1e-9:
+                pi_bolsa_avg = float(np.dot(surplus_h, pb_h) / E_surplus)
             else:
-                # Autoconsumo total + excedente
-                credit  = dem
-                surplus = gen - dem
-                surplus_n += surplus * pi_bolsa[k]
+                pi_bolsa_avg = float(np.mean(pb_h))
 
-            savings_n += credit * pi_gs   # ahorro por no comprar ese kWh
+            revenue_m   = E_net_surplus * pi_bolsa_avg
+
+            # Costo residual de red (energía que aún compra: déficit > surplus)
+            grid_cost_m = max(0.0, E_deficit - E_surplus) * pi_gs
+
+            savings_n   += savings_m
+            surplus_n   += revenue_m
+            grid_cost_n += grid_cost_m
 
         results[n] = {
             "savings":         savings_n,
             "surplus_revenue": surplus_n,
             "grid_cost":       grid_cost_n,
-            "net_benefit":     savings_n + surplus_n - grid_cost_n,
+            "net_benefit":     savings_n + surplus_n,
         }
 
         total_savings         += savings_n
@@ -83,7 +146,7 @@ def run_c1_creg174(
         "total_savings":         total_savings,
         "total_surplus_revenue": total_surplus_revenue,
         "total_grid_cost":       total_grid_cost,
-        "total_net_benefit":     total_savings + total_surplus_revenue - total_grid_cost,
+        "total_net_benefit":     total_savings + total_surplus_revenue,
     }
 
     return results

@@ -59,7 +59,10 @@ def run_c3_spot(
         total_surplus = sum(max(0.0, G[n, k] - D[n, k]) for n in prosumer_ids)
         hourly_exposure[k] = total_surplus * pi_bolsa[k]
 
-    net_benefit = savings + revenues - grid_cost
+    # Ganancia = ahorro por autoconsumo + ingresos por excedentes vendidos.
+    # No se resta grid_cost: la comunidad seguiría comprando esa energía
+    # aunque no tuviera solar — no es una pérdida del mecanismo.
+    net_benefit = savings + revenues
 
     results_per_agent = {
         n: {

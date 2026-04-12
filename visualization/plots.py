@@ -251,12 +251,13 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     colors = [COLORS_ESC[e] for e in esc]
     xlabs  = [labels_short[e] for e in esc]
 
-    fig, axes = plt.subplots(2, 2, figsize=(13, 8))
+    fig = plt.figure(figsize=(13, 11))
     fig.suptitle("Fig 5 — Comparación regulatoria: cinco escenarios",
                  fontsize=12, fontweight="bold")
+    gs5 = GridSpec(3, 2, figure=fig, hspace=0.42, wspace=0.32)
 
-    # Ganancia neta
-    ax = axes[0, 0]
+    # ── Fila 1: Ganancia neta  +  SC ─────────────────────────────────────
+    ax = fig.add_subplot(gs5[0, 0])
     bars = ax.bar(xlabs, values, color=colors, alpha=0.85)
     ax.axhline(0, color="black", linewidth=0.8)
     ax.set_title(f"Ganancia neta ({currency}/período)")
@@ -264,29 +265,27 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     rng = max(values) - min(values) if values else 1
     for bar, val in zip(bars, values):
         sign = 1 if val >= 0 else -1
-        ax.text(bar.get_x()+bar.get_width()/2,
+        ax.text(bar.get_x() + bar.get_width() / 2,
                 val + sign * rng * 0.02,
                 f"{val/1e6:.2f}M" if abs(val) > 1e5 else f"{val:,.0f}",
                 ha="center",
                 va="bottom" if val >= 0 else "top",
                 fontsize=8)
 
-    # SC
-    ax = axes[0, 1]
+    ax = fig.add_subplot(gs5[0, 1])
     ax.bar(xlabs, sc_v, color=colors, alpha=0.85)
     ax.set_ylim(0, 1.1)
     ax.set_title("Self-consumption (SC)")
     ax.set_ylabel("SC")
 
-    # SS
-    ax = axes[1, 0]
+    # ── Fila 2: SS  +  IE ────────────────────────────────────────────────
+    ax = fig.add_subplot(gs5[1, 0])
     ax.bar(xlabs, ss_v, color=colors, alpha=0.85)
     ax.set_ylim(0, 1.1)
     ax.set_title("Self-sufficiency (SS)")
     ax.set_ylabel("SS")
 
-    # IE
-    ax = axes[1, 1]
+    ax = fig.add_subplot(gs5[1, 1])
     ie_c = ["#1D9E75" if v >= -0.2 else "#D85A30" for v in ie_v]
     ax.bar(xlabs, ie_v, color=ie_c, alpha=0.85)
     ax.axhline(0, color="black", linewidth=0.8)
@@ -301,7 +300,45 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
                           edgecolor="#534AB7", alpha=0.8))
 
-    fig.tight_layout()
+    # ── Fila 3: Distribución del excedente P2P — PS / PSR ────────────────
+    # Solo aplica al escenario P2P. Muestra cómo se divide el surplus entre
+    # compradores (PS) y vendedores (PSR).  Ref: Tabla VII Sofía Chacón (2025).
+    ax_dist = fig.add_subplot(gs5[2, :])
+
+    ps_val  = getattr(cr, "ps_p2p",  50.0)
+    psr_val = getattr(cr, "psr_p2p", 50.0)
+
+    # Barra apilada horizontal para P2P
+    ax_dist.barh(["P2P"], [ps_val],  color="#378ADD", alpha=0.85,
+                 label=f"PS  (compradores) = {ps_val:.1f}%")
+    ax_dist.barh(["P2P"], [psr_val], left=[ps_val], color="#D85A30", alpha=0.85,
+                 label=f"PSR (vendedores)  = {psr_val:.1f}%")
+
+    # Línea de referencia 50/50
+    ax_dist.axvline(50, color="black", lw=1.0, ls="--", alpha=0.5,
+                    label="Reparto equitativo 50/50")
+
+    # Etiquetas dentro de las barras
+    if ps_val > 5:
+        ax_dist.text(ps_val / 2, 0,
+                     f"{ps_val:.1f}%", ha="center", va="center",
+                     fontsize=10, fontweight="bold", color="white")
+    if psr_val > 5:
+        ax_dist.text(ps_val + psr_val / 2, 0,
+                     f"{psr_val:.1f}%", ha="center", va="center",
+                     fontsize=10, fontweight="bold", color="white")
+
+    ax_dist.set_xlim(0, 100)
+    ax_dist.set_xlabel("Porcentaje del excedente P2P (%)")
+    ax_dist.set_title(
+        "Distribución del excedente P2P entre roles  "
+        f"(IE = {cr.equity_index.get('P2P', 0):.4f}  |  "
+        f"PoF P2P vs C4 = {cr.price_of_fairness:.4f})"
+        if cr.price_of_fairness is not None else
+        "Distribución del excedente P2P entre roles"
+    )
+    ax_dist.legend(fontsize=9, loc="lower right")
+
     return _save(fig, os.path.join(out_dir, "fig5_comparacion_regulatoria.png"))
 
 
@@ -388,72 +425,111 @@ def generate_all_plots(D, G, G_klim, p2p_results, cr,
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def plot_sensitivity_pgb(sa_results, out_dir, currency="COP"):
-    """Fig 7 — Sensibilidad al precio de bolsa PGB."""
-    from analysis.sensitivity import SensitivityResult
+    """Fig 7 — Sensibilidad al precio de bolsa PGB con contexto hidrológico colombiano."""
     pgb    = [r.param_value for r in sa_results]
     esc    = ["P2P", "C1", "C2", "C3", "C4"]
     colors = {e: COLORS_ESC[e] for e in esc}
 
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-    fig.suptitle("Fig 7 — Análisis de sensibilidad: variación precio de bolsa XM (PGB)",
-                 fontsize=12, fontweight="bold")
+    # ── Zonas hidrológicas colombianas (COP/kWh bolsa XM) ──────────────────
+    # Referencia: histórico XM, informes CREG, El Niño 2023-2024
+    _hydro_zones = [
+        # (x_ini, x_fin, color, alpha, etiqueta)
+        (100,  280, "#1D9E75", 0.08, "Hidrología\nfavorable"),
+        (280,  350, "#F0C040", 0.10, "Sequía\nmoderada"),
+        (350,  450, "#D85A30", 0.10, "El Niño\nsevero"),
+        (450,  600, "#8B0000", 0.10, "Escasez\ncrítica"),
+    ]
+    _hydro_lines = [
+        (280, "#888888", ":"),    # umbral sequía
+        (350, "#D85A30", "--"),   # umbral El Niño
+        (450, "#8B0000", "--"),   # umbral escasez
+    ]
 
-    # Panel 1: ganancia neta por escenario
+    def _add_hydro_context(ax, pgb_list, annotate=False):
+        xmin, xmax = min(pgb_list), max(pgb_list)
+        for x0, x1, c, a, lbl in _hydro_zones:
+            x0c, x1c = max(x0, xmin - 10), min(x1, xmax + 10)
+            if x0c < x1c:
+                ax.axvspan(x0c, x1c, color=c, alpha=a, zorder=0)
+        for xv, c, ls in _hydro_lines:
+            if xmin <= xv <= xmax:
+                ax.axvline(xv, color=c, linewidth=0.9, linestyle=ls,
+                           alpha=0.75, zorder=1)
+        if annotate:
+            ymin_ax, ymax_ax = ax.get_ylim()
+            y_text = ymin_ax + 0.97 * (ymax_ax - ymin_ax)
+            for x0, x1, c, a, lbl in _hydro_zones:
+                xc = (max(x0, xmin) + min(x1, xmax)) / 2
+                if xmin < xc < xmax:
+                    ax.text(xc, y_text, lbl, fontsize=6.5, ha="center",
+                            va="top", color=c if c != "#F0C040" else "#897000",
+                            style="italic",
+                            bbox=dict(fc="white", ec="none", alpha=0.6, pad=1))
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig.suptitle(
+        "Fig 7 — Análisis de sensibilidad: variación precio de bolsa XM (PGB)\n"
+        "Contexto hidrológico colombiano: normal → sequía → El Niño → escasez",
+        fontsize=11, fontweight="bold")
+
+    # ── Panel 1: ganancia neta por escenario ────────────────────────────────
     ax = axes[0]
     for e in esc:
         vals = [r.net_benefit[e] for r in sa_results]
         ax.plot(pgb, vals, "o-", color=colors[e], linewidth=2,
-                markersize=5, label=e)
-    ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+                markersize=5, label=e, zorder=3)
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--", zorder=2)
     ax.set_xlabel("PGB (COP/kWh)")
     ax.set_ylabel(f"Ganancia neta ({currency}/período)")
     ax.set_title("Ganancia neta vs precio de bolsa")
-    ax.legend(fontsize=8)
+    ax.legend(fontsize=8, loc="upper left")
+    _add_hydro_context(ax, pgb, annotate=True)
 
-    # Marcar punto base
-    base_idx = min(range(len(pgb)), key=lambda i: abs(pgb[i] - 280))
-    for e in esc:
-        ax.axvline(pgb[base_idx], color="gray", linewidth=0.8,
-                   linestyle=":", alpha=0.6)
-
-    # Panel 2: IE del P2P
+    # ── Panel 2: IE del P2P ──────────────────────────────────────────────────
     ax = axes[1]
     ie_vals = [r.ie_p2p for r in sa_results]
     ax.plot(pgb, ie_vals, "s-", color=COLORS_ESC["P2P"],
-            linewidth=2, markersize=6)
-    ax.axhline(0, color="black", linewidth=0.8)
+            linewidth=2, markersize=6, zorder=3)
+    ax.axhline(0, color="black", linewidth=0.8, zorder=2)
     ax.fill_between(pgb, ie_vals, 0,
                     where=[v >= 0 for v in ie_vals],
-                    alpha=0.15, color="#1D9E75", label="IE ≥ 0")
+                    alpha=0.20, color="#1D9E75", label="IE ≥ 0  (equitativo)", zorder=2)
     ax.fill_between(pgb, ie_vals, 0,
                     where=[v < 0 for v in ie_vals],
-                    alpha=0.15, color="#D85A30", label="IE < 0")
+                    alpha=0.20, color="#D85A30", label="IE < 0  (inequitativo)", zorder=2)
     ax.set_ylim(-1.2, 1.2)
     ax.set_xlabel("PGB (COP/kWh)")
     ax.set_ylabel("IE")
     ax.set_title("Índice de equidad P2P vs PGB")
     ax.legend(fontsize=8)
+    _add_hydro_context(ax, pgb, annotate=False)
 
-    # Panel 3: PoF
+    # ── Panel 3: PoF ─────────────────────────────────────────────────────────
     ax = axes[2]
     pof_vals = [r.pof for r in sa_results]
     ax.plot(pgb, pof_vals, "^-", color="#7F77DD",
-            linewidth=2, markersize=6)
+            linewidth=2, markersize=6, zorder=3)
     ax.axhline(1.0, color="gray", linewidth=0.8, linestyle="--",
-               label="PoF=1 (sin pérdida)")
+               label="PoF=1 (sin pérdida de eficiencia)", zorder=2)
+    ax.axhline(0.0, color="black", linewidth=0.5, zorder=2)
     ax.set_xlabel("PGB (COP/kWh)")
     ax.set_ylabel("PoF (P2P vs C4)")
     ax.set_title("Price of Fairness vs precio de bolsa")
     ax.legend(fontsize=8)
+    _add_hydro_context(ax, pgb, annotate=False)
 
-    # Marcar escenarios relevantes
-    for ax in axes:
-        ax.axvline(280, color="#888", linewidth=0.8, linestyle=":",
-                   label="Base 280")
-        ax.axvline(420, color="#D85A30", linewidth=0.8, linestyle=":",
-                   label="El Niño 420")
+    # ── Leyenda compartida de zonas (patch manual) ───────────────────────────
+    legend_patches = [
+        mpatches.Patch(color="#1D9E75", alpha=0.35, label="Hidrología favorable"),
+        mpatches.Patch(color="#F0C040", alpha=0.45, label="Sequía moderada (>280)"),
+        mpatches.Patch(color="#D85A30", alpha=0.35, label="El Niño severo (>350)"),
+        mpatches.Patch(color="#8B0000", alpha=0.35, label="Escasez crítica (>450)"),
+    ]
+    fig.legend(handles=legend_patches, loc="lower center", ncol=4,
+               fontsize=8, framealpha=0.8,
+               bbox_to_anchor=(0.5, -0.04))
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0.06, 1, 1])
     return _save(fig, os.path.join(out_dir, "fig7_sensibilidad_pgb.png"))
 
 
@@ -613,11 +689,559 @@ def plot_feasibility(fa_desertion, fa_creg, p2p_results,
     return _save(fig, os.path.join(out_dir, "fig9_factibilidad.png"))
 
 
+def plot_sensitivity_ppa(sa_ppa_results: list, agent_names: list,
+                         pi_gb: float, pi_gs: float,
+                         out_dir: str, currency: str = "COP") -> str:
+    """Fig 10 — Sensibilidad al precio del contrato bilateral (SA-3 §3.8)."""
+    if not sa_ppa_results:
+        return None
+
+    factors  = [r["ppa_factor"] for r in sa_ppa_results]
+    pi_ppas  = [r["pi_ppa"]     for r in sa_ppa_results]
+    x_label  = f"pi_ppa (COP/kWh)   [pi_gb={pi_gb:.0f} ← → pi_gs={pi_gs:.0f}]"
+
+    # ── extraer series ──────────────────────────────────────────────────────
+    nb_p2p = [r["net_benefit"]["P2P"] for r in sa_ppa_results]
+    nb_c1  = [r["net_benefit"]["C1"]  for r in sa_ppa_results]
+    nb_c2  = [r["net_benefit"]["C2"]  for r in sa_ppa_results]
+    nb_c4  = [r["net_benefit"]["C4"]  for r in sa_ppa_results]
+
+    # Beneficio C2 por agente
+    N = len(sa_ppa_results[0]["net_per_agent_c2"])
+    agent_c2 = {
+        (agent_names[n] if n < len(agent_names) else f"A{n+1}"):
+        [r["net_per_agent_c2"][n] for r in sa_ppa_results]
+        for n in range(N)
+    }
+
+    # Desglose gen vs consumidor
+    surp_gen  = [r["surplus_gen_c2"]  for r in sa_ppa_results]
+    sav_cons  = [r["saving_cons_c2"]  for r in sa_ppa_results]
+
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    fig.suptitle(
+        "Fig 10 — SA-3: Sensibilidad al precio del contrato bilateral PPA (C2)",
+        fontsize=12, fontweight="bold")
+
+    # ── Panel 1: escenarios agregados ──────────────────────────────────────
+    ax = axes[0]
+    ax.plot(pi_ppas, nb_p2p, "o-", color=COLORS_ESC["P2P"],
+            linewidth=2.5, markersize=5, label="P2P (referencia)")
+    ax.plot(pi_ppas, nb_c2,  "s-", color=COLORS_ESC["C2"],
+            linewidth=2.5, markersize=5, label="C2 Bilateral PPA")
+    ax.plot(pi_ppas, nb_c1,  "--", color=COLORS_ESC["C1"],
+            linewidth=1.5, alpha=0.7, label="C1 CREG 174")
+    ax.plot(pi_ppas, nb_c4,  "--", color=COLORS_ESC["C4"],
+            linewidth=1.5, alpha=0.7, label="C4 CREG 101 072")
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+    # Punto base (factor=0.5)
+    idx_base = min(range(len(factors)), key=lambda i: abs(factors[i] - 0.5))
+    ax.axvline(pi_ppas[idx_base], color="gray", linewidth=1,
+               linestyle=":", label=f"Base (f=0.5)")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(f"Beneficio neto ({currency}/período)")
+    ax.set_title("Beneficio agregado vs pi_ppa")
+    ax.legend(fontsize=8)
+
+    # ── Panel 2: beneficio C2 por agente ───────────────────────────────────
+    ax = axes[1]
+    for idx_n, (name, vals) in enumerate(agent_c2.items()):
+        ax.plot(pi_ppas, vals, "o-",
+                color=COLORS_AGT[idx_n % len(COLORS_AGT)],
+                linewidth=2, markersize=5, label=name)
+    ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
+    ax.axvline(pi_ppas[idx_base], color="gray", linewidth=1, linestyle=":")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(f"Beneficio neto ({currency}/período)")
+    ax.set_title("C2: beneficio por agente vs pi_ppa")
+    ax.legend(fontsize=8)
+
+    # ── Panel 3: reparto excedente (gen vs consumidor) ─────────────────────
+    ax = axes[2]
+    ax.stackplot(pi_ppas, surp_gen, sav_cons,
+                 labels=["Beneficio generadores (prima PPA)",
+                         "Ahorro compradores (PPA < pi_gs)"],
+                 colors=[COLORS_ESC["C1"], COLORS_ESC["C3"]],
+                 alpha=0.75)
+    ax.plot(pi_ppas, nb_c2, "k--", linewidth=1.5, label="C2 total")
+    ax.axvline(pi_ppas[idx_base], color="gray", linewidth=1, linestyle=":")
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(f"Valor ({currency}/período)")
+    ax.set_title("Reparto del excedente C2:\ngeneradores vs compradores")
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig10_sensibilidad_ppa.png")
+    return _save(fig, path)
+
+
+def plot_flow_breakdown(cr, out_dir: str, currency: str = "COP") -> str:
+    """
+    Fig 13 — Desglose de flujos por componente (Activity 3.2, Nivel 1).
+    Barra apilada vertical: cada escenario muestra de dónde proviene su
+    beneficio neto (autoconsumo, permutación, excedente, mercado P2P, etc.).
+    """
+    if not cr.flow_breakdown:
+        return ""
+
+    esc_order = ["P2P", "C1", "C3", "C4"]
+    labels_esc = {
+        "P2P": "P2P\n(Stackelberg+RD)",
+        "C1":  "C1\nCREG 174",
+        "C3":  "C3\nSpot",
+        "C4":  "C4\nCREG 101 072",
+    }
+    # Colores por nombre de componente (consistentes entre escenarios)
+    _COMP_COLORS = {
+        "Autoconsumo":       "#1D9E75",
+        "Permutación":       "#378ADD",
+        "Excedente neto":    "#BA7517",
+        "Excedente bolsa":   "#BA7517",
+        "Prima vendedor":    "#534AB7",
+        "Ahorro comprador":  "#7FBFFF",
+        "Créditos PDE":      "#D4537E",
+    }
+    _DEFAULT_COLOR = "#AAAAAA"
+
+    # Recopilar todos los componentes presentes en los escenarios elegidos
+    all_comps = []
+    for esc in esc_order:
+        for comp in cr.flow_breakdown.get(esc, {}):
+            if comp not in all_comps:
+                all_comps.append(comp)
+
+    x      = np.arange(len(esc_order))
+    bar_w  = 0.52
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6),
+                              gridspec_kw={"width_ratios": [2, 1]})
+    fig.suptitle("Fig 13 — Desglose de flujos por componente  (Activity 3.2 — Nivel 1)",
+                 fontsize=12, fontweight="bold")
+
+    # ── Panel izquierdo: barras apiladas absolutas ────────────────────────
+    ax = axes[0]
+    bottoms = np.zeros(len(esc_order))
+
+    for comp in all_comps:
+        vals = []
+        for esc in esc_order:
+            vals.append(cr.flow_breakdown.get(esc, {}).get(comp, 0.0))
+        vals = np.array(vals)
+        color = _COMP_COLORS.get(comp, _DEFAULT_COLOR)
+        bars  = ax.bar(x, vals, bar_w, bottom=bottoms,
+                       label=comp, color=color, alpha=0.88)
+        # Etiqueta dentro de la barra si es suficientemente alta
+        for xi, (v, b) in enumerate(zip(vals, bottoms)):
+            if v > max(sum(cr.flow_breakdown.get(esc, {}).values())
+                       for esc in esc_order) * 0.05:
+                ax.text(xi, b + v / 2,
+                        f"{v/1e6:.2f}M" if abs(v) > 5e4 else f"{v:,.0f}",
+                        ha="center", va="center", fontsize=7.5,
+                        color="white", fontweight="bold")
+        bottoms += vals
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([labels_esc[e] for e in esc_order], fontsize=10)
+    ax.set_ylabel(f"Beneficio neto ({currency})")
+    ax.set_title("Composición absoluta del beneficio neto por escenario")
+    ax.legend(title="Componente", fontsize=8, loc="upper right")
+    ax.axhline(0, color="black", lw=0.8)
+
+    # Anotación totales
+    for xi, esc in enumerate(esc_order):
+        total = sum(cr.flow_breakdown.get(esc, {}).values())
+        ax.text(xi, total + bottoms.max() * 0.015,
+                f"{total/1e6:.2f}M" if total > 5e4 else f"{total:,.0f}",
+                ha="center", va="bottom", fontsize=8, fontweight="bold",
+                color=COLORS_ESC.get(esc, "#333333"))
+
+    # ── Panel derecho: barras apiladas normalizadas (%) ───────────────────
+    ax2 = axes[1]
+    bottoms2 = np.zeros(len(esc_order))
+
+    for comp in all_comps:
+        pcts = []
+        for esc in esc_order:
+            bd    = cr.flow_breakdown.get(esc, {})
+            total = sum(bd.values())
+            val   = bd.get(comp, 0.0)
+            pcts.append(val / total * 100 if total > 1e-6 else 0.0)
+        pcts  = np.array(pcts)
+        color = _COMP_COLORS.get(comp, _DEFAULT_COLOR)
+        ax2.bar(x, pcts, bar_w, bottom=bottoms2,
+                label=comp, color=color, alpha=0.88)
+        for xi, (p, b) in enumerate(zip(pcts, bottoms2)):
+            if p > 6:
+                ax2.text(xi, b + p / 2, f"{p:.0f}%",
+                         ha="center", va="center", fontsize=7.5,
+                         color="white", fontweight="bold")
+        bottoms2 += pcts
+
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([labels_esc[e] for e in esc_order], fontsize=10)
+    ax2.set_ylim(0, 108)
+    ax2.set_ylabel("Porcentaje del beneficio total (%)")
+    ax2.set_title("Composición relativa (%)")
+    ax2.axhline(100, color="black", lw=0.6, ls="--", alpha=0.4)
+
+    fig.text(
+        0.5, 0.01,
+        "Autoconsumo = igual en todos los escenarios (min(G,D) × pi_gs).  "
+        "La diferencia entre escenarios proviene del valor asignado a los excedentes.",
+        ha="center", fontsize=8, style="italic", color="#555555",
+    )
+    fig.tight_layout(rect=[0, 0.04, 1, 1])
+    path = os.path.join(out_dir, "fig13_desglose_flujos.png")
+    return _save(fig, path)
+
+
+def plot_monthly_comparison(monthly: list, out_dir: str,
+                            currency: str = "COP") -> str:
+    """
+    Fig 12 — Comparación mes a mes (modo --full, horizonte 6-8 meses).
+    Cuatro paneles:
+      A. Beneficio neto mensual por escenario (barras agrupadas)
+      B. IE P2P mensual (línea + área de referencia)
+      C. SC y SS mensual (P2P vs C4)
+      D. Distribución PS/PSR mensual (barra apilada)
+    """
+    if not monthly:
+        return ""
+
+    labels  = [m["month_label"] for m in monthly]
+    n_m     = len(labels)
+    x       = np.arange(n_m)
+    esc     = ["P2P", "C1", "C3", "C4"]
+    colors  = {e: COLORS_ESC[e] for e in esc}
+    w       = 0.20
+
+    fig = plt.figure(figsize=(14, 12))
+    fig.suptitle("Fig 12 — Comparación regulatoria mensual (horizonte completo)",
+                 fontsize=12, fontweight="bold")
+    gs12 = GridSpec(2, 2, figure=fig, hspace=0.42, wspace=0.32)
+
+    # ── Panel A: Beneficio neto mensual ────────────────────────────────────
+    ax_a = fig.add_subplot(gs12[0, :])   # fila 0, ambas columnas
+    offsets = np.linspace(-(len(esc)-1)/2, (len(esc)-1)/2, len(esc)) * w
+    for i, e in enumerate(esc):
+        vals = [m["net_benefit"].get(e, 0) for m in monthly]
+        bars = ax_a.bar(x + offsets[i], vals, w * 0.92,
+                        label=e, color=colors[e], alpha=0.85)
+        # Etiqueta en millones si supera 100k
+        for bar, v in zip(bars, vals):
+            if abs(v) > 1e5:
+                ax_a.text(bar.get_x() + bar.get_width() / 2,
+                          v + (max(max(m["net_benefit"].get(e2,0)
+                                       for e2 in esc) for m in monthly) * 0.01),
+                          f"{v/1e6:.1f}M",
+                          ha="center", va="bottom", fontsize=6.5, rotation=90)
+
+    ax_a.axhline(0, color="black", lw=0.8)
+    ax_a.set_xticks(x); ax_a.set_xticklabels(labels)
+    ax_a.set_ylabel(f"Beneficio neto ({currency})")
+    ax_a.set_title(f"A — Beneficio neto mensual por escenario ({currency})")
+    ax_a.legend(title="Escenario", ncol=len(esc), fontsize=9)
+
+    # ── Panel B: IE P2P mensual ────────────────────────────────────────────
+    ax_b = fig.add_subplot(gs12[1, 0])
+    ie_vals = [m["ie_p2p"] for m in monthly]
+    ax_b.plot(x, ie_vals, "o-", color=COLORS_ESC["P2P"], lw=2, markersize=7)
+    ax_b.fill_between(x, ie_vals, alpha=0.15, color=COLORS_ESC["P2P"])
+    ax_b.axhline(0,    color="black",   lw=0.8, ls="--", label="Neutro (IE=0)")
+    ax_b.axhline(-0.2, color="#D85A30", lw=0.7, ls=":",
+                 label="Umbral favorable vendedores")
+    ax_b.set_ylim(-1.1, 1.1)
+    ax_b.set_xticks(x); ax_b.set_xticklabels(labels, rotation=15, ha="right")
+    ax_b.set_ylabel("IE  [−1, +1]")
+    ax_b.set_title("B — Índice de equidad P2P mensual")
+    ax_b.legend(fontsize=8)
+    for xi, ie in zip(x, ie_vals):
+        ax_b.annotate(f"{ie:.3f}", (xi, ie),
+                      textcoords="offset points", xytext=(0, 7),
+                      ha="center", fontsize=7.5)
+
+    # ── Panel C: SC y SS mensual ───────────────────────────────────────────
+    ax_c = fig.add_subplot(gs12[1, 1])
+    sc_p2p = [m["sc"].get("P2P", 0) for m in monthly]
+    ss_p2p = [m["ss"].get("P2P", 0) for m in monthly]
+    sc_c4  = [m["sc"].get("C4",  0) for m in monthly]
+    ss_c4  = [m["ss"].get("C4",  0) for m in monthly]
+
+    ax_c.plot(x, sc_p2p, "o-",  color=COLORS_ESC["P2P"], lw=2,
+              label="SC P2P", markersize=6)
+    ax_c.plot(x, ss_p2p, "s--", color=COLORS_ESC["P2P"], lw=1.8,
+              label="SS P2P", markersize=5, alpha=0.7)
+    ax_c.plot(x, sc_c4,  "o-",  color=COLORS_ESC["C4"],  lw=1.5,
+              label="SC C4",  markersize=5, alpha=0.7)
+    ax_c.plot(x, ss_c4,  "s--", color=COLORS_ESC["C4"],  lw=1.2,
+              label="SS C4",  markersize=4, alpha=0.5)
+
+    ax_c.set_ylim(0, 1.05)
+    ax_c.set_xticks(x); ax_c.set_xticklabels(labels, rotation=15, ha="right")
+    ax_c.set_ylabel("[0, 1]")
+    ax_c.set_title("C — SC y SS mensual: P2P vs C4")
+    ax_c.legend(fontsize=8, ncol=2)
+
+    fig.text(0.5, 0.01,
+             "Nota: C1 usa balance mensual (permutación a pi_gs); "
+             "C3 usa liquidación horaria a pi_bolsa; C4 distribuye via PDE estático.",
+             ha="center", fontsize=8, style="italic", color="#555555")
+
+    path = os.path.join(out_dir, "fig12_comparacion_mensual.png")
+    return _save(fig, path)
+
+
+def plot_convergence(conv_list: list, agent_names: list,
+                     out_dir: str, currency: str = "COP") -> list:
+    """
+    Fig 11 — Convergencia del algoritmo RD + Stackelberg.
+    Equivalente a Figs 9-11 del modelo base de Sofía Chacón.
+
+    Por cada hora representativa genera una figura con 3 filas:
+      Fila 1: Bienestar total W_j + W_i por iteración Stackelberg
+      Fila 2: Evolución de precios π_i(t) — dinámica compradores
+      Fila 3: Evolución de potencias P_ji(t) — dinámica vendedores
+
+    Parámetros
+    ----------
+    conv_list : lista de ConvergenceData de ems_p2p.run_convergence()
+    """
+    os.makedirs(out_dir, exist_ok=True)
+    saved = []
+
+    for cd in conv_list:
+        J = len(cd.seller_ids)
+        I = len(cd.buyer_ids)
+        n_iters = len(cd.welfare_iters)
+
+        fig = plt.figure(figsize=(13, 10))
+        fig.suptitle(
+            f"Fig 11 — Convergencia RD + Stackelberg  |  Hora k={cd.hour}  "
+            f"({'excedente' if float(np.sum(cd.G_net_j)) >= float(np.sum(cd.D_net_i)) else 'déficit'} comunitario)",
+            fontsize=12, fontweight="bold",
+        )
+        gs_fig = GridSpec(3, 2, figure=fig, hspace=0.45, wspace=0.35)
+
+        # ── Fila 1: Bienestar por iteración Stackelberg ───────────────────
+        ax_w = fig.add_subplot(gs_fig[0, :])
+        iters = np.arange(1, n_iters + 1)
+        Wj_arr = np.array([w[0] for w in cd.welfare_iters])
+        Wi_arr = np.array([w[1] for w in cd.welfare_iters])
+        W_total = Wj_arr + Wi_arr
+
+        ax_w.plot(iters, Wj_arr,  "o--", color="#D85A30", lw=1.8,
+                  label=r"$W_j$ (vendedores)", markersize=5)
+        ax_w.plot(iters, Wi_arr,  "s--", color="#378ADD", lw=1.8,
+                  label=r"$W_i$ (compradores)", markersize=5)
+        ax_w.plot(iters, W_total, "D-",  color="#534AB7", lw=2.2,
+                  label=r"$W = W_j + W_i$ (total)", markersize=6)
+        ax_w.axhline(W_total[-1], color="#534AB7", lw=0.8, ls=":", alpha=0.6)
+        ax_w.set_xlabel("Iteración Stackelberg")
+        ax_w.set_ylabel(f"Bienestar ({currency})")
+        ax_w.set_title("Convergencia del bienestar agregado por iteración Stackelberg")
+        ax_w.set_xticks(iters)
+        ax_w.legend(fontsize=8)
+
+        # ── Fila 2: Evolución de precios π_i(t) ──────────────────────────
+        ax_pi = fig.add_subplot(gs_fig[1, :])
+        if cd.pi_traj.size > 0 and cd.t_buyers.size > 0:
+            for i in range(I):
+                buyer_name = (agent_names[cd.buyer_ids[i]]
+                              if cd.buyer_ids[i] < len(agent_names)
+                              else f"C{cd.buyer_ids[i]}")
+                ax_pi.plot(cd.t_buyers, cd.pi_traj[i, :],
+                           color=COLORS_AGT[i % len(COLORS_AGT)],
+                           lw=1.8, label=f"$\\pi_{{{buyer_name}}}$")
+            ax_pi.set_xlabel("Tiempo de integración $t$")
+            ax_pi.set_ylabel(f"Precio ({currency}/kWh)")
+            ax_pi.set_title("Dinámica de precios de compradores $\\pi_i(t)$ — última iteración")
+            ax_pi.legend(fontsize=8, ncol=min(I, 3))
+        else:
+            ax_pi.text(0.5, 0.5, "Sin datos de trayectoria",
+                       ha="center", va="center", transform=ax_pi.transAxes)
+
+        # ── Fila 3: Evolución de potencias P_ji(t) ───────────────────────
+        ax_pL = fig.add_subplot(gs_fig[2, 0])
+        ax_pR = fig.add_subplot(gs_fig[2, 1])
+
+        if cd.P_traj.size > 0 and cd.t_sellers.size > 0:
+            pair_idx = 0
+            for j in range(J):
+                seller_name = (agent_names[cd.seller_ids[j]]
+                               if cd.seller_ids[j] < len(agent_names)
+                               else f"S{cd.seller_ids[j]}")
+                for i in range(I):
+                    buyer_name = (agent_names[cd.buyer_ids[i]]
+                                  if cd.buyer_ids[i] < len(agent_names)
+                                  else f"C{cd.buyer_ids[i]}")
+                    ax_target = ax_pL if pair_idx < (J * I + 1) // 2 else ax_pR
+                    ax_target.plot(
+                        cd.t_sellers, cd.P_traj[j, i, :],
+                        color=COLORS_AGT[pair_idx % len(COLORS_AGT)],
+                        lw=1.6,
+                        label=f"$P_{{{seller_name}→{buyer_name}}}$",
+                    )
+                    pair_idx += 1
+
+            for ax_p, title in [(ax_pL, "Pares (1)"), (ax_pR, "Pares (2)")]:
+                ax_p.set_xlabel("Tiempo de integración $t$")
+                ax_p.set_ylabel("Potencia (kW)")
+                ax_p.set_title(f"Dinámica de potencias $P_{{ji}}(t)$ — {title}")
+                if ax_p.lines:
+                    ax_p.legend(fontsize=7, ncol=1)
+        else:
+            ax_pL.text(0.5, 0.5, "Sin datos", ha="center", va="center",
+                       transform=ax_pL.transAxes)
+
+        # Anotaciones de valores finales
+        P_final = cd.P_star_iters[-1]
+        pi_final = cd.pi_star_iters[-1]
+        info_lines = [
+            f"Resultado final (iteración {n_iters}):",
+            f"  Σ P_ji = {float(np.sum(P_final)):.3f} kW",
+            f"  π_i ∈ [{float(pi_final.min()):.0f}, {float(pi_final.max()):.0f}] {currency}/kWh",
+            f"  W_j = {cd.welfare_iters[-1][0]:.2f}   W_i = {cd.welfare_iters[-1][1]:.2f}",
+            f"  Vendedores: {[agent_names[s] if s < len(agent_names) else s for s in cd.seller_ids]}",
+            f"  Compradores: {[agent_names[b] if b < len(agent_names) else b for b in cd.buyer_ids]}",
+        ]
+        fig.text(0.01, 0.01, "\n".join(info_lines),
+                 fontsize=7.5, family="monospace",
+                 va="bottom", ha="left",
+                 bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow", alpha=0.8))
+
+        path = os.path.join(out_dir, f"fig11_convergencia_h{cd.hour:04d}.png")
+        saved.append(_save(fig, path))
+
+    return saved
+
+
+def plot_optimality(
+    summary,           # OptimalitySummary
+    out_dir: str,
+    currency: str = "COP",
+) -> str:
+    """
+    Fig 14 — Análisis de optimalidad P2P vs C4 hora a hora.
+
+    Panel A (superior): timeline de categoría por hora (barras coloreadas)
+    Panel B (medio)   : cumsum de Delta = B_P2P - B_C4 acumulado
+    Panel C (inferior): GDR por hora activa + distribución categorial (pie)
+    """
+    hourly = summary.hourly_data
+    if not hourly:
+        return ""
+
+    os.makedirs(out_dir, exist_ok=True)
+    T = len(hourly)
+
+    # ── Vectores ─────────────────────────────────────────────────────────────
+    hours   = np.arange(T)
+    deltas  = np.array([h.delta   for h in hourly])
+    gdrs    = np.array([h.gdr     for h in hourly])
+    cats    = [h.category for h in hourly]
+
+    cat_colors = {
+        "P2P_dom":  "#534AB7",   # violeta (P2P)
+        "C4_dom":   "#D4537E",   # rosa   (C4)
+        "neutral":  "#F0C040",   # amarillo (empate)
+        "inactive": "#CCCCCC",   # gris (inactivo)
+    }
+    cat_labels = {
+        "P2P_dom":  "P2P dominante",
+        "C4_dom":   "C4 dominante",
+        "neutral":  "Neutral",
+        "inactive": "Inactivo",
+    }
+
+    color_arr = np.array([cat_colors[c] for c in cats])
+
+    fig = plt.figure(figsize=(13, 10))
+    gs  = GridSpec(3, 2, figure=fig, hspace=0.45, wspace=0.35,
+                   width_ratios=[3, 1])
+
+    # ── Panel A: timeline de categorías ─────────────────────────────────────
+    ax_a = fig.add_subplot(gs[0, :])
+    bar_h = np.ones(T)
+    for cat, clr in cat_colors.items():
+        mask = np.array([c == cat for c in cats])
+        if mask.any():
+            ax_a.bar(hours[mask], bar_h[mask], color=clr, width=1.0,
+                     label=cat_labels[cat], alpha=0.85)
+    ax_a.set_xlim(0, T)
+    ax_a.set_ylim(0, 1.2)
+    ax_a.set_yticks([])
+    ax_a.set_xlabel("Hora k")
+    ax_a.set_title("A — Dominancia horaria: P2P vs C4", fontweight="bold")
+    ax_a.legend(loc="upper right", ncol=4, fontsize=8)
+    ax_a.axhline(1, color="#888", lw=0.4, ls="--")
+
+    # ── Panel B: Delta acumulado ─────────────────────────────────────────────
+    ax_b = fig.add_subplot(gs[1, :2])
+    cumsum = np.cumsum(deltas)
+    clr_line = "#534AB7" if cumsum[-1] >= 0 else "#D4537E"
+    ax_b.plot(hours, cumsum / 1e3, color=clr_line, lw=1.5)
+    ax_b.axhline(0, color="#555", lw=0.8, ls="--", alpha=0.7)
+    ax_b.fill_between(hours, cumsum / 1e3, 0,
+                      where=cumsum >= 0, color="#534AB7", alpha=0.15, label="P2P > C4")
+    ax_b.fill_between(hours, cumsum / 1e3, 0,
+                      where=cumsum < 0,  color="#D4537E", alpha=0.15, label="C4 > P2P")
+    ax_b.set_xlabel("Hora k")
+    ax_b.set_ylabel(f"ΔB acumulado (k{currency})")
+    ax_b.set_title("B — Ventaja diferencial acumulada P2P − C4", fontweight="bold")
+    ax_b.legend(fontsize=8)
+    ax_b.set_xlim(0, T)
+
+    # ── Panel C-izq: GDR por hora ────────────────────────────────────────────
+    ax_cl = fig.add_subplot(gs[2, 0])
+    active_mask = np.array([h.active for h in hourly])
+    if active_mask.any():
+        ax_cl.scatter(hours[active_mask], gdrs[active_mask],
+                      s=4, c="#1D9E75", alpha=0.55, label="GDR hora activa")
+        ax_cl.axhline(summary.gdr_mean, color="#1D9E75", lw=1.2, ls="--",
+                      label=f"μ={summary.gdr_mean:.3f}")
+    ax_cl.set_xlim(0, T)
+    ax_cl.set_ylim(-0.05, 1.05)
+    ax_cl.set_xlabel("Hora k")
+    ax_cl.set_ylabel("GDR")
+    ax_cl.set_title("C — Global Dispatch Ratio por hora", fontweight="bold")
+    ax_cl.legend(fontsize=8)
+
+    # ── Panel C-der: torta resumen ────────────────────────────────────────────
+    ax_cr = fig.add_subplot(gs[2, 1])
+    cat_order = ["P2P_dom", "C4_dom", "neutral", "inactive"]
+    counts = [cats.count(c) for c in cat_order]
+    nonzero_idx = [i for i, c in enumerate(counts) if c > 0]
+    wedge_sizes  = [counts[i] for i in nonzero_idx]
+    wedge_colors = [cat_colors[cat_order[i]] for i in nonzero_idx]
+    wedge_labels = [f"{cat_labels[cat_order[i]]}\n{counts[i]}h" for i in nonzero_idx]
+    ax_cr.pie(wedge_sizes, labels=wedge_labels, colors=wedge_colors,
+              autopct="%1.0f%%", startangle=90,
+              textprops={"fontsize": 7.5},
+              wedgeprops={"edgecolor": "white", "linewidth": 0.8})
+    ax_cr.set_title("D — Distribución categorial", fontweight="bold")
+
+    # ── Anotación de resultados clave ─────────────────────────────────────────
+    info = (f"B_P2P total = {summary.B_p2p_total/1e6:,.1f} M{currency}\n"
+            f"B_C4  total = {summary.B_c4_total/1e6:,.1f} M{currency}\n"
+            f"ΔTotal      = {summary.delta_total/1e3:,.0f} k{currency}\n"
+            f"GDR medio   = {summary.gdr_mean:.3f}  (std {summary.gdr_std:.3f})\n"
+            f"Umbral      = ±{summary.threshold_cop:,.0f} {currency}")
+    fig.text(0.01, 0.01, info, fontsize=8, family="monospace",
+             va="bottom", ha="left",
+             bbox=dict(boxstyle="round,pad=0.4", fc="lightyellow", alpha=0.85))
+
+    fig.suptitle("Fig 14 — Análisis de optimalidad horaria: P2P vs C4 (AGRC)\n"
+                 "Clasificación por dominancia y eficiencia de clearing",
+                 fontsize=11, fontweight="bold")
+
+    path = os.path.join(out_dir, "fig14_optimalidad_horaria.png")
+    return _save(fig, path)
+
+
 def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
                                 agent_names, out_dir, currency="COP",
-                                # parámetros opcionales para compatibilidad hacia atrás
                                 fa_desertion=None, fa_creg=None,
-                                p2p_results=None, pi_bolsa=None, D=None):
+                                p2p_results=None, pi_bolsa=None, D=None,
+                                sa_ppa=None, pi_gb=None, pi_gs=None):
     """Genera las figuras 7 y 8 del análisis de sensibilidad.
     Firma compatible con la llamada desde main_simulation (findings como dict).
     """
@@ -636,6 +1260,12 @@ def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
         steps.append(("Fig 9 — Factibilidad",
                       lambda: plot_feasibility(fa_desertion, fa_creg, p2p_results,
                                                pi_bolsa, agent_names, out_dir)))
+
+    # Fig 10: sensibilidad PPA
+    if sa_ppa and pi_gb is not None and pi_gs is not None:
+        steps.append(("Fig 10 — Sensibilidad PPA",
+                      lambda: plot_sensitivity_ppa(
+                          sa_ppa, agent_names, pi_gb, pi_gs, out_dir, currency)))
 
     for label, fn in steps:
         try:

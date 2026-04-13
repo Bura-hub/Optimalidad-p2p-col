@@ -7,4 +7,5 @@ from .scenario_c4_creg101072 import (
 )
 from .comparison_engine import (
     run_comparison, ComparisonResult, print_comparison_report,
+    print_welfare_decomposition, print_flow_breakdown,
 )

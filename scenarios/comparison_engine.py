@@ -48,6 +48,20 @@ class ComparisonResult:
     # Desglose de flujos por componente (Activity 3.2 — Nivel 1)
     # {escenario: {componente: COP_total}}
     flow_breakdown: dict = field(default_factory=dict)
+    # ── Descomposición del bienestar P2P (Act 3.3) ──────────────────────
+    # Nivel 1: beneficio monetario directo (COP)  → net_benefit["P2P"]
+    # Nivel 2: bienestar de optimización (u.o.)   → W_sellers + W_buyers
+    #
+    # W_j = lam_j×G_j - theta_j×G_j² - Σ_i P_ji/log(1+π_i) - a_j×ΣP² - b_j×ΣP
+    # W_i = lam_i×G_i - theta_i×G_i² + Σ_j P_ji/log(|π_i|+1) - etha_i×compe
+    #
+    # Nota: W_j y W_i están en unidades de optimización (u.o.): son los valores
+    # de las funciones objetivo que guían la dinámica de replicador, e incluyen
+    # utilidad de autoconsumo (preferencias λ, θ) y aversión al riesgo (η).
+    # NO son directamente comparables en COP, pero cuantifican los beneficios
+    # intangibles del mecanismo P2P más allá de los flujos de caja.
+    W_sellers_total: float = 0.0   # Σ_k W_j(k) sobre todas las horas activas
+    W_buyers_total:  float = 0.0   # Σ_k W_i(k) sobre todas las horas activas
 
 
 def run_comparison(
@@ -293,6 +307,15 @@ def run_comparison(
         },
     }
 
+    # ── Act 3.3: Bienestar de optimización (Nivel 2 — u.o.) ─────────────
+    # Acumula los valores W_j y W_i calculados por el motor P2P hora a hora.
+    # Estos incluyen utilidad de autoconsumo (λ, θ) y aversión al riesgo (η),
+    # que no están capturados en el beneficio monetario de Nivel 1.
+    cr.W_sellers_total = float(sum(
+        r.Wj_total for r in p2p_results if r.P_star is not None))
+    cr.W_buyers_total = float(sum(
+        r.Wi_total for r in p2p_results if r.P_star is not None))
+
     # ── Price of Fairness (P2P vs C4) ────────────────────────────────────
     w_eff  = cr.net_benefit["P2P"]
     w_fair = cr.net_benefit["C4"]
@@ -385,6 +408,78 @@ def _p2p_flow_breakdown(results, pi_gs: float, pi_gb: float) -> tuple:
     return prima, ahorro
 
 
+def print_welfare_decomposition(cr: "ComparisonResult") -> None:
+    """
+    Act 3.3 — Descomposición formal del bienestar P2P.
+
+    Nivel 1 — Beneficio monetario directo (COP):
+        Comparable directamente con C1–C4 (que son puramente financieros).
+        Fuentes: autoconsumo, prima vendedor, ahorro comprador.
+
+    Nivel 2 — Bienestar de optimización (u.o.) + métricas sociales:
+        W_j y W_i guían la dinámica de replicador e incluyen utilidad de
+        autoconsumo (λ, θ) y aversión al riesgo (η). No son COP, pero
+        cuantifican el valor intangible del mecanismo dinámico.
+        Métricas sociales: IE, Gini, SC, SS, PoF.
+
+    Referencia: propuesta tesis §VI.C Act 3.3, §VII.C Niveles 1 y 2.
+    """
+    W = 70
+    print("\n" + "=" * W)
+    print("  Act 3.3 — DESCOMPOSICIÓN DEL BIENESTAR P2P")
+    print("  (distingue beneficio monetario de intangibles del mecanismo dinámico)")
+    print("=" * W)
+
+    # ── Nivel 1: monetario ────────────────────────────────────────────────
+    print("\n  NIVEL 1 — Beneficio monetario directo (COP)")
+    print(f"  {'(comparable con C1–C4 que son puramente financieros)'}")
+    print(f"  {'-' * 60}")
+    bd = cr.flow_breakdown.get("P2P", {})
+    if bd:
+        total_mon = sum(bd.values())
+        for comp, val in bd.items():
+            pct = val / total_mon * 100 if total_mon > 1e-6 else 0.0
+            print(f"    {comp:<26} {val:>14,.0f} COP  ({pct:5.1f}%)")
+        print(f"    {'─' * 52}")
+        print(f"    {'TOTAL monetario (Nivel 1)':<26} {total_mon:>14,.0f} COP  (100.0%)")
+    else:
+        print(f"    (no disponible — ejecutar con datos reales)")
+
+    # ── Nivel 2: intangibles del mecanismo ───────────────────────────────
+    print(f"\n  NIVEL 2 — Bienestar de optimización P2P (unidades de optimización)")
+    print(f"  {'(incluye: utilidad de autoconsumo λ/θ, aversión al riesgo η)'}")
+    print(f"  {'-' * 60}")
+    W_total = cr.W_sellers_total + cr.W_buyers_total
+    print(f"    {'Bienestar vendedores  Σ W_j':<34} {cr.W_sellers_total:>12.4f} u.o.")
+    print(f"    {'Bienestar compradores Σ W_i':<34} {cr.W_buyers_total:>12.4f} u.o.")
+    print(f"    {'─' * 52}")
+    print(f"    {'Total W_opt (Wj + Wi)':<34} {W_total:>12.4f} u.o.")
+    print(f"\n    Nota: u.o. = unidades de optimización. Los valores W guían la")
+    print(f"    dinámica de replicador; no son COP pero reflejan la preferencia")
+    print(f"    de los agentes más allá del flujo de caja directo.")
+
+    # ── Métricas sociales (componente intangible observable) ─────────────
+    print(f"\n  NIVEL 2 — Métricas sociales del mecanismo P2P")
+    print(f"  {'-' * 60}")
+    ie   = cr.equity_index.get("P2P",   0.0)
+    ie4  = cr.equity_index.get("C4",    0.0)
+    gini = cr.gini.get("P2P",           0.0)
+    gini4 = cr.gini.get("C4",           0.0)
+    sc   = cr.self_consumption.get("P2P", 0.0)
+    ss   = cr.self_sufficiency.get("P2P", 0.0)
+    pof  = cr.price_of_fairness or 0.0
+    print(f"    IE  P2P = {ie:+.4f}   vs   IE  C4 = {ie4:+.4f}  "
+          f"  Δ = {ie - ie4:+.4f}")
+    print(f"    Gini P2P = {gini:.4f}   vs   Gini C4 = {gini4:.4f}  "
+          f"  Δ = {gini - gini4:+.4f}")
+    print(f"    SC  P2P = {sc:.4f}    SS  P2P = {ss:.4f}")
+    print(f"    Price of Fairness (P2P vs C4): {pof:.4f}")
+    print(f"      → PoF > 0: P2P es más eficiente que C4 en términos netos")
+    print(f"      → PoF < 0: C4 supera al P2P en este período/parámetros")
+
+    print("=" * W)
+
+
 def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
     """
     Imprime el desglose de flujos por componente para cada escenario.
@@ -428,6 +523,9 @@ def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
         print("  Nota: el autoconsumo es idéntico en todos los escenarios —")
         print(f"        lo que varía es el valor asignado a los excedentes.")
     print("="*68)
+
+    # ── Act 3.3: descomposición formal del bienestar ─────────────────────
+    print_welfare_decomposition(cr)
 
 
 def _sc_index_static(G_klim, D) -> float:

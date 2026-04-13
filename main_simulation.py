@@ -25,7 +25,8 @@ import numpy as np
 import pandas as pd
 
 from core.ems_p2p  import EMSP2P, AgentParams, GridParams, SolverParams
-from scenarios     import run_comparison, print_comparison_report
+from scenarios     import (run_comparison, print_comparison_report,
+                           print_flow_breakdown, print_welfare_decomposition)
 from data.base_case_data import (
     get_generation_profiles, get_demand_profiles,
     get_agent_params, get_pde_weights,
@@ -167,7 +168,6 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
     print("\n[4/5] Reporte:")
     print_comparison_report(cr)
 
-    from scenarios.comparison_engine import print_flow_breakdown
     print_flow_breakdown(cr, currency=currency)
 
     # Nota: en la propuesta de tesis, el escenario "Individual" = C1 (CREG 174),
@@ -374,6 +374,30 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
             prosumer_ids=prosumer_ids, verbose=True,
         )
 
+        # FA-3: Robustez — retiro de participante
+        # FA-4: Robustez — escalamiento de instalación
+        from analysis.feasibility import (analyze_withdrawal_risk,
+                                          analyze_scaling_risk)
+        print(f"\n  FA-3/FA-4: Robustez regulatoria C4...")
+        cap_arr = np.array([float(G[n].max()) for n in range(D.shape[0])])
+        wr_report = analyze_withdrawal_risk(
+            D=D, G=G, G_klim=G_klim,
+            pi_gs=grid_params["pi_gs"],
+            pi_gb=grid_params["pi_gb"],
+            pi_bolsa=pi_bolsa,
+            pde=pde,
+            prosumer_ids=prosumer_ids,
+            agent_names=agent_names,
+            net_benefit_p2p=cr.net_benefit_per_agent["P2P"],
+            net_benefit_c4_full=cr.net_benefit_per_agent["C4"],
+            capacity=cap_arr,
+            verbose=True,
+        )
+        sc_risk = analyze_scaling_risk(
+            G=G, prosumer_ids=prosumer_ids, agent_names=agent_names,
+            D=D, verbose=True,
+        )
+
         # ── Convergencia RD + Stackelberg (Objetivo 2 / Validación) ──────
         print(f"\n  Convergencia RD+Stackelberg (horas representativas)...")
         from visualization.plots import plot_convergence
@@ -414,6 +438,29 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         if p:
             print(f"    ✓ Fig 14 — Análisis de optimalidad P2P vs C4")
 
+        # Actividad 4.3: Análisis de sub-períodos (laborable/finde × jul/ene)
+        print(f"\n  Actividad 4.3: Análisis de sub-períodos...")
+        from analysis.subperiod import (run_subperiod_analysis,
+                                        print_subperiod_table, plot_subperiod)
+        sp_results = run_subperiod_analysis(
+            D=D, G=G,
+            agents=agents, grid=grid, solver=solver,
+            pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            pi_gs=grid_params["pi_gs"], capacity=cap,
+            agent_names=agent_names, currency=currency, verbose=True,
+        )
+        print_subperiod_table(sp_results, currency=currency)
+        p = plot_subperiod(sp_results, out_dir=plots_dir, currency=currency)
+        if p:
+            print(f"    ✓ Fig 16 — Análisis de sub-períodos")
+
+        # Fig 17 — Robustez C4
+        from visualization.plots import plot_robustness_c4
+        p17 = plot_robustness_c4(wr_report, agent_names,
+                                  out_dir=plots_dir, currency=currency)
+        if p17:
+            print(f"    ✓ Fig 17 — Robustez regulatoria C4")
+
         # Gráficas 7-9
         generate_sensitivity_plots(
             sa_pgb=sa_pgb, sa_pv=sa_pv,
@@ -430,7 +477,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
 
         # Exportar análisis a Excel
         _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg_rep,
-                          thresholds, base_dir, agent_names, fa_ir=fa_ir)
+                          thresholds, base_dir, agent_names, fa_ir=fa_ir,
+                          wr_report=wr_report, sc_risk=sc_risk)
 
     # ── Reporte de avances para asesores ─────────────────────────────────
     _generate_progress_report(
@@ -473,9 +521,14 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
             "Wj": r.Wj_total, "Wi": r.Wi_total,
         } for r in p2p_results]).to_excel(w, sheet_name="P2P_horario", index=False)
         pd.DataFrame([{
-            "PoF_P2P_vs_C4": cr.price_of_fairness,
-            "Spread_C4_kWh": float(np.sum(cr.static_spread_24h))
-                              if cr.static_spread_24h is not None else 0,
+            "PoF_P2P_vs_C4":         cr.price_of_fairness,
+            "Spread_C4_kWh":         float(np.sum(cr.static_spread_24h))
+                                      if cr.static_spread_24h is not None else 0,
+            # Act 3.3 — Bienestar de optimización (u.o.)
+            "W_sellers_total_uo":    cr.W_sellers_total,
+            "W_buyers_total_uo":     cr.W_buyers_total,
+            "W_total_uo":            cr.W_sellers_total + cr.W_buyers_total,
+            "Nota_W":                "u.o.=unidades optimizacion; no son COP",
         }]).to_excel(w, sheet_name="Metricas_extra", index=False)
     return path
 
@@ -483,7 +536,7 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
 # ── Exportar análisis de sensibilidad a Excel ─────────────────────────────────
 
 def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent_names,
-                     fa_ir=None):
+                     fa_ir=None, wr_report=None, sc_risk=None):
     path = os.path.join(base_dir, "resultados_analisis.xlsx")
     with pd.ExcelWriter(path, engine="openpyxl") as w:
         if sa_pgb:
@@ -552,6 +605,40 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                 rows_sens.append(row)
             pd.DataFrame(rows_sens).to_excel(
                 w, sheet_name="DesercionIR_Sensibilidad", index=False)
+
+        # FA-3: Robustez — retiro de participante
+        if wr_report is not None and wr_report.by_agent:
+            rows_wr = []
+            for name, d in wr_report.by_agent.items():
+                rows_wr.append({
+                    "Agente_retirado":      name,
+                    "AGRC_restante_cumple": d["compliant"],
+                    "B_C4_full_COP":        d["B_C4_full"],
+                    "B_C4_remaining_COP":   d["B_C4_remaining"],
+                    "B_fallback_COP":       d["B_fallback"],
+                    "B_P2P_remaining_COP":  d["B_P2P_remaining"],
+                    "loss_C4_COP":          d["loss_C4"],
+                    "flexibility_premium_COP": d["flexibility_premium"],
+                    "reglas_violadas":      ",".join(d["violated_rules"]) or "—",
+                })
+            pd.DataFrame(rows_wr).to_excel(
+                w, sheet_name="FA3_Robustez_Retiro", index=False)
+
+        # FA-4: Robustez — escalamiento
+        if sc_risk is not None:
+            rows_sc = []
+            for name, d in sc_risk.items():
+                rows_sc.append({
+                    "Agente":         name,
+                    "G_mean_kW":      d["g_mean_kw"],
+                    "G_max_kW":       d["g_max_kw"],
+                    "Share_actual_%": d["share_pct"],
+                    "2x_cumple":      d["2x_ok"],
+                    "3x_cumple":      d["3x_ok"],
+                    "Escala_max_ok":  d["max_ok_scale"],
+                })
+            pd.DataFrame(rows_sc).to_excel(
+                w, sheet_name="FA4_Robustez_Escala", index=False)
 
     print(f"    Excel análisis → {path}")
     return path

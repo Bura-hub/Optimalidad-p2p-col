@@ -1479,6 +1479,107 @@ def plot_c1_vs_c4(
     return _save(fig, path)
 
 
+def plot_robustness_c4(
+    wr_report,          # WithdrawalRiskReport
+    agent_names: list,
+    out_dir: str,
+    currency: str = "COP",
+) -> str:
+    """
+    Fig 17 — Robustez regulatoria C4 (FA-3 + FA-4).
+
+    Panel A: Beneficio COP por escenario de retiro
+        - B_C4_remaining (si AGRC se mantiene)
+        - B_fallback     (si AGRC se invalida → régimen individual)
+        - B_P2P_remaining (P2P sin el agente retirado)
+    Panel B: Flexibility premium (B_P2P_remaining - B_fallback)
+        Barras negativas → C4 fallback supera a P2P (raro)
+        Barras positivas → P2P ofrece más que el fallback de C4
+
+    Referencias: propuesta tesis §VII.C — Robustez ante riesgo regulatorio
+    """
+    ba = wr_report.by_agent
+    if not ba:
+        return ""
+
+    names = list(ba.keys())
+    B_c4r   = [ba[n]["B_C4_remaining"]      for n in names]
+    B_fall  = [ba[n]["B_fallback"]           for n in names]
+    B_p2pr  = [ba[n]["B_P2P_remaining"]      for n in names]
+    FP      = [ba[n]["flexibility_premium"]  for n in names]
+    compliant = [ba[n]["compliant"]          for n in names]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle(
+        "Fig 17 — Robustez regulatoria C4: impacto del retiro de participante",
+        fontsize=11, fontweight="bold",
+    )
+
+    x   = np.arange(len(names))
+    w   = 0.25
+    fmt = lambda v: f"{v/1000:.1f}k" if abs(v) >= 1000 else f"{v:.0f}"
+
+    # ── Panel A: beneficios bajo cada escenario de retiro ─────────────────
+    b1 = ax1.bar(x - w, B_c4r,  width=w, label="C4 AGRC (restante)",
+                 color="#2196F3", alpha=0.85)
+    b2 = ax1.bar(x,     B_fall, width=w, label="C4 fallback (sin AGRC)",
+                 color="#F44336", alpha=0.85)
+    b3 = ax1.bar(x + w, B_p2pr, width=w, label="P2P (restante)",
+                 color="#4CAF50", alpha=0.85)
+
+    # Marcar violaciones
+    for i, (ok, name) in enumerate(zip(compliant, names)):
+        if not ok:
+            ax1.annotate("⚠ AGRC\ninválido",
+                         xy=(x[i], max(B_c4r[i], B_fall[i]) * 1.02),
+                         ha="center", va="bottom", fontsize=7,
+                         color="#F44336", fontweight="bold")
+
+    ax1.set_xticks(x)
+    ax1.set_xticklabels([f"Retiro\n{n}" for n in names], fontsize=8)
+    ax1.set_ylabel(f"Beneficio comunidad restante ({currency})", fontsize=9)
+    ax1.set_title("A — Beneficio por escenario de retiro", fontsize=10)
+    ax1.legend(fontsize=8)
+    ax1.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda v, _: f"{v/1000:.0f}k" if abs(v) >= 1000 else f"{v:.0f}"))
+    ax1.grid(axis="y", alpha=0.3)
+
+    # ── Panel B: flexibility premium ──────────────────────────────────────
+    colors = ["#4CAF50" if f >= 0 else "#F44336" for f in FP]
+    bars   = ax2.bar(x, FP, color=colors, alpha=0.85, edgecolor="white")
+
+    for bar, val in zip(bars, FP):
+        ax2.text(bar.get_x() + bar.get_width() / 2,
+                 bar.get_height() + (max(FP) - min(FP)) * 0.02,
+                 f"{val:+,.0f}", ha="center", va="bottom", fontsize=8)
+
+    ax2.axhline(0, color="black", linewidth=0.8)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels([f"Retiro\n{n}" for n in names], fontsize=8)
+    ax2.set_ylabel(f"Prima de flexibilidad ({currency})\nB_P2P_rest − B_fallback",
+                   fontsize=9)
+    ax2.set_title("B — Prima de flexibilidad P2P vs C4 fallback", fontsize=10)
+    ax2.grid(axis="y", alpha=0.3)
+
+    # Anotación de resumen
+    if wr_report.community_at_risk:
+        ax2.text(0.5, 0.02,
+                 f"⚠ {wr_report.n_risky_withdrawals}/{len(names)} retiros invalidan AGRC\n"
+                 f"Prima total: {wr_report.flexibility_premium_total:+,.0f} {currency}",
+                 transform=ax2.transAxes, ha="center", va="bottom",
+                 fontsize=8, color="#F44336",
+                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#F44336", alpha=0.8))
+    else:
+        ax2.text(0.5, 0.02,
+                 "✓ Ningún retiro invalida el régimen AGRC",
+                 transform=ax2.transAxes, ha="center", va="bottom",
+                 fontsize=8, color="#4CAF50",
+                 bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#4CAF50", alpha=0.8))
+
+    fig.tight_layout()
+    return _save(fig, os.path.join(out_dir, "fig17_robustez_c4.png"))
+
+
 def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
                                 agent_names, out_dir, currency="COP",
                                 fa_desertion=None, fa_creg=None,

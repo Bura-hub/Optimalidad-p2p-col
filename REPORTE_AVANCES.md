@@ -1,6 +1,6 @@
 # Reporte de Avances — Tesis P2P Colombia
 
-**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-12 09:28
+**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-13
 **Asesores:** Andrés Pantoja · Germán Obando | **Udenar, 2026**
 
 ---
@@ -9,48 +9,46 @@
 
 | Parámetro | Valor |
 |-----------|-------|
-| Datos | Sintéticos (validación) |
-| Agentes | 6 instituciones Pasto (MTE) |
+| Datos | Empíricos MTE — perfil diario promedio (24h) |
+| Agentes | 5 instituciones Pasto (MTE) |
 | Horizonte | 24h (1 días) |
-| Horas con mercado P2P | 24/24 (100.0%) |
-| Energía P2P total | 36.6 kWh/período |
-| Precios | PGS=1250.0 · PGB=114.0 $/kWh |
+| Horas con mercado P2P | 7/24 (29.2%) |
+| Energía P2P total | 54.6 kWh/período |
+| Precios | PGS=650.0 · PGB=280.0 COP/kWh |
 
 ## 2. Datos empíricos MTE
 
 | Institución | D̄ (kW) | Ḡ (kW) | Cobertura PV |
 |-------------|---------|---------|-------------|
-| A1 | 2.3 | 2.8 | 121% |
-| A2 | 0.7 | 1.3 | 191% |
-| A3 | 0.5 | 0.6 | 129% |
-| A4 | 1.8 | 1.1 | 63% |
-| A5 | 0.3 | 0.0 | 0% |
-| A6 | 0.2 | 0.0 | 0% |
-| **Comunidad** | **5.7** | **5.8** | **102.4%** |
+| Udenar | 7.5 | 3.9 | 52% |
+| Mariana | 13.8 | 1.8 | 13% |
+| UCC | 42.1 | 2.2 | 5% |
+| HUDN | 21.7 | 1.7 | 8% |
+| Cesmag | 9.0 | 1.0 | 11% |
+| **Comunidad** | **94.1** | **10.6** | **11.3%** |
 
 ## 3. Resultados comparación regulatoria
 
-| Escenario | Ganancia neta ($) | SC | SS | IE |
+| Escenario | Ganancia neta (COP) | SC | SS | IE |
 |-----------|--------------------------|-----|-----|-----|
-| P2P (Stackelberg + RD) | 138,809 | 0.837 | 0.867 | -0.1898 |
-| C1 CREG 174/2021 | 139,838 | 0.569 | 0.589 | -1.0000 |
-| C2 Bilateral PPA | 112,691 | 0.569 | 0.589 | -0.9328 |
-| C3 Mercado spot | 103,387 | 0.569 | 0.589 | -1.0000 |
-| C4 CREG 101 072 ★ | 108,745 | 0.569 | 0.589 | -1.0000 |
+| P2P (Stackelberg + RD) | 150,118 | 0.113 | 1.000 | 0.1510 |
+| C1 CREG 174/2021 | 165,410 | 0.088 | 0.785 | -0.2628 |
+| C2 Bilateral PPA | 145,203 | 0.088 | 0.785 | -0.1602 |
+| C3 Mercado spot | 135,621 | 0.088 | 0.785 | -0.1009 |
+| C4 CREG 101 072 ★ | 129,911 | 0.088 | 0.785 | -0.0614 |
 
-**Price of Fairness (P2P vs C4):** 0.2166
-**Spread ineficiencia estática C4:** 14.465 kWh/período
+**Price of Fairness (P2P vs C4):** 0.1346
+**Spread ineficiencia estática C4:** 20.341 kWh/período
 
 ### 3.1 Ventaja P2P vs C4 por institución
 
-| Institución | P2P ($) | C4 ($) | Ventaja P2P ($) |
+| Institución | P2P (COP) | C4 (COP) | Ventaja P2P (COP) |
 |-------------|---------|---------|-----------------|
-| A1 | 66,489 | 62,457 | +4,032 ✓ P2P mejor |
-| A2 | 19,810 | 16,175 | +3,635 ✓ P2P mejor |
-| A3 | 12,172 | 9,289 | +2,883 ✓ P2P mejor |
-| A4 | 35,699 | 20,824 | +14,874 ✓ P2P mejor |
-| A5 | 2,569 | 0 | +2,569 ✓ P2P mejor |
-| A6 | 2,070 | 0 | +2,070 ✓ P2P mejor |
+| Udenar | 34,244 | 26,108 | +8,136 ✓ P2P mejor |
+| Mariana | 32,297 | 27,555 | +4,742 ✓ P2P mejor |
+| UCC | 34,679 | 34,679 | +0 ✓ P2P mejor |
+| HUDN | 29,463 | 26,291 | +3,172 ✓ P2P mejor |
+| Cesmag | 19,435 | 15,278 | +4,157 ✓ P2P mejor |
 
 ### 3.2 Nota sobre C1 = C3
 
@@ -65,62 +63,56 @@ y en días con baja demanda institucional (fines de semana, festivos).
 
 | Métrica | Valor | Interpretación |
 |---------|-------|----------------|
-| SC (P2P) | 0.837 | Fracción demanda cubierta internamente |
-| SS (P2P) | 0.867 | Fracción generación usada en comunidad |
-| IE (P2P) | -0.1898 | Distribución beneficio (0=equitativo) |
-| IE (C4)  | -1.0000 | Referencia regulatoria vigente |
-| PoF      | 0.2166 | Pérdida eficiencia por equidad P2P vs C4 |
+| SC (P2P) | 0.113 | Fracción demanda cubierta internamente |
+| SS (P2P) | 1.000 | Fracción generación usada en comunidad |
+| IE (P2P) | 0.1510 | Distribución beneficio (0=equitativo) |
+| IE (C4)  | -0.0614 | Referencia regulatoria vigente |
+| PoF      | 0.1346 | Pérdida eficiencia por equidad P2P vs C4 |
 
-## 5. Análisis de sensibilidad y factibilidad
+## 5. Análisis de sensibilidad
 
 ### SA-1: Variación precio de bolsa PGB
 
-| PGB (COP/kWh) | P2P ($) | C4 ($) | IE P2P | PoF |
+| PGB (COP/kWh) | P2P (COP) | C4 (COP) | IE P2P | PoF |
 |---------------|---------|---------|--------|-----|
-| 200 | 135,659 | 112,453 | -0.190 | 0.171 |
-| 250 | 133,828 | 114,609 | -0.190 | 0.144 |
-| 280 | 132,729 | 115,903 | -0.190 | 0.127 |
-| 300 | 131,997 | 116,765 | -0.190 | 0.115 |
-| 350 | 130,166 | 118,921 | -0.190 | 0.086 |
-| 400 | 128,334 | 121,077 | -0.190 | 0.057 |
-| 450 | 126,503 | 123,233 | -0.190 | 0.026 |
-| 500 | 124,672 | 125,389 | -0.190 | -0.006 |
+| 200 | 154,487 | 129,911 | 0.151 | 0.159 |
+| 250 | 151,756 | 129,911 | 0.151 | 0.144 |
+| 280 | 150,118 | 129,911 | 0.151 | 0.135 |
+| 300 | 149,025 | 129,911 | 0.151 | 0.128 |
+| 350 | 146,295 | 129,911 | 0.151 | 0.112 |
+| 400 | 143,564 | 129,911 | 0.151 | 0.095 |
+| 450 | 140,833 | 129,911 | 0.151 | 0.078 |
+| 500 | 138,103 | 129,911 | 0.151 | 0.059 |
 
 ### SA-2: Variación cobertura PV
 
-| Factor PV | Cobertura (%) | P2P ($) | C4 ($) | Horas mercado | kWh P2P |
+| Factor PV | Cobertura (%) | P2P (COP) | C4 (COP) | Horas mercado | kWh P2P |
 |-----------|--------------|---------|---------|--------------|---------|
-| 1.00x | 11% | 138,809 | 108,745 | 24 | 36.6 |
-
-### SA-3: Variación precio al usuario π_gs
-
-Barrido automático sobre rango típico de tarifa regulada colombiana.
-Resultados disponibles en `resultados_analisis.xlsx` → hoja `SA3_PGS`.
-
-### SA-PPA: Sensibilidad precio bilateral (π_ppa)
-
-Barrido entre π_gb y π_gs para identificar precio PPA óptimo.
-Resultados disponibles en `resultados_analisis.xlsx` → hoja `SA_PPA`.
+| 1.00x | 11% | 150,118 | 129,911 | 7 | 54.6 |
+| 1.78x | 20% | 259,892 | 215,334 | 9 | 120.4 |
+| 2.93x | 33% | 402,744 | 350,317 | 10 | 223.8 |
+| 4.44x | 50% | 505,781 | 566,074 | 10 | 245.3 |
+| 6.66x | 75% | 594,954 | 812,629 | 9 | 195.2 |
+| 8.88x | 100% | 647,717 | 989,478 | 8 | 136.9 |
 
 ## 6. Análisis de factibilidad
 
 ### FA-1: Condición de deserción del P2P
 
 - Precio P2P nunca menor que bolsa: **Sí**
-- Umbral crítico precio bolsa: **1250 COP/kWh**
+- Umbral crítico precio bolsa: **476 COP/kWh**
 
 ### FA-2: Cumplimiento CREG 101 072/2025
 
 | Institución | Participación (%) | Cumple 10% | Cap. max (kW) | Cumple 100kW |
 |-------------|------------------|-----------|--------------|-------------|
-| A1 | 48.32% | ✗ | 4.0 | ✓ |
-| A2 | 23.46% | ✗ | 4.0 | ✓ |
-| A3 | 11.26% | ✗ | 2.5 | ✓ |
-| A4 | 19.36% | ✗ | 1.5 | ✓ |
-| A5 | 0.00% | ✓ | 0.0 | ✓ |
-| A6 | 0.00% | ✓ | 0.0 | ✓ |
+| Udenar | 4.20% | ✓ | 12.7 | ✓ |
+| Mariana | 1.88% | ✓ | 5.8 | ✓ |
+| UCC | 2.36% | ✓ | 7.0 | ✓ |
+| HUDN | 1.79% | ✓ | 5.6 | ✓ |
+| Cesmag | 1.04% | ✓ | 2.9 | ✓ |
 
-**Score de robustez C4:** 0.50 (1=máxima robustez)
+**Score de robustez C4:** 1.00 (1=máxima robustez)
 
 ### FA-1b: Deserción — Condición de Racionalidad Individual (§3.14)
 
@@ -130,76 +122,86 @@ Agente n permanece en P2P sii `B_n^P2P(π) ≥ max(B_n^C1, B_n^C4)(π)`
 Donde `Δ_n = B_n^P2P − max(B_n^C1, B_n^C4)` (>0 → agente prefiere P2P). 
 Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.
 
-| Agente | B_P2P ($) | B_alt ($) | Δ_n ($) | Δ_n/B_alt | π_gb^*_n | Estado |
+| Agente | B_P2P (COP) | B_alt (COP) | Δ_n (COP) | Δ_n/B_alt | π_gb^*_n | Estado |
 |--------|---------|---------|---------|----------|---------|--------|
-| A1 | 66,489 | 68,766 | -2,277 | -3.3% | 180 | en riesgo |
-| A2 | 19,810 | 22,738 | -2,928 | -12.9% | 180 | en riesgo |
-| A3 | 12,172 | 15,273 | -3,100 | -20.3% | 180 | en riesgo |
-| A4 | 35,699 | 33,062 | +2,637 | +8.0% | 449 | estable |
-| A5 | 2,569 | 0 | +2,569 | +0.0% | >rango | estable |
-| A6 | 2,070 | 0 | +2,070 | +0.0% | >rango | estable |
+| Udenar | 34,244 | 61,607 | -27,363 | -44.4% | 180 | en riesgo |
+| Mariana | 32,297 | 27,555 | +4,742 | +17.2% | >rango | estable |
+| UCC | 34,679 | 34,679 | +0 | +0.0% | >rango | estable |
+| HUDN | 29,463 | 26,291 | +3,172 | +12.1% | >rango | estable |
+| Cesmag | 19,435 | 15,278 | +4,157 | +27.2% | >rango | estable |
 
-**Agentes estables (3/6):** A4, A5, A6
-**Umbral comunitario (mediana individual):** 315 COP/kWh
+**Agentes estables (4/5):** Mariana, UCC, HUDN, Cesmag
+**Umbral comunitario (mediana individual):** >rango (>500.0) COP/kWh
 **Umbral agregado P2P < max(C1,C4):** >rango (>500.0) COP/kWh
 
 **Tabla Δ_n(pi_gb) — sensibilidad a precio de bolsa:**
 
-| pi_gb | A1 | A2 | A3 | A4 | A5 | A6 | Σ Δ |
-|-------|--------|--------|--------|--------|--------|--------|--------|
-| 200 | -2,970 | -5,574 | -4,141 | +1,960 | +2,569 | +2,070 | -6,085 |
-| 250 | -3,373 | -7,112 | -4,746 | +1,567 | +2,569 | +2,070 | -9,024 |
-| 280 | -3,615 | -8,035 | -5,109 | +1,331 | +2,569 | +2,070 | -10,788 |
-| 300 | -3,776 | -8,650 | -5,351 | +1,174 | +2,569 | +2,070 | -11,964 |
-| 350 | -4,178 | -10,188 | -5,956 | +781 | +2,569 | +2,070 | -14,903 |
-| 400 | -4,581 | -11,727 | -6,561 | +387 | +2,569 | +2,070 | -17,842 |
-| 450 | -4,984 | -13,265 | -7,166 | -6 | +2,569 | +2,070 | -20,782 |
-| 500 | -5,387 | -14,803 | -7,771 | -399 | +2,569 | +2,070 | -23,721 |
-
-## 7. Módulos implementados (estado actual)
-
-| Módulo | Descripción | Estado |
-|--------|-------------|--------|
-| `core/ems_p2p.py` | EMS P2P paralelo + convergencia RD+Stackelberg | ✓ |
-| `core/dr_program.py` | DR program (alpha=0 en datos reales) | ✓ |
-| `core/settlement.py` | Liquidación + SS/SC/Gini unificadas | ✓ |
-| `scenarios/comparison_engine.py` | 5 escenarios + Gini + desglose flujos + PS/PSR | ✓ |
-| `scenarios/scenario_c1_creg174.py` | CREG 174 con balance mensual real (--full) | ✓ |
-| `analysis/sensitivity.py` | SA-1 PGB · SA-2 PV · SA-3 π_gs · SA-PPA · umbrales | ✓ |
-| `analysis/feasibility.py` | FA-1 deserción horaria · FA-1b IR individual · FA-2 CREG | ✓ |
-| `analysis/p2p_breakdown.py` | §3.12 Desglose P2P hora a hora → CSV + Excel | ✓ |
-| `analysis/monthly_report.py` | Reporte mes a mes para horizonte completo | ✓ |
-| `analysis/optimality.py` | Activity 4.2: dominancia P2P vs C4 + GDR | ✓ |
-| `visualization/plots.py` | 15 figuras automáticas (fig1–fig15) | ✓ |
-
-## 8. Figuras generadas
-
-| Figura | Descripción | Cuándo |
-|--------|-------------|--------|
-| fig1_perfiles.png | Perfiles D y G por nodo | Siempre |
-| fig2_clasificacion.png | Vendedor/comprador por hora | Siempre |
-| fig3_mercado_p2p.png | Energía y precios de equilibrio | Siempre |
-| fig4_metricas_horarias.png | SC, SS, IE, bienestar por hora | Siempre |
-| fig5_comparacion_regulatoria.png | Comparación 5 escenarios | Siempre |
-| fig6_ganancia_por_agente.png | Ganancia por institución | Siempre |
-| fig7_sensibilidad_pgb.png | SA-1: P2P vs PGB | --analysis |
-| fig8_sensibilidad_pv.png | SA-2: P2P vs cobertura PV | --analysis |
-| fig9_factibilidad.png | FA-1 + FA-2 CREG 101 072 | --analysis |
-| fig10_sensibilidad_ppa.png | SA-PPA: sensibilidad precio bilateral | --analysis |
-| fig11_convergencia_h*.png | Convergencia RD+Stackelberg | --analysis |
-| fig12_comparacion_mensual.png | Comparación mensual | --full |
-| fig13_desglose_flujos.png | Desglose flujos por componente | Siempre |
-| fig14_optimalidad_horaria.png | Dominancia P2P vs C4 por hora | --analysis |
-| fig15_c1_vs_c4.png | Comparación directa C1 vs C4 | Siempre |
+| pi_gb | Udenar | Mariana | UCC | HUDN | Cesmag | Σ Δ |
+|-------|--------|--------|--------|--------|--------|--------|
+| 200 | -22,994 | +4,742 | +0 | +3,172 | +4,157 | -10,923 |
+| 250 | -25,725 | +4,742 | +0 | +3,172 | +4,157 | -13,654 |
+| 280 | -27,363 | +4,742 | +0 | +3,172 | +4,157 | -15,292 |
+| 300 | -28,456 | +4,742 | +0 | +3,172 | +4,157 | -16,384 |
+| 350 | -31,186 | +4,742 | +0 | +3,172 | +4,157 | -19,115 |
+| 400 | -33,917 | +4,742 | +0 | +3,172 | +4,157 | -21,846 |
+| 450 | -36,648 | +4,742 | +0 | +3,172 | +4,157 | -24,576 |
+| 500 | -39,378 | +4,742 | +0 | +3,172 | +4,157 | -27,307 |
 
 ---
 
-## 9. Pendiente
+## 7. Pendiente
 
 - [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
-- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
+- [x] Serie horaria XM Jul 2025-Ene 2026 disponible en `data/precios_bolsa_xm_api.csv` (5 160 h, descargada vía API pydataxm)
 - [ ] Verificar LCOE real de inversores instalados en cada institución
 - [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
 
+## 8. Estructura del repositorio
+
+```
+SistemaBL/
+├── main_simulation.py          # Orquestador principal (4 modos)
+├── core/                       # EMS P2P: Stackelberg + RD
+│   ├── ems_p2p.py
+│   ├── replicator_sellers.py
+│   ├── replicator_buyers.py
+│   ├── settlement.py
+│   ├── market_prep.py
+│   └── dr_program.py
+├── scenarios/                  # 4 escenarios regulatorios + motor
+│   ├── comparison_engine.py
+│   ├── scenario_c1_creg174.py
+│   ├── scenario_c2_bilateral.py
+│   ├── scenario_c3_spot.py
+│   └── scenario_c4_creg101072.py
+├── analysis/                   # Sensibilidad, factibilidad, optimalidad
+│   ├── sensitivity.py
+│   ├── feasibility.py
+│   ├── p2p_breakdown.py
+│   ├── optimality.py
+│   ├── monthly_report.py
+│   └── subperiod.py
+├── data/                       # Parámetros base y precios XM
+│   ├── base_case_data.py
+│   ├── xm_prices.py
+│   ├── xm_data_loader.py
+│   └── precios_bolsa_xm_api.csv   # 5 160h Jul 2025–Ene 2026
+├── visualization/
+│   └── plots.py                # 17 figuras automáticas
+├── graficas/                   # Figuras generadas (PNG)
+├── resultados_comparacion.xlsx # Resultados 5 escenarios
+├── resultados_analisis.xlsx    # SA-1/2/3, FA-1/2, IR individual
+└── p2p_breakdown.xlsx          # Desglose flujos P2P hora a hora
+```
+
+**Ejecutar simulación:**
+```bash
+# Perfil diario promedio (rápido, ~2 min)
+python main_simulation.py --data real --analysis
+
+# Horizonte completo 5 160h (requiere MedicionesMTE/)
+python main_simulation.py --data real --full --analysis
+```
+
 ---
-*Generado automáticamente por main_simulation.py · 2026-04-12 09:28*
+*Generado automáticamente por main_simulation.py · 2026-04-12 23:53*

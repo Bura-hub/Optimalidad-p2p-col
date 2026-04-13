@@ -31,6 +31,18 @@ Cuatro análisis:
           - Límite 100 kW por instalación de autogeneración colectiva
         Se verifica si la comunidad MTE cumple estas restricciones
         y qué pasa si cambia la composición (nueva institución, más PV).
+
+  FA-3: Robustez regulatoria — retiro de participante (propuesta §VII.C)
+        Para cada prosumidor n, simula su retiro de la comunidad:
+          - ¿La comunidad restante sigue cumpliendo CREG 101 072?
+          - Si no: B_C4 cae al régimen individual (sin créditos PDE)
+          - Cuantifica la pérdida COP por fragilidad regulatoria de C4
+          - Compara con P2P, que no tiene restricciones de composición
+
+  FA-4: Robustez regulatoria — escalamiento de instalación (propuesta §VII.C)
+        Para cada prosumidor n, simula escalar su generación (2×, 3×):
+          - ¿Cuándo se viola la regla 100 kW o el 10% de participación?
+          - Escala máxima sin violar ninguna restricción CREG 101 072
 """
 
 import numpy as np
@@ -606,6 +618,251 @@ def analyze_creg_101072_compliance(
         print(f"    Score robustez: {report.robustness_score:.2f}")
 
     return report
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FA-3 / FA-4: Robustez regulatoria (propuesta §VII.C)
+# ─────────────────────────────────────────────────────────────────────────────
+
+@dataclass
+class WithdrawalRiskReport:
+    """
+    FA-3: Impacto del retiro de cada prosumidor sobre el régimen C4.
+
+    by_agent[nombre] = {
+        'compliant'          : bool   — ¿la comunidad restante sigue en AGRC?
+        'B_C4_full'          : float  — beneficio C4 de la comunidad completa (COP)
+        'B_C4_remaining'     : float  — beneficio C4 de la comunidad sin n (COP)
+        'B_fallback'         : float  — beneficio sin AGRC (régimen individual, COP)
+        'B_P2P_remaining'    : float  — estimación P2P sin n (conservadora, COP)
+        'loss_C4'            : float  — pérdida por fragilidad = B_C4_remaining - B_fallback
+        'flexibility_premium': float  — B_P2P_remaining - B_fallback
+        'violated_rules'     : list   — ['10pct'] | ['100kw'] | []
+    }
+    community_at_risk          : bool  — algún retiro invalida el AGRC
+    n_risky_withdrawals        : int   — cuántos retiros causan no-cumplimiento
+    flexibility_premium_total  : float — Σ premios sobre retiros que invalidan AGRC
+    scaling_risk               : dict  — FA-4: nombre → {'max_ok_scale', '2x_ok', '3x_ok'}
+    """
+    by_agent:                  dict  = field(default_factory=dict)
+    community_at_risk:         bool  = False
+    n_risky_withdrawals:       int   = 0
+    flexibility_premium_total: float = 0.0
+    scaling_risk:              dict  = field(default_factory=dict)
+
+
+def analyze_withdrawal_risk(
+    D:                  np.ndarray,
+    G:                  np.ndarray,
+    G_klim:             np.ndarray,
+    pi_gs:              float,
+    pi_gb:              float,
+    pi_bolsa:           np.ndarray,
+    pde:                np.ndarray,
+    prosumer_ids:       list,
+    agent_names:        list,
+    net_benefit_p2p:    np.ndarray,
+    net_benefit_c4_full: np.ndarray,
+    capacity:           Optional[np.ndarray] = None,
+    capacity_limit_kw:  float = 100.0,
+    share_limit:        float = 0.10,
+    verbose:            bool  = True,
+) -> "WithdrawalRiskReport":
+    """
+    FA-3: Para cada prosumidor n, simula su retiro de la comunidad.
+
+    Si la comunidad restante viola CREG 101 072:
+      → B_fallback = régimen individual (autoconsumo + excedente a bolsa; sin PDE)
+    Si la comunidad restante sigue cumpliendo:
+      → B_fallback = B_C4_remaining (sin penalización)
+
+    Flexibility premium P2P = B_P2P_remaining - B_fallback
+      (cuantifica qué tanto más gana P2P que el fallback de C4 cuando alguien se va)
+    """
+    from scenarios.scenario_c4_creg101072 import (
+        run_c4_creg101072, compute_pde_weights,
+    )
+    from scenarios.scenario_c3_spot import run_c3_spot
+
+    N, T = D.shape
+    report = WithdrawalRiskReport()
+
+    B_C4_full = float(np.sum(net_benefit_c4_full))
+
+    if verbose:
+        print("\n  FA-3: Robustez regulatoria — retiro de participante")
+        print(f"    Escenario: retiro de cada prosumidor → impacto sobre AGRC C4")
+        print(f"    Beneficio C4 comunidad completa: {B_C4_full:,.0f} COP")
+        print(f"    {'Agente':<12} {'Cumple?':>8} {'B_C4_rest':>12} {'B_fallback':>12} "
+              f"{'B_P2P_rest':>12} {'FP (COP)':>12} {'Reglas violadas'}")
+        print(f"    {'─'*80}")
+
+    risky = 0
+    fp_total = 0.0
+
+    for n in prosumer_ids:
+        name = agent_names[n] if n < len(agent_names) else f"A{n+1}"
+
+        # Máscara de agentes restantes
+        mask = [m for m in range(N) if m != n]
+        D_r    = D[mask, :]
+        G_r    = G_klim[mask, :]        # generación limitada
+        G_raw_r = G[mask, :]
+
+        # PDE para la comunidad restante (proporcional a capacidad)
+        if capacity is not None:
+            cap_r = capacity[mask]
+        else:
+            cap_r = np.maximum(G_raw_r.mean(axis=1), 0.0)
+        pde_r = compute_pde_weights(cap_r)
+
+        # IDs de prosumidores en la comunidad restante
+        new_ids_map  = {old: new for new, old in enumerate(mask)}
+        pros_r  = [new_ids_map[m] for m in prosumer_ids if m != n]
+        cons_r  = []  # MTE: todos son prosumidores
+
+        # Beneficio C4 comunidad restante
+        c4_r = run_c4_creg101072(
+            D_r, G_raw_r, pi_gs, pi_bolsa, pde_r,
+            capacity=cap_r,
+        )
+        B_C4_remaining = float(c4_r["aggregate"]["total_net_benefit"])
+
+        # Verificar cumplimiento CREG 101 072 para la comunidad restante
+        names_r = [agent_names[m] for m in mask]
+        rep_r   = analyze_creg_101072_compliance(
+            D_r, G_raw_r, names_r, pros_r,
+            capacity_limit_kw=capacity_limit_kw,
+            share_limit=share_limit,
+            verbose=False,
+        )
+        compliant = rep_r.rule_10pct_satisfied and rep_r.rule_100kw_satisfied
+
+        violated = []
+        if not rep_r.rule_10pct_satisfied:
+            violated.append("10%")
+        if not rep_r.rule_100kw_satisfied:
+            violated.append("100kW")
+
+        # Fallback: si AGRC inválido → régimen individual (C3-like, sin PDE)
+        if compliant:
+            B_fallback = B_C4_remaining
+        else:
+            c3_r = run_c3_spot(D_r, G_raw_r, pi_gs, pi_bolsa, pros_r, cons_r)
+            B_fallback = float(c3_r["aggregate"]["total_net_benefit"])
+
+        # P2P restante (estimación conservadora: excluye net_benefit del agente retirado)
+        B_P2P_remaining = float(np.sum(net_benefit_p2p[mask]))
+
+        loss_C4           = B_C4_remaining - B_fallback
+        flexibility_premium = B_P2P_remaining - B_fallback
+
+        report.by_agent[name] = {
+            "compliant":           compliant,
+            "B_C4_full":           B_C4_full,
+            "B_C4_remaining":      B_C4_remaining,
+            "B_fallback":          B_fallback,
+            "B_P2P_remaining":     B_P2P_remaining,
+            "loss_C4":             loss_C4,
+            "flexibility_premium": flexibility_premium,
+            "violated_rules":      violated,
+        }
+
+        if not compliant:
+            risky      += 1
+            fp_total   += flexibility_premium
+
+        if verbose:
+            tag = "✗ VIOLA" if not compliant else "✓"
+            viol_str = ",".join(violated) if violated else "—"
+            print(f"    {name:<12} {tag:>8} {B_C4_remaining:>12,.0f} "
+                  f"{B_fallback:>12,.0f} {B_P2P_remaining:>12,.0f} "
+                  f"{flexibility_premium:>12,.0f}  {viol_str}")
+
+    report.community_at_risk         = risky > 0
+    report.n_risky_withdrawals       = risky
+    report.flexibility_premium_total = fp_total
+
+    if verbose:
+        print(f"    {'─'*80}")
+        status = "⚠ SÍ" if report.community_at_risk else "✓ NO"
+        print(f"    Comunidad en riesgo: {status}  "
+              f"({risky}/{len(prosumer_ids)} retiros invalidan AGRC)")
+        if risky > 0:
+            print(f"    Prima de flexibilidad P2P total: {fp_total:,.0f} COP")
+            print(f"    → P2P mantiene operatividad donde C4 perdería el régimen AGRC")
+
+    return report
+
+
+def analyze_scaling_risk(
+    G:              np.ndarray,
+    prosumer_ids:   list,
+    agent_names:    list,
+    D:              np.ndarray,
+    capacity_limit_kw: float = 100.0,
+    share_limit:    float = 0.10,
+    scales:         list  = None,
+    verbose:        bool  = True,
+) -> dict:
+    """
+    FA-4: Para cada prosumidor n, evalúa hasta qué escala puede crecer
+    su generación sin violar las restricciones de CREG 101 072.
+
+    Restricciones verificadas:
+      - Regla 10%:   G_n_scaled.mean() / D_total.mean() ≤ share_limit
+      - Límite 100 kW: G_n_scaled.max() ≤ capacity_limit_kw
+
+    Retorna dict: nombre → {'max_ok_scale': float, '2x_ok': bool, '3x_ok': bool}
+    """
+    if scales is None:
+        scales = [1.5, 2.0, 2.5, 3.0]
+
+    N, T      = G.shape
+    D_total   = float(D.sum(axis=0).mean())
+    result    = {}
+
+    if verbose:
+        print("\n  FA-4: Robustez regulatoria — escalamiento de instalación")
+        print(f"    D_total media: {D_total:.1f} kW  |  límite 100 kW  |  share ≤ {share_limit*100:.0f}%")
+        print(f"    {'Agente':<12} {'G_actual':>10} {'share%':>8}  "
+              + "  ".join(f"{s}×" for s in scales))
+        print(f"    {'─'*60}")
+
+    for n in prosumer_ids:
+        name    = agent_names[n] if n < len(agent_names) else f"A{n+1}"
+        g_mean  = float(G[n].mean())
+        g_max   = float(G[n].max())
+        share0  = g_mean / max(D_total, 1e-6)
+
+        scale_ok = {}
+        max_ok   = 1.0
+        for s in scales:
+            g_mean_s = g_mean * s
+            g_max_s  = g_max  * s
+            ok_share = (g_mean_s / max(D_total, 1e-6)) <= share_limit
+            ok_100kw = g_max_s <= capacity_limit_kw
+            ok = ok_share and ok_100kw
+            scale_ok[s] = ok
+            if ok:
+                max_ok = s
+
+        result[name] = {
+            "g_mean_kw":     round(g_mean, 2),
+            "g_max_kw":      round(g_max, 2),
+            "share_pct":     round(share0 * 100, 2),
+            "max_ok_scale":  max_ok,
+            "2x_ok":         scale_ok.get(2.0, False),
+            "3x_ok":         scale_ok.get(3.0, False),
+            "scale_detail":  scale_ok,
+        }
+
+        if verbose:
+            flags = "  ".join("✓" if scale_ok[s] else "✗" for s in scales)
+            print(f"    {name:<12} {g_mean:>10.2f} {share0*100:>8.1f}%  {flags}  "
+                  f"→ max ok: {max_ok}×")
+
+    return result
 
 
 def analyze_new_agent_impact(

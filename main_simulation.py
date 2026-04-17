@@ -1006,8 +1006,31 @@ if __name__ == "__main__":
                     help="Análisis de sensibilidad y factibilidad")
     ap.add_argument("--day", type=str, default=None,
                     help="Día específico YYYY-MM-DD (implica --data real, 24h)")
+    ap.add_argument("--gsa", action="store_true",
+                    help="Ejecutar análisis de sensibilidad global Sobol/Saltelli")
+    ap.add_argument("--n-base", type=int, default=64, metavar="N",
+                    help="Tamaño base muestra Saltelli (default 64 → 1024 eval.)")
     args = ap.parse_args()
-    if args.day:
+
+    if args.gsa:
+        from analysis.global_sensitivity import (
+            run_sobol_analysis, compute_indices, save_results)
+        import multiprocessing
+        multiprocessing.freeze_support()
+        if args.n_base >= 256:
+            ans = input(
+                f"--n-base={args.n_base} genera "
+                f"{args.n_base*(2*7+2)} evaluaciones (~5 h). "
+                "Confirmar [s/N]: "
+            )
+            if ans.strip().lower() != "s":
+                print("Cancelado.")
+                sys.exit(0)
+        Y_dict   = run_sobol_analysis(n_base=args.n_base, seed=42, parallel=True)
+        idx_dict = compute_indices(Y_dict)
+        out_path = save_results(idx_dict, Y_dict=Y_dict)
+        print(f"\nGSA completado. Resultados en: {out_path}")
+    elif args.day:
         main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
              single_day=args.day)
     else:

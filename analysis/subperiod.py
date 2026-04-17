@@ -63,7 +63,7 @@ class SubperiodResult:
     net_c4:       float        # ganancia neta C4 [COP]
     net_p2p_agent: list        # por agente [COP]
     net_c4_agent:  list        # por agente [COP]
-    pof:          float        # Price of Fairness P2P vs C4
+    rpe:          float        # RPE: Rendimiento Relativo P2P vs C4
     ie_p2p:       float        # índice de equidad P2P
     market_hours: int          # horas con mercado activo
     kwh_p2p:      float        # kWh intercambiados en P2P
@@ -144,7 +144,7 @@ def run_subperiod_analysis(
         c4_tot  = float(nb.get("C4",  0))
         c1_tot  = float(nb.get("C1",  0))
         c3_tot  = float(nb.get("C3",  0))
-        pof = (p2p_tot - c4_tot) / max(abs(c4_tot), 1.0) if c4_tot != 0 else 0.0
+        rpe = (p2p_tot - c4_tot) / max(abs(c4_tot), 1.0) if c4_tot != 0 else 0.0
 
         res = SubperiodResult(
             label=label,
@@ -156,7 +156,7 @@ def run_subperiod_analysis(
             net_c4=c4_tot,
             net_p2p_agent=list(nba.get("P2P", [])),
             net_c4_agent=list(nba.get("C4",  [])),
-            pof=pof,
+            rpe=rpe,
             ie_p2p=float(cr.gini.get("P2P", 0)),
             market_hours=len(active),
             kwh_p2p=kwh,
@@ -170,7 +170,7 @@ def run_subperiod_analysis(
             print(f"    P2P={p2p_tot:,.0f}  C1={c1_tot:,.0f}  "
                   f"C3={c3_tot:,.0f}  C4={c4_tot:,.0f}  {currency}")
             print(f"    Horas P2P={len(active)}/24  kWh={kwh:.1f}  "
-                  f"PoF={pof:.4f}  C1≠C3={abs(c1_tot - c3_tot):,.0f}")
+                  f"RPE={rpe:.4f}  C1≠C3={abs(c1_tot - c3_tot):,.0f}")
 
     return results
 
@@ -183,12 +183,12 @@ def print_subperiod_table(results: list[SubperiodResult], currency: str = "COP")
     print("="*75)
     print(f"  {'Sub-período':<18} {'π_gb':>6} {'d_fac':>6} "
           f"{'P2P':>10} {'C1':>10} {'C3':>10} {'C4':>10} "
-          f"{'H-P2P':>6} {'PoF':>7} {'C1≠C3':>8}")
+          f"{'H-P2P':>6} {'RPE':>7} {'C1≠C3':>8}")
     print("  " + "-"*75)
     for r in results:
         print(f"  {r.label:<18} {r.pi_gb:>6.0f} {r.demand_factor:>6.2f} "
               f"{r.net_p2p:>10,.0f} {r.net_c1:>10,.0f} {r.net_c3:>10,.0f} "
-              f"{r.net_c4:>10,.0f} {r.market_hours:>6} {r.pof:>7.4f} "
+              f"{r.net_c4:>10,.0f} {r.market_hours:>6} {r.rpe:>7.4f} "
               f"{r.c1_c3_spread:>8,.0f}")
     print("="*75)
 
@@ -204,9 +204,9 @@ def print_subperiod_table(results: list[SubperiodResult], currency: str = "COP")
         print(f"  • Divergencia C1 vs C3 en Finde-Ene: {delta_c1c3:,.0f} {currency}/período")
         if delta_c1c3 > 0:
             print(f"    → Fin de semana genera excedente: C1 y C3 dejan de ser idénticos")
-        print(f"  • PoF varía entre "
-              f"{min(r.pof for r in results):.4f} (Jul) y "
-              f"{max(r.pof for r in results):.4f} (Ene)")
+        print(f"  • RPE varía entre "
+              f"{min(r.rpe for r in results):.4f} (Jul) y "
+              f"{max(r.rpe for r in results):.4f} (Ene)")
 
 
 # ── Figura ────────────────────────────────────────────────────────────────────

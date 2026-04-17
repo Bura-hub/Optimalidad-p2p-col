@@ -230,7 +230,26 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # ── 5. Exportar base ─────────────────────────────────────────────────
     print("\n[5/5] Exportando resultados y gráficas...")
     base_dir  = os.path.dirname(os.path.abspath(__file__))
-    excel_path = _export_base(cr, p2p_results, G_klim, D, base_dir, currency)
+
+    # Series diarias (solo modo --full con datos reales, T ≥ 48h)
+    daily_series = None
+    if use_real_data and full_horizon and D.shape[1] >= 48:
+        import datetime as _dt
+        print("    Calculando series diarias para bootstrap estadístico...")
+        daily_series = _compute_daily_series(
+            D=D, G_klim=G_klim, p2p_results=p2p_results,
+            pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
+            pi_bolsa=pi_bolsa, pde=pde, cap=cap,
+            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+        )
+        os.makedirs(os.path.join(base_dir, "outputs"), exist_ok=True)
+        ts_str = _dt.datetime.now().strftime("%Y%m%d_%H%M")
+        csv_path = os.path.join(base_dir, "outputs", f"daily_series_{ts_str}.csv")
+        daily_series.to_csv(csv_path)
+        print(f"    Series diarias ({len(daily_series)} días) → {csv_path}")
+
+    excel_path = _export_base(cr, p2p_results, G_klim, D, base_dir, currency,
+                               daily_series=daily_series)
     print(f"    Excel → {excel_path}")
 
     from analysis.p2p_breakdown import export_p2p_hourly, print_p2p_sample
@@ -508,7 +527,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
 # ── Exportar Excel base ───────────────────────────────────────────────────────
 
-def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
+def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=None):
     path = os.path.join(base_dir, "resultados_comparacion.xlsx")
     esc  = ["P2P", "C1", "C2", "C3", "C4"]
     N, T = G_klim.shape
@@ -541,7 +560,50 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
             "W_total_uo":            cr.W_sellers_total + cr.W_buyers_total,
             "Nota_W":                "u.o.=unidades optimizacion; no son COP",
         }]).to_excel(w, sheet_name="Metricas_extra", index=False)
+        if daily_series is not None and not daily_series.empty:
+            daily_series.to_excel(w, sheet_name="Series_diarias", index=True)
     return path
+
+
+# ── Series diarias para bootstrap estadístico ─────────────────────────────────
+
+def _compute_daily_series(
+    D, G_klim, p2p_results,
+    pi_gs, pi_gb, pi_bolsa, pde, cap, prosumer_ids, consumer_ids,
+):
+    """
+    Agrega beneficio neto comunitario por día para P2P y C4.
+    Llama solo a las funciones de liquidación (NO re-corre el EMS).
+
+    Retorna DataFrame(n_days, 2) con columnas ['nb_p2p', 'nb_c4'] en COP/día.
+    Actividad 4.2 — soporte para bootstrap por bloques.
+    """
+    from scenarios.comparison_engine import _p2p_monetary_benefit
+    from scenarios.scenario_c4_creg101072 import run_c4_creg101072
+
+    T      = D.shape[1]
+    N      = D.shape[0]
+    n_days = T // 24
+
+    rows = []
+    for d in range(n_days):
+        sl = slice(d * 24, (d + 1) * 24)
+        D_d = D[:, sl]
+        G_d = G_klim[:, sl]
+
+        nb_p2p = _p2p_monetary_benefit(
+            p2p_results[d * 24 : (d + 1) * 24],
+            D_d, G_d, pi_gs, pi_gb, prosumer_ids,
+        ).sum()
+
+        c4 = run_c4_creg101072(
+            D_d, G_d, pi_gs, pi_bolsa[sl], pde, cap, mode="pde_only"
+        )
+        nb_c4 = sum(c4["per_agent"][n]["net_benefit"] for n in range(N))
+
+        rows.append({"dia": d, "nb_p2p": float(nb_p2p), "nb_c4": float(nb_c4)})
+
+    return pd.DataFrame(rows).set_index("dia")
 
 
 # ── Exportar análisis de sensibilidad a Excel ─────────────────────────────────

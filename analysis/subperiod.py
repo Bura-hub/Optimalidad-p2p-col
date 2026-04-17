@@ -1,5 +1,5 @@
 """
-subperiod.py — Análisis de sub-períodos (Actividad 4.3)
+subperiod.py — Análisis de sub-períodos (Actividad 3.2)
 --------------------------------------------------------
 Brayan S. Lopez-Mendez · Udenar 2026
 

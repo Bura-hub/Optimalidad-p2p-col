@@ -36,6 +36,9 @@ def run_c2_bilateral(
       4. Si queda excedente del prosumidor, va a red a pi_gb
 
     Reparto del excedente: proporcional a la demanda de cada consumidor.
+
+    Filosofía A (WEEF min 22-26): net_benefit = savings + revenues.
+    No se resta grid_cost residual; ese costo se incurriría igual sin PPA.
     """
     N, T = D.shape
 
@@ -88,7 +91,7 @@ def run_c2_bilateral(
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs
 
-    net_benefit = savings_gen + savings_cons + grid_revenue - grid_cost
+    net_benefit = savings_gen + savings_cons + grid_revenue
 
     results_per_agent = {
         n: {

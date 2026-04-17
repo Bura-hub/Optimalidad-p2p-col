@@ -101,6 +101,20 @@ def welfare_distribution(S_i, SR_j) -> dict:
             "PSR": 100.0 * float(np.sum(SR_j)) / total}
 
 
+def compute_net_benefit(savings: np.ndarray, revenues: np.ndarray) -> np.ndarray:
+    """
+    Filosofía A: ganancia_neta = savings + revenues.
+
+    Definición validada por asesor Pantoja (reunión WEEF,
+    Documentos/conversacion_WEEF.txt, min 22-26):
+        ganancia_neta = costo_línea_base − costo_con_sistema
+
+    El costo residual de compra a la red NO se resta porque el agente
+    incurriría en él igual sin participar en el mercado.
+    """
+    return np.asarray(savings, dtype=float) + np.asarray(revenues, dtype=float)
+
+
 def gini_index(values: np.ndarray) -> float:
     """
     Coeficiente de Gini sobre beneficios netos por agente.

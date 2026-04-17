@@ -289,10 +289,10 @@ def analyze_profile(G: np.ndarray, D: np.ndarray, label: str) -> dict:
         ben_p2p = cr.p2p_total_benefit
         ben_c1  = cr.c1_total_benefit
         ben_c4  = cr.c4_total_benefit
-        pof     = cr.price_of_fairness
+        rpe      = cr.rpe
         gini_p2p = cr.gini.get("P2P", float("nan"))
     except Exception as e:
-        ben_p2p = ben_c1 = ben_c4 = pof = gini_p2p = float("nan")
+        ben_p2p = ben_c1 = ben_c4 = rpe = gini_p2p = float("nan")
 
     return {
         "label":        label,
@@ -313,7 +313,7 @@ def analyze_profile(G: np.ndarray, D: np.ndarray, label: str) -> dict:
         "ben_P2P":      ben_p2p,
         "ben_C1":       ben_c1,
         "ben_C4":       ben_c4,
-        "PoF":          pof,
+        "RPE":          rpe,
         "Gini_P2P":     gini_p2p,
     }
 
@@ -349,7 +349,7 @@ def print_profile_detail(m: dict, idx: int):
         print(f"       Beneficio: P2P=${m['ben_P2P']:.0f}  C1=${m['ben_C1']:.0f}  "
               f"C4=${m['ben_C4']:.0f}")
         print(f"                  P2P vs C1: {adv_c1:+.0f}  P2P vs C4: {adv_c4:+.0f}  "
-              f"PoF={m['PoF']:.4f}  Gini={m['Gini_P2P']:.4f}")
+              f"RPE={m['RPE']:.4f}  Gini={m['Gini_P2P']:.4f}")
 
 
 def interpret_profile(m: dict) -> str:

@@ -34,7 +34,7 @@ class SensitivityResult:
     net_benefit: dict = field(default_factory=dict)   # por escenario
     net_per_agent: dict = field(default_factory=dict) # P2P y C4 por agente
     ie_p2p:      float = 0.0
-    pof:         float = 0.0
+    rpe:         float = 0.0
     ss_p2p:      float = 0.0
     sc_p2p:      float = 0.0
     market_hours: int  = 0
@@ -107,7 +107,7 @@ def run_sensitivity_pgb(
                 "C4":  cr.net_benefit_per_agent["C4"].tolist(),
             },
             ie_p2p=cr.equity_index.get("P2P", 0),
-            pof=cr.price_of_fairness or 0,
+            rpe=cr.rpe or 0,
             ss_p2p=cr.self_sufficiency.get("P2P", 0),
             sc_p2p=cr.self_consumption.get("P2P", 0),
             market_hours=len(active),
@@ -119,7 +119,7 @@ def run_sensitivity_pgb(
             nb = sr.net_benefit
             print(f"  {pgb:>6.0f}  {nb['P2P']:>10,.0f}  {nb['C1']:>10,.0f}  "
                   f"{nb['C3']:>10,.0f}  {nb['C4']:>10,.0f}  "
-                  f"{sr.ie_p2p:>6.3f}  {sr.pof:>6.3f}")
+                  f"{sr.ie_p2p:>6.3f}  {sr.rpe:>6.3f}")
 
     return results
 
@@ -203,7 +203,7 @@ def run_sensitivity_pv(
                 "C4":  cr.net_benefit_per_agent["C4"].tolist(),
             },
             ie_p2p=cr.equity_index.get("P2P", 0),
-            pof=cr.price_of_fairness or 0,
+            rpe=cr.rpe or 0,
             ss_p2p=cr.self_sufficiency.get("P2P", 0),
             sc_p2p=cr.self_consumption.get("P2P", 0),
             market_hours=len(active),
@@ -488,7 +488,7 @@ def run_sensitivity_pgs(
                 "C4":  cr.net_benefit_per_agent["C4"].tolist(),
             },
             ie_p2p=cr.equity_index.get("P2P", 0),
-            pof=cr.price_of_fairness or 0,
+            rpe=cr.rpe or 0,
             ss_p2p=cr.self_sufficiency.get("P2P", 0),
             sc_p2p=cr.self_consumption.get("P2P", 0),
             market_hours=len(active),
@@ -501,7 +501,7 @@ def run_sensitivity_pgs(
             ratio = float(pgs) / pi_gs_base
             print(f"  {pgs:>7.0f}  {ratio:>6.2f}  {nb['P2P']:>10,.0f}  "
                   f"{nb['C1']:>10,.0f}  {nb['C4']:>10,.0f}  "
-                  f"{sr.ie_p2p:>6.3f}  {sr.pof:>6.3f}  {gini_p2p:>9.4f}")
+                  f"{sr.ie_p2p:>6.3f}  {sr.rpe:>6.3f}  {gini_p2p:>9.4f}")
 
     if verbose:
         # Resumen: tendencia de la ventaja P2P al variar π_gs

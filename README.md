@@ -31,16 +31,21 @@ tesis_p2p/
 │   └── xm_prices.py            ← precios XM reales/sintéticos + calibración parámetro b
 ├── analysis/
 │   ├── sensitivity.py          ← SA-1 (PGB) + SA-2 (PV) + SA-3 (π_gs) + SA-PPA + umbrales
+│   ├── global_sensitivity.py   ← GSA Saltelli/Sobol (SALib, 7 params, 3 outputs, --gsa)
 │   ├── feasibility.py          ← FA-1 (deserción horaria + IR individual) + FA-2 (CREG 101 072)
 │   ├── p2p_breakdown.py        ← §3.12 Desglose P2P hora a hora → CSV + Excel
 │   ├── monthly_report.py       ← Reporte mes a mes para horizonte completo (--full)
-│   └── optimality.py           ← Activity 4.2: dominancia P2P vs C4 por hora (GDR)
+│   ├── subperiod.py            ← SP1–SP4: laborable/fin-semana × julio/enero (Act. 3.2)
+│   └── optimality.py           ← Dominancia P2P vs C4 por hora, GDR (Act. 4.2)
 ├── visualization/
 │   └── plots.py                ← 15 figuras automáticas
 ├── tests/
 │   ├── validate_base_model.py
-│   ├── calibration_study.py    ← estudio de calibración de parámetro b
-│   └── profile_stress_test.py  ← stress test perfiles extremos
+│   ├── calibration_study.py              ← estudio de calibración de parámetro b
+│   ├── profile_stress_test.py            ← stress test perfiles extremos
+│   ├── golden_test_sofia.py              ← golden test RD vs SLSQP (Bienestar6p.py)
+│   ├── test_stackelberg_convergence.py   ← criterio de parada Stackelberg adaptativo
+│   └── statistical_tests.py             ← bootstrap bloques Kunsch + Wilcoxon P2P vs C4
 └── diagnostico_datos.py
 ```
 
@@ -68,6 +73,15 @@ python main_simulation.py --data real --full --analysis
 $env:MTE_ROOT="C:\ruta\a\MedicionesMTE"
 $env:XM_PRICES_CSV="C:\ruta\precios_bolsa_xm.csv"   # opcional
 python main_simulation.py --data real --analysis
+
+# Modo 6 — Análisis de sensibilidad global Saltelli (GSA, ~75 min con 8 workers)
+python main_simulation.py --gsa --n-base 64
+
+# GSA smoke test ultrarrápido (verificación ~5 min)
+python main_simulation.py --gsa --n-base 4
+
+# Tests estadísticos bootstrap (requiere outputs/daily_series_*.csv del run --full)
+python tests/statistical_tests.py --n-bootstrap 1000 --block-days 7
 ```
 
 ---
@@ -124,9 +138,11 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 | `fig10_sensibilidad_ppa.png` | SA-PPA: sensibilidad precio bilateral |
 | `fig11_convergencia_h*.png` | Convergencia RD+Stackelberg (por hora) |
 | `fig12_comparacion_mensual.png` | Comparación mensual (solo --full) |
-| `fig13_desglose_flujos.png` | Desglose flujos por componente (Activity 3.2) |
-| `fig14_optimalidad_horaria.png` | Dominancia P2P vs C4 por hora (Activity 4.2) |
+| `fig13_desglose_flujos.png` | Desglose flujos por componente (Act. 3.2) |
+| `fig14_optimalidad_horaria.png` | Dominancia P2P vs C4 por hora (Act. 4.2) |
 | `fig15_c1_vs_c4.png` | Comparación directa C1 vs C4 |
+| `fig16_subperiod.png` | Sub-períodos SP1–SP4: laborable/fin-semana × jul./ene. (Act. 3.2) |
+| `fig17_robustez_c4.png` | Robustez de C4 ante variación de participantes (Act. 4.2) |
 
 ---
 
@@ -154,7 +170,7 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 | SS | Self-Sufficiency: fracción de G usada en comunidad | [0, 1] |
 | IE | Equity Index: distribución del beneficio entre roles | [-1, +1] |
 | Gini | Índice de Gini por escenario (concentración del beneficio) | [0, 1] |
-| PoF | Price of Fairness: eficiencia cedida por equidad (P2P vs C4) | [0, 1] |
+| RPE | Rendimiento Relativo de Equidad P2P vs C4: (W_P2P−W_C4)/|W_P2P|; RPE ≠ PoF Bertsimas (2011) | (−∞, 1] |
 | GDR | Global Dispatch Ratio: eficiencia de clearing del mercado | [0, 1] |
 | PS / PSR | Fracción del excedente P2P capturada por compradores / vendedores | [0%, 100%] |
 
@@ -168,7 +184,9 @@ Con la comunidad MTE, G < D en el 100% de horas del perfil promedio (cobertura P
 
 ## Pendiente
 
-- [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
-- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
-- [ ] Verificar LCOE real de inversores instalados en cada institución
-- [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
+- [ ] Run horizonte completo 5 160 h: `python main_simulation.py --data real --full --analysis`
+- [ ] GSA Sobol n_base ≥ 64 (solicitar OK): `python main_simulation.py --gsa --n-base 64`
+- [ ] Descargar serie horaria XM jul. 2025–ene. 2026 → `data/xm_precios_bolsa.csv`
+- [ ] Bootstrap con datos reales: `python tests/statistical_tests.py` (requiere run --full)
+- [ ] Verificar LCOE real de inversores instalados en cada institución MTE
+- [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`

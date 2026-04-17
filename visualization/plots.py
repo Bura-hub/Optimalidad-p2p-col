@@ -292,9 +292,9 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     ax.set_ylim(-1.2, 1.2)
     ax.set_title("Índice de equidad (IE)")
     ax.set_ylabel("IE  [−1 a +1]")
-    if cr.price_of_fairness is not None:
+    if cr.rpe is not None:
         ax.text(0.98, 0.05,
-                f"PoF(P2P vs C4) = {cr.price_of_fairness:.3f}",
+                f"RPE(P2P vs C4) = {cr.rpe:.3f}",
                 transform=ax.transAxes, ha="right", fontsize=8,
                 color="#534AB7",
                 bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
@@ -333,8 +333,8 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     ax_dist.set_title(
         "Distribución del excedente P2P entre roles  "
         f"(IE = {cr.equity_index.get('P2P', 0):.4f}  |  "
-        f"PoF P2P vs C4 = {cr.price_of_fairness:.4f})"
-        if cr.price_of_fairness is not None else
+        f"RPE P2P vs C4 = {cr.rpe:.4f})"
+        if cr.rpe is not None else
         "Distribución del excedente P2P entre roles"
     )
     ax_dist.legend(fontsize=9, loc="lower right")
@@ -504,17 +504,17 @@ def plot_sensitivity_pgb(sa_results, out_dir, currency="COP"):
     ax.legend(fontsize=8)
     _add_hydro_context(ax, pgb, annotate=False)
 
-    # ── Panel 3: PoF ─────────────────────────────────────────────────────────
+    # ── Panel 3: RPE ─────────────────────────────────────────────────────────
     ax = axes[2]
-    pof_vals = [r.pof for r in sa_results]
-    ax.plot(pgb, pof_vals, "^-", color="#7F77DD",
+    rpe_vals = [r.rpe for r in sa_results]
+    ax.plot(pgb, rpe_vals, "^-", color="#7F77DD",
             linewidth=2, markersize=6, zorder=3)
     ax.axhline(1.0, color="gray", linewidth=0.8, linestyle="--",
-               label="PoF=1 (sin pérdida de eficiencia)", zorder=2)
+               label="RPE=1", zorder=2)
     ax.axhline(0.0, color="black", linewidth=0.5, zorder=2)
     ax.set_xlabel("PGB (COP/kWh)")
-    ax.set_ylabel("PoF (P2P vs C4)")
-    ax.set_title("Price of Fairness vs precio de bolsa")
+    ax.set_ylabel("RPE (P2P vs C4)")
+    ax.set_title("Rendimiento Relativo (RPE) vs precio de bolsa")
     ax.legend(fontsize=8)
     _add_hydro_context(ax, pgb, annotate=False)
 

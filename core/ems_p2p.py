@@ -126,7 +126,9 @@ class SolverParams:
     tau_buyers:        float = 0.01     # tau3 en JoinFinal.m (escala comprador)
     t_span:            tuple = (0.0, 0.01)   # iguala t_span=[0,0.01] de JoinFinal.m
     n_points:          int   = 500           # linspace(0,0.01,500) de JoinFinal.m
-    stackelberg_iters: int   = 2
+    stackelberg_iters: int   = 2    # iteraciones mínimas (min_iter)
+    stackelberg_tol:   float = 1e-3  # tolerancia relativa ||P_new - P_old|| / (||P_old|| + ε)
+    stackelberg_max:   int   = 10    # iteraciones máximas
     parallel:          bool  = True
 
 
@@ -177,6 +179,7 @@ class HourlyResult:
     PSR:        float = 0.0
     Wj_total:   float = 0.0
     Wi_total:   float = 0.0
+    iters_used: int   = 0    # iteraciones Stackelberg efectivas (diagnóstico convergencia)
     seller_ids: list  = field(default_factory=list)
     buyer_ids:  list  = field(default_factory=list)
     G_klim_k:   Optional[np.ndarray] = None
@@ -188,7 +191,8 @@ class HourlyResult:
 def _run_hour_worker(args):
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
-     pi_gs, pi_gb, tau, tau_buyers, t_span, n_points, n_iters) = args
+     pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
+     min_iter, tol, max_iter) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -211,7 +215,10 @@ def _run_hour_worker(args):
     P_star = np.clip(P_star, 1e-10, None)
     pi_i   = np.full(I, pi_gb)
 
-    for _ in range(n_iters):
+    iter_count = 0
+    P_old = np.zeros_like(P_star)
+    while iter_count < max_iter:
+        P_old  = P_star.copy()
         # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
         P_star = solve_sellers(pi_i, G_net_j, D_net_i, a_j, b_j,
                                tau=tau, t_span=t_span, n_points=n_points)
@@ -220,8 +227,13 @@ def _run_hour_worker(args):
                               pi_gs=pi_gs, pi_gb=pi_gb,
                               tau=tau_buyers, t_span=t_span, n_points=n_points)
         pi_i   = np.clip(pi_i, pi_gb, pi_gs)
+        iter_count += 1
+        norm_rel = (np.linalg.norm(P_star - P_old)
+                    / (np.linalg.norm(P_old) + 1e-9))
+        if iter_count >= min_iter and norm_rel < tol:
+            break
 
-    res.P_star = P_star; res.pi_star = pi_i
+    res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
 
     settle = residual_settlement(P_star, G_net_j, D_net_i,
                                   G_klim_k, G_raw_k, pi_gs, pi_gb,
@@ -292,7 +304,8 @@ class EMSP2P:
                          sids, bids,
                          ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                          gr.pi_gs, gr.pi_gb,
-                         sv.tau, sv.tau_buyers, sv.t_span, sv.n_points, sv.stackelberg_iters))
+                         sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
+                         sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -459,4 +472,5 @@ class EMSP2P:
         return _run_hour_worker((k, G_klim_k, D[:, k].copy(), G[:, k].copy(),
                                   sids, bids, ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                                   gr.pi_gs, gr.pi_gb,
-                                  sv.tau, sv.tau_buyers, sv.t_span, sv.n_points, sv.stackelberg_iters))
+                                  sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
+                                  sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max))

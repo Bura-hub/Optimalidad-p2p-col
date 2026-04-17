@@ -33,7 +33,7 @@ class ComparisonResult:
     gini:                  dict  = field(default_factory=dict)   # Índice de Gini por escenario
     self_sufficiency:      dict  = field(default_factory=dict)
     self_consumption:      dict  = field(default_factory=dict)
-    price_of_fairness:     Optional[float]      = None
+    rpe:                   Optional[float]      = None  # Relative Performance vs C4; RPE ≠ PoF (Bertsimas 2011) — ver notas_modelo_tesis.md §6
     static_spread_24h:     Optional[np.ndarray] = None
     hours:     int   = 24
     n_agents:  int   = 6
@@ -321,11 +321,13 @@ def run_comparison(
     cr.W_buyers_total = float(sum(
         r.Wi_total for r in p2p_results if r.P_star is not None))
 
-    # ── Price of Fairness (P2P vs C4) ────────────────────────────────────
+    # ── RPE: Rendimiento Relativo P2P vs C4 ──────────────────────────────
     w_eff  = cr.net_benefit["P2P"]
     w_fair = cr.net_benefit["C4"]
-    cr.price_of_fairness = ((w_eff - w_fair) / abs(w_eff)
-                            if abs(w_eff) > 1e-10 else 0.0)
+    # TODO (Opción B): implementar PoF de Bertsimas 2011 [15] — requiere resolver
+    # el mismo problema bajo criterio equitativo con restricción Gini ≤ umbral.
+    cr.rpe = ((w_eff - w_fair) / abs(w_eff)
+              if abs(w_eff) > 1e-10 else 0.0)
 
     # ── Spread de ineficiencia estática C4 ───────────────────────────────
     cr.static_spread_24h = static_spread_c4_vs_p2p(D, G_klim, pde)
@@ -475,15 +477,13 @@ def print_welfare_decomposition(cr: "ComparisonResult") -> None:
     gini4 = cr.gini.get("C4",           0.0)
     sc   = cr.self_consumption.get("P2P", 0.0)
     ss   = cr.self_sufficiency.get("P2P", 0.0)
-    pof  = cr.price_of_fairness or 0.0
+    rpe  = cr.rpe or 0.0
     print(f"    IE  P2P = {ie:+.4f}   vs   IE  C4 = {ie4:+.4f}  "
           f"  Δ = {ie - ie4:+.4f}")
     print(f"    Gini P2P = {gini:.4f}   vs   Gini C4 = {gini4:.4f}  "
           f"  Δ = {gini - gini4:+.4f}")
     print(f"    SC  P2P = {sc:.4f}    SS  P2P = {ss:.4f}")
-    print(f"    Price of Fairness (P2P vs C4): {pof:.4f}")
-    print(f"      → PoF > 0: P2P es más eficiente que C4 en términos netos")
-    print(f"      → PoF < 0: C4 supera al P2P en este período/parámetros")
+    print(f"    RPE (P2P vs C4): {rpe:.4f}  [Rendimiento relativo vs C4; RPE > 0: P2P supera C4]")
 
     print("=" * W)
 
@@ -579,7 +579,7 @@ def print_comparison_report(cr: ComparisonResult) -> None:
         print(f"  {labels[esc]:<32} ${nb:>11,.0f}  {sc:>6.3f}  "
               f"{ss:>6.3f}  {ie:>8.4f}  {gini:>6.4f}")
     print("="*80)
-    print(f"  Price of Fairness (P2P vs C4):  {cr.price_of_fairness:.4f}")
+    print(f"  RPE (P2P vs C4):  {cr.rpe:.4f}")
     if cr.static_spread_24h is not None:
         print(f"  Spread inef. estática C4 total: "
               f"{np.sum(cr.static_spread_24h):.3f} kWh")

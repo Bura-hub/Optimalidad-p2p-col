@@ -1,6 +1,6 @@
 # Reporte de Avances — Tesis P2P Colombia
 
-**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-16 23:56
+**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-17 11:37
 **Asesores:** Andrés Pantoja · Germán Obando | **Udenar, 2026**
 
 ---
@@ -74,12 +74,63 @@ y en días con baja demanda institucional (fines de semana, festivos).
 
 ---
 
-## 7. Pendiente
+## 5. Análisis de sensibilidad global (Act. 4.1)
 
-- [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
-- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
-- [ ] Verificar LCOE real de inversores instalados en cada institución
-- [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
+El módulo `analysis/global_sensitivity.py` implementa el análisis de sensibilidad
+global de Saltelli mediante el método de Sobol (SALib 1.5.2). Siete parámetros de
+entrada: PGB [114–500], PGS [500–750], factor_PV [0,5–2,0], factor_D [0,7–1,5],
+alpha_mean [0,0–0,25], b_mean [150–400] COP/kWh, pi_ppa [200–900] COP/kWh.
+Tres outputs evaluados: ganancia neta P2P, SC comunitario, IE de equidad.
+
+**Estado:** smoke test n_base = 4 exitoso. Para índices Sobol fiables: `python main_simulation.py --gsa --n-base 64` (~75 min, 8 workers).
 
 ---
-*Generado automáticamente por main_simulation.py · 2026-04-16 23:56*
+
+## 6. Tests estadísticos P2P vs C4 (Act. 4.2)
+
+Bootstrap por bloques Kunsch (1989) implementado en `tests/statistical_tests.py`.
+Remuestreo circular semanal (block_days = 7); IC 95 %, Wilcoxon pareado bilateral,
+Cohen's d, n_eff. Resultados estadísticos definitivos pendientes del run `--full`.
+
+---
+
+## 7. Modos del escenario C4 (CREG 101 072/2025)
+
+`scenarios/scenario_c4_creg101072.py` implementa dos modos:
+- `pde_only` (**default**): distribución administrativa vía PDE.
+- `pde_plus_residual_export`: extensión con exportación de excedentes a bolsa.
+
+---
+
+## 8. Golden test vs modelo base (Chacón et al., 2025)
+
+`tests/golden_test_sofia.py` verifica que Replicator Dynamics reproduce el equilibrio
+SLSQP de `Documentos/copy/Bienestar6p.py` (hora 14, commit 5a15d24):
+P_total dentro de atol = 0,15 kWh; pi_i ∈ [PGB, PGS]; no excede G_net_j; aprobado.
+
+---
+
+## 9. Pendiente
+
+- [ ] Run horizonte completo 5 160 h: `python main_simulation.py --data real --full --analysis`
+- [ ] GSA Sobol n_base ≥ 64 (solicitar OK): `python main_simulation.py --gsa --n-base 64`
+- [ ] Descargar serie horaria XM jul. 2025–ene. 2026 → `data/xm_precios_bolsa.csv`
+- [ ] Bootstrap con datos reales: `python tests/statistical_tests.py`
+- [ ] Verificar LCOE real de inversores instalados en cada institución MTE
+- [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`
+
+---
+
+## Trazabilidad
+
+| Campo | Valor |
+|---|---|
+| Fecha | 2026-04-17 |
+| Commit (Fase 3) | `c36ff3b` — docs: actualiza README.md |
+| Commit (última simulación) | `5a15d24` — Act 3.2 — actualiza resultados |
+| Python | 3.13.7 |
+| pandas | 2.3.3 |
+| Comando §1–§4 | `python main_simulation.py` (caso sintético) |
+
+*Secciones §1–§4 generadas automáticamente por `main_simulation.py · 2026-04-17 11:37`.
+Secciones §5–§9 mantenidas manualmente — no se sobrescriben al re-ejecutar.*

@@ -234,7 +234,12 @@ class MTEDataLoader:
             print(f"  G total comunidad: {G.sum():.0f} kWh")
             print(f"  Cobertura G/D:     {G.sum()/max(D.sum(),1):.3f}")
 
-        return D, G, idx[:T]
+        idx_tz = idx[:T].tz_localize(
+            "America/Bogota",
+            nonexistent="shift_forward",
+            ambiguous="infer",
+        )
+        return D, G, idx_tz
 
     def load_weather(self) -> dict:
         """Carga irradiancia de las estaciones meteorológicas (opcional)."""
@@ -255,7 +260,13 @@ class MTEDataLoader:
             if parts:
                 combined = pd.concat(parts, axis=1).mean(axis=1)
                 combined = combined.loc[T_START:T_END]
-                result[agent] = combined.resample("1h").mean().reindex(idx)
+                s_hourly = combined.resample("1h").mean().reindex(idx)
+                s_hourly.index = idx.tz_localize(
+                    "America/Bogota",
+                    nonexistent="shift_forward",
+                    ambiguous="infer",
+                )
+                result[agent] = s_hourly
         return result
 
     def _find(self, parent: Path, name: str) -> Optional[Path]:

@@ -4,4 +4,7 @@ __pycache__/
 .venv/
 history_chat/
 MedicionesMTE/
-Documentos/
+CLAUDE.md
+Documentos/*
+!Documentos/notas_modelo_tesis.md
+!Documentos/Inventario_Act_1_0.md

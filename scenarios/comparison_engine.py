@@ -22,7 +22,7 @@ from .scenario_c3_spot       import run_c3_spot
 from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights, static_spread_c4_vs_p2p,
 )
-from core.settlement import gini_index
+from core.settlement import gini_index, compute_net_benefit
 
 
 @dataclass
@@ -95,6 +95,10 @@ def run_comparison(
         pi_ppa = pi_gb + 0.5 * (pi_gs - pi_gb)
     cr.pi_ppa = pi_ppa
 
+    # Todos los escenarios usan Filosofía A: net_benefit = savings + revenues.
+    # No se resta la factura residual a la red (validado por asesor Pantoja,
+    # Documentos/conversacion_WEEF.txt min 22-26).
+
     # ── C1 ──────────────────────────────────────────────────────────────
     # month_labels habilita el balance mensual real de CREG 174 (permutación).
     # Si None (perfil 24h o sintético), todo el horizonte es un único período.
@@ -119,7 +123,8 @@ def run_comparison(
     cr.net_benefit_per_agent["C3"] = c3_net
 
     # ── C4 ──────────────────────────────────────────────────────────────
-    c4 = run_c4_creg101072(D, G_klim, pi_gs, pi_bolsa, pde, capacity)
+    c4 = run_c4_creg101072(D, G_klim, pi_gs, pi_bolsa, pde, capacity,
+                            mode="pde_only")
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
     cr.net_benefit_per_agent["C4"] = c4_net
@@ -337,9 +342,12 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     """
     Convierte resultados P2P a flujos monetarios netos por agente.
 
-    Vendedor:   ingreso_P2P  - baseline_venta_red
-    Comprador:  ahorro_P2P   - costo_residual_red
-    Todos los prosumidores: + ahorro por autoconsumo propio
+    Filosofía A (WEEF min 22-26): net_benefit = savings + revenues.
+    No se resta el costo residual de compra a la red.
+
+    Vendedor:    (π_star − π_gb) × P_vendido   (prima sobre venta a bolsa)
+    Comprador:   (π_gs  − π_star) × P_comprado (ahorro vs comprar a la red)
+    Autoconsumo: min(G, D) × π_gs              (todos los prosumidores)
     """
     N = D.shape[0]
     net = np.zeros(N)

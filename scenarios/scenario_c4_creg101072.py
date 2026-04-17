@@ -29,8 +29,9 @@ Referencia regulatoria:
     Resolución CREG 101 066 de 2024 - Techos tarifarios
 """
 
+import warnings as _warnings
 import numpy as np
-from typing import Optional
+from typing import Literal, Optional
 
 
 def validate_pde(
@@ -75,15 +76,18 @@ def run_c4_creg101072(
     pde: np.ndarray,            # (N,) Porcentaje de Distribución de Excedentes
     capacity: Optional[np.ndarray] = None,  # (N,) kW instalados (para validación)
     max_capacity_kw: float = 100.0,         # límite régimen simplificado
+    mode: Literal["pde_only", "pde_plus_residual_export"] = "pde_only",
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
 
-    Lógica:
-      1. Cada agente autoconsume su propia generación hasta cubrir demanda
-      2. El excedente comunitario se redistribuye via PDE
-      3. Déficit residual se compra a la red a pi_gs
-      4. Excedente neto tras redistribución se liquida a pi_bolsa
+    Modos disponibles (Tabla I propuesta):
+      pde_only (default)          : el excedente comunitario se redistribuye
+                                    completamente via PDE; no hay venta individual
+                                    a bolsa. Corresponde al mecanismo AGRC puro.
+      pde_plus_residual_export    : se exporta a bolsa solo el remanente que
+                                    supera la absorción interna (Σ déficit); se
+                                    distribuye según PDE entre los generadores.
 
     Este mecanismo es ESTÁTICO: el PDE no varía según condiciones de mercado.
     """
@@ -92,7 +96,7 @@ def run_c4_creg101072(
     if not validate_pde(pde):
         raise ValueError(f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}")
 
-    # Verificar restricción de capacidad
+    # Validaciones regulatorias CREG 101 072
     if capacity is not None:
         total_cap = float(np.sum(capacity))
         if total_cap > max_capacity_kw:
@@ -100,6 +104,24 @@ def run_c4_creg101072(
                 f"Capacidad total {total_cap:.1f} kW excede límite de "
                 f"{max_capacity_kw} kW para régimen simplificado"
             )
+        # Advertencia 10 %: relación capacidad máx/mín no debe superar 10×
+        pos_cap = capacity[capacity > 0]
+        if len(pos_cap) > 1:
+            ratio = float(np.max(pos_cap)) / float(np.min(pos_cap))
+            if ratio > 10.0:
+                _warnings.warn(
+                    f"C4: relación capacidad máx/mín = {ratio:.1f}× > 10×. "
+                    "Verificar restricción de composición CREG 101 072.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+    # Advertencia comercializador único (supuesto implícito del modelo)
+    _warnings.warn(
+        "C4: se asume un único comercializador de respaldo. "
+        "Verificar con admin MTE antes de publicar.",
+        UserWarning,
+        stacklevel=2,
+    )
 
     # Resultados por agente
     savings       = np.zeros(N)     # ahorro por autoconsumo propio
@@ -143,14 +165,17 @@ def run_c4_creg101072(
             # Costo de energía que aún falta comprar a la red
             grid_cost[n] += deficit_after_pde[n] * pi_gs
 
-        # Excedente neto comunitario que va a bolsa (si hay)
-        # Se distribuye también via PDE
-        net_surplus = max(0.0, total_gen - total_dem)
-        if net_surplus > 0:
-            for n in range(N):
-                # Solo si el agente tiene generación propia excedente
-                own_surplus = max(0.0, surplus_ind_k[n])
-                surplus_sell[n] += own_surplus * pi_bolsa[k]
+        # Excedente comunitario: destino según modo regulatorio
+        if mode == "pde_plus_residual_export":
+            # Solo se exporta el remanente que supera la absorción interna (Σ déficit).
+            # CREG 101 072: permite exportar el excedente no absorbido por la comunidad.
+            total_deficit_k = float(np.sum(deficit_k))
+            residual_export = max(0.0, community_surplus - total_deficit_k)
+            if residual_export > 0:
+                for n in range(N):
+                    surplus_sell[n] += pde[n] * residual_export * pi_bolsa[k]
+        # En mode == "pde_only" (default): surplus_sell permanece en cero.
+        # El excedente queda dentro de la comunidad redistribuido vía PDE.
 
     # Ganancia = ahorro por autoconsumo + créditos PDE + ingresos excedentes.
     # No se resta grid_cost: esa energía la compraría la comunidad igual sin
@@ -184,6 +209,10 @@ def run_c4_creg101072(
         "regulatory": {
             "pde_weights":          pde,
             "static_mechanism":     True,   # flag: no responde a mercado
+        },
+        "params": {
+            "mode":            mode,
+            "max_capacity_kw": max_capacity_kw,
         },
     }
 

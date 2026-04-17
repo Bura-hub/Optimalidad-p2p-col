@@ -34,7 +34,7 @@ class SensitivityResult:
     net_benefit: dict = field(default_factory=dict)   # por escenario
     net_per_agent: dict = field(default_factory=dict) # P2P y C4 por agente
     ie_p2p:      float = 0.0
-    rpe:         float = 0.0
+    rpe:         float = 0.0   # (W_P2P - W_C4) / |W_P2P|; ver ComparisonResult.rpe
     ss_p2p:      float = 0.0
     sc_p2p:      float = 0.0
     market_hours: int  = 0
@@ -334,6 +334,11 @@ def find_dominance_threshold(sa_pgb: list, sa_pv: list) -> dict:
       - Si P2P siempre supera X: reporta "siempre_mejor"
       - Si P2P siempre pierde vs X: reporta "nunca_mejor"
       - Si hay cruce: reporta el pi_gb donde P2P deja de ser mejor (interpolado)
+
+    Parámetros
+    ----------
+    sa_pgb : list[SensitivityResult] — barrido de pi_gb (SA-1)
+    sa_pv  : list[SensitivityResult] — barrido de cobertura PV (SA-2)
 
     Retorna dict con hallazgos para el documento de la tesis.
     """

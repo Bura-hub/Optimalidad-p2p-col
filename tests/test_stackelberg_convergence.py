@@ -26,6 +26,15 @@ from data.base_case_data import (
 
 
 def _build_ems(min_iter=2, tol=1e-3, max_iter=10) -> EMSP2P:
+    """
+    Construye EMSP2P con parámetros canónicos de base_case_data (sin DR).
+
+    Parámetros
+    ----------
+    min_iter : int   — iteraciones mínimas Stackelberg (stackelberg_iters)
+    tol      : float — tolerancia relativa de convergencia (stackelberg_tol)
+    max_iter : int   — iteraciones máximas (stackelberg_max)
+    """
     p = get_agent_params()
     agents = AgentParams(
         N=p["N"], a=p["a"], b=p["b"], c=p["c"],
@@ -59,7 +68,12 @@ def test_iters_used_in_range():
 
 
 def test_convergence_norm_below_tol():
-    """Verifica convergencia manual para la hora 14 (índice 13)."""
+    """
+    Verifica que el loop Stackelberg converge en hora 14 (índice 13).
+
+    Criterio: ||P_new - P_old|| / (||P_old|| + 1e-9) < tol=1e-3 al salir,
+    con al menos min_iter=2 y como máximo max_iter=10 iteraciones.
+    """
     p = get_agent_params()
     sv = SolverParams(stackelberg_iters=2, stackelberg_tol=1e-3,
                       stackelberg_max=10, parallel=False)

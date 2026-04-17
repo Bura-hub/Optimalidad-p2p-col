@@ -63,7 +63,7 @@ class SubperiodResult:
     net_c4:       float        # ganancia neta C4 [COP]
     net_p2p_agent: list        # por agente [COP]
     net_c4_agent:  list        # por agente [COP]
-    rpe:          float        # RPE: Rendimiento Relativo P2P vs C4
+    rpe:          float        # (W_P2P - W_C4) / |W_P2P|; ver ComparisonResult.rpe
     ie_p2p:       float        # índice de equidad P2P
     market_hours: int          # horas con mercado activo
     kwh_p2p:      float        # kWh intercambiados en P2P
@@ -348,7 +348,11 @@ def plot_subperiod(
 def xm_price_subperiod_stats(csv_path: Optional[str] = None) -> dict:
     """
     Carga precios XM reales y calcula estadísticas por tipo de día y mes.
-    Retorna dict con claves: 'laborable', 'finde', 'julio', 'enero', 'todos'.
+
+    Fuente: data/precios_bolsa_xm_api.csv (descargado vía pydataxm).
+    Retorna dict con claves 'todos', 'laborable', 'finde', 'julio', 'enero';
+    cada valor es {'media': float, 'n': int [, 'std': float]}.
+    Retorna {} si el CSV no existe o falla la lectura.
     """
     if csv_path is None:
         base = os.path.dirname(os.path.abspath(__file__))

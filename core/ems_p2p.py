@@ -179,7 +179,7 @@ class HourlyResult:
     PSR:        float = 0.0
     Wj_total:   float = 0.0
     Wi_total:   float = 0.0
-    iters_used: int   = 0    # iteraciones Stackelberg efectivas (diagnóstico convergencia)
+    iters_used: int   = 0    # iteraciones Stackelberg efectivas; 0 cuando J=0 o I=0 (sin mercado)
     seller_ids: list  = field(default_factory=list)
     buyer_ids:  list  = field(default_factory=list)
     G_klim_k:   Optional[np.ndarray] = None
@@ -189,6 +189,16 @@ class HourlyResult:
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
 
 def _run_hour_worker(args):
+    """
+    Resuelve el equilibrio Nash-Stackelberg para una hora k.
+
+    Debe ser top-level (no método) para ser serializable por pickle en
+    ProcessPoolExecutor (Windows requiere esto). Retorna HourlyResult con
+    P_star=None si no hay vendedores o compradores en esa hora.
+
+    El loop Stackelberg corre al menos min_iter veces y sale antes si
+    ||P_new - P_old|| / (||P_old|| + ε) < tol (convergencia relativa).
+    """
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,

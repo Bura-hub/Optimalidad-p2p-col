@@ -163,6 +163,7 @@ def _eval_sample(params: np.ndarray) -> tuple:
 # ── Worker para ProcessPoolExecutor ──────────────────────────────────────────
 
 def _worker(args):
+    """Wrapper top-level para ProcessPoolExecutor (pickle-safe en Windows)."""
     idx, params = args
     return idx, _eval_sample(params)
 
@@ -240,6 +241,7 @@ def run_sobol_analysis(
     jobs = [(i, X[i]) for i in range(M)]
 
     def _save_checkpoint(step):
+        """Persiste el estado parcial de Y_* en outputs/ para recuperación ante fallos."""
         import datetime
         ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         cp_path = os.path.join(outputs_dir, f"gsa_checkpoint_{ts}.parquet")

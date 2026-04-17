@@ -55,6 +55,16 @@ def _load_ref() -> dict:
 # ── EMS Python sobre los mismos datos ────────────────────────────────────────
 
 def _run_ems_h14(ref: dict):
+    """
+    Corre el EMS Python (Replicator Dynamics) para la hora indicada en ref.
+
+    Parámetros
+    ----------
+    ref : dict — referencia SLSQP cargada desde reference_h14.json;
+                 solo se usa ref["hour_idx"] para seleccionar la hora.
+
+    Retorna HourlyResult para esa hora (P_star=None si el mercado no se activa).
+    """
     from core.ems_p2p      import EMSP2P, AgentParams, GridParams, SolverParams
     from data.base_case_data import (
         get_generation_profiles, get_demand_profiles, get_agent_params,

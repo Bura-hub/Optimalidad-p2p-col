@@ -43,9 +43,9 @@ import pandas as pd
 
 # ── Rutas de proyecto ──────────────────────────────────────────────────────────
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUTPUTS_DIR = os.path.join(ROOT, "outputs")
-RESULTS_XL  = os.path.join(ROOT, "resultados_comparacion.xlsx")
+ROOT        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUTS_DIR = os.path.join(ROOT, "outputs")          # logs y checkpoints GSA
+RESULTS_XL  = os.path.join(ROOT, "resultados_comparacion.xlsx")  # salida base del EMS
 
 
 # ── Bootstrap por bloques ──────────────────────────────────────────────────────
@@ -263,6 +263,14 @@ def save_bootstrap_results(result: dict, seed: int = 42, out_dir: str = None):
 # ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main():
+    """
+    Carga series diarias desde outputs/, ejecuta bootstrap_blocks() e imprime
+    el resultado. Guarda JSON y Excel en outputs/ y en la raíz del proyecto.
+
+    Requiere haber corrido previamente:
+        python main_simulation.py --data real --full
+    para generar outputs/daily_series_<fecha>.csv con columnas nb_p2p y nb_c4.
+    """
     parser = argparse.ArgumentParser(
         description="Bootstrap por bloques P2P vs C4 — Tesis Brayan López (Udenar 2026)"
     )

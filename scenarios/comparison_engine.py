@@ -33,7 +33,11 @@ class ComparisonResult:
     gini:                  dict  = field(default_factory=dict)   # Índice de Gini por escenario
     self_sufficiency:      dict  = field(default_factory=dict)
     self_consumption:      dict  = field(default_factory=dict)
-    rpe:                   Optional[float]      = None  # Relative Performance vs C4; RPE ≠ PoF (Bertsimas 2011) — ver notas_modelo_tesis.md §6
+    rpe:                   Optional[float]      = None
+    # RPE = (W_P2P - W_C4) / |W_P2P|: rendimiento relativo frente al escenario
+    # colectivo regulatorio (C4). Positivo = P2P supera a C4; negativo = al revés.
+    # RPE ≠ PoF de Bertsimas (2011), que requiere resolver un problema de equidad
+    # con restricción Gini. Ver notas_modelo_tesis.md §6.
     static_spread_24h:     Optional[np.ndarray] = None
     hours:     int   = 24
     n_agents:  int   = 6
@@ -350,6 +354,13 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     Vendedor:    (π_star − π_gb) × P_vendido   (prima sobre venta a bolsa)
     Comprador:   (π_gs  − π_star) × P_comprado (ahorro vs comprar a la red)
     Autoconsumo: min(G, D) × π_gs              (todos los prosumidores)
+
+    Parámetros
+    ----------
+    results : list[HourlyResult]
+    D, G_klim : ndarray (N, T)
+    pi_gs, pi_gb : float — precio al usuario y precio de bolsa (COP/kWh)
+    prosumer_ids : list[int] — índices de agentes con generación propia
     """
     N = D.shape[0]
     net = np.zeros(N)
@@ -391,12 +402,23 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
 
 def _p2p_flow_breakdown(results, pi_gs: float, pi_gb: float) -> tuple:
     """
-    Descompone el beneficio P2P en:
+    Descompone el beneficio P2P en prima de vendedor y ahorro de comprador.
+
       prima_vendedor  : Σ_k Σ_j max(0, ingreso_j - baseline_j)
       ahorro_comprador: Σ_k Σ_i max(0, pi_gs×P_comprado - pagado)
 
-    El autoconsumo propio se contabiliza por separado (es igual en todos los
-    escenarios y no depende del mecanismo de mercado).
+    El autoconsumo propio se contabiliza por separado (igual en todos los
+    escenarios, independiente del mecanismo de mercado).
+
+    Parámetros
+    ----------
+    results : list[HourlyResult]
+    pi_gs   : float — tarifa al usuario (COP/kWh)
+    pi_gb   : float — precio de bolsa, baseline de venta (COP/kWh)
+
+    Retorna
+    -------
+    (prima_vendedor, ahorro_comprador) : (float, float) en COP
     """
     prima  = 0.0
     ahorro = 0.0

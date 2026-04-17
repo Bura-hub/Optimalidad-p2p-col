@@ -5,3 +5,4 @@ openpyxl
 tqdm
 matplotlib
 pydataxm
+salib>=1.4

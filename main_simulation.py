@@ -35,7 +35,8 @@ from data.base_case_data import (
 from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 
 
-def main(use_real_data=False, full_horizon=False, run_analysis=False):
+def main(use_real_data=False, full_horizon=False, run_analysis=False,
+         single_day: str = None):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -70,7 +71,17 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False):
         # Parámetro b calibrado por institución (Actividad 1.2)
         b_cal = get_b_for_real_data(N, agent_names)
 
-        if full_horizon:
+        if single_day:
+            from data.xm_data_loader import slice_horizon
+            day_start = single_day
+            day_end   = (pd.Timestamp(single_day) + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+            D, G, idx_day = slice_horizon(D_full, G_full, index_full,
+                                          day_start, day_end)
+            T = D.shape[1]
+            month_labels = None   # período único para C1
+            dow = pd.Timestamp(single_day).day_name()
+            print(f"\n    Modo: DÍA ESPECÍFICO  {single_day} ({dow})  N={N}  T={T}h")
+        elif full_horizon:
             D, G = D_full, G_full
             T    = D.shape[1]
             # Etiquetas de período de facturación (YYYYMM) para C1 (CREG 174)
@@ -931,7 +942,13 @@ if __name__ == "__main__":
                     help="Horizonte completo 5160h")
     ap.add_argument("--analysis", action="store_true",
                     help="Análisis de sensibilidad y factibilidad")
+    ap.add_argument("--day", type=str, default=None,
+                    help="Día específico YYYY-MM-DD (implica --data real, 24h)")
     args = ap.parse_args()
-    main(use_real_data=(args.data == "real"),
-         full_horizon=args.full,
-         run_analysis=args.analysis)
+    if args.day:
+        main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
+             single_day=args.day)
+    else:
+        main(use_real_data=(args.data == "real"),
+             full_horizon=args.full,
+             run_analysis=args.analysis)

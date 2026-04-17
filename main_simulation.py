@@ -532,7 +532,7 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency):
             "Wj": r.Wj_total, "Wi": r.Wi_total,
         } for r in p2p_results]).to_excel(w, sheet_name="P2P_horario", index=False)
         pd.DataFrame([{
-            "PoF_P2P_vs_C4":         cr.price_of_fairness,
+            "RPE_P2P_vs_C4":         cr.rpe,
             "Spread_C4_kWh":         float(np.sum(cr.static_spread_24h))
                                       if cr.static_spread_24h is not None else 0,
             # Act 3.3 — Bienestar de optimización (u.o.)
@@ -554,7 +554,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
             rows = []
             for r in sa_pgb:
                 row = {"PGB_COP_kWh": r.param_value,
-                       "IE_P2P": r.ie_p2p, "PoF": r.pof,
+                       "IE_P2P": r.ie_p2p, "RPE": r.rpe,
                        "Horas_mercado": r.market_hours, "kWh_P2P": r.kwh_p2p}
                 row.update({f"Net_{e}": r.net_benefit[e]
                              for e in ["P2P","C1","C2","C3","C4"]})
@@ -734,11 +734,11 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         ie = cr.equity_index.get(e, 0)
         lines.append(f"| {esc_labels[e]} | {nb:,.0f} | {sc:.3f} | {ss:.3f} | {ie:.4f} |")
 
-    pof = cr.price_of_fairness or 0
+    rpe = cr.rpe or 0
     spread = float(np.sum(cr.static_spread_24h)) if cr.static_spread_24h is not None else 0
     lines += [
         "",
-        f"**Price of Fairness (P2P vs C4):** {pof:.4f}",
+        f"**RPE (P2P vs C4):** {rpe:.4f}",
         f"**Spread ineficiencia estática C4:** {spread:.3f} kWh/período",
         "",
         "### 3.1 Ventaja P2P vs C4 por institución",
@@ -782,7 +782,7 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         f"| SS (P2P) | {ss_p2p:.3f} | Fracción generación usada en comunidad |",
         f"| IE (P2P) | {ie_p2p:.4f} | Distribución beneficio (0=equitativo) |",
         f"| IE (C4)  | {ie_c4:.4f} | Referencia regulatoria vigente |",
-        f"| PoF      | {pof:.4f} | Pérdida eficiencia por equidad P2P vs C4 |",
+        f"| RPE      | {rpe:.4f} | Rendimiento relativo P2P vs C4 (RPE ≠ PoF Bertsimas 2011) |",
         "",
     ]
 
@@ -793,13 +793,13 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
             "",
             "### SA-1: Variación precio de bolsa PGB",
             "",
-            f"| PGB (COP/kWh) | P2P ({currency}) | C4 ({currency}) | IE P2P | PoF |",
+            f"| PGB (COP/kWh) | P2P ({currency}) | C4 ({currency}) | IE P2P | RPE |",
             "|---------------|---------|---------|--------|-----|",
         ]
         for r in sa_pgb:
             lines.append(
                 f"| {r.param_value:.0f} | {r.net_benefit['P2P']:,.0f} | "
-                f"{r.net_benefit['C4']:,.0f} | {r.ie_p2p:.3f} | {r.pof:.3f} |")
+                f"{r.net_benefit['C4']:,.0f} | {r.ie_p2p:.3f} | {r.rpe:.3f} |")
 
     if sa_pv:
         lines += [

@@ -7,6 +7,33 @@ El problema del comprador en JoinFinal.m usa escalas muy diferentes
 (VelWi=0.1, VelGPC=1e5) que generan sistemas stiff. Se usa Euler
 explícito con paso fijo pequeño como en el solver ode15s de MATLAB,
 que maneja bien sistemas stiff.
+
+Nota de auditoría (A2, 2026-04-17)
+----------------------------------
+El término de competencia en ``solve_buyers`` usa la forma agregada
+``compe = etha_s * sum_Pji`` con ``etha_s = mean(etha_i)`` (línea del
+bucle de integración). El modelo base ``JoinFinal.m:187-200`` define
+``matriz = ones(I,I) - eye(I)`` y ``compe = etha * matriz``, con uso
+por indexación lineal de MATLAB que produce ``compe(i=1)=0`` y
+``compe(i>1)=etha``.
+
+Ambas formulaciones describen la misma penalización por participación
+múltiple de compradores, pero difieren en la magnitud por agente. La
+función ``buyer_welfare`` (abajo) sí usa la forma matricial correcta
+``matriz = ones((I,I)) - eye(I)``, lo que es consistente con la
+definición de bienestar de Sofía.
+
+El equilibrio agregado (``P_total``, ``pi_i`` dentro de ``[PGB, PGS]``,
+vaciado de demanda) reproduce al oráculo SLSQP dentro de las
+tolerancias declaradas en ``tests/golden_test_sofia.py``
+(``atol = 0.15 kWh``, ``rtol = 5 %`` demanda). La corrida
+``outputs/run_day_2025-08-06_1458.log`` muestra ``Σ W_i = +1 318.93``
+u.o. y convergencia RD+Stackelberg sin warnings.
+
+La corrección formal (reemplazar por ``etha * (ones - eye)`` aplicado
+sobre ``P_ij`` antes de sumar por vendedor) está pendiente del run
+``--full`` para cuantificar el diff numérico contra el golden y
+actualizar valores de IE/RPE en una sola iteración.
 """
 
 import numpy as np
@@ -66,7 +93,9 @@ def solve_buyers(
         # trestris = sum_j(y_filt_j * P_ji)  ← señal de costo filtrada
         trestris = np.array([float(np.dot(y_filt, P_mat[:, i])) for i in range(I)])
 
-        # competencia: -etha * sum_Pji
+        # competencia: -etha * sum_Pji  (forma agregada, A2 pendiente del --full)
+        # JoinFinal.m:187-200 usa compe = etha * matriz con matriz = ones(I,I)-eye(I).
+        # Ver nota de auditoría en el docstring del módulo.
         compe = etha_s * sum_Pji
 
         # fitness compradores reales

@@ -7,6 +7,12 @@
 > Registra decisiones de modelado, derivaciones matemáticas y análisis que complementan
 > el reporte automático `REPORTE_AVANCES.md`.
 
+> **Aviso (auditoría 2026-04-17):** los valores numéricos de IE, RPE, PoF y beneficios
+> monetarios reportados en este archivo son **provisionales** hasta que se ejecute la
+> corrida `--full` (horizonte completo 5 160 h) y se congele la fuente de verdad oficial
+> en §4. `REPORTE_AVANCES.md` puede mostrar cifras distintas porque se regenera
+> automáticamente en cada corrida; no es fuente de verdad para documentos de tesis.
+
 ---
 
 ## §4 — Índice de Equidad (IE): definición y signo
@@ -31,7 +37,13 @@ donde:
 | > 0    | Mercado sesgado hacia compradores                    |
 | < 0    | Mercado sesgado hacia vendedores                     |
 
-### Valores por escenario (perfil 24h MTE)
+### Valores por escenario (perfil 24h MTE) — **PROVISIONAL (2026-04-17)**
+
+**Nota de auditoría:** los valores de esta tabla provienen de una corrida
+previa del perfil diario promedio y se marcan como provisionales hasta
+que se ejecute `--full` y se fije la fuente de verdad oficial. La tabla
+§6 más abajo (si aplica) y la de `REPORTE_AVANCES.md` pueden mostrar
+números distintos sobre otros perfiles.
 
 | Escenario              | IE       | Interpretación                              |
 |------------------------|----------|---------------------------------------------|
@@ -512,6 +524,47 @@ JoinFinal(0.5) vs ConArtLatin(10.0) corresponde a dos objetivos distintos: JoinF
 usa theta para la dinámica RD; ConArtLatin lo usa en el solver estático SLSQP. Se mantiene
 theta=0.5 por consistencia con el modelo dinámico de referencia.
 
+### CAL-6: `b_n` — LCOE solar: sintético vs real (nota de auditoría D2)
+
+**Fecha de la nota:** 2026-04-17 | **Evidencia:** `data/xm_prices.py:72-101`,
+`data/base_case_data.py:40-43`, `Documentos/copy/JoinFinal.m:40-43`,
+`Documentos/Revision_Bibliografica_Act_1_2.md:81`.
+
+El parámetro `b_n` tiene **dos calibraciones separadas** según el modo de
+ejecución. Son numéricamente incomparables porque están en unidades
+distintas y responden a propósitos distintos.
+
+| Modo | Fuente | Vector `b` | Unidad | Propósito |
+|---|---|---|---|---|
+| Sintético | `base_case_data.py::B = SCALE * [3.93·52, 32, 47, 37, 0, 0]` | `[1245, 195, 287, 225, 0, 0]` | u.o. (unidades de optimización) | Fidelidad exacta al caso base `JoinFinal.m:40-43` para validación (golden test) |
+| Real (MTE) | `xm_prices.py::B_CALIBRATED` | 225 (homogéneo; 210 Cesmag) | COP/kWh | Representación empírica de la comunidad MTE con LCOE colombiano |
+
+**Justificación del homogéneo en modo real:**
+
+1. Las 5 instituciones usan inversores **Fronius ≤ 100 kW**, mismo
+   fabricante y clase de capacidad. La diferencia entre LCOE individuales
+   es dominada por horas-sol equivalentes, que son homogéneas en un radio
+   < 2 km (campus de Pasto).
+2. El rango IRENA [16] / UPME [17] para solar distribuida pequeña en
+   Colombia 2024–2025 es **200–250 COP/kWh**; el valor 225 está en la
+   mediana del rango.
+3. Cesmag tiene un inversor distinto (no Fronius), por eso se asigna
+   210 COP/kWh — diferenciación justificada por ficha técnica.
+4. Los datos de capacidad FV por institución están marcados como
+   **PENDIENTE VERIFICAR CON ADMIN MTE** en
+   `Inventario_Act_1_0.md:29-33`. Heterogeneizar `b_n` antes de ese
+   cierre introduciría falsa precisión.
+
+**Por qué no se reemplaza el homogéneo por el vector heterogéneo de
+JoinFinal.m en modo real:** el vector MATLAB está en unidades de
+optimización (el modelo sintético usa `pi_gs = 1250`, precios
+adimensionales), no en COP/kWh. Su traducción directa no tendría
+sentido físico.
+
+**Veredicto:** la decisión de usar `b_n = 225 COP/kWh` homogéneo en el
+modo real es una decisión de modelado deliberada y defendible. El
+hallazgo D2 queda cerrado como discrepancia documentada, no como bug.
+
 ### Resumen de recomendaciones de calibración
 
 | Parámetro | Valor actual | Referencia | Veredicto | Acción |
@@ -524,6 +577,8 @@ theta=0.5 por consistencia con el modelo dinámico de referencia.
 | `WI/WJ scaling` | no implementado | tau_b/tau_s=10 equivalente | **Implícito** | Ninguna |
 | `pi_gs` real | 650 COP/kWh | Rango Nariño 580–720 | **Estimado** | Confirmar con Cedenar/ESSA |
 | `pi_gb` real | 280 COP/kWh | XM Jul25–Ene26 ~221 | **Pendiente** | Reemplazar con serie XM real |
+| `b_n` real | 225 COP/kWh | IRENA/UPME 200–250 | **Homogéneo justificado** | Ninguna (ver CAL-6) |
+| `b_n` sintético | `[1245,195,287,225,0,0]` u.o. | JoinFinal.m:40-43 | **Fiel al modelo base** | Ninguna |
 
 ---
 
@@ -1082,7 +1137,12 @@ Estos valores están en **unidades de optimización (u.o.)**, no en COP. Cuantif
 la preferencia de los agentes más allá del flujo de caja: satisfacción por
 autoconsumo, aversión a pagar precios altos, penalización por competencia.
 
-### Resultados perfil 24h MTE (2026-04-12)
+### Resultados perfil 24h MTE (2026-04-12) — **PROVISIONAL (2026-04-17)**
+
+**Nota de auditoría:** valores registrados el 2026-04-12 sobre una
+configuración anterior. Se marcan como provisionales hasta el run
+`--full`; no coinciden necesariamente con los de §4 ni con
+`REPORTE_AVANCES.md` por diferencias de fecha y configuración.
 
 | Métrica | Valor |
 |---------|-------|

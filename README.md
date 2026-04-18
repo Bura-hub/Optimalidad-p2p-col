@@ -88,6 +88,10 @@ python tests/statistical_tests.py --n-bootstrap 1000 --block-days 7
 
 ## Datos empíricos MTE — Instituciones
 
+**MTE** = Medición de Tecnologías de Energía (proyecto de monitoreo de
+5 instituciones en Pasto, Nariño; ver `Documentos/Inventario_Act_1_0.md:13`).
+
+
 | Institución | D̄ (kW) | Ḡ (kW) | Cobertura PV | Rol |
 |-------------|---------|---------|-------------|-----|
 | Udenar (n=0)| 7.5 | 3.9 | 52% | **Vendedor** (único) |

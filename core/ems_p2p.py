@@ -12,6 +12,25 @@ Si AgentParams.alpha = 0 (o no se pasa):
   para datos reales donde la demanda es insumo fijo observado).
 Si AgentParams.alpha > 0:
   El DR program optimiza la demanda flexible sobre el horizonte completo.
+
+Nota de auditoría (A3, 2026-04-17) — alternancia vs ODE conjunta
+----------------------------------------------------------------
+El bucle Stackelberg de este módulo (L230-244) se resuelve por
+alternancia: un paso completo de RD de vendedores (`solve_sellers`,
+con su propia integración ODE interna) seguido de un paso completo
+de RD de compradores (`solve_buyers`, ídem), iterando hasta
+‖P_new − P_old‖ / (‖P_old‖ + 1e-9) < tol. En contraste,
+`Documentos/copy/JoinFinal.m:139` integra el sistema acoplado
+`[consumer_state, seller_state]` con `ode15s` en una sola llamada.
+
+Ambas formulaciones convergen al mismo equilibrio de Nash en el
+límite (el punto fijo es invariante bajo la factorización del
+operador), pero producen trayectorias transitorias distintas. El
+criterio de parada adaptativo se valida en
+`tests/test_stackelberg_convergence.py` (norma relativa bajo
+tolerancia al salir del bucle). Esta divergencia debe citarse como
+elección de implementación en la sección de Métodos de la tesis.
+Ver también `Documentos/notas_modelo_tesis.md §7 CAL-7`.
 """
 
 import sys
@@ -180,6 +199,7 @@ class HourlyResult:
     Wj_total:   float = 0.0
     Wi_total:   float = 0.0
     iters_used: int   = 0    # iteraciones Stackelberg efectivas; 0 cuando J=0 o I=0 (sin mercado)
+    norm_rel_final: float = 0.0  # ‖ΔP‖ / (‖P‖+ε) al salir del loop; 0.0 cuando sin mercado (A6)
     seller_ids: list  = field(default_factory=list)
     buyer_ids:  list  = field(default_factory=list)
     G_klim_k:   Optional[np.ndarray] = None
@@ -227,6 +247,7 @@ def _run_hour_worker(args):
 
     iter_count = 0
     P_old = np.zeros_like(P_star)
+    norm_rel = 0.0
     while iter_count < max_iter:
         P_old  = P_star.copy()
         # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
@@ -244,6 +265,7 @@ def _run_hour_worker(args):
             break
 
     res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
+    res.norm_rel_final = float(norm_rel)
 
     settle = residual_settlement(P_star, G_net_j, D_net_i,
                                   G_klim_k, G_raw_k, pi_gs, pi_gb,

@@ -21,6 +21,26 @@ Tolerancias justificadas:
   - Precio pi_i: rango [PGB, PGS] y media dentro de 20% (formulas log vs lineal)
   - Supply row sums: no comparadas per-vendedor (SLSQP vs RD asignan distinto)
 
+Limitación declarada (A5, auditoría 2026-04-17)
+-----------------------------------------------
+Este golden test compara Python (EMS RD) contra Python (Bienestar6p.py
+SLSQP), no contra una ejecución directa de `Documentos/copy/JoinFinal.m`
+en MATLAB. Ambos lados son reimplementaciones Python del modelo base;
+el cierre MATLAB ↔ Python no se ha verificado.
+
+Validación en dos etapas (la que se considera suficiente para esta
+tesis):
+  1. SLSQP vs RD en Python  — cubierto por este test (equilibrio Nash).
+  2. Parámetros JoinFinal.m ↔ data/base_case_data.py  — verificado
+     manualmente en notas_modelo_tesis.md §7 (SCALE=6.0865,
+     A, B, lam, theta, etha, pi_gs, pi_gb idénticos).
+
+Si se requiere cierre MATLAB ↔ Python (p.ej. por petición del comité
+evaluador), la acción futura es ejecutar `JoinFinal.m` para la hora 14
+en MATLAB y añadir `Documentos/copy/reference_h14_matlab.json` como
+segundo oráculo. La declaración correspondiente en la tesis aparece
+en §VI.D (Métodos — validación del modelo).
+
 Para ejecutar:
     python -m pytest tests/golden_test_sofia.py -v
 

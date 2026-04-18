@@ -102,6 +102,14 @@ def test_convergence_norm_below_tol():
     assert isinstance(res, HourlyResult)
     assert res.iters_used >= 2, "Debe ejecutar al menos min_iter=2 iteraciones"
     assert res.P_star is not None and res.pi_star is not None
+    # A6 (auditoría 2026-04-17): assert explícito sobre norma relativa final.
+    # Si iters_used == max_iter, el loop salió por tope y no necesariamente
+    # convergió bajo tolerancia; solo exigimos el criterio cuando salió antes.
+    if res.iters_used < 10:
+        assert res.norm_rel_final < 1e-3, (
+            f"Loop salió antes de max_iter={10} pero norm_rel_final="
+            f"{res.norm_rel_final:.2e} >= tol=1e-3"
+        )
 
 
 def test_iters_used_stored_in_inactive_hours():

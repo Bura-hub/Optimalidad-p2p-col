@@ -13,6 +13,12 @@
 > en §4. `REPORTE_AVANCES.md` puede mostrar cifras distintas porque se regenera
 > automáticamente en cada corrida; no es fuente de verdad para documentos de tesis.
 
+> **Glosario rápido — MTE:** a lo largo de este documento "MTE" se refiere al
+> proyecto **Medición de Tecnologías de Energía** (ver
+> `Documentos/Inventario_Act_1_0.md:13`), campaña de monitoreo de 5 instituciones
+> educativas de Pasto, Nariño (Udenar, Mariana, UCC, HUDN, Cesmag) con cobertura
+> horaria 2025-07-01 → 2026-02-01. "Perfil 24h MTE" = promedio diario del período.
+
 ---
 
 ## §4 — Índice de Equidad (IE): definición y signo
@@ -564,6 +570,66 @@ sentido físico.
 **Veredicto:** la decisión de usar `b_n = 225 COP/kWh` homogéneo en el
 modo real es una decisión de modelado deliberada y defendible. El
 hallazgo D2 queda cerrado como discrepancia documentada, no como bug.
+
+### CAL-7: Alternancia Stackelberg vs ODE conjunta (nota de auditoría A3)
+
+**Fecha:** 2026-04-17 | **Archivo:** `core/ems_p2p.py:230-244`
+
+El bucle Stackelberg de este repositorio se resuelve por **alternancia**
+(outer loop):
+
+```
+mientras iter < max_iter:
+    P_star  ←  solve_sellers(pi_i, ...)     # RD vendedores (ODE interna)
+    pi_i    ←  solve_buyers(P_star, ...)    # RD compradores (ODE interna)
+    norm_rel = ‖P_new − P_old‖ / (‖P_old‖ + 1e-9)
+    si norm_rel < tol: salir
+```
+
+En `Documentos/copy/JoinFinal.m:139`, en cambio, el sistema se integra
+de forma **conjunta**: el estado concatenado `[consumer_state,
+seller_state]` se pasa a `ode15s` en una única llamada y ambos
+replicadores evolucionan simultáneamente.
+
+**¿Por qué se adoptó la alternancia?** Razones de ingeniería de
+software, no de modelado:
+
+1. **Paralelización.** La iteración horaria de 5 160 h se reparte con
+   `ProcessPoolExecutor`; cada hora solo necesita un bucle finito de
+   pasos discretos, más predecible que un integrador adaptativo.
+2. **Diagnóstico por separado.** Permite inspeccionar `P_star` y `pi_i`
+   tras cada sub-paso, facilitando los tests de convergencia.
+3. **Criterio de parada uniforme.** La norma relativa en `P_star` es
+   un contrato explícito y adaptativo entre escenarios.
+
+**¿Afecta el equilibrio?** No en el límite. Ambas formulaciones
+convergen al mismo punto fijo del juego Stackelberg cuando
+`tol → 0` y `max_iter → ∞`, porque el equilibrio de Nash es
+invariante bajo la factorización del operador de actualización (el
+operador T que lleva `(P, π)` al siguiente estado es contractivo
+tanto aplicado "en bloque" como alternado, con el mismo fijo).
+
+**¿Afecta las trayectorias transitorias?** Sí. Las iteraciones
+intermedias (antes de converger) difieren. Esto es relevante solo si
+se reporta la dinámica antes del equilibrio, lo cual no se hace en
+ninguna figura de la tesis (todas usan `P_star` y `pi_i` ya convergidos).
+
+**Validación empírica.** El test
+`tests/test_stackelberg_convergence.py` garantiza que al salir del
+bucle `norm_rel < tol`. El `tests/golden_test_sofia.py` confirma
+que el equilibrio alcanzado coincide con el oráculo SLSQP de
+`Bienestar6p.py` dentro de tolerancias (`P_total` atol = 0,15 kWh,
+demanda rtol = 5 %, `π_i ∈ [π_GB, π_GS]`).
+
+**Implicación para la tesis.** En la sección de Métodos debe
+declararse: *"El sistema Stackelberg se resuelve por alternancia
+(`solve_sellers` ↔ `solve_buyers`) con criterio de parada
+`‖ΔP‖ / (‖P‖ + ε) < tol = 1e-3` y `max_iter = 8`. El equilibrio
+resultante coincide con el oráculo SLSQP del modelo base dentro de
+tolerancias numéricas documentadas."*
+
+**Veredicto:** el hallazgo A3 queda cerrado como discrepancia
+de formulación documentada. No se modifica el código.
 
 ### Resumen de recomendaciones de calibración
 

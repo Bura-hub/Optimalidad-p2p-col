@@ -220,20 +220,24 @@ consolidados para los 6 meses de la ventana MTE.
 
 ---
 
-### [B4] MEDIO — GSA Sobol/Saltelli con `n_base = 64` aún no corrida
+### [B4] ~~MEDIO~~ RESUELTO — GSA Sobol/Saltelli n_base = 64 ejecutada
 
-**Enunciado.** `Documentos/Matriz_Trazabilidad.md:38` y
-`analysis/global_sensitivity.py` declaran un smoke test exitoso con
-`n_base = 4` pero la corrida estadísticamente válida
-(`n_base ≥ 64`, ~75 min) está pendiente de autorización.
+**Enunciado original.** `analysis/global_sensitivity.py` declaraba smoke
+test con `n_base = 4` pero la corrida estadísticamente válida estaba pendiente.
 
-**Evidencia.** `Documentos/Matriz_Trazabilidad.md:38`;
-`analysis/global_sensitivity.py` (existencia del módulo).
+**Estado (2026-04-17).** La corrida con `n_base = 64` (1 024 evaluaciones,
+7 parámetros, 3 outputs: ganancia, SC, IE) fue ejecutada el 2026-04-17.
+Resultados en `resultados_gsa.xlsx` (hoja `S1_ST`, 21 filas).
 
-**Recomendación.** Ejecutar `python main_simulation.py --gsa
---n-base 64` (redirigir a `outputs/run_gsa_64_<fecha>.log`, usar
-`freeze_support()`). Reportar S1, ST e IC bootstrap de SALib en
-`resultados_gsa.xlsx`.
+**Hallazgos cualitativos:**
+- SC dominada por `factor_PV` (ST ≈ 0,85) y `factor_D` (ST ≈ 0,21).
+- Ganancia dominada por `factor_PV` (ST ≈ 4,6) y `factor_D` (ST ≈ 2,9).
+- IE más sensible a `PGB` (ST ≈ 2,9, primer orden S1 ≈ 0,24).
+- IC amplios (artefacto de n_base = 64); S1 negativos son varianza, no
+  interpretación física. Para IC estrechos en publicación: n_base ≥ 256.
+
+**`Documentos/Matriz_Trazabilidad.md` actualizado** — Act 4.1 marcada
+`completado`. Actividad 3.2 sigue siendo la única parcial del proyecto.
 
 ---
 
@@ -493,7 +497,7 @@ Commit atómico `audit: verifica DOI y autores en references.bib`.
 | B1 | OK       |   |   |   |   |
 | B2 | OK       |   |   |   |   |
 | B3 | PARCIAL  |   | ✓ |   | ✓ |
-| B4 | MEDIO    |   | ✓ |   |   |
+| B4 | ~~MEDIO~~ RESUELTO | — | — | — | — |
 | B5 | OK       |   |   |   |   |
 | B6 | OK       |   |   |   |   |
 | C1 | OK       |   |   |   |   |

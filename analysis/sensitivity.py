@@ -16,7 +16,7 @@ Implementa dos barridos paramétricos:
 Cada barrido corre la simulación completa y recopila:
   - Ganancia neta por escenario
   - IE (equidad) del P2P
-  - PoF (Price of Fairness) P2P vs C4
+  - RPE (rendimiento relativo P2P vs C4; RPE ≠ PoF Bertsimas 2011)
   - Horas de mercado activo
 """
 
@@ -77,7 +77,7 @@ def run_sensitivity_pgb(
     if verbose:
         print(f"\n  SA-1: Sensibilidad PGB  ({len(pi_gb_range)} puntos)")
         print(f"  {'PGB':>6}  {'P2P':>10}  {'C1':>10}  {'C3':>10}  "
-              f"{'C4':>10}  {'IE':>6}  {'PoF':>6}")
+              f"{'C4':>10}  {'IE':>6}  {'RPE':>6}")
         print("  " + "─"*68)
 
     for pgb in pi_gb_range:
@@ -447,7 +447,7 @@ def run_sensitivity_pgs(
         print(f"\n  SA-3: Sensibilidad π_gs  (π_gs_base={pi_gs_base:.0f}, "
               f"π_gb={pi_gb:.0f})  — {len(pi_gs_range)} puntos")
         print(f"  {'π_gs':>7}  {'Ratio':>6}  {'P2P':>10}  {'C1':>10}  "
-              f"{'C4':>10}  {'IE':>6}  {'PoF':>6}  {'Gini-P2P':>9}")
+              f"{'C4':>10}  {'IE':>6}  {'RPE':>6}  {'Gini-P2P':>9}")
         print("  " + "─"*75)
 
     ems = EMSP2P(agents, grid_base, solver)

@@ -70,6 +70,25 @@ XM_PRICES_REFERENCE = {
 }
 
 # Parámetro b calibrado por institución (LCOE solar Pasto 2025)
+#
+# Nota de auditoría (D2, 2026-04-17)
+# ----------------------------------
+# Estos valores son en COP/kWh y aplican SOLO al modo real (datos MTE).
+# Se usan valores homogéneos (225 COP/kWh, con ajuste a 210 para Cesmag)
+# porque las 5 instituciones comparten:
+#   - Mismo fabricante de inversor (Fronius, capacidad <= 100 kW).
+#   - Misma ubicación (Pasto, Nariño).
+#   - Misma ventana de operación (jul. 2025 - ene. 2026).
+#   - Rango IRENA [16] / UPME [17]: 200-250 COP/kWh para solar
+#     distribuida pequeña en Colombia (ver Revision_Bibliografica_Act_1_2.md:81).
+#
+# El MODO SINTÉTICO de data/base_case_data.py sí preserva la
+# heterogeneidad de JoinFinal.m (b = 6.0865 * [3.93*52, 32, 47, 37, 0, 0] =
+# [1245, 195, 287, 225, 0, 0] en unidades de optimización, no COP/kWh).
+# Las dos calibraciones son incomparables por unidades y por propósito
+# (fidelidad al modelo base vs representación empírica MTE).
+#
+# Ver Documentos/notas_modelo_tesis.md §7 CAL-6 para la justificación formal.
 B_CALIBRATED = {
     "Udenar_fronius":  225,
     "Mariana_fronius": 225,

@@ -144,7 +144,12 @@ def run_subperiod_analysis(
         c4_tot  = float(nb.get("C4",  0))
         c1_tot  = float(nb.get("C1",  0))
         c3_tot  = float(nb.get("C3",  0))
-        rpe = (p2p_tot - c4_tot) / max(abs(c4_tot), 1.0) if c4_tot != 0 else 0.0
+        # RPE canónico: (W_P2P - W_C4) / |W_P2P|  (ver comparison_engine.py:331-334
+        # y Matriz_Trazabilidad.md:37). max(|W_P2P|, 1.0) evita división por cero
+        # en sub-períodos sin mercado P2P activo. Hallazgo de auditoría D5 (2026-04-17):
+        # esta fórmula antes era (p2p - c4) / max(|c4|, 1.0), inconsistente con la
+        # canónica; los .xlsx generados antes del run --full contienen valores stale.
+        rpe = (p2p_tot - c4_tot) / max(abs(p2p_tot), 1.0)
 
         res = SubperiodResult(
             label=label,

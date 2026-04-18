@@ -870,6 +870,46 @@ la expansión natural de las instalaciones fotovoltaicas).
 | Act 4.3 | Descomposición sub-períodos | ✅ |
 | §VII.C | Robustez regulatoria C4 (FA-3/FA-4) | ✅ |
 
+### Resultados GSA Sobol-Saltelli (n_base = 64, 2026-04-17)
+
+Ejecutado con `python main_simulation.py --gsa --n-base 64`.
+7 parámetros: PGB, PGS, factor_PV, factor_D, alpha_mean, b_mean, pi_ppa.
+3 outputs: ganancia neta, SC (auto-consumo), IE (inequidad).
+
+**Índices ST cualitativos (totales; más robustos que S1 con n_base pequeño):**
+
+| Parámetro | ST ganancia | ST SC | ST IE | Interpretación |
+|-----------|-------------|-------|-------|----------------|
+| factor_PV | 4,63 | 0,85 | 0,23 | dominante en ganancia y SC |
+| factor_D  | 2,92 | 0,21 | 0,10 | segundo en ganancia |
+| PGB       | 0,73 | ~0   | 2,94 | dominante en equidad |
+| PGS       | 1,77 | ~0   | 0,19 | impacto en ganancia |
+| alpha_mean| 0,06 | 0,02 | 0,02 | efecto DR pequeño |
+| b_mean    | ~0   | 0    | 0,07 | sin efecto significativo |
+| pi_ppa    | 0    | 0    | 0    | sin efecto (C2 desactivado) |
+
+**Nota:** S1 negativos y ST > 1 son artefacto de n_base = 64 (IC > media).
+El orden cualitativo es estable: `factor_PV` y `factor_D` gobiernan
+el bienestar global; `PGB` es el parámetro más crítico para la equidad.
+Para IC publicables (S1_conf < S1): ejecutar con n_base ≥ 256.
+
+### Resultados Bootstrap P2P vs C4 (n=500, 2026-04-17)
+
+Ejecutado con `tests/statistical_tests.py`, datos: 215 días MTE, block_days=7, seed=42.
+
+| Métrica | Valor |
+|---------|-------|
+| Δ̄ (P2P − C4) | 7 489 COP/día |
+| IC 95 % (bootstrap) | [6 051, 8 963] COP/día |
+| p-valor Wilcoxon | 0,000 |
+| Cohen's d | 0,67 (efecto medio-alto) |
+| n_eff (bloques) | 30 |
+
+**Conclusión:** P2P supera a C4 con diferencia estadísticamente significativa
+(p = 0). El intervalo de confianza no incluye 0. Cohen's d = 0,67 indica
+efecto práctico medio-alto. Resultado sobre 215 días, perfil promedio diario;
+pendiente replicación sobre serie horaria completa 5 160 h.
+
 ### Actividad crítica pendiente
 
 **Act 2.3 / 3.2 — Simulación horizonte completo 5160h:**

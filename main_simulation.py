@@ -7,10 +7,18 @@ Implementa el EMS completo de Chacón et al. (2025):
 
 Modos:
   python main_simulation.py                              # datos sintéticos (24h)
-  python main_simulation.py --data real                  # datos MTE, perfil diario (24h)
+  python main_simulation.py --data real                  # datos MTE, perfil diario promedio (24h)
+  python main_simulation.py --day YYYY-MM-DD             # datos MTE, un día real específico (24h)
+  python main_simulation.py --day YYYY-MM-DD --analysis  # día específico + sensibilidad/factibilidad
   python main_simulation.py --data real --full           # datos MTE, 5160h completas
-  python main_simulation.py --data real --analysis       # + sensibilidad y factibilidad
+  python main_simulation.py --data real --analysis       # perfil diario + sensibilidad y factibilidad
   python main_simulation.py --data real --analysis --full  # todo, horizonte completo
+  python main_simulation.py --gsa [--n-base N]           # análisis de sensibilidad global Sobol/Saltelli
+
+Notas:
+  --day implica --data real y horizonte de 24h (no requiere --data real explícito).
+  En los modos de 24h (sintético, perfil diario o --day) NO se genera reporte
+  mensual ni series diarias para bootstrap (requieren T>=48h con --full).
 """
 import sys, os, time, argparse, warnings
 warnings.filterwarnings("ignore")

@@ -12,3 +12,9 @@ Documentos/*
 !Documentos/Revision_Bibliografica_Act_1_2.md
 !Documentos/Matriz_Trazabilidad.md
 !Documentos/INDICE_ARCHIVOS.md
+
+# Resultados y artefactos de corrida (no versionar)
+*.xlsx
+outputs/
+p2p_breakdown_flujos.csv
+p2p_breakdown_resumen_horario.csv

@@ -1,6 +1,6 @@
 # Reporte de Avances — Tesis P2P Colombia
 
-**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-17 18:22
+**Autor:** Brayan S. Lopez-Mendez | **Fecha:** 2026-04-23 19:21
 **Asesores:** Andrés Pantoja · Germán Obando | **Udenar, 2026**
 
 ---
@@ -9,46 +9,46 @@
 
 | Parámetro | Valor |
 |-----------|-------|
-| Datos | Empíricos MTE — perfil diario promedio (24h) |
+| Datos | Empíricos MTE — 5160h completas |
 | Agentes | 5 instituciones Pasto (MTE) |
-| Horizonte | 24h (1 días) |
-| Horas con mercado P2P | 3/24 (12.5%) |
-| Energía P2P total | 33.9 kWh/período |
+| Horizonte | 5160h (215 días) |
+| Horas con mercado P2P | 1387/5160 (26.9%) |
+| Energía P2P total | 16869.8 kWh/período |
 | Precios | PGS=650.0 · PGB=280.0 COP/kWh |
 
 ## 2. Datos empíricos MTE
 
 | Institución | D̄ (kW) | Ḡ (kW) | Cobertura PV |
 |-------------|---------|---------|-------------|
-| Udenar | 14.4 | 3.0 | 21% |
-| Mariana | 17.9 | 1.5 | 8% |
-| UCC | 78.2 | 1.7 | 2% |
-| HUDN | 27.7 | 1.5 | 5% |
-| Cesmag | 15.7 | 0.8 | 5% |
-| **Comunidad** | **153.9** | **8.5** | **5.5%** |
+| Udenar | 7.5 | 3.9 | 52% |
+| Mariana | 13.8 | 1.8 | 13% |
+| UCC | 42.1 | 2.2 | 5% |
+| HUDN | 21.7 | 1.7 | 8% |
+| Cesmag | 9.0 | 1.0 | 11% |
+| **Comunidad** | **94.1** | **10.6** | **11.3%** |
 
 ## 3. Resultados comparación regulatoria
 
 | Escenario | Ganancia neta (COP) | SC | SS | IE |
 |-----------|--------------------------|-----|-----|-----|
-| P2P (Stackelberg + RD) | 123,433 | 0.055 | 1.000 | 0.0922 |
-| C1 CREG 174/2021 | 132,926 | 0.046 | 0.834 | -0.3993 |
-| C2 Bilateral PPA | 120,381 | 0.046 | 0.834 | -0.3367 |
-| C3 Mercado spot | 114,432 | 0.046 | 0.834 | -0.3022 |
-| C4 CREG 101 072 ★ | 110,888 | 0.046 | 0.834 | -0.2799 |
+| P2P (Stackelberg + RD) | 28,120,523 | 0.104 | 0.924 | 0.5038 |
+| C1 CREG 174/2021 | 35,563,088 | 0.069 | 0.615 | -0.2628 |
+| C2 Bilateral PPA | 27,773,510 | 0.069 | 0.615 | -0.1036 |
+| C3 Mercado spot | 25,946,467 | 0.069 | 0.615 | -0.0465 |
+| C4 CREG 101 072 ★ | 22,259,344 | 0.069 | 0.615 | 0.0918 |
 
-**RPE (P2P vs C4):** 0.1016
-**Spread ineficiencia estática C4:** 12.628 kWh/período
+**RPE (P2P vs C4):** 0.2084
+**Spread ineficiencia estática C4:** 6732.007 kWh/período
 
 ### 3.1 Ventaja P2P vs C4 por institución
 
 | Institución | P2P (COP) | C4 (COP) | Ventaja P2P (COP) |
 |-------------|---------|---------|-----------------|
-| Udenar | 30,201 | 24,508 | +5,694 ✓ P2P mejor |
-| Mariana | 26,919 | 23,493 | +3,425 ✓ P2P mejor |
-| UCC | 27,098 | 27,098 | +0 ✓ P2P mejor |
-| HUDN | 26,389 | 22,963 | +3,425 ✓ P2P mejor |
-| Cesmag | 12,825 | 12,825 | +0 ✓ P2P mejor |
+| Udenar | 3,800,803 | 2,613,250 | +1,187,553 ✓ P2P mejor |
+| Mariana | 5,250,423 | 4,535,551 | +714,872 ✓ P2P mejor |
+| UCC | 8,331,716 | 6,624,661 | +1,707,055 ✓ P2P mejor |
+| HUDN | 6,870,693 | 5,526,201 | +1,344,491 ✓ P2P mejor |
+| Cesmag | 3,866,888 | 2,959,680 | +907,209 ✓ P2P mejor |
 
 ### 3.2 Nota sobre C1 = C3
 
@@ -63,11 +63,11 @@ y en días con baja demanda institucional (fines de semana, festivos).
 
 | Métrica | Valor | Interpretación |
 |---------|-------|----------------|
-| SC (P2P) | 0.055 | Fracción demanda cubierta internamente |
-| SS (P2P) | 1.000 | Fracción generación usada en comunidad |
-| IE (P2P) | 0.0922 | Distribución beneficio (0=equitativo) |
-| IE (C4)  | -0.2799 | Referencia regulatoria vigente |
-| RPE      | 0.1016 | Rendimiento relativo P2P vs C4 (RPE ≠ PoF Bertsimas 2011) |
+| SC (P2P) | 0.104 | Fracción demanda cubierta internamente |
+| SS (P2P) | 0.924 | Fracción generación usada en comunidad |
+| IE (P2P) | 0.5038 | Distribución beneficio (0=equitativo) |
+| IE (C4)  | 0.0918 | Referencia regulatoria vigente |
+| RPE      | 0.2084 | Rendimiento relativo P2P vs C4 (RPE ≠ PoF Bertsimas 2011) |
 
 ## 5. Análisis de sensibilidad
 
@@ -75,41 +75,42 @@ y en días con baja demanda institucional (fines de semana, festivos).
 
 | PGB (COP/kWh) | P2P (COP) | C4 (COP) | IE P2P | RPE |
 |---------------|---------|---------|--------|-----|
-| 200 | 126,145 | 110,888 | 0.092 | 0.121 |
-| 250 | 124,450 | 110,888 | 0.092 | 0.109 |
-| 280 | 123,433 | 110,888 | 0.092 | 0.102 |
-| 300 | 122,755 | 110,888 | 0.092 | 0.097 |
-| 350 | 121,060 | 110,888 | 0.092 | 0.084 |
-| 400 | 119,364 | 110,888 | 0.092 | 0.071 |
-| 450 | 117,669 | 110,888 | 0.092 | 0.058 |
-| 500 | 115,974 | 110,888 | 0.092 | 0.044 |
+| 200 | 29,470,108 | 22,259,344 | 0.504 | 0.245 |
+| 250 | 28,626,617 | 22,259,344 | 0.504 | 0.222 |
+| 280 | 28,120,523 | 22,259,344 | 0.504 | 0.208 |
+| 300 | 27,783,127 | 22,259,344 | 0.504 | 0.199 |
+| 350 | 26,939,636 | 22,259,344 | 0.504 | 0.174 |
+| 400 | 26,096,146 | 22,259,344 | 0.504 | 0.147 |
+| 450 | 25,252,655 | 22,259,344 | 0.504 | 0.119 |
+| 500 | 24,409,165 | 22,259,344 | 0.504 | 0.088 |
 
 ### SA-2: Variación cobertura PV
 
 | Factor PV | Cobertura (%) | P2P (COP) | C4 (COP) | Horas mercado | kWh P2P |
 |-----------|--------------|---------|---------|--------------|---------|
-| 1.99x | 22% | 244,541 | 218,692 | 4 | 69.9 |
-| 3.61x | 41% | 434,964 | 375,207 | 5 | 161.5 |
-| 5.96x | 67% | 659,195 | 566,029 | 7 | 293.4 |
-| 9.03x | 102% | 862,370 | 776,661 | 7 | 365.7 |
-| 10.00x | 113% | 915,194 | 832,840 | 8 | 386.1 |
+| 1.00x | 11% | 28,120,523 | 22,259,344 | 1387 | 16869.8 |
+| 1.78x | 20% | 45,870,181 | 37,288,152 | 1491 | 26828.8 |
+| 2.93x | 33% | 66,899,116 | 56,020,876 | 1545 | 36530.2 |
+| 4.44x | 50% | 87,210,054 | 75,513,532 | 1495 | 43507.1 |
+| 6.66x | 75% | 106,819,515 | 96,920,588 | 1378 | 45018.2 |
+| 8.88x | 100% | 119,904,386 | 112,142,866 | 1251 | 42987.1 |
 
 ## 6. Análisis de factibilidad
 
 ### FA-1: Condición de deserción del P2P
 
-- Precio P2P nunca menor que bolsa: **Sí**
-- Umbral crítico precio bolsa: **448 COP/kWh**
+- Precio P2P nunca menor que bolsa: **No**
+- Umbral crítico precio bolsa: **363 COP/kWh**
 
 ### FA-2: Cumplimiento CREG 101 072/2025
 
 | Institución | Participación (%) | Cumple 10% | Cap. max (kW) | Cumple 100kW |
 |-------------|------------------|-----------|--------------|-------------|
-| Udenar | 1.94% | ✓ | 14.0 | ✓ |
-| Mariana | 0.98% | ✓ | 6.9 | ✓ |
-| UCC | 1.13% | ✓ | 7.6 | ✓ |
-| HUDN | 0.96% | ✓ | 6.6 | ✓ |
-| Cesmag | 0.53% | ✓ | 2.8 | ✓ |
+| Udenar | 4.20% | ✓ | 32.2 | ✓ |
+| Mariana | 1.88% | ✓ | 14.6 | ✓ |
+| UCC | 2.36% | ✓ | 15.1 | ✓ |
+| HUDN | 1.79% | ✓ | 13.8 | ✓ |
+| Cesmag | 1.04% | ✓ | 8.1 | ✓ |
 
 **Score de robustez C4:** 1.00 (1=máxima robustez)
 
@@ -123,13 +124,13 @@ Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.
 
 | Agente | B_P2P (COP) | B_alt (COP) | Δ_n (COP) | Δ_n/B_alt | π_gb^*_n | Estado |
 |--------|---------|---------|---------|----------|---------|--------|
-| Udenar | 30,201 | 46,546 | -16,344 | -35.1% | 180 | en riesgo |
-| Mariana | 26,919 | 23,493 | +3,425 | +14.6% | >rango | estable |
-| UCC | 27,098 | 27,098 | +0 | +0.0% | >rango | estable |
-| HUDN | 26,389 | 22,963 | +3,425 | +14.9% | >rango | estable |
-| Cesmag | 12,825 | 12,825 | +0 | +0.0% | >rango | estable |
+| Udenar | 3,800,803 | 13,245,552 | -9,444,749 | -71.3% | 180 | en riesgo |
+| Mariana | 5,250,423 | 5,924,324 | -673,902 | -11.4% | 180 | en riesgo |
+| UCC | 8,331,716 | 7,455,886 | +875,830 | +11.7% | >rango | estable |
+| HUDN | 6,870,693 | 5,652,570 | +1,218,123 | +21.5% | >rango | estable |
+| Cesmag | 3,866,888 | 3,284,757 | +582,132 | +17.7% | >rango | estable |
 
-**Agentes estables (4/5):** Mariana, UCC, HUDN, Cesmag
+**Agentes estables (3/5):** UCC, HUDN, Cesmag
 **Umbral comunitario (mediana individual):** >rango (>500.0) COP/kWh
 **Umbral agregado P2P < max(C1,C4):** >rango (>500.0) COP/kWh
 
@@ -137,32 +138,23 @@ Umbral crítico `π_gb^*_n`: precio de bolsa donde el agente es indiferente.
 
 | pi_gb | Udenar | Mariana | UCC | HUDN | Cesmag | Σ Δ |
 |-------|--------|--------|--------|--------|--------|--------|
-| 200 | -13,632 | +3,425 | +0 | +3,425 | +0 | -6,781 |
-| 250 | -15,327 | +3,425 | +0 | +3,425 | +0 | -8,476 |
-| 280 | -16,344 | +3,425 | +0 | +3,425 | +0 | -9,493 |
-| 300 | -17,022 | +3,425 | +0 | +3,425 | +0 | -10,171 |
-| 350 | -18,718 | +3,425 | +0 | +3,425 | +0 | -11,867 |
-| 400 | -20,413 | +3,425 | +0 | +3,425 | +0 | -13,562 |
-| 450 | -22,108 | +3,425 | +0 | +3,425 | +0 | -15,257 |
-| 500 | -23,803 | +3,425 | +0 | +3,425 | +0 | -16,952 |
+| 200 | -8,350,761 | -537,660 | +917,393 | +1,243,027 | +635,020 | -6,092,980 |
+| 250 | -9,034,503 | -622,811 | +891,417 | +1,227,462 | +601,965 | -6,936,471 |
+| 280 | -9,444,749 | -673,902 | +875,830 | +1,218,123 | +582,132 | -7,442,565 |
+| 300 | -9,718,246 | -707,962 | +865,440 | +1,211,897 | +568,910 | -7,779,961 |
+| 350 | -10,401,988 | -793,113 | +839,463 | +1,196,332 | +535,854 | -8,623,452 |
+| 400 | -11,085,730 | -878,264 | +813,486 | +1,180,767 | +502,799 | -9,466,942 |
+| 450 | -11,769,473 | -963,415 | +787,509 | +1,165,202 | +469,744 | -10,310,433 |
+| 500 | -12,453,215 | -1,048,566 | +761,532 | +1,149,637 | +436,688 | -11,153,923 |
 
 ---
 
-## 7. Ejecuciones completadas (adicionales al perfil promedio)
+## 7. Pendiente
 
-| Run | Fecha | Archivo de log | Descripción |
-|-----|-------|----------------|-------------|
-| Día de referencia | 2026-04-17 | `outputs/run_day_2025-08-06_1458.log` | Miércoles laborable, irradiancia alta. Sub-períodos SP1–SP4 (Laborable/Finde × Jul/Ene). RPE = 0.1581 (Laborable-Jul). |
-| GSA Sobol n_base=64 | 2026-04-17 | `resultados_gsa.xlsx` | 7 parámetros, 3 outputs (ganancia, SC, IE), 1 024 evaluaciones. Factor dominante SC: `factor_PV`; IE: `PGB`. IC amplios; orden cualitativo interpretable. |
-| Bootstrap P2P vs C4 | 2026-04-17 | `resultados_tests.xlsx` | n=500 bloques, block_days=7, seed=42. Δ̄ = 7 489 COP/día, IC 95 % = [6 051, 8 963], p-Wilcoxon = 0.000, Cohen's d = 0.67 (n_eff = 30). |
-
-## 8. Pendiente
-
-- [ ] **Horizonte completo 5 160 h (postergado):** `python main_simulation.py --data real --full --analysis`. Condición de cierre para Actividad 3.2 y valor definitivo de IE, RPE y métricas mensuales. Ver `Documentos/Matriz_Trazabilidad.md`.
-- [ ] Verificar LCOE real de inversores instalados en cada institución (parámetro `b_n`).
-- [ ] GSA n_base ≥ 256 (~3–4 h) para IC estrechos en S1/ST (opcional para publicación).
-- [ ] Bootstrap sobre serie de 5 160 h (depende del run `--full`).
+- [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`
+- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`
+- [ ] Verificar LCOE real de inversores instalados en cada institución
+- [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero
 
 ---
-*Sección §1–§6 generada automáticamente por main_simulation.py · 2026-04-17 18:22*
-*Secciones §7–§8 actualizadas manualmente · 2026-04-17*
+*Generado automáticamente por main_simulation.py · 2026-04-23 19:21*

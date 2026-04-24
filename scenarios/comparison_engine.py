@@ -369,6 +369,13 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
         if r.P_star is None:
             continue
 
+        # Guard: si el ODE devolvió NaN (~0.2% de horas con G_net minúsculos +
+        # VelGrad=1e6 generan inestabilidad numérica puntual) se salta la hora
+        # como si no hubiera mercado. Un solo NaN contamina toda la agregación.
+        if np.isnan(r.P_star).any() or (
+                r.pi_star is not None and np.isnan(r.pi_star).any()):
+            continue
+
         # Vendedores: ganaron más que vendiendo a la red
         for idx_j, j in enumerate(r.seller_ids):
             if r.pi_star is not None:

@@ -138,7 +138,7 @@ def _eval_sample(params: np.ndarray) -> tuple:
         if not prosumer_ids:
             prosumer_ids = list(range(N))
 
-        pi_bolsa = np.full(24, pgb)
+        pi_bolsa = np.full(D_star.shape[1], pgb)
 
         cr = run_comparison(
             D=D_star, G_klim=G_klim, G_raw=G_base,

@@ -124,7 +124,7 @@ def run_subperiod_analysis(
         kwh = sum(float(np.sum(r.P_star)) for r in active)
 
         # Escenarios C1-C4
-        pi_bolsa_sp = np.full(24, pgb)
+        pi_bolsa_sp = np.full(D_sp.shape[1], pgb)
         cr = run_comparison(
             D=D_sp, G_klim=G_klim_sp, G_raw=G_sp,
             p2p_results=p2p_results_sp,

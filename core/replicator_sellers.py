@@ -75,12 +75,19 @@ def solve_sellers(
     n_points:    int   = 500,
     rng_seed:    int   = 42,
     return_traj: bool  = False,
+    method:      str   = "LSODA",
 ):
     """
     Retorna P_star (J, I).
     Si return_traj=True, retorna (P_star, t_arr, P_traj) donde
       t_arr  : (n_points,)  eje de tiempo de integración
       P_traj : (J, I, n_points)  trayectoria de potencias
+
+    method : solver ODE de scipy.integrate.solve_ivp. Default "LSODA"
+        (Adams/BDF con detección automática de stiffness, análogo a ode15s
+        de MATLAB en JoinFinal.m:139). Alternativas: "Radau", "BDF", "RK45".
+        VelGrad=1e6 hace el sistema stiff en los multiplicadores λ/β; los
+        solvers stiff-aware aceptan pasos mayores sin perder precisión.
     """
     J = len(G_net_j)
     I = len(D_net_i)
@@ -105,12 +112,16 @@ def solve_sellers(
     bet0 = 0.1 * np.ones(I)
 
     y0 = np.concatenate([P0.ravel(), lam0, bet0, np.zeros(J), np.zeros(I)])
-    t_eval = np.linspace(t_span[0], t_span[1], n_points)
+
+    # t_eval sólo necesario si se requiere la trayectoria completa.
+    # En modo producción (return_traj=False) solo se usa sol.y[:, -1], y el
+    # solver adaptativo converge al mismo punto final sin interpolar 500 puntos.
+    t_eval = np.linspace(t_span[0], t_span[1], n_points) if return_traj else None
 
     sol = solve_ivp(
         _sellers_ode, t_span, y0,
         args=(a_j, b_j, pi_i, simplex, J, I, D_net_i, G_net_j, tau),
-        t_eval=t_eval, method="RK45",
+        t_eval=t_eval, method=method,
         rtol=1e-6, atol=1e-9,
     )
     P_star = np.clip(sol.y[:J*I, -1].reshape(J, I), 0.0, None)

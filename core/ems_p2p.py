@@ -138,17 +138,25 @@ class GridParams:
 class SolverParams:
     # Parámetros calibrados contra JoinFinal.m de Chacón et al. (2025):
     #   t_span  = [0, 0.01]  →  10 constantes de tiempo del filtro (τ=0.001)
-    #   n_points = 500        →  densidad de la integración numérica
+    #   n_points = 300       →  Euler compradores, dt=3.33e-5 (validado por
+    #                           tests con t_span=(0,0.005)+n_points=150 que dan
+    #                           el MISMO dt). Reducir a 150 con t_span=0.01
+    #                           genera dt=6.67e-5 e invierte el signo de IE
+    #                           (VEL_GPC=1e5 exige dt ≲ 4e-5 para Euler estable).
+    #                           En vendedores LSODA es adaptativo y no depende.
     #   tau_sellers = 0.001  →  filtro de paso bajo λ/β (Generadoresfiltro.m)
     #   tau_buyers  = 0.01   →  tau3 de JoinFinal.m (bloque comprador)
+    #   ode_method  = LSODA  →  análogo a ode15s de MATLAB (JoinFinal.m:139),
+    #                           stiff-aware (VelGrad=1e6 genera stiffness en λ/β)
     tau:               float = 0.001    # filtro vendedores (τ en JoinFinal.m)
     tau_buyers:        float = 0.01     # tau3 en JoinFinal.m (escala comprador)
     t_span:            tuple = (0.0, 0.01)   # iguala t_span=[0,0.01] de JoinFinal.m
-    n_points:          int   = 500           # linspace(0,0.01,500) de JoinFinal.m
+    n_points:          int   = 300           # Euler compradores; dt=3.33e-5
     stackelberg_iters: int   = 2    # iteraciones mínimas (min_iter)
     stackelberg_tol:   float = 1e-3  # tolerancia relativa ||P_new - P_old|| / (||P_old|| + ε)
     stackelberg_max:   int   = 10    # iteraciones máximas
     parallel:          bool  = True
+    ode_method:        str   = "LSODA"   # solver de scipy para solve_sellers
 
 
 @dataclass
@@ -222,7 +230,7 @@ def _run_hour_worker(args):
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
-     min_iter, tol, max_iter) = args
+     min_iter, tol, max_iter, ode_method) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -252,7 +260,8 @@ def _run_hour_worker(args):
         P_old  = P_star.copy()
         # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
         P_star = solve_sellers(pi_i, G_net_j, D_net_i, a_j, b_j,
-                               tau=tau, t_span=t_span, n_points=n_points)
+                               tau=tau, t_span=t_span, n_points=n_points,
+                               method=ode_method)
         # Algoritmo 3: RD compradores (tau_buyers = tau3 de JoinFinal.m)
         pi_i   = solve_buyers(P_star, a_j, b_j, etha_i,
                               pi_gs=pi_gs, pi_gb=pi_gb,
@@ -263,6 +272,13 @@ def _run_hour_worker(args):
                     / (np.linalg.norm(P_old) + 1e-9))
         if iter_count >= min_iter and norm_rel < tol:
             break
+
+    # Guard: si el ODE produjo NaN (~0.2% de horas con G_net minúsculos +
+    # VelGrad=1e6 generan inestabilidad puntual), marcar la hora como sin
+    # mercado. Un solo NaN contamina toda la agregación aguas abajo (IE,
+    # net_benefit, W_sellers/buyers, etc.).
+    if np.isnan(P_star).any() or np.isnan(pi_i).any():
+        return res
 
     res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
     res.norm_rel_final = float(norm_rel)
@@ -337,7 +353,8 @@ class EMSP2P:
                          ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                          gr.pi_gs, gr.pi_gb,
                          sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
-                         sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max))
+                         sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
+                         sv.ode_method))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -458,7 +475,7 @@ class EMSP2P:
                 P_star, t_s, P_traj = solve_sellers(
                     pi_i, G_net_j, D_net_i, a_j, b_j,
                     tau=sv.tau, t_span=sv.t_span, n_points=sv.n_points,
-                    return_traj=True,
+                    return_traj=True, method=sv.ode_method,
                 )
                 pi_i, t_b, pi_traj = solve_buyers(
                     P_star, a_j, b_j, etha_i,
@@ -505,4 +522,5 @@ class EMSP2P:
                                   sids, bids, ag.a, ag.b, ag.lam, ag.theta, ag.etha,
                                   gr.pi_gs, gr.pi_gb,
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
-                                  sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max))
+                                  sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
+                                  sv.ode_method))

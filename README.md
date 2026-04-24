@@ -57,16 +57,16 @@ tesis_p2p/
 # Modo 1 — Validación sintética (24h, ~35s)
 python main_simulation.py
 
-# Modo 2 — Perfil diario promedio MTE (24h, ~2 min)
+# Modo 2 — Perfil diario promedio MTE (24h, ~1 min con LSODA adaptativo)
 python main_simulation.py --data real
 
-# Modo 3 — Perfil diario + sensibilidad y factibilidad (~15 min)
+# Modo 3 — Perfil diario + sensibilidad y factibilidad (~5 min)
 python main_simulation.py --data real --analysis
 
-# Modo 4 — Horizonte completo 5160h / 215 días (~20 min)
+# Modo 4 — Horizonte completo 5160h / 215 días (~45 min)
 python main_simulation.py --data real --full
 
-# Modo 5 — Horizonte completo + todos los análisis
+# Modo 5 — Horizonte completo + todos los análisis (~100 min, corrida definitiva)
 python main_simulation.py --data real --full --analysis
 
 # Con rutas explícitas
@@ -140,7 +140,8 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 | `fig8_sensibilidad_pv.png` | SA-2: P2P vs cobertura PV |
 | `fig9_factibilidad.png` | FA-1 + FA-2 CREG 101 072 |
 | `fig10_sensibilidad_ppa.png` | SA-PPA: sensibilidad precio bilateral |
-| `fig11_convergencia_h*.png` | Convergencia RD+Stackelberg (por hora) |
+| `fig11_convergencia_h*.png` | Convergencia RD+Stackelberg (horas diagnóstico: h0012, h0014, h0015, h0019, h3683) |
+| `fig11_sensibilidad_pgs.png` | SA-3: sensibilidad al precio regulado PGS (conflicto de numeración con fig11 de convergencia) |
 | `fig12_comparacion_mensual.png` | Comparación mensual (solo --full) |
 | `fig13_desglose_flujos.png` | Desglose flujos por componente (Act. 3.2) |
 | `fig14_optimalidad_horaria.png` | Dominancia P2P vs C4 por hora (Act. 4.2) |
@@ -163,6 +164,7 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 - **Balance mensual C1** — permutación mensual real para horizonte --full (`scenarios/scenario_c1_creg174.py`)
 - **Reporte mensual** — desglose mes a mes para horizonte --full (`analysis/monthly_report.py`)
 - **DR program** — integrado (`core/dr_program.py`), inactivo con datos reales (alpha=0)
+- **Optimización EMS** — `core/ems_p2p.py` usa LSODA adaptativo (stiff-aware, análogo a `ode15s` de `JoinFinal.m`) con `n_points=300`; speedup ~15× sobre RK45+500pts (961s → 64s en `--data real`). Guard NaN en `_run_hour_worker` descarta horas inestables (0.21% con `G_net` mínimo + VelGrad=1e6)
 
 ---
 
@@ -180,17 +182,38 @@ Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
 
 ---
 
-## Hallazgo C1 = C3 (perfil promedio)
+## Resultados del horizonte completo (5160 h)
 
-Con la comunidad MTE, G < D en el 100% de horas del perfil promedio (cobertura PV = 11%). Sin excedente individual, vender a bolsa (C3) y tener créditos 1:1 (C1) producen idéntica ganancia neta. Los dos escenarios divergirán en el análisis `--full` con precios XM horarios reales, cuando días de baja demanda (fines de semana) puedan generar excedente puntual.
+Primera corrida limpia `--data real --full --analysis` (commit `83d4815`, ~100 min, 215 días, jul. 2025–ene. 2026):
+
+| Escenario | Ganancia neta (MCOP) | Observación |
+|-----------|----------------------|-------------|
+| P2P       | **28.12** | 1387/5160 h con mercado activo (26.9%); 16 870 kWh transados |
+| C1 (CREG 174 créditos 1:1) | 35.56 | Mejor régimen regulado cuando hay días con excedente puntual |
+| C3 (spot XM) | 25.95 | Divergencia confirmada vs C1 con precios horarios reales |
+| C4 (CREG 101 072 AGPE+PDE) | 22.26 | Régimen vigente, baseline de comparación |
+
+**Métricas agregadas**: IE P2P = +0.5038 · Gini P2P = 0.1716 · **RPE P2P vs C4 = +0.2084**.
+
+**Subperiodos (Act. 3.2)**: RPE entre +0.2202 y +0.2722 (Laborable/Fin-semana × Jul./Ene.), sin inversión de signo.
+
+**Sensibilidad horizonte completo**: SA-1 PGB → RPE de +0.2447 a +0.0881 (siempre positivo). SA-2 factor PV → ventaja P2P-C4 no monótona, máximo en factor 4.44×.
+
+**Inferencia estadística (Act. 4.1)**: bootstrap diario de bloques (215 días, n=1000) → **p < 0.001**, Cohen d = 0.67 para P2P vs C4.
+
+---
+
+## Divergencia C1 vs C3 confirmada en `--full`
+
+Con el perfil diario promedio (cobertura PV = 11%, G < D en el 100% de las horas), C1 y C3 producían ganancia neta idéntica. La predicción del README anterior —que divergirían con precios XM horarios reales sobre las 5160 h— quedó confirmada: **C1 = 35.56 MCOP** vs **C3 = 25.95 MCOP** (brecha ≈ 9.6 MCOP, 37%). Los días de baja demanda generan excedente puntual que C1 acredita 1:1 mientras C3 lo liquida al precio horario XM.
 
 ---
 
 ## Pendiente
 
-- [ ] Run horizonte completo 5 160 h: `python main_simulation.py --data real --full --analysis`
+- [x] ~~Run horizonte completo 5 160 h~~ → corrida `83d4815` (~100 min, exit 0)
+- [x] ~~Bootstrap con datos reales~~ → p<0.001, Cohen d = 0.67 (commit `83d4815`)
 - [ ] GSA Sobol n_base ≥ 64 (solicitar OK): `python main_simulation.py --gsa --n-base 64`
 - [ ] Descargar serie horaria XM jul. 2025–ene. 2026 → `data/xm_precios_bolsa.csv`
-- [ ] Bootstrap con datos reales: `python tests/statistical_tests.py` (requiere run --full)
 - [ ] Verificar LCOE real de inversores instalados en cada institución MTE
 - [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`

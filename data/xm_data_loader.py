@@ -1,20 +1,22 @@
 """
-xm_data_loader.py  (v4 — validado con CSV reales de Cesmag)
-------------------------------------------------------------
-Hallazgos confirmados inspeccionando los CSV reales:
+xm_data_loader.py  (v5 — IO + limpieza; selección puntual delegada)
+-------------------------------------------------------------------
+Este módulo conserva la capa de **lectura, agregación legacy y limpieza
+genérica** (outliers + gaps). La selección puntual de qué medidor e
+inversor usa cada institución, junto con la reconstrucción net→bruta,
+vive ahora en ``data/preprocessing.py`` (Actividad 3.1, ver
+``Documentos/notas_modelo_tesis.md``).
 
   Medidores (electricMeter / eletricMeter):
     - Columna exacta: 'totalActivePower'
-    - Unidad: kW directamente (media ~8 kW, max ~44 kW)
-    - Resolución: 2 minutos exactos → resample a 1h (media)
-    - 4 medidores por institución → sumar todos
+    - Unidad: kW directamente
+    - Resolución: 2 minutos → resample a 1h (media)
+    - 4 medidores por institución; el preprocesamiento elige uno
 
   Inversores (Inverter / inverter / Inverters):
     - Columna exacta: 'acPower'
-    - Unidad: W enteros (media ~2300 W cuando activo, max ~15000 W)
-              → dividir / 1000 para obtener kW
-    - Solo registra cuando hay actividad (desde ~06:00, ceros de noche)
-    - 1-3 inversores por institución → sumar todos
+    - Unidad: W enteros (→ /1000 = kW)
+    - 1-3 inversores por institución; el EMS ve uno solo
 
   Estación meteorológica:
     - Columna: 'irradiance' [W/m²] (opcional)
@@ -46,8 +48,10 @@ WEATHER_FOLDER  = {"Udenar": "weatherstation", "Mariana": "weatherstation",
                    "UCC":    "weatherstation",  "HUDN":    "weatherStation",
                    "Cesmag": "weatherstation"}
 
-T_START = "2025-07-01"
-T_END   = "2026-02-01"
+T_START = "2025-04-04"   # Horizonte sólido común sobre MedicionesMTE_v3
+T_END   = "2025-12-16"   # (ver auditoría § 3.1): HUDN inversor arranca
+                         # 2025-04-04 (max_start), HUDN+Fronius Udenar
+                         # caen ~17-Dic. 257 días sin imputación.
 
 COL_DATE   = "date"
 COL_DEMAND = "totalActivePower"   # kW
@@ -96,9 +100,10 @@ def _read_one(path: Path, col: str) -> Optional[pd.Series]:
 def _aggregate(folder: Path, col: str,
                divide_by: float = 1.0) -> pd.Series:
     """
-    Lee todos los CSV en la carpeta y sus subcarpetas,
-    suma las series (distintos medidores/inversores = distintas cargas),
-    resamplea a 1 hora (media) y filtra el período de interés.
+    [LEGACY] Lee todos los CSV en la carpeta y sus subcarpetas y los
+    suma. Conservado por compatibilidad con scripts antiguos; el
+    pipeline principal ya no lo usa — ver ``data/preprocessing.py``
+    para la selección puntual por institución.
 
     divide_by: 1.0 para kW (medidores), 1000.0 para W→kW (inversores)
     """
@@ -133,19 +138,29 @@ def _aggregate(folder: Path, col: str,
 
 def _clean(s: pd.Series, label: str = "") -> pd.Series:
     """
-    1. Valores negativos → NaN
-    2. Outliers estadísticos (Q75 + 5×IQR) → NaN
-    3. Interpolación lineal para gaps ≤ 3 h
-    4. Forward/backward fill para gaps ≤ 24 h
-    5. Resto → 0 (horas nocturnas para generación)
+    Limpieza genérica de series horarias (outliers + gaps). La
+    no-negatividad se resuelve aguas arriba en ``preprocessing.py``
+    (reconstrucción net→bruta o clip(lower=0) según semántica), por lo
+    que aquí ya no se tratan los negativos como NaN.
+
+    1. Outliers extremos → NaN, con umbral robusto a distribuciones bimodales:
+       umbral = max(Q75 + 5·IQR, P99.5 · 1.2).
+       El piso P99.5·1.2 evita cortar picos operacionales legítimos cuando
+       la carga base es muy estable (IQR chico) — p. ej. Cesmag D.
+    2. Interpolación lineal para gaps ≤ 3 h
+    3. Forward/backward fill para gaps ≤ 24 h
+    4. Resto → 0 (horas nocturnas para generación)
     """
     s = s.copy()
-    s[s < 0] = np.nan
 
     q25, q75 = s.quantile(0.25), s.quantile(0.75)
+    p995 = s.quantile(0.995)
     iqr = q75 - q25
-    if iqr > 0:
-        s[s > q75 + 5 * iqr] = np.nan
+    umbral_iqr = q75 + 5 * iqr if iqr > 0 else np.inf
+    umbral_p995 = p995 * 1.2 if np.isfinite(p995) else np.inf
+    umbral = max(umbral_iqr, umbral_p995)
+    if np.isfinite(umbral) and umbral > 0:
+        s[s > umbral] = np.nan
 
     s = s.interpolate(method="time", limit=3)
     s = s.ffill(limit=24).bfill(limit=24)
@@ -167,79 +182,29 @@ class MTEDataLoader:
         # index: DatetimeIndex horario
     """
 
-    def __init__(self, root_path: str):
+    def __init__(self, root_path: str,
+                 demand_config: Optional[dict] = None,
+                 ems_inverter_config: Optional[dict] = None,
+                 reconstruction_inverters_config: Optional[dict] = None):
         self.root = Path(root_path)
         if not self.root.exists():
             raise FileNotFoundError(f"Carpeta no encontrada: {self.root}")
+        self._demand_cfg = demand_config
+        self._ems_inv_cfg = ems_inverter_config
+        self._recon_inv_cfg = reconstruction_inverters_config
 
     def load(self, verbose: bool = True
              ) -> tuple[np.ndarray, np.ndarray, pd.DatetimeIndex]:
-
-        idx = pd.date_range(T_START, T_END, freq="1h", inclusive="left")
-
-        if verbose:
-            print(f"\n[MTEDataLoader] Raíz: {self.root}")
-            print(f"  Período: {T_START} → {T_END}  ({len(idx)} horas)\n")
-
-        D_list, G_list = [], []
-
-        for n, agent in enumerate(AGENTS):
-            adir = self._find(self.root, agent)
-            if adir is None:
-                if verbose:
-                    print(f"  A{n} {agent}: CARPETA NO ENCONTRADA — usando ceros")
-                D_list.append(np.zeros(len(idx)))
-                G_list.append(np.zeros(len(idx)))
-                continue
-
-            # ── Demanda: totalActivePower ya en kW ───────────────────────
-            mdir = self._find(adir, METER_FOLDER[agent])
-            if mdir:
-                d_raw = _aggregate(mdir, COL_DEMAND, divide_by=1.0)
-                d = _clean(d_raw.reindex(idx).fillna(0), f"{agent}/D")
-            else:
-                if verbose:
-                    print(f"  A{n} {agent}: sin carpeta medidores")
-                d = pd.Series(0.0, index=idx)
-
-            # ── Generación: acPower en W → /1000 → kW ────────────────────
-            idir = self._find(adir, INVERTER_FOLDER[agent])
-            if idir:
-                g_raw = _aggregate(idir, COL_GEN, divide_by=1000.0)
-                g = _clean(g_raw.reindex(idx).fillna(0), f"{agent}/G")
-            else:
-                if verbose:
-                    print(f"  A{n} {agent}: sin carpeta inversores")
-                g = pd.Series(0.0, index=idx)
-
-            if verbose:
-                print(f"  A{n} {agent}:")
-                print(f"    D  media={d.mean():.2f} kW  "
-                      f"max={d.max():.1f} kW  "
-                      f"horas>0={int((d>0).sum())}/{len(d)}")
-                print(f"    G  media={g.mean():.2f} kW  "
-                      f"max={g.max():.1f} kW  "
-                      f"horas>0={int((g>0).sum())}/{len(g)}")
-
-            D_list.append(d.values)
-            G_list.append(g.values)
-
-        D = np.array(D_list, dtype=float)   # (N, T)
-        G = np.array(G_list, dtype=float)   # (N, T)
-        T = D.shape[1]
-
-        if verbose:
-            print(f"\n  D: {D.shape}  G: {G.shape}")
-            print(f"  D total comunidad: {D.sum():.0f} kWh")
-            print(f"  G total comunidad: {G.sum():.0f} kWh")
-            print(f"  Cobertura G/D:     {G.sum()/max(D.sum(),1):.3f}")
-
-        idx_tz = idx[:T].tz_localize(
-            "America/Bogota",
-            nonexistent="shift_forward",
-            ambiguous="infer",
+        # La selección puntual de medidor/inversor por institución y la
+        # reconstrucción net→bruta viven en data/preprocessing.py.
+        from data.preprocessing import build_demand_generation
+        return build_demand_generation(
+            self.root,
+            demand_config=self._demand_cfg,
+            ems_inverter_config=self._ems_inv_cfg,
+            reconstruction_inverters_config=self._recon_inv_cfg,
+            verbose=verbose,
         )
-        return D, G, idx_tz
 
     def load_weather(self) -> dict:
         """Carga irradiancia de las estaciones meteorológicas (opcional)."""

@@ -558,8 +558,14 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
             "PS_%": r.PS, "PSR_%": r.PSR,
             "Wj": r.Wj_total, "Wi": r.Wi_total,
         } for r in p2p_results]).to_excel(w, sheet_name="P2P_horario", index=False)
+        fr = cr.fairness
         pd.DataFrame([{
             "RPE_P2P_vs_C4":         cr.rpe,
+            "PoF_Bertsimas2011":      fr.pof if fr is not None else None,
+            "PoF_W_eff_COP":          fr.w_eff if fr is not None else None,
+            "PoF_W_fair_COP":         fr.w_fair if fr is not None else None,
+            "PoF_escenario_eficiente": fr.eff_scenario if fr is not None else None,
+            "PoF_escenario_equitativo": fr.fair_scenario if fr is not None else None,
             "Spread_C4_kWh":         float(np.sum(cr.static_spread_24h))
                                       if cr.static_spread_24h is not None else 0,
             # Act 3.3 — Bienestar de optimización (u.o.)
@@ -568,6 +574,11 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
             "W_total_uo":            cr.W_sellers_total + cr.W_buyers_total,
             "Nota_W":                "u.o.=unidades optimizacion; no son COP",
         }]).to_excel(w, sheet_name="Metricas_extra", index=False)
+        # Hoja PoF_Fairness — tabla curva de equidad ordenada por Gini
+        if fr is not None and fr.gini_ranking:
+            from analysis.fairness import fairness_curve
+            curve = fairness_curve(cr.net_benefit_per_agent, cr.gini)
+            pd.DataFrame(curve).to_excel(w, sheet_name="PoF_Fairness", index=False)
         if daily_series is not None and not daily_series.empty:
             daily_series.to_excel(w, sheet_name="Series_diarias", index=True)
     return path
@@ -852,9 +863,15 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         f"| SS (P2P) | {ss_p2p:.3f} | Fracción generación usada en comunidad |",
         f"| IE (P2P) | {ie_p2p:.4f} | Distribución beneficio (0=equitativo) |",
         f"| IE (C4)  | {ie_c4:.4f} | Referencia regulatoria vigente |",
-        f"| RPE      | {rpe:.4f} | Rendimiento relativo P2P vs C4 (RPE ≠ PoF Bertsimas 2011) |",
-        "",
+        f"| RPE      | {rpe:.4f} | Rendimiento relativo P2P vs C4 |",
     ]
+    if cr.fairness is not None and cr.fairness.eff_scenario:
+        fr = cr.fairness
+        lines.append(
+            f"| PoF      | {fr.pof:.4f} | Price of Fairness [Bertsimas 2011]: "
+            f"eficiente={fr.eff_scenario}, equitativo={fr.fair_scenario} |"
+        )
+    lines.append("")
 
     # Sensibilidad si disponible
     if sa_pgb:
@@ -979,12 +996,22 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         "",
         "---",
         "",
-        "## 7. Pendiente",
+        "## 7. Estado de implementación",
         "",
-        "- [ ] Correr horizonte completo 5160h: `python main_simulation.py --data real --full --analysis`",
-        "- [ ] Descargar serie horaria XM Jul 2025-Ene 2026 → `data/xm_precios_bolsa.csv`",
-        "- [ ] Verificar LCOE real de inversores instalados en cada institución",
-        "- [ ] Análisis sub-período: laborables vs fines de semana, julio vs enero",
+        "### Completado ✅",
+        "- Horizonte completo 6144h (MedicionesMTE_v3, 256 días, Abr–Dic 2025)",
+        "- Precios XM horarios con patrón intradiario calibrado (`data/xm_prices.py`)",
+        "- Análisis sub-períodos laborable/finde × julio/enero (`analysis/subperiod.py`)",
+        "- Sensibilidad SA-1/2/3/3b (`analysis/sensitivity.py`)",
+        "- Análisis de optimalidad P2P vs C4 hora a hora (`analysis/optimality.py`)",
+        "- Factibilidad FA-1/2/3/4 (`analysis/feasibility.py`)",
+        "- Bootstrap Kunsch + Wilcoxon (`tests/statistical_tests.py`)",
+        "- Sobol/Saltelli implementado (`analysis/global_sensitivity.py`)",
+        "- **Price of Fairness formal** (`analysis/fairness.py`) — Act 3.3",
+        "",
+        "### Pendiente 🔲",
+        "- Ejecutar GSA Sobol: `python main_simulation.py --data real --gsa --n-base 64`",
+        "- Verificar LCOE real de inversores (dato de campo, no de código)",
         "",
         "---",
         f"*Generado automáticamente por main_simulation.py · {now}*",

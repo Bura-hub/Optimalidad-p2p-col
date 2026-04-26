@@ -23,6 +23,7 @@ from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights, static_spread_c4_vs_p2p,
 )
 from core.settlement import gini_index, compute_net_benefit
+from analysis.fairness import FairnessResult, compute_pof, print_pof_report
 
 
 @dataclass
@@ -36,8 +37,11 @@ class ComparisonResult:
     rpe:                   Optional[float]      = None
     # RPE = (W_P2P - W_C4) / |W_P2P|: rendimiento relativo frente al escenario
     # colectivo regulatorio (C4). Positivo = P2P supera a C4; negativo = al revés.
-    # RPE ≠ PoF de Bertsimas (2011), que requiere resolver un problema de equidad
-    # con restricción Gini. Ver notas_modelo_tesis.md §6.
+    # RPE ≠ PoF de Bertsimas (2011). Ver fairness.py para el PoF formal.
+    fairness:              Optional[FairnessResult] = None
+    # PoF = (W_eff - W_fair) / W_eff — Bertsimas, Farias & Trichakis (2011).
+    # W_eff = beneficio total del escenario más eficiente (max Σ B_n).
+    # W_fair = beneficio total del escenario más equitativo (min Gini).
     static_spread_24h:     Optional[np.ndarray] = None
     hours:     int   = 24
     n_agents:  int   = 6
@@ -326,12 +330,13 @@ def run_comparison(
         r.Wi_total for r in p2p_results if r.P_star is not None))
 
     # ── RPE: Rendimiento Relativo P2P vs C4 ──────────────────────────────
-    w_eff  = cr.net_benefit["P2P"]
-    w_fair = cr.net_benefit["C4"]
-    # TODO (Opción B): implementar PoF de Bertsimas 2011 [15] — requiere resolver
-    # el mismo problema bajo criterio equitativo con restricción Gini ≤ umbral.
-    cr.rpe = ((w_eff - w_fair) / abs(w_eff)
-              if abs(w_eff) > 1e-10 else 0.0)
+    w_p2p = cr.net_benefit["P2P"]
+    w_c4  = cr.net_benefit["C4"]
+    cr.rpe = ((w_p2p - w_c4) / abs(w_p2p)
+              if abs(w_p2p) > 1e-10 else 0.0)
+
+    # ── PoF: Price of Fairness (Bertsimas 2011) ───────────────────────────
+    cr.fairness = compute_pof(cr.net_benefit_per_agent, cr.gini)
 
     # ── Spread de ineficiencia estática C4 ───────────────────────────────
     cr.static_spread_24h = static_spread_c4_vs_p2p(D, G_klim, pde)
@@ -514,6 +519,12 @@ def print_welfare_decomposition(cr: "ComparisonResult") -> None:
     print(f"    SC  P2P = {sc:.4f}    SS  P2P = {ss:.4f}")
     print(f"    RPE (P2P vs C4): {rpe:.4f}  [Rendimiento relativo vs C4; RPE > 0: P2P supera C4]")
 
+    if cr.fairness is not None and cr.fairness.eff_scenario:
+        fr = cr.fairness
+        print(f"    PoF (Bertsimas 2011): {fr.pof:.4f}  "
+              f"[{fr.eff_scenario}→{fr.fair_scenario}: "
+              f"−{(fr.w_eff-fr.w_fair):,.0f} COP por equidad]")
+
     print("=" * W)
 
 
@@ -609,6 +620,11 @@ def print_comparison_report(cr: ComparisonResult) -> None:
               f"{ss:>6.3f}  {ie:>8.4f}  {gini:>6.4f}")
     print("="*80)
     print(f"  RPE (P2P vs C4):  {cr.rpe:.4f}")
+    if cr.fairness is not None and cr.fairness.eff_scenario:
+        fr = cr.fairness
+        print(f"  PoF (Bertsimas 2011):  {fr.pof:.4f}  "
+              f"[eficiente={fr.eff_scenario} {fr.w_eff:,.0f} COP; "
+              f"equitativo={fr.fair_scenario} {fr.w_fair:,.0f} COP]")
     if cr.static_spread_24h is not None:
         print(f"  Spread inef. estática C4 total: "
               f"{np.sum(cr.static_spread_24h):.3f} kWh")

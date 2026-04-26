@@ -1432,5 +1432,241 @@ con default `"pde_only"` (Tabla I propuesta).
 
 ---
 
-*Última actualización manual: 2026-04-16*
+## §3.1 — Preprocesamiento MTE: selección de medidor, inversor y manejo de net metering
+
+**Implementado: 2026-04-25 · módulo nuevo `data/preprocessing.py`**
+
+### Motivación
+
+La versión anterior del cargador (`data/xm_data_loader.py`, función `_aggregate`) sumaba **todos** los CSV encontrados vía `rglob("*.csv")` en las carpetas de medidores e inversores por institución. Esto producía dos problemas físicamente incorrectos:
+
+1. **Mezcla de señales heterogéneas.** Cada institución tiene cuatro medidores con propósitos distintos (totalizador principal, ramales internos, medidores de inyección de solar). Al sumarlos se obtenía una "demanda" que no correspondía a ningún punto de medición físico — incluyendo en algunos casos medidores de inyección con valores negativos (Udenar Med 4 "Inyección PJ", Cesmag Med 3 "Bloque-A").
+
+2. **Demanda artificialmente baja al mediodía en Udenar** por *net metering* del totalizador Bloque Sur Med 1: el medidor registra `consumo - solar_inyectada`, no consumo bruto. La rutina `_clean()` trataba los valores negativos como NaN, ocultando el problema en lugar de resolverlo.
+
+### Decisión: selección puntual por institución
+
+Se eligió **un medidor único** por institución para representar la demanda y **un inversor único** para la generación expuesta al EMS. Las cinco gráficas de referencia están en `Documentos/otros/comparacion_4med_<institucion>.png`.
+
+| Institución | Medidor de demanda (subcarpeta exacta) | Tipo | Inversor EMS | Inversores de reconstrucción |
+|---|---|---|---|---|
+| Udenar | `Bloque Sur - Medidor 1 - electricMeter` | **net** | `Fronius Inverter 1 - inverter` | Fronius 1 + Fronius 2 + Inversor MTE (suma) |
+| Mariana | `Medidor 1 - Alvernia - electricMeter` | **net_partial** | `Fronius - Alvernia - inverter` | Fronius - Alvernia (mismo) |
+| UCC | `Medidor 1 - UCC - electricMeter` (totalizador gabinete ppal) | **net_partial** | `Fronius - UCC - inverter` | Fronius - UCC (mismo) |
+| HUDN | `Medidor 1 - HUDN - electricMeter` | gross | `Inversor 1 - HUDN - inverter` | — |
+| Cesmag | `Medidor 1 - Cesmag - electricMeter` | gross | `Inverter 1 - Cesmag - inverter` | — |
+
+**Tipos:** `net` (netting agresivo, Udenar 989 h con D<0), `net_partial` (Mariana 149 h, UCC 55 h con D<0; reconstrucción a través del único inversor), `gross` (limpio, sólo `clip(lower=0)` defensivo).
+
+**Horizonte de simulación:** `2025-04-04 → 2025-12-16` (6 144 h, 256 días) sobre `MedicionesMTE_v3`. Ver § sobre auditoría más abajo.
+
+Justificación visual:
+- **Udenar**: Med 1 muestra valle pronunciado al mediodía (consistente con net metering, ver verificación empírica abajo).
+- **Cesmag**: Med 1 (Bloque-B) tiene perfil académico característico 3–7 kW con pico ~13 h, sin signos de netting.
+- **HUDN**: Med 1 es plano 8–10 kW las 24 h (carga hospitalaria estable, sin influencia solar).
+- **Mariana / Alvernia**: Med 1 (Totalizador principal) plano 7–10 kW; Med 2–4 son ramales <1 kW que no representan el edificio.
+- **UCC**: se eligió **Med 1 (Totalizador gabinete principal)** que mide el edificio completo (rango 9–68 kW, pico ~30 kW al mediodía). Cobertura PV ~14 % → comprador firme. Es la lectura físicamente representativa del nodo UCC. Decisión revisada el 2026-04-25 (originalmente se había propuesto Med 2 / piso 1 para diversificar la comunidad, pero se priorizó la fidelidad del modelo a la realidad del edificio).
+
+### Pipeline detallado del preprocesamiento
+
+El módulo `data/preprocessing.py` ejecuta el siguiente flujo cada vez que se llama `MTEDataLoader.load()` (vía `main_simulation.py` o cualquier script consumidor). Es determinístico y dura 5–10 s sobre `MedicionesMTE_v3` con horizonte Abr-Dic (6 144 h).
+
+#### Paso 0 — Construcción del eje temporal canónico
+
+```python
+idx = pd.date_range(T_START="2025-04-04", T_END="2025-12-16",
+                    freq="1h", inclusive="left")  # → 6 144 horas
+```
+
+Todo el resto del pipeline reindexa al `idx` para garantizar shape uniforme (5 instituciones × 6 144 horas).
+
+#### Paso 1 — Por cada institución (5 iteraciones, orden fijo)
+
+Orden: `["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]`. Por institución:
+
+**1.a — Localizar carpetas** (tolerante a mayúsculas vía `_find_subdir`):
+
+```
+<root>/<agent>/<METER_FOLDER[agent]>/<DEMAND_METER_CONFIG[agent]['subfolder']>
+<root>/<agent>/<INVERTER_FOLDER[agent]>/<EMS_INVERTER_CONFIG[agent]>
+```
+
+**1.b — Lectura del medidor de demanda** (`_read_single_meter`, líneas 117-142):
+
+1. Itera todos los CSVs de la subcarpeta vía `rglob("*.csv")` (en v3 hay 3 archivos por medidor: Ene-Jun, Jun-Ene, Ene-Abr).
+2. Por cada CSV: `pandas.read_csv` → parse columna `date` → set como índice → `to_numeric` sobre `totalActivePower` → si hay timestamps duplicados, los promedia (`groupby(s.index).mean()`).
+3. Concatena las series con `pd.concat(parts, axis=1).sum(axis=1, min_count=1)` (suma con `NaN` donde ningún CSV tiene datos).
+4. Filtra a la ventana `[idx[0], idx[-1]]`.
+5. Resample a 1h (media de las muestras de cada hora).
+6. Reindexa al `idx` canónico (NaN donde no hay datos en esa hora).
+
+Devuelve serie en kW, **sin clipping de negativos** (la decisión de cómo tratar negativos depende del tipo declarado).
+
+**1.c — Lectura del inversor EMS** (`_read_single_inverter`, líneas 145-152):
+
+Mismo flujo, columna `acPower`, divide por 1 000 (W→kW), `clip(lower=0)` defensivo (la potencia AC inyectada nunca puede ser negativa físicamente).
+
+**1.d — Resolución de no-negatividad según tipo declarado** en `DEMAND_METER_CONFIG[agent]['kind']`:
+
+| Tipo | Instituciones | Operación |
+|---|---|---|
+| `net` | Udenar | `G_recon = ΣG_inv (Fronius1+Fronius2+InversorMTE)`<br>`D_bruta = max(0, D_net + G_recon)` |
+| `net_partial` | Mariana, UCC | `G_recon = G del único inversor`<br>`D_bruta = max(0, D_net + G_recon)` |
+| `gross` | HUDN, Cesmag | `D_bruta = max(0, D_raw)` (sólo clip defensivo) |
+
+Justificación de las tres ramas:
+- **`net`**: el totalizador físico nettea solar (visible en gráfica como dip al mediodía e incluso valores negativos exportadores). Reconstruir con la suma de TODOS los inversores es la única forma físicamente correcta de recuperar la demanda bruta.
+- **`net_partial`**: pequeña fracción de horas con D < 0 (~3 % en Mariana, ~2 % en UCC). El medidor no es net agresivo, pero hay episodios. La reconstrucción con el inversor único corrige esos episodios sin alterar el resto (verificado: ratio reconstrucción/G_inv ≈ 0.99).
+- **`gross`**: medidores limpios, sin valores negativos ni dip al mediodía. Sólo aplica `clip(0)` defensivo por si hay glitches puntuales del sensor (en HUDN/Cesmag = 0 horas truncadas).
+
+El pipeline registra y reporta `n_horas_reconstruidas`, `n_horas_passthrough` y `n_horas_clipeadas_a_0`.
+
+**1.e — `_clean()`** (en `data/xm_data_loader.py:134-166`):
+
+Aplicado tanto a `D_bruta` como a `G_ems`. La rutina **ya no toca negativos** (se resolvieron aguas arriba); se enfoca en outliers y gaps:
+
+1. **Detección de outliers** con umbral híbrido robusto a distribuciones bimodales:
+   ```
+   umbral = max( Q75 + 5·IQR ,  P99.5 × 1.2 )
+   ```
+   El piso `P99.5 × 1.2` evita cortar picos académicos legítimos cuando la carga base es plana (IQR pequeño, p. ej. Cesmag: IQR ≈ 1.2 kW, picos de ~15 kW). Valores > umbral → NaN.
+2. **Imputación de gaps cortos**:
+   - `interpolate(method="time", limit=3)` → interpolación lineal hasta 3 h consecutivas (típico: una o dos lecturas perdidas).
+   - `ffill(limit=24).bfill(limit=24)` → propaga última lectura conocida hasta 24 h (cubre el corte de mediados de Dic, ~3 días).
+   - `fillna(0.0)` → ceros para lo restante (horas largas sin datos: noche para G; sólo aparece si una falla cubre > 24 h, que en el horizonte sólido no debería pasar).
+
+#### Paso 2 — Apilado y validación
+
+```python
+D = np.array(D_list, dtype=float)   # shape (5, 6144)
+G = np.array(G_list, dtype=float)   # shape (5, 6144)
+
+# Sanity check del contrato (línea 309-318)
+if (D < 0).any(): raise RuntimeError("BUG: D negativa")
+if (G < 0).any(): raise RuntimeError("BUG: G negativa")
+```
+
+#### Paso 3 — Localización de zona horaria
+
+```python
+idx_tz = idx.tz_localize("America/Bogota",
+                         nonexistent="shift_forward",
+                         ambiguous="infer")
+```
+
+`shift_forward` para los saltos DST inexistentes (no aplica en Colombia, pero es robusto), `infer` para los ambiguos.
+
+#### Paso 4 — Retorno
+
+`return (D, G, idx_tz)` con:
+- `D.shape == (5, 6144)`, dtype `float64`, kW
+- `(D >= 0).all()` y `(G >= 0).all()` garantizados
+- Orden de filas: `["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]`
+
+Esto es exactamente lo que el EMS y los escenarios C1-C4 reciben downstream.
+
+#### Cuándo se ejecuta
+
+| Comando | Llamadas a `load()` |
+|---|---|
+| `python main_simulation.py --data real` | 1 (perfil promedio 24 h) |
+| `python main_simulation.py --day YYYY-MM-DD` | 1 (slice de 24 h) |
+| `python main_simulation.py --data real --full` | 1 (las 6 144 horas) |
+| `python main_simulation.py --data real --full --analysis` | 1 + análisis posterior |
+| `python outputs/audit_clean.py` | 0 (lee crudo, no usa el loader) |
+| `python outputs/data_quality_audit.py` | 0 (igual) |
+| Tests `pytest tests/test_preprocessing.py` | 1 (fixture cacheada con `scope="module"`) |
+
+No se cachea entre ejecuciones porque el costo es bajo (5–10 s) y la determinismo se preferible al riesgo de "datos pegados". Si en el futuro algún flujo (Sobol, bootstrap masivo) requiere muchas re-cargas, el patrón es cargar una vez y pasar `D, G, idx` por argumento.
+
+### Auditoría exhaustiva de calidad de datos (2026-04-25)
+
+Se ejecutó una auditoría sistemática sobre las 27 fuentes (5 instituciones × 4 medidores + 7 inversores) con `outputs/data_quality_audit.py`. Salidas archivadas en:
+
+- `outputs/data_quality_report.txt` — reporte texto regenerable
+- `outputs/data_quality_metrics.csv` — tabla maestra de métricas por CSV
+- `graficas/data_coverage_gantt.png` — Gantt visual de cobertura
+
+**Hallazgos estructurales:**
+
+1. **Horizonte sólido común Abr 4 → Dic 16 2025 (256 días).** Sobre `MedicionesMTE_v3` (que extiende los datos a Ene 2025 → Abr 2026), el cuello de botella temprano es el inversor de HUDN que arranca el 4-Abr-2025; el cuello de botella tardío sigue siendo Dic 16 2025 (HUDN y Fronius Udenar simultáneamente). Más allá del 22-Dic 2025 HUDN tiene gap de 5 semanas hasta el 27-Ene 2026 — para evitar imputación masiva, `T_END = 2025-12-16`. Esto da +88 días vs el horizonte previo (v2, Jul-Dic).
+2. **Gap global mediados de Diciembre (~14-16-Dic):** todos los CSV tienen una franja faltante simultánea. Sugiere caída de servidor / mantenimiento de la red MTE. _clean() lo cubre con interpolación ≤ 24 h.
+3. **Sensores frozen detectados (4):** Udenar Med 2 (4442 h), Mariana Med 4 (4351 h), Cesmag Med 2 (4443 h), UCC Med 4 (178 h). Son ramales nunca instrumentados o averiados; no son alternativas viables de medición.
+4. **Net metering parcial en Mariana y UCC:** 149 h y 55 h respectivamente con D<0 sobre el horizonte recortado (3-Sep no aplica). Tratamiento como `net_partial` reconstruye con el único inversor disponible y elimina los negativos sin perder energía contabilizada (ratio delta/G_recon ≈ 0.99).
+5. **Udenar inversor EMS migrado a Fronius Inverter 1** (cobertura Jul-Dic) en lugar de Inversor MTE (cobertura Sep-Ene). Razón: con T_END = Dic 17 el horizonte de Inversor MTE se reduce a Sep-Dic y deja Jul-Ago sin generación EMS visible. Fronius 1 cubre el período completo del horizonte recortado. La reconstrucción `D_bruta` sigue usando los tres inversores sumados.
+
+**Comandos de auditoría:**
+
+```powershell
+python outputs/data_quality_audit.py        # reporte texto + CSV
+python outputs/plot_coverage_gantt.py       # figura Gantt
+python outputs/audit_clean.py               # diagnóstico post-preprocesamiento
+```
+
+### Verificación empírica del net metering en Udenar
+
+Se ejecutó una comparación directa Bloque Sur Med 1 ∩ Inversor MTE sobre el período de overlap (2025-09-03 → 2026-01-29):
+
+- **710 h con valor negativo** en el período de verificación (≈20% del horizonte de overlap, mínimo −34.6 kW). Sobre el horizonte completo Jul 2025 → Feb 2026 son **1146 h** negativas.
+- Perfil hora-a-hora promedio: D_net cae a **−10 kW al mediodía** y sube a **+11 kW a las 17 h**. No es un patrón de carga real; es netting agresivo.
+- Reconstrucción `D_net + Inversor MTE` al mediodía aún quedaba en **−3.5 kW**, demostrando que los **tres inversores físicos de Udenar** (Fronius 1 + Fronius 2 + Inversor MTE) inyectaban simultáneamente y el totalizador descontaba los tres.
+
+### Estrategia de dos capas
+
+Para satisfacer la regla "un solo inversor expuesto al EMS" sin sacrificar la corrección física de la demanda bruta, el módulo `data/preprocessing.py` separa dos configuraciones:
+
+- **`EMS_INVERTER_CONFIG`**: cuál inversor el modelo expone como `G[agent]`. Una sola subcarpeta por institución.
+- **`RECONSTRUCTION_INVERTERS_CONFIG`**: para los net meters, qué inversores **sumar** internamente para revertir el netting y recuperar la demanda bruta. Es bookkeeping físico — no entra al EMS.
+
+Pipeline para Udenar:
+1. Lee `D_net` desde Bloque Sur Med 1.
+2. Lee `G_recon = Fronius1 + Fronius2 + Inversor MTE` (rellenando con 0 donde alguno no tiene cobertura — Fronius 1+2 cubren Jul–Dic, Inversor MTE cubre Sep–Ene).
+3. `D_bruta = max(0, D_net + G_recon)`.
+4. `G[Udenar] = Inversor MTE` (un solo inversor expuesto al EMS).
+
+Pipeline para los gross (Mariana, UCC, HUDN, Cesmag):
+1. Lee `D_raw` del medidor único declarado.
+2. `D = max(0, D_raw)` con conteo y log de horas truncadas (deberían ser raras; si son muchas, bandera roja).
+3. `G[agent] = inversor único declarado`.
+
+La rutina `_clean()` (outliers + interpolación + ffill/bfill) se aplica al final, sin el paso `s[s<0]=NaN` que ya no es necesario.
+
+### Limitaciones documentadas
+
+- **Udenar 2026-01-30 → 2026-02-01** (3 días): ningún inversor de Udenar tiene cobertura en esa ventana. La reconstrucción queda passthrough; el efecto sobre la simulación es despreciable (3 días de 215).
+- **Udenar Jul–Ago 2025 — generación EMS aparente cero**: durante ese período Inversor MTE no estaba operativo (sí lo estaban Fronius 1+2). Al exponer solo Inversor MTE como `G[Udenar]`, el EMS no ve la generación física que existió. Es decisión deliberada por la regla "un solo inversor"; la reconstrucción de la demanda bruta sí usa Fronius 1+2 (capa interna), por lo que el efecto sobre `D[Udenar]` queda corregido.
+- **UCC ~119 h con D < 0** (mín −8.2 kW): el totalizador principal tiene 119 horas con valores negativos pequeños probablemente por instrumentación o netting parcial de algún ramal interno. Se truncan a 0; bandera amarilla pendiente de revisión con el equipo MTE.
+- **Mariana ~160 h con D < 0**: el medidor "gross" de Alvernia tiene 160 horas con valores negativos pequeños (mín −2.4 kW), probablemente instrumentación. Se truncan a 0 con log; bandera amarilla pendiente de revisión con el equipo MTE.
+
+### Cómo reproducir / auditar
+
+```powershell
+# Auditoría completa por institución × señal
+python outputs/audit_clean.py
+
+# Tests del contrato (no-negatividad, shape, reconstrucción, EMS distinto)
+python -m pytest tests/test_preprocessing.py -v
+
+# Smoke completo
+python main_simulation.py --data real
+```
+
+La auditoría imprime, por institución:
+- `D_net (raw)`: medidor crudo (en Udenar incluye los valores negativos).
+- `D_bruta (input EMS)`: tras reconstrucción/clip — lo que recibe el EMS.
+- `G_ems  (input EMS)`: inversor único expuesto al EMS.
+- `G_recon (suma 3inv)`: solo Udenar — fuente de verdad de la inyección que el net meter descontó.
+
+Bloque diagnóstico Udenar: número de horas D_net<0, horas clipeadas a 0 tras la suma, delta de energía kWh(D_bruta) − kWh(max(D_net,0)) y razón delta/G_recon (no es 1.0 porque la mayor parte de la generación cancelaba consumo > 0 sin cruzar a exportación).
+
+### Archivos tocados
+
+- **Nuevo**: `data/preprocessing.py` (núcleo del refactor; expone `build_demand_generation`, `DEMAND_METER_CONFIG`, `EMS_INVERTER_CONFIG`, `RECONSTRUCTION_INVERTERS_CONFIG`).
+- **Modificado**: `data/xm_data_loader.py` (`_clean()` ya no trata negativos como NaN; `MTEDataLoader.load()` ahora delega en `build_demand_generation`; `_aggregate` queda como legacy).
+- **Reescrito**: `outputs/audit_clean.py` (audita selección puntual + bloque diagnóstico Udenar).
+- **Nuevo**: `tests/test_preprocessing.py` (7 tests del contrato).
+
+---
+
+*Última actualización manual: 2026-04-25 — sección §3.1 agregada; UCC revisado a Med 1 (totalizador completo); auditoría exhaustiva 27 fuentes; **migración a `MedicionesMTE_v3`** (16 meses de datos) con horizonte sólido Abr 4 → Dic 16 (6144 h, 256 días, +52 % vs Jul-Dic); Mariana y UCC migrados a `net_partial`; Udenar EMS migrado a Fronius 1; loader soporta CSVs particionados (3 archivos por medidor)*
 *Este archivo es permanente — editarlo directamente, no auto-generado*

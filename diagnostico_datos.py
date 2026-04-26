@@ -17,7 +17,7 @@ import numpy as np
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--root", default=os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "MedicionesMTE"))
+        os.path.dirname(os.path.abspath(__file__)), "MedicionesMTE_v3"))
     args = ap.parse_args()
     root = Path(args.root)
 

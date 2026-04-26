@@ -189,6 +189,7 @@ python outputs/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 - **Activity 3.2** — Desglose de flujos por componente (`scenarios/comparison_engine.py` + `analysis/p2p_breakdown.py`)
 - **Activity 4.2** — Optimalidad horaria P2P vs C4 + GDR (`analysis/optimality.py`)
 - **Índice Gini** — distribución del beneficio por escenario (`core/settlement.py`)
+- **Price of Fairness (PoF)** — Act 3.3: `analysis/fairness.py` implementa `compute_pof()` y `fairness_curve()` según Bertsimas, Farias & Trichakis (2011); integrado en `ComparisonResult` y exportado en hoja `PoF_Fairness` del Excel
 - **Balance mensual C1** — permutación mensual real para horizonte --full (`scenarios/scenario_c1_creg174.py`)
 - **Reporte mensual** — desglose mes a mes para horizonte --full (`analysis/monthly_report.py`)
 - **DR program** — integrado (`core/dr_program.py`), inactivo con datos reales (alpha=0)
@@ -204,7 +205,8 @@ python outputs/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 | SS | Self-Sufficiency: fracción de G usada en comunidad | [0, 1] |
 | IE | Equity Index: distribución del beneficio entre roles | [-1, +1] |
 | Gini | Índice de Gini por escenario (concentración del beneficio) | [0, 1] |
-| RPE | Rendimiento Relativo de Equidad P2P vs C4: (W_P2P−W_C4)/|W_P2P|; RPE ≠ PoF Bertsimas (2011) | (−∞, 1] |
+| RPE | Rendimiento Relativo de Equidad P2P vs C4: (W_P2P−W_C4)/|W_P2P| | (−∞, 1] |
+| PoF | Price of Fairness [Bertsimas 2011]: (W_eff−W_fair)/W_eff; eficiente=max Σ B_n, equitativo=min Gini | [0, 1] |
 | GDR | Global Dispatch Ratio: eficiencia de clearing del mercado | [0, 1] |
 | PS / PSR | Fracción del excedente P2P capturada por compradores / vendedores | [0%, 100%] |
 
@@ -239,9 +241,10 @@ Con el perfil diario promedio (cobertura PV = 11%, G < D en el 100% de las horas
 
 ## Pendiente
 
-- [x] ~~Run horizonte completo 5 160 h~~ → corrida `83d4815` (~100 min, exit 0)
-- [x] ~~Bootstrap con datos reales~~ → p<0.001, Cohen d = 0.67 (commit `83d4815`)
-- [ ] GSA Sobol n_base ≥ 64 (solicitar OK): `python main_simulation.py --gsa --n-base 64`
-- [ ] Descargar serie horaria XM jul. 2025–ene. 2026 → `data/xm_precios_bolsa.csv`
+- [x] ~~Run horizonte completo 5 160 h~~ → **6 144 h** con MedicionesMTE_v3 (commit `cdb11e9`, ~56 min, exit 0)
+- [x] ~~Bootstrap con datos reales~~ → p<0.001, Cohen d = 0.67
+- [x] ~~Price of Fairness (PoF)~~ → `analysis/fairness.py` (commit `36084b4`, Act 3.3)
+- [x] ~~GSA Sobol n_base 64 (primer run)~~ → ejecutado 2026-04-17; pendiente re-ejecución sobre MedicionesMTE_v3 (6144h)
+- [ ] GSA Sobol sobre MTE_v3: `python main_simulation.py --data real --gsa --n-base 64`
 - [ ] Verificar LCOE real de inversores instalados en cada institución MTE
 - [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`

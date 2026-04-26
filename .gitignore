@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 history_chat/
 MedicionesMTE/
+MedicionesMTE_v2.zip
+MedicionesMTE_v3/
 CLAUDE.md
 Documentos/*
 !Documentos/notas_modelo_tesis.md

@@ -91,16 +91,44 @@ python tests/statistical_tests.py --n-bootstrap 1000 --block-days 7
 **MTE** = Medición de Tecnologías de Energía (proyecto de monitoreo de
 5 instituciones en Pasto, Nariño; ver `Documentos/Inventario_Act_1_0.md:13`).
 
+### Pipeline de datos (`data/preprocessing.py`)
 
-| Institución | D̄ (kW) | Ḡ (kW) | Cobertura PV | Rol |
-|-------------|---------|---------|-------------|-----|
-| Udenar (n=0)| 7.5 | 3.9 | 52% | **Vendedor** (único) |
-| Mariana (n=1)| 13.8 | 1.8 | 13% | Comprador |
-| UCC (n=2) | 42.1 | 2.2 | 5% | Comprador |
-| HUDN (n=3) | 21.7 | 1.7 | 8% | Comprador |
-| Cesmag (n=4)| 9.0 | 1.0 | 11% | Comprador |
+Cada vez que `main_simulation.py` se ejecuta con `--data real`, el preprocesamiento corre primero (≈ 5–10 s sobre `MedicionesMTE_v3`):
 
-Período: 2025-07-01 → 2026-01-31 · 5160h · 215 días
+1. **Eje horario canónico** Abr 4 → Dic 16 2025 (6 144 h).
+2. **Por cada institución**:
+   - Lee **un medidor de demanda específico** (definido en `DEMAND_METER_CONFIG`), concatenando los CSVs particionados temporalmente (v3 = 3 archivos por medidor: Ene-Jun, Jun-Ene, Ene-Abr).
+   - Lee **un inversor EMS específico** (`EMS_INVERTER_CONFIG`), W→kW, `clip(0)`.
+   - Resuelve no-negatividad según el tipo del medidor:
+     - **`net`** (Udenar): `D = max(0, D_net + Σ_3-inversores)` para revertir el netting agresivo del totalizador.
+     - **`net_partial`** (Mariana, UCC): `D = max(0, D_net + 1-inversor)` para corregir las pocas horas con D < 0.
+     - **`gross`** (HUDN, Cesmag): `D = max(0, D_raw)`, sólo clip defensivo.
+   - Aplica `_clean()`: outliers `> max(Q75+5·IQR, P99.5×1.2)` → NaN; interpolación ≤ 3 h, ffill/bfill ≤ 24 h, `fillna(0)`.
+3. **Apila** en arrays `(5, 6144)` float64.
+4. **Sanity check**: `(D ≥ 0).all()` y `(G ≥ 0).all()` (RuntimeError si fallan).
+5. **Localiza tz** `America/Bogota`.
+
+Configuración por institución (sobreescribible vía kwargs a `MTEDataLoader`):
+
+| Institución (n) | D̄ (kW) | Ḡ (kW) | Cobertura PV | Tipo | Inversor EMS | Rol |
+|---|---|---|---|---|---|---|
+| Udenar (n=0)    | 7.21    | 2.15    | 30 %         | net          | Fronius Inverter 1 | Comprador / vendedor mediodía |
+| Mariana (n=1)   | 9.57    | 2.04    | 21 %         | net_partial  | Fronius - Alvernia | Comprador / vendedor mediodía |
+| UCC (n=2)       | 21.42   | 2.50    | 12 %         | net_partial  | Fronius - UCC      | Comprador firme |
+| HUDN (n=3)      | 9.09    | 2.10    | 23 %         | gross        | Inversor 1 - HUDN  | Comprador |
+| Cesmag (n=4)    | 4.47    | 1.10    | 25 %         | gross        | Inverter 1 - Cesmag| Comprador |
+
+Período: **2025-04-04 → 2025-12-16 · 6 144 h · 256 días** (horizonte sólido común sobre `MedicionesMTE_v3`).
+
+Detalle completo de decisiones, verificación empírica del net metering en Udenar y trazabilidad con la auditoría: ver `Documentos/notas_modelo_tesis.md` § 3.1.
+
+Auditorías regenerables:
+
+```powershell
+python outputs/data_quality_audit.py     # 27 fuentes raw
+python outputs/audit_clean.py            # post-preprocesamiento
+python outputs/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
+```
 
 ---
 

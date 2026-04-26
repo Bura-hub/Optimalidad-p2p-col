@@ -60,7 +60,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         mte_root = os.environ.get(
             "MTE_ROOT",
             os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                         "MedicionesMTE"),
+                         "MedicionesMTE_v3"),
         )
         print(f"\n[1/5] Cargando datos empíricos MTE...")
         loader = MTEDataLoader(mte_root)

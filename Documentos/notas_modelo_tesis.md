@@ -910,20 +910,12 @@ Ejecutado con `tests/statistical_tests.py`, datos: 215 días MTE, block_days=7, 
 efecto práctico medio-alto. Resultado sobre 215 días, perfil promedio diario;
 pendiente replicación sobre serie horaria completa 5 160 h.
 
-### Actividad crítica pendiente
+### ~~Actividad crítica pendiente~~ → COMPLETADA
 
-**Act 2.3 / 3.2 — Simulación horizonte completo 5160h:**
-La propuesta exige "simulaciones de tipo horario a lo largo de un horizonte de
-evaluación de seis meses." Esta actividad está POSPUESTO por decisión del usuario.
-Es el prerequisito principal para el Capítulo 4 de la tesis.
-
-Comando de ejecución:
-```bash
-python main_simulation.py --data real --full --analysis
-```
-
-Resultado esperado: `resultados_comparacion.xlsx` con 5160 filas horarias,
-`graficas/fig12_comparacion_mensual.png`, reporte mensual C1 vs P2P.
+**Act 3.2 — Simulación horizonte completo 6 144 h:**
+Ejecutada con MedicionesMTE_v3 (Abr–Dic 2025, 256 días), commit `cdb11e9`, ~56 min.
+RPE = 0,0321 · 1 031/6 144 h con mercado activo · 3 657,7 kWh P2P transados.
+`graficas/fig12_comparacion_mensual.png` generada. Ver `REPORTE_AVANCES.md` para métricas completas.
 
 ### Pendientes de escritura
 
@@ -999,10 +991,7 @@ Resultado esperado: `resultados_comparacion.xlsx` con 5160 filas horarias,
 
 ### Simulación
 
-- [ ] Correr horizonte completo 5160h:
-  ```bash
-  python main_simulation.py --data real --full --analysis
-  ```
+- [x] ~~Correr horizonte completo 5160h~~ → **6 144 h** con MedicionesMTE_v3, commit `cdb11e9`
 
 - [x] Análisis de sub-períodos (`analysis/subperiod.py`, `graficas/fig16_subperiod.png`):
   - Laborables vs fines de semana, julio vs enero
@@ -1046,10 +1035,10 @@ Resultado esperado: `resultados_comparacion.xlsx` con 5160 filas horarias,
 ### Escritura tesis
 
 - [x] Capítulo 3: §3.14 completo — IR formal, tabla umbrales, sensibilidad pi_gb y pi_gs
-- [ ] Capítulo 4: actualizar con resultados de la serie horaria completa (5160h)
-  - **BLOQUEADO** por la ejecución del horizonte completo (pospuesto)
-  - Interim: presentar resultados del perfil 24h + sub-períodos como caso de validación
-- [ ] Capítulo 5: conclusiones — destacar PoF=0.1346 como resultado central
+- [ ] Capítulo 4: actualizar con resultados de la serie horaria completa (6 144 h, MTE_v3)
+  - Resultados disponibles: `REPORTE_AVANCES.md`, `resultados_comparacion.xlsx`
+- [ ] Capítulo 5: conclusiones — destacar PoF formal (Bertsimas 2011) como resultado central
+  - PoF implementado en `analysis/fairness.py`; valor concreto disponible tras cada ejecución
 - [ ] Apéndice A: derivación del equilibrio de Stackelberg
 - [ ] Apéndice B: datos empíricos MTE completos (tablas de GDR, H_P2P por mes)
 

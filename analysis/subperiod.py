@@ -252,7 +252,7 @@ def plot_subperiod(
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
     fig.suptitle("Análisis de Sub-períodos: Laborable vs Fin de Semana × Julio vs Enero",
-                 fontsize=13, fontweight="bold", y=1.01)
+                 fontsize=13, fontweight="bold")
 
     # ── Panel A: Precios XM mensuales ─────────────────────────────────────────
     ax = axes[0, 0]
@@ -340,9 +340,9 @@ def plot_subperiod(
             ax.text(i + w2, s + 0.3, f"Δ={r.c1_c3_spread:.0f}",
                     ha="center", va="bottom", fontsize=7, color="#E65100")
 
-    plt.tight_layout()
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
     out_path = os.path.join(out_dir, "fig16_subperiod.png")
-    plt.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.savefig(out_path, dpi=150)
     plt.close()
     print(f"    ✓ Fig 16 — Análisis sub-períodos guardado en {out_path}")
     return out_path

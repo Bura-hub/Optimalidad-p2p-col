@@ -97,6 +97,7 @@ def test_convergence_norm_below_tol():
         PGS, PGB,
         sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
         sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
+        sv.ode_method,
     )
     res = _run_hour_worker(args)
     assert isinstance(res, HourlyResult)

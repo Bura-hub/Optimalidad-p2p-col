@@ -261,12 +261,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     print(f"    Excel → {excel_path}")
 
     from analysis.p2p_breakdown import export_p2p_hourly, print_p2p_sample
+    outputs_dir = os.path.join(base_dir, "outputs")
+    os.makedirs(outputs_dir, exist_ok=True)
     flows_rows, summary_rows = export_p2p_hourly(
         p2p_results=p2p_results,
         agent_names=agent_names,
         pi_gs=grid_params["pi_gs"],
         pi_gb=grid_params["pi_gb"],
-        out_dir=base_dir,
+        out_dir=outputs_dir,
         prefix="p2p_breakdown",
         verbose=True,
     )
@@ -536,7 +538,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 # ── Exportar Excel base ───────────────────────────────────────────────────────
 
 def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=None):
-    path = os.path.join(base_dir, "resultados_comparacion.xlsx")
+    outputs_dir = os.path.join(base_dir, "outputs")
+    os.makedirs(outputs_dir, exist_ok=True)
+    path = os.path.join(outputs_dir, "resultados_comparacion.xlsx")
     esc  = ["P2P", "C1", "C2", "C3", "C4"]
     N, T = G_klim.shape
     with pd.ExcelWriter(path, engine="openpyxl") as w:
@@ -629,7 +633,9 @@ def _compute_daily_series(
 
 def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent_names,
                      fa_ir=None, wr_report=None, sc_risk=None):
-    path = os.path.join(base_dir, "resultados_analisis.xlsx")
+    outputs_dir = os.path.join(base_dir, "outputs")
+    os.makedirs(outputs_dir, exist_ok=True)
+    path = os.path.join(outputs_dir, "resultados_analisis.xlsx")
     with pd.ExcelWriter(path, engine="openpyxl") as w:
         if sa_pgb:
             rows = []

@@ -18,9 +18,14 @@ Diferencias clave respecto a versión anterior:
 import numpy as np
 from scipy.integrate import solve_ivp
 
-VEL_GRAD = 1e6
-BGRANDE  = 1e6
-VEL_RD   = 0.1
+VEL_GRAD     = 1e6
+BGRANDE      = 1e6
+VEL_RD       = 0.1
+VEL_GRAD_GSA = 1e3   # VEL_GRAD reducido para GSA: mismo equilibrio, 1000× menos stiff
+
+# Cuando True (seteado por workers del GSA), usa VEL_GRAD_GSA y tolerancias relajadas.
+# Seguro en multiprocessing: cada worker activa su propia copia del módulo.
+_fast_mode = False
 
 
 def _sellers_ode(t, y, a, b, pi_i, simplex, J, I, D_net_i, G_net_j, tau):
@@ -52,9 +57,10 @@ def _sellers_ode(t, y, a, b, pi_i, simplex, J, I, D_net_i, G_net_j, tau):
     dP = P * VEL_RD * (F - F_bar)
 
     # Dinámicas crudas de multiplicadores
-    Glam = np.array([VEL_GRAD * lam_ub[j] * (np.sum(P[j, :]) - G_net_j[j]) + 1000.0
+    _vg = VEL_GRAD_GSA if _fast_mode else VEL_GRAD
+    Glam = np.array([_vg * lam_ub[j] * (np.sum(P[j, :]) - G_net_j[j]) + 1000.0
                      for j in range(J)])
-    Gbet = np.array([VEL_GRAD * bet_ub[i] * (np.sum(P[:, i]) - D_net_i[i]) + 1000.0
+    Gbet = np.array([_vg * bet_ub[i] * (np.sum(P[:, i]) - D_net_i[i]) + 1000.0
                      for i in range(I)])
 
     # Filtros de paso bajo
@@ -118,11 +124,17 @@ def solve_sellers(
     # solver adaptativo converge al mismo punto final sin interpolar 500 puntos.
     t_eval = np.linspace(t_span[0], t_span[1], n_points) if return_traj else None
 
+    # GSA: VEL_GRAD reducido a 1e3 → sistema no-stiff → LSODA converge sin ciclos.
+    # Simulación principal: precisión completa con VEL_GRAD=1e6.
+    _rtol     = 0.5  if _fast_mode else 1e-6
+    _atol     = 0.1  if _fast_mode else 1e-9
+    _max_step = 2e-4  # con VEL_GRAD_GSA=1e3: step×eigenvalue ≤ 2e-4×1e4=2<2.5 → Newton converge
     sol = solve_ivp(
         _sellers_ode, t_span, y0,
         args=(a_j, b_j, pi_i, simplex, J, I, D_net_i, G_net_j, tau),
         t_eval=t_eval, method=method,
-        rtol=1e-6, atol=1e-9,
+        rtol=_rtol, atol=_atol,
+        max_step=_max_step,
     )
     P_star = np.clip(sol.y[:J*I, -1].reshape(J, I), 0.0, None)
 

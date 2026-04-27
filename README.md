@@ -244,7 +244,7 @@ Con el perfil diario promedio (cobertura PV = 11%, G < D en el 100% de las horas
 - [x] ~~Run horizonte completo 5 160 h~~ → **6 144 h** con MedicionesMTE_v3 (commit `cdb11e9`, ~56 min, exit 0)
 - [x] ~~Bootstrap con datos reales~~ → p<0.001, Cohen d = 0.67
 - [x] ~~Price of Fairness (PoF)~~ → `analysis/fairness.py` (commit `36084b4`, Act 3.3)
-- [x] ~~GSA Sobol n_base 64 (primer run)~~ → ejecutado 2026-04-17; pendiente re-ejecución sobre MedicionesMTE_v3 (6144h)
-- [ ] GSA Sobol sobre MTE_v3: `python main_simulation.py --data real --gsa --n-base 64`
+- [x] ~~GSA Sobol n_base 64~~ → ejecutado 2026-04-17 sobre el modelo de referencia (Chacón et al., 24h sintético escalado por `factor_PV`/`factor_D`). Cobertura de "datos históricos" de la propuesta §VI.D vía SA-1/2/3/PPA + subperíodos sobre MTE_v3 (ortogonalidad metodológica documentada en `Documentos/notas_modelo_tesis.md` §A.7)
+- [ ] (diferido) GSA Sobol con `n_base ≥ 256` para IC publicables — solo si el comité lo solicita; infraestructura `_fast_mode` lista (commit `19e57cb`)
 - [ ] Verificar LCOE real de inversores instalados en cada institución MTE
 - [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`

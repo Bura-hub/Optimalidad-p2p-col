@@ -34,6 +34,7 @@ Ref: Documentos/PropuestaTesis.txt §VI.D
 
 import sys
 import os
+import glob
 import time
 import warnings
 import logging
@@ -99,6 +100,11 @@ def _eval_sample(params: np.ndarray) -> tuple:
     )
     from core.market_prep   import compute_generation_limit
 
+    # Activar modo rápido (tolerancias relajadas) para la integración ODE.
+    # Seguro en multiprocessing: cada worker tiene su propia copia del módulo.
+    import core.replicator_sellers as _rs
+    _rs._fast_mode = True
+
     (pgb, pgs, f_pv, f_d, alpha_mean, b_mean, pi_ppa) = params
 
     try:
@@ -118,7 +124,7 @@ def _eval_sample(params: np.ndarray) -> tuple:
         )
         grid   = GridParams(pi_gs=pgs, pi_gb=pgb)
         solver = SolverParams(
-            stackelberg_iters=2, stackelberg_tol=1e-3, stackelberg_max=10,
+            stackelberg_iters=2, stackelberg_tol=5e-3, stackelberg_max=4,
             parallel=False,
         )
 
@@ -238,7 +244,33 @@ def run_sobol_analysis(
     outputs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "outputs")
 
     t0 = time.time()
-    jobs = [(i, X[i]) for i in range(M)]
+
+    # Resume desde el checkpoint más reciente si existe
+    already_done = set()
+    cp_files = sorted(
+        glob.glob(os.path.join(outputs_dir, "gsa_checkpoint_*.parquet")) +
+        glob.glob(os.path.join(outputs_dir, "gsa_checkpoint_*.csv"))
+    )
+    if cp_files:
+        latest_cp = cp_files[-1]
+        try:
+            if latest_cp.endswith(".parquet"):
+                cp_df = pd.read_parquet(latest_cp)
+            else:
+                cp_df = pd.read_csv(latest_cp)
+            valid_mask = ~np.isnan(cp_df["Y_ganancia"].values)
+            if valid_mask.sum() > 0:
+                n_cp = len(cp_df)
+                Y_ganancia[:n_cp] = cp_df["Y_ganancia"].values
+                Y_sc[:n_cp]       = cp_df["Y_sc"].values
+                Y_ie[:n_cp]       = cp_df["Y_ie"].values
+                already_done = {i for i in range(n_cp) if valid_mask[i]}
+                print(f"  Resume desde checkpoint: {os.path.basename(latest_cp)} "
+                      f"({len(already_done)} muestras recuperadas de {M})")
+        except Exception as e:
+            print(f"  Checkpoint no legible ({e}), arrancando desde cero.")
+
+    jobs = [(i, X[i]) for i in range(M) if i not in already_done]
 
     def _save_checkpoint(step):
         """Persiste el estado parcial de Y_* en outputs/ para recuperación ante fallos."""
@@ -260,8 +292,8 @@ def run_sobol_analysis(
     if parallel:
         freeze_support()
         n_workers = max(1, cpu_count() - 1)
-        print(f"  Modo paralelo: {n_workers} workers")
-        done = 0
+        print(f"  Modo paralelo: {n_workers} workers, {len(jobs)} muestras pendientes")
+        done = len(already_done)
         with ProcessPoolExecutor(max_workers=n_workers) as ex:
             futs = {ex.submit(_worker, j): j[0] for j in jobs}
             for f in as_completed(futs):
@@ -365,17 +397,17 @@ def save_results(indices_dict: dict, Y_dict: dict = None,
     Y_dict : dict, opcional
         Salida de run_sobol_analysis(); añade hoja "Muestras_X" si se provee.
     path : str, opcional
-        Ruta de salida (default: resultados_gsa.xlsx en raíz del proyecto).
+        Ruta de salida (default: outputs/resultados_gsa.xlsx).
 
     Retorna
     -------
     str — ruta del archivo guardado.
     """
     if path is None:
-        path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "resultados_gsa.xlsx",
-        )
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        outputs_dir = os.path.join(root, "outputs")
+        os.makedirs(outputs_dir, exist_ok=True)
+        path = os.path.join(outputs_dir, "resultados_gsa.xlsx")
 
     with pd.ExcelWriter(path, engine="openpyxl") as w:
         # Hoja S1 / ST

@@ -1,6 +1,6 @@
 """
 Calibración: correr EMS P2P sobre 168 h (1 semana real MTE) y extrapolar
-tiempo esperado del --full (5160 h).
+tiempo esperado del --full (6144 h).
 
 Replica la configuración de main_simulation.py cuando se invoca con
 --data real --full, pero truncando a las primeras 168 horas.
@@ -73,8 +73,8 @@ def main():
           f"({100*len(active)/HORAS:.1f}%)")
     print(f"    kWh P2P transados:    {P_tot:.2f}")
 
-    # Extrapolación al full (5160 h)
-    FULL = 5160
+    # Extrapolación al full (6144 h)
+    FULL = 6144
     t_full = dt * FULL / HORAS
     print(f"\nEXTRAPOLACIÓN AL --full ({FULL} h):")
     print(f"    Tiempo EMS esperado:  {t_full:.0f} s  "

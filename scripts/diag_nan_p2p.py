@@ -1,5 +1,5 @@
 """Diagnóstico: localiza la fuente del NaN en net_benefit['P2P']
-en el análisis de subperíodos sobre 5160 h."""
+en el análisis de subperíodos sobre 6144 h."""
 import sys, os, warnings
 warnings.filterwarnings("ignore")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

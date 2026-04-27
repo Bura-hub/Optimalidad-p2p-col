@@ -1,6 +1,6 @@
 """
 Ejecuta solo la Actividad 4.3 (análisis de subperiodos) sobre el horizonte
-completo 5160 h MTE. Usado después de que main_simulation.py --full crashó
+completo 6144 h MTE. Usado después de que main_simulation.py --full crashó
 en subperiod.py por el bug np.full(24, pgb) ya corregido.
 
 Los resultados principales del --full (stages 1-5 excepto Actividad 4.3)
@@ -35,7 +35,7 @@ def main():
     multiprocessing.freeze_support()
 
     mte_root = os.environ.get("MTE_ROOT", os.path.join(ROOT, "MedicionesMTE_v3"))
-    print(f"[1/3] Cargando datos MTE (5160 h)...")
+    print(f"[1/3] Cargando datos MTE (6144 h)...")
     loader = MTEDataLoader(mte_root)
     D, G, idx = loader.load(verbose=False)
     N, T = D.shape
@@ -69,7 +69,7 @@ def main():
         consumer_ids = [n for n in range(N) if n not in prosumer_ids]
 
     print(f"    prosumer_ids={prosumer_ids}, consumer_ids={consumer_ids}")
-    print(f"\n[2/3] Corriendo subperiod_analysis sobre 5160 h (4 subperíodos SP1-SP4)...")
+    print(f"\n[2/3] Corriendo subperiod_analysis sobre 6144 h (4 subperíodos SP1-SP4)...")
     t0 = time.time()
     sp_results = run_subperiod_analysis(
         D=D, G=G,

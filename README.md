@@ -125,9 +125,9 @@ Detalle completo de decisiones, verificación empírica del net metering en Uden
 Auditorías regenerables:
 
 ```powershell
-python outputs/data_quality_audit.py     # 27 fuentes raw
-python outputs/audit_clean.py            # post-preprocesamiento
-python outputs/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
+python scripts/data_quality_audit.py     # 27 fuentes raw
+python scripts/audit_clean.py            # post-preprocesamiento
+python scripts/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 ```
 
 ---

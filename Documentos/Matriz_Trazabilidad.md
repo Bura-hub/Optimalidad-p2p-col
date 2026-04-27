@@ -77,5 +77,5 @@ La tabla vincula cada actividad de la propuesta de tesis (`Documentos/PropuestaT
 | `Documentos/Revision_Bibliografica_Act_1_2.md` | Evidencia de cumplimiento de Actividad 1.2 |
 | `Documentos/references.bib` | Bibliografía consolidada (27 entradas, formato BibTeX IEEE) |
 | `Documentos/notas_modelo_tesis.md` | Decisiones de diseño y justificaciones técnicas |
-| `REPORTE_AVANCES.md` | Resultados numéricos de la última ejecución |
+| `outputs/REPORTE_AVANCES.md` | Resultados numéricos de la última ejecución |
 | `README.md` | Instrucciones de reproducibilidad |

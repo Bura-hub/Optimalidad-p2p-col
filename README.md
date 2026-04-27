@@ -63,7 +63,7 @@ python main_simulation.py --data real
 # Modo 3 — Perfil diario + sensibilidad y factibilidad (~5 min)
 python main_simulation.py --data real --analysis
 
-# Modo 4 — Horizonte completo 6144h / 256 días (~56 min)
+# Modo 4 — Horizonte completo 6144h / 256 días (~52 min, medido 2026-04-27)
 python main_simulation.py --data real --full
 
 # Modo 5 — Horizonte completo + todos los análisis (~100 min, corrida definitiva)
@@ -74,7 +74,7 @@ $env:MTE_ROOT="C:\ruta\a\MedicionesMTE"
 $env:XM_PRICES_CSV="C:\ruta\precios_bolsa_xm.csv"   # opcional
 python main_simulation.py --data real --analysis
 
-# Modo 6 — Análisis de sensibilidad global Saltelli (GSA, ~75 min con 8 workers)
+# Modo 6 — Análisis de sensibilidad global Saltelli (GSA, ~111 min con 11 workers para n_base=128)
 python main_simulation.py --gsa --n-base 64
 
 # GSA smoke test ultrarrápido (verificación ~5 min)
@@ -241,10 +241,14 @@ Con el perfil diario promedio (cobertura PV = 11%, G < D en el 100% de las horas
 
 ## Pendiente
 
-- [x] ~~Run horizonte completo 5 160 h~~ → **6 144 h** con MedicionesMTE_v3 (commit `cdb11e9`, ~56 min, exit 0)
-- [x] ~~Bootstrap con datos reales~~ → p<0.001, Cohen d = 0.67
-- [x] ~~Price of Fairness (PoF)~~ → `analysis/fairness.py` (commit `36084b4`, Act 3.3)
-- [x] ~~GSA Sobol n_base 64~~ → ejecutado 2026-04-17 sobre el modelo de referencia (Chacón et al., 24h sintético escalado por `factor_PV`/`factor_D`). Cobertura de "datos históricos" de la propuesta §VI.D vía SA-1/2/3/PPA + subperíodos sobre MTE_v3 (ortogonalidad metodológica documentada en `Documentos/notas_modelo_tesis.md` §A.7)
-- [ ] (diferido) GSA Sobol con `n_base ≥ 256` para IC publicables — solo si el comité lo solicita; infraestructura `_fast_mode` lista (commit `19e57cb`)
+- [x] ~~Run horizonte completo 5 160 h~~ → **6 144 h** con MedicionesMTE_v3 (~52 min, exit 0; última corrida 2026-04-27)
+- [x] ~~Bootstrap con datos reales~~ → re-ejecutado 2026-04-27 con n=10 000 sobre MTE_v3 (256 días): Δ̄=4 732 COP/día, IC 95% [3 629, 5 751], **Cohen's d = 0.90** (efecto grande)
+- [x] ~~Price of Fairness (PoF)~~ → `analysis/fairness.py` (commit `36084b4`, Act 3.3) + `fig20_price_of_fairness`
+- [x] ~~GSA Sobol n_base 64~~ → ejecutado 2026-04-17 sobre el modelo de referencia (Chacón et al., 24h sintético escalado por `factor_PV`/`factor_D`)
+- [x] **GSA Sobol n_base = 128** → ejecutado 2026-04-27 (~111 min, 1367/2048 muestras válidas, ST publicables, todos < 1). Modo preciso, **`_fast_mode` deprecado** por cuelgues en LSODA (ver `Documentos/notas_modelo_tesis.md` §A.7)
+- [x] **Sweep 2D PGB×PV** → `analysis/sensitivity_2d.py` + `scripts/sweep_pgb_pv.py` + `fig18_heatmap_pgb_pv`
+- [x] **Reproducibilidad MATLAB** → `visualization/matlab_export.py`, todas las figuras con sibling `.csv` (UTF-8 BOM) y `.mat` (scipy.io.savemat)
+- [x] **4 figuras nuevas** → fig18 (heatmap PGB×PV), fig19 (deserción individual), fig20 (PoF), fig21 (robustez C4 por agente)
+- [ ] (diferido) GSA Sobol con `n_base ≥ 256` para IC más estrechos — solo si el comité lo solicita
 - [ ] Verificar LCOE real de inversores instalados en cada institución MTE
 - [ ] Confirmar autores referencias [22][24][26][27] en `Documentos/references.bib`

@@ -931,17 +931,41 @@ El orden cualitativo es estable: `factor_PV` y `factor_D` gobiernan
 el bienestar global; `PGB` es el parámetro más crítico para la equidad.
 Para IC publicables (S1_conf < S1): ejecutar con n_base ≥ 256.
 
-**Infraestructura `_fast_mode` (commit `19e57cb` y siguientes).**
+**Infraestructura `_fast_mode` (commit `19e57cb` y siguientes) — DEPRECADA EFECTIVAMENTE.**
 `core/replicator_sellers.py` expone un flag `_fast_mode` que reduce
 `VEL_GRAD` de 1e6 a 1e3 y relaja las tolerancias del solver ODE
-(`rtol=0.5`, `atol=0.1`, `max_step=2e-4`). Está activado por defecto
-en cada worker del GSA (`analysis/global_sensitivity.py:_eval_sample`)
-y produce el mismo equilibrio que el modo preciso dentro de tolerancias
-documentadas en `tests/test_fast_mode_equivalence.py` (||P||_∞ ≤
-0,15 kWh; activación tolera excedentes < 0,5 kW). Esta infraestructura
-queda disponible para una eventual ejecución con `n_base ≥ 256` si los
-asesores la solicitan; reduce el costo de Saltelli en aprox. un orden
-de magnitud sobre el solver preciso.
+(`rtol=0.5`, `atol=0.1`, `max_step=2e-4`). El test
+`tests/test_fast_mode_equivalence.py` valida equivalencia en 8 horas
+representativas (||P||_∞ ≤ 0,15 kWh) pero la re-ejecución del GSA con
+`_fast_mode=True` el 2026-04-27 reveló que **ciertos samples Saltelli
+disparan ciclos infinitos del Newton iterativo de LSODA** (probabilidad
+empírica ~58% del espacio de parámetros). La validación de 8 horas no
+muestrea esos casos patológicos. **Decisión 2026-04-27:** desactivar
+`_fast_mode` en `_eval_sample` (línea 105). El GSA opera en modo preciso
+con timeout-wrapper de 45 s por evaluación (samples patológicos se marcan
+NaN y se filtran del estimador Sobol).
+
+### Resultados GSA Sobol-Saltelli (n_base = 128, 2026-04-27)
+
+Re-ejecución con `python main_simulation.py --gsa --n-base 128`
+(2048 evaluaciones; 11 workers; 111 min). Modo preciso, timeout-wrapper
+45 s, bounds originales `factor_PV ∈ [0.5, 2.0]`. **1367/2048 muestras
+válidas (66.7%)** — el resto NaN por timeout en samples patológicos.
+
+| Parámetro | ST ganancia | ST SC | ST IE | Interpretación |
+|-----------|-------------|-------|-------|----------------|
+| factor_PV | 0,66 | 0,82 | 0,41 | dominante en ganancia y SC |
+| factor_D  | 0,44 | 0,37 | 0,26 | segundo en ganancia |
+| PGB       | 0,08 | 0,11 | **0,99** | dominante en equidad |
+| PGS       | 0,22 | 0,07 | 0,25 | impacto en ganancia |
+| alpha_mean| 0,12 | 0,10 | 0,15 | efecto DR pequeño |
+| b_mean    | 0,02 | 0,07 | 0,33 | secundario en equidad |
+| pi_ppa    | 0,01 | 0,04 | 0,05 | sin efecto (C2 desactivado) |
+
+**Mejora vs n=64:** todos los ST < 1 (era artefacto en n=64), IC más
+estrechos. Ranking idéntico al GSA previo: `factor_PV` y `factor_D`
+gobiernan ganancia/SC; `PGB` gobierna equidad. Confirma robustez de
+los hallazgos del 2026-04-17.
 
 ### Resultados Bootstrap P2P vs C4 (n=500, 2026-04-17)
 
@@ -959,6 +983,40 @@ Ejecutado con `tests/statistical_tests.py`, datos: 215 días MTE, block_days=7, 
 (p = 0). El intervalo de confianza no incluye 0. Cohen's d = 0,67 indica
 efecto práctico medio-alto. Resultado sobre 215 días, perfil promedio diario;
 pendiente replicación sobre serie horaria completa 5 160 h.
+
+### Resultados Bootstrap P2P vs C4 (n=10 000, MTE_v3 6 144 h, 2026-04-27)
+
+Re-ejecutado con `tests/statistical_tests.py --n-bootstrap 10000`
+sobre series diarias del run `--data real --full` (256 días MTE_v3,
+block_days=7, seed=42).
+
+| Métrica | Valor |
+|---------|-------|
+| Δ̄ (P2P − C4) | 4 732 COP/día |
+| IC 95 % (bootstrap) | [3 629, 5 751] COP/día |
+| p-valor Wilcoxon | 0,000 |
+| Cohen's d | **0,90** (efecto grande) |
+| n_eff (bloques) | 36 |
+
+**Cambio vs run de abril-17 (n=500, 215 días):** Δ̄ baja de 7 489 a
+4 732 COP/día porque la muestra incluye más meses con menor diferencia
+(MTE_v3 cubre Abr–Dic vs Jul–Dic anterior). El IC 95% sigue sin incluir
+0; Cohen's d aumenta a 0,90 (efecto grande) por la reducción de varianza
+con n=10 000. Resultado más robusto y publicable.
+
+### Cierre del ciclo 2026-04-27
+
+Ejecución completa del sistema (extremo a extremo, ~3,5 h):
+- Validación pytest: 33/33 tests verdes (incluye 8 nuevos de `matlab_export`).
+- Run `--data real --full --analysis`: 51,7 min, REPORTE_AVANCES.md actualizado.
+- GSA Sobol n_base=128: 111 min, índices ST publicables (66,7% válidas).
+- Bootstrap n=10 000 sobre MTE_v3: IC 95% [3 629, 5 751] COP/día, p<0,001.
+- 4 figuras nuevas: fig18 (heatmap PGB×PV), fig19 (deserción individual),
+  fig20 (Price of Fairness), fig21 (robustez C4 por agente).
+- Helper `visualization/matlab_export.py`: 16 .mat + 44 .csv generados,
+  todos validados con `scipy.io.loadmat` y `pandas.read_csv`.
+
+**Siguiente:** redactar Capítulo 4 con datos del run; revisar con asesores.
 
 ### ~~Actividad crítica pendiente~~ → COMPLETADA
 

@@ -35,3 +35,6 @@ Documentos/p2p_explicacion.txt
 outputs/
 p2p_breakdown_flujos.csv
 p2p_breakdown_resumen_horario.csv
+
+# === Backups defensivos creados por planes de auditoria ===
+_backup_*/

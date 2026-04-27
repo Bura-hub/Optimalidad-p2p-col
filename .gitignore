@@ -1,24 +1,37 @@
-.claude/
+# === Python ===
 __pycache__/
 *.pyc
 .venv/
-history_chat/
-MedicionesMTE/
-MedicionesMTE_v2.zip
-MedicionesMTE_v3/
-CLAUDE.md
-Documentos/*
-!Documentos/notas_modelo_tesis.md
-!Documentos/Inventario_Act_1_0.md
-!Documentos/references.bib
-!Documentos/Revision_Bibliografica_Act_1_2.md
-!Documentos/Matriz_Trazabilidad.md
-!Documentos/INDICE_ARCHIVOS.md
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
 
+# === Editores y SO ===
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# === Claude Code y agentes ===
+.claude/
 .worktrees/
 
-# Resultados y artefactos de corrida (no versionar)
+# === Datos crudos MTE (licencia restringida, no redistribuir) ===
+MedicionesMTE/
+MedicionesMTE_v3/
+
+# === Documentos: trackeo por defecto, ignoro lo no apto ===
+Documentos/FinalTesis/
+Documentos/copy/
+Documentos/*.pdf
+Documentos/conversacion_*.txt
+Documentos/informe_*.md
+Documentos/p2p_explicacion.txt
+
+# === Resultados y artefactos de corrida ===
 *.xlsx
+*.log
 outputs/
 p2p_breakdown_flujos.csv
 p2p_breakdown_resumen_horario.csv

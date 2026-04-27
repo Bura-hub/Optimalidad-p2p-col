@@ -10,7 +10,7 @@ Modos:
   python main_simulation.py --data real                  # datos MTE, perfil diario promedio (24h)
   python main_simulation.py --day YYYY-MM-DD             # datos MTE, un día real específico (24h)
   python main_simulation.py --day YYYY-MM-DD --analysis  # día específico + sensibilidad/factibilidad
-  python main_simulation.py --data real --full           # datos MTE, 5160h completas
+  python main_simulation.py --data real --full           # datos MTE, 6144h completas
   python main_simulation.py --data real --analysis       # perfil diario + sensibilidad y factibilidad
   python main_simulation.py --data real --analysis --full  # todo, horizonte completo
   python main_simulation.py --gsa [--n-base N]           # análisis de sensibilidad global Sobol/Saltelli
@@ -761,7 +761,7 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
               if r.P_star is not None and np.sum(r.P_star) > 1e-4]
     kwh_p2p = sum(float(np.sum(r.P_star)) for r in active)
 
-    data_mode = ("Empíricos MTE — " + ("5160h completas" if full_horizon
+    data_mode = ("Empíricos MTE — " + ("6144h completas" if full_horizon
                   else "perfil diario promedio (24h)")) if use_real_data else "Sintéticos (validación)"
 
     lines = [
@@ -1042,7 +1042,7 @@ if __name__ == "__main__":
         description="Simulación P2P — Tesis Brayan López, Udenar 2026")
     ap.add_argument("--data", choices=["synthetic", "real"], default="synthetic")
     ap.add_argument("--full", action="store_true",
-                    help="Horizonte completo 5160h")
+                    help="Horizonte completo 6144h")
     ap.add_argument("--analysis", action="store_true",
                     help="Análisis de sensibilidad y factibilidad")
     ap.add_argument("--day", type=str, default=None,

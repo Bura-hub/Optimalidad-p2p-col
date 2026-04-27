@@ -63,7 +63,7 @@ python main_simulation.py --data real
 # Modo 3 — Perfil diario + sensibilidad y factibilidad (~5 min)
 python main_simulation.py --data real --analysis
 
-# Modo 4 — Horizonte completo 5160h / 215 días (~45 min)
+# Modo 4 — Horizonte completo 6144h / 256 días (~56 min)
 python main_simulation.py --data real --full
 
 # Modo 5 — Horizonte completo + todos los análisis (~100 min, corrida definitiva)

@@ -93,6 +93,12 @@ def _eval_sample(params: np.ndarray) -> tuple:
 
     Retorna (ganancia_neta_p2p, sc_comunidad, ie_p2p) o (nan, nan, nan) si falla.
     """
+    # Suprimir stdout/stderr para evitar UnicodeEncodeError en subprocess hijos
+    # de Windows (cp1252) cuando tqdm escribe caracteres Unicode (█░).
+    import os, sys
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
     from core.ems_p2p       import EMSP2P, AgentParams, GridParams, SolverParams
     from scenarios          import run_comparison
     from data.base_case_data import (
@@ -100,10 +106,15 @@ def _eval_sample(params: np.ndarray) -> tuple:
     )
     from core.market_prep   import compute_generation_limit
 
-    # Activar modo rápido (tolerancias relajadas) para la integración ODE.
-    # Seguro en multiprocessing: cada worker tiene su propia copia del módulo.
+    # _fast_mode DESACTIVADO: el GSA del 2026-04-17 (n_base=64) corrió
+    # exitosamente en modo preciso. El intento del 2026-04-26 con
+    # _fast_mode=True fue abortado por cuelgues en samples patológicos del
+    # solver LSODA. test_fast_mode_equivalence.py valida 8 horas representativas
+    # pero NO toda la distribución Saltelli — algunos samples disparan ciclos
+    # del Newton iterativo de LSODA cuando rtol=0.5 + max_step=2e-4 son
+    # incompatibles con dinámicas no-stiff de baja amplitud.
     import core.replicator_sellers as _rs
-    _rs._fast_mode = True
+    _rs._fast_mode = False
 
     (pgb, pgs, f_pv, f_d, alpha_mean, b_mean, pi_ppa) = params
 
@@ -168,10 +179,36 @@ def _eval_sample(params: np.ndarray) -> tuple:
 
 # ── Worker para ProcessPoolExecutor ──────────────────────────────────────────
 
+# Timeout por evaluación. Algunos samples (~20%) entran en zonas patológicas
+# donde solve_ivp/LSODA del replicator se atora indefinidamente (combinaciones
+# específicas de PGB+PGS+factor_PV+b_mean producen un equilibrio Nash inestable
+# cerca del simplex frontier). Sin timeout, esos samples bloquean a su worker
+# para siempre. 45s es ~10× la duración normal (~5s); samples que excedan se
+# marcan NaN y se filtran en el análisis Sobol (los samples NaN no afectan la
+# convergencia del estimador siempre que la fracción válida sea >70%).
+_EVAL_TIMEOUT_S = 45
+
+
 def _worker(args):
-    """Wrapper top-level para ProcessPoolExecutor (pickle-safe en Windows)."""
+    """Wrapper top-level para ProcessPoolExecutor (pickle-safe en Windows).
+
+    Ejecuta _eval_sample en un subproceso aislado con timeout. Si excede
+    _EVAL_TIMEOUT_S, mata el subproceso y retorna NaN.
+    """
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures import TimeoutError as _FT
     idx, params = args
-    return idx, _eval_sample(params)
+    with ProcessPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(_eval_sample, params)
+        try:
+            return idx, fut.result(timeout=_EVAL_TIMEOUT_S)
+        except _FT:
+            for p in ex._processes.values():
+                try:
+                    p.kill()
+                except Exception:
+                    pass
+            return idx, (float("nan"), float("nan"), float("nan"))
 
 
 # ── Análisis Sobol/Saltelli ───────────────────────────────────────────────────
@@ -304,11 +341,12 @@ def run_sobol_analysis(
                 done += 1
                 if done % checkpoint_every == 0:
                     _save_checkpoint(done)
-                if done % max(1, M // 10) == 0:
+                if done % max(1, M // 50) == 0:
                     elapsed = time.time() - t0
                     eta     = elapsed / done * (M - done)
                     print(f"    {done}/{M} ({100*done/M:.0f}%)  "
-                          f"elapsed={elapsed:.0f}s  ETA={eta:.0f}s")
+                          f"elapsed={elapsed:.0f}s  ETA={eta:.0f}s",
+                          flush=True)
     else:
         for i, params in [(j[0], j[1]) for j in jobs]:
             g, sc, ie = _eval_sample(params)

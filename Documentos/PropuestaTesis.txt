@@ -1,0 +1,715 @@
+1
+An´alisis de Optimalidad y Validaci´on Regulatoria
+de Mercados P2P en Colombia
+Brayan S. Lopez-Mendez
+Asesor: Andr´es Pantoja
+Co-asesor: Germ´an Obando
+Maestr´ıa en Ingenier´ıa Electr´onica
+Universidad de Nari˜no
+Resumen—Este trabajo propone el an´alisis de optimalidad
+y la validaci´on regulatoria de mercados Peer-to-Peer (P2P)
+para comunidades energ´eticas en Colombia. El modelo base se
+fundamenta en la teor´ıa de juegos y din´amicas poblacionales,
+integrando juegos de Stackelberg, din´amica de replicador y
+relajaci´on lagrangiana. El objetivo principal es evaluar el desempe
+˜no econ´omico y social del mercado P2P propuesto frente a
+cuatro escenarios de comercializaci´on de excedentes energ´eticos:
+(i) venta a la red seg ´un Resoluci´on CREG 174 (autogeneraci´on
+individual), (ii) contratos bilaterales a largo plazo, (iii) exposici´on
+al mercado mayorista, y especialmente (iv) la autogeneraci´on
+colectiva regulada seg ´un Resoluci´on CREG 101 072 de 2025. Este
+´ultimo escenario representa la alternativa regulatoria vigente para
+la distribuci´on administrativa de excedentes. La comparaci´on
+se realizar´a mediante el c´alculo de ganancias econ´omicas netas
+sobre el horizonte de seis meses, complementada con m´etricas
+de equidad y autosuficiencia. Se desarrollar´a un an´alisis de optimalidad
+que eval ´ue la robustez ante variaci´on de par´ametros del
+modelo, utilizando m´etodos de simulaci´on y an´alisis estad´ıstico.
+La validaci´on utilizar´a datos de una comunidad energ´etica real
+para calibrar el comportamiento de los agentes. Los resultados
+esperados permitir´an obtener evidencia cuantitativa sobre la
+viabilidad y eficiencia comparativa de los mecanismos de mercado
+din´amicos frente a las soluciones administrativas centralizadas.
+esquemas colectivos m´as complejos (Decreto 2236 de 2023
+y Resoluci´on CREG 101 072 de 2025 [4]). Estos cambios
+plantean interrogantes sobre la necesidad y eficiencia de
+mercados transaccionales din´amicos
+frente a mecanismos de
+asignaci´on administrativa est´atica.
+Este trabajo se enfoca en el an´alisis de optimalidad y validaci´on
+de un Sistema de Gesti´on de Energ´ıa (EMS) din´amico
+para comunidades energ´eticas basado en teor´ıa de juegos
+y din´amicas poblacionales [5]. Se aborda la robustez ante
+variaci´on de par´ametros del sistema bajo condiciones reales,
+con tres objetivos centrales: (i) inferir valores de par´ametros
+mediante revisi´on bibliogr´afica y datos emp´ıricos, (ii) analizar
+las condiciones en que el mercado tiene soluciones factibles
+y converge a un ´optimo, y (iii) cuantificar el desempe˜no del
+modelo P2P frente a los mecanismos regulatorios establecidos,
+especialmente la autogeneraci´on colectiva.
+1
+II. DEFINICI ´ON DEL PROBLEMA Y JUSTIFICACI ´ON
+A. Contexto del problema
+La literatura acad´emica sugiere que los mercados P2P
+Palabras Clave—comunidades energ´eticas, mercados peer-topeer,
+din´amica de replicador, juego de Stackelberg, regulaci´on
+energ´etica, CREG 101 072.
+I. INTRODUCCI ´ON
+pueden ofrecer eficiencias superiores a los esquemas de
+despacho econ´omico centralizado o a mecanismos administrativos
+est´aticos bajo condiciones espec´ıficas [2], [6], [7].
+La ventaja del P2P radica principalmente en su dise˜no de
+mercado (capacidad de capturar preferencias heterog´eneas [6]
+E
+L sector el´ectrico mundial transita hacia una estructura
+descentralizada impulsada por la penetraci´on masiva de
+y fomentar balance local de oferta-demanda [7]) m´as que
+en la descentralizaci´on algor´ıtmica per se [2], [8]. Dicha
+eficiencia emerge cuando coexisten heterogeneidad de perfiles,
+internalizaci´on de restricciones de red y reducci´on de costos de
+transacci´on. No obstante, en el contexto colombiano se carece
+de evidencia cuantitativa que contraste el desempe˜no de estos
+mercados din´amicos frente a las nuevas figuras regulatorias.
+recursos energ´eticos distribuidos. En este contexto, las comunidades
+energ´eticas emergen como modelos organizativos
+que permiten a diversos participantes generar y consumir
+energ´ıa de manera colaborativa, maximizando la eficiencia
+de la red [1]. El comercio de energ´ıa Peer-to-Peer (P2P)
+se ha planteado como un mecanismo clave para operativizar
+estas comunidades, facilitando el intercambio directo entre
+prosumidores [2].
+Sin embargo, la implementaci´on de mercados P2P enfrenta
+desaf´ıos significativos relacionados con la convergencia de
+los algoritmos de negociaci´on hacia un equilibrio ´optimo
+y su integraci´on en los marcos regulatorios existentes. En
+Colombia, la normativa ha evolucionado desde la autogeneraci´on
+individual (Resoluci´on CREG 174 de 2021 [3]) hacia
+1
+El t´ermino “mercado din´amico” puede referirse en distintos campos a:
+variaci´on de par´ametros en el tiempo, n´umero de agentes variable, o a que
+los algoritmos de soluci´on sean ecuaciones diferenciales o en diferencia. En
+este trabajo se adopta este ´ultimo sentido: el mecanismo de asignaci´on se
+resuelve mediante un algoritmo cuya din´amica est´a gobernada por ecuaciones
+diferenciales ordinarias (din´amica de replicador), donde las estrategias de
+precio y cantidad evolucionan en tiempo continuo hasta converger a un equilibrio
+estable. Cuando en el documento se haga referencia a no convergencia,
+oscilaciones no amortiguadas o divergencia de las estrategias de los usuarios,
+ello se refiere alm ´etodo de soluci´on(el algoritmo no alcanza un equilibrio),
+no al mercado como tal.
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+2
+Actualmente, los autogeneradores tienen opciones claramente
+definidas que presentan limitaciones de equidad o eficiencia:
+1)Venta a la red (CREG 174 [3]):Esquema de cr ´editos de
+energ´ıa con liquidaci´on a precio de bolsa para excedentes
+netos, exponiendo al usuario a volatilidad clim´atica.
+2)Contratos bilaterales:Acuerdos de precio fijo que mitigan
+riesgo pero pueden implicar costos de oportunidad.
+3)Exposici ´on al mercado mayorista:Venta a precio de
+bolsa horario, asumiendo riesgo total.
+4)Autogeneraci ´on colectiva (CREG 101 072 [4]):Figura
+que permite distribuir excedentes administrativamente
+entre miembros de una comunidad mediante un mecanismo
+est´atico.
+El problema central radica en determinar si la implementaci´on
+de un mercado P2P din´amico, con su complejidad
+tecnol´ogica asociada, genera un beneficio social y econ´omico
+marginal suficiente que justifique su adopci´on frente a los
+esquemas regulados actuales, en especial la autogeneraci´on
+colectiva aplicada a comunidades energ´eticas.
+B. Justificaci´on de la investigaci´on
+La justificaci´on de esta investigaci´on se fundamenta en tres
+pilares principales:
+Justificaci´on t´ecnica:El modelo P2P basado en din ´ami-
+el uso de teor´ıa de juegos en este ´ambito. En particular, las
+Din´amicas de Replicadores (RD) han demostrado eficiencia
+computacional para el despacho de recursos distribuidos [12],
+[13]. El presente trabajo toma como base el modelo de
+[5], extendi´endolo mediante validaci´on emp´ırica y an´alisis de
+optimalidad.
+El an´alisis de optimalidad en sistemas de mercado complejos
+puede abordarse mediante m´etodos de simulaci´on y
+an´alisis estad´ıstico [14], que permiten evaluar la robustez del
+sistema, identificar las condiciones en que el mercado tiene
+soluciones factibles y estudiar la sensibilidad ante par´ametros
+con incertidumbre. La comparaci´on de sensibilidad del modelo
+P2P frente a los escenarios tradicionales regulados proporciona
+criterios para evaluar en qu´e condiciones uno u otro esquema
+resulta m´as adecuado. Estos m´etodos emp´ıricos complementan
+los an´alisis anal´ıticos y permiten evaluar el desempe˜no bajo
+condiciones reales de operaci´on.
+Por su parte, y con una visi´on orientada a la implementaci´on
+de mercados novedosos y a fortalecer la formaci´on de comunidades
+energ´eticas, la regulaci´on ha introducido recientemente
+el concepto de autogeneraci´on colectiva (AGRC) mediante el
+Decreto 2236 de 2023 y la Resoluci´on CREG 101 072 de
+2025 [4]. Esta normativa introduce un mecanismo administrativo
+est´atico conocido como Porcentaje de Distribuci´on de
+Excedentes (PDE). Dicho marco constituye el estado del arte
+regulatorio contra el cual deben compararse las propuestas de
+mercados P2P din´amicos para demostrar su valor agregado
+real.
+cas poblacionales proporciona un marco matem´atico para la
+gesti´on descentralizada de recursos energ´eticos distribuidos,
+integrando optimizaci´on econ´omica y cumplimiento de restricciones
+t´ecnicas [9]. Sin embargo, la validaci´on de este modelo
+utilizando datos reales y su comparaci´on con alternativas
+reguladas es a´un insuficiente.
+Justificaci´on econ´omica y social:La sostenibilidad a largo
+plazo de las comunidades energ´eticas requiere no solo eficiencia
+operativa, sino tambi´en equidad en la distribuci´on de
+beneficios. Investigaciones previas han demostrado que los
+m´etodos descentralizados basados en din´amicas poblacionales
+distribuyen el bienestar de manera m´as equitativa comparado
+con optimizaciones completamente centralizadas [5]. Esta
+equidad es relevante para incentivar la participaci´on de los
+consumidores y contribuir a la viabilidad social del modelo.
+Justificaci´on regulatoria:El contexto regulatorio colombiano
+est´a evolucionando hacia el reconocimiento de nuevas
+formas de organizaci´on energ´etica. La validaci´on cuantitativa
+del modelo P2P puede proporcionar evidencia emp´ırica para la
+formulaci´on de pol´ıticas energ´eticas futuras, contribuyendo a
+evaluar si la descentralizaci´on gestionada mediante algoritmos
+representa una alternativa viable para la transici´on energ´etica.
+El an´alisis permitir´a identificar si los mecanismos din´amicos
+ofrecen mayor robustez que los esquemas administrativos ante
+cambios en la composici´on de las comunidades.
+IV. OBJETIVOS
+A. Objetivo general
+Realizar la validaci´on cuantitativa y el an´alisis de optima-
+lidad de un sistema de gesti´on de energ´ıa din´amico basado
+en mercados peer-to-peer para comunidades energ´eticas, mediante
+la comparaci´on de su desempe˜no frente a escenarios
+cl´asicos de comercializaci´on de excedentes energ´eticos en el
+contexto regulatorio colombiano.
+III. ANTECEDENTES
+La gesti´on de energ´ıa en comunidades ha evolucionado
+desde optimizaciones centralizadas hacia enfoques distribuidos.
+Los autores en [10] y [11] han establecido bases para
+B. Objetivos espec´ıficos
+1)Analizar el modelo de mercado P2P de referencia para
+determinar y proponer valores de sus par´ametros —preferencias
+de usuario, costos de producci´on— mediante
+revisi´on bibliogr´afica y ajuste a datos reales de instalaciones,
+consumos y cargas.
+2)Modelar los escenarios de comercializaci ´on regulados
+en la legislaci´on colombiana, incorporando los mecanismos
+de liquidaci´on y restricciones de cada normativa
+aplicados a casos de comunidad energ´etica.
+3)Comparar el desempe ˜no cuantitativo de un mercado P2P
+distribuido frente a escenarios definidos en la regulaci´on
+colombiana.
+4)Evaluar la sensibilidad ante variaciones de par ´ametros
+operativos del modelo P2P frente a los escenarios de
+referencia.
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+3
+V. ALCANCE
+fotovoltaicos instalados. Se asume la disponibilidad de datos
+de generaci´on, consumo, y par´ametros meteorol´ogicos con
+resoluci´on temporal de dos minutos. Los datos hist´oricos de
+precios del mercado mayorista (XM) se utilizar´an seg´un las
+series publicadas por el operador. Los datos hist´oricos cubrir´an
+un per´ıodo m´ınimo de seis meses. El horizonte de comparaci´on
+entre escenarios ser´a de seis meses, acorde con la disponibilidad
+de datos de generaci´on y demanda en el proyecto.
+Se implementar´a un protocolo de limpieza y correcci´on de
+anomal´ıas para mejorar la calidad de los datos utilizados en
+la calibraci´on del modelo.
+Limitaciones:Esta investigaci ´on no aborda aspectos de
+seguridad cibern´etica de la plataforma P2P, ni el an´alisis detallado
+de impactos en la red de distribuci´on. Tampoco incluye
+consideraciones sobre almacenamiento energ´etico o veh´ıculos
+el´ectricos, aunque estos elementos pueden ser relevantes para
+extensiones futuras del trabajo.
+El alcance de esta investigaci´on se define en t´erminos de
+dominio t´ecnico, metodol´ogico y temporal:
+Alcance t´ecnico:La investigaci ´on se centra en comunidades
+energ´eticas compuestas por prosumidores con sistemas
+fotovoltaicos y consumidores puros, operando bajo un marco
+de mercado P2P. El modelo asume una infraestructura de
+comunicaci´on bidireccional entre agentes y la presencia de un
+Operador del Mercado P2P que gestiona las transacciones. Las
+restricciones f´ısicas consideradas incluyen balance de potencia
+y l´ımites de capacidad de generaci´on, pero no incluyen an´alisis
+detallado de flujos de potencia en la red de distribuci´on.
+Alcance metodol´ogico:La comparaci ´on entre el mercado
+P2P y los escenarios regulados se realiza sobre unconjunto
+com´un de elementosdel sistema: agentes, generadores, consumidores,
+perfiles y restricciones; cada mecanismo, P2P o C1–
+C4, aplica sus reglas sobre esos elementos. El trabajo se enfoca
+en la operacionalizaci´on y an´alisis de robustez ante variaci´on
+de par´ametros del modelo de optimizaci´on, priorizando la
+formulaci´on del problema, funci´on objetivo y restricciones,
+sobre los detalles de implementaci´on de los algoritmos de
+soluci´on. Se asume que los m´etodos de soluci´on (din´amica
+de replicador y relajaci´on lagrangiana) se implementan seg´un
+la referencia [5].
+No se adoptar´a un m´etodo espec´ıfico de identificaci´on param´etrica,
+ya que estos enfoques requieren salidas observadas
+del modelo —potencias despachadas, precios en el equilibrio—
+de las que no se dispone en esta investigaci´on. La aproximaci´on
+de par´ametros —utilidades, costos de producci´on,
+preferencias— se har´a mediante calibraci´on basada en rangos
+de valores establecidos por revisi´on bibliogr´afica de [5] y
+literatura sobre funciones de costos de generaci´on fotovoltaica,
+elasticidad precio-demanda, y preferencias de consumidores,
+relacionando estos par´ametros con caracter´ısticas f´ısicas del
+sistema —n´umero de paneles, irradiancia, perfiles de consumo—
+y ajust´andolos a datos reales disponibles. El an´alisis de
+optimalidad se realizar´a mediante m´etodos de simulaci´on y
+an´alisis estad´ıstico, evaluando condiciones donde el mercado
+tiene soluciones factibles y se realiza un an´alisis cualitativo de
+optimalidad del punto de equilibrio alcanzado.
+Alcance regulatorio:El an ´alisis se centra en el contexto regulatorio
+colombiano actual, incluyendo la Resoluci´on CREG
+174 de 2021 [3], autogeneraci´on individual, el Decreto 2236 de
+2023 y la Resoluci´on CREG 101 072 de 2025 [4], comunidades
+energ´eticas y autogeneraci´on colectiva. Los escenarios de
+comparaci´on se dise˜nar´an seg´un estas normativas, incorporando
+especialmente el mecanismo de distribuci´on de excedentes
+mediante PDE establecido para comunidades energ´eticas. Las
+simulaciones utilizar´an datos hist´oricos de precios del mercado
+mayorista colombiano (XM) para per´ıodos recientes, considerando
+los techos tarifarios introducidos por la Resoluci´on
+CREG 101 066 de 2024, y las proyecciones a largo plazo se
+basar´an en tendencias hist´oricas observadas.
+Alcance de datos:La validaci ´on utilizar´a datos emp´ıricos
+de una comunidad energ´etica espec´ıfica con sistemas
+VI. METODOLOG´IA
+La investigaci´on se estructura mediante actividades organizadas
+seg´un los objetivos espec´ıficos. Cada actividad corresponde
+a un objetivo espec´ıfico, facilitando el seguimiento y
+evaluaci´on del cumplimiento de los objetivos.
+A. Actividades para el objetivo 1: An´alisis del modelo P2P
+Actividad 1.0: Inventario de elementos del sistema e
+insumos por cada modelo
+En paralelo o con anterioridad a la puesta en marcha
+del modelo de referencia, se elaborar´a un inventario que
+explicite: (i) loselementos comunesdel sistema sobre el
+que se realizar´a la comparaci´on —generadores, consumidores,
+prosumidores, perfiles de demanda, curvas de generaci´on,
+l´ımites de capacidad, etc.— y sus caracter´ısticas; y (ii) los
+requisitos particularesde datos o par ´ametros que exige cada
+modelo de mercado: P2P de referencia y escenarios C1–C4.
+Por ejemplo, el modelo basado en [5] requiere coeficientes
+de funciones de costo, preferencias de usuario y aversi´on al
+riesgo; los escenarios regulados pueden depender de precios
+de bolsa, reglas de liquidaci´on y par´ametros contractuales.
+Esta tabla facilitar´a la identificaci´on de insumos necesarios, la
+consistencia entre escenarios y el dise˜no de las comparaciones.
+Actividad 1.1: Revisi´on y consolidaci´on del modelo base
+Se partir´a del modelo de EMS propuesto en [5], basado
+en un juego de Stackelberg donde los vendedores lideran con
+estrategias de cantidad y los compradores siguen con estrategias
+de precio. El sistema se resuelve mediante ecuaciones
+diferenciales acopladas que integran Din´amica de Replicador
+(RD) y Relajaci´on Lagrangiana (LR). La validaci´on del modelo
+incluir´a la verificaci´on de que los equilibrios alcanzados
+son factibles y ´optimos, mediante un an´alisis cualitativo
+de optimalidad del punto de equilibrio alcanzado seg´un la
+literatura base, sin comprometerse a un m´etodo de soluci´on
+espec´ıfico de antemano. Esta actividad incluye la verificaci´on
+de la implementaci´on computacional del n´ucleo algor´ıtmico
+y sus protocolos de pre-procesamiento, asegurando que el
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+4
+modelo est´e correctamente operacionalizado para su uso en
+las comparaciones posteriores.
+Actividad 1.2: Inferencia de par´ametros mediante revisi´on
+bibliogr´afica y datos reales
+Se realizar´a una revisi´on bibliogr´afica para determinar c´omo
+se calculan los par´ametros econ´omicamente significativos del
+modelo: costos de producci´ona n, bn, cn, preferencias de
+usuarioβ i, aversi´on al riesgo. La revisi´on incluir´a estudios
+sobre: funciones de costos de generaci´on fotovoltaica, elasticidad
+precio-demanda en mercados el´ectricos, modelos de
+preferencias de consumidores energ´eticos, y caracterizaci´on
+de aversi´on al riesgo en mercados de energ´ıa. Estos par´ametros
+tienen sentido econ´omico —costos por kilovatio hora,
+preferencias en unidades de utilidad— y se relacionar´an con
+caracter´ısticas del sistema real como el n´umero de paneles
+instalados, la irradiancia promedio de la zona, y los perfiles de
+consumo observados. Se establecer´an rangos de valores para
+cada par´ametro mediante calibraci´on basada en fundamentos,
+ajustando estos valores a los datos reales disponibles de
+la comunidad energ´etica y permitiendo una parametrizaci´on
+coherente con las condiciones espec´ıficas del sistema bajo
+estudio.
+C. Actividades para el objetivo 3: Comparaci´on de desempe˜no
+cuantitativo
+Se realizar´an simulaciones comparativas para cuantificar: (a)
+B. Actividades para el objetivo 2: Modelado de escenarios de
+comercializaci´on
+Actividad 2.1: Estructuraci´on matem´atica de escenarios
+regulatorios
+Se formular´an las funciones de ingresos y costos para
+los cuatro escenarios de referencia. La TablaIresume las
+caracter´ısticas de cada escenario a modelar.
+Tabla I
+ESCENARIOS DECOMPARACI ´ONREGULATORIA
+Escenario
+Referencia
+Mecanismo de Precios
+C1:
+Individual
+Res. CREG 174/2021 Cr´editos 1:1 + excedentes a
+precio bolsa (Pbolsa)
+C2: Bilateral Contrato PPA
+precio fijo pactado a largo plazo
+C3:
+Spot
+mercado mayorista
+exposici´on total a precio de
+bolsa horario
+C4: Colectivo
+Res.
+CREG 101 072
+distribuci´on administrativa v´ıa
+PDE + cr´editos agregados
+Se estructurar´an los modelos matem´aticos para los cuatro
+ganancias econ´omicas netas sobre el horizonte de seis meses
+—flujos de caja netos agregados para generadores y ahorros
+netos para consumidores—; y (b) m´etricas sociales, incluyendo
+el c´alculo delprecio de la justicia(Price of Fairness, PoF),
+definido como la p´erdida de eficiencia monetaria necesaria
+para mejorar la equidad distributiva.
+Actividad 3.1: Gesti´on y procesamiento de datos emp´ıricos
+Se
+utilizar´an datos de una comunidad energ´etica real, perfiles
+de generaci´on PV, consumo, meteorolog´ıa y precios de
+bolsa hist´oricos de XM, a los cuales se aplicar´a un protocolo
+de limpieza y correcci´on de anomal´ıas. El preprocesamiento
+incluir´a el c´alculo de variables derivadas —generaci´on neta,
+demanda neta, factores de capacidad— y la agregaci´on
+temporal a intervalos horarios requeridos por el modelo. El
+´enfasis metodol´ogico estar´a en la ejecuci´on de simulaciones
+comparativas y la comparaci´on entre escenarios temporales,
+m´as que en el detalle operativo del tratamiento de datos.
+Actividad 3.2: Ejecuci´on de simulaciones comparativas
+Se ejecutar´an simulaciones del modelo P2P y los cuatro
+escenarios de comparaci´on utilizando datos hist´oricos reales
+sobre un horizonte de seis meses. Se evaluar´an diferentes
+subper´ıodos —semanas, d´ıas— con condiciones operativas
+diversas —alta o baja generaci´on solar, picos o valles de
+demanda, precios de bolsa extremos o t´ıpicos— para analizar
+c´omo var´ıan los resultados bajo diferentes condiciones de
+generaci´on, demanda y precios. Para cada escenario, se calcular´an
+las m´etricas de desempe˜no en cada intervalo de tiempo,
+por hora, y posteriormente agregados temporales: diarios,
+mensuales y sobre el horizonte completo de seis meses.
+Actividad 3.3: Descomposici´on del bienestar y comparaci´on
+monetaria
+Dado que el modelo P2P utiliza funciones de bienestar
+que incluyen satisfacci´on y aversi´on al riesgo, mientras que
+los escenarios de referencia son puramente financieros, se
+implementar´a una descomposici´on expl´ıcita del bienestar del
+P2P en: (i) beneficio monetario directo, flujos de caja netos,
+y (ii) beneficios intangibles (utilidad derivada de satisfacci´on,
+equidad y aversi´on al riesgo). Las ganancias econ´omicas netas
+sobre el horizonte de evaluaci´on de seis meses ser´an la m´etrica
+principal de viabilidad financiera, complementada con m´etricas
+sociales: precio de la justicia, equidad, autosuficiencia.
+escenarios de comparaci´on seg´un la normativa colombiana,
+describiendo las reglas de ingresos y costos.
+Actividad 2.2: Desarrollo de algoritmos de c´alculo de
+m´etricas
+Para cada escenario, se desarrollar´an algoritmos que calculen
+los flujos de caja, ingresos de generadores, costos de
+consumidores, y las m´etricas de desempe˜no correspondientes,
+utilizando las mismas series de tiempo de generaci´on y demanda
+que se emplear´an para el modelo P2P. Estos algoritmos
+permitir´an realizar comparaciones directas entre escenarios
+utilizando datos consistentes.
+D. Actividades para el objetivo 4: Evaluaci´on de sensibilidad
+Actividad 4.1: An´alisis de sensibilidad mediante simulaciones
+Se
+realizar´a un an´alisis de sensibilidad mediante simulaciones
+con variaciones sistem´aticas de par´ametros operativos
+—generaci´on, demanda, precios de bolsa—, evaluando el
+desempe˜no bajo diferentes condiciones reales capturadas en
+los datos hist´oricos, en distintas semanas o d´ıas. Se evaluar´a
+c´omo var´ıa la optimalidad ante estas variaciones, identificando
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+5
+las condiciones en que el mercado tiene soluciones factibles
+y realizando un an´alisis cualitativo de optimalidad del punto
+de equilibrio alcanzado. Se comparar´a la robustez del modelo
+P2P frente a los escenarios de referencia, evaluando si bajo
+ciertas condiciones alguno de los mercados regulados puede
+ser mejor que el P2P en algunos per´ıodos, mientras que en
+otros ocurre lo contrario.
+Se realizar´an adem´as simulaciones de sensibilidad variando
+el precio de bolsa o de red hasta niveles extremos, p. ej. precio
+de escasez, para identificar bajo qu´e condiciones el mercado
+P2P se vuelve infactible o el m´etodo de soluci´on deja de
+converger. Este an´alisis cuantificar´a hasta qu´e punto el mercado
+se acerca a la infactibilidad ante perturbaciones extremas
+de precio, p. ej. fen´omenos de El Ni˜no bajo techos tarifarios
+CREG 101 066. Se evaluar´an condiciones de factibilidad: bajo
+qu´e relaci´onP bolsa > PP2P los vendedores tendr´ıan incentivo
+a desertar hacia la red externa, y el riesgo regulatorio de
+C4 ante cambios de composici´on de la comunidad: retiro
+de participantes violando la regla del 10 %, escalamiento
+excediendo 100 kW.
+Actividad 4.2: An´alisis cualitativo de optimalidad del
+equilibrio
+En lugar de construir un mapa complejo que requiera
+fijar muchas variables o par´ametros, p. ej. un mapa de calor
+de estabilidad, se establecer´a una serie de restricciones o
+condiciones habilitantes del modelo P2P: bajo qu´e condiciones
+el mercado tiene soluciones factibles, converge a un equilibrio
+estable y se realiza un an´alisis cualitativo de optimalidad del
+punto de equilibrio alcanzado. Con esas mismas restricciones
+o condiciones se evaluar´a qu´e ocurre con los escenarios regulados
+C1–C4, permitiendo una comparaci´on directa. El an´alisis
+se apoyar´a en m´etodos de simulaci´on y an´alisis estad´ıstico
+cuando sea pertinente.
+comunidad energ´etica real, utilizando datos emp´ıricos en lugar
+de datos sint´eticos como en estudios previos. Se asegurar´a la
+consistencia de unidades en todas las variables del modelo: potencia
+en kW, energ´ıa en kWh, precios por kWh, permitiendo
+una comparaci´on directa entre el modelo P2P y los escenarios
+de referencia.
+C. An´alisis comparativo cuantitativo
+Se espera obtener una comparaci´on sistem´atica que eval´ue
+cuantitativamente el desempe˜no del modelo P2P frente a los
+cuatro escenarios, con ´enfasis en el escenario C4 (autogeneraci´on
+colectiva regulada), que representa un competidor
+relevante del P2P. Para garantizar rigor metodol´ogico, se
+establecer´an dos niveles de comparaci´on:
+Nivel 1 - Comparaci´on monetaria:Los resultados del modelo
+P2P se traducir´an a flujos de caja y m´etricas financieras
+mediante descomposici´on del bienestar en: (i) beneficio monetario
+directo, flujos de caja netos, y (ii) beneficios intangibles,
+utilidad derivada de satisfacci´on, equidad y aversi´on al riesgo.
+Esto permitir´a una comparaci´on directa con los escenarios C1–
+C4, calculando flujos de caja netos por agente y ganancias
+econ´omicas netas agregadas. Las ganancias econ´omicas netas
+sobre el horizonte de seis meses ser´an la m´etrica principal
+de desempe˜no financiero; los beneficios intangibles se presentar´an
+como beneficios sociales complementarios.
+Nivel 2 - Comparaci´on de m´etricas de bienestar y
+equidad:Una vez establecida la comparaci ´on monetaria, se
+evaluar´an m´etricas complementarias, tales como equidad, price
+of fairness, autosuficiencia y valor sist´emico [15].
+•Equidad:Se evaluar ´a si el modelo P2P logra un ´ındice
+de equidad mayor comparado con los escenarios C1–
+C3, y especialmente frente a C4, interpret´andolo como
+beneficio social potencial del P2P.
+VII. RESULTADOS ESPERADOS
+Al finalizar esta investigaci´on, se espera obtener los siguientes
+resultados:
+•Precio de la Justicia (Price of Fairness, PoF):Se
+calcular´a el PoF, definido como la p´erdida relativa de
+bienestar social al imponer una restricci´on de equidad
+[15]. Esta m´etrica comparar´a la eficiencia del mercado
+P2P con la equidad del escenario C4 (PDE est´atico).
+Un PoF bajo validar´ıa que el P2P logra eficiencia sin
+sacrificar excesiva equidad.
+A. Modelos matem´aticos de escenarios de comercializaci´on
+Se espera obtener la formulaci´on matem´atica de cuatro
+•Autosuficiencia y valor sist ´emico:Se analizar ´a si el P2P
+logra mayores niveles de autosuficiencia y autoconsumo
+por priorizar intercambio interno. Se calcular´an m´etricas
+de valor sist´emico —ratio de autosuficiencia, factor de
+coincidencia— para evaluar si el P2P incentiva mayor
+autoconsumo que la distribuci´on administrativa.
+escenarios de comercializaci´on: (i) venta a la red (CREG 174
+[3]), (ii) contratos bilaterales, (iii) mercado mayorista, y (iv)
+autogeneraci´on colectiva (CREG 101 072 [4]) con distribuci´on
+administrativa mediante PDE. Estos modelos incorporan los
+mecanismos de liquidaci´on establecidos por las normativas
+colombianas, incluyendo las no linealidades de la CREG 174
+y el mecanismo de PDE. El escenario C4 es de especial inter´es
+por representar un competidor regulado relevante del P2P.
+B. Modelo P2P calibrado con datos emp´ıricos
+Se espera obtener un modelo P2P calibrado con datos
+•Ventajas econ ´omicas netas:Se comparar ´an las ganancias
+econ´omicas netas entre todos los escenarios —beneficios
+de generadores y ahorros de consumidores—,
+evaluando si el P2P ofrece beneficios comparables o
+superiores al escenario C4, considerando su distribuci´on
+entre participantes.
+reales de una comunidad energ´etica, con par´ametros inferidos
+mediante revisi´on bibliogr´afica y ajuste a datos hist´oricos.
+Este modelo permitir´a analizar el comportamiento de una
+•Valor agregado del mecanismo din ´amico frente al
+est´atico:Como resultado del trabajo se espera cuantificar
+el valor agregado del mercado P2P frente al escenario C4,
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+6
+PDE est´atico, cuando existe desbalance entre usuarios:
+excedente en unos y d´eficit en otros que el mecanismo
+est´atico no puede reasignar. El mercado P2P puede
+reasignar din´amicamente ese excedente; en este trabajo
+se desarrollar´a y cuantificar´a esta hip´otesis, incluyendo
+la noci´on de “spread de ineficiencia est´atica”.
+mejor que el mercado P2P en algunos per´ıodos, mientras
+que en otros ocurre lo contrario.
+•An ´alisis de factibilidad y condiciones extremas:Identificaci´on
+de las condiciones de precio de red o de bolsa
+bajo las cuales el mercado P2P se vuelve infactible o los
+participantes tienen incentivo a desertar. Se cuantificar´a
+hasta qu´e punto el mercado se acerca a la infactibilidad
+ante perturbaciones extremas —precio de escasez,
+fen´omenos de El Ni˜no bajo techos CREG 101 066—,
+y se analizar´a cu´andoP bolsa > PP2P podr´ıa incentivar
+abandono del acuerdo P2P hacia la red externa.
+•Robustez ante riesgo regulatorio:Se evaluar ´a la robustez
+comparativa del modelo P2P frente al escenario
+C4 ante cambios en la composici´on de la comunidad.
+El escenario C4 presenta riesgo regulatorio: si se violan
+las restricciones de la CREG 101 072, p. ej. un participante
+se retira violando la regla del 10 % o un usuario
+escala su instalaci´on excediendo 100 kW, el esquema de
+remuneraci´on puede cambiar dr´asticamente —p´erdida del
+r´egimen simplificado—. El modelo P2P, al no estar sujeto
+a estas restricciones r´ıgidas de composici´on, ofrece mayor
+adaptabilidad ante entrada/salida de participantes o escalamiento
+de instalaciones. Se cuantificar´a este beneficio
+de flexibilidad estructural del P2P frente a la fragilidad
+regulatoria de C4.
+•L ´ımites operativos y regulaci´on:Informaci ´on relevante
+para la regulaci´on sobre qu´e condiciones o l´ımites
+operativos se deben respetar para que el mercado P2P
+siga siendo viable bajo condiciones de mercado adversas
+—rangos de precios, restricciones de participaci´on—,
+aportando criterios para el dise˜no de pol´ıticas.
+VIII. CRONOGRAMA
+La investigaci´on se desarrollar´a durante diez meses (enero
+a octubre de 2026), seg´un las actividades metodol´ogicas indicadas
+en la TablaII.
+D. An´alisis de sensibilidad y optimalidad
+Se propone un an´alisis de sensibilidad que eval´ue la robustez
+ante variaci´on de par´ametros y la optimalidad del modelo P2P
+ante variaciones en par´ametros clave. Se espera generar:
+Tabla II
+CRONOGRAMA DEACTIVIDADES
+•An ´alisis cualitativo de optimalidad del equilibrio:
+Identificaci´on de las condiciones en que el mercado
+tiene soluciones factibles y realizaci´on de un an´alisis
+cualitativo de optimalidad del punto de equilibrio alcanzado.
+Se evaluar´a mediante simulaciones si los equilibrios
+alcanzados son factibles y ´optimos.
+Actividad
+Meses (2026)
+E F M A M J J A S O
+1.0: Inventario de elementos
+e insumos
+X X
+1.1: Revisi´on modelo base X X
+1.2: Inferencia par´ametros
+X X
+2.1: Estructuraci´on escenarios
+X
+X
+•Rangos operativos:Identificaci ´on de restricciones o
+condiciones bajo las cuales el modelo P2P tiene soluciones
+factibles, converge a un equilibrio estable y se
+realiza un an´alisis cualitativo de optimalidad del punto
+de equilibrio alcanzado, incluyendo rangos de par´ametros
+y condiciones de mercado donde el modelo mantiene
+convergencia. Con esas mismas condiciones se evaluar´a el
+comportamiento de los escenarios regulados (C1–C4). El
+an´alisis se apoyar´a en simulaciones y an´alisis estad´ıstico
+cuando sea pertinente.
+2.2: Algoritmos de c´alculo
+de m´etricas
+X
+3.1: Gesti´on de datos
+X X
+3.2: Simulaciones comparativas
+X
+X X
+3.3: Comparaci´on monetaria
+X X
+4.1: An´alisis sensibilidad
+X X
+4.2: An´alisis cualitativo optimalidad
+X
+Redacci´on y documentaci´on
+X X X
+Revisi´on y correcciones
+X
+E=Ene, F=Feb, M=Mar, A=Abr, M=May, J=Jun, J=Jul, A=Ago, S=Sep, O=Oct
+•Sensibilidad relativa:Sensibilidad relativa de diferentes
+m´etricas de desempe˜no a variaciones param´etricas,
+utilizando ´ındices de sensibilidad global. Se analizar´a
+c´omo variaciones en par´ametros operativos —generaci´on,
+demanda, precios de bolsa— afectan las ganancias
+econ´omicas netas, m´etricas de equidad y otras m´etricas
+de desempe˜no.
+IX. CONCLUSIONES
+Esta propuesta presenta un plan estructurado para validar
+cuantitativamente la pertinencia de los mercados P2P en el
+contexto energ´etico colombiano actual. Al integrar el an´alisis
+del nuevo marco regulatorio, CREG 101 072 [4], con m´etodos
+de simulaci´on y an´alisis estad´ıstico, el trabajo pretende trascender
+la simulaci´on te´orica y ofrecer evidencia emp´ırica sobre
+la viabilidad, optimalidad y costo-beneficio de la descentralizaci´on
+energ´etica. Los resultados permitir´an determinar si la
+complejidad tecnol´ogica de los mercados din´amicos aporta un
+valor marginal suficiente frente a las soluciones administrativas
+vigentes.
+•Comparaci ´on de robustez ante variaci´on de par´ametros:Comparaci
+´on de la sensibilidad del modelo P2P
+frente a los escenarios de referencia, evaluando si el
+modelo descentralizado presenta mayor robustez ante
+incertidumbres de mercado y variaciones regulatorias.
+Se evaluar´a si bajo ciertas condiciones de irradiancia y
+demanda, alguno de los mercados regulados puede ser
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.
+7
+REFERENCIAS
+[1]E. Barabino, R. Fioriti, E. Guerrazzi, M. Mariuzzo, D. Poli, E. Ragaini,
+C. Senatore, E. Tacchino, and D. Viberti, “Energy communities: A
+review on trends, energy system modelling, business models, and optimisation
+objectives,”Sustainable Energy, Grids and Networks, vol. 36,
+p. 101187, 2023.
+[2]W. Tushar, T. K. Saha, C. Yuen, D. Smith, and H. V. Poor, “Peer-topeer
+trading in electricity networks: An overview,”IEEE Transactions
+on Smart Grid, vol. 11, no. 4, pp. 3185–3200, 2020.
+[3]Comisi ´on de Regulaci´on de Energ´ıa y Gas (CREG), “Resoluci´on 174 de
+2021: Por la cual se regulan las actividades de autogeneraci´on a peque˜na
+escala,” Diario Oficial, Bogot´a, D.C., 2021.
+[4]CREG, “Resoluci ´on 101 072 de 2025: Por la cual se definen las condiciones
+regulatorias para las comunidades energ´eticas,” Diario Oficial,
+Bogot´a, D.C., 2025.
+[5]S. Chac ´on, K. Guerrero, G. Obando, and A. Pantoja, “Energy management
+system in communities with p2p markets using game theory and
+optimization models,” Master’s thesis, Universidad de Nari˜no, Pasto,
+Colombia, 2025.
+[6]E. Sorin, L. Bobo, and P. Pinson, “Consensus-based approach to peer-topeer
+electricity markets with product differentiation,”IEEE Transactions
+on Power Systems, vol. 34, no. 2, pp. 994–1004, 2019.
+[7]N. Liu, J. Wang, and L. Wang, “Hybrid energy sharing for multiple microgrids
+in an integrated heat-electricity energy system,”IEEE Transactions
+on Sustainable Energy, vol. 10, no. 3, pp. 1139–1151, 2019,
+alternative reference for centralized vs decentralized market comparison.
+[8]T. Baroche, F. Moret, P. Pinson, and H. P. Cadre, “Prosumer markets: A
+unified formulation,”arXiv preprint, 2019, arXiv:1904.00732. [Online].
+Available:https://arxiv.org/abs/1904.00732
+[9]A. Pantoja, G. Obando, and N. Quijano, “Distributed optimization with
+information-constrained population dynamics,”Journal of the Franklin
+Institute, vol. 356, no. 1, pp. 209–236, Jan. 2019.
+[10]A. Paudel, K. Chaudhari, C. Long, and H. B. Gooi, “Peer-to-peer energy
+trading in a prosumer-based community microgrid: A game-theoretic
+model,”IEEE Transactions on Industrial Electronics, vol. 66, no. 8, pp.
+6087–6097, 2019.
+[11]B. Mao, D. Han, Y. Wang, X. Dong, and Z. Yan, “Pricing mechanism
+for community prosumers in decentralized electricity market,”CSEE
+Journal of Power and Energy Systems, vol. 9, no. 5, pp. 1905–1917,
+2023.
+[12]A. Pantoja and N. Quijano, “A population dynamics approach for the
+dispatch of distributed generators,”IEEE Transactions on Industrial
+Electronics, vol. 58, no. 10, pp. 4559–4567, Oct. 2011.
+[13]E. Baron-Prada and E. Mojica-Nava, “A population games transactive
+control for distributed energy resources,”International Journal of Electrical
+Power & Energy Systems, vol. 130, p. 106874, 2021.
+[14]A. Saltelli, M. Ratto, T. Andres, F. Campolongo, J. Cariboni, D. Gatelli,
+M. Saisana, and S. Tarantola,Global Sensitivity Analysis: The Primer.
+Chichester, UK: John Wiley & Sons, 2008.
+[15]D. Bertsimas, V. F. Farias, and N. Trichakis, “The price of fairness,”
+Operations Research, vol. 59, no. 1, pp. 17–31, 2011.
+Maestr´ıa en Ingenier´ıa Electr´onica, Universidad de Nari˜no.

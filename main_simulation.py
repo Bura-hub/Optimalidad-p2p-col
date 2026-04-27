@@ -501,6 +501,59 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         if p17:
             print(f"    ✓ Fig 17 — Robustez regulatoria C4")
 
+        # Fig 18 — Heatmap 2D PGB×PV (solo si existe el parquet del barrido)
+        sweep2d_path = os.path.join(base_dir, "outputs", "sensitivity_2d_pgb_pv.parquet")
+        if os.path.exists(sweep2d_path):
+            from analysis.sensitivity_2d import from_parquet
+            from visualization.plots     import plot_fig18_heatmap_pgb_pv
+            try:
+                sweep2d = from_parquet(sweep2d_path)
+                p18 = plot_fig18_heatmap_pgb_pv(sweep2d, out_dir=plots_dir,
+                                                currency=currency)
+                if p18:
+                    print(f"    ✓ Fig 18 — Heatmap 2D PGB×PV")
+            except Exception as e:
+                print(f"    ✗ Fig 18: {e}")
+        else:
+            print(f"    (Fig 18 requiere: python scripts/sweep_pgb_pv.py)")
+
+        # Fig 19 — Curva π_gb*ⁿ por agente (FA-1 individual)
+        from visualization.plots import plot_fig19_desercion_individual
+        try:
+            p19 = plot_fig19_desercion_individual(
+                fa_ir, agent_names, pi_gb_nominal=grid_params["pi_gb"],
+                out_dir=plots_dir, currency=currency)
+            if p19:
+                print(f"    ✓ Fig 19 — Deserción individual por agente")
+        except Exception as e:
+            print(f"    ✗ Fig 19: {e}")
+
+        # Fig 20 — Price of Fairness P2P vs C4
+        from analysis.fairness   import compute_pof
+        from visualization.plots import plot_fig20_price_of_fairness
+        try:
+            fr = compute_pof(
+                net_benefit_per_agent=cr.net_benefit_per_agent,
+                gini=cr.gini,
+            )
+            p20 = plot_fig20_price_of_fairness(fr, out_dir=plots_dir,
+                                               currency=currency)
+            if p20:
+                print(f"    ✓ Fig 20 — Price of Fairness (PoF) P2P vs C4")
+        except Exception as e:
+            print(f"    ✗ Fig 20: {e}")
+
+        # Fig 21 — Robustez C4 detallada por agente
+        from visualization.plots import plot_fig21_robustez_c4_agente
+        try:
+            p21 = plot_fig21_robustez_c4_agente(fa_creg_rep, agent_names,
+                                                out_dir=plots_dir,
+                                                currency=currency)
+            if p21:
+                print(f"    ✓ Fig 21 — Robustez C4 detallada por agente")
+        except Exception as e:
+            print(f"    ✗ Fig 21: {e}")
+
         # Gráficas 7-9
         generate_sensitivity_plots(
             sa_pgb=sa_pgb, sa_pv=sa_pv,

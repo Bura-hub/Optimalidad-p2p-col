@@ -21,6 +21,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.gridspec import GridSpec
 
+from visualization.matlab_export import safe_export
+
 warnings.filterwarnings("ignore")
 
 AGENTS_REAL = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
@@ -86,7 +88,19 @@ def plot_profiles(D, G, G_klim, agent_names, out_dir):
     axes[-1].set_xlabel("Hora del perfil")
     axes[-1].set_xticks(hours[::max(1, T//12)])
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig1_perfiles.png"))
+    fig_path = os.path.join(out_dir, "fig1_perfiles.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig01",
+        {"hora": hours,
+         **{f"D_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}_kW": D[n] for n in range(N)},
+         **{f"G_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}_kW": G[n] for n in range(N)},
+         **{f"Gklim_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}_kW": G_klim[n] for n in range(N)}},
+        fig_path,
+        metadata={"activity_ref": "Act 3.1", "units": "h, kW",
+                  "description": "Perfiles D, G y G_klim por nodo"},
+    )
+    return saved
 
 
 # ── Fig 2 ─────────────────────────────────────────────────────────────────────
@@ -131,7 +145,18 @@ def plot_classification(p2p_results, agent_names, out_dir):
     ax.set_title(f"Horas con mercado P2P activo: {len(market_hours)}/{T}  "
                  f"(líneas naranjas)")
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig2_clasificacion.png"))
+    fig_path = os.path.join(out_dir, "fig2_clasificacion.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig02",
+        {"hora": hours,
+         **{f"rol_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}": roles[n] for n in range(N)},
+         "mercado_activo": np.array([1 if h in market_hours else 0 for h in hours])},
+        fig_path,
+        metadata={"activity_ref": "Act 1.1", "units": "h, {-1=comprador, 0=neutro, 1=vendedor}",
+                  "description": "Clasificación vendedor/comprador por hora"},
+    )
+    return saved
 
 
 # ── Fig 3 ─────────────────────────────────────────────────────────────────────
@@ -178,7 +203,16 @@ def plot_market_flows(p2p_results, agent_names, out_dir):
     ax.set_title("Precios de equilibrio — juego de Stackelberg")
     axes[-1].set_xticks(hours[::max(1, T//12)])
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig3_mercado_p2p.png"))
+    fig_path = os.path.join(out_dir, "fig3_mercado_p2p.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig03",
+        {"hora": hours, "kwh_p2p": kwh, "precio_promedio_COP_kWh": avg_price},
+        fig_path,
+        metadata={"activity_ref": "Act 2.2", "units": "h, kWh, COP/kWh",
+                  "description": "Flujos del mercado P2P y precios de equilibrio"},
+    )
+    return saved
 
 
 # ── Fig 4 ─────────────────────────────────────────────────────────────────────
@@ -230,7 +264,16 @@ def plot_metrics_hourly(p2p_results, out_dir):
     ax.set_xlabel("Hora del perfil")
     ax.set_xticks(hours[::max(1, T//12)])
 
-    return _save(fig, os.path.join(out_dir, "fig4_metricas_horarias.png"))
+    fig_path = os.path.join(out_dir, "fig4_metricas_horarias.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig04",
+        {"hora": hours, "SC": SC, "SS": SS, "IE": IE, "Wj": Wj, "Wi": Wi},
+        fig_path,
+        metadata={"activity_ref": "Act 1.1", "units": "h, [0-1] adim, bienestar",
+                  "description": "Métricas horarias SC/SS/IE y bienestar"},
+    )
+    return saved
 
 
 # ── Fig 5 ─────────────────────────────────────────────────────────────────────
@@ -339,7 +382,21 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     )
     ax_dist.legend(fontsize=9, loc="lower right")
 
-    return _save(fig, os.path.join(out_dir, "fig5_comparacion_regulatoria.png"))
+    fig_path = os.path.join(out_dir, "fig5_comparacion_regulatoria.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig05",
+        {"escenario":         np.array(esc),
+         "ganancia_neta":     np.array(values, dtype=float),
+         "self_consumption":  np.array(sc_v,   dtype=float),
+         "self_sufficiency":  np.array(ss_v,   dtype=float),
+         "indice_equidad":    np.array(ie_v,   dtype=float)},
+        fig_path,
+        metadata={"activity_ref": "Act 2.1", "units": f"COP/período, [0-1]",
+                  "description": "Comparación regulatoria: 5 escenarios × 4 métricas",
+                  "rpe_p2p_vs_c4": float(cr.rpe) if cr.rpe is not None else float("nan")},
+    )
+    return saved
 
 
 # ── Fig 6 ─────────────────────────────────────────────────────────────────────
@@ -378,7 +435,17 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
                           edgecolor="#D4537E", alpha=0.8))
 
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig6_ganancia_por_agente.png"))
+    fig_path = os.path.join(out_dir, "fig6_ganancia_por_agente.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig06",
+        {"agente": np.array(names),
+         **{f"ganancia_{e}_COP": np.array([float(cr.net_benefit_per_agent[e][n]) for n in range(N)]) for e in esc}},
+        fig_path,
+        metadata={"activity_ref": "Act 2.1, 3.3", "units": f"{currency}/período",
+                  "description": "Ganancia neta por agente y escenario"},
+    )
+    return saved
 
 
 # ── Función principal ─────────────────────────────────────────────────────────
@@ -530,7 +597,19 @@ def plot_sensitivity_pgb(sa_results, out_dir, currency="COP"):
                bbox_to_anchor=(0.5, -0.04))
 
     fig.tight_layout(rect=[0, 0.06, 1, 1])
-    return _save(fig, os.path.join(out_dir, "fig7_sensibilidad_pgb.png"))
+    fig_path = os.path.join(out_dir, "fig7_sensibilidad_pgb.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig07",
+        {"pgb_COP_kWh": np.array(pgb, dtype=float),
+         **{f"ganancia_{e}_COP": np.array([r.net_benefit[e] for r in sa_results], dtype=float) for e in esc},
+         "ie_p2p":  np.array(ie_vals, dtype=float),
+         "rpe":     np.array(rpe_vals, dtype=float)},
+        fig_path,
+        metadata={"activity_ref": "Act 4.1", "units": "COP/kWh, COP, [-1,1], adim",
+                  "description": "SA-1: sensibilidad al precio de bolsa PGB"},
+    )
+    return saved
 
 
 def plot_sensitivity_pv(sa_pv_results, D, out_dir, agent_names=None):
@@ -607,7 +686,23 @@ def plot_sensitivity_pv(sa_pv_results, D, out_dir, agent_names=None):
     ax.legend(lines1 + lines2, ["IE", "SS"], fontsize=8)
 
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig8_sensibilidad_pv.png"))
+    fig_path = os.path.join(out_dir, "fig8_sensibilidad_pv.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig08",
+        {"pv_factor":     np.array(factors, dtype=float),
+         "cobertura_pct": np.array(cov_pct, dtype=float),
+         "ganancia_P2P":  np.array(p2p_vals, dtype=float),
+         "ganancia_C4":   np.array(c4_vals,  dtype=float),
+         "horas_mercado": np.array(market_h, dtype=float),
+         "kwh_p2p":       np.array(kwh,      dtype=float),
+         "ie_p2p":        np.array(ie_v,     dtype=float),
+         "ss_p2p":        np.array(ss_v,     dtype=float)},
+        fig_path,
+        metadata={"activity_ref": "Act 4.1", "units": "factor, %, COP, h, kWh, [-1,1], [0,1]",
+                  "description": "SA-2: sensibilidad a cobertura PV"},
+    )
+    return saved
 
 
 def plot_feasibility(fa_desertion, fa_creg, p2p_results,
@@ -686,7 +781,23 @@ def plot_feasibility(fa_desertion, fa_creg, p2p_results,
     ax.legend(fontsize=8)
 
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig9_factibilidad.png"))
+    fig_path = os.path.join(out_dir, "fig9_factibilidad.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig09",
+        {"hora":              hours,
+         "precio_p2p_COP_kWh": avg_p,
+         "precio_bolsa_COP_kWh": np.asarray(pi_bolsa[:T]),
+         "agente":             np.array(names),
+         "participacion_pct":  np.array(shares, dtype=float),
+         "capacidad_pico_kW":  np.array(caps, dtype=float)},
+        fig_path,
+        metadata={"activity_ref": "Act 4.1",
+                  "units": "h, COP/kWh, %, kW",
+                  "description": "FA-1 deserción y FA-2 cumplimiento CREG 101 072",
+                  "umbral_critico_pgb": float(fa_desertion.critical_pgb_threshold or 0.0)},
+    )
+    return saved
 
 
 def plot_sensitivity_ppa(sa_ppa_results: list, agent_names: list,
@@ -891,7 +1002,17 @@ def plot_flow_breakdown(cr, out_dir: str, currency: str = "COP") -> str:
     )
     fig.tight_layout(rect=[0, 0.04, 1, 1])
     path = os.path.join(out_dir, "fig13_desglose_flujos.png")
-    return _save(fig, path)
+    saved = _save(fig, path)
+    fb_data = {"escenario": np.array(esc_order)}
+    for comp in all_comps:
+        fb_data[f"absoluto_{comp}"] = np.array(
+            [float(cr.flow_breakdown.get(esc, {}).get(comp, 0.0)) for esc in esc_order])
+    safe_export(
+        "fig13", fb_data, path,
+        metadata={"activity_ref": "Act 3.3", "units": f"{currency}/período",
+                  "description": "Desglose de flujos por componente (autoconsumo, permutación, etc.)"},
+    )
+    return saved
 
 
 def plot_monthly_comparison(monthly: list, out_dir: str,
@@ -1476,7 +1597,21 @@ def plot_c1_vs_c4(
         fontsize=10, fontweight="bold")
 
     path = os.path.join(out_dir, "fig15_c1_vs_c4.png")
-    return _save(fig, path)
+    saved = _save(fig, path)
+    safe_export(
+        "fig15",
+        {"agente":          np.array(names),
+         "ganancia_C1":     np.asarray(b_c1, dtype=float),
+         "ganancia_C4":     np.asarray(b_c4, dtype=float),
+         "delta_C1_C4":     np.asarray(b_c1, dtype=float) - np.asarray(b_c4, dtype=float),
+         "hora":            np.arange(T),
+         "delta_horario":   np.asarray(delta_k, dtype=float),
+         "pi_bolsa":        np.asarray(pi_bolsa, dtype=float)},
+        path,
+        metadata={"activity_ref": "Act 2.1, 3.3", "units": f"{currency}, COP/kWh, h",
+                  "description": "Comparación C1 (CREG 174) vs C4 (CREG 101 072)"},
+    )
+    return saved
 
 
 def plot_robustness_c4(
@@ -1577,7 +1712,25 @@ def plot_robustness_c4(
                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#4CAF50", alpha=0.8))
 
     fig.tight_layout()
-    return _save(fig, os.path.join(out_dir, "fig17_robustez_c4.png"))
+    fig_path = os.path.join(out_dir, "fig17_robustez_c4.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig17",
+        {"agente":             np.array(names),
+         "B_C4_remaining":     np.array(B_c4r,  dtype=float),
+         "B_fallback":         np.array(B_fall, dtype=float),
+         "B_P2P_remaining":    np.array(B_p2pr, dtype=float),
+         "flexibility_premium": np.array(FP,    dtype=float),
+         "AGRC_compliant":     np.array(compliant, dtype=bool)},
+        fig_path,
+        metadata={"activity_ref": "Act 4.1",
+                  "units": f"{currency}/período",
+                  "description": "FA-3/4 robustez C4: impacto del retiro de participantes",
+                  "community_at_risk": bool(wr_report.community_at_risk),
+                  "n_risky_withdrawals": int(wr_report.n_risky_withdrawals),
+                  "flexibility_premium_total": float(wr_report.flexibility_premium_total)},
+    )
+    return saved
 
 
 def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
@@ -1628,3 +1781,279 @@ def generate_sensitivity_plots(sa_pgb, sa_pv, findings,
             print(f"    ✗ {label}: {e}")
 
     return paths
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# GRÁFICAS NUEVAS (figs 18–21) — Actividad 4.1 / 3.3
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def plot_fig18_heatmap_pgb_pv(sweep_2d, out_dir: str, currency: str = "COP") -> str:
+    """
+    Fig 18 — Mapa de sensibilidad bivariado PGB × cobertura PV (Actividad 4.1).
+
+    Parámetros
+    ----------
+    sweep_2d : analysis.sensitivity_2d.Sweep2DResult
+    """
+    from matplotlib.colors import TwoSlopeNorm
+
+    pgb = sweep_2d.pgb_grid
+    pv  = sweep_2d.pv_coverage * 100  # cobertura efectiva en %
+    Z_p2p = sweep_2d.z_p2p
+    Z_rpe = sweep_2d.z_rpe
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    fig.suptitle("Fig 18 — Sensibilidad bivariada PGB × cobertura PV",
+                 fontsize=12, fontweight="bold")
+
+    ax = axes[0]
+    im = ax.pcolormesh(pgb, pv, Z_p2p, cmap="viridis", shading="auto")
+    fig.colorbar(im, ax=ax, label=f"Ganancia neta P2P ({currency}/período)")
+    ax.set_xlabel("PGB (COP/kWh)")
+    ax.set_ylabel("Cobertura PV (%)")
+    ax.set_title("A — Ganancia neta P2P sobre la grilla PGB×PV")
+
+    ax = axes[1]
+    vmax = max(abs(Z_rpe).max(), 1e-3)
+    norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
+    im = ax.pcolormesh(pgb, pv, Z_rpe, cmap="RdYlGn", norm=norm, shading="auto")
+    fig.colorbar(im, ax=ax, label="RPE = (P2P−C4) / |P2P|")
+    ax.set_xlabel("PGB (COP/kWh)")
+    ax.set_ylabel("Cobertura PV (%)")
+    ax.set_title("B — Ventaja relativa P2P vs C4 (RPE)")
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig18_heatmap_pgb_pv.png")
+    saved = _save(fig, path)
+    safe_export(
+        "fig18",
+        {"pgb":           pgb,
+         "pv_factor":     sweep_2d.pv_grid,
+         "pv_coverage":   sweep_2d.pv_coverage,
+         "Z_ganancia_P2P": Z_p2p,
+         "Z_ganancia_C4":  sweep_2d.z_c4,
+         "Z_RPE":         Z_rpe,
+         "Z_IE_P2P":      sweep_2d.z_ie_p2p,
+         "Z_kwh_P2P":     sweep_2d.z_kwh_p2p},
+        path,
+        metadata={"activity_ref": "Act 4.1",
+                  "units": "COP/kWh, factor, [0-1], COP, adim, kWh",
+                  "description": "Mapa 2D ganancia neta P2P sobre grilla PGB×PV"},
+    )
+    return saved
+
+
+def plot_fig19_desercion_individual(individual_report, agent_names: list,
+                                    pi_gb_nominal: float,
+                                    out_dir: str,
+                                    currency: str = "COP") -> str:
+    """
+    Fig 19 — Curva de deserción individual π_gb*ⁿ por agente (Actividad 4.1, FA-1).
+    Para cada institución traza Δ_n(π_gb) = B_n^P2P − max(B_n^C1, B_n^C4) y marca
+    el umbral crítico donde Δ_n cruza 0.
+    """
+    pgb_vs_surplus = individual_report.pgb_vs_surplus or {}
+    if not pgb_vs_surplus:
+        return ""
+
+    pgb_vals = sorted(pgb_vs_surplus.keys())
+    pgb_arr  = np.array(pgb_vals, dtype=float)
+
+    fig, ax = plt.subplots(figsize=(11, 6))
+    fig.suptitle(
+        "Fig 19 — Deserción individual: superávit P2P vs alternativa regulada por agente",
+        fontsize=12, fontweight="bold")
+
+    delta_matrix = np.zeros((len(agent_names), len(pgb_arr)))
+    for j, pgb in enumerate(pgb_vals):
+        row = pgb_vs_surplus[pgb]
+        for i, name in enumerate(agent_names):
+            delta_matrix[i, j] = float(row.get(name, np.nan))
+
+    for i, name in enumerate(agent_names):
+        color = COLORS_AGT[i % len(COLORS_AGT)]
+        ax.plot(pgb_arr, delta_matrix[i], "o-", color=color,
+                linewidth=2, markersize=5, label=name)
+
+    ax.axhline(0, color="black", lw=0.8, ls="--",
+               label="Δ = 0 (umbral deserción)")
+    ax.axvline(pi_gb_nominal, color="gray", lw=1.0, ls=":",
+               label=f"π_gb nominal ≈ {pi_gb_nominal:.0f}")
+
+    ax.set_xlabel("π_gb (COP/kWh)")
+    ax.set_ylabel(f"Δ_n = B_n^P2P − max(B_n^C1, B_n^C4)  ({currency})")
+    ax.set_title(
+        f"Estables: {len(individual_report.stable_agents)}/{len(agent_names)} "
+        f"agentes con Δ_n > 0 al π_gb nominal")
+    ax.legend(fontsize=8, loc="best")
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig19_desercion_individual.png")
+    saved = _save(fig, path)
+    safe_export(
+        "fig19",
+        {"pgb": pgb_arr,
+         "agentes": np.array(agent_names),
+         "delta_n": delta_matrix},
+        path,
+        metadata={"activity_ref": "Act 4.1 (FA-1)",
+                  "units": "COP/kWh, COP",
+                  "description": "Curvas Δ_n por agente — umbrales de deserción individual",
+                  "pi_gb_nominal": float(pi_gb_nominal),
+                  "n_stable_agents": int(len(individual_report.stable_agents))},
+    )
+    return saved
+
+
+def plot_fig20_price_of_fairness(fairness_result, out_dir: str,
+                                 currency: str = "COP") -> str:
+    """
+    Fig 20 — Price of Fairness Bertsimas 2011 P2P vs C4 (Actividad 3.3).
+    Visualiza el ranking Gini, el PoF global y el sacrificio por agente.
+    """
+    if not fairness_result.eff_scenario:
+        return ""
+
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5),
+                             gridspec_kw={"width_ratios": [1, 1.4, 1]})
+    fig.suptitle(
+        "Fig 20 — Price of Fairness (PoF) — Bertsimas, Farias & Trichakis (2011)",
+        fontsize=12, fontweight="bold")
+
+    # ── Panel A: PoF global ─────────────────────────────────────────────────
+    ax = axes[0]
+    eff_sc, fair_sc = fairness_result.eff_scenario, fairness_result.fair_scenario
+    bars = ax.bar([eff_sc, fair_sc],
+                  [fairness_result.w_eff, fairness_result.w_fair],
+                  color=[COLORS_ESC.get(eff_sc, "#534AB7"),
+                         COLORS_ESC.get(fair_sc, "#D4537E")],
+                  alpha=0.85)
+    for bar, val in zip(bars, [fairness_result.w_eff, fairness_result.w_fair]):
+        ax.text(bar.get_x()+bar.get_width()/2, bar.get_height(),
+                f"{val/1e6:.2f}M" if abs(val) > 1e5 else f"{val:,.0f}",
+                ha="center", va="bottom", fontsize=9, fontweight="bold")
+    ax.axhline(0, color="black", lw=0.8)
+    ax.set_ylabel(f"Bienestar total ({currency})")
+    ax.set_title(f"A — Bienestar: eficiente vs equitativo\nPoF = {fairness_result.pof:.4f}")
+
+    # ── Panel B: ranking Gini ───────────────────────────────────────────────
+    ax = axes[1]
+    rank = fairness_result.gini_ranking
+    if rank:
+        names = [r[0] for r in rank]
+        ginis = [r[1] for r in rank]
+        totals = [r[2] for r in rank]
+        colors = [COLORS_ESC.get(n, "#777777") for n in names]
+        x = np.arange(len(names))
+        ax.bar(x, ginis, color=colors, alpha=0.85)
+        for i, (g, t) in enumerate(zip(ginis, totals)):
+            ax.text(i, g+max(ginis)*0.01,
+                    f"G={g:.3f}\n{t/1e6:.1f}M",
+                    ha="center", va="bottom", fontsize=8)
+        ax.set_xticks(x)
+        ax.set_xticklabels(names)
+        ax.set_ylabel("Coeficiente de Gini (↓ = más equitativo)")
+        ax.set_title("B — Ranking Gini por escenario")
+
+    # ── Panel C: PoF por agente ─────────────────────────────────────────────
+    ax = axes[2]
+    pof_a = fairness_result.pof_per_agent
+    if len(pof_a):
+        x = np.arange(len(pof_a))
+        names_a = [f"A{i+1}" for i in range(len(pof_a))]
+        ax.bar(x, pof_a, color="#7F77DD", alpha=0.85)
+        ax.set_xticks(x)
+        ax.set_xticklabels(names_a)
+        ax.set_ylabel("PoF individual")
+        ax.set_title("C — Sacrificio relativo de eficiencia por agente")
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig20_price_of_fairness.png")
+    saved = _save(fig, path)
+    safe_export(
+        "fig20",
+        {"escenario_eficiente":  np.array([fairness_result.eff_scenario]),
+         "escenario_equitativo": np.array([fairness_result.fair_scenario]),
+         "w_eff":                np.array([float(fairness_result.w_eff)]),
+         "w_fair":               np.array([float(fairness_result.w_fair)]),
+         "pof_global":           np.array([float(fairness_result.pof)]),
+         "ranking_escenario":    np.array([r[0] for r in fairness_result.gini_ranking]),
+         "ranking_gini":         np.array([r[1] for r in fairness_result.gini_ranking]),
+         "ranking_beneficio":    np.array([r[2] for r in fairness_result.gini_ranking]),
+         "pof_per_agent":        np.asarray(fairness_result.pof_per_agent, dtype=float)},
+        path,
+        metadata={"activity_ref": "Act 3.3",
+                  "units": f"{currency}, [0-1]",
+                  "description": "Price of Fairness (Bertsimas 2011) P2P vs C4"},
+    )
+    return saved
+
+
+def plot_fig21_robustez_c4_agente(fa_creg, agent_names: list, out_dir: str,
+                                  currency: str = "COP") -> str:
+    """
+    Fig 21 — Robustez C4 detallada por agente (Actividad 4.1).
+    Visualiza por institución la participación porcentual (regla 10 %),
+    la capacidad pico observada (límite 100 kW) y el cumplimiento individual.
+    """
+    if not fa_creg or not getattr(fa_creg, "max_supply_share_by_agent", None):
+        return ""
+
+    names = list(fa_creg.max_supply_share_by_agent.keys())
+    share = [fa_creg.max_supply_share_by_agent[n] for n in names]
+    cap   = [fa_creg.max_capacity_by_agent.get(n, np.nan) for n in names]
+    flag10  = [n in fa_creg.rule_10pct_violations for n in names]
+    flag100 = [n in fa_creg.rule_100kw_violations for n in names]
+
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig.suptitle("Fig 21 — Robustez C4 detallada por institución (CREG 101 072/2025)",
+                 fontsize=12, fontweight="bold")
+
+    x = np.arange(len(names))
+    width = 0.6
+
+    # Panel A: participación %
+    ax = axes[0]
+    cols = ["#D85A30" if v else "#1D9E75" for v in flag10]
+    ax.bar(x, share, width, color=cols, alpha=0.85)
+    ax.axhline(10, color="red", lw=1.5, ls="--", label="Límite 10 %")
+    for xi, val in zip(x, share):
+        ax.text(xi, val, f"{val:.1f}%", ha="center", va="bottom", fontsize=9)
+    ax.set_xticks(x); ax.set_xticklabels(names, rotation=10)
+    ax.set_ylabel("Participación máxima en demanda comunidad (%)")
+    ax.set_title(f"A — Regla 10 % (cumplen: "
+                 f"{len(names)-sum(flag10)}/{len(names)})")
+    ax.legend(fontsize=8)
+
+    # Panel B: capacidad
+    ax = axes[1]
+    cols = ["#D85A30" if v else "#1D9E75" for v in flag100]
+    ax.bar(x, cap, width, color=cols, alpha=0.85)
+    ax.axhline(100, color="red", lw=1.5, ls="--", label="Límite 100 kW")
+    for xi, val in zip(x, cap):
+        ax.text(xi, val, f"{val:.1f}", ha="center", va="bottom", fontsize=9)
+    ax.set_xticks(x); ax.set_xticklabels(names, rotation=10)
+    ax.set_ylabel("Capacidad pico observada (kW)")
+    ax.set_title(f"B — Límite 100 kW (cumplen: "
+                 f"{len(names)-sum(flag100)}/{len(names)})")
+    ax.legend(fontsize=8)
+
+    fig.tight_layout()
+    path = os.path.join(out_dir, "fig21_robustez_c4_agente.png")
+    saved = _save(fig, path)
+    safe_export(
+        "fig21",
+        {"agente":               np.array(names),
+         "participacion_pct":    np.array(share, dtype=float),
+         "capacidad_pico_kW":    np.array(cap,   dtype=float),
+         "viola_regla_10pct":    np.array(flag10, dtype=bool),
+         "viola_limite_100kW":   np.array(flag100, dtype=bool)},
+        path,
+        metadata={"activity_ref": "Act 4.1",
+                  "units": "%, kW",
+                  "description": "Robustez C4 por agente: regla 10 % y límite 100 kW",
+                  "rule_10pct_satisfied":  bool(fa_creg.rule_10pct_satisfied),
+                  "rule_100kw_satisfied":  bool(fa_creg.rule_100kw_satisfied),
+                  "robustness_score":      float(fa_creg.robustness_score)},
+    )
+    return saved

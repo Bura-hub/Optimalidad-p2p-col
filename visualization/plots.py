@@ -31,11 +31,14 @@ COLORS_ESC  = {"P2P": "#534AB7", "C1": "#1D9E75", "C2": "#BA7517",
                 "C3": "#D85A30", "C4": "#D4537E"}
 
 plt.rcParams.update({
-    "font.family":    "DejaVu Sans",
-    "font.size":      10,
-    "axes.titlesize": 11,
-    "axes.labelsize": 10,
-    "legend.fontsize": 9,
+    "font.family":     "DejaVu Sans",
+    "font.size":       11,    # was 10
+    "axes.titlesize":  13,    # was 11
+    "axes.labelsize":  12,    # was 10
+    "xtick.labelsize": 11,    # was 9 (default heredado)
+    "ytick.labelsize": 11,    # was 9
+    "legend.fontsize": 10,    # was 9
+    "figure.titlesize": 14,   # explícito
     "figure.facecolor": "white",
     "axes.facecolor":   "white",
     "axes.grid":   True,
@@ -162,6 +165,17 @@ def plot_classification(p2p_results, agent_names, out_dir):
 # ── Fig 3 ─────────────────────────────────────────────────────────────────────
 
 def plot_market_flows(p2p_results, agent_names, out_dir):
+    """
+    Fig 3 — Flujos del mercado P2P (Actividad 2.2).
+
+    Tres paneles que sintetizan el mercado P2P sobre el horizonte simulado:
+      A) Heatmap día×hora de kWh transados (solo si T ≥ 48; revela patrón
+         estacional + diario). Para T < 48 se reduce a barras horarias.
+      B) Distribución de precios π* por hora del día (mediana + banda
+         percentil 10-90). Comunica dispersión sin saturar con 1 000+ puntos.
+      C) Indicador 'horas activas vs inactivas' (mercado se activa solo
+         cuando hay excedente comunitario).
+    """
     T = len(p2p_results)
     hours = np.arange(T)
 
@@ -176,41 +190,97 @@ def plot_market_flows(p2p_results, agent_names, out_dir):
                 w = np.sum(r.P_star, axis=0) / total
                 avg_price[r.k] = float(np.dot(w, r.pi_star))
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
-    fig.suptitle("Fig 3 — Flujos del mercado P2P: energía y precios",
-                 fontsize=12, fontweight="bold")
+    n_active   = int(np.sum(kwh > 1e-4))
+    n_inactive = T - n_active
+    pct_active = 100.0 * n_active / max(T, 1)
 
-    ax = axes[0]
-    bars = ax.bar(hours, kwh, color="#534AB7", alpha=0.80, width=0.7)
-    for bar in bars:
-        h = bar.get_height()
-        if h > 0.05:
-            ax.text(bar.get_x()+bar.get_width()/2, h+0.005*kwh.max(),
-                    f"{h:.1f}", ha="center", va="bottom", fontsize=7)
-    ax.set_ylabel("kWh")
-    ax.set_title(f"Energía intercambiada en el mercado P2P  "
-                 f"(total={kwh.sum():.1f} kWh)")
+    fig = plt.figure(figsize=(13, 9))
+    gs  = fig.add_gridspec(2, 3, height_ratios=[1.4, 1.0],
+                           hspace=0.35, wspace=0.30)
+    fig.suptitle(f"Fig 3 — Flujos del mercado P2P  "
+                 f"(total={kwh.sum():.1f} kWh, {n_active}/{T} h activas — "
+                 f"{pct_active:.1f} %)",
+                 fontsize=13, fontweight="bold")
 
-    ax = axes[1]
-    valid = ~np.isnan(avg_price)
-    if valid.any():
-        ax.plot(hours[valid], avg_price[valid], "o-",
-                color="#D85A30", linewidth=1.8, markersize=6,
-                label="Precio promedio ponderado")
-        ax.legend(fontsize=9)
-    ax.set_ylabel("Precio (COP/kWh)")
-    ax.set_xlabel("Hora del perfil")
-    ax.set_title("Precios de equilibrio — juego de Stackelberg")
-    axes[-1].set_xticks(hours[::max(1, T//12)])
-    fig.tight_layout()
+    # ── Panel A: heatmap día×hora (si hay >=2 días) o fallback a barras ──────
+    if T >= 48:
+        n_days = T // 24
+        kwh_grid = kwh[:n_days * 24].reshape(n_days, 24)
+        ax_a = fig.add_subplot(gs[0, :2])
+        im = ax_a.pcolormesh(np.arange(25), np.arange(n_days + 1), kwh_grid,
+                             cmap="viridis", shading="flat",
+                             vmin=0, vmax=max(np.percentile(kwh_grid, 99), 1e-6))
+        ax_a.set_xlabel("Hora del día")
+        ax_a.set_ylabel("Día (0 = primer día del horizonte)")
+        ax_a.set_xticks(np.arange(0, 25, 3))
+        ax_a.set_title("A — kWh transados por día×hora "
+                       "(intensidad solar y demanda residual)")
+        cbar = fig.colorbar(im, ax=ax_a, label="kWh/h")
+        # Línea horizontal a media noche (por estética)
+        ax_a.invert_yaxis()
+    else:
+        ax_a = fig.add_subplot(gs[0, :2])
+        ax_a.bar(hours, kwh, color="#534AB7", alpha=0.85, width=0.7)
+        ax_a.set_xlabel("Hora del perfil")
+        ax_a.set_ylabel("kWh transados")
+        ax_a.set_title("A — Energía P2P por hora")
+
+    # ── Panel B: precios por hora del día (mediana + banda P10-P90) ──────────
+    ax_b = fig.add_subplot(gs[0, 2])
+    if T >= 48:
+        n_days = T // 24
+        price_grid = avg_price[:n_days * 24].reshape(n_days, 24)
+        # Estadísticos por hora del día (ignorando NaN)
+        med   = np.nanmedian(price_grid, axis=0)
+        p10   = np.nanpercentile(price_grid, 10, axis=0)
+        p90   = np.nanpercentile(price_grid, 90, axis=0)
+        h_day = np.arange(24)
+        ax_b.fill_between(h_day, p10, p90, color="#D85A30", alpha=0.22,
+                          label="P10–P90")
+        ax_b.plot(h_day, med, "o-", color="#D85A30",
+                  linewidth=1.8, markersize=4, label="Mediana")
+        ax_b.set_xlabel("Hora del día")
+        ax_b.set_xticks(np.arange(0, 24, 3))
+    else:
+        valid = ~np.isnan(avg_price)
+        if valid.any():
+            ax_b.plot(hours[valid], avg_price[valid], "o-",
+                      color="#D85A30", linewidth=1.8, markersize=5,
+                      label="Precio ponderado")
+        ax_b.set_xlabel("Hora del perfil")
+    ax_b.set_ylabel("π* (COP/kWh)")
+    ax_b.set_title("B — Precios de equilibrio Stackelberg")
+    ax_b.legend(fontsize=9, loc="best")
+
+    # ── Panel C: horas activas vs inactivas ──────────────────────────────────
+    ax_c = fig.add_subplot(gs[1, :])
+    cats = ["Mercado P2P activo", "Mercado P2P inactivo"]
+    vals = [n_active, n_inactive]
+    cols = ["#1D9E75", "#B0BEC5"]
+    bars = ax_c.barh(cats, vals, color=cols, edgecolor="white",
+                     linewidth=1.2, height=0.55)
+    for bar, v, total in zip(bars, vals, [T, T]):
+        pct = 100.0 * v / max(total, 1)
+        ax_c.text(v + 0.01 * T, bar.get_y() + bar.get_height() / 2,
+                  f"{v:,} h ({pct:.1f} %)", va="center", fontsize=10,
+                  fontweight="bold")
+    ax_c.set_xlim(0, T * 1.18)
+    ax_c.set_xlabel("Número de horas")
+    ax_c.set_title(f"C — Reparto del horizonte de {T} h: "
+                   f"{n_active} h con mercado P2P activo")
+    ax_c.grid(axis="x", alpha=0.3)
+
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig_path = os.path.join(out_dir, "fig3_mercado_p2p.png")
     saved = _save(fig, fig_path)
     safe_export(
         "fig03",
-        {"hora": hours, "kwh_p2p": kwh, "precio_promedio_COP_kWh": avg_price},
+        {"hora": hours, "kwh_p2p": kwh, "precio_promedio_COP_kWh": avg_price,
+         "horas_activas": np.array([n_active]),
+         "horas_inactivas": np.array([n_inactive])},
         fig_path,
         metadata={"activity_ref": "Act 2.2", "units": "h, kWh, COP/kWh",
-                  "description": "Flujos del mercado P2P y precios de equilibrio"},
+                  "description": "Flujos P2P: heatmap día×hora + precios + actividad"},
     )
     return saved
 
@@ -402,6 +472,13 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
 # ── Fig 6 ─────────────────────────────────────────────────────────────────────
 
 def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
+    """
+    Fig 6 — Ganancia neta por agente y escenario (Acts 2.1, 3.3).
+
+    Panel A: barras agrupadas (5 escenarios × N agentes) en valores absolutos.
+    Panel B: ventaja P2P − C4 por agente — visualización directa de la
+    racionalidad individual frente al régimen colectivo vigente.
+    """
     esc   = ["P2P", "C1", "C2", "C3", "C4"]
     N     = cr.n_agents
     x     = np.arange(N)
@@ -409,41 +486,64 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     names = (agent_names[:N] if len(agent_names) >= N
              else [f"A{i+1}" for i in range(N)])
 
-    fig, ax = plt.subplots(figsize=(13, 5))
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(15, 6),
+                                     gridspec_kw={"width_ratios": [1.6, 1.0]})
     fig.suptitle("Fig 6 — Ganancia neta por agente y escenario",
-                 fontsize=12, fontweight="bold")
+                 fontsize=13, fontweight="bold")
 
+    # ── Panel A: barras agrupadas absolutas ─────────────────────────────────
     for idx, e in enumerate(esc):
         vals = [cr.net_benefit_per_agent[e][n] for n in range(N)]
-        ax.bar(x + (idx-2)*w, vals, w, label=e,
-               color=COLORS_ESC[e], alpha=0.82)
+        ax_a.bar(x + (idx-2)*w, vals, w, label=e,
+                 color=COLORS_ESC[e], alpha=0.85)
 
-    ax.axhline(0, color="black", linewidth=0.8)
-    ax.set_xticks(x)
-    ax.set_xticklabels(names)
-    ax.set_ylabel(f"{currency}/período")
-    ax.set_title(f"Ganancia neta por institución ({currency})")
-    ax.legend(title="Escenario", ncol=5, fontsize=9)
+    ax_a.axhline(0, color="black", linewidth=0.8)
+    ax_a.set_xticks(x)
+    ax_a.set_xticklabels(names)
+    ax_a.set_ylabel(f"Ganancia neta ({currency}/período)")
+    ax_a.set_title("A — Ganancia neta por institución y escenario")
+    ax_a.legend(title="Escenario", ncol=5, fontsize=9, loc="best")
 
     if cr.static_spread_24h is not None:
         total_spread = float(np.sum(cr.static_spread_24h))
-        ax.text(0.01, 0.97,
-                f"Spread inef. estática C4: {total_spread:.2f} kWh/período",
-                transform=ax.transAxes, va="top", fontsize=8,
-                color="#D4537E",
-                bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
-                          edgecolor="#D4537E", alpha=0.8))
+        ax_a.text(0.01, 0.97,
+                  f"Spread inef. estática C4: {total_spread:.2f} kWh/período",
+                  transform=ax_a.transAxes, va="top", fontsize=8,
+                  color="#D4537E",
+                  bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                            edgecolor="#D4537E", alpha=0.8))
 
-    fig.tight_layout()
+    # ── Panel B: ventaja P2P − C4 por agente ────────────────────────────────
+    delta = np.array([float(cr.net_benefit_per_agent["P2P"][n] -
+                            cr.net_benefit_per_agent["C4"][n]) for n in range(N)])
+    bar_colors = ["#1D9E75" if d >= 0 else "#D4537E" for d in delta]
+    bars = ax_b.barh(names, delta, color=bar_colors, alpha=0.85,
+                     edgecolor="white", linewidth=1.0)
+    ax_b.axvline(0, color="black", linewidth=0.8)
+    for bar, d in zip(bars, delta):
+        x_label = bar.get_width()
+        ha = "left" if d >= 0 else "right"
+        offset = abs(delta).max() * 0.02 if abs(delta).max() > 0 else 1
+        ax_b.text(x_label + (offset if d >= 0 else -offset),
+                  bar.get_y() + bar.get_height() / 2,
+                  f"{d:+,.0f}", ha=ha, va="center", fontsize=9, fontweight="bold")
+    ax_b.set_xlabel(f"Δ = B^P2P − B^C4 ({currency}/período)")
+    n_pos = int(np.sum(delta > 0))
+    ax_b.set_title(f"B — Ventaja P2P sobre C4 por institución\n"
+                   f"(racionalidad individual: {n_pos}/{N} agentes prefieren P2P)")
+
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig_path = os.path.join(out_dir, "fig6_ganancia_por_agente.png")
     saved = _save(fig, fig_path)
     safe_export(
         "fig06",
         {"agente": np.array(names),
-         **{f"ganancia_{e}_COP": np.array([float(cr.net_benefit_per_agent[e][n]) for n in range(N)]) for e in esc}},
+         **{f"ganancia_{e}_COP": np.array([float(cr.net_benefit_per_agent[e][n])
+                                           for n in range(N)]) for e in esc},
+         "delta_P2P_C4_COP": delta},
         fig_path,
         metadata={"activity_ref": "Act 2.1, 3.3", "units": f"{currency}/período",
-                  "description": "Ganancia neta por agente y escenario"},
+                  "description": "Ganancia neta por agente y escenario + ventaja P2P-C4"},
     )
     return saved
 
@@ -803,7 +903,7 @@ def plot_feasibility(fa_desertion, fa_creg, p2p_results,
 def plot_sensitivity_ppa(sa_ppa_results: list, agent_names: list,
                          pi_gb: float, pi_gs: float,
                          out_dir: str, currency: str = "COP") -> str:
-    """Fig 10 — Sensibilidad al precio del contrato bilateral (SA-3 §3.8)."""
+    """Fig 10 — SA-PPA: sensibilidad al precio del contrato bilateral C2 (§3.8)."""
     if not sa_ppa_results:
         return None
 
@@ -831,7 +931,7 @@ def plot_sensitivity_ppa(sa_ppa_results: list, agent_names: list,
 
     fig, axes = plt.subplots(1, 3, figsize=(16, 5))
     fig.suptitle(
-        "Fig 10 — SA-3: Sensibilidad al precio del contrato bilateral PPA (C2)",
+        "Fig 10 — SA-PPA: Sensibilidad al precio del contrato bilateral (C2)",
         fontsize=12, fontweight="bold")
 
     # ── Panel 1: escenarios agregados ──────────────────────────────────────
@@ -1136,7 +1236,7 @@ def plot_convergence(conv_list: list, agent_names: list,
 
         fig = plt.figure(figsize=(13, 10))
         fig.suptitle(
-            f"Fig 11 — Convergencia RD + Stackelberg  |  Hora k={cd.hour}  "
+            f"Fig 22 — Convergencia RD + Stackelberg  |  Hora k={cd.hour}  "
             f"({'excedente' if float(np.sum(cd.G_net_j)) >= float(np.sum(cd.D_net_i)) else 'déficit'} comunitario)",
             fontsize=12, fontweight="bold",
         )
@@ -1229,7 +1329,7 @@ def plot_convergence(conv_list: list, agent_names: list,
                  va="bottom", ha="left",
                  bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow", alpha=0.8))
 
-        path = os.path.join(out_dir, f"fig11_convergencia_h{cd.hour:04d}.png")
+        path = os.path.join(out_dir, f"fig22_convergencia_h{cd.hour:04d}.png")
         saved.append(_save(fig, path))
 
     return saved
@@ -1291,8 +1391,12 @@ def plot_optimality(
     ax_a.set_ylim(0, 1.2)
     ax_a.set_yticks([])
     ax_a.set_xlabel("Hora k")
-    ax_a.set_title("A — Dominancia horaria: P2P vs C4", fontweight="bold")
-    ax_a.legend(loc="upper right", ncol=4, fontsize=8)
+    threshold = float(getattr(summary, "threshold_cop", 0.0))
+    ax_a.set_title(
+        f"A — Dominancia horaria: P2P vs C4  "
+        f"(umbral = ±{threshold:,.0f} {currency}/h)",
+        fontweight="bold")
+    ax_a.legend(loc="upper right", ncol=4, fontsize=9)
     ax_a.axhline(1, color="#888", lw=0.4, ls="--")
 
     # ── Panel B: Delta acumulado ─────────────────────────────────────────────
@@ -1803,12 +1907,14 @@ def plot_fig18_heatmap_pgb_pv(sweep_2d, out_dir: str, currency: str = "COP") -> 
     Z_rpe = sweep_2d.z_rpe
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-    fig.suptitle("Fig 18 — Sensibilidad bivariada PGB × cobertura PV",
-                 fontsize=12, fontweight="bold")
+    fig.suptitle(
+        "Fig 18 — Sensibilidad bivariada PGB × cobertura PV  "
+        "(modelo de referencia, perfil sintético 24 h)",
+        fontsize=13, fontweight="bold")
 
     ax = axes[0]
     im = ax.pcolormesh(pgb, pv, Z_p2p, cmap="viridis", shading="auto")
-    fig.colorbar(im, ax=ax, label=f"Ganancia neta P2P ({currency}/período)")
+    fig.colorbar(im, ax=ax, label=f"Ganancia neta P2P ({currency}/24 h)")
     ax.set_xlabel("PGB (COP/kWh)")
     ax.set_ylabel("Cobertura PV (%)")
     ax.set_title("A — Ganancia neta P2P sobre la grilla PGB×PV")
@@ -1822,7 +1928,24 @@ def plot_fig18_heatmap_pgb_pv(sweep_2d, out_dir: str, currency: str = "COP") -> 
     ax.set_ylabel("Cobertura PV (%)")
     ax.set_title("B — Ventaja relativa P2P vs C4 (RPE)")
 
-    fig.tight_layout()
+    # Anotar la región óptima (RPE máximo) con flecha
+    if Z_rpe.size > 0 and np.isfinite(Z_rpe).any():
+        idx_flat = int(np.nanargmax(Z_rpe))
+        i_pv, i_pg = np.unravel_index(idx_flat, Z_rpe.shape)
+        x_opt = float(pgb[i_pg])
+        y_opt = float(pv[i_pv]) if pv.ndim == 1 else float(pv.ravel()[i_pv])
+        rpe_max = float(Z_rpe[i_pv, i_pg])
+        ax.annotate(
+            f"RPE máx\n{rpe_max:.3f}",
+            xy=(x_opt, y_opt),
+            xytext=(x_opt + 60, y_opt + 12),
+            fontsize=9, fontweight="bold", color="#1B5E20",
+            arrowprops=dict(arrowstyle="->", color="#1B5E20", lw=1.2),
+            bbox=dict(boxstyle="round,pad=0.3", facecolor="white",
+                      edgecolor="#1B5E20", alpha=0.85),
+        )
+
+    fig.tight_layout(rect=[0, 0, 1, 0.94])
     path = os.path.join(out_dir, "fig18_heatmap_pgb_pv.png")
     saved = _save(fig, path)
     safe_export(
@@ -1848,9 +1971,17 @@ def plot_fig19_desercion_individual(individual_report, agent_names: list,
                                     out_dir: str,
                                     currency: str = "COP") -> str:
     """
-    Fig 19 — Curva de deserción individual π_gb*ⁿ por agente (Actividad 4.1, FA-1).
-    Para cada institución traza Δ_n(π_gb) = B_n^P2P − max(B_n^C1, B_n^C4) y marca
-    el umbral crítico donde Δ_n cruza 0.
+    Fig 19 — Curva de deserción individual π_gb*ⁿ por agente (Act 4.1, FA-1).
+
+    Dos paneles complementarios para resolver el aplastamiento visual cuando
+    un agente (típicamente Udenar) tiene Δ_n una orden de magnitud mayor que
+    los demás:
+      A) Δ_n absoluto en COP/período — comunica magnitud monetaria.
+      B) Δ_n normalizado a % del beneficio C4 nominal — comparable entre
+         agentes en pie de igualdad.
+
+    En ambos paneles las curvas tienen identidad de color por agente, marcan
+    el π_gb nominal y la línea Δ = 0 (umbral de deserción).
     """
     pgb_vs_surplus = individual_report.pgb_vs_surplus or {}
     if not pgb_vs_surplus:
@@ -1859,46 +1990,68 @@ def plot_fig19_desercion_individual(individual_report, agent_names: list,
     pgb_vals = sorted(pgb_vs_surplus.keys())
     pgb_arr  = np.array(pgb_vals, dtype=float)
 
-    fig, ax = plt.subplots(figsize=(11, 6))
-    fig.suptitle(
-        "Fig 19 — Deserción individual: superávit P2P vs alternativa regulada por agente",
-        fontsize=12, fontweight="bold")
-
+    # Matriz absoluta (agentes × pgb)
     delta_matrix = np.zeros((len(agent_names), len(pgb_arr)))
     for j, pgb in enumerate(pgb_vals):
         row = pgb_vs_surplus[pgb]
         for i, name in enumerate(agent_names):
             delta_matrix[i, j] = float(row.get(name, np.nan))
 
+    # B_alt = max(B_C1, B_C4) por agente al pi_gb nominal — denominador de %
+    benefit_alt = getattr(individual_report, "benefit_c4", {}) or {}
+    b_alt_vec = np.array([abs(float(benefit_alt.get(name, np.nan)))
+                          for name in agent_names])
+    # Si falta el dato o es 0, usar |max(|delta|)| como fallback razonable
+    fallback = np.nanmax(np.abs(delta_matrix), axis=1)
+    b_alt_vec = np.where((b_alt_vec > 1e-6) & np.isfinite(b_alt_vec),
+                         b_alt_vec, fallback)
+    pct_matrix = 100.0 * delta_matrix / b_alt_vec[:, None]
+
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(15, 6))
+    fig.suptitle(
+        "Fig 19 — Deserción individual: superávit P2P vs alternativa regulada",
+        fontsize=13, fontweight="bold")
+
     for i, name in enumerate(agent_names):
         color = COLORS_AGT[i % len(COLORS_AGT)]
-        ax.plot(pgb_arr, delta_matrix[i], "o-", color=color,
-                linewidth=2, markersize=5, label=name)
+        ax_a.plot(pgb_arr, delta_matrix[i], "o-", color=color,
+                  linewidth=2, markersize=5, label=name)
+        ax_b.plot(pgb_arr, pct_matrix[i], "o-", color=color,
+                  linewidth=2, markersize=5, label=name)
 
-    ax.axhline(0, color="black", lw=0.8, ls="--",
-               label="Δ = 0 (umbral deserción)")
-    ax.axvline(pi_gb_nominal, color="gray", lw=1.0, ls=":",
-               label=f"π_gb nominal ≈ {pi_gb_nominal:.0f}")
+    for ax, ylabel, title in [
+        (ax_a, f"Δ_n = B^P2P − max(B^C1, B^C4)  ({currency})",
+         "A — Magnitud absoluta"),
+        (ax_b, "Δ_n / |B^alt|  (%)",
+         "B — Magnitud normalizada (% del beneficio C4 nominal)"),
+    ]:
+        ax.axhline(0, color="black", lw=0.8, ls="--",
+                   label="Δ = 0 (umbral deserción)")
+        ax.axvline(pi_gb_nominal, color="gray", lw=1.0, ls=":",
+                   label=f"π_gb nominal ≈ {pi_gb_nominal:.0f}")
+        ax.set_xlabel("π_gb (COP/kWh)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title, fontweight="bold")
+    ax_b.legend(fontsize=9, loc="best")
+    ax_a.set_title(
+        f"A — Magnitud absoluta — Estables al π_gb nominal: "
+        f"{len(individual_report.stable_agents)}/{len(agent_names)}",
+        fontweight="bold")
 
-    ax.set_xlabel("π_gb (COP/kWh)")
-    ax.set_ylabel(f"Δ_n = B_n^P2P − max(B_n^C1, B_n^C4)  ({currency})")
-    ax.set_title(
-        f"Estables: {len(individual_report.stable_agents)}/{len(agent_names)} "
-        f"agentes con Δ_n > 0 al π_gb nominal")
-    ax.legend(fontsize=8, loc="best")
-
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
     path = os.path.join(out_dir, "fig19_desercion_individual.png")
     saved = _save(fig, path)
     safe_export(
         "fig19",
         {"pgb": pgb_arr,
          "agentes": np.array(agent_names),
-         "delta_n": delta_matrix},
+         "delta_n": delta_matrix,
+         "delta_n_pct": pct_matrix,
+         "B_alt_nominal": b_alt_vec},
         path,
         metadata={"activity_ref": "Act 4.1 (FA-1)",
-                  "units": "COP/kWh, COP",
-                  "description": "Curvas Δ_n por agente — umbrales de deserción individual",
+                  "units": "COP/kWh, COP, %",
+                  "description": "Δ_n por agente — absoluto y normalizado %B_alt",
                   "pi_gb_nominal": float(pi_gb_nominal),
                   "n_stable_agents": int(len(individual_report.stable_agents))},
     )
@@ -2055,5 +2208,82 @@ def plot_fig21_robustez_c4_agente(fa_creg, agent_names: list, out_dir: str,
                   "rule_10pct_satisfied":  bool(fa_creg.rule_10pct_satisfied),
                   "rule_100kw_satisfied":  bool(fa_creg.rule_100kw_satisfied),
                   "robustness_score":      float(fa_creg.robustness_score)},
+    )
+    return saved
+
+
+def plot_fig23_perfiles_diarios(D, G, agent_names, out_dir):
+    """
+    Fig 23 — Perfiles diarios promedio de demanda y generación (Actividad 3.1).
+
+    Complementa fig1_perfiles (que muestra el horizonte completo en serie temporal)
+    con el patrón típico día-tipo en 6 paneles 3×2: 5 instituciones + comunidad
+    agregada. Cada panel muestra el promedio horario sobre los 256 días de MTE_v3.
+    """
+    D = np.asarray(D, dtype=float)
+    G = np.asarray(G, dtype=float)
+    N, T = D.shape
+    n_days = T // 24
+    if n_days == 0:
+        return None
+
+    # Promedio horario sobre todos los días
+    D_avg = D[:, :n_days * 24].reshape(N, n_days, 24).mean(axis=1)  # (N, 24)
+    G_avg = G[:, :n_days * 24].reshape(N, n_days, 24).mean(axis=1)
+    D_total = D_avg.sum(axis=0)
+    G_total = G_avg.sum(axis=0)
+    hours = np.arange(24)
+
+    fig, axes = plt.subplots(3, 2, figsize=(13, 10))
+    fig.suptitle(f"Fig 23 — Perfiles diarios promedio D y G — datos MTE "
+                 f"(promedio sobre {n_days} días, Actividad 3.1)",
+                 fontsize=13, fontweight="bold")
+
+    # 5 paneles institucionales + 1 comunidad agregada
+    panels = []
+    for n in range(min(N, 5)):
+        panels.append((n // 2, n % 2, n,
+                       agent_names[n] if n < len(agent_names) else f"A{n+1}"))
+    panels.append((2, 1, None, "Comunidad total"))
+
+    for row, col, idx, name in panels:
+        ax = axes[row, col]
+        if idx is None:
+            d, g = D_total, G_total
+        else:
+            d, g = D_avg[idx], G_avg[idx]
+        cob = g.sum() / max(d.sum(), 1e-9) * 100
+
+        ax.fill_between(hours, d, alpha=0.25, color="#378ADD")
+        ax.plot(hours, d, color="#378ADD", linewidth=1.8,
+                label="Demanda D")
+        ax.fill_between(hours, g, alpha=0.25, color="#D85A30", hatch="///")
+        ax.plot(hours, g, color="#D85A30", linewidth=1.6, linestyle="--",
+                label="Generación G")
+
+        ax.set_title(f"{name}  D̄={d.mean():.2f} kW  Ḡ={g.mean():.2f} kW  "
+                     f"cobertura {cob:.0f}%",
+                     fontsize=10)
+        ax.set_xlabel("Hora del día")
+        ax.set_ylabel("kW")
+        ax.set_xticks(np.arange(0, 24, 3))
+        ax.legend(fontsize=8, loc="upper left")
+
+    fig.tight_layout()
+    fig_path = os.path.join(out_dir, "fig23_perfiles_diarios.png")
+    saved = _save(fig, fig_path)
+    safe_export(
+        "fig23",
+        {"hora": hours,
+         **{f"D_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}_kW":
+            D_avg[n] for n in range(N)},
+         **{f"G_{agent_names[n] if n < len(agent_names) else f'A{n+1}'}_kW":
+            G_avg[n] for n in range(N)},
+         "D_comunidad_kW": D_total,
+         "G_comunidad_kW": G_total},
+        fig_path,
+        metadata={"activity_ref": "Act 3.1",
+                  "units": "h, kW",
+                  "description": f"Perfil diario promedio sobre {n_days} días"},
     )
     return saved

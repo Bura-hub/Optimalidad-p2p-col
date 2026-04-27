@@ -275,11 +275,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     print_p2p_sample(flows_rows, summary_rows, n_hours=2)
 
     from visualization.plots import (generate_all_plots, plot_monthly_comparison,
-                                     plot_flow_breakdown, plot_c1_vs_c4)
+                                     plot_flow_breakdown, plot_c1_vs_c4,
+                                     plot_fig23_perfiles_diarios)
     plots_dir = os.path.join(base_dir, "graficas")
     generate_all_plots(D=D, G=G, G_klim=G_klim, p2p_results=p2p_results,
                        cr=cr, agent_names=agent_names,
                        out_dir=plots_dir, currency=currency)
+
+    # Fig 23 — perfiles diarios promedio (solo tiene sentido con horizonte ≥1 día)
+    if use_real_data and D.shape[1] >= 24:
+        p = plot_fig23_perfiles_diarios(D, G, agent_names, out_dir=plots_dir)
+        if p:
+            print(f"    ✓ Fig 23 — Perfiles diarios promedio")
 
     p = plot_flow_breakdown(cr, out_dir=plots_dir, currency=currency)
     if p:

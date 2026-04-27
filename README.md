@@ -203,8 +203,7 @@ Validado: 16 archivos `.mat` y 44 archivos `.csv` se cargan sin error con `scipy
 | `fig8_sensibilidad_pv.png` | SA-2: P2P vs cobertura PV |
 | `fig9_factibilidad.png` | FA-1 + FA-2 CREG 101 072 |
 | `fig10_sensibilidad_ppa.png` | SA-PPA: sensibilidad precio bilateral |
-| `fig11_convergencia_h*.png` | Convergencia RD+Stackelberg (horas diagnóstico: h0013, h0683) |
-| `fig11_sensibilidad_pgs.png` | SA-3: sensibilidad al precio regulado PGS |
+| `fig11_sensibilidad_pgs.png` | SA-3: sensibilidad al precio regulado PGS al usuario |
 | `fig12_comparacion_mensual.png` | Comparación mensual (solo --full) |
 | `fig13_desglose_flujos.png` | Desglose flujos por componente (Act. 3.2) |
 | `fig14_optimalidad_horaria.png` | Dominancia P2P vs C4 por hora (Act. 4.2) |
@@ -215,6 +214,8 @@ Validado: 16 archivos `.mat` y 44 archivos `.csv` se cargan sin error con `scipy
 | **`fig19_desercion_individual.png`** | Curvas Δ_n(π_gb) por institución — racionalidad individual frente al mejor sustituto regulatorio |
 | **`fig20_price_of_fairness.png`** | Price of Fairness formal (Bertsimas 2011): W_eff vs W_fair, ranking por agente y Gini |
 | **`fig21_robustez_c4_agente.png`** | FA-3/FA-4 desagregado: regla 10% y límite 100 kW por institución |
+| **`fig22_convergencia_h*.png`** | Convergencia RD+Stackelberg en horas diagnóstico: h0013 (caso marginal) y h0683 (alta energía con W_T negativo). Renombradas el 2026-04-27 desde fig11_convergencia (Act 1.1) |
+| **`fig23_perfiles_diarios.png`** | Perfil diario promedio (5 instituciones + comunidad agregada). Complementa fig1 (serie horaria completa) con vista del patrón típico solar (Act 3.1) |
 
 ---
 

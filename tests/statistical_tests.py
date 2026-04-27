@@ -45,7 +45,7 @@ import pandas as pd
 
 ROOT        = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUTS_DIR = os.path.join(ROOT, "outputs")          # logs y checkpoints GSA
-RESULTS_XL  = os.path.join(ROOT, "resultados_comparacion.xlsx")  # salida base del EMS
+RESULTS_XL  = os.path.join(OUTPUTS_DIR, "resultados_comparacion.xlsx")  # salida base del EMS
 
 
 # ── Bootstrap por bloques ──────────────────────────────────────────────────────
@@ -252,7 +252,7 @@ def save_bootstrap_results(result: dict, seed: int = 42, out_dir: str = None):
         json.dump(result, f, indent=2, ensure_ascii=False)
 
     # Excel
-    xl_path = os.path.join(ROOT, "resultados_tests.xlsx")
+    xl_path = os.path.join(OUTPUTS_DIR, "resultados_tests.xlsx")
     df = pd.DataFrame([result])
     with pd.ExcelWriter(xl_path, engine="openpyxl") as w:
         df.to_excel(w, sheet_name="Bootstrap_P2P_vs_C4", index=False)

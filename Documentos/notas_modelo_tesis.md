@@ -1767,3 +1767,73 @@ Bloque diagnóstico Udenar: número de horas D_net<0, horas clipeadas a 0 tras l
 
 *Última actualización manual: 2026-04-25 — sección §3.1 agregada; UCC revisado a Med 1 (totalizador completo); auditoría exhaustiva 27 fuentes; **migración a `MedicionesMTE_v3`** (16 meses de datos) con horizonte sólido Abr 4 → Dic 16 (6144 h, 256 días, +52 % vs Jul-Dic); Mariana y UCC migrados a `net_partial`; Udenar EMS migrado a Fronius 1; loader soporta CSVs particionados (3 archivos por medidor)*
 *Este archivo es permanente — editarlo directamente, no auto-generado*
+
+---
+
+## §A.8 — Auditoría visual de figuras (2026-04-27)
+
+Tras el ciclo end-to-end del 2026-04-27 se realizó una auditoría visual de las
+24 figuras PNG generadas usando 6 sub-agentes Claude (Explore) en paralelo.
+Cada agente revisó 4 figuras contra tres criterios: legibilidad visual, valor
+narrativo y trazabilidad con la propuesta de tesis. La consolidación de
+hallazgos se discutió con el usuario en 11 rondas y produjo el plan de
+auditoría implementado a continuación.
+
+### Resultados consolidados (23 figuras finales)
+
+| Acción | Figuras |
+|---|---|
+| **KEEP sin cambios** (11) | fig1, fig4, fig5, fig7, fig9, fig12, fig13, fig15, fig17, fig20, fig21 |
+| **Regenerada** (1) | **fig3** — heatmap día×hora (256×24) + boxplot precios + indicador horas activas. Reemplaza el scatter ilegible de 1 031 puntos etiquetados. |
+| **Renombradas** (2) | **fig11_convergencia_h\*** → **fig22_convergencia_h\*** (h0013, h0683). Libera el prefijo `fig11` para `fig11_sensibilidad_pgs` (SA-3). |
+| **Nueva** (1) | **fig23_perfiles_diarios** — porta `fig_perfiles_DG_actualizados.png` (huérfano sin código) al pipeline `plots.py` con sibling .csv/.mat. |
+| **Eliminada** (1) | `fig_perfiles_DG_actualizados.png` — reemplazada por fig23 con trazabilidad correcta. |
+| **IMPROVE** (6) | fig6 (panel doble: absoluto + ventaja P2P−C4 por agente), fig10 (corrección título "SA-3"→"SA-PPA"), fig14 (definición operacional de dominancia ±966 COP/h), fig16 (etiquetas X horizontales, abreviadas Lab-/Fin-), fig18 (etiqueta "perfil sintético 24 h" + anotación gráfica de RPE máximo), fig19 (panel doble absoluto + normalizado %B_alt — resuelve aplastamiento por curva Udenar). |
+| **Fix global** | `plt.rcParams`: titlesize 11→13, labelsize 10→12, ticks heredados→11. Mejora legibilidad en las 23 figuras simultáneamente. |
+
+### Lección sobre confiabilidad de los sub-agentes
+
+Tres alucinaciones numéricas detectadas durante la auditoría que **no** son
+problemas reales de las figuras:
+
+1. **Agente sobre fig15**: citó "Udenar C1 = 85.5 MCOP vs C4 = 62.5 MCOP" cuando
+   los valores reales del CSV son **8.59 MCOP y 6.19 MCOP** (factor 10× off, decimal corrido).
+2. **Agente sobre fig17**: reportó "3/5 agentes AGRC compliant" cuando el CSV muestra
+   **5/5 compliant** (`AGRC_compliant=True` en todas las filas).
+3. **Agente sobre fig19**: citó "+3 473 COP de Udenar" como evidencia de incongruencia
+   con el CSV. El número **no existe en el reporte actual**; fue alucinado.
+
+**Conclusión metodológica:** los sub-agentes Claude inspeccionando imágenes
+son confiables para **detectar problemas visuales** (legibilidad, paneles
+densos, conflictos de naming, redundancias) pero **NO** para verificar
+precisión numérica. De 6 agentes, 3 introdujeron al menos un dato incorrecto
+(50 % tasa de error en cifras específicas). Toda decisión que dependa de un
+valor numérico citado por un agente debe **cruzarse manualmente con el CSV/.mat**
+antes de actuar.
+
+### Tiempos reales del ciclo (2026-04-27, post-auditoría)
+
+| Etapa | Tiempo |
+|---|---|
+| Backup defensivo | 1 min |
+| Edición de código (rcParams + 7 funciones) | ~2 h |
+| Run `--data real --full --analysis` | 48.7 min |
+| Validación pytest 33/33 | 1 min 52 s |
+| Smoke loadmat/read_csv (17 .mat + 52 .csv) | 1 s |
+
+### Inventario final de figuras (`graficas/`)
+
+24 PNGs activos con sus siblings:
+- fig1–fig10 (10 figs principales)
+- fig11_sensibilidad_pgs (SA-3 retoma el slot fig11)
+- fig12–fig17 (6 figs principales)
+- fig18 (sweep 2D PGB×PV) — depende de `outputs/sensitivity_2d_pgb_pv.parquet`
+- fig19 (deserción individual, panel doble)
+- fig20 (Price of Fairness Bertsimas 2011)
+- fig21 (robustez C4 por agente)
+- **fig22_convergencia_h0013, fig22_convergencia_h0683** (renombradas)
+- **fig23_perfiles_diarios** (nueva, Act 3.1)
+
+Plus 17 archivos .mat (uno por figura con datos persistidos) y 52 archivos
+.csv (siblings por serie cuando los shapes son heterogéneos).
+

@@ -1023,7 +1023,8 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         f"*Generado automáticamente por main_simulation.py · {now}*",
     ]
 
-    path = os.path.join(base_dir, "REPORTE_AVANCES.md")
+    os.makedirs(os.path.join(base_dir, "outputs"), exist_ok=True)
+    path = os.path.join(base_dir, "outputs", "REPORTE_AVANCES.md")
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
     print(f"    Reporte asesores → {path}")

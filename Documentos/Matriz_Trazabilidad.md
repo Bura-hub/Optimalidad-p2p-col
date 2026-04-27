@@ -35,7 +35,7 @@ La tabla vincula cada actividad de la propuesta de tesis (`Documentos/PropuestaT
 | **3** — Comparación cuantitativa de desempeño | **3.1** — Gestión y procesamiento de datos empíricos | `data/xm_data_loader.py`; `data/xm_prices.py`; `diagnostico_datos.py` | `graficas/fig1_perfiles.png` | completado | MTE: 5 instituciones (Udenar, Mariana, UCC, HUDN, Cesmag), 5 160 h (jul. 2025–ene. 2026), resolución 1 h, tz `America/Bogota`. Protocolo de limpieza y remuestreo documentado en `data/xm_data_loader.py` |
 | **3** | **3.2** — Ejecución de simulaciones comparativas | `main_simulation.py`; `analysis/subperiod.py`; `analysis/p2p_breakdown.py`; `analysis/monthly_report.py` | `graficas/fig3_mercado_p2p.png`; `graficas/fig4_metricas_horarias.png`; `graficas/fig13_desglose_flujos.png`; `graficas/fig16_subperiod.png`; `graficas/fig12_comparacion_mensual.png` | completado | Horizonte completo **6 144 h** ejecutado con MedicionesMTE_v3 (Abr–Dic 2025, 256 días), commit `cdb11e9`, ~56 min. 1 031/6 144 h con mercado P2P activo (16,8 %); 3 657,7 kWh transados. Sub-períodos SP1–SP4 computados. Reporte mensual en `graficas/fig12_comparacion_mensual.png` |
 | **3** | **3.3** — Descomposición del bienestar y comparación monetaria | `scenarios/comparison_engine.py`; `analysis/optimality.py`; `core/settlement.py`; `analysis/fairness.py` | `graficas/fig14_optimalidad_horaria.png`; `graficas/fig15_c1_vs_c4.png` | completado | Descomposición monetaria vs. intangibles implementada. RPE = 0,0321 (horizonte 6 144 h). **PoF formal (Bertsimas 2011)** implementado y calculado automáticamente en cada ejecución: `analysis/fairness.py`. GDR y spread de ineficiencia estática C4 documentados en `REPORTE_AVANCES.md` |
-| **4** — Sensibilidad y análisis de optimalidad | **4.1** — Análisis de sensibilidad mediante simulaciones | `analysis/global_sensitivity.py`; `analysis/sensitivity.py` | `graficas/fig7_sensibilidad_pgb.png`; `graficas/fig8_sensibilidad_pv.png`; `graficas/fig10_sensibilidad_ppa.png`; `graficas/fig11_sensibilidad_pgs.png` | completado | SALib 1.5.2. GSA Sobol-Saltelli (7 parámetros, 3 outputs, n_base = 64, 1 024 evaluaciones) ejecutado el 2026-04-17; resultados en `resultados_gsa.xlsx`. Factores más influyentes: `factor_PV` (SC y ganancia), `PGB` (IE). IC amplios por n_base = 64; los índices S1 negativos son artefacto de varianza; ST cualitativamente interpretables. Barridos paramétricos SA-1 (PGB), SA-2 (PV), SA-3 (PGS) y SA-PPA completados en `analysis/sensitivity.py`. Para IC más estrechos (publicación) se requiere n_base ≥ 256 (~3–4 h) |
+| **4** — Sensibilidad y análisis de optimalidad | **4.1** — Análisis de sensibilidad mediante simulaciones | `analysis/global_sensitivity.py`; `analysis/sensitivity.py`; `analysis/subperiod.py` | `graficas/fig7_sensibilidad_pgb.png`; `graficas/fig8_sensibilidad_pv.png`; `graficas/fig10_sensibilidad_ppa.png`; `graficas/fig11_sensibilidad_pgs.png`; `graficas/fig16_subperiod.png` | completado | Cobertura ortogonal de §VI.D (índices de sensibilidad global + datos históricos): (i) **GSA Sobol-Saltelli** sobre el modelo de referencia (Chacón et al., perfiles sintéticos 24 h escalados por `factor_PV`/`factor_D`): 7 parámetros, 3 outputs, n_base = 64, 1 024 evaluaciones, ejecutado 2026-04-17; resultados en `resultados_gsa.xlsx`. Factores más influyentes: `factor_PV` (SC y ganancia), `PGB` (IE). IC amplios por n_base = 64. (ii) **Barridos uni-paramétricos sobre MTE_v3** (`analysis/sensitivity.py`): SA-1 (PGB), SA-2 (PV), SA-3 (PGS), SA-PPA — capturan sensibilidad bajo condiciones empíricas reales sobre el horizonte completo (6 144 h). (iii) **Subperíodos** (`analysis/subperiod.py`): SP1–SP4 (laborable/finsemana × Jul/Ene). Justificación de la separación metodológica (GSA paramétrico sobre modelo base vs. SA sobre datos históricos) en `Documentos/notas_modelo_tesis.md` §A.7. Para IC publicables del Sobol: ejecutar con n_base ≥ 256 (infraestructura `_fast_mode` lista, commit `19e57cb`). |
 | **4** | **4.2** — Análisis cualitativo de optimalidad del equilibrio | `analysis/feasibility.py`; `analysis/optimality.py`; `tests/test_stackelberg_convergence.py`; `tests/statistical_tests.py` | `graficas/fig9_factibilidad.png`; `graficas/fig14_optimalidad_horaria.png`; `graficas/fig17_robustez_c4.png` | completado | Criterio de parada Stackelberg adaptativo (tol = 1e-3, min_iter = 2, max_iter = 10) implementado y validado. Bootstrap por bloques Kunsch (1989) + Wilcoxon pareado en `tests/statistical_tests.py`. Datos reales para bootstrap pendientes del run `--full` |
 
 ---
@@ -52,9 +52,17 @@ La tabla vincula cada actividad de la propuesta de tesis (`Documentos/PropuestaT
 
 **Pendientes de datos y escritura (no bloquean cumplimiento de actividades):**
 
-- **GSA sobre MTE_v3:** El GSA Sobol (n_base=64) fue ejecutado el 2026-04-17 sobre datos
-  anteriores. Pendiente re-ejecución sobre MedicionesMTE_v3 (6 144 h):
-  `python main_simulation.py --data real --gsa --n-base 64` (~10-20 min).
+- **GSA sobre MTE_v3 (diferido — decisión metodológica del 2026-04-26):**
+  El GSA Sobol-Saltelli opera por diseño sobre el modelo de referencia (Chacón
+  et al., 24 h sintético escalado por `factor_PV` y `factor_D`), no sobre series
+  horarias MTE. La cobertura de "datos históricos" exigida por la propuesta
+  §VI.D se cumple por los barridos uni-paramétricos sobre MTE_v3
+  (`analysis/sensitivity.py`) y el análisis de subperíodos
+  (`analysis/subperiod.py`). Justificación completa en
+  `Documentos/notas_modelo_tesis.md` §A.7. Una eventual re-ejecución del Sobol
+  con `n_base ≥ 256` para IC publicables queda como mejora opcional sujeta a
+  petición del comité; la infraestructura `_fast_mode` (commit `19e57cb`) está
+  lista para reducir el costo computacional ~10×.
 - **LCOE real:** Verificar datasheets de inversores instalados en las 5 instituciones MTE.
 - **Referencias:** Confirmar autores de [22][24][26][27] en `Documentos/references.bib`.
 

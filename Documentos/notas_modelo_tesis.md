@@ -876,6 +876,44 @@ Ejecutado con `python main_simulation.py --gsa --n-base 64`.
 7 parámetros: PGB, PGS, factor_PV, factor_D, alpha_mean, b_mean, pi_ppa.
 3 outputs: ganancia neta, SC (auto-consumo), IE (inequidad).
 
+**Alcance metodológico — sobre qué corre el GSA (auditoría 2026-04-26).**
+El GSA Sobol-Saltelli opera sobre el **modelo de referencia** (Chacón
+et al., 2025) con perfiles sintéticos de 24 h y 6 agentes. Los
+parámetros `factor_PV` y `factor_D` escalan multiplicativamente esos
+perfiles base; `factor_PV = 1.0` corresponde al perfil sintético sin
+escalar, no al perfil promedio MTE. El flag `--data real` se ignora
+en modo `--gsa`: `analysis/global_sensitivity.py:_eval_sample` usa
+`get_generation_profiles()` y `get_demand_profiles()` de
+`data/base_case_data.py` (perfiles del modelo Sofía), no
+`MTEDataLoader`.
+
+**Cobertura de la propuesta (§VI.D, §VII.D).** La Actividad 4.1 pide
+(a) índices de sensibilidad global y (b) evaluación bajo condiciones
+históricas reales en distintas semanas o días. Esta tesis cubre ambas
+componentes con métodos ortogonales:
+
+- **Sobol-Saltelli sobre el modelo de referencia** (esta sección):
+  proporciona los índices de sensibilidad global y captura
+  *interacciones* entre parámetros — información que los barridos
+  uni-paramétricos no entregan.
+- **Barridos uni-paramétricos sobre MTE_v3** (`analysis/sensitivity.py`,
+  SA-1 PGB, SA-2 factor_PV, SA-3 PGS, SA-PPA): operan sobre el
+  horizonte completo de 6 144 h; cuantifican la sensibilidad relativa
+  bajo condiciones empíricas reales.
+- **Análisis de subperíodos** (`analysis/subperiod.py`, SP1–SP4):
+  desagrega laborable/finsemana × Jul/Ene; complementa la cobertura
+  de "distintas semanas o días" exigida por la propuesta.
+
+La combinación de los tres mecanismos satisface la Actividad 4.1; el
+GSA Sobol no se ejecuta sobre MTE por dos razones declaradas:
+(i) el costo computacional de Saltelli sobre 6 144 h × 1 024
+evaluaciones es prohibitivo y (ii) los barridos uni-paramétricos sobre
+MTE ya cubren la dimensión de "datos históricos". La cancelación del
+intento de re-ejecutar el GSA sobre MTE_v3 (run del 2026-04-26 abortado
+tras 5 min) está documentada en
+`docs/superpowers/specs/2026-04-26-gsa-mte-v3-design.md` y su plan
+asociado.
+
 **Índices ST cualitativos (totales; más robustos que S1 con n_base pequeño):**
 
 | Parámetro | ST ganancia | ST SC | ST IE | Interpretación |
@@ -892,6 +930,18 @@ Ejecutado con `python main_simulation.py --gsa --n-base 64`.
 El orden cualitativo es estable: `factor_PV` y `factor_D` gobiernan
 el bienestar global; `PGB` es el parámetro más crítico para la equidad.
 Para IC publicables (S1_conf < S1): ejecutar con n_base ≥ 256.
+
+**Infraestructura `_fast_mode` (commit `19e57cb` y siguientes).**
+`core/replicator_sellers.py` expone un flag `_fast_mode` que reduce
+`VEL_GRAD` de 1e6 a 1e3 y relaja las tolerancias del solver ODE
+(`rtol=0.5`, `atol=0.1`, `max_step=2e-4`). Está activado por defecto
+en cada worker del GSA (`analysis/global_sensitivity.py:_eval_sample`)
+y produce el mismo equilibrio que el modo preciso dentro de tolerancias
+documentadas en `tests/test_fast_mode_equivalence.py` (||P||_∞ ≤
+0,15 kWh; activación tolera excedentes < 0,5 kW). Esta infraestructura
+queda disponible para una eventual ejecución con `n_base ≥ 256` si los
+asesores la solicitan; reduce el costo de Saltelli en aprox. un orden
+de magnitud sobre el solver preciso.
 
 ### Resultados Bootstrap P2P vs C4 (n=500, 2026-04-17)
 

@@ -289,7 +289,7 @@ def plot_subperiod(
         ax.text(rect.get_x() + rect.get_width()/2, h + 0.1, f"{h}h",
                 ha="center", va="bottom", fontsize=9, fontweight="bold")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=8.5, rotation=12, ha="right")
+    ax.set_xticklabels([l.replace("Laborable", "Lab").replace("Finde", "Fin") for l in labels], fontsize=10, rotation=0, ha="center")
     ax.set_ylabel("Horas / 24h", fontsize=9)
     ax.set_title("B. Horas con mercado P2P activo", fontsize=10)
     ax.set_ylim(0, 24)
@@ -312,7 +312,7 @@ def plot_subperiod(
         ax.text(rect.get_x() + rect.get_width()/2, v + 0.5,
                 f"{v:.0f}", ha="center", va="bottom", fontsize=7.5)
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=8.5, rotation=12, ha="right")
+    ax.set_xticklabels([l.replace("Laborable", "Lab").replace("Finde", "Fin") for l in labels], fontsize=10, rotation=0, ha="center")
     ax.set_ylabel(f"Ganancia neta (k {currency}/período)", fontsize=9)
     ax.set_title("C. Ganancia neta: P2P vs C4-Colectivo", fontsize=10)
     ax.legend(fontsize=8)
@@ -329,7 +329,7 @@ def plot_subperiod(
     ax.bar(x + w2, spread,  w2, label="|C1−C3|",        color="#FF9800", alpha=0.9,
            edgecolor="white")
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=8.5, rotation=12, ha="right")
+    ax.set_xticklabels([l.replace("Laborable", "Lab").replace("Finde", "Fin") for l in labels], fontsize=10, rotation=0, ha="center")
     ax.set_ylabel(f"Ganancia neta (k {currency}/período)", fontsize=9)
     ax.set_title("D. Divergencia C1 vs C3: balance mensual vs spot", fontsize=10)
     ax.legend(fontsize=8)

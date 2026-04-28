@@ -25,7 +25,11 @@ Uso desde main_simulation.py:
 """
 
 import os
+from typing import Union
+
 import numpy as np
+
+from scenarios._pi_gs import as_pi_gs_vector
 
 try:
     import pandas as pd
@@ -37,7 +41,7 @@ except ImportError:
 def export_p2p_hourly(
     p2p_results: list,
     agent_names: list,
-    pi_gs: float,
+    pi_gs: Union[float, np.ndarray],
     pi_gb: float,
     out_dir: str = ".",
     prefix: str = "p2p_breakdown",
@@ -50,7 +54,7 @@ def export_p2p_hourly(
     ----------
     p2p_results : list[HourlyResult]  — salida de EMSP2P.run()
     agent_names : list[str]           — nombres de los N agentes
-    pi_gs       : float               — precio retail (COP/kWh)
+    pi_gs       : float | ndarray (N,) — retail per-agente (CAL-8) o escalar
     pi_gb       : float               — precio bolsa base (COP/kWh)
     out_dir     : str                 — directorio de salida
     prefix      : str                 — prefijo para los archivos CSV
@@ -62,6 +66,7 @@ def export_p2p_hourly(
     """
     flows_rows   = []
     summary_rows = []
+    pi_gs_v = as_pi_gs_vector(pi_gs, len(agent_names))
 
     for r in p2p_results:
         hora = r.k
@@ -132,7 +137,7 @@ def export_p2p_hourly(
                 precio_i    = float(pi_star[i_idx])
                 valor_cop   = kwh_ij * precio_i
                 prima_j     = kwh_ij * max(0.0, precio_i - pi_gb)
-                ahorro_i    = kwh_ij * max(0.0, pi_gs    - precio_i)
+                ahorro_i    = kwh_ij * max(0.0, pi_gs_v[i] - precio_i)
                 flows_rows.append({
                     "hora":               hora,
                     "vendedor":           nombre_vendedor,

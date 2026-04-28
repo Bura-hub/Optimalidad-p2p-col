@@ -41,6 +41,10 @@ from data.base_case_data import (
     GRID_PARAMS, GRID_PARAMS_REAL, PGS, PGB, PGS_COP, PGB_COP,
 )
 from data.xm_prices import get_pi_bolsa, get_b_for_real_data
+from data.cedenar_tariff import (
+    community_effective_pi_gs, effective_pi_gs_per_agent,
+    tariff_coverage, INSTITUTION_PROFILE,
+)
 
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
@@ -73,8 +77,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         N   = D_full.shape[0]
 
         agent_names = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"][:N]
-        grid_params = GRID_PARAMS_REAL
         currency    = "COP"
+
+        # ── pi_gs Cedenar mensual (CAL-8): reemplaza el escalar 650 ──────
+        # Promedio comunitario ponderado por demanda promedio de cada agente
+        # sobre el horizonte real de los datos MTE. Ver data/cedenar_tariff.py
+        # y Documentos/notas_modelo_tesis.md §CAL-8.
+        t_start_cal = index_full[0]
+        t_end_cal   = index_full[-1] + pd.Timedelta(hours=1)
+        demand_weights = D_full.mean(axis=1)
+        pi_gs_eff = community_effective_pi_gs(
+            agent_names, t_start_cal, t_end_cal, weights=demand_weights,
+        )
+        pi_gs_per_agent = effective_pi_gs_per_agent(
+            agent_names, t_start_cal, t_end_cal,
+        )
+        grid_params = {**GRID_PARAMS_REAL, "pi_gs": pi_gs_eff}
 
         # Parámetro b calibrado por institución (Actividad 1.2)
         b_cal = get_b_for_real_data(N, agent_names)
@@ -111,7 +129,23 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                                "data", "xm_precios_bolsa.csv")
         pi_bolsa = get_pi_bolsa(T, csv_path=xm_csv if os.path.exists(xm_csv) else None,
                                  scenario="2025_normal")
-        print(f"    PGS={PGS_COP} COP/kWh · PGB={pi_bolsa.mean():.0f} COP/kWh (promedio)")
+        cov = tariff_coverage(t_start_cal, t_end_cal)
+        print(f"    PGS Cedenar (comunitario, ponderado por demanda): "
+              f"{pi_gs_eff:.0f} COP/kWh  [legacy={PGS_COP:.0f}]")
+        if cov["meses_faltantes"]:
+            print(f"    AVISO: {len(cov['meses_faltantes'])} mes(es) sin "
+                  f"PDF Cedenar, fallback {650:.0f} COP/kWh aplicado en: "
+                  f"{', '.join(cov['meses_faltantes'])}")
+        print(f"    PGS por agente (CSV {t_start_cal.date()} → "
+              f"{t_end_cal.date()}, cobertura "
+              f"{len(cov['meses_cargados'])}/{len(cov['meses_horizonte'])} meses):")
+        for n, name in enumerate(agent_names):
+            prof = INSTITUTION_PROFILE.get(name)
+            cat  = prof.categoria if prof else "(sin perfil)"
+            nt   = f"NT{prof.nivel_tension}" if prof else "—"
+            print(f"      {name:<8} {cat:<10} {nt:<4} → "
+                  f"{pi_gs_per_agent[n]:>6.0f} COP/kWh")
+        print(f"    PGB={pi_bolsa.mean():.0f} COP/kWh (promedio bolsa)")
         print(f"    b calibrado: {b_cal.round(0)}")
 
         prosumer_ids = list(range(N))
@@ -129,6 +163,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         agent_names  = [f"A{i+1}" for i in range(N)]
         b_cal        = np.array(p["b"])
         pi_bolsa     = np.full(T, PGB)
+        pi_gs_per_agent = None    # sin Cedenar en modo sintético
+        pi_gs_eff       = None    # sin escalar comunitario en modo sintético
         prosumer_ids = [0, 1, 2, 3]
         consumer_ids = [4, 5]
         cap          = np.array([3., 4., 3., 2., 0., 0.])
@@ -172,13 +208,17 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     # ── 3. Escenarios C1–C4 ──────────────────────────────────────────────
     print("\n[3/5] Escenarios regulatorios C1–C4...")
+    # CAL-8 Fase 2: con datos reales pasamos pi_gs como vector per-agente
+    # (oficial vs comercial); con sintético se conserva el escalar histórico.
+    pi_gs_arg = pi_gs_per_agent if use_real_data else grid_params["pi_gs"]
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
-        pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
+        pi_gs=pi_gs_arg, pi_gb=grid_params["pi_gb"],
         pi_bolsa=pi_bolsa,
         prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-        pde=pde, pi_ppa=grid_params["pi_gb"] + 0.5*(grid_params["pi_gs"]-grid_params["pi_gb"]),
+        pde=pde,
+        pi_ppa=grid_params["pi_gb"] + 0.5*(grid_params["pi_gs"] - grid_params["pi_gb"]),
         capacity=cap,
         month_labels=month_labels,
     )
@@ -224,7 +264,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         monthly_data = compute_monthly_metrics(
             D=D, G_klim=G_klim, G_raw=G,
             p2p_results=p2p_results,
-            pi_gs=grid_params["pi_gs"],
+            pi_gs=pi_gs_arg,
             pi_gb=grid_params["pi_gb"],
             pi_bolsa=pi_bolsa,
             prosumer_ids=prosumer_ids,
@@ -246,7 +286,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         print("    Calculando series diarias para bootstrap estadístico...")
         daily_series = _compute_daily_series(
             D=D, G_klim=G_klim, p2p_results=p2p_results,
-            pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
+            pi_gs=pi_gs_arg, pi_gb=grid_params["pi_gb"],
             pi_bolsa=pi_bolsa, pde=pde, cap=cap,
             prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
         )
@@ -266,7 +306,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     flows_rows, summary_rows = export_p2p_hourly(
         p2p_results=p2p_results,
         agent_names=agent_names,
-        pi_gs=grid_params["pi_gs"],
+        pi_gs=pi_gs_arg,
         pi_gb=grid_params["pi_gb"],
         out_dir=outputs_dir,
         prefix="p2p_breakdown",
@@ -588,6 +628,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         sa_pgb=sa_pgb, sa_pv=sa_pv,
         fa_des=fa_des, fa_creg=fa_creg_rep, fa_ir=fa_ir,
         base_dir=base_dir,
+        pi_gs_per_agent=pi_gs_per_agent,
+        pi_gs_eff=pi_gs_eff if use_real_data else None,
     )
 
     t_total = time.time() - t_total_start
@@ -807,7 +849,8 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
 def _generate_progress_report(cr, p2p_results, G_klim, D, G,
                                agent_names, currency, use_real_data,
                                full_horizon, sa_pgb, sa_pv,
-                               fa_des, fa_creg, base_dir, fa_ir=None):
+                               fa_des, fa_creg, base_dir, fa_ir=None,
+                               pi_gs_per_agent=None, pi_gs_eff=None):
     """
     Genera un reporte Markdown con los resultados actuales para presentar
     a los asesores Andrés Pantoja y Germán Obando.
@@ -841,7 +884,32 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         f"| Horizonte | {T}h ({T//24} días) |",
         f"| Horas con mercado P2P | {len(active)}/{T} ({len(active)/T*100:.1f}%) |",
         f"| Energía P2P total | {kwh_p2p:.1f} kWh/período |",
-        f"| Precios | PGS={PGS_COP if use_real_data else PGS} · PGB={PGB_COP if use_real_data else PGB} {currency}/kWh |",
+    ]
+    if use_real_data and pi_gs_per_agent is not None:
+        # CAL-8: tarifa Cedenar mensual diferenciada por institución
+        per_agent_str = " · ".join(
+            f"{n}={int(round(v))}"
+            for n, v in zip(agent_names, pi_gs_per_agent)
+        )
+        eff_val = (f"{pi_gs_eff:.0f}" if pi_gs_eff is not None
+                   else f"{float(np.mean(pi_gs_per_agent)):.0f}")
+        lines.append(
+            f"| π_gs por agente (CAL-8 Cedenar) | {per_agent_str} {currency}/kWh |"
+        )
+        lines.append(
+            f"| π_gs comunitario ponderado | {eff_val} {currency}/kWh "
+            f"(legacy escalar PGS_COP={PGS_COP:.0f} deprecado) |"
+        )
+        lines.append(
+            f"| π_gb (precio bolsa promedio) | "
+            f"{(PGB_COP if use_real_data else PGB):.0f} {currency}/kWh |"
+        )
+    else:
+        lines.append(
+            f"| Precios | PGS={PGS_COP if use_real_data else PGS} · "
+            f"PGB={PGB_COP if use_real_data else PGB} {currency}/kWh |"
+        )
+    lines += [
         "",
         "## 2. Datos empíricos MTE",
         "",

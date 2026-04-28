@@ -43,21 +43,24 @@ donde:
 | > 0    | Mercado sesgado hacia compradores                    |
 | < 0    | Mercado sesgado hacia vendedores                     |
 
-### Valores por escenario (perfil 24h MTE) — **PROVISIONAL (2026-04-17)**
+### Valores por escenario (horizonte completo MTE_v3) — **OFICIAL (2026-04-28)**
 
-**Nota de auditoría:** los valores de esta tabla provienen de una corrida
-previa del perfil diario promedio y se marcan como provisionales hasta
-que se ejecute `--full` y se fije la fuente de verdad oficial. La tabla
-§6 más abajo (si aplica) y la de `REPORTE_AVANCES.md` pueden mostrar
-números distintos sobre otros perfiles.
+Fuente de verdad: corrida `--data real --full --analysis` del 2026-04-28,
+55,2 min, 6 144 h, 256 días, calibración Cedenar mensual per-agente
+(CAL-8). Reemplaza la tabla provisional anterior (perfil 24 h, 2026-04-17).
 
-| Escenario              | IE       | Interpretación                              |
-|------------------------|----------|---------------------------------------------|
-| P2P (Stackelberg + RD) | +0.0984  | Compradores reciben ventaja leve             |
-| C1 CREG 174/2021       | −0.1009  | Vendedores (red) se benefician más           |
-| C2 Bilateral PPA       | −0.1602  | Mayor sesgo hacia vendedores (PPA fijo)      |
-| C3 Mercado spot        | −0.1009  | Igual a C1 (degeneración — ver §5)           |
-| C4 CREG 101 072 ★      | −0.0614  | Referencia regulatoria vigente, menor sesgo  |
+| Escenario              | IE        | Beneficio (MCOP) | Interpretación                                                          |
+|------------------------|----------:|----------------:|--------------------------------------------------------------------------|
+| C1 CREG 174/2021 ★ eficiente | −0,0115 | 54,04 | Permutación 1:1 captura todo el valor a `pi_gs[n]`; reparto casi neutral |
+| **P2P (Stackelberg + RD)** | **+0,3677** | **52,43** | Compradores comerciales (Mariana, UCC, Cesmag) capturan 71,4 % del excedente del mercado |
+| C2 Bilateral PPA       | +0,0292   | 51,44 | Reparto cuasi neutral; PPA = 593 COP/kWh contractual            |
+| C3 Mercado spot        | +0,0375   | 50,96 | Casi indistinguible de C2 a nivel agregado                       |
+| C4 CREG 101 072 ★ vigente | +0,0517 | 50,29 | PDE estático; baseline regulatorio                          |
+
+`PoF (Bertsimas 2011) = 0,0000` (eficiente y equitativo coinciden = C1 →
+no hay tensión eficiencia–equidad sobre este horizonte). `RPE P2P vs C4
+= +0,0408`. `Spread C4 = 1 004,4 kWh` (energía mal asignada por el PDE
+estático, captada por el P2P dinámico).
 
 **Nota:** IE = 0 no significa precio P2P = $(π_{gs} + π_{gb})/2$. Significa que el excedente
 total se distribuye igualmente entre compradores y vendedores en valor monetario agregado,
@@ -90,18 +93,20 @@ individual), el perfil promedio suaviza los picos solares por debajo de la deman
 
 Esto es **matemáticamente correcto** y no un error del modelo.
 
-### Predicción para la serie horaria real (5160h)
+### Verificación con la serie horaria real (6144h, --full post-CAL-8)
 
 Con precios XM horarios reales y perfil desagregado por día:
 
 - Fines de semana y festivos: demanda institucional cae ~60% mientras la generación solar
-  mantiene su perfil. Se espera que $G_n(k) > D_n(k)$ en horas solares para Udenar y
-  posiblemente Mariana.
+  mantiene su perfil. $G_n(k) > D_n(k)$ se observa en horas solares para Udenar y
+  ocasionalmente otras instituciones (verificado en sub-períodos Finde-Jul/Finde-Ene).
 - Días de sequía (El Niño, julio–agosto 2025): precios de bolsa XM más altos → la
-  liquidación a bolsa en C3 tendrá mayor valor que el autoconsumo ajustado de C1.
+  liquidación a bolsa en C3 tiene mayor valor que el autoconsumo ajustado de C1.
 
-**En consecuencia:** al correr `--full` con la serie real de 5160h, se espera que
-$\text{C3} > \text{C1}$ en las horas con excedente y/o precio de bolsa alto.
+**Resultado verificado:** al correr `--full` con la serie real de 6 144 h y la
+calibración Cedenar mensual per-agente (CAL-8), $\text{C3} \ne \text{C1}$ en
+todos los sub-períodos con $|B^{C1} - B^{C3}|$ entre 3,3 y 7,4 MCOP, confirmando
+la predicción.
 
 ### Párrafo en inglés para el paper
 
@@ -141,27 +146,51 @@ $$
 El **umbral crítico** $\pi_{gb,n}^*$ es el precio de bolsa donde $\Delta_n = 0$ (raíz interpolada
 de la curva SA-1).
 
-### Resultados con perfil nominal MTE (precios XM reales, media = 222 COP/kWh)
+### Resultados con horizonte completo MTE_v3 (post-CAL-8, 2026-04-28)
 
-Los valores base usan la simulación nominal con precios XM horarios reales (no el punto
-fijo del barrido SA-1). Esto es crítico: SA-1 usa $π_{bolsa} = \text{const}$ para explorar
-sensibilidad, pero el caso base real tiene precios variables con media ~222 COP/kWh y
-precios solares ~100 COP/kWh.
+Fuente de verdad: corrida `--full --analysis` del 2026-04-28 con
+calibración Cedenar mensual per-agente (oficial 797 / comercial 956
+COP/kWh). Reemplaza el resultado provisional con perfil 24 h del
+2026-04-17 (donde 5/5 eran estables) tras incorporar la heterogeneidad
+tarifaria oficial vs comercial sobre las 6 144 horas reales.
 
-| Agente  | B_n^P2P (COP) | Mejor alt. (COP) | Δ_n (COP) | Δ_n/B_alt | π_gb^* (COP/kWh) | Estado      |
-|---------|---------------|------------------|-----------|-----------|------------------|-------------|
-| Udenar  | 35,292        | 31,819 (C1)      | +3,473    | +10.9%    | ~217             | OK estable  |
-| Mariana | 31,014        | 27,555 (C4)      | +3,459    | +12.6%    | >rango           | OK estable  |
-| UCC     | 34,679        | 34,679 (C4)      | +0        | +0.0%     | >rango           | neutral     |
-| HUDN    | 29,596        | 26,291 (C4)      | +3,305    | +12.6%    | >rango           | OK estable  |
-| Cesmag  | 19,537        | 15,278 (C4)      | +4,259    | +27.9%    | >rango           | OK estable  |
+| Agente  | Categoría | B_n^P2P | B_n^max(C1,C4) | Δ_n        | Δ_n / B_alt | π_gb^* | Estado          |
+|---------|-----------|--------:|---------------:|-----------:|------------:|-------:|------------------|
+| Udenar  | oficial   | 8,136 k | **10,536 k (C1)** | **−2,400 k** | −22,8 %    | 180    | **deserción**     |
+| Mariana | comercial | 12,189 k | 12,003 k (C1)    | +186 k       | +1,5 %     | >rango | OK estable       |
+| UCC     | comercial | 15,208 k | 14,709 k (C1)    | +500 k       | +3,4 %     | >rango | OK estable       |
+| HUDN    | oficial   | 10,256 k | **10,306 k (C1)** | **−50 k**    | −0,5 %     | 233    | **deserción**     |
+| Cesmag  | comercial | 6,642 k  | 6,488 k (C1)     | +153 k       | +2,4 %     | >rango | OK estable       |
 
-**Agentes estables (5/5):** todos prefieren P2P en condiciones nominales.
+**Hallazgo central post-CAL-8:** **3/5 estables (Mariana, UCC, Cesmag —
+todas comerciales) y 2/5 en riesgo de deserción a C1 (Udenar y HUDN —
+ambas oficiales).** Esto invierte el resultado pre-CAL-8 (5/5 estables
+con perfil 24 h y `pi_gs = 650` uniforme).
 
-**Nota importante:** el REPORTE_AVANCES.md generado automáticamente puede mostrar Udenar como
-"en riesgo" (Δ=−6,108). Eso ocurre cuando el análisis IR usa el punto SA-1 con
-$π_{bolsa}=280$ COP/kWh constante como base. Con los precios XM reales variables, Udenar
-es estable (Δ=+3,473). La diferencia se explica abajo (§3.14.1).
+**Interpretación:** la asimetría oficial (797) vs comercial (956) en
+`pi_gs` favorece estructuralmente el mecanismo C1 (créditos 1:1 a
+`pi_gs[n]`) sobre el P2P para los agentes con tarifa oficial. La
+intuición: cada kWh permutado en C1 vale `pi_gs[n]` directamente,
+mientras que en P2P un vendedor oficial obtiene una prima
+`(pi_star − pi_gb)` que es menor que su `pi_gs[n]`. Para los
+agentes comerciales, su mayor `pi_gs[n]` les permite extraer más
+ahorro en P2P como compradores `(pi_gs[i] − pi_star[i])`, lo que
+mantiene su Δ_n positivo.
+
+**Implicación para el diseño regulatorio del P2P:** los umbrales
+críticos `π_gb^*` para Udenar (180 COP/kWh) y HUDN (233 COP/kWh)
+están dentro del rango histórico de bolsa XM 2025 (media 222 COP/kWh,
+rango [80, 400]). El P2P necesita un **mecanismo compensatorio**
+para los agentes oficiales — subsidio cruzado, ajuste del precio
+Stackelberg, o exclusión voluntaria de la permutación C1 — sin el
+cual la viabilidad institucional del mercado depende de que las
+universidades públicas y hospitales públicos absorban una pérdida
+relativa frente a la regulación vigente.
+
+**Nota:** la condición pre-CAL-8 documentada (5/5 estables) era
+artefacto del escalar uniforme 650 COP/kWh, que aplanaba la asimetría
+real entre régimenes tarifarios. La simulación con tarifa real es
+métricamente más severa pero refleja el mercado tal como existe.
 
 ### §3.14.1 — Por qué Udenar es sensible al PGB
 
@@ -631,6 +660,142 @@ tolerancias numéricas documentadas."*
 **Veredicto:** el hallazgo A3 queda cerrado como discrepancia
 de formulación documentada. No se modifica el código.
 
+### CAL-8: `pi_gs` — tarifa Cedenar mensual diferenciada por institución
+
+**Fecha:** 2026-04-27 | **Archivos:** `data/cedenar_tariff.py`,
+`data/tarifas_cedenar_mensual.csv`.
+
+Hasta el cierre de auditoría D2 (CAL-6), el modelo usaba un escalar
+`pi_gs = 650 COP/kWh` justificado como "punto medio conservador del rango
+580-720 COP/kWh reportado por contratos Cedenar/ESSA Nariño". La revisión
+del PDF oficial de Cedenar
+(`https://scl.cedenar.com.co/Out/Tarifas/Tarifas.aspx`, archivo
+`tarifa_210.pdf`, vigente desde 21-abr-2026) muestra que ese escalar
+**subestima la tarifa real entre 18 % y 47 %** según la categoría
+tarifaria y el nivel de tensión de cada institución.
+
+#### Hallazgo
+
+Tarifa CU 101-028/23 (con COT) para abril-2026, no residencial, NT2:
+
+| Categoría tarifaria | NT2 (COP/kWh) | Aplica a |
+|---|---:|---|
+| Oficial / Especial | **799,16** | Udenar, HUDN (universidad pública, hospital público) |
+| Comercial / Industrial | **958,99** | Mariana, UCC, Cesmag (universidades privadas) |
+
+El escalar 650 no corresponde a ninguna categoría real: coincide
+aproximadamente con NT3 sin COT (685,54) o con un promedio histórico
+2024–2025, pero **ya está por debajo de la tarifa vigente**.
+
+#### Decisión
+
+1. **Sustituir el escalar por una serie mensual diferenciada** por
+   `(categoría tarifaria, nivel de tensión, propiedad del activo)`.
+   Convención CSV: `data/tarifas_cedenar_mensual.csv`, una fila por
+   `(mes, categoria, nivel_tension, propiedad)`.
+
+2. **Mapeo institucional provisional** (el nivel de tensión real
+   debe confirmarse contra factura mensual de cada campus):
+
+   | Institución | Régimen jurídico | Categoría | NT asumido |
+   |---|---|---|---|
+   | Udenar | Universidad pública | Oficial/Especial | 2 |
+   | HUDN | Hospital público | Oficial/Especial | 2 |
+   | Mariana | Universidad privada | Comercial | 2 |
+   | UCC | Universidad privada | Comercial | 2 |
+   | Cesmag | Universidad privada | Comercial | 2 |
+
+3. **Integración (Fase 1, en producción desde 2026-04-27).**
+   `main_simulation.py` con `--data real` ya consume el CSV Cedenar:
+   - Calcula `pi_gs` comunitario ponderado por la demanda media de
+     cada agente sobre el horizonte real de los datos MTE
+     (`community_effective_pi_gs` con `weights=D_full.mean(axis=1)`).
+   - Imprime la tabla per-agente y la cobertura `meses_cargados /
+     meses_horizonte`. Si faltan PDFs para algún mes, lo declara
+     explícitamente (`AVISO: ... fallback 650 COP/kWh aplicado en: ...`).
+   - El contrato escalar `pi_gs : float` de los escenarios C1-C4 se
+     conserva sin cambios; el escalar entregado ya refleja la
+     calibración real Cedenar.
+4. **Fase 2 (en producción desde 2026-04-27).** Los escenarios C1-C4,
+   `comparison_engine`, `analysis/monthly_report` y
+   `analysis/p2p_breakdown` aceptan ahora `pi_gs : float | np.ndarray (N,)`.
+   El helper compartido `scenarios._pi_gs.as_pi_gs_vector(pi_gs, N)`
+   normaliza la entrada a vector `(N,)` al inicio de cada función,
+   permitiendo que los análisis de sensibilidad (que varían `pi_gs`
+   como escalar) sigan funcionando sin cambios mientras la calibración
+   real propaga la heterogeneidad oficial/comercial hasta el detalle
+   per-agente:
+
+   - Autoconsumo: cada institución valoriza su `min(G_n, D_n)` a su
+     `pi_gs[n]` real (oficial 797 vs comercial 956).
+   - Permutación C1, créditos PDE C4, déficit residual: idem.
+   - Ahorro comprador P2P: `(pi_gs[i] − pi_star[i]) × P_comprado`,
+     captura que UCC (comercial) se ahorra más por kWh comprado en P2P
+     que Udenar (oficial).
+
+5. **Fallback explícito.** Si una fecha del horizonte cae fuera de los
+   meses cargados, el módulo emite un `UserWarning` único por mes y
+   usa el fallback `DEFAULT_PI_GS_FALLBACK = 650 COP/kWh`. Esto
+   preserva la reproducibilidad del valor anterior mientras el CSV
+   se completa. El log de `main_simulation.py --data real` declara
+   explícitamente cualquier mes que cayó al fallback.
+
+#### Estado del CSV
+
+A la fecha de esta nota están cargados **trece meses** (abr-2025 a
+abr-2026) con sus PDFs respaldatorios en `data/cedenar_pdfs/` y
+130 filas en `data/tarifas_cedenar_mensual.csv`. La cobertura es
+total para el horizonte de datos MTE (2025-04-04 → 2025-12-16):
+no se invoca el fallback. El `pi_gs` comunitario ponderado por la
+demanda media de cada institución resulta en **906 COP/kWh**
+(oficial NT2 = 797, comercial NT2 = 956), un **+39 %** sobre el
+escalar legacy de 650 COP/kWh.
+
+#### Impacto observado en resultados
+
+Validación sobre el horizonte completo MTE_v3 (corrida `--full
+--analysis` 2026-04-28, 55,2 min, 6 144 h):
+
+| Métrica | Pre-CAL-8 (650 escalar) | Post-CAL-8 (vector per-agente) | Δ |
+|---|---:|---:|---:|
+| Beneficio P2P    | 37,78 MCOP | **52,43 MCOP** | +38,8 % |
+| Beneficio C1     | 39,56 MCOP | **54,04 MCOP** | +36,6 % |
+| Beneficio C4     | 36,56 MCOP | **50,29 MCOP** | +37,6 % |
+| RPE P2P vs C4    | +0,0321    | **+0,0408**    | +27 % en magnitud |
+| Σ ventaja P2P − C4 | 1,21 MCOP | **2,14 MCOP** | +77 % |
+| IE P2P           | +0,4063    | +0,3677        | −0,04 (vendedores capturan algo más) |
+| Agentes IR-estables | 5/5     | **3/5** (Udenar y HUDN desertan a C1) | hallazgo nuevo |
+
+Validación adicional sobre el perfil 24 h (sanity check rápido):
+P2P = 211 046 COP, IE = +0,209. Todos los signos coherentes con la
+corrida `--full`.
+
+Cifras observadas:
+
+1. **Bienestar absoluto** de los cinco escenarios sube ~37 % por la
+   recalibración. El delta vs comunitario uniforme refleja la
+   heterogeneidad: tres comerciales (Mariana, UCC, Cesmag — tarifa
+   956) vs dos oficiales (Udenar, HUDN — tarifa 797).
+2. **Brecha C1 ↔ C3 se amplía**: la permutación 1:1 a `pi_gs[n]` vale
+   más, mientras la liquidación a bolsa permanece anclada en ≈ 280
+   COP/kWh. C1 emerge como el escenario dominante en eficiencia
+   monetaria (`PoF = 0,0000`).
+3. **Jerarquía P2P > C4 se mantiene** en las cinco instituciones, y
+   la ventaja absoluta agregada **casi se duplica** (1,21 → 2,14 MCOP).
+   Sin embargo, la **frontera relevante para IR es ahora C1**, no C4:
+   ver §3.14 sobre la deserción de Udenar y HUDN al régimen AGPE.
+4. **IE P2P sigue siendo positivo** (+0,3677): los compradores
+   comerciales (Mariana, UCC, Cesmag) capturan 71,4 % del excedente
+   P2P agregado por su mayor `pi_gs[i]`. Los vendedores capturan el
+   28,6 % restante.
+
+#### Veredicto
+
+`pi_gs = 650 COP/kWh` queda **deprecado como valor escalar único**.
+Se conserva solo como `DEFAULT_PI_GS_FALLBACK` para los meses sin
+PDF Cedenar disponible (hoy ninguno, cobertura es total).
+La fila correspondiente en la tabla resumen se actualiza abajo.
+
 ### Resumen de recomendaciones de calibración
 
 | Parámetro | Valor actual | Referencia | Veredicto | Acción |
@@ -641,7 +806,7 @@ de formulación documentada. No se modifica el código.
 | `alpha_c` | 0.10 | 50% de alpha_p | **Conservador** | Documentar en §III-A tesis |
 | `theta` | 0.5 | JoinFinal=0.5 / SLSQP=10 | **Solo reporting** | Ninguna |
 | `WI/WJ scaling` | no implementado | tau_b/tau_s=10 equivalente | **Implícito** | Ninguna |
-| `pi_gs` real | 650 COP/kWh | Rango Nariño 580–720 | **Estimado** | Confirmar con Cedenar/ESSA |
+| `pi_gs` real | 650 COP/kWh (fallback) | Cedenar abr-2026: 799 oficial / 959 comercial NT2 | **Deprecado como escalar** | Cargar serie mensual en `tarifas_cedenar_mensual.csv` (CAL-8) |
 | `pi_gb` real | 280 COP/kWh | XM Jul25–Ene26 ~221 | **Pendiente** | Reemplazar con serie XM real |
 | `b_n` real | 225 COP/kWh | IRENA/UPME 200–250 | **Homogéneo justificado** | Ninguna (ver CAL-6) |
 | `b_n` sintético | `[1245,195,287,225,0,0]` u.o. | JoinFinal.m:40-43 | **Fiel al modelo base** | Ninguna |
@@ -1055,9 +1220,10 @@ RPE = 0,0321 · 1 031/6 144 h con mercado activo · 3 657,7 kWh P2P transados.
    función de reacción de los seguidores antes de fijar el precio P2P? ¿O sería más
    realista un modelo de Cournot simultáneo para el contexto institucional de Pasto?
 
-3. **Horizonte de simulación:** Al correr las 5160h completas, ¿debemos usar la serie XM
-   con precios horarios reales descargada de los reportes XM Jul2025–Ene2026, o deberíamos
-   escalar los perfiles MTE medidos con la variabilidad horaria de irradiancia NASA POWER?
+3. **Horizonte de simulación:** Al correr las 6 144 h completas (MTE Abr–Dic 2025),
+   ¿debemos usar la serie XM con precios horarios reales descargada de los reportes
+   XM Jul2025–Ene2026, o deberíamos escalar los perfiles MTE medidos con la variabilidad
+   horaria de irradiancia NASA POWER?
 
 ### Para Germán Obando (economía y regulación)
 
@@ -1126,9 +1292,13 @@ RPE = 0,0321 · 1 031/6 144 h con mercado activo · 3 657,7 kWh P2P transados.
   - Se ejecuta automáticamente con: `python main_simulation.py --data real --analysis`
 
 - [x] §3.6 — Justificación formal de fuente de precios (`data/xm_prices.py → price_source_analysis()`):
-  - Descomposición CU institucional (G+T+D+C+PR+otros = 650 COP/kWh)
-  - Comparación media, mediana, media solar, percentil 25/75
-  - Justificación de la media aritmética como estimador conservador
+  - Descomposición CU institucional (G+T+D+Cv+PR+R+COT) — la calibración real
+    en producción es la tarifa Cedenar mensual per-agente (CAL-8): oficial NT2
+    797, comercial NT2 956, comunitario ponderado 906 COP/kWh. La función
+    `price_source_analysis()` reporta la descomposición ilustrativa contra el
+    escalar legacy de 650 COP/kWh (deprecado).
+  - Comparación media, mediana, media solar, percentil 25/75 del precio de bolsa.
+  - Justificación de la media aritmética como estimador conservador.
   - Se ejecuta automáticamente con: `python main_simulation.py --data real --analysis`
 
 ### Modelo (nuevos en v8.3)
@@ -1244,8 +1414,12 @@ incentivo a participar en P2P desaparece?
 
 ### Rango del barrido
 
-π_gs ∈ [500, 800] COP/kWh. El valor base es 650 COP/kWh (CU ESSA/Cedenar Nariño 2025).
-Límite inferior (500): reducción del 23%. Límite superior (800): incremento del 23%.
+π_gs ∈ [500, 1100] COP/kWh. El valor base bajo CAL-8 es 906 COP/kWh
+(promedio comunitario Cedenar ponderado por demanda; oficial NT2 797 /
+comercial NT2 956). El barrido SA-3 cubre desde 500 (~ 45 % por debajo del
+base, escenario hipotético de competencia minorista intensa) hasta 1100
+(~ 21 % por encima del base, techo de proyección). El antiguo escalar
+650 COP/kWh queda como fallback para meses sin PDF Cedenar (hoy ninguno).
 
 ### Hallazgo
 

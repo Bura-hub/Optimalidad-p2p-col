@@ -20,8 +20,9 @@ de bolsa provienen del operador de red XM Colombia.
 | Resolución temporal | 1 h (resampleada de mediciones a 2 min) | `data/xm_data_loader.py`, `_aggregate()` | h | — |
 | Demanda por nodo *D*~n~ | Potencia activa total de medidores eléctricos | `MedicionesMTE/<nodo>/electricMeter/*.csv`, columna `totalActivePower` | kW | Por hora |
 | Generación FV por nodo *G*~n~ | Potencia CA de inversores | `MedicionesMTE/<nodo>/inverter/*.csv`, columna `acPower` (W → kW) | kW | Por hora (cero nocturno) |
-| Precio de venta red al usuario *π*~gs~ | Tarifa CU Cedenar/ESSA Nariño 2024–2025 | `data/base_case_data.py` (PGS_COP) | COP/kWh | Constante |
-| Valor *π*~gs~ adoptado | 650 COP/kWh | `Documentos/notas_modelo_tesis.md` §3.6 | COP/kWh | — |
+| Precio de venta red al usuario *π*~gs~ | CU mensual Cedenar (CREG 119/2007 + COT 101-028/2023) per-agente | `data/cedenar_tariff.py`, `data/tarifas_cedenar_mensual.csv` | COP/kWh | Mensual, abr-2025 → abr-2026 |
+| Valor *π*~gs~ adoptado (CAL-8) | 797 oficial NT2 (Udenar, HUDN) · 956 comercial NT2 (Mariana, UCC, Cesmag) · 906 comunitario ponderado por demanda | `Documentos/notas_modelo_tesis.md` §CAL-8 · `data/cedenar_pdfs/` (13 PDFs respaldatorios) | COP/kWh | — |
+| Valor *π*~gs~ legacy (deprecado, fallback) | 650 COP/kWh — solo si un mes no está cargado en el CSV | `data/cedenar_tariff.py` `DEFAULT_PI_GS_FALLBACK` | COP/kWh | — |
 | Precio de compra red (*π*~gb~, precio de bolsa) | Precio de bolsa nacional horario XM | `data/precios_bolsa_xm_api.csv` | COP/kWh | Por hora |
 | Precio de bolsa promedio adoptado | 221 COP/kWh (media aritmética Jul 2025 – Ene 2026) | `data/xm_prices.py` | COP/kWh | — |
 | Parámetro LCOE *b*~n~ | Costo marginal de generación FV (calibrado) | `data/xm_prices.py`, `get_b_for_real_data()` | COP/kWh | — |

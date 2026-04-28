@@ -241,7 +241,7 @@ referencia de validación.
 | λ_n | Intensidad de preferencia | 100 | 100 (ajustable por tarifa) | [5][22][23] |
 | θ_n | Coef. cuadrático de bienestar | 0,5 | 0,5 | [5][23] |
 | η_i (etha) | Presión competitiva / aversión | 0,1 | 0,1 (rango GSA: 0,0–0,25) | [5][25][26] |
-| PGS (COP/kWh) | Precio máximo (tarifa usuario) | 1 250 (adim.) | **650 COP/kWh** | CREG [3][4] |
+| PGS (COP/kWh) | Precio máximo (tarifa usuario) | 1 250 (adim.) | **CAL-8: 797 (oficial) / 956 (comercial) / 906 (comunitario ponderado)** — CU mensual Cedenar | CREG [3][4] · 13 PDFs Cedenar abr-2025→abr-2026 |
 | PGB (COP/kWh) | Precio mínimo (bolsa XM) | 114 (adim.) | **280 COP/kWh** (promedio 2025) | XM API |
 
 **Nota sobre unidades:** Los valores sintéticos son adimensionales y se utilizan exclusivamente

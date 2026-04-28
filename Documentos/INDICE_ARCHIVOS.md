@@ -2,7 +2,7 @@
 
 **Tesis:** Análisis de Optimalidad y Validación Regulatoria de Mercados P2P en Colombia  
 **Autor:** Brayan S. Lopez-Mendez | **Udenar, 2026**  
-**Fecha de última actualización:** 2026-04-17
+**Fecha de última actualización:** 2026-04-28
 
 Este documento describe el propósito de cada archivo del repositorio cuyo nombre no es
 autoexplicativo, fue generado automáticamente, o requiere verificación antes de la entrega

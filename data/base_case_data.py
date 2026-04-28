@@ -18,20 +18,24 @@ PGB = 114.0    # precio compra red al usuario (adimensional)
 GRID_PARAMS = {"pi_gs": PGS, "pi_gb": PGB}
 
 # ── Precios calibrados Colombia 2025 (COP/kWh) ───────────────────────────────
-# PGS_COP: tarifa no regulada para grandes usuarios institucionales en Nariño.
-#   Rango típico 2024-2025: 580-720 COP/kWh (sin impuestos).
-#   Fuente: contratos de suministro reportados por Cedenar/ESSA en zona Nariño.
-#   Valor usado: 650 COP/kWh (punto medio conservador).
+# CAL-8 (2026-04-28): la calibración real del precio de venta al usuario
+# pasó al módulo data/cedenar_tariff.py, que carga la tarifa Cedenar mensual
+# diferenciada por categoría (oficial 797 / comercial 956 COP/kWh) desde
+# data/tarifas_cedenar_mensual.csv y data/cedenar_pdfs/. main_simulation.py
+# con --data real reemplaza GRID_PARAMS_REAL["pi_gs"] por el promedio
+# comunitario ponderado por demanda (≈ 906 COP/kWh).
 #
-# PGB_COP: precio de bolsa XM, promedio Jul 2025 - Ene 2026.
-#   El mercado colombiano tuvo precios altos en 2024 (El Niño) y normalización
-#   en 2025. Promedio estimado: 250-320 COP/kWh.
-#   Valor usado: 280 COP/kWh (promedio semestral conservador).
-#   NOTA: reemplazar con datos reales de XM cuando estén disponibles.
+# PGS_COP = 650 queda como DEFAULT_PI_GS_FALLBACK únicamente para meses sin
+# PDF Cedenar disponible (hoy ninguno tras la cobertura abr-2025 → abr-2026)
+# y como referencia escalar del modo sintético.
 #
-# Ratio PGS/PGB = 650/280 = 2.32  (mercado colombiano real)
-# vs ratio modelo base 1250/114 = 10.96  (parámetro adimensional)
-PGS_COP = 650.0
+# PGB_COP: precio de bolsa XM, promedio Abr-Dic 2025.
+#   Promedio empírico ≈ 222 COP/kWh (XM API).
+#   Valor usado: 280 COP/kWh (promedio conservador para barridos SA-1 con
+#   pi_gb constante; el modo --data real usa la serie horaria real).
+#
+# Ver Documentos/notas_modelo_tesis.md §CAL-8 para la trazabilidad completa.
+PGS_COP = 650.0   # legacy/fallback; CAL-8 usa Cedenar mensual per-agente
 PGB_COP = 280.0
 GRID_PARAMS_REAL = {"pi_gs": PGS_COP, "pi_gb": PGB_COP}
 

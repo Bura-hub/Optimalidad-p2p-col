@@ -26,9 +26,12 @@ tesis_p2p/
 │   ├── scenario_c4_creg101072.py    ← AGRC + PDE (escenario vigente)
 │   └── comparison_engine.py         ← 5 escenarios, Nivel 1 y 2 + Gini + desglose flujos
 ├── data/
-│   ├── base_case_data.py       ← parámetros + GRID_PARAMS (sintético) + GRID_PARAMS_REAL (COP)
+│   ├── base_case_data.py       ← parámetros + GRID_PARAMS (sintético) + GRID_PARAMS_REAL (COP, fallback)
 │   ├── xm_data_loader.py       ← cargador CSV MTE (pandas 3.x compatible)
-│   └── xm_prices.py            ← precios XM reales/sintéticos + calibración parámetro b
+│   ├── xm_prices.py            ← precios XM reales/sintéticos + calibración parámetro b
+│   ├── cedenar_tariff.py       ← CAL-8: tarifa CU mensual Cedenar per-agente (oficial/comercial)
+│   ├── tarifas_cedenar_mensual.csv  ← 130 filas, abr-2025 → abr-2026
+│   └── cedenar_pdfs/           ← 13 PDFs oficiales respaldatorios
 ├── analysis/
 │   ├── sensitivity.py          ← SA-1 (PGB) + SA-2 (PV) + SA-3 (π_gs) + SA-PPA + umbrales
 │   ├── sensitivity_2d.py       ← Sweep bivariado PGB×PV (Act 4.1, parquet persistido)
@@ -157,9 +160,19 @@ python scripts/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 
 | Parámetro | Datos sintéticos | Datos reales MTE | Justificación |
 |-----------|-----------------|-----------------|---------------|
-| PGS | 1250 (adim.) | **650 COP/kWh** | Tarifa usuario regulada |
+| PGS (oficial NT2) | 1250 (adim.) | **~797 COP/kWh** (Udenar, HUDN) | Cedenar mensual oficial 2025-26 (CAL-8) |
+| PGS (comercial NT2) | —            | **~956 COP/kWh** (Mariana, UCC, Cesmag) | Cedenar mensual comercial 2025-26 (CAL-8) |
+| PGS comunitario ponderado | —     | **~906 COP/kWh** (promedio por demanda) | Drop-in escalar para análisis de sensibilidad |
+| PGS legacy (deprecado, fallback) | — | 650 COP/kWh | Punto medio histórico Cedenar/ESSA pre-CAL-8 |
 | PGB | 114 (adim.) | **280 COP/kWh** | Precio bolsa promedio XM |
 | b_n | 194.76 (adim.) | **~225 COP/kWh** | LCOE solar Pasto, Fronius |
+
+> **CAL-8** (`Documentos/notas_modelo_tesis.md` §CAL-8): la tarifa real
+> Cedenar se carga desde `data/tarifas_cedenar_mensual.csv` y se propaga
+> per-agente a los escenarios C1-C4. Los escenarios aceptan
+> `pi_gs : float | np.ndarray (N,)` vía
+> `scenarios._pi_gs.as_pi_gs_vector`. Cobertura del CSV: 13 meses
+> (abr-2025 → abr-2026), respaldados por PDFs en `data/cedenar_pdfs/`.
 
 ---
 
@@ -254,20 +267,36 @@ Validado: 16 archivos `.mat` y 44 archivos `.csv` se cargan sin error con `scipy
 
 ## Resultados del horizonte completo (6 144 h, MTE_v3)
 
-Última corrida `--data real --full --analysis` (2026-04-27, 51.7 min, 256 días, abril–diciembre 2025):
+Última corrida `--data real --full --analysis` (2026-04-28, 55.2 min, 256
+días, abril–diciembre 2025) **con calibración Cedenar CAL-8 per-agente**
+(`pi_gs[i]` mensual diferenciado por categoría tarifaria):
 
 | Escenario | Ganancia neta (MCOP) | Observación |
 |-----------|----------------------|-------------|
-| P2P       | **37.78** | 1031/6144 h con mercado activo (16.8%); 3 657.7 kWh transados |
-| C1 (CREG 174 créditos 1:1) | 39.56 | Mejor régimen regulado bajo créditos plenos (referencia) |
-| C2 (Bilateral PPA) | 37.77 | Equivalente a P2P en agregado |
-| C3 (spot XM) | 37.29 | Casi indistinguible de C1 en este horizonte |
-| C4 (CREG 101 072 AGPE+PDE) | 36.56 | **Régimen vigente, baseline de comparación** |
+| C1 (CREG 174 créditos 1:1) | **54.04** | Mejor régimen regulado bajo créditos plenos (referencia) |
+| **P2P (Stackelberg + RD)** | **52.43** | 1 031/6 144 h con mercado activo (16,8 %); 3 659,3 kWh transados |
+| C2 (Bilateral PPA, π_ppa = 593) | 51.44 | Punto medio (π_gb + π̄_gs)/2 |
+| C3 (spot XM) | 50.96 | |
+| C4 (CREG 101 072 AGRC+PDE) | **50.29** | **Régimen vigente, baseline de comparación** |
 
-**Métricas agregadas**: SC P2P = 0.188 · SS P2P = 0.981 · IE P2P = +0.4063 · **RPE P2P vs C4 = +0.0321**.
+**Métricas agregadas**: SC P2P = 0.188 · SS P2P = 0.981 · IE P2P = +0.3677 · **RPE P2P vs C4 = +0.0408** · PoF = 0.0000 (eficiente = equitativo = C1) · Spread C4 = 1 004,4 kWh.
 
 **Ventaja P2P por institución frente a C4** (todas positivas, racionalidad individual cumplida):
-- Udenar: +263 874 COP · Mariana: +182 196 COP · UCC: +376 783 COP · HUDN: +204 516 COP · Cesmag: +184 115 COP
+- Udenar: **+548 973 COP** · Mariana: **+313 185 COP** · UCC: **+638 232 COP** · HUDN: **+271 069 COP** · Cesmag: **+369 330 COP** (Σ = +2,14 MCOP).
+
+**Comparativa pre vs post CAL-8** (mismas series MTE, mismo horizonte;
+sólo cambia la calibración de `pi_gs`):
+
+| Escenario | Pre-CAL-8 (650 escalar) | Post-CAL-8 (vector per-agente) | Δ |
+|---|---:|---:|---:|
+| P2P | 37,78 MCOP | **52,43 MCOP** | +38,8 % |
+| C1  | 39,56 MCOP | 54,04 MCOP | +36,6 % |
+| C4  | 36,56 MCOP | 50,29 MCOP | +37,6 % |
+| RPE (P2P vs C4) | +0,0321 | **+0,0408** | +27 % en magnitud |
+| Σ ventaja P2P sobre C4 | 1,21 MCOP | **2,14 MCOP** | +77 % |
+| IE P2P | +0,4063 | +0,3677 | −0,04 (vendedores capturan algo más) |
+
+La jerarquía cualitativa **C1 ≥ P2P > C2 ≥ C3 > C4** se conserva. La activación de la heterogeneidad oficial/comercial **amplifica la prima de flexibilidad del P2P** sobre C4 en términos absolutos (Σ ventaja casi se duplica) sin invertir signos.
 
 **Sub-períodos (Act. 3.2)**: P2P supera a C4 en los cuatro sub-períodos (Laborable/Finde × Jul/Ene) sin inversión de signo.
 
@@ -316,6 +345,12 @@ Las 10 actividades 1.0 → 4.2 están **completas y validadas con datos empíric
 - [x] **Optimalidad P2P vs C4 hora a hora** + GDR (Act 4.2)
 - [x] **Bootstrap** n = 10 000 sobre 256 días MTE_v3 → Cohen's d = 0.90 (Act 4.2)
 - [x] **Reproducibilidad MATLAB** — `visualization/matlab_export.py` + 16 .mat + 44 .csv
+- [x] **CAL-8: tarifa Cedenar mensual per-agente** (Fase 1 + Fase 2,
+  2026-04-27). 13 PDFs (abr-2025 → abr-2026), 130 filas en CSV.
+  Escenarios C1-C4 + `comparison_engine` + `monthly_report` +
+  `p2p_breakdown` aceptan `pi_gs : float | ndarray (N,)`.
+  Heterogeneidad oficial vs comercial capturada per-agente en todos
+  los caminos de cálculo.
 
 ### Pendiente (no bloqueante)
 

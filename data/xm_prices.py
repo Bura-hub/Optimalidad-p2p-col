@@ -509,7 +509,13 @@ CU_COMPONENTS_2025 = {
     "PR":   35,   # Pérdidas de referencia reconocidas + restricciones
     "otros": 85,  # Contribución, sobretasa SSPD, ajuste IVA, redondeamiento
 }
-# CU estimado = suma ≈ 650 COP/kWh (validado con rango 580-720 ESSA Nariño)
+# CU estimado = suma ≈ 650 COP/kWh — referencia ilustrativa pre-CAL-8.
+# La calibración en producción usa la tarifa real Cedenar mensual cargada por
+# data/cedenar_tariff.py (oficial 797 / comercial 956 / comunitario ponderado
+# ≈ 906 COP/kWh para abr-2025 → abr-2026). El bloque CU_COMPONENTS_2025 se
+# conserva aquí para la justificación analítica del estimador en
+# price_source_analysis(); 650 se mantiene como argumento por defecto y como
+# DEFAULT_PI_GS_FALLBACK en data/cedenar_tariff.py para meses sin PDF.
 
 
 def price_source_analysis(

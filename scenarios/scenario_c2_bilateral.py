@@ -15,13 +15,17 @@ Se modela como: cada prosumidor con excedente firma un contrato con
 uno o más consumidores a un precio pi_ppa = promedio(pi_gb, pi_gs) * factor.
 """
 
+from typing import Union
+
 import numpy as np
+
+from ._pi_gs import as_pi_gs_vector
 
 
 def run_c2_bilateral(
     D: np.ndarray,             # (N, T) demanda [kWh]
     G: np.ndarray,             # (N, T) generación bruta [kWh]
-    pi_gs: float,              # precio de venta red al usuario $/kWh
+    pi_gs: Union[float, np.ndarray],  # escalar o (N,) — CAL-8
     pi_gb: float,              # precio de compra red al usuario $/kWh
     pi_ppa: float,             # precio PPA pactado $/kWh
     prosumer_ids: list,        # índices de agentes con generación
@@ -41,6 +45,7 @@ def run_c2_bilateral(
     No se resta grid_cost residual; ese costo se incurriría igual sin PPA.
     """
     N, T = D.shape
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
 
     savings_gen  = np.zeros(N)    # ahorro autoconsumo + ingreso PPA
     savings_cons = np.zeros(N)    # ahorro por comprar a pi_ppa < pi_gs
@@ -56,10 +61,10 @@ def run_c2_bilateral(
         total_surplus = float(np.sum(gen_surplus[prosumer_ids]))
         total_deficit_cons = float(np.sum(deficits[consumer_ids]))
 
-        # Autoconsumo: ahorro de cada prosumidor
+        # Autoconsumo: ahorro de cada prosumidor (a su pi_gs[n])
         for n in prosumer_ids:
             autoconsumo = min(G[n, k], D[n, k])
-            savings_gen[n] += autoconsumo * pi_gs
+            savings_gen[n] += autoconsumo * pi_gs_v[n]
 
         # Distribución del excedente a consumidores (proporcional a demanda)
         dem_cons = np.array([D[i, k] for i in consumer_ids])
@@ -70,11 +75,11 @@ def run_c2_bilateral(
             ppa_delivered = np.minimum(share * total_surplus, dem_cons)
 
             for idx, i in enumerate(consumer_ids):
-                # Ahorro del consumidor: habría pagado pi_gs, paga pi_ppa
-                savings_cons[i] += ppa_delivered[idx] * (pi_gs - pi_ppa)
-                # Déficit residual → red
+                # Ahorro del consumidor: habría pagado pi_gs[i], paga pi_ppa
+                savings_cons[i] += ppa_delivered[idx] * (pi_gs_v[i] - pi_ppa)
+                # Déficit residual → red a la tarifa del consumidor
                 residual = max(0.0, deficits[i] - ppa_delivered[idx])
-                grid_cost[i] += residual * pi_gs
+                grid_cost[i] += residual * pi_gs_v[i]
 
             # Ingresos PPA del prosumidor
             for n in prosumer_ids:
@@ -89,7 +94,7 @@ def run_c2_bilateral(
             for n in prosumer_ids:
                 grid_revenue[n] += gen_surplus[n] * pi_gb
             for i in consumer_ids:
-                grid_cost[i] += deficits[i] * pi_gs
+                grid_cost[i] += deficits[i] * pi_gs_v[i]
 
     net_benefit = savings_gen + savings_cons + grid_revenue
 
@@ -114,7 +119,9 @@ def run_c2_bilateral(
             "total_grid_revenue":    float(np.sum(grid_revenue)),
             "total_grid_cost":       float(np.sum(grid_cost)),
         },
-        "params": {"pi_ppa": pi_ppa, "pi_gs": pi_gs, "pi_gb": pi_gb},
+        "params": {"pi_ppa": pi_ppa,
+                    "pi_gs": pi_gs_v.tolist() if pi_gs_v.size > 1 else float(pi_gs_v[0]),
+                    "pi_gb": pi_gb},
     }
 
 

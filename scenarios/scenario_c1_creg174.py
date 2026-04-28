@@ -38,13 +38,15 @@ from __future__ import annotations
 
 import numpy as np
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, Union
+
+from ._pi_gs import as_pi_gs_vector
 
 
 def run_c1_creg174(
     D:            np.ndarray,                # (N, T) demanda base [kWh]
     G:            np.ndarray,                # (N, T) generación bruta [kWh]
-    pi_gs:        float,                     # precio regulado al usuario $/kWh
+    pi_gs:        Union[float, np.ndarray],  # escalar o (N,) — CAL-8
     pi_bolsa:     np.ndarray,               # (T,) precio de bolsa horario $/kWh
     agent_ids:    list,                      # índices de agentes autogeneradores
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (ej. YYYYMM)
@@ -71,7 +73,8 @@ def run_c1_creg174(
 
         net_benefit_n = Σ_m (savings_m + revenue_m)
     """
-    T = D.shape[1]
+    N, T = D.shape
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
 
     # ── Construir índice de períodos ─────────────────────────────────────────
     if month_labels is None:
@@ -113,8 +116,8 @@ def run_c1_creg174(
             E_net_surplus = max(0.0, E_surplus - E_deficit)
 
             # ── Valoración ───────────────────────────────────────────────
-            # Autoconsumo + permutación → valorados a pi_gs
-            savings_m = (E_auto + E_permuted) * pi_gs  # ≡ min(G_total, D_total) × pi_gs
+            # Autoconsumo + permutación → valorados a pi_gs[n] del agente
+            savings_m = (E_auto + E_permuted) * pi_gs_v[n]
 
             # Excedente neto → bolsa promedio ponderado por excedente horario
             if E_net_surplus > 1e-9 and E_surplus > 1e-9:
@@ -125,7 +128,7 @@ def run_c1_creg174(
             revenue_m   = E_net_surplus * pi_bolsa_avg
 
             # Costo residual de red (energía que aún compra: déficit > surplus)
-            grid_cost_m = max(0.0, E_deficit - E_surplus) * pi_gs
+            grid_cost_m = max(0.0, E_deficit - E_surplus) * pi_gs_v[n]
 
             savings_n   += savings_m
             surplus_n   += revenue_m

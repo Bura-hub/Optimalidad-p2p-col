@@ -31,7 +31,9 @@ Referencia regulatoria:
 
 import warnings as _warnings
 import numpy as np
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
+
+from ._pi_gs import as_pi_gs_vector
 
 
 def validate_pde(
@@ -71,7 +73,7 @@ def compute_pde_weights(
 def run_c4_creg101072(
     D: np.ndarray,              # (N, T) demanda [kWh]
     G: np.ndarray,              # (N, T) generación bruta [kWh]
-    pi_gs: float,               # precio regulado de venta red al usuario $/kWh
+    pi_gs: Union[float, np.ndarray],  # escalar o (N,) — CAL-8
     pi_bolsa: np.ndarray,       # (T,) precio de bolsa $/kWh
     pde: np.ndarray,            # (N,) Porcentaje de Distribución de Excedentes
     capacity: Optional[np.ndarray] = None,  # (N,) kW instalados (para validación)
@@ -92,6 +94,7 @@ def run_c4_creg101072(
     Este mecanismo es ESTÁTICO: el PDE no varía según condiciones de mercado.
     """
     N, T = D.shape
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
 
     if not validate_pde(pde):
         raise ValueError(f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}")
@@ -153,17 +156,17 @@ def run_c4_creg101072(
         # Paso 4: Déficit residual tras créditos PDE
         deficit_after_pde = np.maximum(deficit_k - credits_k, 0.0)
 
-        # Paso 5: Contabilización
+        # Paso 5: Contabilización (cada agente a su tarifa pi_gs[n])
         for n in range(N):
             # Ahorro por autoconsumo propio
-            savings[n] += autoconsumo_k[n] * pi_gs
+            savings[n] += autoconsumo_k[n] * pi_gs_v[n]
 
-            # Créditos PDE (valorizados a precio de usuario)
+            # Créditos PDE (valorizados a la tarifa del receptor)
             credits_received = min(credits_k[n], deficit_k[n])
-            credits_pde[n]  += credits_received * pi_gs
+            credits_pde[n]  += credits_received * pi_gs_v[n]
 
             # Costo de energía que aún falta comprar a la red
-            grid_cost[n] += deficit_after_pde[n] * pi_gs
+            grid_cost[n] += deficit_after_pde[n] * pi_gs_v[n]
 
         # Excedente comunitario: destino según modo regulatorio
         if mode == "pde_plus_residual_export":

@@ -14,8 +14,9 @@ Dos niveles de métricas (propuesta tesis):
 
 import numpy as np
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Union
 
+from ._pi_gs import as_pi_gs_vector
 from .scenario_c1_creg174    import run_c1_creg174
 from .scenario_c2_bilateral  import run_c2_bilateral
 from .scenario_c3_spot       import run_c3_spot
@@ -77,7 +78,7 @@ def run_comparison(
     G_klim:       np.ndarray,       # (N, T) límite de generación (pre-calc.)
     G_raw:        np.ndarray,       # (N, T) generación bruta original
     p2p_results:  list,
-    pi_gs:        float,
+    pi_gs:        Union[float, np.ndarray],  # escalar o (N,) — CAL-8
     pi_gb:        float,
     pi_bolsa:     np.ndarray,       # (T,) precio de bolsa horario
     prosumer_ids: list,
@@ -89,9 +90,17 @@ def run_comparison(
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
+
+    `pi_gs` admite escalar (caso uniforme) o vector `(N,)` por agente
+    (calibración Cedenar mensual diferenciada por categoría tarifaria,
+    CAL-8). Internamente se propaga como vector a los escenarios.
     """
     N, T = D.shape
     cr   = ComparisonResult(hours=T, n_agents=N)
+
+    # Normalizar pi_gs a vector (N,) para que los escenarios y helpers
+    # internos lo consuman uniformemente.
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
 
     # Valores por defecto
     if pde is None:
@@ -100,7 +109,8 @@ def run_comparison(
     cr.pde = pde
 
     if pi_ppa is None:
-        pi_ppa = pi_gb + 0.5 * (pi_gs - pi_gb)
+        # PPA es contractual y único: usa la tarifa promedio comunitaria.
+        pi_ppa = pi_gb + 0.5 * (float(np.mean(pi_gs_v)) - pi_gb)
     cr.pi_ppa = pi_ppa
 
     # Todos los escenarios usan Filosofía A: net_benefit = savings + revenues.
@@ -110,7 +120,7 @@ def run_comparison(
     # ── C1 ──────────────────────────────────────────────────────────────
     # month_labels habilita el balance mensual real de CREG 174 (permutación).
     # Si None (perfil 24h o sintético), todo el horizonte es un único período.
-    c1 = run_c1_creg174(D, G_klim, pi_gs, pi_bolsa, prosumer_ids,
+    c1 = run_c1_creg174(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
                         month_labels=month_labels)
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
@@ -118,20 +128,20 @@ def run_comparison(
     cr.net_benefit_per_agent["C1"] = c1_net
 
     # ── C2 ──────────────────────────────────────────────────────────────
-    c2 = run_c2_bilateral(D, G_klim, pi_gs, pi_gb, pi_ppa,
+    c2 = run_c2_bilateral(D, G_klim, pi_gs_v, pi_gb, pi_ppa,
                            prosumer_ids, consumer_ids)
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))
     cr.net_benefit_per_agent["C2"] = c2_net
 
     # ── C3 ──────────────────────────────────────────────────────────────
-    c3 = run_c3_spot(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, consumer_ids)
+    c3 = run_c3_spot(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids, consumer_ids)
     c3_net = np.array([c3["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C3"]           = float(np.sum(c3_net))
     cr.net_benefit_per_agent["C3"] = c3_net
 
     # ── C4 ──────────────────────────────────────────────────────────────
-    c4 = run_c4_creg101072(D, G_klim, pi_gs, pi_bolsa, pde, capacity,
+    c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
                             mode="pde_only")
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
@@ -139,7 +149,7 @@ def run_comparison(
 
     # ── P2P ─────────────────────────────────────────────────────────────
     p2p_net = _p2p_monetary_benefit(
-        p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids)
+        p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids)
     cr.net_benefit["P2P"]           = float(np.sum(p2p_net))
     cr.net_benefit_per_agent["P2P"] = p2p_net
 
@@ -274,12 +284,14 @@ def run_comparison(
     # Autoconsumo es IDÉNTICO en todos los escenarios (no depende del mecanismo).
     # Lo que varía es el valor asignado a la energía que pasa por la red.
 
-    # Autoconsumo total (prosumidores) — igual en todos los escenarios
-    auto_kwh = float(np.sum(np.minimum(
-        np.maximum(G_klim[prosumer_ids, :], 0),
-        np.maximum(D[prosumer_ids, :], 0),
-    )))
-    auto_cop = auto_kwh * pi_gs
+    # Autoconsumo total (prosumidores) — el kWh es idéntico en todos los
+    # escenarios; el valor en COP refleja la tarifa per-agente (CAL-8).
+    auto_kwh_per_agent = np.sum(np.minimum(
+        np.maximum(G_klim, 0), np.maximum(D, 0),
+    ), axis=1)
+    auto_kwh = float(np.sum(auto_kwh_per_agent[prosumer_ids]))
+    auto_cop = float(np.sum(auto_kwh_per_agent[prosumer_ids]
+                             * pi_gs_v[prosumer_ids]))
 
     # C1 breakdown
     c1_savings_total = c1["aggregate"]["total_savings"]      # auto + permutación
@@ -296,7 +308,7 @@ def run_comparison(
     c4_excedente     = c4["aggregate"]["total_surplus_revenue"]
 
     # P2P breakdown: prima vendedor + ahorro comprador + autoconsumo propio
-    p2p_prima, p2p_ahorro = _p2p_flow_breakdown(p2p_results, pi_gs, pi_gb)
+    p2p_prima, p2p_ahorro = _p2p_flow_breakdown(p2p_results, pi_gs_v, pi_gb)
 
     cr.flow_breakdown = {
         "P2P": {
@@ -356,18 +368,20 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     Filosofía A (WEEF min 22-26): net_benefit = savings + revenues.
     No se resta el costo residual de compra a la red.
 
-    Vendedor:    (π_star − π_gb) × P_vendido   (prima sobre venta a bolsa)
-    Comprador:   (π_gs  − π_star) × P_comprado (ahorro vs comprar a la red)
-    Autoconsumo: min(G, D) × π_gs              (todos los prosumidores)
+    Vendedor:    (π_star − π_gb)      × P_vendido    (prima sobre venta a bolsa)
+    Comprador:   (π_gs[i] − π_star[i]) × P_comprado  (ahorro vs comprar a la red)
+    Autoconsumo: min(G, D) × π_gs[n]                 (cada prosumidor a su tarifa)
 
     Parámetros
     ----------
     results : list[HourlyResult]
     D, G_klim : ndarray (N, T)
-    pi_gs, pi_gb : float — precio al usuario y precio de bolsa (COP/kWh)
+    pi_gs : float | ndarray (N,) — escalar o per-agente (CAL-8)
+    pi_gb : float — precio de bolsa (COP/kWh)
     prosumer_ids : list[int] — índices de agentes con generación propia
     """
     N = D.shape[0]
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
     net = np.zeros(N)
 
     for r in results:
@@ -390,48 +404,55 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             net[j] += income - baseline
 
-        # Compradores: ahorro por pagar pi_star < pi_gs en vez de comprar todo a la red
+        # Compradores: ahorro por pagar pi_star < pi_gs[i] en vez de comprar todo a la red
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             if r.pi_star is not None:
                 paid = r.pi_star[idx_i] * received
             else:
-                paid = received * pi_gs
-            net[i] += received * pi_gs - paid   # ahorro = (pi_gs - pi_star) × kWh_P2P
-            # No se resta el déficit residual: esa energía la comprará a la red
-            # igual que sin solar — no es una pérdida del mecanismo P2P.
+                paid = received * pi_gs_v[i]
+            net[i] += received * pi_gs_v[i] - paid   # ahorro = (pi_gs[i] - pi_star[i]) × kWh_P2P
 
-    # Autoconsumo propio de prosumidores (igual en todos los escenarios,
-    # pero lo incluimos para comparación completa)
+    # Autoconsumo propio de prosumidores a su pi_gs[n]
     for n in prosumer_ids:
         T = D.shape[1]
         for k in range(T):
             auto = min(G_klim[n, k], D[n, k])
-            net[n] += auto * pi_gs
+            net[n] += auto * pi_gs_v[n]
 
     return net
 
 
-def _p2p_flow_breakdown(results, pi_gs: float, pi_gb: float) -> tuple:
+def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
     """
     Descompone el beneficio P2P en prima de vendedor y ahorro de comprador.
 
       prima_vendedor  : Σ_k Σ_j max(0, ingreso_j - baseline_j)
-      ahorro_comprador: Σ_k Σ_i max(0, pi_gs×P_comprado - pagado)
+      ahorro_comprador: Σ_k Σ_i max(0, pi_gs[i] × P_comprado - pagado)
 
-    El autoconsumo propio se contabiliza por separado (igual en todos los
-    escenarios, independiente del mecanismo de mercado).
+    El autoconsumo propio se contabiliza por separado (igual kWh en todos
+    los escenarios, valorado a la pi_gs per-agente).
 
     Parámetros
     ----------
     results : list[HourlyResult]
-    pi_gs   : float — tarifa al usuario (COP/kWh)
+    pi_gs   : float | ndarray (N,) — tarifa al usuario (CAL-8)
     pi_gb   : float — precio de bolsa, baseline de venta (COP/kWh)
-
-    Retorna
-    -------
-    (prima_vendedor, ahorro_comprador) : (float, float) en COP
     """
+    # N implícito en buyer_ids; tomamos el max para dimensionar el vector.
+    if not results:
+        return 0.0, 0.0
+    N_inferred = 0
+    for r in results:
+        if r.P_star is None:
+            continue
+        if r.buyer_ids:
+            N_inferred = max(N_inferred, max(r.buyer_ids) + 1)
+        if r.seller_ids:
+            N_inferred = max(N_inferred, max(r.seller_ids) + 1)
+    pi_gs_v = as_pi_gs_vector(pi_gs, N_inferred) if N_inferred else \
+              np.atleast_1d(np.asarray(pi_gs, dtype=float))
+
     prima  = 0.0
     ahorro = 0.0
     for r in results:
@@ -447,8 +468,8 @@ def _p2p_flow_breakdown(results, pi_gs: float, pi_gb: float) -> tuple:
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             paid     = (r.pi_star[idx_i] * received if r.pi_star is not None
-                        else received * pi_gs)
-            ahorro  += max(0.0, received * pi_gs - paid)
+                        else received * pi_gs_v[i])
+            ahorro  += max(0.0, received * pi_gs_v[i] - paid)
     return prima, ahorro
 
 

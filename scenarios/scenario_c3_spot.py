@@ -16,13 +16,17 @@ Referencia colombiana:
   - Precio de escasez CREG 101 066 de 2024 (techo tarifario)
 """
 
+from typing import Union
+
 import numpy as np
+
+from ._pi_gs import as_pi_gs_vector
 
 
 def run_c3_spot(
     D: np.ndarray,           # (N, T) demanda [kWh]
     G: np.ndarray,           # (N, T) generación bruta [kWh]
-    pi_gs: float,            # precio de venta red al usuario $/kWh
+    pi_gs: Union[float, np.ndarray],  # escalar o (N,) — CAL-8
     pi_bolsa: np.ndarray,    # (T,) precio de bolsa horario $/kWh
     prosumer_ids: list,
     consumer_ids: list,
@@ -34,6 +38,7 @@ def run_c3_spot(
       3. Déficit comprado a la red a pi_gs
     """
     N, T = D.shape
+    pi_gs_v = as_pi_gs_vector(pi_gs, N)
 
     savings   = np.zeros(N)   # ahorro por autoconsumo
     revenues  = np.zeros(N)   # ingresos por venta a bolsa
@@ -46,14 +51,14 @@ def run_c3_spot(
             gen  = max(0.0, G[n, k])
             dem  = max(0.0, D[n, k])
             auto = min(gen, dem)
-            savings[n]  += auto * pi_gs
+            savings[n]  += auto * pi_gs_v[n]
             surplus = gen - auto
             revenues[n] += surplus * pi_bolsa[k]
             deficit = max(0.0, dem - gen)
-            grid_cost[n] += deficit * pi_gs
+            grid_cost[n] += deficit * pi_gs_v[n]
 
         for i in consumer_ids:
-            grid_cost[i] += max(0.0, D[i, k]) * pi_gs
+            grid_cost[i] += max(0.0, D[i, k]) * pi_gs_v[i]
 
         # Exposición total comunitaria al precio spot esta hora
         total_surplus = sum(max(0.0, G[n, k] - D[n, k]) for n in prosumer_ids)
@@ -122,9 +127,12 @@ def spot_sensitivity_analysis(
     if multipliers is None:
         multipliers = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
 
+    # En la sensibilidad, el ceiling para pi_bolsa es el máximo de pi_gs
+    # observado en la comunidad (acepta escalar o vector per-agente).
+    pi_gs_max = float(np.max(np.atleast_1d(pi_gs)))
     results = {}
     for m in multipliers:
-        pi_bolsa_m = np.clip(pi_bolsa_base * m, 0, pi_gs)
+        pi_bolsa_m = np.clip(pi_bolsa_base * m, 0, pi_gs_max)
         res = run_c3_spot(D, G, pi_gs, pi_bolsa_m, prosumer_ids, consumer_ids)
         results[m] = {
             "total_net_benefit": res["aggregate"]["total_net_benefit"],

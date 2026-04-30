@@ -47,3 +47,7 @@ _backup_*/
 CLAUDE.md.bak
 ruvector.db
 *.db
+
+# === Snapshots Ruflo (binarios y JSON regenerables) ===
+Documentos/exports/*.json
+Documentos/exports/*.db

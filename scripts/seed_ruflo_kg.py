@@ -43,6 +43,9 @@ DOC_NODES = [
      "CREG 101 066: complementaria a C4"),
     ("kg-doc-mte", "datos", "MedicionesMTE_v3/",
      "Datos empiricos MTE: 5 instituciones Pasto, jul2025-ene2026 (no commitable)"),
+    # ADR 0009 — CAL-9 (decision posterior al cierre de tesis técnica)
+    ("kg-doc-adr-0009", "decision", "docs/adr/0009-cal9-pi-gs-temporal.md",
+     "ADR 0009 (CAL-9): pi_gs matriz (N, T) mes a mes en C1-C4 y analisis. Supersede parcial CAL-8 para --full y --day. 2026-04-30."),
 ]
 
 # Aristas tesis -> codigo (mapeo conceptual, no detectable por imports)
@@ -69,6 +72,18 @@ SEMANTIC_EDGES = [
     ("kg-doc-propuesta", "actividad-1.0", "kg-node-data-base_case_data"),
     ("kg-doc-propuesta", "actividad-1.1", "kg-node-data-cedenar_tariff"),
     ("kg-doc-propuesta", "actividad-1.2", "kg-node-data-xm_prices"),
+    # ADR 0009 (CAL-9) -> modulos que pasaron a contrato pi_gs (N, T)
+    ("kg-doc-adr-0009", "supersede-parcial", "kg-doc-adr-0008"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-_pi_gs"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-scenario_c1_creg174"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-scenario_c2_bilateral"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-scenario_c3_spot"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-scenario_c4_creg101072"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-scenarios-comparison_engine"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-analysis-feasibility"),
+    ("kg-doc-adr-0009", "gobierna", "kg-node-analysis-monthly_report"),
+    # CAL-8 sigue presente para perfil diario; NO incluir kg-doc-adr-0008 como nodo
+    # (no se sembro como tal). Solo declaramos la relacion supersede-parcial.
 ]
 
 IMPORT_RE = re.compile(r"^\s*(?:from\s+([\w\.]+)\s+import|import\s+([\w\.]+))", re.MULTILINE)
@@ -121,7 +136,7 @@ def store(key: str, value: str, namespace: str = "knowledge-graph") -> bool:
     flat = value.replace("\n", " | ").replace('"', "'")
     cmd = (
         f'npx @claude-flow/cli@latest memory store '
-        f'--key "{key}" --value "{flat}" --namespace "{namespace}"'
+        f'--key "{key}" --value "{flat}" --namespace "{namespace}" --upsert'
     )
     proc = subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8",

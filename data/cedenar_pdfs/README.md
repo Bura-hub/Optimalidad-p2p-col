@@ -70,3 +70,12 @@ python data/cedenar_tariff.py --t-start 2025-07-01 --t-end 2026-02-01
 
 Debe reportar "Meses cargados en CSV: 7" y mostrar `pi_gs efectiva` en
 ~ 794 COP/kWh para oficial NT2 y ~ 953 COP/kWh para comercial NT2.
+
+> **Nota CAL-9 (2026-04-30):** los valores anteriores son el promedio
+> horario-ponderado del horizonte (resumen comunicacional). Desde la
+> implementación de la Actividad 1.0 / ADR-009, los escenarios C1–C4
+> y `analysis/monthly_report.py` consumen una **matriz `(N, T)`**
+> producida por `data.cedenar_tariff.pi_gs_per_agent_hourly()`: cada
+> hora simulada hereda el CU del mes que la contiene. El escalar
+> `~792 / ~950` ya no entra al settlement; aparece sólo en reportes
+> auxiliares. Ver `docs/adr/0009-cal9-pi-gs-temporal.md`.

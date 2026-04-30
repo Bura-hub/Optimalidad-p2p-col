@@ -43,7 +43,7 @@ from data.base_case_data import (
 from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 from data.cedenar_tariff import (
     community_effective_pi_gs, effective_pi_gs_per_agent,
-    tariff_coverage, INSTITUTION_PROFILE,
+    pi_gs_per_agent_hourly, tariff_coverage, INSTITUTION_PROFILE,
 )
 
 
@@ -79,10 +79,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         agent_names = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"][:N]
         currency    = "COP"
 
-        # ── pi_gs Cedenar mensual (CAL-8): reemplaza el escalar 650 ──────
-        # Promedio comunitario ponderado por demanda promedio de cada agente
-        # sobre el horizonte real de los datos MTE. Ver data/cedenar_tariff.py
-        # y Documentos/notas_modelo_tesis.md §CAL-8.
+        # ── pi_gs Cedenar (CAL-9): matriz (N, T) mes a mes en C1-C4 ──────
+        # El escalar `pi_gs_eff` y el vector `pi_gs_per_agent` se conservan
+        # SOLO como diagnóstico informativo (resumen comunicacional del
+        # promedio del horizonte) y para análisis auxiliares con escalar
+        # (sensibilidad SA-3, sub-períodos, plot_c1_vs_c4). Lo que entra al
+        # settlement de C1-C4 es `pi_gs_arg` (línea ~213 abajo): matriz
+        # `(N, T)` vía `pi_gs_per_agent_hourly`. Ver §CAL-9 y ADR-0009.
         t_start_cal = index_full[0]
         t_end_cal   = index_full[-1] + pd.Timedelta(hours=1)
         demand_weights = D_full.mean(axis=1)
@@ -130,21 +133,35 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         pi_bolsa = get_pi_bolsa(T, csv_path=xm_csv if os.path.exists(xm_csv) else None,
                                  scenario="2025_normal")
         cov = tariff_coverage(t_start_cal, t_end_cal)
-        print(f"    PGS Cedenar (comunitario, ponderado por demanda): "
-              f"{pi_gs_eff:.0f} COP/kWh  [legacy={PGS_COP:.0f}]")
         if cov["meses_faltantes"]:
             print(f"    AVISO: {len(cov['meses_faltantes'])} mes(es) sin "
                   f"PDF Cedenar, fallback {650:.0f} COP/kWh aplicado en: "
                   f"{', '.join(cov['meses_faltantes'])}")
-        print(f"    PGS por agente (CSV {t_start_cal.date()} → "
-              f"{t_end_cal.date()}, cobertura "
-              f"{len(cov['meses_cargados'])}/{len(cov['meses_horizonte'])} meses):")
+        print(f"    PGS Cedenar — comunitario (informativo, NO entra al "
+              f"settlement): {pi_gs_eff:.0f} COP/kWh  [legacy={PGS_COP:.0f}]")
+        # CAL-9: lo que liquida es la matriz (N, T) mes a mes. Imprimimos
+        # el rango por agente para evidenciar la variabilidad temporal.
+        if full_horizon or single_day:
+            idx_for_diag = index_full if full_horizon else idx_day
+            tariff_matrix_diag = pi_gs_per_agent_hourly(agent_names, idx_for_diag)
+            mode_tag = "matriz mes a mes (N×T)"
+        else:
+            # Perfil diario promedio: representa el promedio del horizonte → usar vector CAL-8
+            tariff_matrix_diag = np.broadcast_to(
+                pi_gs_per_agent[:, None], (N, T),
+            )
+            mode_tag = "vector CAL-8 (perfil diario, sin variabilidad mensual)"
+        print(f"    PGS al settlement → {mode_tag}  "
+              f"cobertura {len(cov['meses_cargados'])}/{len(cov['meses_horizonte'])} meses")
+        print(f"      {'Institución':<10} {'Categoría':<10} {'NT':<4} "
+              f"{'min':>5} {'max':>5} {'media':>6}  COP/kWh")
         for n, name in enumerate(agent_names):
             prof = INSTITUTION_PROFILE.get(name)
             cat  = prof.categoria if prof else "(sin perfil)"
             nt   = f"NT{prof.nivel_tension}" if prof else "—"
-            print(f"      {name:<8} {cat:<10} {nt:<4} → "
-                  f"{pi_gs_per_agent[n]:>6.0f} COP/kWh")
+            row  = tariff_matrix_diag[n]
+            print(f"      {name:<10} {cat:<10} {nt:<4} "
+                  f"{row.min():>5.0f} {row.max():>5.0f} {row.mean():>6.0f}")
         print(f"    PGB={pi_bolsa.mean():.0f} COP/kWh (promedio bolsa)")
         print(f"    b calibrado: {b_cal.round(0)}")
 
@@ -208,9 +225,19 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     # ── 3. Escenarios C1–C4 ──────────────────────────────────────────────
     print("\n[3/5] Escenarios regulatorios C1–C4...")
-    # CAL-8 Fase 2: con datos reales pasamos pi_gs como vector per-agente
-    # (oficial vs comercial); con sintético se conserva el escalar histórico.
-    pi_gs_arg = pi_gs_per_agent if use_real_data else grid_params["pi_gs"]
+    # CAL-9: con datos reales construimos pi_gs como matriz (N, T) mes a mes
+    # (CU Cedenar temporal). Modos single_day y full_horizon llevan la
+    # variabilidad mensual real; perfil diario usa el vector (N,) del CAL-8
+    # porque representa el promedio del horizonte (sin variabilidad mensual).
+    if use_real_data:
+        if full_horizon:
+            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, index_full)
+        elif single_day:
+            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, idx_day)
+        else:
+            pi_gs_arg = pi_gs_per_agent           # (N,) — perfil diario
+    else:
+        pi_gs_arg = grid_params["pi_gs"]
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
@@ -469,7 +496,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         cap_arr = np.array([float(G[n].max()) for n in range(D.shape[0])])
         wr_report = analyze_withdrawal_risk(
             D=D, G=G, G_klim=G_klim,
-            pi_gs=grid_params["pi_gs"],
+            pi_gs=pi_gs_arg,            # CAL-9: matriz (N, T) mes a mes en --full
             pi_gb=grid_params["pi_gb"],
             pi_bolsa=pi_bolsa,
             pde=pde,
@@ -705,24 +732,30 @@ def _compute_daily_series(
     """
     from scenarios.comparison_engine import _p2p_monetary_benefit
     from scenarios.scenario_c4_creg101072 import run_c4_creg101072
+    from scenarios._pi_gs import as_pi_gs_array
 
     T      = D.shape[1]
     N      = D.shape[0]
     n_days = T // 24
+
+    # CAL-9: normalizar pi_gs a matriz (N, T) y slicear por día. Cada día
+    # liquida con la tarifa Cedenar del mes que contiene esas 24 horas.
+    pi_gs_full = as_pi_gs_array(pi_gs, N, T)
 
     rows = []
     for d in range(n_days):
         sl = slice(d * 24, (d + 1) * 24)
         D_d = D[:, sl]
         G_d = G_klim[:, sl]
+        pi_gs_d = pi_gs_full[:, sl]   # (N, 24) — tarifa del día
 
         nb_p2p = _p2p_monetary_benefit(
             p2p_results[d * 24 : (d + 1) * 24],
-            D_d, G_d, pi_gs, pi_gb, prosumer_ids,
+            D_d, G_d, pi_gs_d, pi_gb, prosumer_ids,
         ).sum()
 
         c4 = run_c4_creg101072(
-            D_d, G_d, pi_gs, pi_bolsa[sl], pde, cap, mode="pde_only"
+            D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap, mode="pde_only"
         )
         nb_c4 = sum(c4["per_agent"][n]["net_benefit"] for n in range(N))
 
@@ -886,18 +919,25 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         f"| Energía P2P total | {kwh_p2p:.1f} kWh/período |",
     ]
     if use_real_data and pi_gs_per_agent is not None:
-        # CAL-8: tarifa Cedenar mensual diferenciada por institución
+        # CAL-9: tarifa Cedenar mensual con matriz (N, T) en C1-C4 (--full/--day),
+        # vector (N,) en perfil diario.
         per_agent_str = " · ".join(
             f"{n}={int(round(v))}"
             for n, v in zip(agent_names, pi_gs_per_agent)
         )
         eff_val = (f"{pi_gs_eff:.0f}" if pi_gs_eff is not None
                    else f"{float(np.mean(pi_gs_per_agent)):.0f}")
+        regimen = ("matriz N×T mes a mes (CAL-9)" if full_horizon
+                    else "vector (N,) — perfil diario CAL-8")
         lines.append(
-            f"| π_gs por agente (CAL-8 Cedenar) | {per_agent_str} {currency}/kWh |"
+            f"| π_gs en C1–C4 (régimen) | {regimen} |"
         )
         lines.append(
-            f"| π_gs comunitario ponderado | {eff_val} {currency}/kWh "
+            f"| π_gs por agente (promedio horizonte) | "
+            f"{per_agent_str} {currency}/kWh |"
+        )
+        lines.append(
+            f"| π_gs comunitario informativo | {eff_val} {currency}/kWh "
             f"(legacy escalar PGS_COP={PGS_COP:.0f} deprecado) |"
         )
         lines.append(

@@ -29,7 +29,7 @@ tesis_p2p/
 │   ├── base_case_data.py       ← parámetros + GRID_PARAMS (sintético) + GRID_PARAMS_REAL (COP, fallback)
 │   ├── xm_data_loader.py       ← cargador CSV MTE (pandas 3.x compatible)
 │   ├── xm_prices.py            ← precios XM reales/sintéticos + calibración parámetro b
-│   ├── cedenar_tariff.py       ← CAL-8: tarifa CU mensual Cedenar per-agente (oficial/comercial)
+│   ├── cedenar_tariff.py       ← CAL-9: tarifa CU mensual Cedenar (matriz N×T mes a mes)
 │   ├── tarifas_cedenar_mensual.csv  ← 130 filas, abr-2025 → abr-2026
 │   └── cedenar_pdfs/           ← 13 PDFs oficiales respaldatorios
 ├── analysis/
@@ -173,6 +173,14 @@ python scripts/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 > `pi_gs : float | np.ndarray (N,)` vía
 > `scenarios._pi_gs.as_pi_gs_vector`. Cobertura del CSV: 13 meses
 > (abr-2025 → abr-2026), respaldados por PDFs en `data/cedenar_pdfs/`.
+>
+> **CAL-9** (`Documentos/notas_modelo_tesis.md` §CAL-9,
+> `docs/adr/0009-cal9-pi-gs-temporal.md`): el contrato canónico de los
+> escenarios pasa a `pi_gs : float | (N,) | (N, T)`. En modo `--full`
+> y `--day` cada hora liquida con el CU del mes que la contiene
+> (vía `pi_gs_per_agent_hourly`). El helper canónico es
+> `scenarios._pi_gs.as_pi_gs_array(pi_gs, N, T)`. Backward-compatible
+> con todas las llamadas que pasan escalar o vector.
 
 ---
 

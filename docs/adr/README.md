@@ -17,7 +17,8 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0005 | CAL-5: Insensibilidad dinamica de `theta` | Accepted | 2026-04 |
 | 0006 | CAL-6: LCOE solar `b_n` sintetico vs real (homogeneo 225 COP/kWh) | Accepted | 2026-04-17 |
 | 0007 | CAL-7: Alternancia Stackelberg vs ODE conjunta | Accepted | 2026-04-17 |
-| 0008 | CAL-8: Tarifa Cedenar mensual diferenciada (vector per-agente) | Accepted | 2026-04-27 |
+| 0008 | CAL-8: Tarifa Cedenar mensual diferenciada (vector per-agente) | Accepted (parcial Superseded por 0009) | 2026-04-27 |
+| 0009 | CAL-9: Tarifa pi_gs temporal mes a mes (matriz N×T) | Accepted | 2026-04-30 |
 
 ## Conexion con la propuesta
 

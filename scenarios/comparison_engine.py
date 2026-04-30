@@ -16,7 +16,7 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-from ._pi_gs import as_pi_gs_vector
+from ._pi_gs import as_pi_gs_array
 from .scenario_c1_creg174    import run_c1_creg174
 from .scenario_c2_bilateral  import run_c2_bilateral
 from .scenario_c3_spot       import run_c3_spot
@@ -78,7 +78,7 @@ def run_comparison(
     G_klim:       np.ndarray,       # (N, T) límite de generación (pre-calc.)
     G_raw:        np.ndarray,       # (N, T) generación bruta original
     p2p_results:  list,
-    pi_gs:        Union[float, np.ndarray],  # escalar o (N,) — CAL-8
+    pi_gs:        Union[float, np.ndarray],  # escalar, (N,) o (N, T) — CAL-9
     pi_gb:        float,
     pi_bolsa:     np.ndarray,       # (T,) precio de bolsa horario
     prosumer_ids: list,
@@ -91,16 +91,16 @@ def run_comparison(
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
 
-    `pi_gs` admite escalar (caso uniforme) o vector `(N,)` por agente
-    (calibración Cedenar mensual diferenciada por categoría tarifaria,
-    CAL-8). Internamente se propaga como vector a los escenarios.
+    `pi_gs` admite escalar (caso uniforme), vector `(N,)` per-agente
+    (CAL-8) o matriz `(N, T)` mes a mes (CAL-9, calibración Cedenar
+    temporal). Internamente se propaga como matriz `(N, T)` para que
+    cada hora liquide con el CU vigente en su mes.
     """
     N, T = D.shape
     cr   = ComparisonResult(hours=T, n_agents=N)
 
-    # Normalizar pi_gs a vector (N,) para que los escenarios y helpers
-    # internos lo consuman uniformemente.
-    pi_gs_v = as_pi_gs_vector(pi_gs, N)
+    # Normalizar pi_gs a matriz (N, T) — CAL-9: tarifa temporal mes a mes.
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
 
     # Valores por defecto
     if pde is None:
@@ -109,7 +109,8 @@ def run_comparison(
     cr.pde = pde
 
     if pi_ppa is None:
-        # PPA es contractual y único: usa la tarifa promedio comunitaria.
+        # PPA es contractual y único: usa la tarifa promedio comunitaria
+        # sobre todo el horizonte (promedio sobre N y T).
         pi_ppa = pi_gb + 0.5 * (float(np.mean(pi_gs_v)) - pi_gb)
     cr.pi_ppa = pi_ppa
 
@@ -285,13 +286,16 @@ def run_comparison(
     # Lo que varía es el valor asignado a la energía que pasa por la red.
 
     # Autoconsumo total (prosumidores) — el kWh es idéntico en todos los
-    # escenarios; el valor en COP refleja la tarifa per-agente (CAL-8).
-    auto_kwh_per_agent = np.sum(np.minimum(
+    # escenarios; el valor en COP refleja la tarifa temporal per-agente
+    # (CAL-9: matriz N×T mes a mes).
+    auto_kwh_hourly = np.minimum(
         np.maximum(G_klim, 0), np.maximum(D, 0),
-    ), axis=1)
+    )                                              # (N, T) kWh
+    auto_kwh_per_agent = auto_kwh_hourly.sum(axis=1)
     auto_kwh = float(np.sum(auto_kwh_per_agent[prosumer_ids]))
-    auto_cop = float(np.sum(auto_kwh_per_agent[prosumer_ids]
-                             * pi_gs_v[prosumer_ids]))
+    auto_cop = float(np.sum(
+        auto_kwh_hourly[prosumer_ids] * pi_gs_v[prosumer_ids]
+    ))
 
     # C1 breakdown
     c1_savings_total = c1["aggregate"]["total_savings"]      # auto + permutación
@@ -368,23 +372,28 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     Filosofía A (WEEF min 22-26): net_benefit = savings + revenues.
     No se resta el costo residual de compra a la red.
 
-    Vendedor:    (π_star − π_gb)      × P_vendido    (prima sobre venta a bolsa)
-    Comprador:   (π_gs[i] − π_star[i]) × P_comprado  (ahorro vs comprar a la red)
-    Autoconsumo: min(G, D) × π_gs[n]                 (cada prosumidor a su tarifa)
+    Vendedor:    (π_star − π_gb)         × P_vendido    (prima sobre venta a bolsa)
+    Comprador:   (π_gs[i, k] − π_star[i]) × P_comprado  (ahorro vs comprar a la red)
+    Autoconsumo: min(G, D) × π_gs[n, k]                 (tarifa temporal CAL-9)
 
     Parámetros
     ----------
     results : list[HourlyResult]
     D, G_klim : ndarray (N, T)
-    pi_gs : float | ndarray (N,) — escalar o per-agente (CAL-8)
+    pi_gs : float | ndarray (N,) | ndarray (N, T) — CAL-9
     pi_gb : float — precio de bolsa (COP/kWh)
     prosumer_ids : list[int] — índices de agentes con generación propia
     """
-    N = D.shape[0]
-    pi_gs_v = as_pi_gs_vector(pi_gs, N)
+    N, T = D.shape
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
     net = np.zeros(N)
 
-    for r in results:
+    # Indexación por POSICIÓN en la lista, no por r.k. El caller debe pasar
+    # results alineado con D (mismas T columnas, mismo orden). Esto permite
+    # usarlo tanto sobre el horizonte completo (run_comparison) como sobre
+    # slices diarios (_compute_daily_series), sin tener que mapear r.k global
+    # a un índice local mes a mes.
+    for k_local, r in enumerate(results):
         if r.P_star is None:
             continue
 
@@ -404,21 +413,22 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             net[j] += income - baseline
 
-        # Compradores: ahorro por pagar pi_star < pi_gs[i] en vez de comprar todo a la red
+        # Compradores: ahorro por pagar pi_star en vez de comprar todo a la
+        # red. La tarifa de referencia es la del agente en la hora del mercado.
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
+            pi_ref = float(pi_gs_v[i, k_local])
             if r.pi_star is not None:
                 paid = r.pi_star[idx_i] * received
             else:
-                paid = received * pi_gs_v[i]
-            net[i] += received * pi_gs_v[i] - paid   # ahorro = (pi_gs[i] - pi_star[i]) × kWh_P2P
+                paid = received * pi_ref
+            net[i] += received * pi_ref - paid
 
-    # Autoconsumo propio de prosumidores a su pi_gs[n]
+    # Autoconsumo propio de prosumidores a su pi_gs[n, k] (tarifa temporal)
     for n in prosumer_ids:
-        T = D.shape[1]
         for k in range(T):
             auto = min(G_klim[n, k], D[n, k])
-            net[n] += auto * pi_gs_v[n]
+            net[n] += auto * pi_gs_v[n, k]
 
     return net
 
@@ -428,20 +438,20 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
     Descompone el beneficio P2P en prima de vendedor y ahorro de comprador.
 
       prima_vendedor  : Σ_k Σ_j max(0, ingreso_j - baseline_j)
-      ahorro_comprador: Σ_k Σ_i max(0, pi_gs[i] × P_comprado - pagado)
+      ahorro_comprador: Σ_k Σ_i max(0, pi_gs[i, k] × P_comprado - pagado)
 
     El autoconsumo propio se contabiliza por separado (igual kWh en todos
-    los escenarios, valorado a la pi_gs per-agente).
+    los escenarios, valorado a la pi_gs temporal per-agente).
 
     Parámetros
     ----------
     results : list[HourlyResult]
-    pi_gs   : float | ndarray (N,) — tarifa al usuario (CAL-8)
+    pi_gs   : float | ndarray (N,) | ndarray (N, T) — tarifa al usuario (CAL-9)
     pi_gb   : float — precio de bolsa, baseline de venta (COP/kWh)
     """
-    # N implícito en buyer_ids; tomamos el max para dimensionar el vector.
     if not results:
         return 0.0, 0.0
+    # N y T implícitos en buyer_ids/seller_ids y len(results).
     N_inferred = 0
     for r in results:
         if r.P_star is None:
@@ -450,12 +460,14 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
             N_inferred = max(N_inferred, max(r.buyer_ids) + 1)
         if r.seller_ids:
             N_inferred = max(N_inferred, max(r.seller_ids) + 1)
-    pi_gs_v = as_pi_gs_vector(pi_gs, N_inferred) if N_inferred else \
-              np.atleast_1d(np.asarray(pi_gs, dtype=float))
+    T_inferred = len(results)
+    if N_inferred == 0:
+        return 0.0, 0.0
+    pi_gs_v = as_pi_gs_array(pi_gs, N_inferred, T_inferred)
 
     prima  = 0.0
     ahorro = 0.0
-    for r in results:
+    for k_local, r in enumerate(results):
         if r.P_star is None:
             continue
         for idx_j, j in enumerate(r.seller_ids):
@@ -467,9 +479,10 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
             prima += max(0.0, income - baseline)
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
+            pi_ref = float(pi_gs_v[i, k_local])
             paid     = (r.pi_star[idx_i] * received if r.pi_star is not None
-                        else received * pi_gs_v[i])
-            ahorro  += max(0.0, received * pi_gs_v[i] - paid)
+                        else received * pi_ref)
+            ahorro  += max(0.0, received * pi_ref - paid)
     return prima, ahorro
 
 

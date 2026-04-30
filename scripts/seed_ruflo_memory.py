@@ -121,7 +121,7 @@ def store_entry(key: str, value: str, namespace: str = "tesis") -> bool:
     quoted_value = f'"{flat}"'
     cmd = (
         f'npx @claude-flow/cli@latest memory store '
-        f'--key "{key}" --value {quoted_value} --namespace "{namespace}"'
+        f'--key "{key}" --value {quoted_value} --namespace "{namespace}" --upsert'
     )
     print(f"[seed] storing {namespace}/{key} ({len(flat)} chars)...", flush=True)
     proc = subprocess.run(

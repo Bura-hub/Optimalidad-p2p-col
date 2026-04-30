@@ -36,10 +36,10 @@ documentados en sus propios módulos mediante docstrings.
 | Archivo | Descripción | Verificación requerida |
 |---|---|---|
 | `PropuestaTesis.txt` | Texto completo de la propuesta de tesis en formato plano (UTF-8). Fuente autoritativa de los objetivos, actividades 1.0–4.2 y referencias [1]–[15]. | No |
-| `notas_modelo_tesis.md` | Notas técnicas de diseño del modelo: fórmula de IE, condición de degeneración C1=C3, derivaciones de las funciones de bienestar, decisiones de diseño históricas. Consultar antes de modificar `core/` o `scenarios/`. | No |
+| `notas_modelo_tesis.md` | Notas técnicas de diseño del modelo: fórmula de IE, condición de degeneración C1=C3, derivaciones de las funciones de bienestar, decisiones de diseño históricas (CAL-1..CAL-9). Consultar antes de modificar `core/` o `scenarios/`. §CAL-9 documenta la migración a tarifa π_gs temporal `(N, T)` y §CAL-9.5 explica la frontera EMS escalar ↔ C1-C4 matriz. | No |
 | `Inventario_Act_1_0.md` | Inventario formal de elementos del sistema (Activity 1.0): agentes, escenarios C1–C4, parámetros de la Tabla I canónica y requisitos de datos por escenario. | No |
 | `Revision_Bibliografica_Act_1_2.md` | Revisión bibliográfica para inferencia de parámetros (Activity 1.2): 4 secciones con tablas de calibración para b_n (LCOE), λ_n (elasticidad), θ_n (preferencias P2P), η_i (aversión al riesgo). | Sí — confirmar autores de refs [22][24][26][27] |
-| `Matriz_Trazabilidad.md` | Tabla de trazabilidad: mapea cada actividad de la propuesta (1.0–4.2) al código que la implementa y a las figuras de evidencia. | No |
+| `Matriz_Trazabilidad.md` | Tabla de trazabilidad: mapea cada actividad de la propuesta (1.0–4.2) al código que la implementa y a las figuras de evidencia. Incluye anexo ADRs CAL-1..CAL-9 y wiring por modo de ejecución. | No |
 | `references.bib` | Bibliografía consolidada en formato BibTeX IEEE (27 entradas). Entradas marcadas con `VERIFICAR` requieren confirmación de autoría en la plataforma editorial (DOIs ya verificados). | Sí — ver nota abajo |
 | `contexto.txt` | Texto extraído del PDF `Modelo_Base_Sofía_Chacon.pdf`: análisis matemático, computacional y operativo del modelo EMS P2P (Chacón et al., 2025). Documento técnico de ~40 páginas. No se modifica. | No |
 | `p2p_explicacion.txt` | Explicación técnica del sistema P2P en texto plano: introducción a comunidades energéticas, dinámica de replicadores y juego de Stackelberg. Fue redactado como material de contexto. No forma parte del código. | No |
@@ -48,16 +48,26 @@ documentados en sus propios módulos mediante docstrings.
 | `Modelo_Base_Sofía_Chacon.pdf` | PDF del trabajo de grado de Sofía Chacón Chamorro (referencia [5]). Fuente primaria del modelo base. No se modifica. | No |
 | `Propuesta de tesis Brayan Lopez.pdf` | PDF de la propuesta de tesis presentada al comité académico. Versión formal; el texto de referencia es `PropuestaTesis.txt`. | No |
 
-### Verificación pendiente en references.bib
+### Verificación CrossRef de references.bib — cerrada 2026-04-30
 
-| Entrada BibTeX | DOI | Autores pendientes |
-|---|---|---|
-| `Colombia2022P2P` | 10.1016/j.erss.2022.102714 | Verificar en Energy Research & Social Science (2022, vol. 90) |
-| `Sopha2020Prosumer` | 10.1016/j.enpol.2019.111098 | Verificar en Energy Policy (2020, vol. 137) |
-| `Guerrero2023RiskMicrogrid` | 10.1016/j.prime.2024.100439 | Verificar en e-Prime: Advances in EEE (2024) |
-| `Tavakoli2023RiskAversion` | 10.1016/j.eneco.2023.106886 | Verificar en Energy Economics (2023) |
-| `BernalTorres2020Solar` | 10.15446/cuad.econ.v39n80.79498 | Verificar en Cuadernos de Economía, 39(80), 2020 |
-| `Tietjen2021Retail` | 10.1016/j.jeem.2021.102513 | Verificar en Journal of Environmental Economics and Management, 109 (2021) |
+Auditoría Tier 1.1 deep-research Ruflo. Las 6 entradas previamente
+marcadas `VERIFICAR` fueron resueltas contra la API CrossRef y
+corregidas en `references.bib`. 5/6 tenían DOI INCORRECTO (apuntaban
+a papers distintos). 1/6 tenía DOI correcto pero autores incorrectos.
+Detalle completo en `bib_verificacion_2026-04-30.md`.
+
+| Key vieja → nueva | Tipo de corrección |
+|---|---|
+| `BernalTorres2020Solar` → `Castano2020Solar` | autores + journal + DOI |
+| `Tietjen2021Retail` → `McRae2021Retail` | autores + DOI |
+| `Colombia2022P2P` → `Cardenas2022P2P` | autores + DOI |
+| `Sopha2020Prosumer` → `Hahnel2020Prosumer` | autores (DOI correcto) |
+| `Guerrero2023RiskMicrogrid` → `Herding2024RiskMicrogrid` | autores + journal + DOI |
+| `Tavakoli2023RiskAversion` → `Mobius2023RiskAversion` | autores + DOI |
+
+Pendiente al editar `Documentos/FinalTesis/*.tex`: renombrar las
+6 keys en todos los `\cite{}`. Backup pre-corrección en
+`Documentos/references.bib.bak_2026-04-30`.
 
 ---
 

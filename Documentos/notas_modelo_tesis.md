@@ -2011,3 +2011,203 @@ antes de actuar.
 Plus 17 archivos .mat (uno por figura con datos persistidos) y 52 archivos
 .csv (siblings por serie cuando los shapes son heterogéneos).
 
+
+---
+
+## §CAL-9 — Tarifa π_gs temporal mes a mes (matriz N×T)
+
+**Fecha:** 2026-04-30 · **Estado:** implementado, validación `--full` en
+curso al cierre de sesión. Ver `docs/adr/0009-cal9-pi-gs-temporal.md`.
+
+### Motivación
+
+CAL-8 calibró π_gs como **vector escalar por institución**: cada agente
+liquidaba todo el horizonte con el promedio horario-ponderado del CU
+mensual de Cedenar. Esa aproximación es regulatoriamente débil porque
+las Res. CREG 174/2021 y 101 072/2025 liquidan **mensualmente**: cada
+mes calendario tiene su propio CU y cada hora debería heredarlo.
+
+El CU oficial NT2 mensual del CSV varía entre 766,80 y 816,98 COP/kWh
+(spread ~6,5 % intraanual). Liquidar `--full` con un escalar borra esa
+variabilidad, debilitando la fidelidad al comparar P2P contra C1/C4
+ante los asesores.
+
+### Decisión
+
+`pi_gs` pasa al contrato canónico **matriz `(N, T)`** en escenarios
+C1–C4 y módulos de análisis. Cada hora liquida con el CU del mes que
+la contiene. Helper `scenarios._pi_gs.as_pi_gs_array(pi_gs, N, T)`
+acepta escalar / `(N,)` / `(T,)` / `(N, T)` con broadcast retro
+compatible.
+
+Wiring `main_simulation.py:213`:
+
+| Modo | `pi_gs_arg` |
+|---|---|
+| `--full --data real` | `pi_gs_per_agent_hourly(names, index_full)` |
+| `--day --data real`  | `pi_gs_per_agent_hourly(names, idx_day)` |
+| Perfil diario `--data real` | vector `(N,)` CAL-8 (promedio del horizonte) |
+| Sintético | escalar `grid_params["pi_gs"]` |
+
+### Archivos modificados
+
+- `scenarios/_pi_gs.py` (helper extendido)
+- `scenarios/scenario_c{1,2,3,4}_*.py` (indexación temporal)
+- `scenarios/comparison_engine.py` (matriz + indexación por posición en
+  `_p2p_monetary_benefit` / `_p2p_flow_breakdown`)
+- `analysis/feasibility.py` (slicing por agente al retirar n)
+- `analysis/monthly_report.py` (slicing por mes)
+- `main_simulation.py` (wiring full/day/perfil; `_compute_daily_series`
+  slicea por día)
+- `tests/test_pi_gs_temporal.py` (10 casos nuevos)
+- `scripts/cal9_delta_report.py` (comparación CAL-8 vs CAL-9)
+- `docs/adr/0009-cal9-pi-gs-temporal.md`
+- `scripts/seed_ruflo_cal9.py` (memoria semántica)
+
+### Resultados de regresión
+
+| Suite | Antes (CAL-8) | Después (CAL-9) |
+|---|---:|---:|
+| pytest tests/ -q | 33/33 (121 s) | **43/43** (112 s + 10 CAL-9) |
+| `python main_simulation.py` (sintético) | 14 s | 13,5 s |
+| `python main_simulation.py --data real` (perfil diario) | 22 s | 22,4 s |
+| Equivalencia escalar↔matriz constante (C1/C3/C4) | n/a | exacta (rel < 1e-9) |
+
+### Delta numérico vs CAL-8
+
+Validación sobre horizonte completo MTE (`--full --analysis`,
+2026-04-30, 61,4 min, 6 144 h):
+
+| Escenario | CAL-8 (COP) | CAL-9 (COP) | Δ COP | Δ % |
+|---|---:|---:|---:|---:|
+| C1   | 54 042 168 | 54 061 626 | +19 458 | **+0,036 %** |
+| C2   | 51 440 813 | 51 437 446 | −3 367  | −0,007 % |
+| C3   | 50 961 703 | 50 958 336 | −3 367  | −0,007 % |
+| C4   | 50 290 134 | 50 288 076 | −2 059  | −0,004 % |
+| P2P  | 52 430 924 | 52 446 938 | +16 014 | **+0,031 %** |
+
+**Lectura:** el escalar CAL-8 era una buena aproximación al promedio
+del horizonte (delta agregado < 0,04 %), pero la matriz mes a mes
+**redistribuye beneficio entre agentes**: Udenar (mayor generador,
+oficial NT2 cuyo CU cae en dic-2025/ene-2026) pierde 0,21–0,24 %
+en P2P/C2/C3/C4, mientras los compradores comerciales (Mariana,
+UCC, Cesmag) y HUDN ganan 0,03–0,09 %. La estructura cualitativa de
+IR (3/5 estables), IE y Gini se mantiene; las conclusiones
+pre-CAL-9 siguen válidas. Reporte detallado:
+`outputs/cal9_delta_report.md`.
+
+### Compatibilidad
+
+- `as_pi_gs_vector(pi_gs, N)` se conserva como adaptador retro: si
+  recibe matriz `(N, T)`, colapsa al promedio temporal por agente. Lo
+  usan `analysis/p2p_breakdown.export_p2p_hourly` y otros consumidores
+  que aún operan con la semántica CAL-8 (uso informativo, no liquidación).
+- El EMS interno (`core/ems_p2p.py`) sigue usando el escalar
+  `grid.pi_gs` para la dinámica de replicador y la liquidación de
+  P2P. Esa frontera es estructural (ver §CAL-9.5).
+
+---
+
+## §CAL-9.5 — Frontera EMS escalar ↔ C1–C4 matriz: ¿por qué la asimetría es correcta?
+
+**Pregunta natural** (planteada por el autor 2026-04-30): si la matriz
+mes a mes describe la tarifa real, ¿por qué el motor P2P interno
+(`core/ems_p2p.py`, replicator dynamics, settlement intra-mercado)
+sigue usando un escalar comunitario `pi_gs_eff ≈ 906 COP/kWh` y no la
+matriz `(N, T)`?
+
+**Respuesta corta**: porque el EMS modela una **negociación con un
+único precio de mercado** y la matriz modela una **liquidación
+regulatoria heterogénea**. Son dos capas distintas que deben usar
+referencias distintas.
+
+### Las dos capas
+
+| | EMS interno (`core/ems_p2p.py`) | C1–C4 + monthly_report |
+|---|---|---|
+| Pregunta que responde | "¿En qué `π_star[k]` se ponen de acuerdo los agentes?" | "¿Cuánto dinero mueve cada agente bajo el régimen X?" |
+| Naturaleza del precio | **Uniforme**: un solo `π_star[k]` para todos los compradores en la hora | Per-agente: cada uno paga su CU del mes |
+| Fuente regulatoria | Decreto 2469/2014 (no fija el precio P2P; mecanismo libre) | Res. CREG 174/2021, 101 072/2025, 101 066/2024 (montos explícitos) |
+| Referencia conceptual | Techo agregado de la negociación (outside option comunitario) | Tarifa específica que el agente paga a la red según factura |
+| Dinámica | Replicador-Stackelberg (juego dinámico hora a hora) | Liquidación cerrada (suma sobre horas/meses) |
+
+### Por qué el EMS necesita un escalar
+
+1. **El mecanismo P2P es uniforme por construcción**. En cada hora `k`,
+   el solver resuelve **un solo** `π_star[k]` que pagan todos los
+   compradores activos. No hay discriminación de precios intra-mercado.
+   Ver `core/ems_p2p.py` y la formulación en `Documentos/copy/JoinFinal.m`.
+
+2. **Si el replicador usara `π_gs[i, k]` per-agente**: HUDN (oficial NT2,
+   techo 797) bidearía hasta 797; Mariana/UCC/Cesmag (comercial NT2,
+   techo 956) bidearían hasta 956. El equilibrio convergería a un
+   `π_star` que **discrimina implícitamente** entre categorías
+   tarifarias. Eso ya **no es el mecanismo P2P** que la propuesta
+   modela — sería más cercano a un PPA segmentado por tipo de cliente.
+
+3. **Fidelidad al modelo base** (regla #1, `CLAUDE.md`). Sofía Chacón
+   et al. (2025) define el juego con un único `π_gs` adimensional. La
+   tesis valida y extiende ese modelo, no lo reemplaza. Cambiar el
+   contrato del EMS rompería la equivalencia con
+   `tests/validate_base_model.py`.
+
+4. **El escalar comunitario es el outside option correcto**.
+   `pi_gs_eff = community_effective_pi_gs(...)` ≈ 906 COP/kWh es el
+   promedio ponderado por demanda. Representa "lo que paga la
+   comunidad como agregado si no hay P2P", que es la referencia
+   conceptual correcta para una negociación interna uniforme.
+
+### Por qué C1–C4 + monthly_report sí necesitan la matriz
+
+1. Las Res. CREG 174/2021 (créditos AGPE) y 101 072/2025 (PDE AGRC)
+   liquidan **mensualmente** con resoluciones explícitas: cada mes
+   tiene su CU específico (CREG 119/2007 + COT por CREG 101-028/2023).
+2. `net_benefit` por agente es **flujo de caja real**, no abstracción
+   de juego: el agente `n` literalmente paga `pi_gs[n, m]` al
+   comercializador en el mes `m`.
+3. La heterogeneidad oficial/comercial (× 1,20 contribución Ley
+   142/1994) es regulatoria, no contractual P2P.
+
+### Consistencia: ¿dónde se sintetiza la heterogeneidad?
+
+**Una vez que el EMS resolvió `π_star[k]` (uniforme)**, al traducir
+ese precio a flujo de caja por agente, cada uno valoriza su `π_star ×
+P_recibido` contra su **propia** `π_gs[i, k]` mensual. Esto pasa en
+`scenarios.comparison_engine._p2p_monetary_benefit` (CAL-9):
+
+```python
+pi_ref = float(pi_gs_v[i, k_local])           # CU real del comprador
+net[i] += received * pi_ref - paid            # ahorro real per-agente
+```
+
+O sea: el **precio de mercado** es uniforme (escalar comunitario en
+EMS); el **ahorro económico realizado** por cada agente sí refleja su
+CU mensual real (matriz CAL-9 en comparison). No hay contradicción —
+son dos métricas con dos referencias coherentes con su semántica.
+
+### Implicación práctica para los asesores
+
+- El `IE` reportado **dentro de cada `HourlyResult`** (calculado en
+  `ems_p2p.py:294`) usa el escalar y mide **reparto del excedente del
+  mercado** en esa hora (Nivel 2 — bienestar de mercado, u.o.).
+- El **`Gini`, `RPE`, `net_benefit` por agente y `flow_breakdown`**
+  (calculados en `comparison_engine`) usan la matriz y miden **flujo
+  de caja real per-agente sobre el horizonte** (Nivel 1 — monetario,
+  COP).
+- La conclusión cuantitativa de la tesis (RPE = +0,041, Gini ~ 0,134
+  en todos los escenarios, IR 3/5 estables) **vive en Nivel 1** y por
+  tanto es CAL-9-correcta.
+
+### Cuándo sí habría que migrar el EMS a matriz (CAL-10 hipotético)
+
+- Si la propuesta cambiara para argumentar que el P2P **discrimina
+  por categoría tarifaria** (mecanismo segmentado).
+- Si quisiera estudiarse deserción al régimen individual **dentro del
+  EMS** mes a mes (hoy se evalúa fuera, en
+  `feasibility.analyze_withdrawal_risk` y en `feasibility.analyze_pgs_sensitivity`).
+
+Hoy ninguno de los dos casos aparece en la propuesta, así que la
+frontera está justificada y documentada como decisión de diseño.
+
+
+

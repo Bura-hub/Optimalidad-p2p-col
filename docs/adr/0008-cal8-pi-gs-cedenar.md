@@ -1,6 +1,7 @@
 # 0008 — CAL-8: Tarifa Cedenar mensual diferenciada por institucion
 
-- **Estado:** Accepted
+- **Estado:** Accepted (parcialmente Superseded por
+  [ADR-0009](0009-cal9-pi-gs-temporal.md) en `--full` y `--day`)
 - **Fecha de decision:** 2026-04-27
 - **Actividad:** 1.1 (caracterizacion empirica) / 3.1-3.3 (validacion regulatoria)
 - **Archivos afectados:** `data/cedenar_tariff.py`,
@@ -10,7 +11,12 @@
   `main_simulation.py`
 - **Supersedes parcialmente:** la nota de CAL-6 sobre el escalar
   `pi_gs = 650 COP/kWh`
-- **Fuente:** `Documentos/notas_modelo_tesis.md` §7 CAL-8
+- **Superseded parcialmente por:** [ADR-0009 CAL-9](0009-cal9-pi-gs-temporal.md)
+  promueve `pi_gs` a matriz `(N, T)` mes a mes en escenarios y analisis.
+  CAL-8 (vector `(N,)` per-agente, promedio horario-ponderado del
+  horizonte) se conserva solo para el modo **perfil diario 24 h**, donde
+  la representacion temporal compactada es la apropiada.
+- **Fuente:** `Documentos/notas_modelo_tesis.md` §7 CAL-8 + §CAL-9
 
 ## Contexto
 

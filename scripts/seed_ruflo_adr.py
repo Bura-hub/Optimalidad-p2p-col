@@ -58,7 +58,16 @@ ADR_SUMMARIES = {
         "799 oficial Udenar HUDN 959 comercial Mariana UCC Cesmag "
         "supersede 650 fallback CSV tarifas_cedenar_mensual desercion "
         "P2P AGPE C1 5/5 a 3/5 IR estables impacto +37% beneficio "
-        "actividad 1.1 3.1 3.2 3.3"
+        "actividad 1.1 3.1 3.2 3.3 superseded parcialmente por ADR 0009"
+    ),
+    "0009-cal9-pi-gs-temporal": (
+        "CAL-9 pi_gs matriz N x T mes a mes en C1 C2 C3 C4 cada hora "
+        "liquida con CU del mes que la contiene CREG 174 y 101 072 "
+        "liquidan mensualmente spread 766.80 a 816.98 oficial NT2 "
+        "as_pi_gs_array helper canonico backward compatible "
+        "supersede parcialmente CAL-8 fase 2 vector N para full y "
+        "single_day perfil diario conserva CAL-8 promedio horizonte "
+        "tests 43/43 actividad 1.1 3.1 3.2 3.3"
     ),
 }
 
@@ -67,7 +76,7 @@ def store(key: str, value: str, namespace: str = "adr") -> bool:
     flat = value.replace("\n", " | ").replace('"', "'")
     cmd = (
         f'npx @claude-flow/cli@latest memory store '
-        f'--key "{key}" --value "{flat}" --namespace "{namespace}"'
+        f'--key "{key}" --value "{flat}" --namespace "{namespace}" --upsert'
     )
     proc = subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8",

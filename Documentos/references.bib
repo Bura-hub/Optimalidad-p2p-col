@@ -7,21 +7,23 @@
 % Entradas [16]–[27]: referencias añadidas en Actividad 1.2 (revisión bibliográfica)
 %
 % Convención de nombres: AutorAnoPalabraClave
-% Entradas marcadas con "VERIFICAR" requieren confirmación de DOI en la plataforma editorial.
+% Toda entrada nueva debe verificarse contra CrossRef (api.crossref.org/works/{DOI})
+% antes de añadirse. NO estimar DOIs por extensión de códigos PII (offset sistemático).
 %
-% ── Checklist consolidado de verificación (auditoría D6, 2026-04-17) ─────────
-% Acción requerida ANTES DE LA DEFENSA: confirmar cada ítem en la plataforma
-% editorial y eliminar la marca "VERIFICAR" del note.
+% ── Auditoría CrossRef 2026-04-30 (Tier 1.1 deep-research Ruflo) ─────────────
+% Las 6 entradas previamente marcadas VERIFICAR fueron auditadas contra la
+% API CrossRef. Hallazgo: 5/6 con DOI INCORRECTO y 1/6 con autores
+% incorrectos. Correcciones aplicadas; keys renombradas a AutorAñoPalabra.
 %
-%   1. BernalTorres2020Solar   (L205) — autores y DOI  en Scielo Colombia
-%   2. Tietjen2021Retail       (L243) — DOI            en Elsevier (JEEM)
-%   3. Colombia2022P2P         (L259) — autores        en Energy Research & SS
-%                                     DOI estimado desde PII S2214629622002419
-%   4. Sopha2020Prosumer       (L285) — autores        en Elsevier (Energy Policy)
-%   5. Guerrero2023RiskMicrog  (L311) — autores y DOI  en Elsevier (e-Prime)
-%   6. Tavakoli2023RiskAvers   (L322) — autores y DOI  en Elsevier (Energy Econ.)
+%   1. BernalTorres2020Solar      → Castano2020Solar          (autores/journal/DOI)
+%   2. Tietjen2021Retail          → McRae2021Retail           (autores/DOI)
+%   3. Colombia2022P2P            → Cardenas2022P2P           (autores/DOI)
+%   4. Sopha2020Prosumer          → Hahnel2020Prosumer        (autores; mismo DOI)
+%   5. Guerrero2023RiskMicrogrid  → Herding2024RiskMicrogrid  (autores/journal/DOI)
+%   6. Tavakoli2023RiskAversion   → Mobius2023RiskAversion    (autores/DOI)
 %
-% Las entradas restantes ya están DOI-verificadas.
+% Documento de auditoría: Documentos/bib_verificacion_2026-04-30.md
+% Backup pre-corrección:  Documentos/references.bib.bak_2026-04-30
 % ─────────────────────────────────────────────────────────────────────────────
 
 % ── Referencias [1]–[15] de la propuesta ──────────────────────────────────────
@@ -217,17 +219,15 @@
   note        = {Consultado: abril de 2026}
 }
 
-% VERIFICAR: DOI estimado a partir de PII S0120-25962020000200023 (Scielo Colombia)
-@article{BernalTorres2020Solar,
-  author  = {Bernal-Torres, Carlos Alberto and Henao-Bravo, Eliana Esperanza},
+% Verificado vs CrossRef 2026-04-30: autores y journal corregidos.
+@article{Castano2020Solar,
+  author  = {Castaño-Gómez, Manuela and García-Rendón, John Jairo},
   title   = {Análisis de los incentivos económicos en la capacidad instalada de
              energía solar fotovoltaica en {Colombia}},
-  journal = {Cuadernos de Economía},
-  volume  = {39},
-  number  = {80},
+  journal = {Lecturas de Economía},
+  number  = {93},
   year    = {2020},
-  doi     = {10.15446/cuad.econ.v39n80.79498},
-  note    = {VERIFICAR autores y DOI en Scielo Colombia}
+  doi     = {10.17533/udea.le.n93a338727}
 }
 
 
@@ -255,32 +255,28 @@
   doi     = {10.1108/ijesm-05-2022-0012}
 }
 
-% VERIFICAR: DOI estimado a partir de PII S0095069621001017 (JEEM, Elsevier)
-@article{Tietjen2021Retail,
-  author  = {Tietjen, Oliver and Lessmann, Stefan and Pahle, Michael},
+% Verificado vs CrossRef 2026-04-30: autores y DOI corregidos (DOI viejo apuntaba a paper distinto).
+@article{McRae2021Retail,
+  author  = {McRae, Shaun D. and Wolak, Frank A.},
   title   = {Retail pricing in {Colombia} to support the efficient deployment
              of distributed generation and electric stoves},
   journal = {Journal of Environmental Economics and Management},
-  volume  = {109},
-  pages   = {102513},
   year    = {2021},
-  doi     = {10.1016/j.jeem.2021.102513},
-  note    = {VERIFICAR DOI en Elsevier}
+  doi     = {10.1016/j.jeem.2021.102541}
 }
 
 
 % §3 Preferencias de consumidores energéticos P2P
 
-% VERIFICAR: autores pendientes de confirmación en plataforma editorial
-% DOI estimado a partir de PII S2214629622002419 (Energy Research & Social Science)
-@article{Colombia2022P2P,
-  author  = {{Autores por verificar}},
+% Verificado vs CrossRef 2026-04-30: autores y DOI corregidos.
+@article{Cardenas2022P2P,
+  author  = {Cárdenas-Álvarez, Juan Pablo and España, Juan Manuel and Ortega, Santiago},
   title   = {What is the value of peer-to-peer energy trading? {A} discrete choice
              experiment with residential electricity users in {Colombia}},
   journal = {Energy Research {\&} Social Science},
   year    = {2022},
-  doi     = {10.1016/j.erss.2022.102714},
-  note    = {VERIFICAR autores. Estudio con 1.101 usuarios del Valle de Aburrá, Medellín.
+  doi     = {10.1016/j.erss.2022.102737},
+  note    = {Estudio con 1.101 usuarios del Valle de Aburrá, Medellín.
              Resultados: DAP máxima por energía 100\% solar; segunda preferencia: beneficios
              a causa social; tercera: propiedad cooperativa}
 }
@@ -297,17 +293,18 @@
   doi     = {10.1038/s41560-021-00950-2}
 }
 
-% VERIFICAR: DOI estimado a partir de PII S0301421519306858 (Energy Policy, Elsevier)
-@article{Sopha2020Prosumer,
-  author  = {Sopha, Bertha Maya and Klöckner, Christian A. and Hertwich, Edgar G.},
+% Verificado vs CrossRef 2026-04-30: DOI correcto, autores corregidos.
+% Mismo grupo de investigación que PenaBello2022Prosumer (Nature Energy 2022).
+@article{Hahnel2020Prosumer,
+  author  = {Hahnel, Ulf J.J. and Herberz, Mario and Peña-Bello, Alejandro
+             and Parra, David and Brosch, Tobias},
   title   = {Becoming prosumer: Revealing trading preferences and decision-making
              strategies in peer-to-peer energy communities},
   journal = {Energy Policy},
   volume  = {137},
   pages   = {111098},
   year    = {2020},
-  doi     = {10.1016/j.enpol.2019.111098},
-  note    = {VERIFICAR autores en Elsevier}
+  doi     = {10.1016/j.enpol.2019.111098}
 }
 
 
@@ -323,25 +320,30 @@
   doi     = {10.1016/j.energy.2022.125264}
 }
 
-% VERIFICAR: DOI estimado a partir de PII S2666792424000180 (e-Prime, Elsevier)
-@article{Guerrero2023RiskMicrogrid,
-  author  = {Guerrero, J.M. and others},
+% Verificado vs CrossRef 2026-04-30: autores, journal y DOI corregidos
+% (DOI viejo apuntaba a paper sobre transistores GNR, no microgrids).
+@article{Herding2024RiskMicrogrid,
+  author  = {Herding, Robert and Ross, Emma and Jones, Wayne R. and
+             Endler, Elizabeth and Charitopoulos, Vassilis M. and
+             Papageorgiou, Lazaros G.},
   title   = {Risk-aware microgrid operation and participation in the day-ahead
              electricity market},
-  journal = {e-Prime: Advances in Electrical Engineering, Electronics and Energy},
+  journal = {Advances in Applied Energy},
+  volume  = {15},
+  pages   = {100180},
   year    = {2024},
-  doi     = {10.1016/j.prime.2024.100439},
-  note    = {VERIFICAR autores y DOI en Elsevier}
+  doi     = {10.1016/j.adapen.2024.100180}
 }
 
-% VERIFICAR: DOI estimado a partir de PII S0140988323002657 (Energy Economics, Elsevier)
-@article{Tavakoli2023RiskAversion,
-  author  = {Tavakoli, Mahdi and others},
+% Verificado vs CrossRef 2026-04-30: autores y DOI corregidos
+% (DOI viejo apuntaba a 'Social media and energy justice', no risk aversion).
+@article{Mobius2023RiskAversion,
+  author  = {Möbius, Thomas and Riepin, Iegor and Müsgens, Felix and
+             van der Weijde, Adriaan H.},
   title   = {Risk aversion and flexibility options in electricity markets},
   journal = {Energy Economics},
   year    = {2023},
-  doi     = {10.1016/j.eneco.2023.106886},
-  note    = {VERIFICAR autores y DOI en Elsevier}
+  doi     = {10.1016/j.eneco.2023.106767}
 }
 
 

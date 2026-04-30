@@ -20,13 +20,13 @@ from typing import Union
 
 import numpy as np
 
-from ._pi_gs import as_pi_gs_vector
+from ._pi_gs import as_pi_gs_array
 
 
 def run_c3_spot(
     D: np.ndarray,           # (N, T) demanda [kWh]
     G: np.ndarray,           # (N, T) generación bruta [kWh]
-    pi_gs: Union[float, np.ndarray],  # escalar o (N,) — CAL-8
+    pi_gs: Union[float, np.ndarray],  # escalar, (N,) o (N, T) — CAL-9
     pi_bolsa: np.ndarray,    # (T,) precio de bolsa horario $/kWh
     prosumer_ids: list,
     consumer_ids: list,
@@ -38,7 +38,7 @@ def run_c3_spot(
       3. Déficit comprado a la red a pi_gs
     """
     N, T = D.shape
-    pi_gs_v = as_pi_gs_vector(pi_gs, N)
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)   # (N, T) — CAL-9
 
     savings   = np.zeros(N)   # ahorro por autoconsumo
     revenues  = np.zeros(N)   # ingresos por venta a bolsa
@@ -51,14 +51,14 @@ def run_c3_spot(
             gen  = max(0.0, G[n, k])
             dem  = max(0.0, D[n, k])
             auto = min(gen, dem)
-            savings[n]  += auto * pi_gs_v[n]
+            savings[n]  += auto * pi_gs_v[n, k]
             surplus = gen - auto
             revenues[n] += surplus * pi_bolsa[k]
             deficit = max(0.0, dem - gen)
-            grid_cost[n] += deficit * pi_gs_v[n]
+            grid_cost[n] += deficit * pi_gs_v[n, k]
 
         for i in consumer_ids:
-            grid_cost[i] += max(0.0, D[i, k]) * pi_gs_v[i]
+            grid_cost[i] += max(0.0, D[i, k]) * pi_gs_v[i, k]
 
         # Exposición total comunitaria al precio spot esta hora
         total_surplus = sum(max(0.0, G[n, k] - D[n, k]) for n in prosumer_ids)

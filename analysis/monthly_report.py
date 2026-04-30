@@ -32,7 +32,7 @@ import numpy as np
 from collections import defaultdict
 from typing import Optional, Union
 
-from scenarios._pi_gs import as_pi_gs_vector
+from scenarios._pi_gs import as_pi_gs_array
 
 _MONTHS_ES = {
     1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr",
@@ -51,7 +51,7 @@ def compute_monthly_metrics(
     G_klim:       np.ndarray,        # (N, T)
     G_raw:        np.ndarray,        # (N, T)
     p2p_results:  list,              # lista de HourlyResult, len = T
-    pi_gs:        Union[float, np.ndarray],  # escalar o (N,) — CAL-8
+    pi_gs:        Union[float, np.ndarray],  # escalar, (N,) o (N, T) — CAL-9
     pi_gb:        float,
     pi_bolsa:     np.ndarray,        # (T,)
     prosumer_ids: list,
@@ -69,7 +69,7 @@ def compute_monthly_metrics(
     from scenarios.scenario_c4_creg101072 import run_c4_creg101072
 
     N, T = D.shape
-    pi_gs_v = as_pi_gs_vector(pi_gs, N)
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)   # (N, T) — CAL-9
 
     # ── Agrupar índices por mes ───────────────────────────────────────────
     month_to_idx: dict[int, list[int]] = defaultdict(list)
@@ -83,11 +83,12 @@ def compute_monthly_metrics(
         idx_arr = np.array(idx, dtype=int)
         T_m = len(idx)
 
-        D_m      = D[:, idx_arr]           # (N, T_m)
-        G_klim_m = G_klim[:, idx_arr]      # (N, T_m)
-        G_raw_m  = G_raw[:, idx_arr]       # (N, T_m)
-        pb_m     = pi_bolsa[idx_arr]       # (T_m,)
-        res_m    = [p2p_results[k] for k in idx]  # HourlyResult para el mes
+        D_m       = D[:, idx_arr]           # (N, T_m)
+        G_klim_m  = G_klim[:, idx_arr]      # (N, T_m)
+        G_raw_m   = G_raw[:, idx_arr]       # (N, T_m)
+        pb_m      = pi_bolsa[idx_arr]       # (T_m,)
+        pi_gs_m   = pi_gs_v[:, idx_arr]     # (N, T_m) — tarifa del mes (CAL-9)
+        res_m     = [p2p_results[k] for k in idx]  # HourlyResult para el mes
 
         # ── P2P: agregar desde HourlyResult ya calculados ─────────────────
         active_m = [r for r in res_m
@@ -107,7 +108,7 @@ def compute_monthly_metrics(
                 psr_m = float(np.dot(psr_arr, kwh_arr) / tot_kwh)
 
         # Beneficio monetario P2P — misma lógica que comparison_engine
-        net_p2p = _p2p_benefit_month(active_m, D_m, G_klim_m, pi_gs_v, pi_gb,
+        net_p2p = _p2p_benefit_month(active_m, D_m, G_klim_m, pi_gs_m, pi_gb,
                                       prosumer_ids, idx)
 
         # SC / SS P2P: autoconsumo local + P2P transado
@@ -120,22 +121,22 @@ def compute_monthly_metrics(
 
         # ── C1 (CREG 174): balance mensual — todo el mes = un período ─────
         c1 = run_c1_creg174(
-            D_m, G_klim_m, pi_gs_v, pb_m, prosumer_ids,
+            D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids,
             month_labels=None,   # mes completo = un único período de facturación
         )
         net_c1 = sum(c1[n]["net_benefit"] for n in prosumer_ids)
 
         # ── C3 (spot): liquidación horaria ───────────────────────────────
-        c3 = run_c3_spot(D_m, G_klim_m, pi_gs_v, pb_m, prosumer_ids, consumer_ids)
+        c3 = run_c3_spot(D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids, consumer_ids)
         net_c3 = c3["aggregate"]["total_net_benefit"]
 
         # ── C4 (AGRC): distribución PDE ──────────────────────────────────
         try:
-            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_v, pb_m, pde, capacity)
+            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity)
             net_c4 = c4["aggregate"]["total_net_benefit"]
         except ValueError:
             # Si la capacidad supera el límite del régimen, reportar sin error
-            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_v, pb_m, pde, capacity=None)
+            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity=None)
             net_c4 = c4["aggregate"]["total_net_benefit"]
 
         # SC/SS regulatorios (sin mercado P2P): min(G,D)/sum(D|G)
@@ -176,10 +177,10 @@ def _p2p_benefit_month(
     """
     Beneficio monetario neto P2P para el mes: misma lógica que
     comparison_engine._p2p_monetary_benefit(), pero sobre un slice mensual.
-    pi_gs admite escalar o vector (N,).
+    pi_gs admite escalar, vector (N,) o matriz (N, T_m) — CAL-9.
     """
-    N = D_m.shape[0]
-    pi_gs_v = as_pi_gs_vector(pi_gs, N)
+    N, T_m = D_m.shape
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T_m)   # (N, T_m)
     net = np.zeros(N)
 
     # Mapear índice global → posición local en el slice
@@ -201,19 +202,19 @@ def _p2p_benefit_month(
             baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             net[j] += income - baseline
 
-        # Compradores: cada uno a su pi_gs[i]
+        # Compradores: cada uno a su pi_gs[i, k_local] del mes
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
+            pi_ref = float(pi_gs_v[i, k_local])
             paid = (r.pi_star[idx_i] * received if r.pi_star is not None
-                    else received * pi_gs_v[i])
-            net[i] += received * pi_gs_v[i] - paid
+                    else received * pi_ref)
+            net[i] += received * pi_ref - paid
 
-    # Autoconsumo propio de prosumidores a su pi_gs[n]
-    T_m = D_m.shape[1]
+    # Autoconsumo propio de prosumidores a pi_gs[n, t] del mes
     for n in prosumer_ids:
         for t in range(T_m):
             net[n] += min(max(G_klim_m[n, t], 0.0),
-                           max(D_m[n, t], 0.0)) * pi_gs_v[n]
+                           max(D_m[n, t], 0.0)) * pi_gs_v[n, t]
 
     return float(np.sum(net))
 

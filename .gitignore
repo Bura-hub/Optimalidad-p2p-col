@@ -38,3 +38,12 @@ p2p_breakdown_resumen_horario.csv
 
 # === Backups defensivos creados por planes de auditoria ===
 _backup_*/
+
+# === Ruflo / claude-flow runtime ===
+.claude-flow/
+.swarm/
+.mcp.json
+.claude.bak/
+CLAUDE.md.bak
+ruvector.db
+*.db

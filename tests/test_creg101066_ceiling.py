@@ -92,3 +92,54 @@ def test_ceiling_does_not_modify_values_below_PES():
     pi = np.array([100.0, 200.0, 300.0, 400.0] + [500.0] * 20)
     capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
     assert np.allclose(capped, pi)
+
+
+def test_ceiling_uses_correct_month_for_each_hour():
+    """Cada hora se compara con el techo del mes al que pertenece."""
+    # 31 dias de jul (24*31 = 744 h) + 24 horas de ago.
+    # Todas las horas con valor 1000 — superan ambos techos.
+    T = 24 * 31 + 24
+    pi = np.full(T, 1000.0)
+    capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
+    # Hora 0 (jul-01 00:00) debe topar a PES jul = 865.22
+    assert capped[0] == pytest.approx(865.22)
+    # Hora 743 (jul-31 23:00) sigue en jul
+    assert capped[743] == pytest.approx(865.22)
+    # Hora 744 (ago-01 00:00) debe topar a PES ago = 898.02
+    assert capped[744] == pytest.approx(898.02)
+    # Ultima hora (ago-01 23:00) tambien ago
+    assert capped[-1] == pytest.approx(898.02)
+
+
+def test_ceiling_skips_hours_before_effective_date():
+    """Horas anteriores a effective_date no se recortan."""
+    import tempfile
+    csv_content = (
+        "mes,pei_cop_kwh,pe_cop_kwh,pes_cop_kwh,fuente,nota\n"
+        "2024-11,300.0,600.0,800.0,test,nov-2024\n"
+        "2024-12,310.0,610.0,810.0,test,dic-2024\n"
+    )
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as f:
+        f.write(csv_content)
+        tmp_csv = f.name
+    pi = np.full(24, 5000.0)
+    capped = apply_creg101066_ceiling(pi, "2024-11-01", level="PES",
+                                       effective_date="2024-12-01",
+                                       csv_path=tmp_csv)
+    # Sin recorte (effective_date no se ha alcanzado)
+    assert np.allclose(capped, pi)
+
+
+def test_ceiling_returns_diagnostics_when_requested():
+    """return_diagnostics=True devuelve tupla con metricas correctas."""
+    # 48 horas en jul-2025: 5 horas > PES jul (865.22), resto bajo
+    pi = np.array([100.0] * 5 + [1500.0] * 5 + [100.0] * 38)
+    result = apply_creg101066_ceiling(pi, "2025-07-01", level="PES",
+                                       return_diagnostics=True)
+    assert isinstance(result, tuple)
+    capped, diag = result
+    assert diag["hours_capped"] == 5
+    assert diag["fraction"] == pytest.approx(5 / 48)
+    assert diag["delta_cop_total"] == pytest.approx((1500.0 - 865.22) * 5)
+    assert "2025-07" in diag["by_month"]
+    assert diag["by_month"]["2025-07"]["hours_capped"] == 5

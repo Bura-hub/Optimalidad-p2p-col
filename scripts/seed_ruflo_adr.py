@@ -104,6 +104,25 @@ ADR_SUMMARIES = {
         "data/audit_xm_yearly_summary.csv tests/test_c2_bilateral.py "
         "9 tests verdes 66/66 sin regresion actividad 3.1 3.2 3.3 4.2"
     ),
+    "0012-cal12-c2-fom-peajes": (
+        "CAL-12 correccion Front-of-Meter PPA C2 alcance regulatorio "
+        "pi_ppa solo reemplaza componente G del CU CREG 119/2007 arts "
+        "6-8 peajes T+D+Cvm+PR+Rm+COT siempre pagados al OR STN sin "
+        "exencion por contrato bilateral arts 9-14 savings_cons sobre "
+        "G no CU pre-CAL-12 era BTM legacy implicito asumia pi_ppa "
+        "reemplaza CU completo sobreestimaba ahorro 488 COP/kWh oficial "
+        "NT2 abril 2026 G=310.96 CU=799.16 helper nuevo "
+        "g_component_per_agent_hourly desde columna Gm CSV "
+        "tarifas_cedenar_mensual transcripcion PDFs cedenar_pdfs "
+        "13 meses cobertura completa parametro pi_G en run_c2_bilateral "
+        "y run_comparison default punto medio pi_gb G no pi_gb pi_gs "
+        "teorema invarianza preservado bajo FoM tests/test_c2_bilateral "
+        "16 tests verdes 7 nuevos CAL-12 9 CAL-11 preservados via "
+        "pi_G=None legacy comportamiento suite global 74/74 verdes "
+        "sin regresion KPI C2 caera 50-75 porciento conclusion P2P "
+        "vs C2 reforzada pendiente re-corrida full analysis 52 min "
+        "actividad 3.1 3.2 3.3 4.2"
+    ),
 }
 
 

@@ -88,6 +88,7 @@ def run_comparison(
     capacity:     Optional[np.ndarray] = None,
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (YYYYMM)
     component_c:  Union[str, float, np.ndarray] = "auto",  # CAL-10b
+    pi_G:         Union[float, np.ndarray, None] = None,   # CAL-12
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -96,12 +97,28 @@ def run_comparison(
     (CAL-8) o matriz `(N, T)` mes a mes (CAL-9, calibración Cedenar
     temporal). Internamente se propaga como matriz `(N, T)` para que
     cada hora liquide con el CU vigente en su mes.
+
+    `pi_G` (CAL-12, ADR-0012): componente G del CU, único negociable
+    vía PPA bilateral según CREG 119/2007 arts. 6-8. Acepta float,
+    `(N,)`, `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None, C2 cae al
+    comportamiento BTM legacy (`pi_G == pi_gs`). En producción
+    (`main_simulation.py --data real`) DEBE pasar la matriz real
+    obtenida de `data.cedenar_tariff.g_component_per_agent_hourly`.
+
+    El default de `pi_ppa` (cuando es None) usa el componente G como
+    cota superior del rango natural (CAL-12), no el CU completo.
     """
     N, T = D.shape
     cr   = ComparisonResult(hours=T, n_agents=N)
 
     # Normalizar pi_gs a matriz (N, T) — CAL-9: tarifa temporal mes a mes.
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+
+    # CAL-12: normalizar pi_G a matriz (N, T) o caer a BTM legacy.
+    if pi_G is None:
+        pi_G_v = pi_gs_v          # Comportamiento BTM legacy pre-CAL-12.
+    else:
+        pi_G_v = as_pi_gs_array(pi_G, N, T)
 
     # Valores por defecto
     if pde is None:
@@ -110,9 +127,9 @@ def run_comparison(
     cr.pde = pde
 
     if pi_ppa is None:
-        # PPA es contractual y único: usa la tarifa promedio comunitaria
-        # sobre todo el horizonte (promedio sobre N y T).
-        pi_ppa = pi_gb + 0.5 * (float(np.mean(pi_gs_v)) - pi_gb)
+        # CAL-12: rango natural del PPA es [pi_gb, G], no [pi_gb, CU].
+        # Default f=0.5 = punto medio entre venta a red y componente G.
+        pi_ppa = pi_gb + 0.5 * (float(np.mean(pi_G_v)) - pi_gb)
     cr.pi_ppa = pi_ppa
 
     # Todos los escenarios usan Filosofía A: net_benefit = savings + revenues.
@@ -123,8 +140,10 @@ def run_comparison(
     # month_labels habilita el balance mensual real de CREG 174 (permutación).
     # Si None (perfil 24h o sintético), todo el horizonte es un único período.
     # component_c="auto" (CAL-10) descuenta proporcional 13.85 %; matriz (N, T)
-    # de cvm_plus_cot_per_agent_hourly (CAL-10b) usa Cvm + COT real desde CSV
-    # Cedenar. Excedentes Tipo 2 a bolsa horaria tras Hx.
+    # de cvm_per_agent_hourly (CAL-10b.2) usa Cvm,i,j puro de CREG 119/2007
+    # desde CSV Cedenar (literalidad CREG 174 art. 25, sin COT).
+    # Excedentes a bolsa horaria post-cruce mensual (jerga industria: "Tipo 2"
+    # post-"Hora Hx", aunque CREG no nombra esos términos formalmente).
     # Ver scenarios/scenario_c1_creg174.py y data/cedenar_tariff.py.
     c1 = run_c1_creg174(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
                         month_labels=month_labels,
@@ -135,8 +154,12 @@ def run_comparison(
     cr.net_benefit_per_agent["C1"] = c1_net
 
     # ── C2 ──────────────────────────────────────────────────────────────
+    # CAL-12 (ADR-0012): pi_G_v se pasa explícitamente; el ahorro PPA
+    # del comprador se calcula sobre G (componente único negociable),
+    # no sobre el CU completo.
     c2 = run_c2_bilateral(D, G_klim, pi_gs_v, pi_gb, pi_ppa,
-                           prosumer_ids, consumer_ids)
+                           prosumer_ids, consumer_ids,
+                           pi_G=pi_G_v)
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))
     cr.net_benefit_per_agent["C2"] = c2_net

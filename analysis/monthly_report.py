@@ -59,6 +59,7 @@ def compute_monthly_metrics(
     month_labels: np.ndarray,        # (T,) enteros YYYYMM
     pde:          np.ndarray,        # (N,)
     capacity:     Optional[np.ndarray] = None,
+    component_c:  "str | float | np.ndarray" = "auto",   # CAL-10b
 ) -> list[dict]:
     """
     Calcula métricas de comparación mes a mes.
@@ -120,9 +121,16 @@ def compute_monthly_metrics(
         ss_p2p = (auto_m + kwh_m) / G_total_m if G_total_m > 1e-10 else 0.0
 
         # ── C1 (CREG 174): balance mensual — todo el mes = un período ─────
+        # CAL-10b: si component_c es matriz (N, T), slicear al mes; si es
+        # string ("auto") o escalar, usar tal cual.
+        if isinstance(component_c, np.ndarray):
+            cc_m = component_c[:, idx_arr]
+        else:
+            cc_m = component_c
         c1 = run_c1_creg174(
             D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids,
             month_labels=None,   # mes completo = un único período de facturación
+            component_c=cc_m,
         )
         net_c1 = sum(c1[n]["net_benefit"] for n in prosumer_ids)
 

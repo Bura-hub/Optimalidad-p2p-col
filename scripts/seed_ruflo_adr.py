@@ -69,6 +69,21 @@ ADR_SUMMARIES = {
         "single_day perfil diario conserva CAL-8 promedio horizonte "
         "tests 43/43 actividad 1.1 3.1 3.2 3.3"
     ),
+    "0010-cal10-creg174-tipo-1-2-componente-c": (
+        "CAL-10 + CAL-10b CREG 174/2021 arts. 22-23 Excedentes Tipo 1 "
+        "permuta y Tipo 2 bolsa horaria post-Hx busqueda intramensual "
+        "hora cruce inyeccion acumulada vs retiro acumulado componente "
+        "C Comercializacion descontado en permuta autoconsumo a pi_gs "
+        "completo asimetria red vs no red CAL-10 C_FRACTION 13.85 % "
+        "proporcional aproximacion CAL-10b Cvm+COT real desde "
+        "tarifas_cedenar_mensual.csv 13 meses cvm_plus_cot_per_agent_hourly "
+        "analogo pi_gs_per_agent_hourly NaN fallback as_component_c_array "
+        "decision regulatoria C = Cvm + COT no solo Cvm no Rm CREG "
+        "119/2007 CREG 101-028/2023 postura estricta Udenar -2.57 "
+        "comunidad -0.66 vs CAL-10 RPE +3.08 a +0.69 a +0.029 P2P "
+        "invariante 52446938 COP empatados estadisticamente tests "
+        "57/57 actividad 1.1 3.1 3.2 3.3"
+    ),
 }
 
 
@@ -91,7 +106,7 @@ def main() -> int:
         return 1
 
     ok = 0
-    for adr_path in sorted(ADR_DIR.glob("000*.md")):
+    for adr_path in sorted(ADR_DIR.glob("0*.md")):
         slug = adr_path.stem  # ej: 0001-cal1-stackelberg-iters
         # Extrae titulo H1 del archivo
         first_line = adr_path.read_text(encoding="utf-8").splitlines()[0]
@@ -109,7 +124,7 @@ def main() -> int:
         else:
             print(f"  FAIL {key}")
 
-    total = len(list(ADR_DIR.glob("000*.md")))
+    total = len(list(ADR_DIR.glob("0*.md")))
     print(f"[adr] hecho: {ok}/{total} ADRs sembrados en namespace 'adr'")
     return 0 if ok == total else 1
 

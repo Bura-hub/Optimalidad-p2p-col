@@ -517,6 +517,20 @@ CU_COMPONENTS_2025 = {
 # price_source_analysis(); 650 se mantiene como argumento por defecto y como
 # DEFAULT_PI_GS_FALLBACK en data/cedenar_tariff.py para meses sin PDF.
 
+# CAL-10: fracción del CU que corresponde al margen de Comercialización (C).
+# Bajo CREG 174/2021 arts. 22-23, esta porción se sigue cobrando aunque el
+# AGPE permute energía → el ahorro efectivo por kWh permutado vale
+# (pi_gs - pi_gs * C_FRACTION) y no pi_gs completo.
+# Aproximación proporcional: válida mientras CEDENAR no publique los
+# componentes desagregados por mes. TODO(CAL-10+): extraer C real desde
+# data/cedenar_pdfs/ cuando el PDF lo desglose.
+C_FRACTION = CU_COMPONENTS_2025["C"] / sum(CU_COMPONENTS_2025.values())
+
+
+def get_c_fraction() -> float:
+    """Devuelve la fracción del CU asociada al margen de Comercialización."""
+    return C_FRACTION
+
 
 def price_source_analysis(
     pi_bolsa: np.ndarray,

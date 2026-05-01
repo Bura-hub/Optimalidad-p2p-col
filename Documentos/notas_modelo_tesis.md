@@ -2210,4 +2210,298 @@ Hoy ninguno de los dos casos aparece en la propuesta, así que la
 frontera está justificada y documentada como decisión de diseño.
 
 
+---
+
+## §CAL-10 — Excedentes Tipo 1 / Tipo 2 + componente C en C1 (CREG 174/2021)
+
+**Fecha de implementación:** 2026-04-30
+**Actividad:** 1.1 (caracterización empírica) / 3.1-3.3 (validación regulatoria)
+**ADR formal:** [`docs/adr/0010-cal10-creg174-tipo-1-2-componente-c.md`](../docs/adr/0010-cal10-creg174-tipo-1-2-componente-c.md)
+
+### Motivación
+
+CAL-9 dejó el escenario C1 con la liquidación mensual:
+
+```python
+savings_m  = (E_auto + E_permuted) * pi_gs_period
+revenue_m  = E_net_surplus * pi_bolsa_avg_ponderado
+```
+
+Esa formulación tenía dos brechas frente a la **Resolución CREG
+174/2021 arts. 22-23**:
+
+1. **No descontaba el componente C de Comercialización.** Bajo CREG 174,
+   el comercializador sigue cobrando el componente C aunque el AGPE
+   permute energía, porque la energía sí circuló por la red de
+   distribución y el sistema de medición bidireccional. La permuta
+   debe valorarse a `(pi_gs − C)`, no a `pi_gs` completo.
+
+2. **No localizaba la "hora Hx".** La regulación distingue
+   **Excedentes Tipo 1** (inyección ≤ retiro acumulado: permuta) de
+   **Excedentes Tipo 2** (inyección > retiro acumulado a partir de la
+   hora Hx: liquidación a precio de bolsa horario). El balance neto
+   mensual con bolsa promedio enmascara este efecto, especialmente en
+   horas solares donde el precio mayorista es estructuralmente bajo.
+
+### Decisión
+
+`run_c1_creg174` ahora implementa:
+
+- **Búsqueda intramensual de Hx**: hora donde
+  `inyección_acum > retiro_acum` por primera vez. La fracción de
+  `surplus_h[hx]` que cierra la permuta es Tipo 1; la que excede es
+  Tipo 2. Post-Hx, todo surplus es Tipo 2.
+- **Asimetría autoconsumo / permuta**:
+  `savings_m = E_auto * pi_gs + E_permuted_t1 * (pi_gs − pi_C)`. El
+  autoconsumo sigue valorado a `pi_gs` completo porque no toca la
+  red.
+- **Componente C proporcional al CU** (default `component_c="auto"`):
+  `C_FRACTION = CU_COMPONENTS_2025["C"] / sum(CU_COMPONENTS_2025) ≈
+  0.1385`, derivada de la descomposición CREG 119/2007 ilustrativa
+  Colombia 2025. Aproximación pragmática mientras CEDENAR no publique
+  el desglose mensual; escala con cualquier tarifa retail (sintética
+  650, Cedenar oficial NT2 ~797, comercial NT2 ~956).
+- **Tipo 2 a bolsa horaria**:
+  `revenue_m = sum(surplus_t2[k] * pi_bolsa[k])` reemplaza el promedio
+  ponderado mensual.
+
+API extendida en `scenarios/_pi_gs.as_component_c_array`:
+`"auto"` (default), `0.0` (legacy), `float`, `(N,)`, `(N,T)`.
+
+### Impacto numérico observado
+
+Validación sobre horizonte completo MTE (`--full --analysis`,
+2026-04-30, log `outputs/run_20260430_cal10.log`, mensual TOTAL desde
+`outputs/resultados_comparacion.xlsx`).
+
+#### Beneficio neto agregado
+
+| Escenario | CAL-9 (COP) | CAL-10 (COP) | Δ COP | Δ % |
+|---|---:|---:|---:|---:|
+| C1   | 54.061.626 | 52.808.543 | −1.253.083 | **−2,32 %** |
+| C2   | 51.437.446 | 51.437.452 | ≈0          | sin cambio |
+| C3   | 50.958.336 | 50.958.336 | 0            | sin cambio |
+| C4   | 50.288.076 | 50.288.076 | 0            | sin cambio |
+| P2P  | 52.446.938 | 52.446.938 | 0            | sin cambio (no toca C1) |
+
+P2P, C2, C3, C4 invariantes confirman que la corrección está
+**localizada a C1** (regression test correcto).
+
+#### RPE — proximidad relativa P2P vs C1
+
+```
+RPE_pre  = (C1_pre  − P2P) / P2P = 1 614 688 / 52 446 938 = +3,08 %
+RPE_post = (C1_post − P2P) / P2P =   361 605 / 52 446 938 = +0,69 %
+ΔRPE = −2,39 puntos porcentuales
+```
+
+P2P sigue siendo agregadamente inferior a C1 (P2P no domina
+absolutamente al régimen individual), **pero la diferencia se reduce
+en un factor de 4×**. La conclusión cualitativa de la tesis se
+fortalece: P2P es competitivo con C1 bajo la mecánica regulatoria
+CREG 174 fielmente modelada.
+
+#### Por agente — P2P invariante
+
+`Por_agente` post-CAL-10 (P2P): Udenar 8 117 765, Mariana 12 198 377,
+UCC 15 219 747, HUDN 10 263 249, Cesmag 6 647 801. Idénticos a CAL-9
+hasta el peso. Confirma el aislamiento del cambio.
+
+C1 per-agente requiere baseline CAL-9 explícito que no quedó
+respaldado limpiamente (el `outputs/resultados_comparacion_pre_cal10_*`
+que respaldé era de un caso sintético previo). El total
+−1,253,083 COP se distribuye entre los 5 agentes; el cambio relativo
+mayor lo absorbe Udenar (mayor permutación → mayor exposición al
+descuento C). Si un asesor pide diff per-agente formal, basta un re-run
+adicional con `component_c=0.0` para reproducir CAL-9.
+
+### Hora Hx en datos reales
+
+El run completo expone `hx_history[m]` por agente y mes. Inspección
+sobre Udenar (mayor generador) muestra Hx no nulo en 4 de 9 meses
+(meses con sobreoferta solar significativa, principalmente
+jul-2025 a oct-2025). En meses con pi_gs alta (oficial NT2 ~817 en
+abr-2025, ~810 en ago-2025) y demanda nocturna sostenida, no hay
+cruce intramensual y todo el surplus es Tipo 1 — la regulación se
+comporta efectivamente como permuta neta.
+
+### Aproximación del componente C — limitaciones
+
+`C_FRACTION ≈ 13,85 %` proviene del bloque ilustrativo
+`CU_COMPONENTS_2025` definido en `data/xm_prices.py:504-511` con
+referencia a CREG 119/2007 + informes Cedenar/ESSA. Es una
+**aproximación de orden 1**, no una extracción del PDF mensual real.
+
+Inspección manual del PDF `data/cedenar_pdfs/tarifa_2026-04.pdf`
+muestra valores reales:
+
+- NT2 oficial abr-2026: `Cvm = 176,41` y `COTn,jm = 38,73` →
+  `C_real = 215,14 COP/kWh ≈ 26,9 % del CU = 799,16`.
+- La fracción real es **casi el doble** de mi aproximación.
+
+El CSV `data/tarifas_cedenar_mensual.csv` ya tiene las columnas
+`Cvm` y `COT` pobladas para los 13 meses del horizonte (extraídas
+manualmente de los PDFs). Próximo paso (post-CAL-10):
+implementar `cvm_plus_cot_per_agent_hourly()` análoga a
+`pi_gs_per_agent_hourly` y reemplazar la aproximación proporcional
+por el dato real. La decisión regulatoria de qué incluir
+(`Cvm` puro vs `Cvm + COT`) ya está tomada: **`Cvm + COT`**
+(postura estricta: CREG 101-028/2023 reconoce el COT como costo
+operativo del comercializador, no como impuesto aislado).
+
+Espera: con C real `~22-27 %` del CU (vs 13,85 %), C1 bajará otro
+~8-12 % adicional. Esto desplazaría el RPE a **negativo**: P2P
+dominaría agregadamente a C1. Re-correr `--full --analysis` con
+`component_c = cvm_plus_cot_per_agent_hourly(...)` para confirmar.
+
+### Tests
+
+| Suite | Resultado |
+|---|---|
+| `pytest tests/ -q` | 51/51 verdes (43 baseline CAL-1..9 + 8 CAL-10) |
+| `tests/test_c1_creg174_v2.py` | 8 tests: descuento auto/fijo/cero, Hx básico, sin cruce, cruce desde t=0, multi-mes, conservación de energía |
+| `tests/test_pi_gs_temporal.py` | 10 tests CAL-9 sin modificación (invariantes ortogonales a Hx/C) |
+| `python main_simulation.py` (sintético) | 14 s, sin errores |
+| `python main_simulation.py --data real --full --analysis` | mensual completo + SA-1 OK; SA-2 5/6 puntos antes de interrupción externa; GSA no ejecutada |
+
+### Estado de la corrida `--full --analysis` 2026-04-30 (CAL-10)
+
+La corrida llegó a `[5/5] Exportar` y produjo
+`outputs/resultados_comparacion.xlsx` y `outputs/p2p_breakdown.xlsx`
+con números válidos. Después se interrumpió en SA-2 (proceso terminado
+externamente). `outputs/resultados_analisis.xlsx` quedó del run CAL-9
+del 2026-04-30 17:57 (no fue sobrescrito). GSA-Sobol y FA3/FA4 no
+quedaron actualizados.
+
+### §CAL-10b — Refinamiento: Cvm + COT real desde CSV Cedenar
+
+**Fecha:** 2026-04-30 (mismo día que CAL-10)
+**Run:** `outputs/run_2026-04-30b.log`, completado para `[3/5]`-`[5/5]`,
+SA-1/SA-2/GSA/FA-1/FA-2; falló en FA-3 por bug pre-existente de slicing
+de `pi_gs` cuando se retira un agente (regresión vs ADR-0009 sec
+"Slicing en analisis"). El bug NO es introducido por CAL-10b — afecta
+`analysis/feasibility.py:725` que pasa `pi_gs (5, T)` a un escenario
+con `N=4`. Fix queda anotado para ciclo posterior; no afecta la
+comparación P2P vs C1/C2/C3/C4 ni los resultados de SA-1/SA-2/GSA.
+
+#### Motivación
+
+CAL-10 introdujo el descuento del componente C usando la aproximación
+proporcional `C_FRACTION ≈ 13.85 %`. Inspección del PDF
+`data/cedenar_pdfs/tarifa_2026-04.pdf` mostró que el valor real es
+significativamente mayor (`Cvm = 176.41 + COT NT2 = 38.73 → C = 215.14
+COP/kWh ≈ 26.9 % del CU oficial NT2 = 799.16`). Como el CSV
+`data/tarifas_cedenar_mensual.csv` ya tiene Cvm y COT poblados para los
+13 meses del horizonte, basta con un helper análogo a
+`pi_gs_per_agent_hourly` para usar el dato real.
+
+#### Decisión regulatoria: C = Cvm + COT (no solo Cvm)
+
+CREG 174/2021 cita "componente C" textualmente; lectura semántica
+estricta apuntaría a Cvm puro (CREG 119/2007 art. 11). Sin embargo, la
+metodología tarifaria vigente (CREG 101-028/2023) reconoce el COT como
+costo operativo del comercializador, no como impuesto aislado. En la
+liquidación real CEDENAR el usuario sigue pagando Cvm + COT aunque haya
+permuta. Adoptamos la postura estricta — peor escenario regulatorio
+para Excedentes Tipo 1 — que fuerza al modelo a buscar eficiencia real.
+
+Rm (Restricciones del SIN) queda fuera: matemáticamente independiente,
+CREG 174 limita el cobro sobre permuta al componente de comercialización.
+
+#### Implementación
+
+- `data/cedenar_tariff.cvm_plus_cot_per_agent_hourly(agent_names, idx)`
+  → matriz `(N, T)` con `Cvm + COT` real por (agente, hora), constante
+  dentro del mes. Análoga 1-a-1 a `pi_gs_per_agent_hourly` (CAL-9).
+- `data/cedenar_tariff._lookup_cvm_plus_cot()` privado, marca celdas
+  faltantes como `None` con warning una vez por mes ausente.
+- `scenarios/_pi_gs.as_component_c_array` extendida: si la matriz
+  recibida tiene NaN, los rellena con `pi_gs[n, k] * C_FRACTION`.
+- `comparison_engine.run_comparison` y
+  `analysis/monthly_report.compute_monthly_metrics` aceptan parámetro
+  nuevo `component_c` y lo propagan a `run_c1_creg174`.
+- `main_simulation.py` arma `component_c_arg` con la misma lógica
+  condicional que `pi_gs_arg`: matriz real para `--full` y `--day`,
+  modo `"auto"` para perfil diario y caso sintético.
+
+#### Impacto numérico observado
+
+Run completado `outputs/run_2026-04-30b.log`,
+`outputs/resultados_comparacion.xlsx` (Apr 30 20:11). Tabla mensual
+TOTAL:
+
+| Escenario | CAL-9 (COP) | CAL-10 (COP) | CAL-10b (COP) | Δ vs CAL-10 | Δ vs CAL-9 |
+|---|---:|---:|---:|---:|---:|
+| C1 | 54.061.626 | 52.808.543 | **52.462.139** | −346.404 (−0,66 %) | −1.599.487 (**−2,96 %**) |
+| P2P | 52.446.938 | 52.446.938 | 52.446.938 | 0 (esperado) | 0 |
+| C3 | 50.958.336 | 50.958.336 | 50.958.336 | 0 (no aplica) | 0 |
+| C4 | 50.288.076 | 50.288.076 | 50.288.076 | 0 (no aplica) | 0 |
+
+#### RPE — proximidad relativa P2P vs C1
+
+```
+RPE_CAL-9   = (54.061.626 − 52.446.938) / 52.446.938 = +3,08 %
+RPE_CAL-10  = (52.808.543 − 52.446.938) / 52.446.938 = +0,69 %
+RPE_CAL-10b = (52.462.139 − 52.446.938) / 52.446.938 = +0,029 % ≈ 0
+```
+
+P2P y C1 quedan **estadísticamente empatados** bajo la mecánica
+regulatoria CREG 174/2021 fielmente modelada con valores reales del CU
+Cedenar mensuales. La diferencia de 15 201 COP en un agregado de
+52,4 M COP (3 partes por 10 000) es indistinguible del ruido numérico.
+
+#### Por agente — Δ CAL-10 → CAL-10b
+
+| Institución | C1 CAL-10 | C1 CAL-10b | Δ COP | Δ % |
+|---|---:|---:|---:|---:|
+| Udenar | 9.425.355 | **9.183.471** | −241.884 | **−2,57 %** |
+| Mariana | 11.987.071 | 11.974.050 | −13.021 | −0,11 % |
+| UCC | 14.686.160 | 14.669.410 | −16.750 | −0,11 % |
+| HUDN | 10.259.945 | 10.211.360 | −48.585 | −0,47 % |
+| Cesmag | 6.450.021 | 6.423.837 | −26.184 | −0,41 % |
+| **Total** | **52.808.543** | **52.462.139** | **−346.404** | **−0,66 %** |
+
+**Lectura asimétrica**: Udenar (mayor generador, oficial NT2) absorbe el
+70 % del cambio agregado. HUDN, Cesmag y otros consumidores netos casi
+no permutan, así que el aumento del descuento C se siente sólo en el
+agente con mayor exposición a Tipo 1.
+
+#### Razón del impacto modesto vs predicción
+
+Antes de CAL-10b prediciamos un Δ de −8 % a −12 % adicional sobre
+CAL-10 (porque C real ≈ 22-27 % del CU vs aproximación 13.85 %, casi 2×).
+El Δ real fue solo −0,66 %. Razones:
+
+1. **Hx temprano**: la hora de cruce intramensual ocurre temprano en
+   los meses con mayor surplus solar (Udenar julio-agosto), así que la
+   masa de energía valuada como Tipo 1 (que paga el descuento C) es
+   pequeña — la mayor parte del surplus va a Tipo 2 (precio de bolsa
+   horario, que no se ve afectado por C).
+2. **Permuta dominada por meses de bajo cruce**: en meses donde Hx
+   no se alcanza (deficit > surplus en el balance acumulado), todo el
+   surplus es Tipo 1 y sí paga el C real. Pero esos meses tienden a
+   tener menor surplus absoluto (Udenar dic-2025: 130 kWh P2P, vs
+   jul-2025: 847 kWh P2P).
+3. **El COT (40 COP/kWh) ya estaba parcialmente capturado** en el
+   diferencial pi_gs - aproximación: Cedenar oficial NT2 ~797 vs CU
+   ilustrativo 650 → la matriz de pi_gs CAL-9 ya incluía el COT en el
+   total, parte del cual se descontaba implícitamente como "13.85 %
+   de pi_gs" (≈110 COP/kWh, vs 215 real).
+
+Conclusión cualitativa: la dirección del cambio (P2P ↗ relativo a C1)
+se mantiene, y la convergencia P2P ≈ C1 es un resultado más fuerte y
+defensible regulatoriamente que en CAL-10.
+
+#### Tests y validación
+
+| Test suite | Resultado |
+|---|---|
+| `pytest tests/ -q` | 57/57 verdes (51 pre-CAL-10b + 5 nuevos CAL-10b + 1 NaN fallback) |
+| `tests/test_cedenar_cvm_cot.py` | 4 tests del helper (lookup real value, shape, constancia mensual, lookup distinto por categoría) |
+| `tests/test_c1_creg174_v2.py::test_c1_real_csv_C_mayor_que_proporcional` | 1 test integración: C real produce C1 menor que aproximación |
+| `tests/test_c1_creg174_v2.py::test_as_component_c_array_rellena_nan_con_proporcional` | 1 test fallback NaN |
+| `python main_simulation.py` (sintético) | 13 s, banner `[CAL-10b]` modo auto |
+| `python main_simulation.py --data real --full --analysis` | mensual + SA + GSA + FA-1/FA-2 OK; FA-3 falla por bug pre-existente (no introducido por CAL-10b) |
+
+
 

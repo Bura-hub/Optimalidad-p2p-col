@@ -421,6 +421,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             solver=solver, p2p_results_base=p2p_results,
             pi_gb_range=pgb_range, pde=pde,
             prosumer_ids=prosumer_ids, verbose=True,
+            month_labels=month_labels,                  # CAL-9 fix
+            component_c=component_c_arg,                 # CAL-10b fix
         )
 
         # SA-2: variación cobertura PV
@@ -433,6 +435,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             D=D, G_base=G, agents=agents, grid=grid, solver=solver,
             pv_factors=pv_factors, pde=pde,
             prosumer_ids=prosumer_ids, verbose=True,
+            month_labels=month_labels,                  # CAL-9 fix
+            component_c=component_c_arg,                 # CAL-10b fix
         )
 
         # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)
@@ -441,6 +445,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             D=D, G=G, agents=agents, grid_base=grid, solver=solver,
             pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
             verbose=True,
+            month_labels=month_labels,                  # CAL-9 fix
+            # No pasamos component_c: pgs varía sintéticamente y el dato
+            # real Cvm+COT no aplica para barridos hipotéticos de pi_gs.
         )
 
         # Umbrales de dominancia
@@ -499,6 +506,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pde=pde,
             capacity=cap if 'cap' in dir() else None,
             verbose=True,
+            month_labels=month_labels,                  # CAL-9 fix
+            component_c=component_c_arg,                 # CAL-10b fix
         )
 
         # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)

@@ -155,6 +155,28 @@ ADR_SUMMARIES = {
         "supuesto verificable empiricamente con admin MTE actividad "
         "3.1 3.2 3.3 4.2"
     ),
+    "0014-cal14-creg101066-pes-ceiling": (
+        "CAL-14 techo CREG 101 066 2024 PES Precio Escasez Superior "
+        "absoluto pi_bolsa horario data/xm_prices.py capa de datos "
+        "load_creg_ceiling apply_creg101066_ceiling get_pi_bolsa "
+        "apply_ceiling=True default tabla mensual PEI PE PES "
+        "data/precios_escasez_creg.csv 7 meses jul-2025 a ene-2026 "
+        "verificados sheet Comportamiento_PBNal_Horario Excel oficial XM "
+        "03_Informe_Precios_y_Transacciones distincion PB Precio Bolsa "
+        "marginal de oferta vs PTB Precio Transacciones Bolsa efectivo "
+        "tras OEF pydataxm PrecBolsNaci entrega PB no PTB cache picos "
+        "2224 COP/kWh agosto 2025 max PES 898.02 ago violacion regulatoria "
+        "min(PB,PES) aproxima PTB sin modelar OEF horario afecta C1 Tipo 2 "
+        "C3 C4 escenarios sin cambios codigo solo dato recibido decision "
+        "PES techo absoluto descarta PE intermedio PEI inferior "
+        "alternativas spec docs/superpowers/specs/2026-05-01-cal14 "
+        "12 tests verdes Grupo A loader Grupo B capping Grupo C integracion "
+        "Grupo D regresion vs PB oficial XM tolerancia 15% ene-2026 "
+        "excluido follow-up CAL-15 gap 35% pydataxm vs PTB oficial "
+        "investigar metrica sospecha datos provisionales 92 tests global "
+        "sin regresion smoke daily 0 horas cap full ~12 horas 0.23 porciento "
+        "horizonte delta 3676 COP/kWh actividad 3.x"
+    ),
 }
 
 

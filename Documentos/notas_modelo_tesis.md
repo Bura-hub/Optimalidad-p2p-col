@@ -2857,3 +2857,70 @@ caso de retiro.
 
 
 
+
+## §CAL-14 — Techo CREG 101 066/2024 (PES) en pi_bolsa  (2026-05-01)
+
+### Justificación regulatoria
+
+Resolución CREG 101 066/2024 (publicada 18-NOV-2024, vigencia
+01-DIC-2024) reemplazó el precio de escasez único (~945 COP/kWh) por
+tres niveles diferenciados que se actualizan mensualmente:
+
+| Nivel | Aplicación | Rango jul-2025 → ene-2026 |
+|---|---|---:|
+| PEI Precio Escasez Inferior | Plantas con bajo costo variable | 327.67 – 350.08 |
+| PE  Precio Escasez "intermedio" | Fórmula CREG 071/2006 | 590.56 – 746.17 |
+| PES Precio Escasez Superior | Plantas a líquidos (techo absoluto) | 829.00 – 898.02 |
+
+### Distinción PB vs PTB
+
+XM publica dos métricas en su mercado mayorista:
+
+- **PB (Precio de Bolsa)** — marginal de oferta del despacho diario,
+  puede superar PES en horas de escasez extrema.
+- **PTB (Precio de Transacciones en Bolsa)** — efectivo tras activación
+  de OEF, **nunca supera PES**.
+
+La API pydataxm devuelve PB (campo `PrecBolsNaci`), no PTB. Aplicar
+`pi_bolsa[k] = min(PB[k], PES[mes])` aproxima PTB sin necesidad de
+modelar la composición horaria del despacho OEF.
+
+### Decisión del modelo
+
+Se aplica **PES** como techo en la capa de datos `data/xm_prices.py`,
+afectando uniformemente a todos los escenarios que liquidan a `pi_bolsa`
+(C1 Tipo 2, C3, C4). PEI y PE quedan disponibles en el CSV
+`data/precios_escasez_creg.csv` para análisis contrafactual.
+
+`get_pi_bolsa(apply_ceiling=True, ceiling_level="PES")` queda como
+default — toda corrida nueva refleja CREG 101 066. `apply_ceiling=False`
+permite análisis contrafactual.
+
+### Limitaciones
+
+- El recorte real ocurre vía activación OEF horaria que el modelo no
+  replica detalladamente. Aplicar PES uniformemente sobreestima el
+  techo en horas con planta marginal de bajo costo (donde el efectivo
+  sería PEI o PE).
+- En el horizonte actual (post-Niño jul-2025 → ene-2026, baja
+  activación de OEF), el efecto cuantitativo es pequeño: ~12 horas
+  recortadas (0,23 % del total), Δmedia mensual < 4 %.
+- En análisis Sobol con escenarios `2025_el_nino` o `2024_escasez`, el
+  techo sí cambia conclusiones — documentado para revisión con asesores.
+
+### Verificación
+
+Tabla de PEI/PE/PES extraída del sheet `Comportamiento_PBNal_Horario`
+de los Excel oficiales XM
+(`sinergox.xm.com.co/.../03_Informe_Precios_y_Transacciones_MM_YYYY.xlsx`).
+Los tres niveles son **constantes durante todo el mes** —
+verificación: un único valor distinto por mes en cada columna del
+sheet horario.
+
+### Follow-up CAL-15 (riesgo abierto)
+
+Auditoría de la métrica que devuelve pydataxm vs PTB oficial. El gap de
+~35 % observado en ene-2026 (cache 218.5 vs PB_PROM oficial 213.0)
+sugiere que la API podría estar entregando datos provisionales o una
+métrica distinta. Spec CAL-14 completo:
+`docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md`.

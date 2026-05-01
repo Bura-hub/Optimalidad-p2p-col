@@ -19,6 +19,11 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0007 | CAL-7: Alternancia Stackelberg vs ODE conjunta | Accepted | 2026-04-17 |
 | 0008 | CAL-8: Tarifa Cedenar mensual diferenciada (vector per-agente) | Accepted (parcial Superseded por 0009) | 2026-04-27 |
 | 0009 | CAL-9: Tarifa pi_gs temporal mes a mes (matriz N×T) | Accepted | 2026-04-30 |
+| 0010 | CAL-10: Excedentes Tipo 1 / Tipo 2 + componente C en C1 | Accepted | 2026-04-30 |
+| 0011 | CAL-11: C2 PPA bilateral (modelo formal) | Accepted | 2026-04-30 |
+| 0012 | CAL-12: C2 Front-of-Meter + peajes T+D+Cvm+PR+Rm+COT | Accepted | 2026-05-01 |
+| 0013 | CAL-13: C2 alineado con marco no-regulado (Ley 143/1994) | Accepted | 2026-05-01 |
+| 0014 | CAL-14: Techo CREG 101 066/2024 (PES) en pi_bolsa | Accepted | 2026-05-01 |
 
 ## Conexion con la propuesta
 

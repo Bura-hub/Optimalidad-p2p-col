@@ -43,3 +43,32 @@ def test_load_csv_supports_pei_pe_pes_levels():
     # Orden canonico: PEI < PE < PES en cualquier mes
     assert (s_pei < s_pe).all()
     assert (s_pe  < s_pes).all()
+
+
+def test_load_csv_raises_when_file_missing(tmp_path):
+    """Falla explicita cuando el CSV no existe (no caer en silencio)."""
+    fake_path = tmp_path / "no_existe.csv"
+    with pytest.raises(FileNotFoundError, match="Falta"):
+        load_creg_ceiling("2025-07-01", "2026-02-01",
+                          level="PES", csv_path=str(fake_path))
+
+
+def test_load_csv_raises_on_invalid_level():
+    """level fuera de {PEI, PE, PES} lanza ValueError."""
+    with pytest.raises(ValueError, match="level debe ser"):
+        load_creg_ceiling("2025-07-01", "2026-02-01", level="WRONG")
+
+
+def test_load_csv_handles_empty_cell_with_interpolation(tmp_path):
+    """Mes con celda vacia se interpola linealmente entre adyacentes."""
+    csv = tmp_path / "test_ceiling.csv"
+    csv.write_text(
+        "mes,pei_cop_kwh,pe_cop_kwh,pes_cop_kwh,fuente,nota\n"
+        "2025-07,350.0,700.0,800.0,test,jul\n"
+        "2025-08,,,,test,gap\n"
+        "2025-09,360.0,720.0,820.0,test,sep\n"
+    )
+    s = load_creg_ceiling("2025-07-01", "2025-10-01",
+                          level="PES", csv_path=str(csv))
+    # Interpolacion lineal: ago deberia ser (800 + 820) / 2 = 810
+    assert s.loc[pd.Period("2025-08", freq="M")] == pytest.approx(810.0)

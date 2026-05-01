@@ -738,9 +738,79 @@ def load_creg_ceiling(
     return serie
 
 
-def apply_creg101066_ceiling(*args, **kwargs):
-    """Stub — implementacion en Task 4 del plan CAL-14."""
-    raise NotImplementedError("apply_creg101066_ceiling: pendiente Task 4 de CAL-14")
+def apply_creg101066_ceiling(
+    pi_bolsa: np.ndarray,
+    t_start: str,
+    level: str = "PES",
+    effective_date: str = "2024-12-01",
+    csv_path: Optional[str] = None,
+    return_diagnostics: bool = False,
+):
+    """
+    Aplica el techo CREG 101 066/2024 al precio de bolsa horario.
+
+    Para cada hora ``k``, si la fecha local de esa hora es ``>= effective_date``,
+    el precio se recorta a ``min(pi_bolsa[k], ceiling[mes_de_k])``. Antes de
+    ``effective_date`` la serie se devuelve sin cambios.
+
+    Parameters
+    ----------
+    pi_bolsa : np.ndarray  shape (T,)
+        Serie horaria de precios de bolsa en COP/kWh.
+    t_start : str
+        Fecha de inicio del horizonte ``"YYYY-MM-DD"``.
+    level : {"PEI", "PE", "PES"}
+        Nivel del techo. Default ``"PES"`` (techo absoluto superior).
+    effective_date : str
+        Fecha desde la cual aplica CREG 101 066/2024. Default ``"2024-12-01"``.
+    csv_path : str, optional
+        Override de la ruta al CSV de techos.
+    return_diagnostics : bool
+        Si True, devuelve ``(pi_capped, diag)`` con metricas de recorte.
+
+    Returns
+    -------
+    np.ndarray  shape (T,)
+        Serie con techo aplicado.
+    dict (opcional)
+        Diagnosticos: ``hours_capped``, ``fraction``, ``delta_cop_total``,
+        ``by_month``.
+    """
+    pi = np.asarray(pi_bolsa, dtype=float).copy()
+    T = len(pi)
+
+    idx = pd.date_range(t_start, periods=T, freq="1h")
+    eff = pd.Timestamp(effective_date)
+    t_end = (idx[-1] + pd.Timedelta(hours=1)).strftime("%Y-%m-%d")
+
+    ceil_monthly = load_creg_ceiling(t_start, t_end, level=level,
+                                      csv_path=csv_path)
+    # Vector horario de techo: misma longitud que pi
+    ceil_per_hour = np.array([
+        ceil_monthly.loc[ts.to_period("M")] if ts >= eff else np.inf
+        for ts in idx
+    ], dtype=float)
+
+    pi_pre = pi.copy()
+    pi = np.minimum(pi, ceil_per_hour)
+
+    if not return_diagnostics:
+        return pi
+
+    mask = pi_pre > ceil_per_hour
+    diag = {
+        "hours_capped":    int(mask.sum()),
+        "fraction":        float(mask.mean()),
+        "delta_cop_total": float((pi_pre - pi).sum()),
+        "by_month":        {},
+    }
+    serie = pd.Series(pi_pre - pi, index=idx)
+    for period, sub in serie.groupby(serie.index.to_period("M")):
+        diag["by_month"][str(period)] = {
+            "hours_capped": int((sub > 0).sum()),
+            "delta_mean":   float(sub.mean()),
+        }
+    return pi, diag
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────

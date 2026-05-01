@@ -238,7 +238,7 @@ def test_c1_real_csv_C_mayor_que_proporcional():
     Requiere CSV Cedenar real (data/tarifas_cedenar_mensual.csv).
     """
     import pandas as pd
-    from data.cedenar_tariff import cvm_plus_cot_per_agent_hourly
+    from data.cedenar_tariff import cvm_per_agent_hourly
 
     N = 1
     idx = pd.date_range("2025-07-01", "2025-08-01", freq="1h",
@@ -257,8 +257,8 @@ def test_c1_real_csv_C_mayor_que_proporcional():
     res_auto = run_c1_creg174(D, G, pi_gs_real, pi_bolsa, [0],
                                component_c="auto")
 
-    # 2) Modo CSV (CAL-10b): C real Cedenar ≈ 215 COP/kWh.
-    c_csv = cvm_plus_cot_per_agent_hourly(["Udenar"], idx)
+    # 2) Modo CSV (CAL-10b.2 literal CREG 174 art. 25): Cvm puro ≈ 174 COP/kWh.
+    c_csv = cvm_per_agent_hourly(["Udenar"], idx)
     res_csv = run_c1_creg174(D, G, pi_gs_real, pi_bolsa, [0],
                               component_c=c_csv)
 

@@ -388,3 +388,74 @@ con C1 ya quedo documentada en el anexo CAL-10b con la tabla mensual
 TOTAL que es independiente de SA).
 
 **Aceptado en produccion 2026-04-30 (anexo CAL-10b.1)**.
+
+---
+
+## Anexo CAL-10b.2 (2026-04-30) — Correccion de literalidad: solo Cvm,i,j (no Cvm + COT)
+
+### Contexto
+
+CAL-10b inicial (commit e06f70a) implemento el componente C como
+`Cvm + COT` siguiendo una "postura conservadora" basada en la
+interpretacion economica de la estructura tarifaria CEDENAR moderna,
+donde el COT (Costo Operativo Tributario, CREG 101 028/2023) se
+factura junto con Cvm a usuarios regulares.
+
+Tras revision del **texto oficial CREG 174/2021 art. 25** via
+WebSearch a `gestornormativo.creg.gov.co`, se identifico una
+discrepancia de literalidad: el articulo cita exactamente
+
+> "Sobre la energia permutada, el comercializador cobra al AGPE el
+> componente **Cvm,i,j** de la Resolucion CREG 119 de 2007"
+
+El COT NO se menciona en CREG 174 art. 25. Por linealidad regulatoria
+("la norma no dice 'C' generico sino 'Cvm,i,j'"), incluir COT es una
+desviacion de la letra de la resolucion.
+
+### Decision corregida
+
+C = **Cvm,i,j** puro (CREG 119/2007 art. 11), sin COT, sin Rm, sin
+otros cargos.
+
+### Cambio aplicado
+
+- `data/cedenar_tariff._lookup_cvm_plus_cot` -> renombrado a
+  `_lookup_cvm`. Devuelve solo `Cvm` del CSV.
+- `data/cedenar_tariff.cvm_plus_cot_per_agent_hourly` -> renombrado a
+  `cvm_per_agent_hourly`. Devuelve matriz (N, T) de Cvm puro.
+- `main_simulation.py`: import actualizado, banner cambia de
+  `[CAL-10b]` a `[CAL-10b.2]`, texto del log cambia a
+  `permuta a (pi_gs - Cvm)`.
+- `tests/test_cedenar_cvm_cot.py`: 5 tests, incluye
+  `test_lookup_cvm_no_incluye_cot` como regression-test explicito.
+- Tests existentes adaptados al nuevo nombre y valores literales.
+
+### Impacto numerico esperado (sin re-correr)
+
+Cvm range observado en CSV: **171.95 – 181.03 COP/kWh** (oficial NT2,
+13 meses). Antes (Cvm+COT): **212.16 – 222.93 COP/kWh**. Diferencia
+~40 COP/kWh menos descuento ⇒ C1 sube ligeramente (descontamos menos
+sobre la permuta) ⇒ RPE > +0,029 % esperado tras re-correr `--full`.
+
+Estimacion de orden de magnitud: permuta efectiva agregada
+~2.300-3.000 kWh × 40 COP/kWh ≈ 92.000-120.000 COP de C1 adicional.
+Sigue dentro del orden de magnitud "P2P y C1 estadisticamente
+empatados" pero el numero exacto cambia.
+
+### Verificacion regulatoria realizada
+
+Fuentes consultadas via WebSearch:
+- `gestornormativo.creg.gov.co/gestor/entorno/docs/resolucion_creg_0174_2021.htm`
+  (texto Art. 23.2.b remite a Art. 25)
+- WebSearch sobre Art. 25 confirmo cita literal de Cvm,i,j de CREG 119/2007.
+- Conceptos CREG (1867/2024, 6248/2024) consistentes con esta lectura.
+
+### Conclusion academica
+
+El usuario (asesor) reconocio el error en la postura conservadora
+inicial: "la literalidad de la norma manda; el COT no es Cvm; CREG
+174 no autoriza a descontarlo en el cruce especifico de la energia
+permutada". Esta correccion fortalece el rigor regulatorio del modelo
+para defensa de tesis.
+
+**Aceptado en produccion 2026-04-30 (anexo CAL-10b.2)**.

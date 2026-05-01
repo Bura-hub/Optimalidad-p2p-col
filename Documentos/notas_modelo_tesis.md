@@ -2634,5 +2634,64 @@ P2P y C1 convergen al subir π_gs (a 2,00× la diferencia es solo
 cuantitativamente; SA-1/SA-2/SA-3 ahora son trustables como
 diagnóstico regulatorio de la tesis.
 
+### §CAL-10b.2 — Corrección de literalidad: solo `Cvm`, no `Cvm + COT`
+
+**Fecha**: 2026-04-30.
+
+#### Hallazgo regulatorio
+
+Tras verificar el texto oficial CREG 174/2021 art. 25 contra la
+implementación (WebSearch a `gestornormativo.creg.gov.co`), se
+identificó que el componente C debe ser **solo `Cvm,i,j`**
+(CREG 119/2007), no `Cvm + COT`. El texto literal cita:
+
+> "Sobre la energía permutada, el comercializador cobra al AGPE el
+> componente **Cvm,i,j de la Resolución CREG 119 de 2007**"
+
+CREG 174 NO menciona COT (Costo Operativo Tributario, introducido en
+CREG 101 028/2023). La resolución amarra el cobro a una variable
+matemática exacta — el Costo Base de Comercialización Cvm — lo cual
+opera como "candado legal" que excluye cualquier sobretasa posterior.
+
+El COT efectivamente se factura a usuarios regulares en la estructura
+tarifaria CEDENAR moderna, pero CREG 174 no autoriza a descontarlo
+en el cruce específico de la energía permutada (Excedentes Tipo 1 en
+jerga de industria).
+
+#### Decisión corregida
+
+CAL-10b.2 reemplaza `Cvm + COT` (postura conservadora inicial CAL-10b)
+por `Cvm,i,j` puro:
+
+- `data/cedenar_tariff.py`: `_lookup_cvm_plus_cot` → `_lookup_cvm`,
+  `cvm_plus_cot_per_agent_hourly` → `cvm_per_agent_hourly`. Solo
+  lee `Cvm` del CSV.
+- `main_simulation.py`: import y banner actualizados;
+  `[CAL-10b.2] permuta a (pi_gs - Cvm)`.
+- `tests/test_cedenar_cvm_cot.py`: 5 tests incluyendo
+  `test_lookup_cvm_no_incluye_cot` como regression-test explícito.
+
+#### Impacto numérico esperado
+
+| Métrica | CAL-10b (Cvm+COT) | CAL-10b.2 (solo Cvm) |
+|---|---:|---:|
+| C real oficial NT2 (13 meses) | 212-223 COP/kWh | 172-181 COP/kWh |
+| Δ aplicado | — | +30 a +40 COP/kWh menos descuento |
+| C1 esperado vs CAL-10b | 52.462.139 | algo mayor (~+100-150 K COP) |
+| RPE esperado | +0,029 % | algo mayor pero cercano a 0 |
+
+El orden de magnitud "P2P y C1 estadísticamente empatados" se
+preserva, pero los números exactos se desplazan ligeramente. Re-correr
+`--full --analysis` para tener cifra precisa.
+
+#### Conclusión
+
+La sustancia matemática del modelo (asimetría auto/permuta, hora de
+cruce intramensual, Tipo 2 a bolsa horaria) se mantiene. El cambio es
+estrictamente regulatorio: ceñirse a la literalidad de CREG 174 art.
+25 fortalece el rigor académico del modelo. La interpretación
+"conservadora" inicial (Cvm + COT) era defensible económicamente pero
+no legalmente bajo el texto vigente.
+
 
 

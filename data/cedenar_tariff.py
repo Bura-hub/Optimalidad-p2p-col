@@ -180,25 +180,34 @@ def _lookup_pi_gs(df: pd.DataFrame, mes_key: str,
         return float(fallback)
 
 
-def _lookup_cvm_plus_cot(df: pd.DataFrame, mes_key: str,
-                          profile: TariffProfile,
-                          warned: set | None = None) -> float | None:
+def _lookup_cvm(df: pd.DataFrame, mes_key: str,
+                profile: TariffProfile,
+                warned: set | None = None) -> float | None:
     """
-    Devuelve (Cvm + COT) para (mes, categoria, NT, propiedad) en COP/kWh.
+    Devuelve el componente Cvm,i,j puro para (mes, categoria, NT, propiedad)
+    en COP/kWh.
 
-    Bajo CREG 174/2021 art. 22-23, este es el componente que el comercializador
-    sigue cobrando aunque el AGPE permute energia (Excedentes Tipo 1).
+    CAL-10b.2 (literalidad CREG): la Resolucion CREG 174 de 2021 art. 25
+    cita exactamente "el componente Cvm,i,j de la Resolucion CREG 119
+    de 2007" para la energia permutada. NO incluye COT (cargo introducido
+    en CREG 101 028/2023 que cubre obligaciones tributarias del
+    comercializador). El COT se factura a usuarios regulares pero no se
+    descuenta sobre la permuta segun la letra de CREG 174 art. 25.
 
-    Si el mes no esta en el CSV, o si Cvm/COT son NaN, retorna None y emite
+    Versiones anteriores (CAL-10b en commit e06f70a) sumaban Cvm+COT por
+    una interpretacion conservadora; tras revision contra el texto
+    oficial via WebSearch (gestornormativo.creg.gov.co) se corrige a
+    solo Cvm para fidelidad regulatoria.
+
+    Si el mes no esta en el CSV o si Cvm es NaN, retorna None y emite
     warning una vez por mes ausente. El caller decide como rellenar
-    (tipicamente vía as_component_c_array que rellena con pi_gs * C_FRACTION).
+    (tipicamente as_component_c_array rellena con pi_gs * C_FRACTION).
 
-    Refs: CREG 119/2007 art. 11 (Cvm), CREG 101-028/2023 (COT).
+    Ref: CREG 174/2021 art. 25; CREG 119/2007 art. 11 (definicion Cvm,i,j).
     """
     key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
     try:
         cvm = float(df.loc[key, "Cvm"])
-        cot = float(df.loc[key, "COT"])
     except KeyError:
         if warned is None or mes_key not in warned:
             warnings.warn(
@@ -211,10 +220,10 @@ def _lookup_cvm_plus_cot(df: pd.DataFrame, mes_key: str,
                 warned.add(mes_key)
         return None
 
-    if not (np.isfinite(cvm) and np.isfinite(cot)):
+    if not np.isfinite(cvm):
         if warned is None or mes_key not in warned:
             warnings.warn(
-                f"[cedenar_tariff] Cvm o COT NaN para {mes_key} "
+                f"[cedenar_tariff] Cvm NaN para {mes_key} "
                 f"{profile.categoria}/NT{profile.nivel_tension}; "
                 f"componente C marcado como NaN.",
                 stacklevel=3,
@@ -223,7 +232,7 @@ def _lookup_cvm_plus_cot(df: pd.DataFrame, mes_key: str,
                 warned.add(mes_key)
         return None
 
-    return cvm + cot
+    return cvm
 
 
 def effective_pi_gs(t_start: str | pd.Timestamp,
@@ -362,28 +371,42 @@ def pi_gs_per_agent_hourly(agent_names: list[str],
     return out
 
 
-def cvm_plus_cot_per_agent_hourly(agent_names: list[str],
-                                    hour_index: pd.DatetimeIndex,
-                                    csv_path: str | Path | None = None,
-                                    ) -> np.ndarray:
+def cvm_per_agent_hourly(agent_names: list[str],
+                          hour_index: pd.DatetimeIndex,
+                          csv_path: str | Path | None = None,
+                          ) -> np.ndarray:
     """
-    Matriz (N, T) con (Cvm + COT) por (agente, hora), constante dentro del mes.
+    Matriz (N, T) con el componente Cvm,i,j puro por (agente, hora),
+    constante dentro del mes.
 
-    Bajo CREG 174/2021 art. 22-23, este es el "peaje" de comercializacion que
-    el comercializador sigue cobrando aunque el AGPE permute energia (Tipo 1).
+    CAL-10b.2 (literalidad CREG 174/2021 art. 25): este es el "peaje" de
+    comercializacion que el comercializador cobra al AGPE sobre la energia
+    permutada (Excedentes Tipo 1 en jerga industria). El texto oficial cita
+    literalmente "el componente Cvm,i,j de la Resolucion CREG 119 de 2007".
+
     Reemplaza la aproximacion proporcional pi_gs * C_FRACTION (~13.85 %)
-    introducida en CAL-10 por el dato real del CSV (~22-27 % del CU segun NT).
+    introducida en CAL-10 por el dato real del CSV. Por linealidad CREG 174:
 
-    La decision regulatoria de incluir Cvm + COT (no solo Cvm) esta documentada
-    en docs/adr/0010-cal10-creg174-tipo-1-2-componente-c.md y en el anexo
-    de CAL-10b.
+        savings_permuta = E_permutada * (pi_gs - Cvm)
 
-    Si un mes esta ausente del CSV o si Cvm/COT son NaN, esa celda queda
+    Cargos NO incluidos (revisado 2026-04-30 contra texto oficial):
+    - COT (CREG 101 028/2023): cubre obligaciones tributarias del
+      comercializador, NO citado en CREG 174 art. 25 sobre permuta.
+    - Rm (Restricciones SIN), PR (Perdidas reconocidas): independientes
+      de la actividad de comercializacion.
+
+    Si un mes esta ausente del CSV o si Cvm es NaN, esa celda queda
     como np.nan; scenarios._pi_gs.as_component_c_array detecta los NaN y
     rellena con pi_gs[n, k] * C_FRACTION (fallback proporcional CAL-10).
 
-    Refs: CREG 119/2007 (formula CU), CREG 101-028/2023 (COT como costo
-    operativo del comercializador).
+    Historico:
+        CAL-10b inicial (commit e06f70a) sumaba Cvm + COT en
+        cvm_plus_cot_per_agent_hourly. Tras verificacion del texto oficial
+        CREG 174/2021 art. 25 (WebSearch gestornormativo.creg.gov.co), se
+        corrige a literalmente Cvm,i,j puro. Funcion renombrada para
+        reflejar el contenido real.
+
+    Ref: CREG 174/2021 art. 25; CREG 119/2007 art. 11.
     """
     df = load_monthly_tariffs(csv_path)
     N, T = len(agent_names), len(hour_index)
@@ -404,7 +427,7 @@ def cvm_plus_cot_per_agent_hourly(agent_names: list[str],
         for t in range(T):
             mes_key = months[t]
             if mes_key not in cache:
-                cache[mes_key] = _lookup_cvm_plus_cot(df, mes_key, prof, warned)
+                cache[mes_key] = _lookup_cvm(df, mes_key, prof, warned)
             v = cache[mes_key]
             out[n, t] = v if v is not None else np.nan
     return out

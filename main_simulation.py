@@ -42,7 +42,7 @@ from data.base_case_data import (
 )
 from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 from data.cedenar_tariff import (
-    community_effective_pi_gs, cvm_plus_cot_per_agent_hourly,
+    community_effective_pi_gs, cvm_per_agent_hourly,
     effective_pi_gs_per_agent, pi_gs_per_agent_hourly,
     tariff_coverage, INSTITUTION_PROFILE,
 )
@@ -245,18 +245,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # single_day). Perfil diario y caso sintético usan "auto" (proporcional
     # ≈ 13.85 % de pi_gs) porque no hay calendario mensual asociado.
     if use_real_data and full_horizon:
-        component_c_arg = cvm_plus_cot_per_agent_hourly(agent_names, index_full)
+        component_c_arg = cvm_per_agent_hourly(agent_names, index_full)
     elif use_real_data and single_day:
-        component_c_arg = cvm_plus_cot_per_agent_hourly(agent_names, idx_day)
+        component_c_arg = cvm_per_agent_hourly(agent_names, idx_day)
     else:
         component_c_arg = "auto"
 
     if isinstance(component_c_arg, np.ndarray):
-        c_source = "C = Cvm + COT real desde CSV Cedenar (mes a mes)"
+        c_source = "C = Cvm,i,j real desde CSV Cedenar (CREG 119/2007 art. 11)"
     else:
         c_source = "C ≈ 13.85 % proporcional al CU (modo auto)"
-    print(f"    [CAL-10b] C1 (CREG 174 arts. 22-23): permuta Tipo 1 a "
-          f"(pi_gs - C), excedentes Tipo 2 a bolsa horaria post-Hx; "
+    print(f"    [CAL-10b.2] C1 (CREG 174/2021 art. 25): permuta a "
+          f"(pi_gs - Cvm), excedentes a bolsa horaria post-cruce mensual; "
           f"{c_source}.")
 
     cr = run_comparison(

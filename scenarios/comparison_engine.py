@@ -98,15 +98,19 @@ def run_comparison(
     temporal). Internamente se propaga como matriz `(N, T)` para que
     cada hora liquide con el CU vigente en su mes.
 
-    `pi_G` (CAL-12, ADR-0012): componente G del CU, único negociable
-    vía PPA bilateral según CREG 119/2007 arts. 6-8. Acepta float,
-    `(N,)`, `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None, C2 cae al
+    `pi_G` (CAL-12 → CAL-13, ADR-0012/0013): rango negociable del CU
+    para el contrato bilateral. Bajo CAL-12 representaba solo G (caso
+    consumidor regulado). Bajo CAL-13 representa **G + Cvm + COT** (caso
+    comunidad MTE como usuario no-regulado agregado bajo Ley 143/1994 +
+    CREG 086/1996 + CREG 174/2021 art. 23.1.a). El parámetro mantiene
+    su nombre histórico `pi_G` por compatibilidad. Acepta float, `(N,)`,
+    `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None, C2 cae al
     comportamiento BTM legacy (`pi_G == pi_gs`). En producción
-    (`main_simulation.py --data real`) DEBE pasar la matriz real
-    obtenida de `data.cedenar_tariff.g_component_per_agent_hourly`.
+    (`main_simulation.py --data real`) se pasa la matriz real obtenida
+    de `data.cedenar_tariff.g_plus_commercialization_per_agent_hourly`.
 
-    El default de `pi_ppa` (cuando es None) usa el componente G como
-    cota superior del rango natural (CAL-12), no el CU completo.
+    El default de `pi_ppa` (cuando es None) usa el rango negociable
+    como cota superior (CAL-13), no el CU completo.
     """
     N, T = D.shape
     cr   = ComparisonResult(hours=T, n_agents=N)
@@ -154,9 +158,12 @@ def run_comparison(
     cr.net_benefit_per_agent["C1"] = c1_net
 
     # ── C2 ──────────────────────────────────────────────────────────────
-    # CAL-12 (ADR-0012): pi_G_v se pasa explícitamente; el ahorro PPA
-    # del comprador se calcula sobre G (componente único negociable),
-    # no sobre el CU completo.
+    # CAL-12 → CAL-13 (ADR-0012/0013): pi_G_v se pasa explícitamente;
+    # bajo CAL-13 representa el rango negociable + ahorro de comercialización
+    # (G + Cvm + COT) cuando el comprador es la comunidad MTE constituida
+    # como usuario no-regulado agregado (Ley 143/1994 + CREG 086/1996 +
+    # CREG 174/2021 art. 23.1.a). El ahorro del comprador se calcula
+    # sobre ese rango, no sobre el CU completo.
     c2 = run_c2_bilateral(D, G_klim, pi_gs_v, pi_gb, pi_ppa,
                            prosumer_ids, consumer_ids,
                            pi_G=pi_G_v)

@@ -480,6 +480,74 @@ Detalle completo: `docs/adr/0012-cal12-c2-fom-peajes.md`. Tests
 invarianza FoM, default punto medio (π_gb, G), magnitud del cambio
 vs legacy, compatibilidad escalar/matriz, smoke del helper Cedenar.
 
+### Comunidad MTE como usuario no-regulado agregado (CAL-13, 2026-05-01)
+
+**Hallazgo regulatorio**: la versión CAL-12 corrigió el **alcance del
+precio** (savings sobre G) pero el contrato C2 seguía siendo
+**contrafáctico** porque no existe legalmente un PPA bilateral entre
+AGPE residencial y consumidor residencial regulado:
+
+- Ley 143/1994 art. 41: contratos bilaterales del MEM solo entre
+  generadores ↔ comercializadores ↔ usuarios **no-regulados**.
+- CREG 086/1996 art. 1 mod. 039/2001: precio libre **solo** para
+  no-regulados.
+- CREG 174/2021 art. 23 num. 1.a: AGPE FNCER puede vender a precio
+  libre **solo si** la energía se destina a no-regulados.
+
+**Decisión CAL-13**: las 5 instituciones MTE se asumen constituidas
+como persona jurídica común (asociación, cooperativa o comunidad
+energética) que cumple los umbrales del Decreto 388/2007 (≥ 55 MWh/mes
+agregado o ≥ 100 kW de potencia conectada) y califica como **usuario
+no-regulado agregado**. Esa entidad firma contratos bilaterales a
+precio libre con los AGPE FNCER miembros, alineando C2 con el marco
+legal vigente y preservando la simetría P2P-vs-C2 exigida por el
+alcance metodológico de la propuesta.
+
+**Cambio en el modelo**: el comprador no-regulado **no tiene
+comercializador minorista**, contrata directamente con el generador
+vía representante del MEM. Por tanto, además del ahorro sobre G se
+ahorra **Cvm + COT** (margen del comercializador). Sigue pagando
+T+D+PR+Rm al OR/STN (cargos regulados trasladables a cualquier
+usuario). Nueva fórmula:
+
+$$
+\text{savings}_{\text{cons}} = E_{\text{PPA}} \cdot \big( (G + Cvm + COT) - \pi_{ppa} \big)
+$$
+
+Tres cotas anidadas:
+
+| Modelo | Ahorro por kWh PPA | Ejemplo abr-2026 oficial NT2 |
+|---|---:|---:|
+| pre-CAL-12 (BTM legacy, incorrecto) | `(CU − π_ppa)` | `(799 − π_ppa)` |
+| CAL-12 (FoM regulado) | `(G − π_ppa)` | `(311 − π_ppa)` |
+| **CAL-13 (FoM no-regulado, correcto bajo Opción A)** | `((G + Cvm + COT) − π_ppa)` | `(526 − π_ppa)` |
+
+El default `π_ppa` se actualiza a `π_gb + 0,5·((G+Cvm+COT) − π_gb)`
+(punto medio en el rango ampliado). Para `π_gb = 195`, da
+`π_ppa ≈ 360 COP/kWh` (vs ≈ 255 bajo CAL-12).
+
+**Implementación**: helper nuevo
+`data/cedenar_tariff.g_plus_commercialization_per_agent_hourly(agents, idx)`
+lee columnas `Gm + Cvm + COT` del CSV
+`tarifas_cedenar_mensual.csv` (PDFs CEDENAR mensuales, 13 meses).
+`main_simulation.py` arma `pi_G_arg` con este helper. El parámetro
+`pi_G` de `run_c2_bilateral` mantiene su nombre histórico pero su
+semántica se generaliza a "rango negociable + ahorro de comercialización".
+
+**Impacto numérico esperado**: KPIs de C2 subirán respecto a CAL-12
+(porque el rango negociable se amplía de 311 a 526). Cota intermedia
+entre BTM legacy (~51M COP) y FoM regulado puro (~12-25M COP).
+Estimación: ~25-35M COP para C2 bajo CAL-13. La conclusión P2P-vs-C2
+se mantiene (P2P ~52,4M, C2 < P2P), reforzada por el hecho de que
+C2 ahora representa un contrato **legalmente viable**, no un
+escenario contrafáctico.
+
+Detalle completo: `docs/adr/0013-cal13-c2-no-regulado.md`. Tests
+`tests/test_c2_bilateral.py` (21 tests CAL-11+CAL-12+CAL-13, todos
+verdes 2026-05-01) blindan: helper G+Cvm+COT, ahorro estricto > G
+solo, invarianza FoM no-regulado preservada, default punto medio
+(π_gb, G+Cvm+COT) > default CAL-12.
+
 ---
 
 ## §3.12 — Desglose P2P hora a hora: estructura y definiciones

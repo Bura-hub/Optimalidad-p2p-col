@@ -541,6 +541,101 @@ def g_component_per_agent_hourly(agent_names: list[str],
     return out
 
 
+def g_plus_commercialization_per_agent_hourly(
+    agent_names: list[str],
+    hour_index: pd.DatetimeIndex,
+    csv_path: str | Path | None = None,
+) -> np.ndarray:
+    """
+    Matriz (N, T) con el rango "negociable + ahorro comercialización"
+    del CU = G + Cvm + COT, por (agente, hora), constante dentro del mes.
+
+    Esta es la cota natural del precio bilateral PPA cuando el comprador
+    es un **usuario no-regulado** (CAL-13, ADR-0013):
+
+      - Bajo CREG 119/2007 arts. 6-8, G es el único componente negociable
+        vía contrato bilateral. T+D+PR+Rm son cargos regulados al OR/STN
+        que cualquier usuario (regulado o no) paga obligatoriamente.
+      - Sin embargo, **Cvm + COT son margen del comercializador minorista**.
+        Bajo CREG 086/1996 art. 1 mod. 039/2001, un usuario no-regulado
+        no tiene comercializador minorista: contrata directamente con un
+        generador (o con un representante del MEM). Por tanto, el usuario
+        no-regulado **se ahorra Cvm + COT** además de poder negociar G.
+      - El ahorro real del comprador no-regulado vía PPA es:
+
+            savings_cons = E_PPA · ((G + Cvm + COT) − pi_ppa)
+
+        donde el "rango negociable + ahorro de comercialización" es
+        (G + Cvm + COT). Ese es el valor devuelto por esta función.
+
+    Origen de datos:
+      - G:    columna `Gm` del CSV `data/tarifas_cedenar_mensual.csv`
+      - Cvm:  columna `Cvm`
+      - COT:  columna `COT`
+    Todos transcritos manualmente desde los PDFs
+    `data/cedenar_pdfs/tarifa_*.pdf` (CEDENAR mensuales).
+
+    Análoga 1-a-1 a `pi_gs_per_agent_hourly` (CAL-9),
+    `cvm_per_agent_hourly` (CAL-10b.2) y
+    `g_component_per_agent_hourly` (CAL-12).
+
+    Si un mes está ausente del CSV o si alguno de los componentes es
+    NaN, esa celda queda como `np.nan`; los callers deciden cómo
+    rellenar (típicamente con `pi_bolsa[k] · ratio` como proxy).
+
+    Ejemplo abril-2026 oficial NT2 (Udenar/HUDN):
+      G = 310,96, Cvm = 176,41, COT = 38,73
+      ⇒ G + Cvm + COT = 526,10 COP/kWh
+      (vs CU completo 799,16 COP/kWh; peajes T+D+PR+Rm = 273,06 COP/kWh)
+
+    Ref: CREG 119/2007 arts. 6-14; CREG 086/1996 art. 1 mod. 039/2001;
+         Ley 143/1994 art. 41; ADR-0013 (CAL-13).
+    """
+    df = load_monthly_tariffs(csv_path)
+    N, T = len(agent_names), len(hour_index)
+    out = np.full((N, T), np.nan, dtype=float)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"componente G+Cvm+COT marcado como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        cache: dict[str, float | None] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                key = (mes_key, prof.categoria, prof.nivel_tension,
+                       prof.propiedad)
+                try:
+                    gm = float(df.loc[key, "Gm"])
+                    cvm = float(df.loc[key, "Cvm"])
+                    cot = float(df.loc[key, "COT"])
+                    if (np.isfinite(gm) and np.isfinite(cvm)
+                            and np.isfinite(cot)):
+                        cache[mes_key] = gm + cvm + cot
+                    else:
+                        cache[mes_key] = None
+                except KeyError:
+                    if mes_key not in warned:
+                        warnings.warn(
+                            f"[cedenar_tariff] Mes {mes_key} ausente en CSV "
+                            f"para {prof.categoria}/NT{prof.nivel_tension}/"
+                            f"{prof.propiedad}; G+Cvm+COT marcado como NaN.",
+                            stacklevel=3,
+                        )
+                        warned.add(mes_key)
+                    cache[mes_key] = None
+            v = cache[mes_key]
+            out[n, t] = v if v is not None else np.nan
+    return out
+
+
 def tariff_coverage(t_start: str | pd.Timestamp,
                      t_end: str | pd.Timestamp,
                      csv_path: str | Path | None = None) -> dict:

@@ -449,3 +449,111 @@ def test_g_component_per_agent_hourly_smoke():
     assert not np.any(np.isnan(arr))
     # G oficial NT2 ~310 COP/kWh; comercial NT2 mismo nivel ~310.
     assert 200 < arr.mean() < 400, f"G fuera de rango esperado: {arr.mean()}"
+
+
+# ─── CAL-13 (ADR-0013): comunidad MTE como usuario no-regulado agregado ─────
+
+PI_NEGOTIABLE = 526.0   # G + Cvm + COT típico abr-2026 oficial NT2
+                        # (G=311 + Cvm=176 + COT=39 ≈ 526 COP/kWh).
+
+
+def test_g_plus_commercialization_helper_smoke():
+    """Smoke test del helper CAL-13: G + Cvm + COT por agente y hora.
+    Para abril 2026 oficial NT2 (Udenar, HUDN), valor esperado ≈ 526."""
+    import pandas as pd
+    from data.cedenar_tariff import g_plus_commercialization_per_agent_hourly
+
+    agents = ["Udenar", "HUDN"]
+    idx = pd.date_range("2026-04-01", "2026-04-02", freq="1h", inclusive="left")
+    arr = g_plus_commercialization_per_agent_hourly(agents, idx)
+    assert arr.shape == (2, len(idx))
+    assert not np.any(np.isnan(arr))
+    # G+Cvm+COT abr-2026 oficial NT2: ≈ 526 COP/kWh
+    assert 500 < arr.mean() < 550, (
+        f"G+Cvm+COT fuera de rango esperado: {arr.mean()}"
+    )
+
+
+def test_helper_g_plus_strictly_greater_than_g_alone():
+    """G + Cvm + COT debe ser estrictamente mayor que solo G
+    (porque Cvm + COT > 0 siempre)."""
+    import pandas as pd
+    from data.cedenar_tariff import (
+        g_component_per_agent_hourly,
+        g_plus_commercialization_per_agent_hourly,
+    )
+
+    agents = ["Udenar", "HUDN", "Mariana"]
+    idx = pd.date_range("2026-04-01", "2026-04-02", freq="1h",
+                        inclusive="left")
+    g_only  = g_component_per_agent_hourly(agents, idx)
+    g_plus  = g_plus_commercialization_per_agent_hourly(agents, idx)
+    assert np.all(g_plus > g_only), "G+Cvm+COT debe > G solo en cada celda"
+    # Diferencia esperada ≈ 215 COP/kWh (Cvm + COT abr-2026)
+    diff = (g_plus - g_only).mean()
+    assert 200 < diff < 230, f"Cvm+COT fuera de rango: {diff}"
+
+
+def test_savings_cons_es_mayor_bajo_no_regulado_que_regulado():
+    """CAL-13 vs CAL-12: el ahorro del comprador no-regulado
+    (rango G+Cvm+COT) debe ser estrictamente mayor que el del
+    comprador regulado (rango G solo) para el mismo pi_ppa."""
+    D, G_pv, pros, cons = _build_mini_community()
+    pi_ppa = PI_GB + 0.5 * (PI_NEGOTIABLE - PI_GB)   # default CAL-13
+
+    # CAL-12: comprador regulado, ahorra solo (G − pi_ppa)
+    PI_G_REG = 250.0   # G solo (igual al test CAL-12 existente)
+    res_reg = run_c2_bilateral(D, G_pv, PI_GS, PI_GB, pi_ppa,
+                                pros, cons, pi_G=PI_G_REG)
+
+    # CAL-13: comprador no-regulado, ahorra (G+Cvm+COT − pi_ppa)
+    res_nreg = run_c2_bilateral(D, G_pv, PI_GS, PI_GB, pi_ppa,
+                                 pros, cons, pi_G=PI_NEGOTIABLE)
+
+    sav_reg  = sum(res_reg["per_agent"][i]["savings_ppa"] for i in cons)
+    sav_nreg = sum(res_nreg["per_agent"][i]["savings_ppa"] for i in cons)
+    assert sav_nreg > sav_reg, (
+        f"CAL-13 (no-regulado) debe ahorrar más que CAL-12 (regulado). "
+        f"reg={sav_reg:.1f}, nreg={sav_nreg:.1f}"
+    )
+
+    # La diferencia debe ser exactamente E_PPA × (PI_NEGOTIABLE − PI_G_REG)
+    delta = sav_nreg - sav_reg
+    ppa_kWh_total = sav_nreg / (PI_NEGOTIABLE - pi_ppa)
+    expected_delta = ppa_kWh_total * (PI_NEGOTIABLE - PI_G_REG)
+    assert delta == pytest.approx(expected_delta, rel=1e-9)
+
+
+def test_invarianza_bienestar_FoM_no_regulado_se_preserva():
+    """Teorema de invarianza (notas §3.8) sigue valiendo bajo CAL-13.
+    Σ_n B_n^C2 es constante en pi_ppa cuando se usa el rango
+    G+Cvm+COT como cota superior."""
+    D, G_pv, pros, cons = _build_mini_community()
+    totales = []
+    for f in [0.25, 0.5, 0.75]:
+        pi_ppa = PI_GB + f * (PI_NEGOTIABLE - PI_GB)
+        res = run_c2_bilateral(D, G_pv, PI_GS, PI_GB, pi_ppa,
+                                pros, cons, pi_G=PI_NEGOTIABLE)
+        totales.append(res["aggregate"]["total_net_benefit"])
+    base = totales[0]
+    for t in totales[1:]:
+        assert t == pytest.approx(base, rel=1e-6)
+
+
+def test_default_pi_ppa_CAL13_punto_medio_pi_gb_y_negotiable():
+    """Default CAL-13: pi_ppa = pi_gb + 0.5·((G+Cvm+COT) − pi_gb).
+    Debe ser estrictamente mayor que el default CAL-12 (que usa solo G)
+    porque G+Cvm+COT > G."""
+    pi_gb_local = 195.0
+    pi_negotiable = 526.0   # G+Cvm+COT abr-2026 oficial NT2
+    pi_g_only     = 311.0   # G solo abr-2026
+
+    pi_ppa_CAL13 = pi_gb_local + 0.5 * (pi_negotiable - pi_gb_local)
+    pi_ppa_CAL12 = pi_gb_local + 0.5 * (pi_g_only     - pi_gb_local)
+
+    assert pi_ppa_CAL13 > pi_ppa_CAL12, (
+        "Default CAL-13 (no-regulado) debe ser mayor que default "
+        "CAL-12 (regulado), porque G+Cvm+COT > G."
+    )
+    f_obs = (pi_ppa_CAL13 - pi_gb_local) / (pi_negotiable - pi_gb_local)
+    assert f_obs == pytest.approx(0.5, rel=1e-12)

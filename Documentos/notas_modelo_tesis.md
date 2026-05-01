@@ -2503,5 +2503,49 @@ defensible regulatoriamente que en CAL-10.
 | `python main_simulation.py` (sintético) | 13 s, banner `[CAL-10b]` modo auto |
 | `python main_simulation.py --data real --full --analysis` | mensual + SA + GSA + FA-1/FA-2 OK; FA-3 falla por bug pre-existente (no introducido por CAL-10b) |
 
+### §CAL-10b.1 — Fix de propagación a SA-1/SA-2/SA-3 (PPA)
+
+**Hallazgo (post-corrida CAL-10b)**: las funciones de sensibilidad
+`run_sensitivity_pgb`, `run_sensitivity_pv` y `run_sensitivity_ppa`
+**no propagaban `month_labels` ni `component_c`** a `run_comparison`.
+Consecuencia: el SA-1 (sweep PGB) producía `C1 = 54.550.177 COP`
+constante (vs mensual TOTAL `C1 = 52.462.139 COP`), reflejando una
+mecánica de horizonte-único + componente C aproximado, no los meses
+reales con Cvm+COT del CSV.
+
+Esto era un defecto **pre-existente desde CAL-9** (cuando se introdujo
+`month_labels`); CAL-10b lo heredó al agregar `component_c`. Detectado
+al comparar el SA-1 entre las dos corridas: identicos en CAL-10 y
+CAL-10b (es decir, SA-1 ignoraba ambas calibraciones).
+
+**Fix aplicado** (5 sitios en `analysis/sensitivity.py` + 4 sitios
+en `main_simulation.py`):
+
+```python
+# Firmas extendidas
+def run_sensitivity_pgb(..., month_labels=None, component_c="auto"): ...
+def run_sensitivity_pv(...,  month_labels=None, component_c="auto"): ...
+def run_sensitivity_ppa(..., month_labels=None, component_c="auto"): ...
+def run_sensitivity_pgs(..., month_labels=None):  # pi_gs sintético; component_c queda "auto"
+```
+
+`main_simulation.py` propaga `month_labels=month_labels` y
+`component_c=component_c_arg` (matriz `(N,T)` Cvm+COT real) a las 3
+funciones de sensibilidad que mantienen `pi_gs` constante. SA-3
+(barrido `pi_gs` sintético) no recibe `component_c` porque el dato
+real Cedenar no aplica a un sweep hipotético del CU.
+
+**Otros callers de `run_comparison` revisados** (sin cambios necesarios):
+- `analysis/subperiod.py`: usa perfil diario sintético + `pi_gs` escalar + `month_labels=None` (sub-período es una unidad). `component_c="auto"` correcto.
+- `analysis/global_sensitivity.py`: GSA Sobol con muestreo paramétrico de `pi_gs`. `component_c="auto"` correcto.
+- `analysis/sensitivity_2d.py`: sweep 2D paramétrico. `component_c="auto"` correcto.
+
+**Estado**: implementado, tests 57/57 verdes. Los números de SA-1/SA-2
+en `outputs/run_2026-04-30b.log` quedaron del fix anterior — re-correr
+`--full --analysis` para tener SA consistente con el mensual TOTAL es
+TODO de proxima sesión (no urgente: la conclusion cualitativa P2P
+estadísticamente empatado con C1 ya quedó documentada en §CAL-10b
+con la tabla mensual TOTAL que es independiente de SA).
+
 
 

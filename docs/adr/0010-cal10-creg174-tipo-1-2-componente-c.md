@@ -332,3 +332,59 @@ proximo ciclo; no afecta los resultados CAL-10b para SA-1/SA-2/GSA ni
 para la comparacion P2P vs C1/C2/C3/C4.
 
 **Aceptado en produccion 2026-04-30 (anexo CAL-10b)**.
+
+---
+
+## Anexo CAL-10b.1 (2026-04-30) — Propagacion a SA-1/SA-2/SA-3 (PPA)
+
+### Hallazgo
+
+Tras la corrida CAL-10b se detecto que las funciones de sensibilidad
+(`run_sensitivity_pgb`, `run_sensitivity_pv`, `run_sensitivity_ppa`)
+**no propagaban `month_labels` ni `component_c`** a `run_comparison`.
+SA-1 producia `C1 = 54.550.177 COP` constante (vs mensual TOTAL
+`52.462.139`), ignorando la mecanica multi-mensual y el dato real
+Cvm+COT del CSV Cedenar.
+
+Defecto **pre-existente desde CAL-9** (cuando se introdujo
+`month_labels` en `run_c1_creg174`); CAL-10b lo heredo al agregar
+`component_c`. Detectado al comparar SA-1 entre las corridas CAL-10 y
+CAL-10b: identicos al digito.
+
+### Fix
+
+`analysis/sensitivity.py` (4 firmas extendidas + 4 llamadas internas):
+
+```python
+def run_sensitivity_pgb(..., month_labels=None, component_c="auto"): ...
+def run_sensitivity_pv(...,  month_labels=None, component_c="auto"): ...
+def run_sensitivity_ppa(..., month_labels=None, component_c="auto"): ...
+def run_sensitivity_pgs(..., month_labels=None):
+    # pi_gs sintetico; component_c queda "auto" porque el dato real
+    # Cedenar no aplica al sweep hipotetico.
+```
+
+`main_simulation.py` (4 sitios) propaga
+`month_labels=month_labels, component_c=component_c_arg` a las 3
+funciones de sensibilidad que mantienen `pi_gs` constante. SA-3
+(barrido `pi_gs` sintetico) solo recibe `month_labels`.
+
+### Otros callers verificados (sin cambios necesarios)
+
+- `analysis/subperiod.py`: perfil diario con `pi_gs` escalar y
+  `month_labels=None` (sub-periodo es una unidad). `"auto"` correcto.
+- `analysis/global_sensitivity.py`: GSA Sobol con muestreo parametrico
+  de `pi_gs`. `"auto"` correcto.
+- `analysis/sensitivity_2d.py`: sweep 2D parametrico. `"auto"`
+  correcto.
+
+### Estado
+
+Tests 57/57 verdes post-fix. Los numeros de SA-1/SA-2/SA-3 en
+`outputs/run_2026-04-30b.log` son del run pre-fix; re-correr
+`--full --analysis` produciria SA consistente con el mensual TOTAL
+(no urgente: la conclusion cualitativa P2P estadisticamente empatado
+con C1 ya quedo documentada en el anexo CAL-10b con la tabla mensual
+TOTAL que es independiente de SA).
+
+**Aceptado en produccion 2026-04-30 (anexo CAL-10b.1)**.

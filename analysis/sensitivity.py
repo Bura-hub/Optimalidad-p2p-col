@@ -53,6 +53,8 @@ def run_sensitivity_pgb(
     pde: Optional[np.ndarray] = None,
     prosumer_ids: Optional[list] = None,
     verbose: bool = True,
+    month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
+    component_c = "auto",                              # CAL-10b fix
 ) -> list:
     """
     SA-1: Varía PGB entre pi_gb_range y recalcula los escenarios C1-C4.
@@ -92,6 +94,8 @@ def run_sensitivity_pgb(
             prosumer_ids=prosumer_ids, consumer_ids=[],
             pde=pde_v, pi_ppa=pgb + 0.5*(grid_base.pi_gs - pgb),
             capacity=np.maximum(G.mean(axis=1), 0),
+            month_labels=month_labels,                 # CAL-9 fix
+            component_c=component_c,                    # CAL-10b fix
         )
 
         active = [r for r in p2p_results_base
@@ -134,6 +138,8 @@ def run_sensitivity_pv(
     pde: Optional[np.ndarray] = None,
     prosumer_ids: Optional[list] = None,
     verbose: bool = True,
+    month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
+    component_c = "auto",                              # CAL-10b fix
 ) -> list:
     """
     SA-2: Escala la generación G multiplicando por pv_factors.
@@ -188,6 +194,8 @@ def run_sensitivity_pv(
             pi_bolsa=pi_bolsa,
             prosumer_ids=prosumer_ids, consumer_ids=[],
             pde=pde_v, pi_ppa=grid.pi_gb + 0.5*(grid.pi_gs - grid.pi_gb),
+            month_labels=month_labels,                  # CAL-9 fix
+            component_c=component_c,                     # CAL-10b fix
             capacity=np.maximum(G_scaled.mean(axis=1), 0),
         )
 
@@ -234,6 +242,8 @@ def run_sensitivity_ppa(
     capacity: Optional[np.ndarray] = None,
     ppa_factors: Optional[list] = None,
     verbose: bool = True,
+    month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
+    component_c = "auto",                              # CAL-10b fix
 ) -> list:
     """
     SA-3 — §3.8: Sensibilidad al precio del contrato bilateral (pi_ppa).
@@ -282,6 +292,8 @@ def run_sensitivity_ppa(
             prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
             pde=pde, pi_ppa=pi_ppa,
             capacity=capacity,
+            month_labels=month_labels,                  # CAL-9 fix
+            component_c=component_c,                     # CAL-10b fix
         )
 
         nb = {e: cr.net_benefit.get(e, 0.0) for e in ["P2P", "C1", "C2", "C3", "C4"]}
@@ -403,6 +415,7 @@ def run_sensitivity_pgs(
     consumer_ids: Optional[list]       = None,
     pi_gs_range:  Optional[np.ndarray] = None,
     verbose: bool = True,
+    month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
 ) -> list:
     """
     SA-3: Varía π_gs (precio al usuario / tarifa retail) y re-ejecuta el EMS completo.
@@ -476,6 +489,9 @@ def run_sensitivity_pgs(
             pde=pde_v,
             pi_ppa=pi_gb + 0.5 * (float(pgs) - pi_gb),
             capacity=np.maximum(G.mean(axis=1), 0),
+            month_labels=month_labels,                  # CAL-9 fix
+            # component_c queda en "auto" porque pi_gs es escalar sintético
+            # en este barrido — el dato real Cvm+COT no aplica conceptualmente.
         )
 
         active    = [r for r in p2p_res

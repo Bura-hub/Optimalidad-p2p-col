@@ -709,6 +709,21 @@ def analyze_withdrawal_risk(
         G_r    = G_klim[mask, :]        # generación limitada
         G_raw_r = G[mask, :]
 
+        # CAL-9 §"Slicing en analisis": si pi_gs es matriz (N, T) hay que
+        # restringirla al subset de agentes; el contrato de run_c4/c3
+        # valida shape == (len(mask), T). Para escalar / (T,) / vector
+        # con cualquier otro shape se pasa tal cual y as_pi_gs_array lo
+        # broadcasta. Mismo razonamiento aplica a component_c (matriz
+        # Cvm+COT real, CAL-10b).
+        if isinstance(pi_gs, np.ndarray) and pi_gs.ndim == 2 \
+                and pi_gs.shape == (N, T):
+            pi_gs_r = pi_gs[mask, :]
+        elif isinstance(pi_gs, np.ndarray) and pi_gs.ndim == 1 \
+                and pi_gs.shape == (N,):
+            pi_gs_r = pi_gs[mask]
+        else:
+            pi_gs_r = pi_gs
+
         # PDE para la comunidad restante (proporcional a capacidad)
         if capacity is not None:
             cap_r = capacity[mask]
@@ -723,7 +738,7 @@ def analyze_withdrawal_risk(
 
         # Beneficio C4 comunidad restante
         c4_r = run_c4_creg101072(
-            D_r, G_raw_r, pi_gs, pi_bolsa, pde_r,
+            D_r, G_raw_r, pi_gs_r, pi_bolsa, pde_r,
             capacity=cap_r,
         )
         B_C4_remaining = float(c4_r["aggregate"]["total_net_benefit"])
@@ -748,7 +763,7 @@ def analyze_withdrawal_risk(
         if compliant:
             B_fallback = B_C4_remaining
         else:
-            c3_r = run_c3_spot(D_r, G_raw_r, pi_gs, pi_bolsa, pros_r, cons_r)
+            c3_r = run_c3_spot(D_r, G_raw_r, pi_gs_r, pi_bolsa, pros_r, cons_r)
             B_fallback = float(c3_r["aggregate"]["total_net_benefit"])
 
         # P2P restante (estimación conservadora: excluye net_benefit del agente retirado)

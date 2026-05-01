@@ -813,6 +813,22 @@ def apply_creg101066_ceiling(
     return pi, diag
 
 
+def _print_ceiling_summary(diag: dict, level: str = "PES") -> None:
+    """Imprime resumen humano del recorte aplicado por CREG 101 066."""
+    print(f"  [creg-101-066] Techo {level} aplicado: "
+          f"{diag['hours_capped']} horas recortadas "
+          f"({100 * diag['fraction']:.2f}% del horizonte), "
+          f"delta = {diag['delta_cop_total']:,.0f} COP/kWh acumulado")
+    if diag["by_month"] and diag["hours_capped"] > 0:
+        print(f"  [creg-101-066] Por mes:")
+        print(f"                  {'Mes':<10} {'Horas-cap':>10} "
+              f"{'Delta-medio COP/kWh':>22}")
+        for mes, m in diag["by_month"].items():
+            if m["hours_capped"] > 0:
+                print(f"                  {mes:<10} {m['hours_capped']:>10} "
+                      f"{-m['delta_mean']:>22.2f}")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

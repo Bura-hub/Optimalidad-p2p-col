@@ -143,3 +143,23 @@ def test_ceiling_returns_diagnostics_when_requested():
     assert diag["delta_cop_total"] == pytest.approx((1500.0 - 865.22) * 5)
     assert "2025-07" in diag["by_month"]
     assert diag["by_month"]["2025-07"]["hours_capped"] == 5
+
+
+# ─── Grupo C — Integracion en get_pi_bolsa ───────────────────────────────────
+
+def test_get_pi_bolsa_applies_ceiling_by_default():
+    """get_pi_bolsa(apply_ceiling=True) topa la serie a max(PES) del horizonte."""
+    pi = get_pi_bolsa(T=5160, t_start="2025-07-01",
+                      use_api=True, apply_ceiling=True)
+    # max(PES) jul-ene = 898.02 (ago-2025)
+    assert pi.max() <= 898.02 + 1e-6
+
+
+def test_get_pi_bolsa_respects_disable_flag():
+    """apply_ceiling=False entrega la serie sin recortar (puede exceder PES)."""
+    pi_capped = get_pi_bolsa(T=5160, t_start="2025-07-01",
+                              use_api=True, apply_ceiling=True)
+    pi_raw    = get_pi_bolsa(T=5160, t_start="2025-07-01",
+                              use_api=True, apply_ceiling=False)
+    # raw debe tener al menos un valor > PES (cache real tiene picos > 1000)
+    assert pi_raw.max() > pi_capped.max()

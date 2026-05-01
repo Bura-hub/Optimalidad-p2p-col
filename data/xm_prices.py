@@ -407,46 +407,67 @@ def generate_synthetic_prices(T, t_start="2025-07-01",
 
 def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
                  csv_path=None, use_api=True,
-                 scenario="2025_real", seed=42):
+                 scenario="2025_real", seed=42,
+                 apply_ceiling=True,
+                 ceiling_level="PES"):
     """
     Obtiene vector de precios bolsa pi_bolsa (T,) en COP/kWh.
-    Prioridad: API pydataxm → CSV local → sintético calibrado.
+
+    Prioridad de fuentes: API pydataxm → CSV local → sintético calibrado.
+
+    Parameters
+    ----------
+    apply_ceiling : bool
+        Si True (default), aplica el techo CREG 101 066/2024 a la serie
+        antes de retornarla. Ver ``apply_creg101066_ceiling``. CAL-14.
+    ceiling_level : {"PEI", "PE", "PES"}
+        Nivel del techo. Default ``"PES"`` (techo absoluto superior).
     """
     base_dir = Path(__file__).parent
+
+    prices = None
 
     # Intento 1: API pydataxm (con cache)
     if use_api:
         cache = base_dir / "precios_bolsa_xm_api.csv"
         if cache.exists():
             prices = load_xm_prices(str(cache), t_start, t_end)
-            if prices is not None:
-                return _adj(prices, T)
-        prices = download_via_api(t_start, t_end, save_path=str(cache))
-        if prices is not None:
-            return _adj(prices, T)
+        if prices is None:
+            prices = download_via_api(t_start, t_end, save_path=str(cache))
 
     # Intento 2: CSV explícito
-    if csv_path:
+    if prices is None and csv_path:
         prices = load_xm_prices(csv_path, t_start, t_end)
-        if prices is not None:
-            return _adj(prices, T)
 
     # Intento 3: CSV automático en data/
-    for name in ["precios_bolsa_xm.csv", "xm_precios_bolsa.csv",
-                  "precio_bolsa_xm.csv", "PrecioBolsa.csv",
-                  "Precio_Bolsa_Nacional.csv"]:
-        p = base_dir / name
-        if p.exists():
-            prices = load_xm_prices(str(p), t_start, t_end)
-            if prices is not None:
-                return _adj(prices, T)
+    if prices is None:
+        for name in ["precios_bolsa_xm.csv", "xm_precios_bolsa.csv",
+                      "precio_bolsa_xm.csv", "PrecioBolsa.csv",
+                      "Precio_Bolsa_Nacional.csv"]:
+            p = base_dir / name
+            if p.exists():
+                prices = load_xm_prices(str(p), t_start, t_end)
+                if prices is not None:
+                    break
 
     # Intento 4: sintético calibrado
-    print(f"  [xm] Sintético calibrado. Para datos reales:")
-    print(f"    pip install pydataxm  (descarga automática)")
-    print(f"    o descargar CSV de sinergox.xm.com.co → Históricos → Precios")
-    print(f"    y guardarlo como: {base_dir}/precios_bolsa_xm.csv")
-    return generate_synthetic_prices(T, t_start, scenario, seed)
+    if prices is None:
+        print(f"  [xm] Sintético calibrado. Para datos reales:")
+        print(f"    pip install pydataxm  (descarga automática)")
+        print(f"    o descargar CSV de sinergox.xm.com.co → Históricos → Precios")
+        print(f"    y guardarlo como: {base_dir}/precios_bolsa_xm.csv")
+        prices = generate_synthetic_prices(T, t_start, scenario, seed)
+
+    prices = _adj(prices, T)
+
+    # CAL-14: aplicar techo CREG 101 066/2024 (PES por defecto).
+    if apply_ceiling:
+        prices, diag = apply_creg101066_ceiling(
+            prices, t_start, level=ceiling_level,
+            return_diagnostics=True)
+        _print_ceiling_summary(diag, level=ceiling_level)
+
+    return prices
 
 
 def _adj(prices, T):

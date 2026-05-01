@@ -74,12 +74,13 @@ check("13 meses pobladas oficial NT2", len(oficial_nt2) == 13, f"{len(oficial_nt
 check("13 meses pobladas comercial NT2", len(comercial_nt2) == 13, f"{len(comercial_nt2)}/13")
 
 print()
-print("### D. HELPER cvm_plus_cot_per_agent_hourly (data/cedenar_tariff.py)")
+print("### D. HELPER cvm_per_agent_hourly (data/cedenar_tariff.py)")
 src = read("data/cedenar_tariff.py")
-check("Privado _lookup_cvm_plus_cot definido", "def _lookup_cvm_plus_cot" in src)
-check("Lee Cvm + COT del CSV", 'df.loc[key, "Cvm"]' in src and 'df.loc[key, "COT"]' in src)
+check("Privado _lookup_cvm definido", "def _lookup_cvm" in src)
+check("Lee Cvm puro del CSV (CAL-10b.2)", 'df.loc[key, "Cvm"]' in src)
+check("NO lee COT (CAL-10b.2 literalidad)", 'df.loc[key, "COT"]' not in src.replace('# CSV', ''))
 check("Devuelve None ante KeyError o NaN", "return None" in src and "np.isfinite" in src)
-check("Publico cvm_plus_cot_per_agent_hourly definido", "def cvm_plus_cot_per_agent_hourly" in src)
+check("Publico cvm_per_agent_hourly definido", "def cvm_per_agent_hourly" in src)
 check("Inicializa con NaN", "np.full((N, T), np.nan" in src)
 
 print()
@@ -92,11 +93,11 @@ check("Getter get_c_fraction", "def get_c_fraction" in src)
 print()
 print("### F. WIRING main_simulation.py")
 src = read("main_simulation.py")
-check("Importa cvm_plus_cot_per_agent_hourly", "cvm_plus_cot_per_agent_hourly" in src)
-check("Construye component_c_arg condicional", "component_c_arg = cvm_plus_cot_per_agent_hourly" in src)
+check("Importa cvm_per_agent_hourly", "cvm_per_agent_hourly" in src)
+check("Construye component_c_arg condicional", "component_c_arg = cvm_per_agent_hourly" in src)
 check("Fallback auto sintetico/perfil-diario", 'component_c_arg = "auto"' in src)
 check("Banner [CAL-10b] presente", "[CAL-10b]" in src)
-check("Banner condicional CSV vs auto", "Cvm + COT real desde CSV Cedenar" in src and "13.85" in src)
+check("Banner condicional CSV vs auto", "Cvm,i,j real desde CSV Cedenar" in src and "13.85" in src)
 check("Pasa component_c_arg a llamadas", src.count("component_c=component_c_arg") >= 4)
 check("SA-1 propaga month_labels y component_c", "run_sensitivity_pgb" in src and "month_labels=month_labels" in src)
 check("SA-2 propaga month_labels y component_c", "run_sensitivity_pv" in src and src.count("component_c=component_c_arg") >= 4)
@@ -161,16 +162,17 @@ check("Commit CAL-10b.1", "CAL-10b.1" in out)
 
 print()
 print("### L. INTEGRACION END-TO-END (test funcional)")
-from data.cedenar_tariff import cvm_plus_cot_per_agent_hourly
+from data.cedenar_tariff import cvm_per_agent_hourly
 from scenarios.scenario_c1_creg174 import run_c1_creg174
 import warnings
 warnings.filterwarnings("ignore")
 
 idx = pd.date_range("2025-07-01", "2025-08-01", freq="1h", inclusive="left", tz="America/Bogota")
 T = len(idx)
-c_real = cvm_plus_cot_per_agent_hourly(["Udenar"], idx)
-check("Helper produce dato real (jul-2025 Udenar=216.58)",
-      abs(c_real[0, 0] - 216.58) < 0.01,
+c_real = cvm_per_agent_hourly(["Udenar"], idx)
+# CAL-10b.2: Cvm puro jul-2025 oficial NT2 = 174.16 (sin COT que era 42.42).
+check("Helper produce Cvm puro (jul-2025 Udenar=174.16)",
+      abs(c_real[0, 0] - 174.16) < 0.01,
       f"valor={c_real[0, 0]:.2f}")
 check("Constante intra-mes", c_real[0, :].std() < 1e-9, f"std={c_real[0, :].std():.2e}")
 

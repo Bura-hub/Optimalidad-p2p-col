@@ -433,6 +433,114 @@ def cvm_per_agent_hourly(agent_names: list[str],
     return out
 
 
+def _lookup_g(df: pd.DataFrame, mes_key: str,
+              profile: TariffProfile,
+              warned: set | None = None) -> float | None:
+    """
+    Devuelve el componente G (Generación) del CU para
+    (mes, categoría, NT, propiedad) en COP/kWh.
+
+    CAL-12 (literalidad CREG 119/2007 arts. 6-8): G es el único
+    componente del CU que se negocia vía contratos bilaterales (mercado
+    mayorista). Los demás (T, D, Cvm, PR, Rm, COT) son cargos
+    regulados que el usuario paga al OR/STN incluso bajo PPA. Por
+    tanto, el ahorro real de un PPA bilateral es (G − π_ppa), no
+    (CU − π_ppa). Ver ADR-0012.
+
+    Origen: columna `Gm` del CSV `data/tarifas_cedenar_mensual.csv`,
+    transcrita manualmente desde los PDFs `data/cedenar_pdfs/tarifa_*.pdf`
+    publicados por CEDENAR.
+
+    Si el mes no está en el CSV o si Gm es NaN, retorna None y emite
+    warning una vez por mes ausente.
+
+    Ref: CREG 119/2007 arts. 6-8; ADR-0012 (CAL-12).
+    """
+    key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
+    try:
+        gm = float(df.loc[key, "Gm"])
+    except KeyError:
+        if warned is None or mes_key not in warned:
+            warnings.warn(
+                f"[cedenar_tariff] Mes {mes_key} ausente en CSV para "
+                f"{profile.categoria}/NT{profile.nivel_tension}/{profile.propiedad}; "
+                f"componente G marcado como NaN (caller debe aplicar fallback).",
+                stacklevel=3,
+            )
+            if warned is not None:
+                warned.add(mes_key)
+        return None
+
+    if not np.isfinite(gm):
+        if warned is None or mes_key not in warned:
+            warnings.warn(
+                f"[cedenar_tariff] Gm NaN para {mes_key} "
+                f"{profile.categoria}/NT{profile.nivel_tension}; "
+                f"componente G marcado como NaN.",
+                stacklevel=3,
+            )
+            if warned is not None:
+                warned.add(mes_key)
+        return None
+
+    return gm
+
+
+def g_component_per_agent_hourly(agent_names: list[str],
+                                  hour_index: pd.DatetimeIndex,
+                                  csv_path: str | Path | None = None,
+                                  ) -> np.ndarray:
+    """
+    Matriz (N, T) con el componente G (Generación) del CU por
+    (agente, hora), constante dentro del mes.
+
+    G es el ÚNICO componente del CU que se negocia vía contratos
+    bilaterales (CREG 119/2007 arts. 6-8). Los demás (T+D+Cvm+PR+Rm+COT)
+    son cargos regulados que el usuario regulado paga al OR/STN incluso
+    bajo PPA bilateral. Por tanto, el ahorro real de un PPA es
+
+        savings = E_PPA × (G − π_ppa)
+
+    NO `(CU − π_ppa)` como asumía C2 pre-CAL-12.
+
+    Origen del dato: columna `Gm` del CSV
+    `data/tarifas_cedenar_mensual.csv`, transcrita manualmente desde
+    los PDFs `data/cedenar_pdfs/tarifa_*.pdf` (CEDENAR).
+
+    Análoga 1-a-1 a `pi_gs_per_agent_hourly` (CAL-9) y
+    `cvm_per_agent_hourly` (CAL-10b.2).
+
+    Si un mes está ausente del CSV o si Gm es NaN, esa celda queda
+    como np.nan; los callers deciden cómo rellenar (típicamente con
+    `pi_bolsa[k]` como proxy del componente G del comercializador).
+
+    Ref: CREG 119/2007 arts. 6-8; ADR-0012 (CAL-12).
+    """
+    df = load_monthly_tariffs(csv_path)
+    N, T = len(agent_names), len(hour_index)
+    out = np.full((N, T), np.nan, dtype=float)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"componente G marcado como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        cache: dict[str, float | None] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                cache[mes_key] = _lookup_g(df, mes_key, prof, warned)
+            v = cache[mes_key]
+            out[n, t] = v if v is not None else np.nan
+    return out
+
+
 def tariff_coverage(t_start: str | pd.Timestamp,
                      t_end: str | pd.Timestamp,
                      csv_path: str | Path | None = None) -> dict:

@@ -44,6 +44,7 @@ from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 from data.cedenar_tariff import (
     community_effective_pi_gs, cvm_per_agent_hourly,
     effective_pi_gs_per_agent, pi_gs_per_agent_hourly,
+    g_component_per_agent_hourly,    # CAL-12 (ADR-0012)
     tariff_coverage, INSTITUTION_PROFILE,
 )
 
@@ -240,7 +241,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     else:
         pi_gs_arg = grid_params["pi_gs"]
 
-    # CAL-10b: componente C real (Cvm + COT) desde tarifas_cedenar_mensual.csv.
+    # CAL-10b.2: componente C = Cvm,i,j puro de CREG 119/2007 (literalidad
+    # CREG 174 art. 25), leído desde tarifas_cedenar_mensual.csv.
     # Solo aplicable cuando el horizonte tiene timestamps reales (full /
     # single_day). Perfil diario y caso sintético usan "auto" (proporcional
     # ≈ 13.85 % de pi_gs) porque no hay calendario mensual asociado.
@@ -259,6 +261,43 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
           f"(pi_gs - Cvm), excedentes a bolsa horaria post-cruce mensual; "
           f"{c_source}.")
 
+    # CAL-12 (ADR-0012): componente G del CU para C2 (PPA bilateral).
+    # G es el único componente negociable vía PPA según CREG 119/2007
+    # arts. 6-8. Origen: columna `Gm` del CSV Cedenar, transcrita de los
+    # PDFs `data/cedenar_pdfs/tarifa_*.pdf`. Caso sintético usa pi_bolsa
+    # promedio como proxy (no hay CSV mensual asociado).
+    if use_real_data and full_horizon:
+        pi_G_arg = g_component_per_agent_hourly(agent_names, index_full)
+    elif use_real_data and single_day:
+        pi_G_arg = g_component_per_agent_hourly(agent_names, idx_day)
+    elif use_real_data:
+        # Perfil diario: vector (N,) promedio horizonte (mismo patrón que pi_gs).
+        # G constante dentro del mes → promedio sobre el horizonte por agente.
+        pi_G_full = g_component_per_agent_hourly(agent_names, index_full)
+        pi_G_arg  = pi_G_full.mean(axis=1)
+    else:
+        # Caso sintético: G aproximado como pi_bolsa promedio (sin CSV mensual).
+        pi_G_arg = float(np.mean(pi_bolsa))
+
+    if isinstance(pi_G_arg, np.ndarray):
+        if pi_G_arg.ndim == 2:
+            pi_G_msg = (f"matriz (N={pi_G_arg.shape[0]}, T={pi_G_arg.shape[1]}) "
+                        f"mes a mes desde Cedenar PDFs")
+        else:
+            pi_G_msg = f"vector (N={pi_G_arg.shape[0]}) promedio horizonte"
+    else:
+        pi_G_msg = f"escalar {pi_G_arg:.1f} COP/kWh (proxy pi_bolsa)"
+    print(f"    [CAL-12] C2 (CREG 119/2007 arts. 6-8): "
+          f"savings_cons sobre G (no CU); G = {pi_G_msg}.")
+
+    # Default pi_ppa CAL-12: punto medio entre pi_gb y G_promedio
+    # (no CU). G_promedio = mean del pi_G_arg (matriz, vector o escalar).
+    pi_G_mean_default = float(np.mean(pi_G_arg)) if isinstance(pi_G_arg, np.ndarray) \
+                        else float(pi_G_arg)
+    pi_ppa_default    = grid_params["pi_gb"] + 0.5 * (
+        pi_G_mean_default - grid_params["pi_gb"]
+    )
+
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
@@ -266,10 +305,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         pi_bolsa=pi_bolsa,
         prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
         pde=pde,
-        pi_ppa=grid_params["pi_gb"] + 0.5*(grid_params["pi_gs"] - grid_params["pi_gb"]),
+        pi_ppa=pi_ppa_default,
         capacity=cap,
         month_labels=month_labels,
         component_c=component_c_arg,
+        pi_G=pi_G_arg,                                  # CAL-12 (ADR-0012)
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
@@ -447,7 +487,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             # No pasamos component_c: pgs varía sintéticamente y el dato
-            # real Cvm+COT no aplica para barridos hipotéticos de pi_gs.
+            # real Cvm,i,j (CAL-10b.2) no aplica a un sweep hipotético del CU.
         )
 
         # Umbrales de dominancia

@@ -424,6 +424,62 @@ y `docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md`. Tests
 el teorema, el rango de precios, la no-invarianza del Gini, el balance
 de energía y la compatibilidad con `pi_gs (N, T)`.
 
+### Corrección Front-of-Meter del PPA (CAL-12, 2026-05-01)
+
+**Hallazgo regulatorio**: bajo Res. CREG 119/2007 arts. 6-14, el CU se
+descompone como
+
+$$CU = G + T + D + Cvm + PR + Rm + COT$$
+
+y solo el componente **G** (Generación) es negociable vía contratos
+bilaterales (arts. 6-8). Los demás (T+D+Cvm+PR+Rm+COT) son cargos
+regulados que el usuario regulado paga al OR/STN sin importar el
+PPA. Por tanto, el ahorro real del comprador es
+
+$$\text{savings}_{\text{cons}} = E_{\text{PPA}} \cdot (G - \pi_{ppa})$$
+
+**no** $E_{\text{PPA}} \cdot (CU - \pi_{ppa})$ como asumía el modelo
+pre-CAL-12 (CAL-9/CAL-11), que implicaba **Behind-The-Meter (BTM)**
+puro. Para la comunidad MTE en Pasto (5 instituciones geográficamente
+dispersas conectadas individualmente al SDL CEDENAR), BTM no es
+realista. CAL-12 corrige el modelo a Front-of-Meter (FoM):
+
+| Modelo | Ahorro por kWh PPA | Ejemplo abr-2026 oficial NT2 |
+|---|---:|---:|
+| pre-CAL-12 (BTM legacy) | `(CU − π_ppa)` | `(799 − 500) = +299 COP/kWh` |
+| **CAL-12 (FoM correcto)** | `(G − π_ppa)` | `(310 − 500) = −190 COP/kWh` |
+
+El **default `f = 0,5`** se preserva como postulado simétrico de
+reparto, pero aplica al rango natural `[π_gb, G]` (no `[π_gb, CU]`).
+El teorema de invarianza sigue valiendo: en comunidad cerrada,
+$\sum_n B_n^{C2}(\pi_{ppa}) = \sum E_{PPA} \cdot G$ es independiente
+de $\pi_{ppa}$ (test `test_invarianza_bienestar_FoM_se_preserva`).
+
+**Implementación**: helper nuevo
+`data/cedenar_tariff.g_component_per_agent_hourly(agents, idx)` lee
+la columna `Gm` del CSV `tarifas_cedenar_mensual.csv`, transcrita de
+los PDFs `data/cedenar_pdfs/tarifa_*.pdf` (CEDENAR mensuales).
+Refactor en `scenarios/scenario_c2_bilateral.run_c2_bilateral` con
+parámetro nuevo `pi_G`. Propagado en `comparison_engine.run_comparison`
+y `main_simulation.py`.
+
+**Impacto numérico esperado**: KPIs de C2 caerán ~50–75 % al pasar
+de BTM legacy a FoM correcto. La diferencia corresponde a los peajes
+T+D+Cvm+PR+Rm+COT que el modelo legacy "regalaba" a la comunidad y
+CAL-12 traslada correctamente al OR/STN. La conclusión P2P-vs-C2 se
+refuerza drásticamente, lo cual es coherente con la realidad
+regulatoria: un PPA bilateral entre vecinos residenciales no es
+legalmente viable en Colombia (CREG 174/2021 obliga a AGPE pequeños
+a vender excedentes a precio de bolsa). C2 sigue siendo
+contrafáctico (ADR-0011/CAL-11), pero ahora con el alcance
+regulatorio correcto.
+
+Detalle completo: `docs/adr/0012-cal12-c2-fom-peajes.md`. Tests
+`tests/test_c2_bilateral.py` (16 tests CAL-11+CAL-12, todos verdes
+2026-05-01) blindan: equivalencia legacy/None, savings sobre G,
+invarianza FoM, default punto medio (π_gb, G), magnitud del cambio
+vs legacy, compatibilidad escalar/matriz, smoke del helper Cedenar.
+
 ---
 
 ## §3.12 — Desglose P2P hora a hora: estructura y definiciones

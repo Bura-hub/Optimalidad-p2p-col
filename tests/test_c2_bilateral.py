@@ -557,3 +557,67 @@ def test_default_pi_ppa_CAL13_punto_medio_pi_gb_y_negotiable():
     )
     f_obs = (pi_ppa_CAL13 - pi_gb_local) / (pi_negotiable - pi_gb_local)
     assert f_obs == pytest.approx(0.5, rel=1e-12)
+
+
+# ─── CAL-13b (TODO post-CAL-13): SA-3 usa rango [pi_gb, pi_G] ────────────────
+
+def test_run_sensitivity_ppa_usa_rango_pi_G_cuando_se_provee(monkeypatch):
+    """SA-3 con pi_G explícito usa rango [pi_gb, pi_G] (CAL-13b).
+    Sin pi_G, cae al rango legacy [pi_gb, pi_gs] (compatibilidad pre-CAL-13).
+
+    Usa monkeypatch para sustituir run_comparison y run_c2_bilateral por
+    stubs ligeros: solo nos interesa verificar que los pi_ppa generados
+    siguen el rango correcto, no la liquidación completa."""
+    from analysis import sensitivity as sens
+    from scenarios import scenario_c2_bilateral as c2_mod
+    import scenarios as scenarios_pkg
+
+    # Stub mínimo de ComparisonResult-like
+    class _FakeCR:
+        net_benefit = {e: 0.0 for e in ["P2P", "C1", "C2", "C3", "C4"]}
+        net_benefit_per_agent = {"C2": np.zeros(6)}
+
+    captured_pi_ppas = []
+
+    def fake_run_comparison(*args, **kwargs):
+        captured_pi_ppas.append(kwargs["pi_ppa"])
+        return _FakeCR()
+
+    def fake_run_c2(*args, **kwargs):
+        return {"aggregate": {"total_savings_gen": 0.0,
+                              "total_savings_cons": 0.0}}
+
+    monkeypatch.setattr(scenarios_pkg, "run_comparison", fake_run_comparison)
+    monkeypatch.setattr(c2_mod, "run_c2_bilateral", fake_run_c2)
+
+    D, G_pv, pros, cons = _build_mini_community()
+    pi_bolsa = np.full(D.shape[1], PI_GB)
+
+    # Caso A: con pi_G — rango natural CAL-13 = [pi_gb, pi_G]
+    captured_pi_ppas.clear()
+    sens.run_sensitivity_ppa(
+        D=D, G_klim=G_pv, G_raw=G_pv,
+        pi_gs=PI_GS, pi_gb=PI_GB, pi_bolsa=pi_bolsa,
+        p2p_results=[], prosumer_ids=pros, consumer_ids=cons,
+        ppa_factors=[0.0, 0.5, 1.0],
+        verbose=False,
+        pi_G=PI_NEGOTIABLE,
+    )
+    # f=0 → pi_gb; f=1 → pi_negotiable; f=0.5 → punto medio
+    assert captured_pi_ppas[0] == pytest.approx(PI_GB, rel=1e-9)
+    assert captured_pi_ppas[-1] == pytest.approx(PI_NEGOTIABLE, rel=1e-9)
+    assert captured_pi_ppas[1] == pytest.approx(
+        PI_GB + 0.5 * (PI_NEGOTIABLE - PI_GB), rel=1e-9
+    )
+
+    # Caso B: sin pi_G — rango legacy [pi_gb, pi_gs]
+    captured_pi_ppas.clear()
+    sens.run_sensitivity_ppa(
+        D=D, G_klim=G_pv, G_raw=G_pv,
+        pi_gs=PI_GS, pi_gb=PI_GB, pi_bolsa=pi_bolsa,
+        p2p_results=[], prosumer_ids=pros, consumer_ids=cons,
+        ppa_factors=[0.0, 0.5, 1.0],
+        verbose=False,
+    )
+    assert captured_pi_ppas[-1] == pytest.approx(PI_GS, rel=1e-9)
+    assert PI_NEGOTIABLE < PI_GS, "Setup invariante para el test"

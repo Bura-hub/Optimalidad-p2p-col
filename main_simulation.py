@@ -557,6 +557,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c_arg,                 # CAL-10b fix
+            pi_G=pi_G_arg,                                # CAL-13b fix
         )
 
         # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)

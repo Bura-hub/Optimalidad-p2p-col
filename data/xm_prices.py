@@ -652,6 +652,97 @@ def price_source_analysis(
     return result
 
 
+# ── CAL-14: Techo CREG 101 066/2024 ──────────────────────────────────────────
+# Resolucion CREG 101 066/2024 (vigente 01-DIC-2024) reemplaza el precio de
+# escasez unico por tres niveles diferenciados (PEI/PE/PES) que se actualizan
+# mensualmente. Al recortar pi_bolsa por PES (techo absoluto superior) se
+# aproxima el PTB (Precio de Transacciones en Bolsa) que el generador
+# efectivamente recibe tras activacion de OEF — el dato bruto del cache
+# pydataxm (PrecBolsNaci) entrega el marginal sin recortar.
+#
+# Tabla mensual: data/precios_escasez_creg.csv
+# Validacion de valores: sheet Comportamiento_PBNal_Horario en
+#   sinergox.xm.com.co/.../03_Informe_Precios_y_Transacciones_MM_2025.xlsx
+# Spec: docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md
+
+_CEILING_LEVEL_COL = {
+    "PEI": "pei_cop_kwh",
+    "PE":  "pe_cop_kwh",
+    "PES": "pes_cop_kwh",
+}
+
+
+def load_creg_ceiling(
+    t_start: str,
+    t_end: str,
+    level: str = "PES",
+    csv_path: Optional[str] = None,
+) -> pd.Series:
+    """
+    Carga la tabla mensual de precios de escasez CREG 101 066/2024.
+
+    Parameters
+    ----------
+    t_start, t_end : str
+        Rango ISO ``"YYYY-MM-DD"`` del horizonte solicitado.
+    level : {"PEI", "PE", "PES"}
+        Nivel de techo a devolver. Default ``"PES"`` (techo absoluto superior).
+    csv_path : str, optional
+        Ruta al CSV. Default ``data/precios_escasez_creg.csv``.
+
+    Returns
+    -------
+    pd.Series
+        Serie indexada por ``pd.Period(freq="M")`` con el techo en COP/kWh
+        para cada mes del rango ``[t_start, t_end)``. Meses sin valor en el
+        CSV se interpolan linealmente entre adyacentes con valor.
+
+    Raises
+    ------
+    FileNotFoundError
+        Si el CSV no existe.
+    ValueError
+        Si ``level`` no esta en ``{"PEI", "PE", "PES"}``.
+    """
+    if level not in _CEILING_LEVEL_COL:
+        raise ValueError(
+            f"level debe ser uno de {list(_CEILING_LEVEL_COL)}, recibido {level!r}"
+        )
+
+    if csv_path is None:
+        csv_path = str(Path(__file__).parent / "precios_escasez_creg.csv")
+
+    path = Path(csv_path)
+    if not path.exists():
+        raise FileNotFoundError(
+            f"Falta {csv_path}. Esperado: tabla mensual PEI/PE/PES CREG 101 066. "
+            f"Ver docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md"
+        )
+
+    df = pd.read_csv(path)
+    df["mes"] = pd.PeriodIndex(df["mes"], freq="M")
+    df = df.set_index("mes").sort_index()
+
+    col = _CEILING_LEVEL_COL[level]
+    # t_end es exclusivo: el ultimo periodo es el mes que contiene t_end - 1 dia.
+    last_period = (pd.Timestamp(t_end) - pd.Timedelta(days=1)).to_period("M")
+    target_idx = pd.period_range(
+        start=pd.Timestamp(t_start).to_period("M"),
+        end=last_period,
+        freq="M",
+    )
+    serie = df[col].reindex(target_idx)
+    if serie.isna().any():
+        serie = serie.interpolate(method="linear", limit_direction="both")
+
+    return serie
+
+
+def apply_creg101066_ceiling(*args, **kwargs):
+    """Stub — implementacion en Task 4 del plan CAL-14."""
+    raise NotImplementedError("apply_creg101066_ceiling: pendiente Task 4 de CAL-14")
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

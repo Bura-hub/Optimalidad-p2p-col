@@ -209,3 +209,51 @@ Implementado, probado y validado en local 2026-04-30.
 | `scripts/cal9_delta_report.py` | delta agregado < 0,04 % en todos los escenarios |
 
 **Aceptado en produccion 2026-04-30**.
+
+---
+
+## Anexo CAL-9.1 (2026-04-30) — Fix de regresion en `analyze_withdrawal_risk`
+
+### Hallazgo
+
+Al re-correr `--full --analysis` con CAL-10b.1 aplicado, FA-3
+(`analysis/feasibility.analyze_withdrawal_risk`) abortaba con
+`ValueError: pi_gs shape (5, 6144) no es compatible con (N=4, T=6144)`.
+
+La causa: la promesa de este ADR (seccion "Slicing en analisis":
+`pi_gs_r = pi_gs[mask, :]` para feasibility) se cumplio para D, G_klim,
+G_raw y capacity, pero **no se aplico a `pi_gs` en las llamadas a
+`run_c4_creg101072` (linea 725) ni a `run_c3_spot` (linea 751)** del
+mismo modulo. La regresion se mantuvo invisible porque FA-3 nunca se
+ejercitaba con corridas reales hasta CAL-10b.
+
+### Fix
+
+`analysis/feasibility.py:704-720` agrega slicing condicional de pi_gs
+segun shape:
+
+```python
+if isinstance(pi_gs, np.ndarray) and pi_gs.ndim == 2 \
+        and pi_gs.shape == (N, T):
+    pi_gs_r = pi_gs[mask, :]
+elif isinstance(pi_gs, np.ndarray) and pi_gs.ndim == 1 \
+        and pi_gs.shape == (N,):
+    pi_gs_r = pi_gs[mask]
+else:
+    pi_gs_r = pi_gs   # escalar / (T,) / otros: as_pi_gs_array broadcasta
+
+c4_r = run_c4_creg101072(D_r, G_raw_r, pi_gs_r, ...)
+...
+c3_r = run_c3_spot(D_r, G_raw_r, pi_gs_r, ...)
+```
+
+### Verificacion
+
+- `pytest tests/ -q`: 66/66 verdes.
+- Test funcional aislado con pi_gs (5, 24) y un agente retirado:
+  `analyze_withdrawal_risk` completa sin error.
+
+### Estado
+
+Aceptado en produccion 2026-04-30. Restaura el contrato CAL-9 sin
+cambiar la decision de fondo; no introduce nueva calibracion.

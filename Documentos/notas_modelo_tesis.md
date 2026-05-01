@@ -390,6 +390,40 @@ $$\pi_{ppa}(f) = \pi_{gb} + f \cdot (\pi_{gs} - \pi_{gb}), \quad f \in [0, 1]$$
 
 **Implementación:** `analysis/sensitivity.py → run_sensitivity_ppa()` + `graficas/fig10_sensibilidad_ppa.png`
 
+### Sustento empírico del factor `f` (CAL-11, 2026-04-30)
+
+El default `f = 0.5` es un **postulado normativo de reparto simétrico
+comunitario**, no un valor empírico. Datos de PPAs reales en Colombia
+descargados con `pydataxm` (`scripts/audit_xm_yearly_means.py`,
+resumen en `data/audit_xm_yearly_summary.csv`):
+
+| Caso | `P_PPA` | `P_bolsa` (real, anual XM) | `P_tarifa` | `f_emp` |
+|---|---:|---:|---:|---:|
+| UPME 2019 (15 a) | 95,65 | 225,71 | 700 | **−0,274** |
+| UPME 2021 (15 a) | 155,80 | 139,33 | 700 | **+0,029** |
+| UPME 2024 (15 a) | 76,44 | 682,48 | 950 | **−2,267** |
+| Bilateral mayorista regulado 2023 | 284,25 | 564,20 | 750 | **−1,507** |
+| Bilateral mayorista regulado sep-2024 | 320,82 | 682,48 | 800 | **−3,078** |
+| **Default modelo C2** | 553 | 200 | 906 | **+0,500** |
+
+El `f` empírico colombiano es negativo en seis de siete casos
+(rango [−3,08, +0,029]), porque la bolsa colombiana es alta y volátil
+(El Niño 2023-2024) y el comprador del PPA captura el spread. C2 NO
+modela un PPA mayorista colombiano: representa un acuerdo hipotético
+**vecino-a-vecino sin intermediario**, donde el spread `pi_gs - pi_gb`
+queda íntegro dentro de la comunidad y `f = 0.5` reparte simétricamente.
+
+El teorema de invarianza demostrado arriba garantiza que el bienestar
+**agregado** de C2 no depende de `f`; solo varía la distribución
+intra-comunidad (Gini), lo que justifica reportar Gini para
+`f ∈ {0.25, 0.5, 0.75}` en SA-3 (ADR-0011 §4).
+
+Detalle completo: `docs/superpowers/specs/2026-04-30-c2-ppa-bilateral-audit.md`
+y `docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md`. Tests
+`tests/test_c2_bilateral.py` (9 tests, todos verdes 2026-04-30) blindan
+el teorema, el rango de precios, la no-invarianza del Gini, el balance
+de energía y la compatibilidad con `pi_gs (N, T)`.
+
 ---
 
 ## §3.12 — Desglose P2P hora a hora: estructura y definiciones
@@ -2540,12 +2574,65 @@ real Cedenar no aplica a un sweep hipotético del CU.
 - `analysis/global_sensitivity.py`: GSA Sobol con muestreo paramétrico de `pi_gs`. `component_c="auto"` correcto.
 - `analysis/sensitivity_2d.py`: sweep 2D paramétrico. `component_c="auto"` correcto.
 
-**Estado**: implementado, tests 57/57 verdes. Los números de SA-1/SA-2
-en `outputs/run_2026-04-30b.log` quedaron del fix anterior — re-correr
-`--full --analysis` para tener SA consistente con el mensual TOTAL es
-TODO de proxima sesión (no urgente: la conclusion cualitativa P2P
-estadísticamente empatado con C1 ya quedó documentada en §CAL-10b
-con la tabla mensual TOTAL que es independiente de SA).
+**Estado**: implementado, tests 57/57 verdes.
+
+#### Validación numérica con re-corrida `--full --analysis` (run_2026-04-30c.log)
+
+Re-corrida CAL-10b.1 aplicado. Mensual TOTAL invariante (esperado);
+SA-1, SA-2, SA-3 ahora reflejan la mecánica multimensual + componente
+C real Cvm+COT del CSV Cedenar.
+
+**SA-1 (PGB sweep)** — el test diagnóstico clave:
+
+| PGB | C1 pre-fix | C1 post-fix | Δ |
+|---:|---:|---:|---:|
+| 200 | 54.550.177 | **53.405.685** | −1.144.492 |
+| 250 | 54.550.177 | 53.477.480 | −1.072.697 |
+| 300 | 54.550.177 | 53.549.275 | −1.000.902 |
+| 350 | 54.550.177 | 53.621.071 | −929.106 |
+| 400 | 54.550.177 | 53.692.866 | −857.311 |
+| 450 | 54.550.177 | 53.764.661 | −785.516 |
+| 500 | 54.550.177 | **53.836.456** | −713.721 |
+
+Tres validaciones cualitativas:
+
+1. **C1 ya no es constante**: varía linealmente con PGB (pendiente
+   ~1.435 COP por COP/kWh ⇒ `E_tipo2_total ≈ 1.435 kWh` sintético).
+2. **C1 bajó ~1 M COP en todo el rango**: refleja que ahora aplica
+   `C_real ≈ 215 COP/kWh` (Cvm + COT real) vs `0,1385 × pi_gs ≈ 110`
+   (aproximación). Diferencia ~105 COP/kWh × permuta efectiva ≈ 1 M COP.
+3. **SA-1 C1 (53,4-53,8 M) ≠ mensual C1 (52,5 M)**: esperado y
+   correcto, porque SA-1 usa `pi_bolsa = constante PGB` (sintético)
+   mientras la mensual usa `pi_bolsa[k]` horario real XM.
+
+**SA-2 (cobertura PV)**:
+
+| Factor | Cob% | P2P (COP) | C4 (COP) | Margen P2P |
+|---:|---:|---:|---:|---:|
+| 1.00 | 19% | 53.074.653 | 50.980.729 | +2,09 M |
+| 1.05 | 20% | 55.225.698 | 52.996.420 | +2,23 M |
+| 1.72 | 33% | 82.813.076 | 78.384.282 | +4,43 M |
+| 2.61 | 50% | 108.544.853 | 101.852.039 | **+6,69 M** |
+| 3.92 | 75% | 131.623.955 | 125.182.434 | +6,44 M |
+| 5.23 | 100% | 144.868.065 | 139.780.678 | +5,09 M |
+
+P2P > C4 en todo el rango; margen máximo en cobertura ≈ 50 %.
+
+**SA-3 (π_gs sweep escalar sintético)**:
+
+| π_gs | Ratio | P2P | C1 | C4 |
+|---:|---:|---:|---:|---:|
+| 1.133 | 1,25× | 66.604.365 | 67.197.916 | 63.735.034 |
+| 1.359 | 1,50× | 80.089.285 | 80.521.715 | 76.448.288 |
+| 1.586 | 1,75× | 93.642.862 | 93.904.470 | 89.217.797 |
+| 1.813 | 2,00× | 107.192.126 | 107.287.224 | 101.987.305 |
+
+P2P y C1 convergen al subir π_gs (a 2,00× la diferencia es solo
+95.098 COP en agregados de ~107 M).
+
+**Conclusión**: el fix CAL-10b.1 funciona como se predijo
+cuantitativamente; SA-1/SA-2/SA-3 ahora son trustables como
+diagnóstico regulatorio de la tesis.
 
 
 

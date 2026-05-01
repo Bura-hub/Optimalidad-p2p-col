@@ -72,3 +72,23 @@ def test_load_csv_handles_empty_cell_with_interpolation(tmp_path):
                           level="PES", csv_path=str(csv))
     # Interpolacion lineal: ago deberia ser (800 + 820) / 2 = 810
     assert s.loc[pd.Period("2025-08", freq="M")] == pytest.approx(810.0)
+
+
+# ─── Grupo B — apply_creg101066_ceiling ──────────────────────────────────────
+
+def test_ceiling_caps_values_above_PES():
+    """Valores > PES del mes se recortan a PES exacto."""
+    # 24 horas del 2025-07-01 (PES jul = 865.22)
+    pi = np.array([100.0, 1500.0, 200.0, 2000.0] + [100.0] * 20)
+    capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
+    assert capped.max() == pytest.approx(865.22)
+    # Valores no afectados quedan iguales
+    assert capped[0] == 100.0
+    assert capped[2] == 200.0
+
+
+def test_ceiling_does_not_modify_values_below_PES():
+    """Si todos los valores estan bajo PES, la serie no se modifica."""
+    pi = np.array([100.0, 200.0, 300.0, 400.0] + [500.0] * 20)
+    capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
+    assert np.allclose(capped, pi)

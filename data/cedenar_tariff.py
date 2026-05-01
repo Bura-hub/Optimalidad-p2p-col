@@ -180,6 +180,52 @@ def _lookup_pi_gs(df: pd.DataFrame, mes_key: str,
         return float(fallback)
 
 
+def _lookup_cvm_plus_cot(df: pd.DataFrame, mes_key: str,
+                          profile: TariffProfile,
+                          warned: set | None = None) -> float | None:
+    """
+    Devuelve (Cvm + COT) para (mes, categoria, NT, propiedad) en COP/kWh.
+
+    Bajo CREG 174/2021 art. 22-23, este es el componente que el comercializador
+    sigue cobrando aunque el AGPE permute energia (Excedentes Tipo 1).
+
+    Si el mes no esta en el CSV, o si Cvm/COT son NaN, retorna None y emite
+    warning una vez por mes ausente. El caller decide como rellenar
+    (tipicamente vía as_component_c_array que rellena con pi_gs * C_FRACTION).
+
+    Refs: CREG 119/2007 art. 11 (Cvm), CREG 101-028/2023 (COT).
+    """
+    key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
+    try:
+        cvm = float(df.loc[key, "Cvm"])
+        cot = float(df.loc[key, "COT"])
+    except KeyError:
+        if warned is None or mes_key not in warned:
+            warnings.warn(
+                f"[cedenar_tariff] Mes {mes_key} ausente en CSV para "
+                f"{profile.categoria}/NT{profile.nivel_tension}/{profile.propiedad}; "
+                f"componente C marcado como NaN (caller debe aplicar fallback).",
+                stacklevel=3,
+            )
+            if warned is not None:
+                warned.add(mes_key)
+        return None
+
+    if not (np.isfinite(cvm) and np.isfinite(cot)):
+        if warned is None or mes_key not in warned:
+            warnings.warn(
+                f"[cedenar_tariff] Cvm o COT NaN para {mes_key} "
+                f"{profile.categoria}/NT{profile.nivel_tension}; "
+                f"componente C marcado como NaN.",
+                stacklevel=3,
+            )
+            if warned is not None:
+                warned.add(mes_key)
+        return None
+
+    return cvm + cot
+
+
 def effective_pi_gs(t_start: str | pd.Timestamp,
                     t_end: str | pd.Timestamp,
                     profile: TariffProfile,
@@ -313,6 +359,54 @@ def pi_gs_per_agent_hourly(agent_names: list[str],
                 cache[mes_key] = _lookup_pi_gs(df, mes_key, prof,
                                                 fallback, warned)
             out[n, t] = cache[mes_key]
+    return out
+
+
+def cvm_plus_cot_per_agent_hourly(agent_names: list[str],
+                                    hour_index: pd.DatetimeIndex,
+                                    csv_path: str | Path | None = None,
+                                    ) -> np.ndarray:
+    """
+    Matriz (N, T) con (Cvm + COT) por (agente, hora), constante dentro del mes.
+
+    Bajo CREG 174/2021 art. 22-23, este es el "peaje" de comercializacion que
+    el comercializador sigue cobrando aunque el AGPE permute energia (Tipo 1).
+    Reemplaza la aproximacion proporcional pi_gs * C_FRACTION (~13.85 %)
+    introducida en CAL-10 por el dato real del CSV (~22-27 % del CU segun NT).
+
+    La decision regulatoria de incluir Cvm + COT (no solo Cvm) esta documentada
+    en docs/adr/0010-cal10-creg174-tipo-1-2-componente-c.md y en el anexo
+    de CAL-10b.
+
+    Si un mes esta ausente del CSV o si Cvm/COT son NaN, esa celda queda
+    como np.nan; scenarios._pi_gs.as_component_c_array detecta los NaN y
+    rellena con pi_gs[n, k] * C_FRACTION (fallback proporcional CAL-10).
+
+    Refs: CREG 119/2007 (formula CU), CREG 101-028/2023 (COT como costo
+    operativo del comercializador).
+    """
+    df = load_monthly_tariffs(csv_path)
+    N, T = len(agent_names), len(hour_index)
+    out = np.full((N, T), np.nan, dtype=float)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"componente C marcado como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        cache: dict[str, float | None] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                cache[mes_key] = _lookup_cvm_plus_cot(df, mes_key, prof, warned)
+            v = cache[mes_key]
+            out[n, t] = v if v is not None else np.nan
     return out
 
 

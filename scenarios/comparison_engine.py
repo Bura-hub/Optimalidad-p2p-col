@@ -87,6 +87,7 @@ def run_comparison(
     pi_ppa:       Optional[float]      = None,
     capacity:     Optional[np.ndarray] = None,
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (YYYYMM)
+    component_c:  Union[str, float, np.ndarray] = "auto",  # CAL-10b
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -121,8 +122,13 @@ def run_comparison(
     # ── C1 ──────────────────────────────────────────────────────────────
     # month_labels habilita el balance mensual real de CREG 174 (permutación).
     # Si None (perfil 24h o sintético), todo el horizonte es un único período.
+    # component_c="auto" (CAL-10) descuenta proporcional 13.85 %; matriz (N, T)
+    # de cvm_plus_cot_per_agent_hourly (CAL-10b) usa Cvm + COT real desde CSV
+    # Cedenar. Excedentes Tipo 2 a bolsa horaria tras Hx.
+    # Ver scenarios/scenario_c1_creg174.py y data/cedenar_tariff.py.
     c1 = run_c1_creg174(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
-                        month_labels=month_labels)
+                        month_labels=month_labels,
+                        component_c=component_c)
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
     cr.net_benefit["C1"]           = float(np.sum(c1_net))

@@ -42,8 +42,9 @@ from data.base_case_data import (
 )
 from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 from data.cedenar_tariff import (
-    community_effective_pi_gs, effective_pi_gs_per_agent,
-    pi_gs_per_agent_hourly, tariff_coverage, INSTITUTION_PROFILE,
+    community_effective_pi_gs, cvm_plus_cot_per_agent_hourly,
+    effective_pi_gs_per_agent, pi_gs_per_agent_hourly,
+    tariff_coverage, INSTITUTION_PROFILE,
 )
 
 
@@ -238,6 +239,26 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pi_gs_arg = pi_gs_per_agent           # (N,) — perfil diario
     else:
         pi_gs_arg = grid_params["pi_gs"]
+
+    # CAL-10b: componente C real (Cvm + COT) desde tarifas_cedenar_mensual.csv.
+    # Solo aplicable cuando el horizonte tiene timestamps reales (full /
+    # single_day). Perfil diario y caso sintético usan "auto" (proporcional
+    # ≈ 13.85 % de pi_gs) porque no hay calendario mensual asociado.
+    if use_real_data and full_horizon:
+        component_c_arg = cvm_plus_cot_per_agent_hourly(agent_names, index_full)
+    elif use_real_data and single_day:
+        component_c_arg = cvm_plus_cot_per_agent_hourly(agent_names, idx_day)
+    else:
+        component_c_arg = "auto"
+
+    if isinstance(component_c_arg, np.ndarray):
+        c_source = "C = Cvm + COT real desde CSV Cedenar (mes a mes)"
+    else:
+        c_source = "C ≈ 13.85 % proporcional al CU (modo auto)"
+    print(f"    [CAL-10b] C1 (CREG 174 arts. 22-23): permuta Tipo 1 a "
+          f"(pi_gs - C), excedentes Tipo 2 a bolsa horaria post-Hx; "
+          f"{c_source}.")
+
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
@@ -248,6 +269,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         pi_ppa=grid_params["pi_gb"] + 0.5*(grid_params["pi_gs"] - grid_params["pi_gb"]),
         capacity=cap,
         month_labels=month_labels,
+        component_c=component_c_arg,
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
@@ -299,6 +321,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             month_labels=month_labels,
             pde=pde,
             capacity=cap,
+            component_c=component_c_arg,
         )
         print_monthly_table(monthly_data, currency=currency)
 

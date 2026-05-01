@@ -123,6 +123,38 @@ ADR_SUMMARIES = {
         "vs C2 reforzada pendiente re-corrida full analysis 52 min "
         "actividad 3.1 3.2 3.3 4.2"
     ),
+    "0013-cal13-c2-no-regulado": (
+        "CAL-13 C2 alineado con ley colombiana opcion A comunidad MTE "
+        "como usuario no-regulado agregado Ley 143/1994 art 41 mercado "
+        "mayorista contratos bilaterales CREG 086/1996 art 1 mod 039/2001 "
+        "precio libre solo no-regulados Decreto 388/2007 umbral 55 MWh "
+        "mes 100 kW potencia conectada CREG 174/2021 art 23 num 1.a "
+        "AGPE FNCER vende precio libre destino no-regulados pre-CAL-13 "
+        "C2 contrafactico CAL-12 corregia alcance pero AGPE residencial "
+        "consumidor residencial regulado no existe legalmente decision "
+        "5 instituciones MTE constituidas asociacion cooperativa o "
+        "comunidad energetica persona juridica comun usuario no-regulado "
+        "agregado firma PPAs con AGPE miembros precio libre savings_cons "
+        "sobre G+Cvm+COT no solo G usuario no-regulado se ahorra Cvm+COT "
+        "margen comercializador minorista no tiene comercializador "
+        "contrata directamente generador via representante MEM sigue "
+        "pagando T+D+PR+Rm al OR STN ejemplo abril 2026 oficial NT2 "
+        "G=310.96 Cvm=176.41 COT=38.73 G+Cvm+COT=526.10 peajes T+D+PR+Rm "
+        "=273.06 CU=799.16 default pi_ppa CAL-13 punto medio pi_gb "
+        "G+Cvm+COT no pi_gb G ni pi_gb CU helper nuevo "
+        "g_plus_commercialization_per_agent_hourly cedenar_tariff lee "
+        "columnas Gm Cvm COT CSV tarifas_cedenar_mensual transcripcion "
+        "PDFs cedenar_pdfs 13 meses parametro pi_G mantiene nombre "
+        "compatibilidad CAL-12 semantica generalizada rango negociable "
+        "ahorro comercializacion teorema invarianza preservado "
+        "tests/test_c2_bilateral 21 tests verdes 5 nuevos CAL-13 "
+        "16 preservados CAL-11/12 suite global 79/79 verdes sin "
+        "regresion KPI C2 estimado 25-35M COP cota intermedia entre "
+        "BTM legacy 51M y FoM regulado 12-25M conclusion P2P 52.4M "
+        "vs C2 mantiene reforzada legalmente viable no contrafactico "
+        "supuesto verificable empiricamente con admin MTE actividad "
+        "3.1 3.2 3.3 4.2"
+    ),
 }
 
 

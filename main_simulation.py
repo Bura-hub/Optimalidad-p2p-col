@@ -44,7 +44,8 @@ from data.xm_prices import get_pi_bolsa, get_b_for_real_data
 from data.cedenar_tariff import (
     community_effective_pi_gs, cvm_per_agent_hourly,
     effective_pi_gs_per_agent, pi_gs_per_agent_hourly,
-    g_component_per_agent_hourly,    # CAL-12 (ADR-0012)
+    g_component_per_agent_hourly,                     # CAL-12 (ADR-0012)
+    g_plus_commercialization_per_agent_hourly,        # CAL-13 (ADR-0013)
     tariff_coverage, INSTITUTION_PROFILE,
 )
 
@@ -261,23 +262,28 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
           f"(pi_gs - Cvm), excedentes a bolsa horaria post-cruce mensual; "
           f"{c_source}.")
 
-    # CAL-12 (ADR-0012): componente G del CU para C2 (PPA bilateral).
-    # G es el único componente negociable vía PPA según CREG 119/2007
-    # arts. 6-8. Origen: columna `Gm` del CSV Cedenar, transcrita de los
-    # PDFs `data/cedenar_pdfs/tarifa_*.pdf`. Caso sintético usa pi_bolsa
-    # promedio como proxy (no hay CSV mensual asociado).
+    # CAL-13 (ADR-0013): rango negociable + ahorro de comercialización
+    # = G + Cvm + COT, para C2 (PPA bilateral con comunidad como usuario
+    # no-regulado agregado bajo Ley 143/1994 + CREG 086/1996 + CREG 174/2021
+    # art. 23 num. 1.a). El usuario no-regulado se ahorra Cvm + COT
+    # (margen del comercializador minorista) además de poder negociar G.
+    # Origen: columnas Gm + Cvm + COT del CSV Cedenar (PDFs CEDENAR).
     if use_real_data and full_horizon:
-        pi_G_arg = g_component_per_agent_hourly(agent_names, index_full)
+        pi_G_arg = g_plus_commercialization_per_agent_hourly(
+            agent_names, index_full)
     elif use_real_data and single_day:
-        pi_G_arg = g_component_per_agent_hourly(agent_names, idx_day)
+        pi_G_arg = g_plus_commercialization_per_agent_hourly(
+            agent_names, idx_day)
     elif use_real_data:
         # Perfil diario: vector (N,) promedio horizonte (mismo patrón que pi_gs).
-        # G constante dentro del mes → promedio sobre el horizonte por agente.
-        pi_G_full = g_component_per_agent_hourly(agent_names, index_full)
+        # G+Cvm+COT constantes dentro del mes → promedio por agente.
+        pi_G_full = g_plus_commercialization_per_agent_hourly(
+            agent_names, index_full)
         pi_G_arg  = pi_G_full.mean(axis=1)
     else:
-        # Caso sintético: G aproximado como pi_bolsa promedio (sin CSV mensual).
-        pi_G_arg = float(np.mean(pi_bolsa))
+        # Caso sintético: G+Cvm+COT aproximado como pi_bolsa·1.5 (proxy).
+        # No hay CSV mensual asociado al caso sintético.
+        pi_G_arg = float(np.mean(pi_bolsa)) * 1.5
 
     if isinstance(pi_G_arg, np.ndarray):
         if pi_G_arg.ndim == 2:
@@ -286,12 +292,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         else:
             pi_G_msg = f"vector (N={pi_G_arg.shape[0]}) promedio horizonte"
     else:
-        pi_G_msg = f"escalar {pi_G_arg:.1f} COP/kWh (proxy pi_bolsa)"
-    print(f"    [CAL-12] C2 (CREG 119/2007 arts. 6-8): "
-          f"savings_cons sobre G (no CU); G = {pi_G_msg}.")
+        pi_G_msg = f"escalar {pi_G_arg:.1f} COP/kWh (proxy 1.5·pi_bolsa)"
+    print(f"    [CAL-13] C2 (Ley 143/1994 art. 41 + CREG 086/1996 + "
+          f"CREG 174/2021 art. 23.1.a): comunidad MTE como usuario "
+          f"no-regulado agregado; savings_cons sobre (G+Cvm+COT); "
+          f"rango negociable = {pi_G_msg}.")
 
-    # Default pi_ppa CAL-12: punto medio entre pi_gb y G_promedio
-    # (no CU). G_promedio = mean del pi_G_arg (matriz, vector o escalar).
+    # Default pi_ppa CAL-13: punto medio entre pi_gb y (G+Cvm+COT)_promedio.
+    # Reparto simétrico postulado entre venta a red y ahorro máximo del
+    # comprador no-regulado.
     pi_G_mean_default = float(np.mean(pi_G_arg)) if isinstance(pi_G_arg, np.ndarray) \
                         else float(pi_G_arg)
     pi_ppa_default    = grid_params["pi_gb"] + 0.5 * (

@@ -3,43 +3,51 @@ scenario_c2_bilateral.py
 ------------------------
 Escenario C2: Contratos bilaterales (Power Purchase Agreement — PPA).
 
-Mecanismo: precio fijo pactado a largo plazo entre generador y consumidor.
-El generador vende su excedente a un precio fijo `pi_ppa` negociado al
-inicio del contrato (no varía hora a hora). El consumidor regulado paga
-ese precio fijo POR EL COMPONENTE DE GENERACIÓN, y SIGUE pagando los
-peajes de transmisión, distribución, comercialización, pérdidas y
-restricciones al OR/STN/comercializador.
+Mecanismo: precio fijo pactado a largo plazo entre un AGPE prosumidor
+y la **comunidad MTE constituida como usuario no-regulado agregado**
+(CAL-13, 2026-05-01).
 
-Ventaja: elimina volatilidad del precio de bolsa sobre la `G`.
-Desventaja: puede implicar costos de oportunidad si `pi_bolsa` sube.
+ALCANCE FORMAL CAL-13 (2026-05-01) — comunidad como usuario no-regulado
+=======================================================================
 
-ALCANCE FORMAL CAL-12 (2026-05-01) — corrección Front-of-Meter
-==============================================================
+Bajo Ley 143/1994 art. 41 + Decreto 388/2007 + CREG 086/1996 art. 1
+mod. 039/2001, las 5 instituciones MTE constituidas como persona
+jurídica común (asociación, cooperativa o comunidad energética con
+demanda agregada ≥ 55 MWh/mes o potencia conectada ≥ 100 kW)
+califican como **usuario no-regulado** y pueden firmar contratos
+bilaterales a precio libre con AGPE FNCER miembros bajo CREG 174/2021
+art. 23 num. 1.a.
 
 Bajo Res. CREG 119/2007 (arts. 6-14) el Costo Unitario CU se descompone:
 
     CU = G + T + D + Cvm + PR + Rm + COT
 
-Solo G se negocia vía contratos bilaterales (arts. 6-8). El resto
-(T+D+Cvm+PR+Rm+COT) son cargos REGULADOS trasladables obligatoriamente
-al usuario regulado, sin exención por PPA. Por tanto, el ahorro real
-del comprador vía PPA es:
+- G es negociable vía contrato bilateral (arts. 6-8).
+- T+D+PR+Rm son cargos regulados al OR/STN: cualquier usuario
+  (regulado o no) los paga obligatoriamente.
+- **Cvm + COT son margen del comercializador minorista**: un usuario
+  no-regulado NO los paga (no tiene comercializador minorista; contrata
+  directamente con el generador a través de un representante del MEM).
 
-    savings_cons = E_PPA × (G − pi_ppa)            [CAL-12, correcto]
+Por tanto, bajo CAL-13 el ahorro del comprador no-regulado vía PPA es:
 
-NO `(CU − pi_ppa)` como en el modelo pre-CAL-12 (CAL-9/CAL-11), que
-asumía implícitamente Behind-The-Meter (BTM) puro. Para la comunidad
-MTE en Pasto (5 instituciones geográficamente dispersas conectadas al
-SDL), BTM no es realista; el modelo Front-of-Meter (FoM) sí lo es.
+    savings_cons = E_PPA × ((G + Cvm + COT) − pi_ppa)        [CAL-13]
 
-Datos del componente G:
-    `data/cedenar_tariff.g_component_per_agent_hourly(agents, idx)` →
-    matriz (N, T) constante dentro del mes, transcrita de los PDFs
-    `data/cedenar_pdfs/tarifa_*.pdf` (columna `Gm` del CSV
-    `tarifas_cedenar_mensual.csv`).
+donde (G + Cvm + COT) es el "rango negociable + ahorro de
+comercialización". Esta es una cota intermedia entre:
+
+    BTM legacy pre-CAL-12:  (CU − pi_ppa)                  [incorrecto]
+    FoM regulado CAL-12:    (G − pi_ppa)                   [correcto si comprador queda regulado]
+    FoM no-regulado CAL-13: ((G + Cvm + COT) − pi_ppa)    [correcto bajo Opción A]
+
+Datos del rango negociable + comercialización (G + Cvm + COT):
+    `data/cedenar_tariff.g_plus_commercialization_per_agent_hourly(
+       agents, idx)` → matriz (N, T) constante dentro del mes,
+    transcrita de los PDFs `data/cedenar_pdfs/tarifa_*.pdf`.
 
 Ejemplo abr-2026 oficial NT2 (Udenar/HUDN):
-    CU = 799,16 ; G = 310,96 ; peajes = 488,20 COP/kWh
+    CU = 799,16 ; G = 310,96 ; Cvm + COT = 215,14
+    G + Cvm + COT = 526,10 ; peajes T+D+PR+Rm = 273,06 COP/kWh
 
 ALCANCE FORMAL CAL-11 (2026-04-30) — modalidad y sustento
 =========================================================
@@ -50,15 +58,26 @@ ALCANCE FORMAL CAL-11 (2026-04-30) — modalidad y sustento
     (cf. `scripts/audit_xm_yearly_means.py`,
     `data/audit_xm_yearly_summary.csv`).
   - Sustento normativo del default `f=0,5`: postulado de reparto
-    simétrico ENTRE `pi_gb` y `G` (CAL-12); el bienestar agregado es
-    invariante en `f` (teorema notas §3.8).
+    simétrico ENTRE `pi_gb` y (G + Cvm + COT) (CAL-13); el bienestar
+    agregado es invariante en `f` (teorema notas §3.8).
   - Brechas declaradas out-of-scope: variante CFD/financiera, perfil
     Baseload, plazo contractual, precios diferenciados por agente.
+
+NOTA — parámetro `pi_G` del módulo
+==================================
+
+El parámetro de entrada se llama `pi_G` por razones históricas
+(CAL-12 introdujo el componente G). Bajo CAL-13 representa el
+**rango negociable + ahorro de comercialización** (G + Cvm + COT
+para no-regulado), no solo G. La firma se preserva por
+compatibilidad con tests CAL-11/CAL-12 y `pi_G=None` cae al
+comportamiento BTM legacy.
 
 Ver:
   - docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md
   - docs/adr/0012-cal12-c2-fom-peajes.md
-  - docs/superpowers/specs/2026-04-30-c2-ppa-bilateral-audit.md
+  - docs/adr/0013-cal13-c2-no-regulado.md
+  - docs/superpowers/specs/2026-05-01-c1-c2-regulatory-alignment-audit.md
   - tests/test_c2_bilateral.py
 """
 

@@ -244,16 +244,26 @@ def run_sensitivity_ppa(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    pi_G = None,                                       # CAL-13b fix
 ) -> list:
     """
     SA-3 — §3.8: Sensibilidad al precio del contrato bilateral (pi_ppa).
 
-    Varía pi_ppa como fracción del rango [pi_gb, pi_gs]:
-        pi_ppa(f) = pi_gb + f × (pi_gs - pi_gb),  f ∈ [0, 1]
+    Varía pi_ppa como fracción del rango natural CAL-13 [pi_gb, pi_G]:
+        pi_ppa(f) = pi_gb + f × (pi_G - pi_gb),  f ∈ [0, 1]
 
-    f = 0 → pi_ppa = pi_gb  (todo el beneficio al comprador)
-    f = 1 → pi_ppa = pi_gs  (todo el beneficio al vendedor/generador)
-    f = 0.5 → punto medio (default actual)
+    donde pi_G es el "rango negociable + ahorro de comercialización"
+    G + Cvm + COT (CAL-13, ADR-0013), no el CU completo. Esto refleja
+    correctamente la cota económicamente racional del PPA: por encima
+    de pi_G el comprador no-regulado pierde dinero y el contrato no
+    sería firmado.
+
+    f = 0   → pi_ppa = pi_gb  (todo el beneficio al comprador)
+    f = 1   → pi_ppa = pi_G   (todo el beneficio al vendedor/generador)
+    f = 0.5 → punto medio (default CAL-13)
+
+    Si pi_G is None, se cae al rango legacy [pi_gb, pi_gs] (pre-CAL-13)
+    para compatibilidad.
 
     No re-ejecuta el EMS P2P — los despachos P2P son fijos.
     Solo re-evalúa C2 en cada punto; los demás escenarios (C1, C3, C4, P2P)
@@ -269,12 +279,24 @@ def run_sensitivity_ppa(
         ppa_factors = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                        0.6, 0.7, 0.8, 0.9, 1.0]
 
+    # CAL-13b: cota superior del rango es pi_G (G+Cvm+COT) si se provee,
+    # con fallback a pi_gs para compatibilidad pre-CAL-13.
+    if pi_G is None:
+        pi_upper_scalar = float(np.mean(pi_gs)) if hasattr(pi_gs, "shape") \
+                          else float(pi_gs)
+        rango_label = "pi_gs (legacy pre-CAL-13)"
+    else:
+        pi_upper_scalar = float(np.mean(pi_G)) if hasattr(pi_G, "shape") \
+                          else float(pi_G)
+        rango_label = "pi_G (G+Cvm+COT, CAL-13)"
+
     N = D.shape[0]
     results = []
 
     if verbose:
-        spread = pi_gs - pi_gb
-        print(f"\n  SA-3: Sensibilidad PPA  (pi_gb={pi_gb:.0f} → pi_gs={pi_gs:.0f} "
+        spread = pi_upper_scalar - pi_gb
+        print(f"\n  SA-3: Sensibilidad PPA  "
+              f"(pi_gb={pi_gb:.0f} → {rango_label}={pi_upper_scalar:.0f} "
               f"COP/kWh, Δ={spread:.0f})")
         print(f"  {'Factor':>7}  {'pi_ppa':>7}  {'C2 total':>10}  "
               f"{'P2P total':>10}  {'C1 total':>10}  {'C4 total':>10}  "
@@ -282,7 +304,7 @@ def run_sensitivity_ppa(
         print("  " + "─"*72)
 
     for f in ppa_factors:
-        pi_ppa = pi_gb + f * (pi_gs - pi_gb)
+        pi_ppa = pi_gb + f * (pi_upper_scalar - pi_gb)
 
         cr = run_comparison(
             D=D, G_klim=G_klim, G_raw=G_raw,
@@ -294,15 +316,19 @@ def run_sensitivity_ppa(
             capacity=capacity,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c,                     # CAL-10b fix
+            pi_G=pi_G,                                    # CAL-13b fix
         )
 
         nb = {e: cr.net_benefit.get(e, 0.0) for e in ["P2P", "C1", "C2", "C3", "C4"]}
         c2_per = cr.net_benefit_per_agent["C2"].tolist()
 
-        # Desglose de C2: re-cálculo directo para obtener saving_cons y surplus_gen
+        # Desglose de C2: re-cálculo directo para obtener saving_cons y
+        # surplus_gen. CAL-13b: propaga pi_G para coherencia con la
+        # liquidación del run_comparison.
         from scenarios.scenario_c2_bilateral import run_c2_bilateral
         c2_raw = run_c2_bilateral(D, G_klim, pi_gs, pi_gb, pi_ppa,
-                                   prosumer_ids, consumer_ids)
+                                   prosumer_ids, consumer_ids,
+                                   pi_G=pi_G)
         agg = c2_raw["aggregate"]
 
         row = {

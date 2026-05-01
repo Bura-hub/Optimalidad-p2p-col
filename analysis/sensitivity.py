@@ -491,7 +491,8 @@ def run_sensitivity_pgs(
             capacity=np.maximum(G.mean(axis=1), 0),
             month_labels=month_labels,                  # CAL-9 fix
             # component_c queda en "auto" porque pi_gs es escalar sintético
-            # en este barrido — el dato real Cvm+COT no aplica conceptualmente.
+            # en este barrido — el dato real Cvm,i,j (CAL-10b.2) no aplica
+            # conceptualmente a un sweep hipotético del CU.
         )
 
         active    = [r for r in p2p_res

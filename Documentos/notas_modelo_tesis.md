@@ -2727,18 +2727,49 @@ por `Cvm,i,j` puro:
 - `tests/test_cedenar_cvm_cot.py`: 5 tests incluyendo
   `test_lookup_cvm_no_incluye_cot` como regression-test explícito.
 
-#### Impacto numérico esperado
+#### Impacto numérico real (run `outputs/run_2026-04-30d.log`, 59,6 min)
 
-| Métrica | CAL-10b (Cvm+COT) | CAL-10b.2 (solo Cvm) |
-|---|---:|---:|
-| C real oficial NT2 (13 meses) | 212-223 COP/kWh | 172-181 COP/kWh |
-| Δ aplicado | — | +30 a +40 COP/kWh menos descuento |
-| C1 esperado vs CAL-10b | 52.462.139 | algo mayor (~+100-150 K COP) |
-| RPE esperado | +0,029 % | algo mayor pero cercano a 0 |
+| Métrica | CAL-10b (Cvm+COT) | CAL-10b.2 (solo Cvm) | Δ |
+|---|---:|---:|---:|
+| C real oficial NT2 (13 meses) | 212-223 COP/kWh | 172-181 COP/kWh | −40 |
+| **C1 mensual TOTAL** | 52.462.139 | **52.603.335** | **+141.196** |
+| **P2P mensual TOTAL** | 52.446.938 | 52.446.938 | 0 (esperado) |
+| **RPE = (C1−P2P)/P2P** | +0,029 % | **+0,298 %** | +0,27 pp |
 
-El orden de magnitud "P2P y C1 estadísticamente empatados" se
-preserva, pero los números exactos se desplazan ligeramente. Re-correr
-`--full --analysis` para tener cifra precisa.
+**Cálculo del Δ esperado**: ~40 COP/kWh menos descuento × ~3.500 kWh
+permuta efectiva ≈ 140 K COP. Real: 141.196 COP. Coincidencia exacta.
+
+SA-1 (PGB sweep, sintético): C1 pasó de constante 54.550.177
+(pre-fix CAL-10b.1) → variable 53.405.685-53.836.456 (CAL-10b) →
+variable 53.546.881-53.977.652 (CAL-10b.2). Δ uniforme +141K en todo
+el rango ⇒ confirmación de la teoría.
+
+#### Validación end-to-end FA-3 + FA-4 (primera vez desde CAL-9)
+
+El run CAL-10b.2 fue el **primero en completar `--full --analysis`
+sin crashes** desde CAL-9. FA-3 (retiro de agente) ejecutó las 5
+iteraciones:
+
+| Agente retirado | B_C4_rest (COP) | B_P2P_rest (COP) | FP (COP) |
+|---|---:|---:|---:|
+| Udenar | 42.552.675 | 44.329.174 | +1.776.499 |
+| Mariana | 38.470.768 | 40.248.562 | +1.777.794 |
+| UCC | 35.935.212 | 37.227.191 | +1.291.979 |
+| HUDN | 40.400.200 | 42.183.690 | +1.783.489 |
+| Cesmag | 44.048.417 | 45.799.138 | +1.750.721 |
+
+**Comunidad en riesgo: NO** (0/5 retiros invalidan AGRC). La
+"flexibility premium" P2P sobre fallback C4 está entre 1,29 y 1,78 M
+COP por agente — argumento sólido para defender el mecanismo P2P como
+robusto a la deserción individual.
+
+FA-4 (escalamiento) también ejecutó: Udenar/UCC/HUDN máx 2,0×,
+Mariana máx 2,5×, Cesmag máx 3,0× sin violar regla 10 % ni 100 kW.
+
+Activity 4.2 (optimalidad P2P vs C4 hora a hora):
+**P2P dominante en 803 horas (77,9 % de las activas)**, C4 dominante
+en 0 horas. Δ acumulado +2.752.880 COP a favor de P2P. GDR=1.000
+(eficiencia clearing perfecta).
 
 #### Conclusión
 
@@ -2748,6 +2779,13 @@ estrictamente regulatorio: ceñirse a la literalidad de CREG 174 art.
 25 fortalece el rigor académico del modelo. La interpretación
 "conservadora" inicial (Cvm + COT) era defensible económicamente pero
 no legalmente bajo el texto vigente.
+
+**Conclusión cualitativa robusta tras CAL-10b.2**: P2P y C1
+estadísticamente empatados (RPE +0,30 % en agregado, 156 K COP en
+52,4 M), P2P domina hora a hora en 77,9 % de las horas activas, P2P
+domina robustamente al colectivo C4 (margen +2,7 M COP) y todos los
+agentes preservan flexibility premium positiva sobre C4-fallback en
+caso de retiro.
 
 
 

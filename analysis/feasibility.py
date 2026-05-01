@@ -714,7 +714,7 @@ def analyze_withdrawal_risk(
         # valida shape == (len(mask), T). Para escalar / (T,) / vector
         # con cualquier otro shape se pasa tal cual y as_pi_gs_array lo
         # broadcasta. Mismo razonamiento aplica a component_c (matriz
-        # Cvm+COT real, CAL-10b).
+        # Cvm,i,j real desde CSV Cedenar, CAL-10b.2 literalidad).
         if isinstance(pi_gs, np.ndarray) and pi_gs.ndim == 2 \
                 and pi_gs.shape == (N, T):
             pi_gs_r = pi_gs[mask, :]

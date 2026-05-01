@@ -163,3 +163,49 @@ def test_get_pi_bolsa_respects_disable_flag():
                               use_api=True, apply_ceiling=False)
     # raw debe tener al menos un valor > PES (cache real tiene picos > 1000)
     assert pi_raw.max() > pi_capped.max()
+
+
+# ─── Grupo D — Validacion contra PB oficial XM (regresion) ───────────────────
+
+PB_OFFICIAL_PROM_MES = {
+    # Valores oficiales (PRECIO_BOLSA_PROM_MES o PPB del informe XM)
+    "2025-07": 138.36,
+    "2025-08": 251.50,
+    "2025-09": 292.65,
+    "2025-10": 176.90,
+    "2025-11": 234.87,
+    "2025-12": 278.83,
+    "2026-01": 213.00,
+}
+
+
+def test_capped_monthly_means_match_official_within_tolerance():
+    """
+    Media mensual de la serie con techo PES dentro del +/-15% del
+    PRECIO_BOLSA_PROM_MES oficial XM, EXCEPTO ene-2026 (gap conocido,
+    follow-up CAL-15: pydataxm devuelve datos provisionales para ese mes).
+
+    Tolerancia +/-15%: el oficial XM es promedio ponderado por demanda
+    horaria, mientras la serie del cache se promedia aritmeticamente. La
+    diferencia tipica esta en 3-7%, pero nov-2025 muestra ~12% y se
+    acepta como margen estructural de la metrica.
+    """
+    pi = get_pi_bolsa(T=5160, t_start="2025-07-01",
+                      use_api=True, apply_ceiling=True)
+    idx = pd.date_range("2025-07-01", periods=5160, freq="1h")
+    serie = pd.Series(pi, index=idx)
+
+    out_of_tolerance = []
+    for mes_str, oficial in PB_OFFICIAL_PROM_MES.items():
+        mask = serie.index.to_period("M") == pd.Period(mes_str, freq="M")
+        media = serie[mask].mean()
+        delta_pct = abs(media - oficial) / oficial * 100
+        if delta_pct > 15.0 and mes_str != "2026-01":
+            out_of_tolerance.append(
+                f"{mes_str}: capped={media:.1f} oficial={oficial:.1f} "
+                f"delta={delta_pct:.1f}%"
+            )
+    assert not out_of_tolerance, (
+        "Meses fuera de la tolerancia +/-15% (excluyendo ene-2026 follow-up "
+        f"CAL-15):\n" + "\n".join(out_of_tolerance)
+    )

@@ -88,7 +88,13 @@ def run_comparison(
     capacity:     Optional[np.ndarray] = None,
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (YYYYMM)
     component_c:  Union[str, float, np.ndarray] = "auto",  # CAL-10b
-    pi_G:         Union[float, np.ndarray, None] = None,   # CAL-12
+    pi_G:         Union[float, np.ndarray, None] = None,   # CAL-13 (agregado)
+    # CAL-16: descomposición regulatoria explícita del ahorro en C2
+    g_component:   Union[float, np.ndarray, None] = None,
+    cvm_component: Union[float, np.ndarray, None] = None,
+    cot_component: Union[float, np.ndarray, None] = None,
+    mem_costs:     Union[float, np.ndarray, None] = None,
+    cot_alpha:     float = 1.0,
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -158,15 +164,24 @@ def run_comparison(
     cr.net_benefit_per_agent["C1"] = c1_net
 
     # ── C2 ──────────────────────────────────────────────────────────────
-    # CAL-12 → CAL-13 (ADR-0012/0013): pi_G_v se pasa explícitamente;
-    # bajo CAL-13 representa el rango negociable + ahorro de comercialización
-    # (G + Cvm + COT) cuando el comprador es la comunidad MTE constituida
-    # como usuario no-regulado agregado (Ley 143/1994 + CREG 086/1996 +
-    # CREG 174/2021 art. 23.1.a). El ahorro del comprador se calcula
-    # sobre ese rango, no sobre el CU completo.
-    c2 = run_c2_bilateral(D, G_klim, pi_gs_v, pi_gb, pi_ppa,
-                           prosumer_ids, consumer_ids,
-                           pi_G=pi_G_v)
+    # CAL-12 → CAL-13 → CAL-16 (ADR-0012/0013/0016).
+    # Si se proporciona la descomposición explícita (g_component, etc.),
+    # C2 calcula:  savings_ppa = savings_G + savings_Cvm + α·savings_COT
+    #              − mem_costs   (CAL-16)
+    # Si solo llega pi_G (modo CAL-13 agregado), se preserva el
+    # comportamiento anterior. Si ninguno, modo BTM legacy pre-CAL-12.
+    c2 = run_c2_bilateral(
+        D, G_klim, pi_gs_v, pi_gb, pi_ppa,
+        prosumer_ids, consumer_ids,
+        # CAL-16
+        g_component=g_component,
+        cvm_component=cvm_component,
+        cot_component=cot_component,
+        mem_costs=mem_costs,
+        cot_alpha=cot_alpha,
+        # CAL-13 retro-compatibilidad
+        pi_G=pi_G_v,
+    )
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))
     cr.net_benefit_per_agent["C2"] = c2_net
@@ -178,8 +193,12 @@ def run_comparison(
     cr.net_benefit_per_agent["C3"] = c3_net
 
     # ── C4 ──────────────────────────────────────────────────────────────
+    # CAL-15: C4 hereda CREG 174 art. 25 vía Decreto 2236/2023 art. 4 +
+    # CREG 101 072/2025 art. 5. Permuta intracomunitaria a (pi_gs - Cvm),
+    # excedente residual a pi_bolsa[k]. component_c reusa el helper Cvm
+    # de CAL-10b.2 (mismo argumento que C1).
     c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
-                            mode="pde_only")
+                            component_c=component_c)
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
     cr.net_benefit_per_agent["C4"] = c4_net

@@ -180,3 +180,20 @@ def test_run_c2_compat_pi_G_legacy_no_descompone():
     assert per["savings_Cvm"] == 0.0
     assert per["savings_COT"] == 0.0
     assert per["mem_costs"] == 0.0
+
+
+# ── Task 6: comparison_engine acepta nuevos parámetros ─────────────────────
+
+
+def test_run_comparison_acepta_parametros_descompuestos():
+    """run_comparison expone los 5 parámetros nuevos (g/cvm/cot/mem/alpha)."""
+    from scenarios.comparison_engine import run_comparison
+    import inspect
+    sig = inspect.signature(run_comparison)
+    expected = ("g_component", "cvm_component", "cot_component",
+                "mem_costs", "cot_alpha")
+    for p in expected:
+        assert p in sig.parameters, (
+            f"falta parametro '{p}' en run_comparison; firma actual: "
+            f"{list(sig.parameters)}"
+        )

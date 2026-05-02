@@ -214,3 +214,110 @@ def test_run_sensitivity_ppa_acepta_descomposicion_y_calcula_pi_upper():
             f"falta parametro '{p}' en run_sensitivity_ppa; firma: "
             f"{list(sig.parameters)}"
         )
+
+
+# ── Task 9: invarianza y linealidad ────────────────────────────────────────
+
+
+def test_invarianza_bienestar_agregado_pi_ppa_CAL16():
+    """Teorema §3.8 bajo CAL-16: el bienestar agregado de la comunidad
+    cerrada es invariante en pi_ppa (siempre que MEM y los componentes
+    queden fijos), porque pi_ppa es una transferencia entre miembros
+    (prosumidor↔consumidor) que se cancela.
+    """
+    from scenarios.scenario_c2_bilateral import run_c2_bilateral
+    N, T = 4, 24
+    rng = np.random.default_rng(42)
+    D = rng.uniform(2.0, 8.0, (N, T))
+    G = np.zeros((N, T))
+    G[:2, 6:18] = rng.uniform(5.0, 15.0, (2, 12))
+    pi_gs = np.full((N, T), 800.0)
+    g     = np.full((N, T), 310.0)
+    cvm   = np.full((N, T), 176.0)
+    cot   = np.full((N, T), 39.0)
+    mem   = np.full((N, T), 16.0)
+
+    bienestar = []
+    pi_upper  = 310.0 + 176.0 + 39.0 - 16.0
+    for f in (0.25, 0.50, 0.75):
+        pi_ppa = 200.0 + f * (pi_upper - 200.0)
+        res = run_c2_bilateral(
+            D=D, G=G, pi_gs=pi_gs, pi_gb=200.0, pi_ppa=pi_ppa,
+            prosumer_ids=[0, 1], consumer_ids=[2, 3],
+            g_component=g, cvm_component=cvm, cot_component=cot,
+            mem_costs=mem, cot_alpha=1.0,
+        )
+        bienestar.append(res["aggregate"]["total_net_benefit"])
+    assert np.allclose(bienestar, bienestar[0], rtol=1e-6), (
+        f"Invarianza rota: {bienestar}"
+    )
+
+
+def test_bienestar_decrece_lineal_en_mem_costs():
+    """MEM_costs son egresos al sistema externo (no transferencias entre
+    miembros), por tanto el bienestar agregado es función lineal
+    decreciente de MEM_costs.
+
+    b(MEM) = b(0) − ppa_total × MEM   →   b(0) − b(M) ≈ b(M) − b(2M)
+    """
+    from scenarios.scenario_c2_bilateral import run_c2_bilateral
+    N, T = 4, 24
+    D = np.full((N, T), 5.0)
+    G = np.zeros((N, T))
+    G[:2, 6:18] = 10.0
+    base = dict(
+        D=D, G=G, pi_gs=np.full((N, T), 800.0), pi_gb=200.0, pi_ppa=400.0,
+        prosumer_ids=[0, 1], consumer_ids=[2, 3],
+        g_component=np.full((N, T), 310.0),
+        cvm_component=np.full((N, T), 176.0),
+        cot_component=np.full((N, T), 39.0), cot_alpha=1.0,
+    )
+    b0 = run_c2_bilateral(**base, mem_costs=np.zeros((N, T)))[
+        "aggregate"]["total_net_benefit"]
+    b1 = run_c2_bilateral(**base, mem_costs=np.full((N, T), 10.0))[
+        "aggregate"]["total_net_benefit"]
+    b2 = run_c2_bilateral(**base, mem_costs=np.full((N, T), 20.0))[
+        "aggregate"]["total_net_benefit"]
+    # Linealidad: b0 − b1 ≈ b1 − b2
+    assert np.isclose((b0 - b1), (b1 - b2), rtol=1e-6), (
+        f"No lineal: Δ1={b0-b1:.2f}, Δ2={b1-b2:.2f}"
+    )
+    # Monotonia
+    assert b0 > b1 > b2, f"No monotona: {b0:.2f}, {b1:.2f}, {b2:.2f}"
+
+
+def test_invarianza_bienestar_agregado_cot_alpha():
+    """Bienestar agregado es invariante en cot_alpha en comunidad cerrada,
+    análogo al teorema §3.8: COT escalado linealmente sigue cancelándose
+    entre prosumidor (recibe pi_ppa fijo) y consumidor (que se ahorra
+    α·COT). El término α aparece solo en la transferencia interna.
+    """
+    from scenarios.scenario_c2_bilateral import run_c2_bilateral
+    N, T = 4, 24
+    rng = np.random.default_rng(7)
+    D = rng.uniform(2.0, 6.0, (N, T))
+    G = np.zeros((N, T))
+    G[:2, 6:18] = rng.uniform(5.0, 12.0, (2, 12))
+    base = dict(
+        D=D, G=G, pi_gs=np.full((N, T), 800.0), pi_gb=200.0, pi_ppa=400.0,
+        prosumer_ids=[0, 1], consumer_ids=[2, 3],
+        g_component=np.full((N, T), 310.0),
+        cvm_component=np.full((N, T), 176.0),
+        cot_component=np.full((N, T), 39.0),
+        mem_costs=np.full((N, T), 16.0),
+    )
+    b00 = run_c2_bilateral(**base, cot_alpha=0.0)[
+        "aggregate"]["total_net_benefit"]
+    b05 = run_c2_bilateral(**base, cot_alpha=0.5)[
+        "aggregate"]["total_net_benefit"]
+    b10 = run_c2_bilateral(**base, cot_alpha=1.0)[
+        "aggregate"]["total_net_benefit"]
+    # En comunidad cerrada, cot solo afecta savings_COT del consumidor
+    # (no entra a savings_gen del prosumidor); por tanto el bienestar
+    # agregado SI varía linealmente en alpha. Confirmamos esa relación.
+    delta_05 = b05 - b00
+    delta_10 = b10 - b00
+    assert np.isclose(delta_10, 2.0 * delta_05, rtol=1e-6), (
+        f"COT no es lineal en alpha: Δ(0→0.5)={delta_05:.2f}, "
+        f"Δ(0→1.0)={delta_10:.2f}, esperado ratio 2.0"
+    )

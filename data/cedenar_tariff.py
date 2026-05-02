@@ -636,6 +636,90 @@ def g_plus_commercialization_per_agent_hourly(
     return out
 
 
+def tolls_per_agent_hourly(agent_names: list[str],
+                             hour_index: pd.DatetimeIndex,
+                             csv_path: str | Path | None = None,
+                             ) -> np.ndarray:
+    """
+    Matriz (N, T) con los **peajes regulados** (T + D + PR + Rm) del CU
+    por (agente, hora), constante dentro del mes.
+
+    CAL-15 (ADR-0015): los peajes T+D+PR+Rm son cargos regulados que
+    cualquier usuario conectado al SIN paga obligatoriamente, sea
+    regulado o no-regulado. Bajo CREG 119/2007 arts. 9, 10, 12, 13:
+
+      - T  (Transmisión, STN): art. 9
+      - D  (Distribución, OR): art. 10
+      - PR (Pérdidas Reconocidas del sistema): art. 12
+      - Rm (Restricciones del SIN): art. 13
+
+    Estos componentes NO se ahorran vía PPA bilateral; sirven para
+    auditar la reconciliación CU = G + Cvm + COT + (T+D+PR+Rm).
+
+    Origen: columnas `Tm + Dnm + PR + Rm` del CSV
+    `data/tarifas_cedenar_mensual.csv`, transcritas de los PDFs
+    `data/cedenar_pdfs/tarifa_*.pdf` (CEDENAR).
+
+    Análoga 1-a-1 a `g_component_per_agent_hourly` (CAL-12) y
+    `g_plus_commercialization_per_agent_hourly` (CAL-13).
+
+    Si un mes está ausente del CSV o si algún componente es NaN, esa
+    celda queda como np.nan; los callers deciden cómo rellenar.
+
+    Ejemplo abril-2026 oficial NT2 (Udenar/HUDN):
+      T = 55,95 ; D = 165,37 ; PR = 21,09 ; Rm = 30,64
+      ⇒ T+D+PR+Rm = 273,05 COP/kWh
+      (vs CU completo 799,16 COP/kWh; G+Cvm+COT = 526,10 COP/kWh)
+
+    Ref: CREG 119/2007 arts. 9, 10, 12, 13; ADR-0015 (CAL-15).
+    """
+    df = load_monthly_tariffs(csv_path)
+    N, T = len(agent_names), len(hour_index)
+    out = np.full((N, T), np.nan, dtype=float)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"peajes T+D+PR+Rm marcados como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        cache: dict[str, float | None] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                key = (mes_key, prof.categoria, prof.nivel_tension,
+                       prof.propiedad)
+                try:
+                    tm  = float(df.loc[key, "Tm"])
+                    dnm = float(df.loc[key, "Dnm"])
+                    pr  = float(df.loc[key, "PR"])
+                    rm  = float(df.loc[key, "Rm"])
+                    if (np.isfinite(tm) and np.isfinite(dnm)
+                            and np.isfinite(pr) and np.isfinite(rm)):
+                        cache[mes_key] = tm + dnm + pr + rm
+                    else:
+                        cache[mes_key] = None
+                except KeyError:
+                    if mes_key not in warned:
+                        warnings.warn(
+                            f"[cedenar_tariff] Mes {mes_key} ausente en CSV "
+                            f"para {prof.categoria}/NT{prof.nivel_tension}/"
+                            f"{prof.propiedad}; peajes T+D+PR+Rm "
+                            f"marcados como NaN.",
+                            stacklevel=3,
+                        )
+                        warned.add(mes_key)
+                    cache[mes_key] = None
+            v = cache[mes_key]
+            out[n, t] = v if v is not None else np.nan
+    return out
+
+
 def tariff_coverage(t_start: str | pd.Timestamp,
                      t_end: str | pd.Timestamp,
                      csv_path: str | Path | None = None) -> dict:

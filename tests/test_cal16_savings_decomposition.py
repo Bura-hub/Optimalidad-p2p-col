@@ -91,3 +91,25 @@ def test_cu_components_per_agent_hourly_reconcilia_cu_oficial():
         f"CU_comercial / suma_componentes != 1.20: media = "
         f"{np.nanmean(ratio):.4f}"
     )
+
+
+# ── Task 4: mem_costs_per_agent_hourly ─────────────────────────────────────
+
+
+def test_mem_costs_per_agent_hourly_fazni_y_4pct_y_rep():
+    """MEM_costs = FAZNI + 0.04·G + π_rep
+    abr-2026 NT2 oficial: G = 310.96 -> 4 % = 12.4384
+    1.90 + 12.4384 + 2.00 ≈ 16.34 COP/kWh
+    """
+    from data.cedenar_tariff import mem_costs_per_agent_hourly
+    idx = _idx_abr_2026()
+    mem = mem_costs_per_agent_hourly(AGENTS_NT2, idx)
+    assert mem.shape == (5, len(idx))
+    udenar_idx = AGENTS_NT2.index("Udenar")
+    expected = 1.90 + 0.04 * 310.96 + 2.00
+    assert np.isclose(mem[udenar_idx, 0], expected, atol=0.05), (
+        f"Udenar MEM = {mem[udenar_idx, 0]:.3f}, esperado ≈ {expected:.3f}"
+    )
+    # Para Cesmag (comercial NT2 abr-2026: G = 310.96 mismo valor que oficial)
+    cesmag_idx = AGENTS_NT2.index("Cesmag")
+    assert np.isclose(mem[cesmag_idx, 0], expected, atol=0.05)

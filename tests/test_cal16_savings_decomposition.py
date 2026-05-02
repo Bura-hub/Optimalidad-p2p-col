@@ -1,7 +1,7 @@
 """
-tests/test_cal15_savings_decomposition.py
+tests/test_cal16_savings_decomposition.py
 =========================================
-CAL-15 (2026-05-02) — Descomposición regulatoria del ahorro en C2.
+CAL-16 (2026-05-02) — Descomposición regulatoria del ahorro en C2.
 
 Valida que el cálculo de savings_cons en `run_c2_bilateral` se descompone
 en sus componentes regulatorios exactos:
@@ -16,7 +16,7 @@ con
   - MEM = FAZNI + 0.04·G + π_rep
         (Ley 1715/2014 art. 19 + Ley 1117/2006 + Ley 2099/2021 art. 45)
 
-Ref: ADR-0015; spec docs/superpowers/specs/2026-05-02-cal15-c2-savings-decomposition.md
+Ref: ADR-0016; spec docs/superpowers/specs/2026-05-02-cal16-c2-savings-decomposition.md
 """
 
 import numpy as np

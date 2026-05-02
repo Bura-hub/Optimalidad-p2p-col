@@ -644,7 +644,7 @@ def tolls_per_agent_hourly(agent_names: list[str],
     Matriz (N, T) con los **peajes regulados** (T + D + PR + Rm) del CU
     por (agente, hora), constante dentro del mes.
 
-    CAL-15 (ADR-0015): los peajes T+D+PR+Rm son cargos regulados que
+    CAL-16 (ADR-0016): los peajes T+D+PR+Rm son cargos regulados que
     cualquier usuario conectado al SIN paga obligatoriamente, sea
     regulado o no-regulado. Bajo CREG 119/2007 arts. 9, 10, 12, 13:
 
@@ -671,7 +671,7 @@ def tolls_per_agent_hourly(agent_names: list[str],
       ⇒ T+D+PR+Rm = 273,05 COP/kWh
       (vs CU completo 799,16 COP/kWh; G+Cvm+COT = 526,10 COP/kWh)
 
-    Ref: CREG 119/2007 arts. 9, 10, 12, 13; ADR-0015 (CAL-15).
+    Ref: CREG 119/2007 arts. 9, 10, 12, 13; ADR-0016 (CAL-16).
     """
     df = load_monthly_tariffs(csv_path)
     N, T = len(agent_names), len(hour_index)

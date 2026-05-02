@@ -172,7 +172,7 @@ ADR_SUMMARIES = {
         "alternativas spec docs/superpowers/specs/2026-05-01-cal14 "
         "12 tests verdes Grupo A loader Grupo B capping Grupo C integracion "
         "Grupo D regresion vs PB oficial XM tolerancia 15% ene-2026 "
-        "excluido follow-up CAL-15 gap 35% pydataxm vs PTB oficial "
+        "excluido follow-up CAL-17 gap 35% pydataxm vs PTB oficial "
         "investigar metrica sospecha datos provisionales 92 tests global "
         "sin regresion smoke daily 0 horas cap full ~12 horas 0.23 porciento "
         "horizonte delta 3676 COP/kWh actividad 3.x"

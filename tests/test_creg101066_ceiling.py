@@ -183,7 +183,7 @@ def test_capped_monthly_means_match_official_within_tolerance():
     """
     Media mensual de la serie con techo PES dentro del +/-15% del
     PRECIO_BOLSA_PROM_MES oficial XM, EXCEPTO ene-2026 (gap conocido,
-    follow-up CAL-15: pydataxm devuelve datos provisionales para ese mes).
+    follow-up CAL-17: pydataxm devuelve datos provisionales para ese mes).
 
     Tolerancia +/-15%: el oficial XM es promedio ponderado por demanda
     horaria, mientras la serie del cache se promedia aritmeticamente. La
@@ -207,5 +207,5 @@ def test_capped_monthly_means_match_official_within_tolerance():
             )
     assert not out_of_tolerance, (
         "Meses fuera de la tolerancia +/-15% (excluyendo ene-2026 follow-up "
-        f"CAL-15):\n" + "\n".join(out_of_tolerance)
+        f"CAL-17):\n" + "\n".join(out_of_tolerance)
     )

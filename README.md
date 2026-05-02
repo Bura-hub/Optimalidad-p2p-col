@@ -283,9 +283,20 @@ días, abril–diciembre 2025) **con calibración Cedenar CAL-8 per-agente**
 |-----------|----------------------|-------------|
 | C1 (CREG 174 créditos 1:1) | **54.04** | Mejor régimen regulado bajo créditos plenos (referencia) |
 | **P2P (Stackelberg + RD)** | **52.43** | 1 031/6 144 h con mercado activo (16,8 %); 3 659,3 kWh transados |
-| C2 (Bilateral PPA, π_ppa = 593) | 51.44 | Punto medio (π_gb + π̄_gs)/2 |
+| C2 (Bilateral PPA, π_ppa = 593) | 51.44 ⚠️ pre-CAL-12 | Cifra BTM legacy (sobreestimaba); ver nota CAL-16 abajo |
 | C3 (spot XM) | 50.96 | |
 | C4 (CREG 101 072 AGRC+PDE) | **50.29** | **Régimen vigente, baseline de comparación** |
+
+> **Nota CAL-16 (2026-05-02):** la cifra de C2 mostrada (51.44 MCOP) corresponde
+> al cálculo BTM legacy pre-CAL-12 que **sobreestimaba** el ahorro. La
+> formulación post-CAL-16 (descomposición regulatoria explícita: Ley
+> 143/1994 + CREG 086/1996 + CREG 119/2007 + CREG 156/2012 + CREG 101-028/2023
+> + Ley 1715/2014 + Ley 1117/2006 + Ley 2099/2021) estima C2 en **22–32
+> MCOP** según `α` y costos del MEM (FAZNI + 4 % + comisión representante).
+> Esto **refuerza la conclusión P2P > C2** (la diferencia P2P − C2 crece de
+> ~0,99 MCOP a ~20+ MCOP). La regeneración con `--full --analysis` está
+> pendiente. Detalle: `docs/adr/0016-cal16-c2-savings-decomposition.md` y
+> `docs/superpowers/specs/2026-05-01-c2-funcionamiento-completo.md`.
 
 **Métricas agregadas**: SC P2P = 0.188 · SS P2P = 0.981 · IE P2P = +0.3677 · **RPE P2P vs C4 = +0.0408** · PoF = 0.0000 (eficiente = equitativo = C1) · Spread C4 = 1 004,4 kWh.
 

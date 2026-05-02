@@ -110,13 +110,35 @@ def run_comparison(
     comunidad MTE como usuario no-regulado agregado bajo Ley 143/1994 +
     CREG 086/1996 + CREG 174/2021 art. 23.1.a). El parámetro mantiene
     su nombre histórico `pi_G` por compatibilidad. Acepta float, `(N,)`,
-    `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None, C2 cae al
-    comportamiento BTM legacy (`pi_G == pi_gs`). En producción
-    (`main_simulation.py --data real`) se pasa la matriz real obtenida
-    de `data.cedenar_tariff.g_plus_commercialization_per_agent_hourly`.
+    `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None y no se proveen los
+    componentes descompuestos (CAL-16), C2 cae al comportamiento BTM
+    legacy (`pi_G == pi_gs`).
+
+    `g_component`, `cvm_component`, `cot_component`, `mem_costs`,
+    `cot_alpha` (CAL-16, ADR-0016): descomposición regulatoria explícita
+    del ahorro de C2. Cuando se proveen, C2 calcula
+
+        savings_ppa = E_PPA × [(G − π_ppa) + Cvm + α·COT − MEM]
+
+    donde:
+      - `g_component`   → G   (Ley 143/1994 art. 41, único negociable)
+      - `cvm_component` → Cvm (CREG 086/1996, ahorrado por no-regulado)
+      - `cot_component` → COT (CREG 101-028/2023, peso α ∈ [0, 1])
+      - `mem_costs`     → MEM = FAZNI + 0.04·G + π_rep
+                         (Ley 1715/2014 + Ley 1117/2006 + Ley 2099/2021
+                          + CREG 156/2012)
+      - `cot_alpha` default 1.0 mantiene cota CAL-13; 0.0 cota más
+        conservadora.
+
+    En producción (`main_simulation.py --data real`) se construyen
+    estos componentes con `data.cedenar_tariff.cu_components_per_agent_hourly`
+    y `mem_costs_per_agent_hourly`. La modalidad CAL-16 tiene
+    precedencia sobre `pi_G`. Si ninguno se provee, C2 cae al
+    comportamiento BTM legacy.
 
     El default de `pi_ppa` (cuando es None) usa el rango negociable
-    como cota superior (CAL-13), no el CU completo.
+    como cota superior. Bajo CAL-16, `pi_upper = G + Cvm + α·COT − MEM`
+    (cota económicamente racional donde el comprador deja de ganar).
     """
     N, T = D.shape
     cr   = ComparisonResult(hours=T, n_agents=N)

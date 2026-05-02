@@ -96,7 +96,14 @@ def run_c2_bilateral(
     pi_ppa: float,             # precio PPA pactado $/kWh
     prosumer_ids: list,        # índices de agentes con generación
     consumer_ids: list,        # índices de consumidores puros
-    pi_G: Union[float, np.ndarray, None] = None,  # componente G — CAL-12
+    # CAL-16: descomposición regulatoria explícita del ahorro
+    g_component:   Union[float, np.ndarray, None] = None,  # G CREG 119
+    cvm_component: Union[float, np.ndarray, None] = None,  # Cvm CREG 119
+    cot_component: Union[float, np.ndarray, None] = None,  # COT CREG 101-028
+    mem_costs:     Union[float, np.ndarray, None] = None,  # FAZNI+4%+rep
+    cot_alpha:     float = 1.0,                            # peso COT [0,1]
+    # Compatibilidad pre-CAL-16: si solo se pasa pi_G se trata como G+Cvm+COT
+    pi_G: Union[float, np.ndarray, None] = None,
 ) -> dict:
     """
     Lógica:
@@ -133,34 +140,52 @@ def run_c2_bilateral(
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)                     # (N, T) CAL-9
-    if pi_G is None:
-        # Legacy pre-CAL-12: BTM puro (pi_G == pi_gs). Conservado solo
-        # como compatibilidad para tests previos; producción debe pasar
-        # la matriz real.
-        pi_G_v = pi_gs_v
-    else:
-        pi_G_v = as_pi_gs_array(pi_G, N, T)                   # (N, T) CAL-12
 
-    savings_gen  = np.zeros(N)    # ahorro autoconsumo + ingreso PPA
-    savings_cons = np.zeros(N)    # ahorro PPA del comprador (sobre G)
-    grid_cost    = np.zeros(N)    # costo energía aún comprada a red
-    grid_revenue = np.zeros(N)    # ingresos por venta excedente a red
+    # ── CAL-16: selección de modo según parámetros recibidos ─────────────
+    # Modo CAL-16 (descompuesto): se proporciona g_component → se usan
+    #     los cuatro componentes regulatorios (G, Cvm, α·COT, MEM).
+    # Modo CAL-13 (agregado, retro-compatible): solo pi_G → se trata como
+    #     "G + Cvm + COT" agregado en savings_G; Cvm, COT, MEM = 0.
+    # Modo BTM legacy (pre-CAL-12): ningún parámetro → pi_G = pi_gs.
+    use_decomp = g_component is not None
+    if use_decomp:
+        g_v   = as_pi_gs_array(g_component, N, T)
+        cvm_v = (as_pi_gs_array(cvm_component, N, T)
+                 if cvm_component is not None else np.zeros((N, T)))
+        cot_v = (as_pi_gs_array(cot_component, N, T)
+                 if cot_component is not None else np.zeros((N, T)))
+        mem_v = (as_pi_gs_array(mem_costs, N, T)
+                 if mem_costs is not None else np.zeros((N, T)))
+    elif pi_G is not None:
+        g_v   = as_pi_gs_array(pi_G, N, T)                     # CAL-13
+        cvm_v = np.zeros((N, T))
+        cot_v = np.zeros((N, T))
+        mem_v = np.zeros((N, T))
+    else:
+        g_v   = pi_gs_v                                        # legacy BTM
+        cvm_v = np.zeros((N, T))
+        cot_v = np.zeros((N, T))
+        mem_v = np.zeros((N, T))
+
+    savings_gen   = np.zeros(N)    # autoconsumo + ingreso PPA del prosumidor
+    savings_G     = np.zeros(N)    # ahorro componente G (Ley 143/1994)
+    savings_Cvm   = np.zeros(N)    # ahorro Cvm (CREG 086/1996)
+    savings_COT   = np.zeros(N)    # ahorro α·COT (CREG 101-028/2023)
+    mem_costs_arr = np.zeros(N)    # egresos MEM no-regulado (FAZNI+4%+rep)
+    grid_cost     = np.zeros(N)    # costo energía aún comprada a red
+    grid_revenue  = np.zeros(N)    # ingresos por venta excedente a red
 
     for k in range(T):
-        # Excedentes netos de prosumidores
         gen_surplus = np.maximum(G[:, k] - D[:, k], 0.0)
-        # Déficit de todos los agentes (antes de contrato)
         deficits    = np.maximum(D[:, k] - G[:, k], 0.0)
-
         total_surplus = float(np.sum(gen_surplus[prosumer_ids]))
 
-        # Autoconsumo: ahorro de cada prosumidor (energía detrás del
-        # medidor → ahorra CU completo).
+        # Autoconsumo: ahorra CU completo (BTM)
         for n in prosumer_ids:
             autoconsumo = min(G[n, k], D[n, k])
             savings_gen[n] += autoconsumo * pi_gs_v[n, k]
 
-        # Distribución del excedente a consumidores (proporcional a demanda)
+        # Distribución PPA proporcional a la demanda
         dem_cons = np.array([D[i, k] for i in consumer_ids])
         total_dem_cons = float(np.sum(dem_cons))
 
@@ -169,37 +194,44 @@ def run_c2_bilateral(
             ppa_delivered = np.minimum(share * total_surplus, dem_cons)
 
             for idx, i in enumerate(consumer_ids):
-                # CAL-12: ahorro PPA solo sobre componente G del CU.
-                # Los peajes T+D+Cvm+PR+Rm+COT se siguen pagando al
-                # OR/STN sobre la energía recibida vía PPA (pero NO se
-                # contabilizan aquí por filosofía A: solo se contabilizan
-                # AHORROS o INGRESOS, no costos de la contraparte).
-                savings_cons[i] += ppa_delivered[idx] * (pi_G_v[i, k] - pi_ppa)
-                # Déficit residual → red a la tarifa CU completa
-                # (peajes incluidos sobre la energía de red).
-                residual = max(0.0, deficits[i] - ppa_delivered[idx])
+                e = ppa_delivered[idx]
+                # CAL-16: ahorro descompuesto por componente regulatorio
+                savings_G[i]     += e * (g_v[i, k] - pi_ppa)
+                savings_Cvm[i]   += e *  cvm_v[i, k]
+                savings_COT[i]   += e *  cot_v[i, k] * cot_alpha
+                mem_costs_arr[i] += e *  mem_v[i, k]
+                # Déficit residual → red al CU completo
+                residual = max(0.0, deficits[i] - e)
                 grid_cost[i] += residual * pi_gs_v[i, k]
 
             # Ingresos PPA del prosumidor
             for n in prosumer_ids:
-                frac = gen_surplus[n] / total_surplus if total_surplus > 0 else 0.0
+                frac = (gen_surplus[n] / total_surplus
+                        if total_surplus > 0 else 0.0)
                 ppa_sold = frac * float(np.sum(ppa_delivered))
-                savings_gen[n] += ppa_sold * pi_ppa
-                # Excedente que no se vendió por PPA → red a pi_gb
-                grid_revenue[n] += max(0.0, gen_surplus[n] - ppa_sold) * pi_gb
+                savings_gen[n]  += ppa_sold * pi_ppa
+                grid_revenue[n] += max(0.0,
+                                        gen_surplus[n] - ppa_sold) * pi_gb
         else:
-            # Sin PPA posible: todo va a red
             for n in prosumer_ids:
                 grid_revenue[n] += gen_surplus[n] * pi_gb
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs_v[i, k]
 
-    net_benefit = savings_gen + savings_cons + grid_revenue
+    # CAL-16: savings_ppa es la suma neta descompuesta
+    savings_ppa = savings_G + savings_Cvm + savings_COT - mem_costs_arr
+    net_benefit = savings_gen + savings_ppa + grid_revenue
 
     results_per_agent = {
         n: {
             "savings_autoconsumo": float(savings_gen[n]),
-            "savings_ppa":         float(savings_cons[n]),
+            "savings_G":           float(savings_G[n]),
+            "savings_Cvm":         float(savings_Cvm[n]),
+            "savings_COT":         float(savings_COT[n]),
+            "mem_costs":           float(mem_costs_arr[n]),
+            "savings_ppa":         float(savings_ppa[n]),
+            # Compatibilidad: savings_cons era el agregado pre-CAL-16
+            "savings_cons":        float(savings_ppa[n]),
             "grid_revenue":        float(grid_revenue[n]),
             "grid_cost":           float(grid_cost[n]),
             "net_benefit":         float(net_benefit[n]),
@@ -211,16 +243,30 @@ def run_c2_bilateral(
     return {
         "per_agent": results_per_agent,
         "aggregate": {
-            "total_net_benefit":     float(np.sum(net_benefit)),
-            "total_savings_gen":     float(np.sum(savings_gen)),
-            "total_savings_cons":    float(np.sum(savings_cons)),
-            "total_grid_revenue":    float(np.sum(grid_revenue)),
-            "total_grid_cost":       float(np.sum(grid_cost)),
+            "total_net_benefit":  float(np.sum(net_benefit)),
+            "total_savings_gen":  float(np.sum(savings_gen)),
+            "total_savings_G":    float(np.sum(savings_G)),
+            "total_savings_Cvm":  float(np.sum(savings_Cvm)),
+            "total_savings_COT":  float(np.sum(savings_COT)),
+            "total_mem_costs":    float(np.sum(mem_costs_arr)),
+            "total_savings_ppa":  float(np.sum(savings_ppa)),
+            # Compat
+            "total_savings_cons": float(np.sum(savings_ppa)),
+            "total_grid_revenue": float(np.sum(grid_revenue)),
+            "total_grid_cost":    float(np.sum(grid_cost)),
         },
-        "params": {"pi_ppa": pi_ppa,
-                    "pi_gs": pi_gs_v.mean(axis=1).tolist(),
-                    "pi_G":  pi_G_v.mean(axis=1).tolist(),
-                    "pi_gb": pi_gb},
+        "params": {
+            "pi_ppa":     pi_ppa,
+            "pi_gb":      pi_gb,
+            "cot_alpha":  cot_alpha,
+            "pi_gs":      pi_gs_v.mean(axis=1).tolist(),
+            "G_mean":     g_v.mean(axis=1).tolist(),
+            "Cvm_mean":   cvm_v.mean(axis=1).tolist(),
+            "COT_mean":   cot_v.mean(axis=1).tolist(),
+            "MEM_mean":   mem_v.mean(axis=1).tolist(),
+            # Compat: pi_G era el agregado CAL-13 (G+Cvm+COT)
+            "pi_G":       (g_v + cvm_v + cot_v).mean(axis=1).tolist(),
+        },
     }
 
 

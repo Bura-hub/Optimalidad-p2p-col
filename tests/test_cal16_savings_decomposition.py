@@ -197,3 +197,20 @@ def test_run_comparison_acepta_parametros_descompuestos():
             f"falta parametro '{p}' en run_comparison; firma actual: "
             f"{list(sig.parameters)}"
         )
+
+
+# ── Task 8: SA-3 cota refinada ─────────────────────────────────────────────
+
+
+def test_run_sensitivity_ppa_acepta_descomposicion_y_calcula_pi_upper():
+    """SA-3 expone los nuevos parámetros descompuestos."""
+    from analysis.sensitivity import run_sensitivity_ppa
+    import inspect
+    sig = inspect.signature(run_sensitivity_ppa)
+    expected = ("g_component", "cvm_component", "cot_component",
+                "mem_costs", "cot_alpha")
+    for p in expected:
+        assert p in sig.parameters, (
+            f"falta parametro '{p}' en run_sensitivity_ppa; firma: "
+            f"{list(sig.parameters)}"
+        )

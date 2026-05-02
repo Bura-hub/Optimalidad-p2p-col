@@ -245,6 +245,12 @@ def run_sensitivity_ppa(
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
     pi_G = None,                                       # CAL-13b fix
+    # CAL-16: descomposición regulatoria del ahorro
+    g_component   = None,
+    cvm_component = None,
+    cot_component = None,
+    mem_costs     = None,
+    cot_alpha: float = 1.0,
 ) -> list:
     """
     SA-3 — §3.8: Sensibilidad al precio del contrato bilateral (pi_ppa).
@@ -279,16 +285,30 @@ def run_sensitivity_ppa(
         ppa_factors = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5,
                        0.6, 0.7, 0.8, 0.9, 1.0]
 
-    # CAL-13b: cota superior del rango es pi_G (G+Cvm+COT) si se provee,
-    # con fallback a pi_gs para compatibilidad pre-CAL-13.
-    if pi_G is None:
-        pi_upper_scalar = float(np.mean(pi_gs)) if hasattr(pi_gs, "shape") \
-                          else float(pi_gs)
-        rango_label = "pi_gs (legacy pre-CAL-13)"
-    else:
-        pi_upper_scalar = float(np.mean(pi_G)) if hasattr(pi_G, "shape") \
-                          else float(pi_G)
+    # Cota superior del rango pi_ppa:
+    #   CAL-16: pi_upper = G + Cvm + α·COT − MEM    (el comprador no-regulado
+    #           pierde plata si pi_ppa supera esta cota)
+    #   CAL-13: pi_upper = pi_G = G + Cvm + COT     (agregado, sin MEM)
+    #   legacy: pi_upper = pi_gs                    (CU completo)
+    if g_component is not None:
+        g_mean   = float(np.nanmean(g_component))
+        cvm_mean = (float(np.nanmean(cvm_component))
+                    if cvm_component is not None else 0.0)
+        cot_mean = (float(np.nanmean(cot_component))
+                    if cot_component is not None else 0.0)
+        mem_mean = (float(np.nanmean(mem_costs))
+                    if mem_costs is not None else 0.0)
+        pi_upper_scalar = g_mean + cvm_mean + cot_alpha * cot_mean - mem_mean
+        rango_label = (f"pi_upper={pi_upper_scalar:.0f} "
+                       f"(CAL-16: G+Cvm+α·COT−MEM, α={cot_alpha:.2f})")
+    elif pi_G is not None:
+        pi_upper_scalar = (float(np.mean(pi_G)) if hasattr(pi_G, "shape")
+                           else float(pi_G))
         rango_label = "pi_G (G+Cvm+COT, CAL-13)"
+    else:
+        pi_upper_scalar = (float(np.mean(pi_gs)) if hasattr(pi_gs, "shape")
+                           else float(pi_gs))
+        rango_label = "pi_gs (legacy pre-CAL-13)"
 
     N = D.shape[0]
     results = []
@@ -314,9 +334,15 @@ def run_sensitivity_ppa(
             prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
             pde=pde, pi_ppa=pi_ppa,
             capacity=capacity,
-            month_labels=month_labels,                  # CAL-9 fix
-            component_c=component_c,                     # CAL-10b fix
-            pi_G=pi_G,                                    # CAL-13b fix
+            month_labels=month_labels,                  # CAL-9
+            component_c=component_c,                     # CAL-10b
+            pi_G=pi_G,                                    # CAL-13b
+            # CAL-16: descomposición explícita
+            g_component=g_component,
+            cvm_component=cvm_component,
+            cot_component=cot_component,
+            mem_costs=mem_costs,
+            cot_alpha=cot_alpha,
         )
 
         nb = {e: cr.net_benefit.get(e, 0.0) for e in ["P2P", "C1", "C2", "C3", "C4"]}
@@ -326,9 +352,14 @@ def run_sensitivity_ppa(
         # surplus_gen. CAL-13b: propaga pi_G para coherencia con la
         # liquidación del run_comparison.
         from scenarios.scenario_c2_bilateral import run_c2_bilateral
-        c2_raw = run_c2_bilateral(D, G_klim, pi_gs, pi_gb, pi_ppa,
-                                   prosumer_ids, consumer_ids,
-                                   pi_G=pi_G)
+        c2_raw = run_c2_bilateral(
+            D, G_klim, pi_gs, pi_gb, pi_ppa,
+            prosumer_ids, consumer_ids,
+            pi_G=pi_G,
+            g_component=g_component, cvm_component=cvm_component,
+            cot_component=cot_component, mem_costs=mem_costs,
+            cot_alpha=cot_alpha,
+        )
         agg = c2_raw["aggregate"]
 
         row = {

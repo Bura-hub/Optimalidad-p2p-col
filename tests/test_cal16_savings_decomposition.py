@@ -113,3 +113,70 @@ def test_mem_costs_per_agent_hourly_fazni_y_4pct_y_rep():
     # Para Cesmag (comercial NT2 abr-2026: G = 310.96 mismo valor que oficial)
     cesmag_idx = AGENTS_NT2.index("Cesmag")
     assert np.isclose(mem[cesmag_idx, 0], expected, atol=0.05)
+
+
+# ── Task 5: refactor run_c2_bilateral descompuesto ─────────────────────────
+
+
+def test_run_c2_savings_descompuesto_es_suma_componentes():
+    """savings_ppa = savings_G + savings_Cvm + α·savings_COT − mem_costs.
+
+    Diseño manual: 1 prosumidor genera 10 kWh durante horas 0..11
+    (12 h), 1 consumidor demanda 5 kWh/h. El consumidor recibe
+    5 kWh PPA cada hora durante 12 h = 60 kWh.
+
+      G = 310, Cvm = 176, COT = 39, MEM = 16, π_ppa = 350, α = 1.0
+      savings_G    = 60 × (310 − 350) = -2400
+      savings_Cvm  = 60 × 176 = 10560
+      savings_COT  = 1.0 × 60 × 39 = 2340
+      mem_costs    = 60 × 16 = 960
+      savings_ppa  = -2400 + 10560 + 2340 − 960 = 9540
+    """
+    from scenarios.scenario_c2_bilateral import run_c2_bilateral
+    N, T = 2, 24
+    D = np.ones((N, T)) * 5.0
+    G = np.zeros((N, T))
+    G[0, :12] = 10.0
+    pi_gs = np.full((N, T), 800.0)
+    g     = np.full((N, T), 310.0)
+    cvm   = np.full((N, T), 176.0)
+    cot   = np.full((N, T), 39.0)
+    mem   = np.full((N, T), 16.0)
+    res = run_c2_bilateral(
+        D=D, G=G, pi_gs=pi_gs, pi_gb=200.0, pi_ppa=350.0,
+        prosumer_ids=[0], consumer_ids=[1],
+        g_component=g, cvm_component=cvm, cot_component=cot,
+        mem_costs=mem, cot_alpha=1.0,
+    )
+    per = res["per_agent"][1]
+    assert np.isclose(per["savings_G"],   -2400.0, atol=1.0), per
+    assert np.isclose(per["savings_Cvm"],  10560.0, atol=1.0), per
+    assert np.isclose(per["savings_COT"],   2340.0, atol=1.0), per
+    assert np.isclose(per["mem_costs"],      960.0, atol=1.0), per
+    assert np.isclose(per["savings_ppa"],   9540.0, atol=1.0), per
+
+
+def test_run_c2_compat_pi_G_legacy_no_descompone():
+    """Modo legacy CAL-13: pasar solo pi_G (sin g/cvm/cot/mem) preserva
+    comportamiento anterior; savings_G es la suma agregada y los
+    demás componentes son 0.
+    """
+    from scenarios.scenario_c2_bilateral import run_c2_bilateral
+    N, T = 2, 24
+    D = np.ones((N, T)) * 5.0
+    G = np.zeros((N, T))
+    G[0, :12] = 10.0
+    pi_gs = np.full((N, T), 800.0)
+    pi_G  = np.full((N, T), 526.0)  # G+Cvm+COT agregado CAL-13
+    res = run_c2_bilateral(
+        D=D, G=G, pi_gs=pi_gs, pi_gb=200.0, pi_ppa=350.0,
+        prosumer_ids=[0], consumer_ids=[1],
+        pi_G=pi_G,
+    )
+    per = res["per_agent"][1]
+    # Modo CAL-13: savings_ppa = ppa × (526 − 350) × 60 h = 60 × 176 = 10560
+    assert np.isclose(per["savings_ppa"], 10560.0, atol=1.0), per
+    # En modo CAL-13, Cvm/COT/MEM están en cero
+    assert per["savings_Cvm"] == 0.0
+    assert per["savings_COT"] == 0.0
+    assert per["mem_costs"] == 0.0

@@ -321,3 +321,74 @@ def test_invarianza_bienestar_agregado_cot_alpha():
         f"COT no es lineal en alpha: Δ(0→0.5)={delta_05:.2f}, "
         f"Δ(0→1.0)={delta_10:.2f}, esperado ratio 2.0"
     )
+
+
+# ── Task 10: reconciliación factura abr-2026 NT2 oficial ───────────────────
+
+
+def test_reconciliacion_componentes_abr_2026_nt2_oficial():
+    """Los componentes leídos del CSV deben coincidir con los valores
+    transcritos del PDF abr-2026 NT2 oficial (Udenar/HUDN, fuente:
+    `data/cedenar_pdfs/tarifa_2026-04.pdf`).
+
+    Garantía de no-divergencia entre PDF original y CSV procesado.
+    """
+    from data.cedenar_tariff import cu_components_per_agent_hourly
+    idx = pd.date_range(
+        "2026-04-01", "2026-04-01 23:00", freq="h",
+        tz="America/Bogota",
+    )
+    comps = cu_components_per_agent_hourly(["Udenar"], idx)
+    expected = {
+        "G":   310.96,
+        "T":    55.95,
+        "D":   165.37,
+        "Cvm": 176.41,
+        "PR":   21.09,
+        "R":    30.64,
+        "COT":  38.73,
+        "CU":  799.16,
+    }
+    for k, v in expected.items():
+        actual = comps[k][0, 0]
+        assert np.isclose(actual, v, atol=0.5), (
+            f"{k}: csv={actual:.2f}  pdf={v:.2f}  Δ={abs(actual-v):.2f}"
+        )
+
+
+def test_reconciliacion_componentes_abr_2026_nt2_comercial():
+    """Para NT2 comercial abr-2026 (Cesmag, Mariana, UCC), los siete
+    componentes individuales coinciden con la categoría 'oficial'
+    (mismo NT) y CU_aplicado = 1.20 × suma (contribución 20 %
+    Ley 142/1994).
+    """
+    from data.cedenar_tariff import cu_components_per_agent_hourly
+    idx = pd.date_range(
+        "2026-04-01", "2026-04-01 23:00", freq="h",
+        tz="America/Bogota",
+    )
+    comps = cu_components_per_agent_hourly(["Cesmag"], idx)
+    expected_comp = {
+        "G":   310.96,
+        "T":    55.95,
+        "D":   165.37,
+        "Cvm": 176.41,
+        "PR":   21.09,
+        "R":    30.64,
+        "COT":  38.73,
+    }
+    suma_componentes = 0.0
+    for k, v in expected_comp.items():
+        actual = comps[k][0, 0]
+        assert np.isclose(actual, v, atol=0.5), (
+            f"comercial {k}: csv={actual:.2f}  pdf-oficial={v:.2f}"
+        )
+        suma_componentes += actual
+    cu_aplicado_comercial = comps["CU"][0, 0]
+    # CU_aplicado comercial NT2 abr-2026 = 958.99 (= 799.16 × 1.20)
+    assert np.isclose(cu_aplicado_comercial, 958.99, atol=0.5), (
+        f"CU comercial = {cu_aplicado_comercial:.2f}, esperado 958.99"
+    )
+    assert np.isclose(
+        cu_aplicado_comercial / suma_componentes, 1.20, atol=0.005
+    ), f"Ratio = {cu_aplicado_comercial / suma_componentes:.4f}"

@@ -1,8 +1,9 @@
 # Auditoría de alineación regulatoria — Escenarios C1 y C2
 
-- **Fecha:** 2026-05-01 (revisión 2026-05-01)
+- **Fecha:** 2026-05-01 · revisado 2026-05-02 con anexo CAL-16
 - **Autor:** Brayan S. Lopez-Mendez
-- **Etiqueta:** auditoría post-CAL-12 (sin cambios de código)
+- **Etiqueta:** auditoría post-CAL-12 → ampliada a CAL-13 → refinada
+  por CAL-16 (descomposición regulatoria del ahorro)
 - **Relacionado:** ADR-0008/0009/0010/0011/0012
 - **Memoria semántica:** `tesis-p2p / regulatory_alignment_c1_c2_2026_05`
 
@@ -213,3 +214,68 @@ oct. 2019. https://www.projectfinance.law/publications/2019/october/bankability-
 
 [12] B. S. Lopez-Mendez, ADR-0008 a ADR-0012, repositorio interno
 `docs/adr/`.
+
+[13] B. S. Lopez-Mendez, *ADR-0013: Comunidad MTE como usuario
+no-regulado agregado*, `docs/adr/0013-cal13-c2-no-regulado.md`.
+
+[14] B. S. Lopez-Mendez, *ADR-0016: Descomposición regulatoria del
+ahorro en C2*, `docs/adr/0016-cal16-c2-savings-decomposition.md`.
+
+[15] Congreso de la República, *Ley 1715 de 2014* art. 19 (FAZNI).
+
+[16] Congreso de la República, *Ley 1117 de 2006* art. 2 prorrogada
+por *Ley 2099 de 2021* art. 45 (contribución 4 % al sector eléctrico).
+
+[17] CREG, *Resolución 101-028 de 2023* (COT — Costo Operativo
+Tributario del comercializador minorista).
+
+---
+
+## Anexo CAL-16 (2026-05-02) — Veredicto regulatorio actualizado
+
+Tras CAL-13 se identificó que la formulación agregada
+`savings = E_PPA · ((G + Cvm + COT) − π_ppa)` era una **cota
+superior optimista**: mezclaba tres componentes con respaldo
+regulatorio heterogéneo y omitía los costos administrativos del
+usuario no-regulado en el MEM. CAL-16 (ADR-0016) refina la
+formulación a cuatro términos regulatoriamente trazables:
+
+$$
+\mathrm{savings}^{C2} \;=\; E_{PPA} \,\Bigl[\,
+  \underbrace{(G - \pi_{ppa})}_{\text{Ley 143/1994 art. 41}}
+  \;+\; \underbrace{Cvm}_{\text{CREG 086/1996 + 156/2012}}
+  \;+\; \underbrace{\alpha\,COT}_{\text{CREG 101-028/2023, } \alpha\in[0,1]}
+  \;-\; \underbrace{\mathrm{MEM}}_{\text{Ley 1715/2014 + 1117/2006 + 156/2012}}
+\,\Bigr]
+$$
+
+con $\mathrm{MEM} = \mathrm{FAZNI} + 0{,}04\,G + \pi_{rep}$.
+
+### Veredicto regulatorio C2 — actualizado
+
+| Criterio | Estado pre-CAL-16 (CAL-13) | Estado post-CAL-16 |
+|---|---|---|
+| Habilitación legal contratos bilaterales no-regulados | ✅ | ✅ |
+| AGPE FNCER vende a precio libre | ✅ | ✅ |
+| Descomposición CU CREG 119/2007 | ⚠️ agregada (`pi_G = G+Cvm+COT`) | ✅ explícita por componente |
+| Cvm como ahorro del no-regulado | ✅ implícito | ✅ explícito (CREG 086/1996) |
+| COT como ahorro del no-regulado | ⚠️ asumido al 100 % | ✅ parametrizado `α∈[0,1]` |
+| Costos del usuario no-regulado en MEM | ❌ no modelados | ✅ modelados (FAZNI + 4 % + rep) |
+| Reconciliación con factura CEDENAR | ⚠️ implícita | ✅ test explícito |
+| Trazabilidad regulatoria por componente | ⚠️ mezclada | ✅ por norma |
+| Teorema de invarianza en `π_ppa` | ✅ verificado | ✅ preservado |
+| Cota económica racional para PPA | `pi_G = G+Cvm+COT` | `pi_upper = G+Cvm+α·COT−MEM` (más estricta) |
+
+**Veredicto C2 post-CAL-16**: completamente alineado con la ley
+colombiana, con descomposición regulatoria explícita y costos del
+MEM modelados. La cota es **regulatoriamente exacta** (no
+aproximada). El KPI agregado de C2 cae 5–15 % vs CAL-13 por el costo
+MEM. Esto **refuerza la conclusión P2P > C2** del manuscrito (la
+diferencia es aún mayor bajo CAL-16). Detalle: [14] y spec
+`docs/superpowers/specs/2026-05-02-cal16-c2-savings-decomposition.md`.
+
+### Veredicto regulatorio C1 — sin cambios
+
+C1 (CREG 174/2021 art. 25 con permuta a `pi_gs − Cvm`, Tipo 1/Tipo 2,
+componente C real desde CAL-10b) no se ve afectado por CAL-16.
+Mantiene su alineación post-CAL-10b.

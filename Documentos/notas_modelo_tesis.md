@@ -2968,13 +2968,18 @@ Los tres niveles son **constantes durante todo el mes** —
 verificación: un único valor distinto por mes en cada columna del
 sheet horario.
 
-### Follow-up CAL-16 (riesgo abierto)
+### Follow-up CAL-17 (riesgo abierto)
 
 Auditoría de la métrica que devuelve pydataxm vs PTB oficial. El gap de
 ~35 % observado en ene-2026 (cache 218.5 vs PB_PROM oficial 213.0)
 sugiere que la API podría estar entregando datos provisionales o una
 métrica distinta. Spec CAL-14 completo:
 `docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md`.
+
+> **Nota numeración:** CAL-15 quedó asignado a C4
+> (CREG 101 072 / Decreto 2236) y CAL-16 a la descomposición regulatoria
+> del ahorro en C2; este follow-up se reserva como **CAL-17** (siguiente
+> ID secuencial disponible).
 
 
 

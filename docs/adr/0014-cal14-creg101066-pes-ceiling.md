@@ -88,7 +88,9 @@ Nuevas funciones publicas:
 
 **Riesgos abiertos**
 
-- **CAL-15** (follow-up): auditoria de la metrica que devuelve pydataxm
+- **CAL-17** (follow-up): auditoria de la metrica que devuelve pydataxm
   vs PTB oficial. El gap de 35 % observado en ene-2026 (cache 218.5 vs
   PB_PROM oficial 213.0) sugiere que la API podria estar entregando
-  datos provisionales o una metrica distinta.
+  datos provisionales o una metrica distinta. CAL-15 ya esta asignado
+  a C4 (CREG 101 072 / Decreto 2236) y CAL-16 a la descomposicion
+  regulatoria del ahorro en C2; CAL-17 es el siguiente ID secuencial.

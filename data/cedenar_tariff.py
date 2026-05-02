@@ -636,6 +636,79 @@ def g_plus_commercialization_per_agent_hourly(
     return out
 
 
+def cu_components_per_agent_hourly(agent_names: list[str],
+                                     hour_index: pd.DatetimeIndex,
+                                     csv_path: str | Path | None = None,
+                                     ) -> dict[str, np.ndarray]:
+    """
+    Devuelve un dict con cada componente del CU como matriz (N, T).
+
+    CAL-16 (ADR-0016): permite a los modulos consumidores acceder a la
+    descomposicion completa del CU oficial CEDENAR sin depender de la
+    columna `CU_aplicado` agregada. Habilita auditoria de
+    reconciliacion CU = G + T + D + Cvm + PR + Rm + COT.
+
+    Claves devueltas (todas matrices (N, T) constantes dentro del mes):
+      'G', 'T', 'D', 'Cvm', 'PR', 'R', 'COT', 'CU'.
+
+    Mapeo claves -> columnas CSV:
+      G   -> Gm        T  -> Tm     D  -> Dnm
+      Cvm -> Cvm       PR -> PR     R  -> Rm
+      COT -> COT       CU -> CU_aplicado
+
+    Si un mes esta ausente o algun valor es NaN, esa celda queda como
+    np.nan; los callers deciden cómo rellenar.
+
+    Ref: CREG 119/2007 art. 2; ADR-0016 (CAL-16).
+    """
+    df = load_monthly_tariffs(csv_path)
+    N, T = len(agent_names), len(hour_index)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+    keys_csv = {"G": "Gm", "T": "Tm", "D": "Dnm", "Cvm": "Cvm",
+                "PR": "PR", "R": "Rm", "COT": "COT", "CU": "CU_aplicado"}
+    out = {k: np.full((N, T), np.nan, dtype=float) for k in keys_csv}
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"componentes CU marcados como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        # Cache por mes para evitar lookups repetidos
+        cache: dict[str, dict[str, float | None]] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                key = (mes_key, prof.categoria, prof.nivel_tension,
+                       prof.propiedad)
+                try:
+                    row = df.loc[key]
+                    cache[mes_key] = {
+                        k: float(row[col]) if np.isfinite(float(row[col]))
+                        else None
+                        for k, col in keys_csv.items()
+                    }
+                except KeyError:
+                    if mes_key not in warned:
+                        warnings.warn(
+                            f"[cedenar_tariff] Mes {mes_key} ausente en CSV "
+                            f"para {prof.categoria}/NT{prof.nivel_tension}/"
+                            f"{prof.propiedad}; componentes CU marcados "
+                            f"como NaN.",
+                            stacklevel=3,
+                        )
+                        warned.add(mes_key)
+                    cache[mes_key] = {k: None for k in keys_csv}
+            for k in keys_csv:
+                v = cache[mes_key][k]
+                out[k][n, t] = v if v is not None else np.nan
+    return out
+
+
 def tolls_per_agent_hourly(agent_names: list[str],
                              hour_index: pd.DatetimeIndex,
                              csv_path: str | Path | None = None,

@@ -46,6 +46,8 @@ from data.cedenar_tariff import (
     effective_pi_gs_per_agent, pi_gs_per_agent_hourly,
     g_component_per_agent_hourly,                     # CAL-12 (ADR-0012)
     g_plus_commercialization_per_agent_hourly,        # CAL-13 (ADR-0013)
+    cu_components_per_agent_hourly,                   # CAL-16 (ADR-0016)
+    mem_costs_per_agent_hourly,                       # CAL-16 (ADR-0016)
     tariff_coverage, INSTITUTION_PROFILE,
 )
 
@@ -298,14 +300,55 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
           f"no-regulado agregado; savings_cons sobre (G+Cvm+COT); "
           f"rango negociable = {pi_G_msg}.")
 
-    # Default pi_ppa CAL-13: punto medio entre pi_gb y (G+Cvm+COT)_promedio.
-    # Reparto simétrico postulado entre venta a red y ahorro máximo del
-    # comprador no-regulado.
-    pi_G_mean_default = float(np.mean(pi_G_arg)) if isinstance(pi_G_arg, np.ndarray) \
-                        else float(pi_G_arg)
-    pi_ppa_default    = grid_params["pi_gb"] + 0.5 * (
-        pi_G_mean_default - grid_params["pi_gb"]
-    )
+    # ── CAL-16 (ADR-0016): descomposición regulatoria del ahorro en C2 ──
+    # En lugar del agregado pi_G = G+Cvm+COT, C2 ahora calcula:
+    #   savings = E_PPA × [(G − π_ppa) + Cvm + α·COT − MEM_costs]
+    # con α=1.0 default y MEM_costs = FAZNI + 0.04·G + π_rep.
+    # Origen: cu_components_per_agent_hourly + mem_costs_per_agent_hourly.
+    # Si los datos reales no están disponibles (caso sintético) se cae al
+    # modo CAL-13 agregado (pi_G_arg).
+    if use_real_data and full_horizon:
+        cu_comps = cu_components_per_agent_hourly(agent_names, index_full)
+        mem_arg  = mem_costs_per_agent_hourly(agent_names, index_full)
+    elif use_real_data and single_day:
+        cu_comps = cu_components_per_agent_hourly(agent_names, idx_day)
+        mem_arg  = mem_costs_per_agent_hourly(agent_names, idx_day)
+    elif use_real_data:
+        cu_comps_full = cu_components_per_agent_hourly(agent_names, index_full)
+        mem_full      = mem_costs_per_agent_hourly(agent_names, index_full)
+        # Perfil diario: promedio por agente (constante dentro del mes)
+        cu_comps = {k: v.mean(axis=1) for k, v in cu_comps_full.items()}
+        mem_arg  = mem_full.mean(axis=1)
+    else:
+        cu_comps = None
+        mem_arg  = None
+
+    if cu_comps is not None:
+        g_arg, cvm_arg, cot_arg = cu_comps["G"], cu_comps["Cvm"], cu_comps["COT"]
+        cot_alpha_default = 1.0
+        g_mean   = float(np.nanmean(g_arg))
+        cvm_mean = float(np.nanmean(cvm_arg))
+        cot_mean = float(np.nanmean(cot_arg))
+        mem_mean = float(np.nanmean(mem_arg))
+        pi_upper = g_mean + cvm_mean + cot_alpha_default * cot_mean - mem_mean
+        print(f"    [CAL-16] C2 descompuesto: savings = G + Cvm + α·COT − MEM | "
+              f"G≈{g_mean:.1f} Cvm≈{cvm_mean:.1f} α·COT≈{cot_mean:.1f} "
+              f"(α=1.0) MEM≈{mem_mean:.1f} → pi_upper≈{pi_upper:.1f} COP/kWh.")
+        pi_ppa_default = grid_params["pi_gb"] + 0.5 * (
+            pi_upper - grid_params["pi_gb"]
+        )
+    else:
+        # Sin datos reales → se queda con el default CAL-13 agregado
+        g_arg = cvm_arg = cot_arg = None
+        cot_alpha_default = 1.0
+        pi_G_mean_default = (float(np.mean(pi_G_arg))
+                             if isinstance(pi_G_arg, np.ndarray)
+                             else float(pi_G_arg))
+        pi_ppa_default = grid_params["pi_gb"] + 0.5 * (
+            pi_G_mean_default - grid_params["pi_gb"]
+        )
+        print(f"    [CAL-16] C2 modo agregado CAL-13 (caso sintético): "
+              f"pi_G≈{pi_G_mean_default:.1f} COP/kWh.")
 
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
@@ -318,7 +361,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         capacity=cap,
         month_labels=month_labels,
         component_c=component_c_arg,
-        pi_G=pi_G_arg,                                  # CAL-12 (ADR-0012)
+        pi_G=pi_G_arg,                                  # CAL-13 (compat)
+        # CAL-16: descomposición explícita
+        g_component=g_arg,
+        cvm_component=cvm_arg,
+        cot_component=cot_arg,
+        mem_costs=mem_arg,
+        cot_alpha=cot_alpha_default,
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
@@ -587,6 +636,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             net_benefit_p2p=cr.net_benefit_per_agent["P2P"],
             net_benefit_c4_full=cr.net_benefit_per_agent["C4"],
             capacity=cap_arr,
+            component_c=component_c_arg,  # CAL-15: hereda Cvm a C4
             verbose=True,
         )
         sc_risk = analyze_scaling_risk(
@@ -836,8 +886,11 @@ def _compute_daily_series(
             D_d, G_d, pi_gs_d, pi_gb, prosumer_ids,
         ).sum()
 
+        # CAL-15: slice diario, sin calendario mensual asociado → component_c="auto"
+        # (proporcional 13.85 % como fallback del helper Cvm).
         c4 = run_c4_creg101072(
-            D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap, mode="pde_only"
+            D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap,
+            component_c="auto",
         )
         nb_c4 = sum(c4["per_agent"][n]["net_benefit"] for n in range(N))
 

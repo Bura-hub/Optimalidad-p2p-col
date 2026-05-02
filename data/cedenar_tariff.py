@@ -636,6 +636,113 @@ def g_plus_commercialization_per_agent_hourly(
     return out
 
 
+DEFAULT_MEM_COSTS_CSV = (Path(__file__).parent / "mem_costs_no_regulado.csv")
+
+
+def _load_mem_costs(csv_path: str | Path | None = None) -> pd.DataFrame:
+    """
+    Carga `data/mem_costs_no_regulado.csv` con costos MEM del usuario
+    no-regulado (FAZNI + contribucion 4% + comision representante).
+
+    CAL-16 (ADR-0016).
+    """
+    path = Path(csv_path) if csv_path is not None else DEFAULT_MEM_COSTS_CSV
+    if not path.exists():
+        raise FileNotFoundError(
+            f"[cedenar_tariff] CSV de costos MEM no encontrado: {path}. "
+            f"Se requiere para CAL-16. Ver data/mem_costs_no_regulado.csv."
+        )
+    df = pd.read_csv(path)
+    df = df.set_index("mes")
+    return df
+
+
+def mem_costs_per_agent_hourly(agent_names: list[str],
+                                 hour_index: pd.DatetimeIndex,
+                                 csv_tarifas: str | Path | None = None,
+                                 csv_mem: str | Path | None = None,
+                                 ) -> np.ndarray:
+    """
+    Costos del usuario NO-REGULADO en el MEM por agente y hora (CAL-16).
+
+    Componentes:
+      - **FAZNI** (Ley 1715/2014 art. 19): valor fijo anual publicado UPME.
+        Modelado como 1.90 COP/kWh referencial 2025-2026.
+      - **Contribucion 4 % al sector** (Ley 1117/2006 art. 2 prorrogada
+        por Ley 2099/2021 art. 45): 0.04 x G del agente/mes.
+      - **Comision del representante en bolsa** (CREG 156/2012): pacto
+        privado, valor referencial ASOCODIS 2024 (≈ 2,00 COP/kWh).
+
+    Total: MEM_costs = FAZNI + 0.04 * G(t) + pi_rep
+
+    Returns:
+        (N, T) float — COP/kWh, constante dentro del mes.
+
+    Si un mes esta ausente en cualquiera de los dos CSVs, esa celda
+    queda como np.nan.
+
+    Ref: ADR-0016; data/mem_costs_no_regulado.csv;
+         data/cedenar_pdfs/tarifa_*.pdf (componente G).
+    """
+    df_tar = load_monthly_tariffs(csv_tarifas)
+    df_mem = _load_mem_costs(csv_mem)
+    N, T = len(agent_names), len(hour_index)
+    out = np.full((N, T), np.nan, dtype=float)
+    months = hour_index.to_period("M").astype(str).to_numpy()
+
+    warned: set = set()
+    for n, name in enumerate(agent_names):
+        prof = INSTITUTION_PROFILE.get(name)
+        if prof is None:
+            warnings.warn(
+                f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
+                f"costos MEM marcados como NaN para todas sus horas.",
+                stacklevel=2,
+            )
+            continue
+        cache: dict[str, float | None] = {}
+        for t in range(T):
+            mes_key = months[t]
+            if mes_key not in cache:
+                key = (mes_key, prof.categoria, prof.nivel_tension,
+                       prof.propiedad)
+                try:
+                    gm = float(df_tar.loc[key, "Gm"])
+                except KeyError:
+                    if mes_key not in warned:
+                        warnings.warn(
+                            f"[cedenar_tariff] Mes {mes_key} ausente en CSV "
+                            f"de tarifas para {prof.categoria}/"
+                            f"NT{prof.nivel_tension}; costos MEM "
+                            f"marcados como NaN.",
+                            stacklevel=3,
+                        )
+                        warned.add(mes_key)
+                    cache[mes_key] = None
+                    continue
+                if mes_key not in df_mem.index:
+                    if mes_key not in warned:
+                        warnings.warn(
+                            f"[cedenar_tariff] Mes {mes_key} ausente en CSV "
+                            f"de costos MEM; marcado como NaN.",
+                            stacklevel=3,
+                        )
+                        warned.add(mes_key)
+                    cache[mes_key] = None
+                    continue
+                fazni = float(df_mem.loc[mes_key, "fazni_cop_kwh"])
+                rep = float(df_mem.loc[mes_key,
+                                        "comision_representante_cop_kwh"])
+                if (np.isfinite(gm) and np.isfinite(fazni)
+                        and np.isfinite(rep)):
+                    cache[mes_key] = fazni + 0.04 * gm + rep
+                else:
+                    cache[mes_key] = None
+            v = cache[mes_key]
+            out[n, t] = v if v is not None else np.nan
+    return out
+
+
 def cu_components_per_agent_hourly(agent_names: list[str],
                                      hour_index: pd.DatetimeIndex,
                                      csv_path: str | Path | None = None,

@@ -316,9 +316,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     elif use_real_data:
         cu_comps_full = cu_components_per_agent_hourly(agent_names, index_full)
         mem_full      = mem_costs_per_agent_hourly(agent_names, index_full)
-        # Perfil diario: promedio por agente (constante dentro del mes)
-        cu_comps = {k: v.mean(axis=1) for k, v in cu_comps_full.items()}
-        mem_arg  = mem_full.mean(axis=1)
+        # Perfil diario: promedio por agente (constante dentro del mes).
+        # nanmean para robustez ante meses fuera del CSV (caen al fallback).
+        cu_comps = {k: np.nanmean(v, axis=1) for k, v in cu_comps_full.items()}
+        mem_arg  = np.nanmean(mem_full, axis=1)
     else:
         cu_comps = None
         mem_arg  = None

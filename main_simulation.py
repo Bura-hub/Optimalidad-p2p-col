@@ -604,9 +604,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pde=pde,
             capacity=cap if 'cap' in dir() else None,
             verbose=True,
-            month_labels=month_labels,                  # CAL-9 fix
-            component_c=component_c_arg,                 # CAL-10b fix
-            pi_G=pi_G_arg,                                # CAL-13b fix
+            month_labels=month_labels,                  # CAL-9
+            component_c=component_c_arg,                 # CAL-10b
+            pi_G=pi_G_arg,                                # CAL-13b
+            # CAL-16: descomposición explícita
+            g_component=g_arg,
+            cvm_component=cvm_arg,
+            cot_component=cot_arg,
+            mem_costs=mem_arg,
+            cot_alpha=cot_alpha_default,
         )
 
         # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)

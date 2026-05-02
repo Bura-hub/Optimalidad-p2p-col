@@ -177,6 +177,35 @@ ADR_SUMMARIES = {
         "sin regresion smoke daily 0 horas cap full ~12 horas 0.23 porciento "
         "horizonte delta 3676 COP/kWh actividad 3.x"
     ),
+    "0016-cal16-c2-savings-decomposition": (
+        "CAL-16 descomposicion regulatoria del ahorro en C2 PPA bilateral "
+        "supersede parcial CAL-13 agregado pi_G G+Cvm+COT savings_cons "
+        "explicitamente en savings_G + savings_Cvm + alpha COT - mem_costs "
+        "trazabilidad por componente normativo Ley 143/1994 art. 41 "
+        "negociable G CREG 086/1996 art 1 mod 039/2001 ahorro Cvm "
+        "comercializador minorista CREG 156/2012 representante MEM "
+        "CREG 101-028/2023 COT cota tributaria parametro cot_alpha 0..1 "
+        "default 1.0 mantiene CAL-13 alpha=0 conservadora Ley 1715/2014 "
+        "art. 19 FAZNI 1.90 COP/kWh Ley 1117/2006 art. 2 + Ley 2099/2021 "
+        "art. 45 contribucion 4 porciento sobre G CSV nuevo "
+        "data/mem_costs_no_regulado.csv comision representante 2.00 "
+        "ASOCODIS 2024 helpers nuevos data/cedenar_tariff.py "
+        "tolls_per_agent_hourly T+D+PR+R cu_components_per_agent_hourly "
+        "dict G T D Cvm PR R COT CU mem_costs_per_agent_hourly FAZNI 4pct "
+        "rep refactor run_c2_bilateral firma g_component cvm_component "
+        "cot_component mem_costs cot_alpha compat preservada pi_G CAL-13 "
+        "scenarios/comparison_engine.py main_simulation.py banner CAL-16 "
+        "G Cvm alpha COT MEM pi_upper analysis/sensitivity.py "
+        "run_sensitivity_ppa cota refinada G+Cvm+alpha*COT-MEM tests "
+        "test_cal16_savings_decomposition.py 12 verdes reconciliacion CU "
+        "PDF abr-2026 NT2 oficial G=310.96 T=55.95 D=165.37 Cvm=176.41 "
+        "PR=21.09 R=30.64 COT=38.73 CU=799.16 comercial 958.99 ratio 1.20 "
+        "Ley 142/1994 art 131 contribucion 20 porciento solidaridad "
+        "out-of-scope teorema invarianza pi_ppa preservado bienestar "
+        "lineal decreciente mem_costs alpha lineal kpi C2 cae 5-15 "
+        "porciento vs CAL-13 cota correcta regulatoriamente cota "
+        "optimista CAL-13 superada actividad 3.1 3.2 3.3 4.2"
+    ),
 }
 
 

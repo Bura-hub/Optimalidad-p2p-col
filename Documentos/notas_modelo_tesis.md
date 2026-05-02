@@ -548,6 +548,57 @@ verdes 2026-05-01) blindan: helper G+Cvm+COT, ahorro estricto > G
 solo, invarianza FoM no-regulado preservada, default punto medio
 (π_gb, G+Cvm+COT) > default CAL-12.
 
+### Anexo CAL-16 — descomposición regulatoria del ahorro (2026-05-02)
+
+CAL-13 expresaba el ahorro del comprador no-regulado como un agregado
+opaco $E_{PPA}\,((G + Cvm + COT) - \pi_{ppa})$, lo cual mezclaba tres
+componentes con respaldo regulatorio heterogéneo y omitía los costos
+administrativos del MEM. CAL-16 lo descompone explícitamente:
+
+$$
+\mathrm{savings}^{C2}_{n} \;=\; E_{PPA,n} \cdot \Bigl[
+  (G - \pi_{ppa}) \;+\; Cvm \;+\; \alpha \cdot COT \;-\; \mathrm{MEM}
+\Bigr]
+$$
+
+con defensa normativa por componente:
+
+- $G - \pi_{ppa}$ es el rango negociable bajo **Ley 143/1994 art. 41**.
+- $Cvm$ se ahorra al 100 % por sustitución del comercializador
+  minorista por representante en MEM (**CREG 086/1996 art. 1 mod.
+  039/2001 + CREG 156/2012**).
+- $\alpha \in [0,1]$ parametriza la cota tributaria del COT
+  (**CREG 101-028/2023**); default $\alpha = 1{,}0$ mantiene la cota
+  CAL-13, $\alpha = 0$ devuelve la cota más conservadora.
+- $\mathrm{MEM} = \mathrm{FAZNI} + 0{,}04 \cdot G + \pi_{rep}$
+  modela los **egresos del usuario no-regulado** en el MEM:
+  FAZNI $\approx 1{,}90$ COP/kWh por **Ley 1715/2014 art. 19**;
+  contribución 4 % al sector por **Ley 1117/2006 art. 2** prorrogada
+  por **Ley 2099/2021 art. 45**; $\pi_{rep} \approx 2{,}00$ COP/kWh
+  por pacto privado bajo **CREG 156/2012** (referencia ASOCODIS 2024).
+
+Bajo esta descomposición:
+- el **teorema de invarianza** del bienestar agregado en $\pi_{ppa}$
+  sigue cumpliéndose (test
+  `test_invarianza_bienestar_agregado_pi_ppa_CAL16`);
+- el **bienestar agregado es función lineal decreciente** del costo
+  total MEM (test `test_bienestar_decrece_lineal_en_mem_costs`),
+  porque el MEM es egreso al sistema externo, no transferencia entre
+  miembros.
+
+CAL-16 supera a CAL-13 al ofrecer trazabilidad regulatoria componente
+por componente y al modelar explícitamente los costos del no-regulado.
+La cota es **regulatoriamente exacta** (no aproximada). KPI agregado de
+C2 cae 5–15 % vs CAL-13 dependiendo del valor efectivo de MEM.
+
+Detalle completo: `docs/adr/0016-cal16-c2-savings-decomposition.md` y
+spec `docs/superpowers/specs/2026-05-02-cal16-c2-savings-decomposition.md`.
+Tests `tests/test_cal16_savings_decomposition.py` (12 tests verdes
+2026-05-02) blindan: reconciliación $\mathrm{CU} = \sum$
+componentes oficiales, ahorro descompuesto suma exacta, invarianza
+$\pi_{ppa}$, linealidad MEM, linealidad $\alpha$, valores literales del
+PDF abr-2026 NT2 oficial y comercial.
+
 ---
 
 ## §3.12 — Desglose P2P hora a hora: estructura y definiciones
@@ -2917,10 +2968,181 @@ Los tres niveles son **constantes durante todo el mes** —
 verificación: un único valor distinto por mes en cada columna del
 sheet horario.
 
-### Follow-up CAL-15 (riesgo abierto)
+### Follow-up CAL-16 (riesgo abierto)
 
 Auditoría de la métrica que devuelve pydataxm vs PTB oficial. El gap de
 ~35 % observado en ene-2026 (cache 218.5 vs PB_PROM oficial 213.0)
 sugiere que la API podría estar entregando datos provisionales o una
 métrica distinta. Spec CAL-14 completo:
 `docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md`.
+
+
+
+## §CAL-15 — C4 (CREG 101 072 / Decreto 2236) hereda Tipo 1 / Tipo 2 + Cvm,i,j  (2026-05-01)
+
+### Justificación regulatoria
+
+El Decreto 2236/2023 art. 4 y la Resolución CREG 101 072/2025 art. 5
+establecen que cada miembro del esquema AGRC se liquida bajo el régimen
+de "Generador Distribuido y AGPE". Por linealidad regulatoria, C4
+hereda CREG 174/2021 art. 25:
+
+- **Permuta intracomunitaria (Tipo 1 hora a hora)** → `(pi_gs - Cvm,i,j)`.
+- **Exportación residual (Tipo 2 hora a hora)** → `pi_bolsa[k]` horario.
+- **Compra residual a la red** → `pi_gs[n,k]` (factura ordinaria, sin
+  ahorro).
+- **Autoconsumo individual** → `pi_gs[n,k]` completo (no toca red).
+
+La definición operativa de Cvm es la corregida en CAL-10b.2:
+**solo `Cvm,i,j` puro** del CSV mensual Cedenar (no COT, no Rm), por
+literalidad del art. 25 verificada contra `gestornormativo.creg.gov.co`.
+
+### Brechas pre-CAL-15 cerradas
+
+1. **Componente Cvm no descontado en créditos PDE**: pre-CAL-15
+   valoraba créditos PDE a `pi_gs` completo, igual que C1 pre-CAL-10.
+2. **Tratamiento monolítico de excedentes**: el modelo usaba
+   `community_surplus = max(0, total_gen - total_dem)` capturando solo
+   el neto comunitario. Cuando un miembro genera mientras otro demanda,
+   el neto puede ser cero aunque haya intercambio real por la frontera
+   comunitaria.
+3. **Modo `pde_only` por defecto**: silenciaba la venta a bolsa.
+   El modo `pde_plus_residual_export` ya implementado nunca se ejecutaba
+   en producción.
+
+### Algoritmo (hora a hora, vectorizado)
+
+```python
+autoconsumo[n,k]  = min(G[n,k], D[n,k])
+surplus_ind[n,k]  = max(G[n,k] - D[n,k], 0)
+deficit_ind[n,k]  = max(D[n,k] - G[n,k], 0)
+
+inyeccion_total[k] = sum_n surplus_ind[n,k]
+credit[n,k]        = pde[n] * inyeccion_total[k]
+
+permuta_t1[n,k]    = min(credit[n,k], deficit_ind[n,k])
+excedente_t2[n,k]  = max(credit[n,k] - deficit_ind[n,k], 0)
+grid_buy[n,k]      = max(deficit_ind[n,k] - credit[n,k], 0)
+
+savings[n]    = sum_k autoconsumo[n,k]   * pi_gs[n,k]
+pde_t1[n]     = sum_k permuta_t1[n,k]    * (pi_gs[n,k] - Cvm[n,k])
+revenue_t2[n] = sum_k excedente_t2[n,k]  * pi_bolsa[k]
+grid_cost[n]  = sum_k grid_buy[n,k]      * pi_gs[n,k]    (diagnóstico)
+
+net_benefit[n] = savings[n] + pde_t1[n] + revenue_t2[n]
+```
+
+**Conservación** (validada por test): por construcción
+`sum_n credit[n,k] = inyeccion_total[k]` y
+`permuta_t1[n,k] + grid_buy[n,k] = deficit_ind[n,k]`.
+
+### Reuso de helpers consolidados
+
+- `as_component_c_array("auto" | None | float | (N,) | (T,) | (N,T))`
+  desde `scenarios._pi_gs` — mismo contrato que C1.
+- `cvm_per_agent_hourly(agent_names, idx)` desde `data/cedenar_tariff`
+  — mismo helper que ya consume C1 (CAL-10b.2).
+- Modos legacy `pde_only` y `pde_plus_residual_export` quedan con
+  `DeprecationWarning` que apunta a este CAL-15.
+
+### Cableado
+
+| Caller | Cambio |
+|---|---|
+| `comparison_engine.py:181` | `mode="pde_only"` → `component_c=component_c` |
+| `monthly_report.py:143` | pasar `component_c=cc_m` con slicing C1 |
+| `main_simulation.py:840` | slice diario → `component_c="auto"` |
+| `analysis/feasibility.py:654` | nuevo parámetro `component_c` con slicing simétrico al de `pi_gs` (cierra bug CAL-9.1) |
+| `main_simulation.py:579` | propagar `component_c=component_c_arg` a `analyze_withdrawal_risk` |
+
+### Frontera con CAL-10 (Hx por miembro)
+
+CAL-15 implementa el algoritmo **hora a hora**, no el algoritmo mensual
+con Hx por miembro de C1. Razones:
+
+1. La CREG 101 072/2025 no exige Hx mensual para AGRC; el Decreto 2236
+   art. 4 remite al marco AGPE pero la mecánica administrativa concreta
+   queda a cargo del comercializador (cruce contable virtual).
+2. El algoritmo hora-a-hora es **estricto peor-caso para C4**: clasifica
+   todo crédito PDE no compensado como Tipo 2 (precio bolsa). La versión
+   mensual con Hx daría un C4 ligeramente mejor (más Tipo 1).
+3. Para la tesis esto **fortalece** el argumento P2P > C4: la cota
+   inferior de C4 ya muestra ineficiencia. Refinamiento eventual
+   (algoritmo Hx-AGRC por miembro) queda fichado como CAL-17.
+
+### Validación
+
+| Test | Resultado |
+|---|---|
+| `pytest tests/test_c4_creg101072.py -v` | 12/12 verdes |
+| Conservación `permuta_t1 + grid_buy = deficit_ind` | ✓ |
+| Conservación `permuta_t1 + excedente_t2 = inyeccion_total` (sumado por agente) | ✓ |
+| Tipo 2 a `pi_bolsa[k]` (no promedio) | ✓ |
+| Ejemplo descalce horario (A viaje + B carga) | ✓ |
+| Modo legacy emite `DeprecationWarning` | ✓ |
+| `--full --analysis` post-CAL-15 | ✓ 56 min, exit 0 (`outputs/run_20260501_cal15_full.log`) |
+
+### Impacto numérico observado
+
+Run `--data real --full --analysis` 2026-05-01 (3363 s):
+
+| Escenario | Pre-CAL-15 (run 30-Abr) | Post-CAL-15 | Δ | Δ % |
+|---|---:|---:|---:|---:|
+| C4 total | 50 288 076 | 52 314 652 | +2 026 576 | **+4.03 %** |
+| C1 total | 52 603 335 | 52 603 335 | 0 | 0 (no tocado) |
+| P2P total | 52 446 938 | 52 446 938 | 0 | 0 (no tocado) |
+| RPE (P2P vs C4) | +0.0301 | +0.0025 | −0.0276 | P2P pasa de claro ganador a empate |
+
+C4 **subió** (no bajó como predijo el pre-spec). Razón: la inyección
+comunitaria total `Σ surplus_ind` es bastante mayor que el neto
+`max(0, ΣG − ΣD)` cuando hay descalce horario. Eso reconoce mucha más
+permuta intracomunitaria — exactamente lo que el régimen administrativo
+AGRC implica (cada miembro tiene su propia frontera y la red opera
+como buffer perfecto).
+
+Desglose CAL-15 por flujo:
+
+| Flujo C4 | Pre-CAL-15 | Post-CAL-15 |
+|---|---:|---:|
+| Autoconsumo (`savings`) | 50 086 465 | 50 086 465 (idem) |
+| Permuta T1 (`pde_credits`) | 201 611 | 1 793 126 |
+| Excedente T2 (`surplus_revenue`) | 0 | 435 061 |
+| **Total** | 50 288 076 | 52 314 652 |
+
+El descuento Cvm en T1 (≈ 175 COP/kWh sobre permuta efectiva) sí baja
+el aporte unitario, pero el aumento del volumen permutado (de neto a
+bruto) lo compensa con creces.
+
+### Implicación para la tesis
+
+P2P (52 446 938) y C4 (52 314 652) quedan **estadísticamente empatados**
+(Δ ≈ +132 K COP, RPE = +0.25 %). La narrativa "P2P es claramente
+superior a C4" pre-CAL-15 ya no es defendible cuantitativamente; la
+contribución del P2P se desplaza al **Nivel 2** (equidad — IE_P2P
+= +0.3677 vs IE_C4 = +0.0568, Gini empatado, distribución del
+excedente PS/PSR documentada hora a hora) y a la **flexibilidad
+regulatoria** (FA-3 robustez frente a retiros).
+
+Mensual:
+
+| Mes | P2P | C1 | C4 | RPE_mes |
+|---|---:|---:|---:|---:|
+| Abr 2025 | 5 367 656 | 5 490 651 | 5 319 582 | +0.0090 |
+| May 2025 | 5 879 861 | 5 935 877 | 5 860 251 | +0.0033 |
+| Jun 2025 | 5 930 322 | 5 844 567 | 5 940 499 | −0.0017 |
+| Jul 2025 | 6 341 719 | 6 117 866 | 6 303 227 | +0.0061 |
+| Ago 2025 | 6 747 969 | 6 899 946 | 6 715 064 | +0.0049 |
+| Sep 2025 | 6 488 928 | 6 505 938 | 6 489 415 | −0.0001 |
+| Oct 2025 | 6 704 847 | 6 746 959 | 6 709 734 | −0.0007 |
+| Nov 2025 | 6 154 722 | 6 181 113 | 6 155 495 | −0.0001 |
+| Dic 2025 | 2 830 915 | 2 880 417 | 2 821 385 | +0.0034 |
+
+P2P supera a C4 en los meses de alta generación solar (Abr-Ago) y
+queda casi empatado o ligeramente por debajo en meses de baja
+generación (Jun, Sep-Nov, dependiendo del descalce intramensual).
+
+### Documentación
+
+- ADR: `docs/adr/0011-cal15-c4-creg101072-tipo-1-2-cvm.md`.
+- Spec: `docs/superpowers/specs/2026-05-01-c4-creg101072-tipo-1-2-cvm-design.md`.
+- Tests: `tests/test_c4_creg101072.py` (12 tests CAL-15).

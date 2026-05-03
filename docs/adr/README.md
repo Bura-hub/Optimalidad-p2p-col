@@ -24,6 +24,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0012 | CAL-12: C2 Front-of-Meter + peajes T+D+Cvm+PR+Rm+COT | Accepted | 2026-05-01 |
 | 0013 | CAL-13: C2 alineado con marco no-regulado (Ley 143/1994) | Accepted (parcial Superseded por 0016) | 2026-05-01 |
 | 0014 | CAL-14: Techo CREG 101 066/2024 (PES) en pi_bolsa | Accepted | 2026-05-01 |
+| 0011* | CAL-15: C4 (CREG 101 072 / Decreto 2236) hereda Tipo 1/2 + Cvm,i,j | Accepted | 2026-05-01 |
 | 0016 | CAL-16: Descomposición regulatoria del ahorro en C2 | Accepted | 2026-05-02 |
 | 0017 | CAL-17: Auditoría pydataxm vs PB_PROM oficial XM | Accepted | 2026-05-02 |
 | 0018 | CAL-18: Cedenar verificada 100 % + fail-fast (sin fallback silencioso) | Accepted | 2026-05-02 |

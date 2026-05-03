@@ -119,3 +119,50 @@ def test_dec_2025_y_ene_2026_no_son_estimados():
         "dic-2025 sigue como estimado; CAL-17 requiere 278.83")
     assert XM_MONTHLY_REAL["2026-01"] == pytest.approx(213.00, abs=0.5), (
         "ene-2026 sigue como estimado; CAL-17 requiere 213.00")
+
+
+# ─── Grupo D — Sprint 1.1b: extension cache abr-2025 + alineacion MTE ───────
+
+def test_xm_monthly_real_incluye_abr_may_jun_2025():
+    """Sprint 1.1b: XM_MONTHLY_REAL debe incluir abr/may/jun 2025."""
+    sys.path.insert(0, str(ROOT))
+    from data.xm_prices import XM_MONTHLY_REAL
+    for mes in ["2025-04", "2025-05", "2025-06"]:
+        assert mes in XM_MONTHLY_REAL, (
+            f"XM_MONTHLY_REAL no contiene {mes!r} — Sprint 1.1b "
+            f"extendio el cache pero el dict quedo desactualizado")
+
+
+def test_cache_xm_cubre_horizonte_mte_completo():
+    """Sprint 1.1b: el cache XM debe cubrir abr-2025 a ene-2026 (>=7272h)."""
+    sys.path.insert(0, str(ROOT))
+    cache_path = ROOT / "data" / "precios_bolsa_xm_api.csv"
+    df = pd.read_csv(cache_path)
+    df["Fecha"] = pd.to_datetime(df["Fecha"])
+    assert df["Fecha"].min() <= pd.Timestamp("2025-04-04"), (
+        f"Cache empieza en {df['Fecha'].min()}, esperado <= 2025-04-04")
+    assert df["Fecha"].max() >= pd.Timestamp("2026-01-31"), (
+        f"Cache termina en {df['Fecha'].max()}, esperado >= 2026-01-31")
+    assert len(df) >= 7272, (
+        f"Cache tiene {len(df)} filas, esperado >= 7272 (303 dias)")
+
+
+def test_get_pi_bolsa_alineacion_por_fecha():
+    """Sprint 1.1b: get_pi_bolsa con t_start='2025-04-04' devuelve valores
+    de abr-2025, no de jul-2025 (default antiguo)."""
+    sys.path.insert(0, str(ROOT))
+    from data.xm_prices import get_pi_bolsa
+    pi_abr = get_pi_bolsa(
+        T=24, t_start="2025-04-04", t_end="2025-04-05",
+        use_api=True, apply_ceiling=False,
+    )
+    pi_jul = get_pi_bolsa(
+        T=24, t_start="2025-07-01", t_end="2025-07-02",
+        use_api=True, apply_ceiling=False,
+    )
+    # Las medias deben diferir notablemente: abr ~107 vs jul ~138 COP/kWh.
+    assert abs(pi_abr.mean() - pi_jul.mean()) > 10.0, (
+        f"pi_bolsa abr-2025 ({pi_abr.mean():.1f}) y jul-2025 "
+        f"({pi_jul.mean():.1f}) deberian diferir >10 COP/kWh; "
+        f"probable bug de alineacion."
+    )

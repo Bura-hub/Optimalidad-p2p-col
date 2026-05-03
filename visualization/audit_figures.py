@@ -202,8 +202,8 @@ def main() -> None:
     if eq_csv is None:
         raise SystemExit("[B5] ERROR: equidad_sweep.csv not found in any audit dir")
 
-    out_dir = Path("graficas")
-    out_dir.mkdir(exist_ok=True)
+    out_dir = Path("outputs") / "paper"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     p1 = fig_audit_heterogeneidad_horaria(
         het_csv,
@@ -221,7 +221,7 @@ def main() -> None:
         size_pdf_kb = pdf.stat().st_size // 1024 if pdf.exists() else 0
         print(f"  {Path(p).name}: PNG {size_kb} kB | PDF {size_pdf_kb} kB")
 
-    print("[B5] 3 audit figures generated in graficas/")
+    print("[audit] 3 audit figures generated in outputs/paper/")
 
 
 if __name__ == "__main__":

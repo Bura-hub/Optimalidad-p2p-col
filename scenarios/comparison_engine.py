@@ -226,8 +226,14 @@ def run_comparison(
     cr.net_benefit_per_agent["C4"] = c4_net
 
     # ── P2P ─────────────────────────────────────────────────────────────
+    # CAL-30 (ADR-0030): default mode="canonical" — net_benefit incluye
+    # revenue completo del trade + residual surplus a pi_bolsa horario,
+    # simétrico con C1/C2/C3/C4. Para reproducir resultados pre-CAL-30
+    # (modo premium incremental) pasar mode="premium" explícitamente.
     p2p_net = _p2p_monetary_benefit(
-        p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids)
+        p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids,
+        pi_bolsa=pi_bolsa, mode="canonical",
+    )
     cr.net_benefit["P2P"]           = float(np.sum(p2p_net))
     cr.net_benefit_per_agent["P2P"] = p2p_net
 
@@ -442,28 +448,79 @@ def run_comparison(
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
-                           prosumer_ids) -> np.ndarray:
+                           prosumer_ids,
+                           pi_bolsa: Optional[np.ndarray] = None,
+                           mode: str = "canonical") -> np.ndarray:
     """
     Convierte resultados P2P a flujos monetarios netos por agente.
 
-    Filosofía A (WEEF min 22-26): net_benefit = savings + revenues.
-    No se resta el costo residual de compra a la red.
+    Dos modos disponibles (CAL-30, ADR-0030):
 
-    Vendedor:    (π_star − π_gb)         × P_vendido    (prima sobre venta a bolsa)
-    Comprador:   (π_gs[i, k] − π_star[i]) × P_comprado  (ahorro vs comprar a la red)
-    Autoconsumo: min(G, D) × π_gs[n, k]                 (tarifa temporal CAL-9)
+    ``mode="canonical"`` (default desde CAL-30, simétrico con C1/C2/C3/C4):
+        Vendedor:    π_star × P_vendido + π_bolsa[k] × residual    (revenue
+                     COMPLETO: trade interno + residual exportado a la red)
+        Comprador:   (π_gs[i, k] − π_star[i]) × P_comprado          (ahorro
+                     vs comprar a la red)
+        Autoconsumo: min(G, D) × π_gs[n, k]                         (todas
+                     las horas, tarifa temporal CAL-9)
+
+    ``mode="premium"`` (legacy, pre-CAL-30, mantenido para reproducibilidad):
+        Vendedor:    (π_star − π_gb) × P_vendido    (prima incremental
+                     sobre el contrafactual "vender todo a bolsa")
+        Comprador:   (π_gs[i, k] − π_star[i]) × P_comprado    (igual)
+        Autoconsumo: min(G, D) × π_gs[n, k]                    (igual)
+
+    La diferencia es exactamente:
+        canonical[n] − premium[n] = π_gb × P_vendido[n] + π_bolsa × residual[n]
+
+    Cuando π_bolsa ≈ π_gb y residual = surplus_total − P_vendido, el extra
+    canónico equivale a ``π_bolsa × surplus_total[n]`` por agente — lo que
+    el prosumidor RECIBIRÍA del comercializador por exportar su surplus al
+    spot, que en la fórmula premium se cancelaba contra un baseline implícito.
+
+    Auditoría empírica (Sprint 6.6-A, 2026-05-02): la fórmula premium
+    sub-reporta el net_benefit P2P en ``π_bolsa_mean × E_surplus_total``
+    cuando la cobertura PV es alta. En el caso paper agosto-2025 con CAL-28
+    sub-medidores (96 % cobertura) el sub-reporte fue 958 K COP de 4.95 M
+    totales (≈ 19 %). En la tesis con M1 totalizador (19 % cobertura) el
+    sub-reporte es estructuralmente más pequeño (E_surplus_total reducido).
+
+    Ver ``Documentos/audit_p2p_decomposition.md`` y
+    ``docs/adr/0029-cal29-p2p-revenue-canonica.md`` para el análisis
+    completo.
 
     Parámetros
     ----------
     results : list[HourlyResult]
     D, G_klim : ndarray (N, T)
     pi_gs : float | ndarray (N,) | ndarray (N, T) — CAL-9
-    pi_gb : float — precio de bolsa (COP/kWh)
+    pi_gb : float — precio de bolsa escalar (baseline modo premium / fallback)
     prosumer_ids : list[int] — índices de agentes con generación propia
+    pi_bolsa : ndarray (T,) | None — precio bolsa horario para modo canonical.
+        Si None, se usa π_gb escalar como aproximación.
+    mode : "canonical" | "premium" — fórmula a aplicar (default canonical).
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
     net = np.zeros(N)
+
+    if mode not in ("canonical", "premium"):
+        raise ValueError(
+            f"mode={mode!r} no válido (esperado 'canonical' o 'premium')"
+        )
+
+    # Modo canonical: vector pi_bolsa horario (con fallback a pi_gb escalar).
+    if mode == "canonical":
+        if pi_bolsa is None:
+            pi_bolsa_v = np.full(T, float(pi_gb))
+        else:
+            pi_bolsa_v = np.asarray(pi_bolsa, dtype=float).reshape(-1)
+            if pi_bolsa_v.size != T:
+                raise ValueError(
+                    f"pi_bolsa size {pi_bolsa_v.size} != T={T}"
+                )
+        # Acumulador kWh vendidos por agente y hora (para residual surplus).
+        P_sold_n_k = np.zeros((N, T))
 
     # Indexación por POSICIÓN en la lista, no por r.k. El caller debe pasar
     # results alineado con D (mismas T columnas, mismo orden). Esto permite
@@ -481,17 +538,25 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 r.pi_star is not None and np.isnan(r.pi_star).any()):
             continue
 
-        # Vendedores: ganaron más que vendiendo a la red
+        # Vendedores
         for idx_j, j in enumerate(r.seller_ids):
             if r.pi_star is not None:
                 income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
             else:
                 income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
-            baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
-            net[j] += income - baseline
+            sold = float(np.sum(r.P_star[idx_j, :]))
+            if mode == "canonical":
+                # Revenue completo del trade
+                net[j] += income
+                P_sold_n_k[j, k_local] = sold
+            else:
+                # Premium: prima sobre venta a bolsa
+                baseline = sold * pi_gb
+                net[j] += income - baseline
 
         # Compradores: ahorro por pagar pi_star en vez de comprar todo a la
         # red. La tarifa de referencia es la del agente en la hora del mercado.
+        # Idéntico en ambos modos.
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             pi_ref = float(pi_gs_v[i, k_local])
@@ -501,11 +566,22 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 paid = received * pi_ref
             net[i] += received * pi_ref - paid
 
-    # Autoconsumo propio de prosumidores a su pi_gs[n, k] (tarifa temporal)
+    # Autoconsumo propio de prosumidores a su pi_gs[n, k] (tarifa temporal).
+    # Idéntico en ambos modos (todas las horas, no solo activas).
     for n in prosumer_ids:
         for k in range(T):
             auto = min(G_klim[n, k], D[n, k])
             net[n] += auto * pi_gs_v[n, k]
+
+    # Residual surplus exportado a la red (solo modo canonical).
+    if mode == "canonical":
+        for n in prosumer_ids:
+            for k in range(T):
+                G_nk = max(float(G_klim[n, k]), 0.0)
+                D_nk = max(float(D[n, k]), 0.0)
+                surplus_total_nk = max(G_nk - D_nk, 0.0)
+                residual_nk = max(surplus_total_nk - P_sold_n_k[n, k], 0.0)
+                net[n] += residual_nk * float(pi_bolsa_v[k])
 
     return net
 

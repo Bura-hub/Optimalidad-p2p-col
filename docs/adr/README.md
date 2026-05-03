@@ -39,6 +39,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0027 | CAL-27: C4-mensual con cruce Hx (cierra TODO de CAL-15) | Accepted | 2026-05-03 |
 | 0028 | CAL-28: Selección medidor puntual por institución (paper) | Accepted | 2026-05-03 |
 | 0029 | CAL-29: Fórmula canónica de net_benefit P2P (paper, Sprint 6.6-A audit) | Accepted | 2026-05-03 |
+| 0030 | CAL-30: Migración del engine a fórmula canónica P2P (Sprint 7) | Accepted | 2026-05-03 |
 
 > **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
 > está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG

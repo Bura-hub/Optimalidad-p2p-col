@@ -109,8 +109,10 @@ def compute_monthly_metrics(
                 psr_m = float(np.dot(psr_arr, kwh_arr) / tot_kwh)
 
         # Beneficio monetario P2P — misma lógica que comparison_engine
+        # CAL-30: pasa pb_m (slice mensual de pi_bolsa) para residual surplus.
         net_p2p = _p2p_benefit_month(active_m, D_m, G_klim_m, pi_gs_m, pi_gb,
-                                      prosumer_ids, idx)
+                                      prosumer_ids, idx,
+                                      pi_bolsa_m=pb_m)
 
         # SC / SS P2P: autoconsumo local + P2P transado
         D_total_m = float(np.sum(np.maximum(D_m, 0)))
@@ -139,12 +141,19 @@ def compute_monthly_metrics(
         net_c3 = c3["aggregate"]["total_net_benefit"]
 
         # ── C4 (AGRC): distribución PDE ──────────────────────────────────
+        # CAL-15: hereda Cvm,i,j de CREG 174 art. 25 (mismo cc_m que C1).
         try:
-            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity)
+            c4 = run_c4_creg101072(
+                D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity,
+                component_c=cc_m,
+            )
             net_c4 = c4["aggregate"]["total_net_benefit"]
         except ValueError:
             # Si la capacidad supera el límite del régimen, reportar sin error
-            c4 = run_c4_creg101072(D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity=None)
+            c4 = run_c4_creg101072(
+                D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity=None,
+                component_c=cc_m,
+            )
             net_c4 = c4["aggregate"]["total_net_benefit"]
 
         # SC/SS regulatorios (sin mercado P2P): min(G,D)/sum(D|G)
@@ -181,15 +190,32 @@ def _p2p_benefit_month(
     pi_gb:        float,
     prosumer_ids: list,
     global_idx:   list,
+    pi_bolsa_m:   Optional[np.ndarray] = None,
 ) -> float:
     """
     Beneficio monetario neto P2P para el mes: misma lógica que
-    comparison_engine._p2p_monetary_benefit(), pero sobre un slice mensual.
+    comparison_engine._p2p_monetary_benefit() en modo canónico (CAL-30).
     pi_gs admite escalar, vector (N,) o matriz (N, T_m) — CAL-9.
+
+    CAL-30: añade revenue completo del trade + residual surplus a
+    ``pi_bolsa_m[k]`` horario. Si pi_bolsa_m es None, usa pi_gb escalar
+    como aproximación (compatibilidad con callers pre-CAL-30).
     """
     N, T_m = D_m.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T_m)   # (N, T_m)
     net = np.zeros(N)
+
+    if pi_bolsa_m is None:
+        pi_bolsa_v = np.full(T_m, float(pi_gb))
+    else:
+        pi_bolsa_v = np.asarray(pi_bolsa_m, dtype=float).reshape(-1)
+        if pi_bolsa_v.size != T_m:
+            raise ValueError(
+                f"pi_bolsa_m size {pi_bolsa_v.size} != T_m={T_m}"
+            )
+
+    # Acumulador kWh vendidos por agente y hora local del mes (residual).
+    P_sold_n_k = np.zeros((N, T_m))
 
     # Mapear índice global → posición local en el slice
     global_to_local = {g: l for l, g in enumerate(global_idx)}
@@ -201,14 +227,15 @@ def _p2p_benefit_month(
         if k_local is None:
             continue
 
-        # Vendedores
+        # Vendedores: revenue completo (CAL-30 canonical)
         for idx_j, j in enumerate(r.seller_ids):
             if r.pi_star is not None:
                 income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
             else:
                 income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
-            baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
-            net[j] += income - baseline
+            sold = float(np.sum(r.P_star[idx_j, :]))
+            net[j] += income           # revenue completo
+            P_sold_n_k[j, k_local] = sold
 
         # Compradores: cada uno a su pi_gs[i, k_local] del mes
         for idx_i, i in enumerate(r.buyer_ids):
@@ -223,6 +250,15 @@ def _p2p_benefit_month(
         for t in range(T_m):
             net[n] += min(max(G_klim_m[n, t], 0.0),
                            max(D_m[n, t], 0.0)) * pi_gs_v[n, t]
+
+    # Residual surplus exportado a la red (CAL-30 canonical)
+    for n in prosumer_ids:
+        for t in range(T_m):
+            G_nt = max(float(G_klim_m[n, t]), 0.0)
+            D_nt = max(float(D_m[n, t]), 0.0)
+            surplus_total_nt = max(G_nt - D_nt, 0.0)
+            residual_nt = max(surplus_total_nt - P_sold_n_k[n, t], 0.0)
+            net[n] += residual_nt * float(pi_bolsa_v[t])
 
     return float(np.sum(net))
 

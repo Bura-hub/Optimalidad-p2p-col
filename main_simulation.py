@@ -367,7 +367,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         print(f"    [CAL-16] C2 descompuesto: savings = G + Cvm + α·COT − MEM | "
               f"G≈{g_mean:.1f} Cvm≈{cvm_mean:.1f} α·COT≈{cot_mean:.1f} "
               f"(α=1.0) MEM≈{mem_mean:.1f} → pi_upper≈{pi_upper:.1f} COP/kWh.")
-        pi_ppa_default = grid_params["pi_gb"] + 0.5 * (
+        # CAL-21 (ADR-0021): f=0.5 como postulado egalitario; teorema de
+        # invarianza demostrado empiricamente (Δ total_net_benefit < 1e-13 %).
+        F_PPA_DEFAULT = 0.5
+        pi_ppa_default = grid_params["pi_gb"] + F_PPA_DEFAULT * (
             pi_upper - grid_params["pi_gb"]
         )
     else:
@@ -377,7 +380,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         pi_G_mean_default = (float(np.mean(pi_G_arg))
                              if isinstance(pi_G_arg, np.ndarray)
                              else float(pi_G_arg))
-        pi_ppa_default = grid_params["pi_gb"] + 0.5 * (
+        # CAL-21 (ADR-0021): mismo default f=0.5 en modo agregado.
+        F_PPA_DEFAULT = 0.5
+        pi_ppa_default = grid_params["pi_gb"] + F_PPA_DEFAULT * (
             pi_G_mean_default - grid_params["pi_gb"]
         )
         print(f"    [CAL-16] C2 modo agregado CAL-13 (caso sintético): "

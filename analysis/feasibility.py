@@ -666,6 +666,7 @@ def analyze_withdrawal_risk(
     capacity:           Optional[np.ndarray] = None,
     capacity_limit_kw:  float = 100.0,
     share_limit:        float = 0.10,
+    component_c:        "str | float | np.ndarray | None" = "auto",  # CAL-15
     verbose:            bool  = True,
 ) -> "WithdrawalRiskReport":
     """
@@ -724,6 +725,16 @@ def analyze_withdrawal_risk(
         else:
             pi_gs_r = pi_gs
 
+        # CAL-15: mismo slicing condicional para component_c.
+        if isinstance(component_c, np.ndarray) and component_c.ndim == 2 \
+                and component_c.shape == (N, T):
+            component_c_r = component_c[mask, :]
+        elif isinstance(component_c, np.ndarray) and component_c.ndim == 1 \
+                and component_c.shape == (N,):
+            component_c_r = component_c[mask]
+        else:
+            component_c_r = component_c
+
         # PDE para la comunidad restante (proporcional a capacidad)
         if capacity is not None:
             cap_r = capacity[mask]
@@ -736,10 +747,11 @@ def analyze_withdrawal_risk(
         pros_r  = [new_ids_map[m] for m in prosumer_ids if m != n]
         cons_r  = []  # MTE: todos son prosumidores
 
-        # Beneficio C4 comunidad restante
+        # Beneficio C4 comunidad restante (CAL-15)
         c4_r = run_c4_creg101072(
             D_r, G_raw_r, pi_gs_r, pi_bolsa, pde_r,
             capacity=cap_r,
+            component_c=component_c_r,
         )
         B_C4_remaining = float(c4_r["aggregate"]["total_net_benefit"])
 

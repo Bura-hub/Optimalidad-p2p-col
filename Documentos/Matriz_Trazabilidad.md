@@ -90,7 +90,7 @@ La tabla vincula cada actividad de la propuesta de tesis (`Documentos/PropuestaT
 
 ---
 
-## Anexo — Architecture Decision Records (ADRs CAL-1..CAL-8)
+## Anexo — Architecture Decision Records (ADRs CAL-1..CAL-31)
 
 Cada decisión de calibración tiene un ADR formal en `docs/adr/`. Mapeo
 de qué módulo está gobernado por qué ADR:
@@ -106,6 +106,28 @@ de qué módulo está gobernado por qué ADR:
 | [0007](../docs/adr/0007-cal7-stackelberg-alternancia.md) | Alternancia secuencial vs ODE conjunta | `core/ems_p2p.py:230-244` | 2.1 |
 | [0008](../docs/adr/0008-cal8-pi-gs-cedenar.md) | `pi_gs` Cedenar mensual diferenciada per-agente (vector `(N,)`) | `data/cedenar_tariff.py`, `scenarios/_pi_gs.py`, `scenarios/scenario_c{1,2,3,4}_*.py`, `scenarios/comparison_engine.py`, `analysis/monthly_report.py`, `analysis/p2p_breakdown.py` | 1.0, 3.1, 3.2, 3.3 |
 | [0009](../docs/adr/0009-cal9-pi-gs-temporal.md) | `pi_gs` matriz `(N, T)` mes a mes — supersede parcial 0008 en `--full` y `--day` | `scenarios/_pi_gs.py` (`as_pi_gs_array`), `scenarios/scenario_c{1,2,3,4}_*.py`, `scenarios/comparison_engine.py`, `analysis/feasibility.py`, `analysis/monthly_report.py`, `main_simulation.py`, `tests/test_pi_gs_temporal.py` | 1.1, 3.1, 3.2, 3.3 |
+| [0010](../docs/adr/0010-cal10-creg174-tipo-1-2-componente-c.md) | C1 implementa Tipo 1/Tipo 2 + componente C (Cvm,i,j literal CREG 174 art. 25) | `scenarios/scenario_c1_creg174.py`, `scenarios/_pi_gs.py` (`as_component_c_array`, `cvm_per_agent_hourly`), `data/cedenar_tariff.py`, `tests/test_c1_creg174.py` | 2.1, 3.1, 3.2, 3.3 |
+| [0011](../docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md) | CAL-11: C2 PPA bilateral (modelo formal) | `scenarios/scenario_c2_bilateral.py`, `data/xm_prices.py` (CSV bolsa anual) | 2.1, 3.x |
+| [0015](../docs/adr/0015-cal15-c4-creg101072-tipo-1-2-cvm.md) | CAL-15: C4 (CREG 101 072 / Decreto 2236/2023) hereda Tipo 1/2 + Cvm,i,j de CREG 174 art. 25 | `scenarios/scenario_c4_creg101072.py`, `scenarios/comparison_engine.py`, `analysis/monthly_report.py`, `analysis/feasibility.py`, `main_simulation.py`, `tests/test_c4_creg101072.py` | 1.1, 3.1, 3.2, 3.3 |
+| [0012](../docs/adr/0012-cal12-c2-fom-peajes.md) | CAL-12: C2 Front-of-Meter — `pi_ppa` reemplaza solo G; T+D+Cvm+PR+Rm+COT siempre se pagan | `scenarios/scenario_c2_bilateral.py`, `data/cedenar_tariff.py` (`g_component_per_agent_hourly`) | 2.1, 3.x |
+| [0013](../docs/adr/0013-cal13-c2-no-regulado.md) | CAL-13: C2 alineado con marco no-regulado (Ley 143/1994 + CREG 086/1996 + Decreto 388/2007) | `scenarios/scenario_c2_bilateral.py`, `data/mem_costs_no_regulado.csv` | 3.x |
+| [0014](../docs/adr/0014-cal14-creg101066-pes-ceiling.md) | CAL-14: Techo CREG 101 066/2024 (PES) en `pi_bolsa` | `data/xm_prices.py`, `tests/test_creg101066_ceiling.py` | 2.1, 3.x |
+| [0016](../docs/adr/0016-cal16-c2-savings-decomposition.md) | CAL-16: Descomposición regulatoria del ahorro en C2 | `scenarios/scenario_c2_bilateral.py`, `analysis/savings_decomposition.py`, `tests/test_cal16_savings_decomposition.py` | 3.3 |
+| [0017](../docs/adr/0017-cal17-pydataxm-vs-pb-prom.md) | CAL-17: Auditoría `pydataxm` vs PB_PROM oficial XM (corrección horizonte) | `data/xm_prices.py`, `data/precios_bolsa_xm_api.csv`, `data/audit_xm_yearly_summary.csv` | 2.1, 3.1 |
+| [0018](../docs/adr/0018-cal18-cedenar-fail-fast.md) | CAL-18: Cedenar verificada 100 % + fail-fast (sin fallback silencioso) | `data/cedenar_tariff.py`, `tests/test_cedenar_no_fallback.py` | 2.1, 3.1 |
+| [0019](../docs/adr/0019-cal19-stackelberg-convergencia.md) | CAL-19: Convergencia empírica del juego Stackelberg (sustento `iters=2`) | `core/ems_p2p.py`, `analysis/stackelberg_convergence_real.py` | 2.1 |
+| [0020](../docs/adr/0020-cal20-cot-alpha-sensibilidad.md) | CAL-20: Sensibilidad de `cot_alpha` en C2 (sustento default 1.0) | `scenarios/scenario_c2_bilateral.py`, `scripts/study_cot_alpha.py` | 3.x |
+| [0021](../docs/adr/0021-cal21-c2-f-split-sensibilidad.md) | CAL-21: Sensibilidad del split factor `f` en C2 (sustento `f=0.5`) | `scenarios/scenario_c2_bilateral.py`, `analysis/c2_f_sensitivity.py` | 3.x |
+| [0022](../docs/adr/0022-cal22-c2-mem-costs-validacion.md) | CAL-22: Validación trazable de `mem_costs_no_regulado.csv` (FAZNI, contribución 4 %, comisión representante) | `data/mem_costs_no_regulado.csv`, `data/mem_costs_audit.md`, `tests/test_cal22_mem_costs_schema.py` | 3.x |
+| [0023](../docs/adr/0023-cal23-c2-cxc-cargo-confiabilidad.md) | CAL-23: CXC en C2 (parametrizable, default conservador `cxc_alpha=0.0`) | `scenarios/scenario_c2_bilateral.py`, `scenarios/_c2_cxc.py` | 3.x |
+| [0024](../docs/adr/0024-cal24-swarm-validador-regulatorio.md) | CAL-24: Swarm validador regulatorio (3 agentes especializados CREG 174/101 072/101 066) | `scripts/swarm_regulatory_validator.py` | 3.x |
+| [0025](../docs/adr/0025-cal25-modo-paper.md) | CAL-25: Modo paper IEEE WEEF (homogeneización `INSTITUTION_PROFILE` + filtrado escenarios C1+C4+P2P) | `scripts/run_paper_iter.py`, `tests/test_run_paper_iter.py` | 4.1, 4.2 |
+| [0026](../docs/adr/0026-cal26-pde-excedentes-proportional.md) | CAL-26: PDE proporcional a excedentes (método opt-in; default `capacity_proportional`) | `scenarios/scenario_c4_creg101072.py` (`compute_pde_weights`), `tests/test_cal26_pde_excedentes.py` | 2.1, 3.x |
+| [0027](../docs/adr/0027-cal27-c4-mensual-hx.md) | CAL-27: C4-mensual con cruce Hx (cierra TODO de CAL-15) | `scenarios/scenario_c4_creg101072.py` (`_run_c4_monthly_hx`), `tests/test_cal27_c4_monthly.py` | 4.1, 4.2, 3.x |
+| [0028](../docs/adr/0028-cal28-medidor-puntual.md) | CAL-28: Selección medidor puntual por institución (paper) — sub-medidor M3 + Mariana M1×0.3 | `scripts/run_paper_iter.py`, `data/mte_meter_selection.py` | 4.1, 4.2 |
+| [0029](../docs/adr/0029-cal29-p2p-revenue-canonica.md) | CAL-29: Fórmula canónica de `net_benefit` P2P en `_p2p_decomposed` (paper, audit Sprint 6.6-A) | `scripts/run_paper_iter.py` (`_p2p_decomposed`), `tests/test_cal29_p2p_canonical.py` | 4.1, 4.2 |
+| [0030](../docs/adr/0030-cal30-engine-canonical.md) | CAL-30: Migración del engine a fórmula canónica P2P (Sprint 7) — supersede `_p2p_monetary_benefit` | `scenarios/comparison_engine.py` (`_p2p_monetary_benefit`), `analysis/monthly_report.py`, `main_simulation.py` | 4.1, 4.2 |
+| [0031](../docs/adr/0031-cal31-renumeracion-art-creg-101072.md) | CAL-31: Re-numeración correcta artículos CREG (174 art. 25, 101 072 art. 19/20) + aclaratoria terminológica Tipo 1/2/Hx + tracking CREG 101-087/2025 | `scenarios/scenario_c1_creg174.py`, `scenarios/scenario_c2_bilateral.py`, `scenarios/scenario_c4_creg101072.py` (docstrings), `Documentos/audit_regulatorio_C1_C4.md` | 3.1, 3.2, 3.3 |
 
 **Regla de oro:** cualquier modificación futura a un módulo listado
 arriba debe acompañarse de una nueva ADR (0010+) que supersede a la
@@ -193,27 +215,29 @@ flowchart TB
     AN --> F20
     C --> F22
 
-    subgraph ADRS[ADRs CAL-1..CAL-9]
-      ADR1[0001 stackelberg_iters]
-      ADR2[0002 etha]
-      ADR3[0003 alpha DR]
-      ADR4[0004 tau scaling]
-      ADR5[0005 theta]
-      ADR6[0006 b_n LCOE]
-      ADR7[0007 alternancia]
-      ADR8[0008 pi_gs Cedenar vector]
-      ADR9[0009 pi_gs matriz N x T]
+    subgraph ADRS[ADRs CAL-1..CAL-31]
+      ADR_CORE[CAL-1..7 nucleo P2P:<br/>iters, etha, alpha DR,<br/>tau, theta, b_n LCOE, alternancia]
+      ADR_TARIFFS[CAL-8/9/12 tarifas:<br/>Cedenar vector / matriz NxT,<br/>C2 Front-of-Meter peajes]
+      ADR_REG_C1[CAL-10/14 C1 + bolsa:<br/>Tipo 1/2 + Cvm CREG 174 art. 25,<br/>techo PES CREG 101 066]
+      ADR_REG_C2[CAL-11/13/16/20-23 C2:<br/>PPA bilateral, no-regulado,<br/>desc. ahorro, cot_alpha, f, mem_costs, CXC]
+      ADR_REG_C4[CAL-15/26/27 C4:<br/>Tipo 1/2 + Cvm CREG 101 072,<br/>PDE excedentes, mensual Hx]
+      ADR_DATA[CAL-17/18 datos:<br/>pydataxm vs PB_PROM,<br/>Cedenar fail-fast]
+      ADR_SUSTENTO[CAL-19 convergencia<br/>Stackelberg empirica]
+      ADR_TOOLING[CAL-24 swarm<br/>validador regulatorio]
+      ADR_PAPER[CAL-25/28/29/30 paper + engine:<br/>modo paper, medidor puntual,<br/>net_benefit canonico P2P]
+      ADR_AUDIT[CAL-31 audit regulatorio:<br/>renumeracion arts. + CREG 101-087/2025]
     end
-    C --> ADR1
-    C --> ADR2
-    C --> ADR3
-    C --> ADR4
-    C --> ADR5
-    D --> ADR6
-    C --> ADR7
-    D --> ADR8
-    S --> ADR8
-    AN --> ADR8
+    C --> ADR_CORE
+    D --> ADR_TARIFFS
+    S --> ADR_TARIFFS
+    S --> ADR_REG_C1
+    S --> ADR_REG_C2
+    S --> ADR_REG_C4
+    D --> ADR_DATA
+    C --> ADR_SUSTENTO
+    AN --> ADR_TOOLING
+    S --> ADR_PAPER
+    S --> ADR_AUDIT
 ```
 
 ---
@@ -263,7 +287,32 @@ python scripts/seed_ruflo_adr.py   # si añadiste ADR 0009+
 
 ---
 
-**Última actualización:** 2026-04-30 (Tier 2.1 kg-traverse Ruflo —
-añadidos ADRs 0001-0008, diagrama Mermaid y verificaciones
-automatizables; cierre del pendiente bibliográfico vía auditoría
-CrossRef Tier 1.1).
+**Última actualización:** 2026-05-03 (post-Sprint 8 / CAL-31 follow-up).
+Cambios respecto a 2026-04-30:
+
+- Anexo ADR extendido a CAL-1..CAL-31 (22 ADRs nuevos: CAL-10/CAL-15/
+  CAL-12/CAL-13/CAL-14/CAL-16..CAL-31).
+- Diagrama Mermaid agrupa ADRs por dominio (núcleo P2P, tarifas,
+  regulatorio C1/C2/C4, datos, sustento, tooling, paper, audit).
+- Sprint 6 (paper IEEE WEEF 2026): CAL-25..CAL-29 documentados.
+- Sprint 7 (engine canónico): CAL-30 — `_p2p_monetary_benefit`
+  migrado a fórmula canónica con gate de seguridad ±0.5 % RPE.
+- Sprint 8 (auditoría regulatoria integral C1-C4): CAL-31 — 5
+  fixes documentales de numeración artículos CREG (verificada
+  oficialmente vía `gestornormativo.creg.gov.co`); tracking
+  CREG 101-087/2025; auditoría completa en
+  `Documentos/audit_regulatorio_C1_C4.md`.
+
+**Notas pendientes** (autor humano, fuera del alcance de las
+actividades 1-4 ya completadas, ver §8 de
+`Documentos/audit_regulatorio_C1_C4.md`):
+
+- 🚨 Verificar y corregir cita "Ley 2099/2021 art. 45" (probablemente
+  art. 48): aparece en `data/cedenar_tariff.py:714-715`,
+  `tests/test_cal16_savings_decomposition.py:17`,
+  `scenarios/comparison_engine.py:128`,
+  `scripts/seed_ruflo_adr.py:226,515`.
+- Confirmar con CEDENAR clasificación tarifaria de cada institución
+  MTE (¿pagan contribución 4 % sobre G?).
+- Ejecutar `python main_simulation.py --data real --full --analysis`
+  (~30 min) para capturar RPE canónica horizonte completo post-CAL-30.

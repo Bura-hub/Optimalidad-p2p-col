@@ -62,3 +62,14 @@ ruvector.db
 # === Snapshots Ruflo (binarios y JSON regenerables) ===
 Documentos/exports/*.json
 Documentos/exports/*.db
+
+# === Ruflo runtime extra (instalación local) ===
+agentdb.rvf
+agentdb.rvf.lock
+
+# === Capturas de reunión (binarios pesados, valor solo a corto plazo) ===
+comp/
+
+# === Backups defensivos de CSV (regenerables vía pydataxm) ===
+data/*.bak_*
+data/*.csv.bak_*

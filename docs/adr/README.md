@@ -24,7 +24,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0012 | CAL-12: C2 Front-of-Meter + peajes T+D+Cvm+PR+Rm+COT | Accepted | 2026-05-01 |
 | 0013 | CAL-13: C2 alineado con marco no-regulado (Ley 143/1994) | Accepted (parcial Superseded por 0016) | 2026-05-01 |
 | 0014 | CAL-14: Techo CREG 101 066/2024 (PES) en pi_bolsa | Accepted | 2026-05-01 |
-| 0011* | CAL-15: C4 (CREG 101 072 / Decreto 2236) hereda Tipo 1/2 + Cvm,i,j | Accepted | 2026-05-01 |
+| 0015 | CAL-15: C4 (CREG 101 072 / Decreto 2236) hereda Tipo 1/2 + Cvm,i,j | Accepted | 2026-05-01 |
 | 0016 | CAL-16: Descomposición regulatoria del ahorro en C2 | Accepted | 2026-05-02 |
 | 0017 | CAL-17: Auditoría pydataxm vs PB_PROM oficial XM | Accepted | 2026-05-02 |
 | 0018 | CAL-18: Cedenar verificada 100 % + fail-fast (sin fallback silencioso) | Accepted | 2026-05-02 |
@@ -42,12 +42,17 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0030 | CAL-30: Migración del engine a fórmula canónica P2P (Sprint 7) | Accepted | 2026-05-03 |
 | 0031 | CAL-31: Re-numeración artículos CREG + aclaratoria terminológica (Sprint 8 audit regulatorio) | Accepted | 2026-05-03 |
 
-> **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
-> está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG
-> 101072/2025) — no commiteado a la fecha. La numeración de IDs ADR
-> es secuencial, los slugs `cal-NN` no necesariamente lo son. Por eso
-> CAL-15 (C4) y CAL-16 (C2) coexisten en archivos `0011-cal15-...md` y
-> `0016-cal16-...md` respectivamente.
+> **Nota numeración:** los IDs ADR (0001, 0002, ...) son secuenciales
+> en el orden en que se aceptaron las decisiones; los slugs `calNN`
+> reflejan el orden de implementación / mención en el plan, que no
+> siempre coincide con el orden cronológico (por ejemplo CAL-15 fue
+> propuesta y aceptada después de CAL-11..CAL-14, por lo que su ADR es
+> 0015; CAL-16 fue aceptada el mismo día y es 0016).
+>
+> **Histórico:** entre 2026-05-01 y 2026-05-03 el archivo CAL-15 vivió
+> como `0011-cal15-...md` por error de numeración; tras Sprint 8 fue
+> renombrado a `0015-cal15-c4-creg101072-tipo-1-2-cvm.md` para respetar
+> la regla de IDs únicos.
 
 ## Conexion con la propuesta
 

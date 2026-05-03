@@ -3148,7 +3148,7 @@ generación (Jun, Sep-Nov, dependiendo del descalce intramensual).
 
 ### Documentación
 
-- ADR: `docs/adr/0011-cal15-c4-creg101072-tipo-1-2-cvm.md`.
+- ADR: `docs/adr/0015-cal15-c4-creg101072-tipo-1-2-cvm.md` (renombrado desde `0011-cal15-...md` en Sprint 8 para resolver conflicto de IDs con CAL-11).
 - Spec: `docs/superpowers/specs/2026-05-01-c4-creg101072-tipo-1-2-cvm-design.md`.
 - Tests: `tests/test_c4_creg101072.py` (12 tests CAL-15).
 

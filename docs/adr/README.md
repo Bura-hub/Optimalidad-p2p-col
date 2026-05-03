@@ -36,6 +36,8 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0024 | CAL-24: Swarm validador regulatorio (3 agentes especializados) | Accepted | 2026-05-02 |
 | 0025 | CAL-25: Modo paper IEEE WEEF (homogeneización + filtrado escenarios) | Accepted | 2026-05-02 |
 | 0026 | CAL-26: PDE proporcional a excedentes (método opt-in) | Accepted | 2026-05-03 |
+| 0027 | CAL-27: C4-mensual con cruce Hx (cierra TODO de CAL-15) | Accepted | 2026-05-03 |
+| 0028 | CAL-28: Selección medidor puntual por institución (paper) | Accepted | 2026-05-03 |
 
 > **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
 > está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG

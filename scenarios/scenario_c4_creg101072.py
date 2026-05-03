@@ -152,8 +152,10 @@ def run_c4_creg101072(
     max_capacity_kw: float = 100.0,           # límite régimen simplificado
     component_c: Union[str, float, np.ndarray, None] = "auto",  # CAL-15
     mode: Literal[
-        "creg174_inheritance", "pde_only", "pde_plus_residual_export",
+        "creg174_inheritance", "monthly_hx",
+        "pde_only", "pde_plus_residual_export",
     ] = "creg174_inheritance",
+    month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta período YYYYMM (CAL-27)
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
@@ -193,6 +195,13 @@ def run_c4_creg101072(
         return _run_c4_legacy(
             D, G, pi_gs, pi_bolsa, pde, capacity,
             max_capacity_kw, mode,
+        )
+
+    if mode == "monthly_hx":
+        # CAL-27 (ADR-0027): agregación mensual + cruce Hx por agente.
+        return _run_c4_monthly_hx(
+            D, G, pi_gs, pi_bolsa, pde, capacity,
+            max_capacity_kw, component_c, month_labels,
         )
 
     return _run_c4_creg174_inheritance(
@@ -316,6 +325,152 @@ def _run_c4_creg174_inheritance(
         "params": {
             "mode":            "creg174_inheritance",
             "max_capacity_kw": max_capacity_kw,
+        },
+    }
+
+
+def _run_c4_monthly_hx(
+    D, G, pi_gs, pi_bolsa, pde, capacity,
+    max_capacity_kw, component_c, month_labels,
+):
+    """
+    Implementación CAL-27 (ADR-0027): C4 con agregación mensual + cruce Hx
+    por agente sobre los créditos PDE acumulados.
+
+    A diferencia de ``_run_c4_creg174_inheritance`` (CAL-15) que clasifica
+    Tipo 1 / Tipo 2 hora a hora, este modo:
+
+      1. Agrega los excedentes individuales sobre el mes para construir el
+         pool comunitario mensual.
+      2. Asigna créditos PDE a cada agente (estáticos o dinámicos según el
+         vector ``pde``).
+      3. Aplica el cruce Hx mensual: la permuta Tipo 1 absorbe el déficit
+         hasta el monto del crédito; el remanente clasifica como Tipo 2.
+
+    Hipótesis verificable: ``total_net_benefit(monthly_hx) ≥
+    total_net_benefit(creg174_inheritance)`` porque la agregación
+    mensual permite saldar más permutas Tipo 1 (valoradas a
+    ``pi_gs - Cvm > pi_bolsa`` en regímenes habituales).
+
+    Si ``month_labels is None``, todo el horizonte se trata como un único
+    período (similar a perfil diario).
+    """
+    from collections import defaultdict
+
+    N, T = D.shape
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+    pi_C    = as_component_c_array(component_c, pi_gs_v, N, T)
+
+    if not validate_pde(pde):
+        raise ValueError(
+            f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}"
+        )
+
+    _validate_capacity(capacity, max_capacity_kw)
+    _warnings.warn(
+        "C4: se asume un único comercializador de respaldo. "
+        "Verificar con admin MTE antes de publicar.",
+        UserWarning,
+        stacklevel=3,
+    )
+
+    # ── Construir índice de períodos (igual que C1 CAL-10) ──────────────
+    if month_labels is None:
+        period_hours: dict[int, list[int]] = {0: list(range(T))}
+    else:
+        period_hours = defaultdict(list)
+        for k, m in enumerate(month_labels):
+            period_hours[int(m)].append(k)
+
+    # ── Flujos individuales hora a hora (mismas matrices que CAL-15) ────
+    G_pos       = np.maximum(G, 0.0)
+    D_pos       = np.maximum(D, 0.0)
+    autoconsumo = np.minimum(G_pos, D_pos)              # (N, T)
+    surplus_ind = np.maximum(G_pos - D_pos, 0.0)        # (N, T) al pool
+    deficit_ind = np.maximum(D_pos - G_pos, 0.0)        # (N, T) de la red
+
+    # ── Liquidación mensual con cruce Hx ────────────────────────────────
+    savings_per_agent       = np.zeros(N)
+    pde_credits_per_agent   = np.zeros(N)
+    surplus_revenue_agent   = np.zeros(N)
+    grid_cost_per_agent     = np.zeros(N)
+    permuta_t1_total        = 0.0
+    excedente_t2_total      = 0.0
+
+    for _m, hours in period_hours.items():
+        h_arr = np.asarray(hours, dtype=int)
+        # Pool comunitario del mes
+        surplus_pool_m = float(surplus_ind[:, h_arr].sum())
+        # Crédito PDE mensual por agente
+        credit_m = pde * surplus_pool_m                 # (N,)
+
+        # Cruce Hx mensual por agente
+        deficit_acum_m = deficit_ind[:, h_arr].sum(axis=1)   # (N,)
+        permuta_t1_m   = np.minimum(credit_m, deficit_acum_m)
+        excedente_t2_m = np.maximum(credit_m - deficit_acum_m, 0.0)
+        grid_buy_m     = np.maximum(deficit_acum_m - credit_m, 0.0)
+
+        # Promedios mensuales para valoración
+        pi_gs_mes  = pi_gs_v[:, h_arr].mean(axis=1)     # (N,)
+        pi_C_mes   = pi_C[:, h_arr].mean(axis=1)        # (N,)
+        pi_bol_mes = float(pi_bolsa[h_arr].mean())
+
+        # Autoconsumo: hora a hora valorado a pi_gs[n,k] (igual que CAL-15)
+        autoconsumo_m_per_agent = (autoconsumo[:, h_arr]
+                                    * pi_gs_v[:, h_arr]).sum(axis=1)  # (N,)
+
+        # Permuta Tipo 1: mensual a (pi_gs - Cvm) promedio mensual
+        pde_t1_m_per_agent = permuta_t1_m * (pi_gs_mes - pi_C_mes)
+
+        # Excedente Tipo 2: mensual a precio de bolsa promedio mensual
+        # (simplificación; CAL-N futuro puede hacer hora a hora)
+        surplus_m_per_agent = excedente_t2_m * pi_bol_mes
+
+        # Costo residual de red (Filosofía A: no se resta al net_benefit;
+        # se conserva como diagnóstico)
+        grid_cost_m_per_agent = grid_buy_m * pi_gs_mes
+
+        savings_per_agent     += autoconsumo_m_per_agent
+        pde_credits_per_agent += pde_t1_m_per_agent
+        surplus_revenue_agent += surplus_m_per_agent
+        grid_cost_per_agent   += grid_cost_m_per_agent
+        permuta_t1_total      += float(permuta_t1_m.sum())
+        excedente_t2_total    += float(excedente_t2_m.sum())
+
+    net_benefit = (savings_per_agent + pde_credits_per_agent
+                    + surplus_revenue_agent)
+
+    results_per_agent = {}
+    for n in range(N):
+        results_per_agent[n] = {
+            "savings":         float(savings_per_agent[n]),
+            "pde_credits":     float(pde_credits_per_agent[n]),
+            "surplus_revenue": float(surplus_revenue_agent[n]),
+            "grid_cost":       float(grid_cost_per_agent[n]),
+            "net_benefit":     float(net_benefit[n]),
+            "pde_weight":      float(pde[n]),
+        }
+
+    return {
+        "per_agent": results_per_agent,
+        "aggregate": {
+            "total_savings":         float(savings_per_agent.sum()),
+            "total_pde_credits":     float(pde_credits_per_agent.sum()),
+            "total_surplus_revenue": float(surplus_revenue_agent.sum()),
+            "total_grid_cost":       float(grid_cost_per_agent.sum()),
+            "total_net_benefit":     float(net_benefit.sum()),
+            "total_E_permuta_t1":    permuta_t1_total,
+            "total_E_excedente_t2":  excedente_t2_total,
+        },
+        "regulatory": {
+            "pde_weights":          pde,
+            "static_mechanism":     True,
+            "monthly_hx_inheritance": True,        # CAL-27
+        },
+        "params": {
+            "mode":            "monthly_hx",
+            "max_capacity_kw": max_capacity_kw,
+            "n_periods":       len(period_hours),
         },
     }
 

@@ -28,6 +28,7 @@ Documentos/*.pdf
 Documentos/conversacion_*.txt
 Documentos/informe_*.md
 Documentos/p2p_explicacion.txt
+Documentos/.notas_backups/  # CAL-Sprint 4.5 (backup_notas_tesis.py)
 
 # === Resultados y artefactos de corrida ===
 *.xlsx

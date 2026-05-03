@@ -34,6 +34,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0022 | CAL-22: Validación trazable de `mem_costs_no_regulado.csv` | Accepted | 2026-05-02 |
 | 0023 | CAL-23: CXC en C2 (parametrizable, default conservador) | Accepted | 2026-05-02 |
 | 0024 | CAL-24: Swarm validador regulatorio (3 agentes especializados) | Accepted | 2026-05-02 |
+| 0025 | CAL-25: Modo paper IEEE WEEF (homogeneización + filtrado escenarios) | Accepted | 2026-05-02 |
 
 > **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
 > está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG

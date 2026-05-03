@@ -795,6 +795,10 @@ def main() -> int:
                          "con detector de cruces de ranking + figura.")
     ap.add_argument("--pv-factors", default="1.0,1.5,2.0,2.5,3.0",
                     help="Factores PV (CSV). Default '1.0,1.5,2.0,2.5,3.0'.")
+    ap.add_argument("--all-figures", action="store_true",
+                    help="Genera todas las figuras de la tesis disponibles "
+                         "(fig1-6 base + fig13/15/20/23 analisis) en la "
+                         "misma carpeta del paper, a IEEE 300dpi + PDF.")
     args = ap.parse_args()
 
     print()
@@ -906,6 +910,86 @@ def main() -> int:
                             PAPER_RENAMING["C4"]]
         exportar_ranking_pv(sweep, scenarios_paper, out_dir, args.tag,
                               graficas_dir=graficas_dir)
+
+    # --all-figures: corre las funciones de plots.py reusables con paper data
+    if args.all_figures:
+        print(f"\n  [paper] --all-figures: generando figuras tesis en {out_dir}")
+        try:
+            from visualization.ieee_style import apply_ieee_style
+            apply_ieee_style()  # rcParams['savefig.dpi']=300, _save() los hereda
+        except Exception as exc:
+            print(f"  [paper] apply_ieee_style fallo ({exc}); continuando con default")
+
+        N = D.shape[0]
+        consumer_ids = [n for n in range(N) if n not in prosumer_ids]
+
+        # Construir ComparisonResult via run_comparison
+        cr = None
+        try:
+            from scenarios.comparison_engine import run_comparison
+            cr = run_comparison(
+                D=D, G_klim=G_klim, G_raw=G,
+                p2p_results=p2p_results,
+                pi_gs=p["pi_gs"], pi_gb=pi_gb,
+                pi_bolsa=p["pi_bolsa"],
+                prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+                pde=pde, capacity=capacity,
+                component_c="auto",
+            )
+            print(f"  [paper] ComparisonResult construido para fig pipeline")
+        except Exception as exc:
+            print(f"  [paper] run_comparison fallo: {exc}")
+
+        # Figuras base fig1-6
+        if cr is not None:
+            try:
+                from visualization.plots import generate_all_plots
+                paths = generate_all_plots(D, G, G_klim, p2p_results, cr,
+                                            agents, str(out_dir), "COP")
+                print(f"  [paper] generate_all_plots OK ({len(paths)} figs base)")
+            except Exception as exc:
+                print(f"  [paper] generate_all_plots fallo: {exc}")
+
+        # Figuras de analisis adicionales (best-effort)
+        from visualization import plots as P
+
+        attempts = []
+        if cr is not None:
+            attempts.append(("fig13_flow_breakdown",
+                             lambda: P.plot_flow_breakdown(cr, str(out_dir), "COP")))
+            attempts.append(("fig15_c1_vs_c4",
+                             lambda: P.plot_c1_vs_c4(cr, agents, D, G_klim,
+                                                       p["pi_bolsa"], pde,
+                                                       pi_gs_eff,
+                                                       str(out_dir), "COP")))
+        attempts.append(("fig23_perfiles_diarios",
+                         lambda: P.plot_fig23_perfiles_diarios(D, G, agents, str(out_dir))))
+
+        # fig20 Price of Fairness — requiere fairness_result
+        try:
+            from analysis.fairness import compute_pof
+            fr = None
+            if cr is not None:
+                fr = compute_pof(cr.net_benefit_per_agent, cr.gini)
+            if fr is not None:
+                attempts.append(("fig20_price_of_fairness",
+                                 lambda: P.plot_fig20_price_of_fairness(fr, str(out_dir), "COP")))
+        except Exception as exc:
+            print(f"  [paper] fairness skipped: {exc}")
+
+        generated, failed = [], []
+        for name, fn in attempts:
+            try:
+                fn()
+                generated.append(name)
+            except Exception as exc:
+                failed.append((name, str(exc)[:80]))
+
+        print(f"  [paper] all-figures: {len(generated)} OK / {len(failed)} fallidas")
+        for name in generated:
+            print(f"    OK  {name}")
+        for name, err in failed:
+            print(f"    ERR {name}: {err}")
 
     print(f"\n  [paper] Hecho. tag={info['tag']}")
     return 0

@@ -313,39 +313,61 @@ PAPER_RENAMING = {
 }
 
 
-def _p2p_decomposed(p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids):
+def _p2p_decomposed(p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids,
+                     pi_bolsa=None):
     """
-    Decompone net_benefit P2P en (autoconsumo, mercado) por agente.
+    Decompone net_benefit P2P en (autoconsumo, mercado) por agente bajo la
+    fórmula CANÓNICA simétrica con C1/C4 (Sprint 6.6-A, CAL-29).
 
-    Replica la lógica de scenarios.comparison_engine._p2p_monetary_benefit
-    pero retorna las dos componentes separadas (CAL-Sprint 6.4).
+    Reemplaza la versión Sprint 6.4 que tenía dos bugs:
+      Bug 1 — `mercado` solo contaba la prima `(pi_star − pi_gb) × P_sold`
+              y NO incluía el revenue del residual surplus exportado a la
+              red (~`pi_bolsa × E_residual`). Ver Documentos/audit_p2p_decomposition.md.
+      Bug 2 — `autoconsumo` se calculaba dentro del loop sobre `p2p_results`
+              con `if r.P_star is None: continue`, omitiendo las horas
+              sin mercado activo (~70 % del horizonte agosto-2025).
 
-    autoconsumo[n]   = sum_t min(G_klim[n,t], D[n,t]) * pi_gs[n,t]
-    mercado[n]       = vendedor_premium[n] + comprador_savings[n]
-                       (todo lo que no es autoconsumo)
+    Fórmula canónica (consistente con C1/C4):
+      autoconsumo[n]   = Σ_t min(G_klim[n,t], D[n,t]) × pi_gs[n,t]
+      mercado_seller[j] = Σ_t pi_star[t] × P_sold[j,t]      ← revenue completo
+                        + Σ_t pi_bolsa[t] × residual[j,t]    ← residual a bolsa
+      mercado_buyer[i]  = Σ_t (pi_gs[i,t] − pi_star[t]) × P_bought[i,t]
+
+    Parámetros
+    ----------
+    pi_bolsa : np.ndarray (T,) | None
+        Precios spot horarios para valorar el surplus residual. Si None,
+        usa pi_gb como aproximación escalar (degrada precisión; aceptable
+        si el desviación de pi_bolsa respecto a pi_gb es pequeña).
     """
     from scenarios._pi_gs import as_pi_gs_array
 
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+    if pi_bolsa is None:
+        pi_bolsa_v = np.full(T, float(pi_gb))
+    else:
+        pi_bolsa_v = np.asarray(pi_bolsa, dtype=float).reshape(-1)
+        if pi_bolsa_v.size != T:
+            raise ValueError(f"pi_bolsa size {pi_bolsa_v.size} != T={T}")
 
     autoconsumo_per_agent = np.zeros(N)
     mercado_per_agent = np.zeros(N)
 
-    for k_local, r in enumerate(p2p_results):
-        if r.P_star is None:
-            continue
-        # Autoconsumo: ocurre antes del juego, igual en todos los escenarios.
-        for n in prosumer_ids:
-            auto_kn = float(min(G_klim[n, k_local], D[n, k_local]))
-            autoconsumo_per_agent[n] += auto_kn * float(pi_gs_v[n, k_local])
+    # ── Bug 2 fix — autoconsumo SIEMPRE, fuera del loop p2p_results ──────
+    for n in prosumer_ids:
+        for k in range(T):
+            G_nk = max(float(G_klim[n, k]), 0.0)
+            D_nk = max(float(D[n, k]), 0.0)
+            auto_kn = min(G_nk, D_nk)
+            autoconsumo_per_agent[n] += auto_kn * float(pi_gs_v[n, k])
 
-        # Mercado P2P: prima del vendedor + ahorro del comprador
-        if r.pi_star is None:
-            continue
-        sids = r.seller_ids or []
-        bids = r.buyer_ids or []
-        if not sids or not bids:
+    # ── P2P traded volumes per (agent, hour) ─────────────────────────────
+    P_sold_n = np.zeros((N, T))   # vol vendido por agente n en hora k
+    P_bought_n = np.zeros((N, T)) # vol comprado por agente n en hora k
+
+    for k_local, r in enumerate(p2p_results):
+        if r.P_star is None or r.pi_star is None:
             continue
         try:
             pi_st = np.asarray(r.pi_star, dtype=float)
@@ -354,41 +376,59 @@ def _p2p_decomposed(p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids):
             continue
         if np.any(~np.isfinite(pi_st)) or np.any(~np.isfinite(P)):
             continue
-        # Vendedor j ofrece sum_i P[j,i] al precio promedio de pi_star.
+        sids = r.seller_ids or []
+        bids = r.buyer_ids or []
+        if not sids or not bids:
+            continue
+
+        # Bug 1 fix — revenue completo al precio P2P (no solo prima).
         for j_idx, j in enumerate(sids):
-            sold = float(P[j_idx].sum())
-            if sold > 1e-9:
-                price_avg = float((pi_st * P[j_idx]).sum()) / sold
-                premium = (price_avg - pi_gb) * sold
-                mercado_per_agent[j] += premium
-        # Comprador i recibe sum_j P[j,i] al precio P2P.
+            sold = float(P[j_idx, :].sum())
+            if sold > 1e-12:
+                income_j = float(np.dot(pi_st, P[j_idx, :]))
+                mercado_per_agent[j] += income_j   # revenue completo del trade
+                P_sold_n[j, k_local] = sold
+
         for i_idx, i in enumerate(bids):
             bought = float(P[:, i_idx].sum())
-            if bought > 1e-9:
+            if bought > 1e-12:
                 pi_buy = float(pi_st[i_idx])
                 pi_gs_ki = float(pi_gs_v[i, k_local])
                 savings = (pi_gs_ki - pi_buy) * bought
                 mercado_per_agent[i] += savings
+                P_bought_n[i, k_local] = bought
+
+    # ── Bug 1 fix continued — residual surplus exportado a bolsa ─────────
+    for n in prosumer_ids:
+        for k in range(T):
+            G_nk = max(float(G_klim[n, k]), 0.0)
+            D_nk = max(float(D[n, k]), 0.0)
+            surplus_total_nk = max(G_nk - D_nk, 0.0)
+            residual_nk = max(surplus_total_nk - P_sold_n[n, k], 0.0)
+            mercado_per_agent[n] += residual_nk * float(pi_bolsa_v[k])
 
     return autoconsumo_per_agent, mercado_per_agent
 
 
 def construir_resumen(p2p_results, c1_per_agent, c4_result,
                        agents: list[str], D, G_klim, pi_gs, pi_gb,
-                       prosumer_ids) -> pd.DataFrame:
+                       prosumer_ids,
+                       pi_bolsa=None) -> pd.DataFrame:
     """Construye DataFrame Resumen con renaming del paper.
 
     Sprint 6.4: separa Ahorro_autoconsumo (offset común) vs
     Venta_excedentes (diferenciador) por escenario, además del Total.
 
-    P2P net_benefit usa la misma fórmula que C1/C4 vía decomposición
-    explícita autoconsumo + mercado P2P.
+    Sprint 6.6-A (CAL-29): P2P net_benefit usa la fórmula CANÓNICA que
+    incluye autoconsumo en TODAS las horas (no solo activas) y el revenue
+    completo del trade + residual surplus a pi_bolsa horario.
     """
     N = len(agents)
 
-    # P2P decompuesto
+    # P2P decompuesto (canónico, post-CAL-29)
     p2p_auto, p2p_mercado = _p2p_decomposed(
         p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids,
+        pi_bolsa=pi_bolsa,
     )
     p2p_net_per_agent = p2p_auto + p2p_mercado
     p2p_net = float(np.sum(p2p_net_per_agent))
@@ -638,6 +678,7 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
         _resumen, scenarios_data, _decomp = construir_resumen(
             p2p_res, c1_per_agent, c4_res, agents,
             D, G_klim, params["pi_gs"], pi_gb, prosumer_ids,
+            pi_bolsa=params["pi_bolsa"],
         )
         nb_dict = {esc: float(total) for esc, (total, _) in scenarios_data.items()}
         active = [r for r in p2p_res
@@ -799,10 +840,11 @@ def main() -> int:
     elapsed = time.time() - t0
     print(f"\n  [paper] Simulacion completada en {elapsed:.1f}s")
 
-    # Resumen + por_agente + decomposición ahorro/venta
+    # Resumen + por_agente + decomposición ahorro/venta (canónico CAL-29)
     resumen, scenarios_data, decomposition = construir_resumen(
         p2p_results, c1_per_agent, c4_result, agents,
         D, G_klim, p["pi_gs"], pi_gb, prosumer_ids,
+        pi_bolsa=p["pi_bolsa"],
     )
     por_agente = construir_por_agente(agents, scenarios_data)
 

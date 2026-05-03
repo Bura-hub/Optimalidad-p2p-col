@@ -25,6 +25,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0013 | CAL-13: C2 alineado con marco no-regulado (Ley 143/1994) | Accepted (parcial Superseded por 0016) | 2026-05-01 |
 | 0014 | CAL-14: Techo CREG 101 066/2024 (PES) en pi_bolsa | Accepted | 2026-05-01 |
 | 0016 | CAL-16: Descomposición regulatoria del ahorro en C2 | Accepted | 2026-05-02 |
+| 0017 | CAL-17: Auditoría pydataxm vs PB_PROM oficial XM | Accepted | 2026-05-02 |
 
 > **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
 > está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG

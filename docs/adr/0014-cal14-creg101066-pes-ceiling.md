@@ -94,3 +94,12 @@ Nuevas funciones publicas:
   datos provisionales o una metrica distinta. CAL-15 ya esta asignado
   a C4 (CREG 101 072 / Decreto 2236) y CAL-16 a la descomposicion
   regulatoria del ahorro en C2; CAL-17 es el siguiente ID secuencial.
+
+> **Nota CAL-17 (2026-05-02):** la auditoria efectuada en
+> [ADR-0017](0017-cal17-pydataxm-vs-ptb-audit.md) demostro que el "gap
+> del 35 %" enunciado arriba fue un **error de redaccion**: la
+> aritmetica `(218.5 − 213.0) / 213.0` da +2.58 %, dentro de tolerancia
+> 10 %. Las desviaciones reales del cache vs PB_PROM oficial son
+> ≤ 11.71 % en todos los 7 meses del horizonte, con sesgo medio
+> firmado de -1.81 % (no sistematico). Se decidio **no aplicar
+> correccion** al cache; ver ADR-0017 para forma completa.

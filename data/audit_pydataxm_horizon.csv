@@ -1,0 +1,8 @@
+mes,n_horas,cache_mean,oficial,delta_abs,delta_pct,fuera_tolerancia,fuente
+2025-07,744,133.39,138.36,-4.97,3.59,False,xm.com.co/noticias/8119
+2025-08,744,238.25,251.5,-13.25,5.27,False,xm.com.co/noticias/8184
+2025-09,720,295.05,292.65,2.4,0.82,False,sinergox.xm.com.co/2025/09/03_Informe_Precios
+2025-10,744,189.93,176.9,13.03,7.37,False,xm.com.co/noticias/8442
+2025-11,720,207.37,234.87,-27.5,11.71,True,xm.com.co/noticias/8584
+2025-12,744,275.02,278.83,-3.81,1.37,False,sinergox.xm.com.co/2025/12/03_Informe_Precios
+2026-01,744,218.46,213.0,5.46,2.56,False,xm.com.co/noticias/8759

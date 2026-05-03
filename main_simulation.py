@@ -928,6 +928,7 @@ def _compute_daily_series(
         nb_p2p = _p2p_monetary_benefit(
             p2p_results[d * 24 : (d + 1) * 24],
             D_d, G_d, pi_gs_d, pi_gb, prosumer_ids,
+            pi_bolsa=pi_bolsa[sl],   # CAL-30: residual surplus horario
         ).sum()
 
         # CAL-15: slice diario, sin calendario mensual asociado → component_c="auto"

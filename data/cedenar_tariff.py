@@ -61,10 +61,17 @@ import numpy as np
 import pandas as pd
 
 
-# ── Default: tarifa Cedenar abril-2026 (PDF tarifa_210.pdf) ──────────────────
-# Se conserva en código como fallback verificable cuando el CSV no está.
-# Valores en COP/kWh.
-DEFAULT_PI_GS_FALLBACK = 650.0
+# ── Default: fail-fast (CAL-18) ──────────────────────────────────────────────
+# CAL-18 (ADR-0018, 2026-05-02): Cedenar verificada al 100 % en abr-2025 a
+# abr-2026 (13 meses cargados). El default cambia a `None` para que cualquier
+# mes ausente del CSV produzca un error explicito en vez del antiguo escalar
+# 650 COP/kWh, que ocultaba gaps de cobertura.
+#
+# Tests, sensibilidades y herramientas diagnosticas que requieran un fallback
+# numerico explicito deben pasar `fallback=650.0` (o el valor que prefieran)
+# de forma literal al llamar.
+DEFAULT_PI_GS_FALLBACK: float | None = None
+LEGACY_PI_GS_DIAGNOSTIC_FALLBACK = 650.0  # solo para CLI/diagnostico
 
 TARIFA_ABRIL_2026 = {
     # (categoria, nivel_tension, propiedad) -> CU_aplicado COP/kWh
@@ -158,21 +165,33 @@ def load_monthly_tariffs(csv_path: str | Path | None = None) -> pd.DataFrame:
 
 def _lookup_pi_gs(df: pd.DataFrame, mes_key: str,
                   profile: TariffProfile,
-                  fallback: float = DEFAULT_PI_GS_FALLBACK,
+                  fallback: float | None = DEFAULT_PI_GS_FALLBACK,
                   warned: set | None = None) -> float:
     """
     Devuelve CU_aplicado para (mes, categoria, NT, propiedad).
-    Si el mes no está cargado, usa fallback con warning único por mes.
+
+    CAL-18: si el mes no esta cargado y `fallback is None` (default desde
+    2026-05-02), levanta KeyError con mensaje detallado. Si se pasa un
+    `fallback: float` explicito, lo usa con warning unico por mes (modo
+    legacy / sensibilidades).
     """
     key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
     try:
         return float(df.loc[key, "CU_aplicado"])
     except KeyError:
+        if fallback is None:
+            raise KeyError(
+                f"[cedenar_tariff/CAL-18] Mes {mes_key!r} ausente en CSV para "
+                f"{profile.categoria}/NT{profile.nivel_tension}/{profile.propiedad}. "
+                f"Cobertura verificada al 100 % en abr-2025 a abr-2026 "
+                f"(ADR-0018). Si necesita un fallback numerico explicito, "
+                f"pase `fallback=<valor>` al llamar."
+            ) from None
         if warned is None or mes_key not in warned:
             warnings.warn(
                 f"[cedenar_tariff] Mes {mes_key} ausente en CSV para "
                 f"{profile.categoria}/NT{profile.nivel_tension}/{profile.propiedad}; "
-                f"usando fallback {fallback:.0f} COP/kWh.",
+                f"usando fallback explicito {fallback:.0f} COP/kWh.",
                 stacklevel=3,
             )
             if warned is not None:
@@ -239,17 +258,25 @@ def effective_pi_gs(t_start: str | pd.Timestamp,
                     t_end: str | pd.Timestamp,
                     profile: TariffProfile,
                     csv_path: str | Path | None = None,
-                    fallback: float = DEFAULT_PI_GS_FALLBACK) -> float:
+                    fallback: float | None = DEFAULT_PI_GS_FALLBACK) -> float:
     """
     Promedio horario-ponderado del CU_aplicado sobre [t_start, t_end).
 
     Este es el escalar que reemplaza al actual PGS_COP=650 cuando los
     escenarios C1-C4 reciben pi_gs como float. El promedio se pondera por
-    el número de horas que cada mes calendario contribuye al horizonte.
+    el numero de horas que cada mes calendario contribuye al horizonte.
+
+    CAL-18: por defecto `fallback is None` y los meses ausentes producen
+    KeyError. Para preservar el modo legacy pase `fallback=650.0`.
     """
     df = load_monthly_tariffs(csv_path)
     idx = pd.date_range(t_start, t_end, freq="1h", inclusive="left")
     if len(idx) == 0:
+        if fallback is None:
+            raise ValueError(
+                f"[cedenar_tariff/CAL-18] Horizonte vacio "
+                f"({t_start} -> {t_end}); no se puede calcular pi_gs efectiva."
+            )
         return float(fallback)
 
     warned: set = set()
@@ -270,27 +297,36 @@ def effective_pi_gs_per_agent(agent_names: list[str],
                                 t_start: str | pd.Timestamp,
                                 t_end: str | pd.Timestamp,
                                 csv_path: str | Path | None = None,
-                                fallback: float = DEFAULT_PI_GS_FALLBACK
+                                fallback: float | None = DEFAULT_PI_GS_FALLBACK
                                 ) -> np.ndarray:
     """
-    Vector pi_gs efectivo por agente (escalar promedio horizonte por institución).
+    Vector pi_gs efectivo por agente (escalar promedio horizonte por institucion).
 
     Para cada `agent_name`, busca su `INSTITUTION_PROFILE` y devuelve el
     promedio horario-ponderado del CU_aplicado sobre [t_start, t_end).
-    Si la institución no está mapeada o el mes falta del CSV, usa fallback.
+
+    CAL-18: si la institucion no esta mapeada o un mes falta del CSV y
+    `fallback is None`, levanta KeyError (default). Pase `fallback=<float>`
+    para preservar el modo legacy.
 
     Devuelve: np.ndarray shape (N,) con pi_gs por agente en COP/kWh.
-
-    Útil para diagnóstico per-agente y para el refactor futuro en que los
-    escenarios C1-C4 acepten pi_gs como vector temporal.
     """
-    out = np.full(len(agent_names), float(fallback), dtype=float)
+    out = np.full(len(agent_names),
+                   float(fallback) if fallback is not None else np.nan,
+                   dtype=float)
     for n, name in enumerate(agent_names):
         prof = INSTITUTION_PROFILE.get(name)
         if prof is None:
+            if fallback is None:
+                raise KeyError(
+                    f"[cedenar_tariff/CAL-18] Sin perfil tarifario para "
+                    f"institucion {name!r}. Anada entrada en "
+                    f"INSTITUTION_PROFILE o pase `fallback=<valor>` "
+                    f"explicito (ADR-0018)."
+                )
             warnings.warn(
                 f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
-                f"se usa fallback {fallback:.0f} COP/kWh.",
+                f"se usa fallback explicito {fallback:.0f} COP/kWh.",
                 stacklevel=2,
             )
             continue
@@ -304,7 +340,7 @@ def community_effective_pi_gs(agent_names: list[str],
                                t_end: str | pd.Timestamp,
                                weights: np.ndarray | None = None,
                                csv_path: str | Path | None = None,
-                               fallback: float = DEFAULT_PI_GS_FALLBACK
+                               fallback: float | None = DEFAULT_PI_GS_FALLBACK
                                ) -> float:
     """
     Escalar pi_gs comunitario: promedio (opcionalmente ponderado) del
@@ -337,26 +373,33 @@ def community_effective_pi_gs(agent_names: list[str],
 def pi_gs_per_agent_hourly(agent_names: list[str],
                             hour_index: pd.DatetimeIndex,
                             csv_path: str | Path | None = None,
-                            fallback: float = DEFAULT_PI_GS_FALLBACK
+                            fallback: float | None = DEFAULT_PI_GS_FALLBACK
                             ) -> np.ndarray:
     """
     Matriz pi_gs por agente y hora: shape (N, T), constante dentro del mes.
 
-    Diseñada para el refactor futuro en que los escenarios C1-C4 acepten
-    pi_gs como vector temporal en vez de escalar. Hoy el módulo no la usa.
+    CAL-18: por defecto `fallback is None` y un mes ausente o agente sin
+    perfil produce KeyError. Pase `fallback=<float>` para legacy.
     """
     df = load_monthly_tariffs(csv_path)
     N, T = len(agent_names), len(hour_index)
-    out = np.full((N, T), float(fallback), dtype=float)
+    out = np.full((N, T),
+                   float(fallback) if fallback is not None else np.nan,
+                   dtype=float)
     months = hour_index.to_period("M").astype(str).to_numpy()
 
     warned: set = set()
     for n, name in enumerate(agent_names):
         prof = INSTITUTION_PROFILE.get(name)
         if prof is None:
+            if fallback is None:
+                raise KeyError(
+                    f"[cedenar_tariff/CAL-18] Sin perfil tarifario para "
+                    f"institucion {name!r} (ADR-0018)."
+                )
             warnings.warn(
                 f"[cedenar_tariff] Sin perfil tarifario para '{name}'; "
-                f"se usa fallback {fallback:.0f} COP/kWh.",
+                f"se usa fallback explicito {fallback:.0f} COP/kWh.",
                 stacklevel=2,
             )
             continue
@@ -951,8 +994,9 @@ def print_tariff_summary(csv_path: str | Path | None = None,
           f"({', '.join(meses_cargados) if meses_cargados else 'ninguno'})")
     if faltantes:
         print(f"  Meses faltantes en CSV: {len(faltantes)} "
-              f"({', '.join(faltantes)})  → fallback "
-              f"{DEFAULT_PI_GS_FALLBACK:.0f} COP/kWh")
+              f"({', '.join(faltantes)})  → fallback diagnostico "
+              f"{LEGACY_PI_GS_DIAGNOSTIC_FALLBACK:.0f} COP/kWh "
+              f"(produccion levanta KeyError, CAL-18)")
 
     print(f"\n  {'Institución':<10} {'Categoría':<10} {'NT':>3} "
           f"{'Propiedad':<10} {'pi_gs efectiva':>15}")
@@ -963,9 +1007,11 @@ def print_tariff_summary(csv_path: str | Path | None = None,
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         for name, prof in INSTITUTION_PROFILE.items():
+            # CLI/diagnostico: pasamos un fallback literal para que el
+            # resumen no aborte si hay meses faltantes (modo informativo).
             eff = effective_pi_gs(t_start, t_end, prof,
                                   csv_path=csv_path,
-                                  fallback=DEFAULT_PI_GS_FALLBACK)
+                                  fallback=LEGACY_PI_GS_DIAGNOSTIC_FALLBACK)
             valores.append(eff)
             print(f"  {name:<10} {prof.categoria:<10} "
                   f"{prof.nivel_tension:>3} {prof.propiedad:<10} "
@@ -973,7 +1019,7 @@ def print_tariff_summary(csv_path: str | Path | None = None,
     print("  " + "-" * 60)
     print(f"  Promedio simple comunidad: {np.mean(valores):.1f} COP/kWh")
     print(f"  (Comparar con escalar legacy PGS_COP = "
-          f"{DEFAULT_PI_GS_FALLBACK:.0f} COP/kWh)")
+          f"{LEGACY_PI_GS_DIAGNOSTIC_FALLBACK:.0f} COP/kWh)")
 
 
 def print_template() -> None:

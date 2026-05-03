@@ -440,6 +440,124 @@ def find_dominance_threshold(sa_pgb: list, sa_pv: list) -> dict:
     return findings
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Sprint 6.5 (Plan radiant-sleeping-eagle) — Ranking PV con detector de cruces
+# Extensión paper IEEE WEEF 2026 sobre SA-2.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def ranking_table_pv(
+    results: list,
+    scenarios: Optional[list] = None,
+    baseline_factor: float = 1.0,
+):
+    """
+    Construye tabla de ranking de escenarios para un barrido de cobertura PV.
+
+    Toma la salida de :func:`run_sensitivity_pv` (lista de
+    :class:`SensitivityResult`) o cualquier secuencia de dicts con las claves
+    ``param_value`` y ``net_benefit`` (mapping escenario→COP), ordena los
+    escenarios por net_benefit en cada factor y marca con ★ aquellos cuyo
+    ranking difiere del observado en ``baseline_factor`` (por defecto 1.0×).
+
+    Parameters
+    ----------
+    results : list[SensitivityResult] | list[dict]
+        Resultados del barrido PV.
+    scenarios : list[str] | None
+        Subconjunto de escenarios a comparar. Si ``None``, infiere desde la
+        primera entrada.
+    baseline_factor : float
+        Factor de referencia para detectar cambios de ranking.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columnas: ``factor``, ``NB_<esc>``, ``rank_<esc>``, ``star_<esc>``.
+    """
+    import pandas as pd
+
+    if not results:
+        raise ValueError("results vacío")
+
+    def _nb(r):
+        return r.net_benefit if hasattr(r, "net_benefit") else r["net_benefit"]
+
+    def _f(r):
+        return float(r.param_value if hasattr(r, "param_value")
+                     else r["param_value"])
+
+    if scenarios is None:
+        scenarios = list(_nb(results[0]).keys())
+
+    rows = []
+    for r in results:
+        nb = _nb(r)
+        sorted_scen = sorted(scenarios, key=lambda s: -float(nb.get(s, 0.0)))
+        rank_map = {s: i + 1 for i, s in enumerate(sorted_scen)}
+        row = {"factor": _f(r)}
+        for s in scenarios:
+            row[f"NB_{s}"] = float(nb.get(s, 0.0))
+            row[f"rank_{s}"] = int(rank_map[s])
+        rows.append(row)
+
+    df = pd.DataFrame(rows).sort_values("factor").reset_index(drop=True)
+
+    if len(df) > 0:
+        idx_base = (df["factor"] - baseline_factor).abs().idxmin()
+        for s in scenarios:
+            base_rank = int(df.loc[idx_base, f"rank_{s}"])
+            df[f"star_{s}"] = df[f"rank_{s}"].apply(
+                lambda r, b=base_rank: "★" if int(r) != b else ""
+            )
+
+    return df
+
+
+def plot_pv_ranking(
+    rank_df,
+    scenarios: list,
+    out_path,
+    title: str = "PV factor sweep — ranking persistence",
+    baseline_factor: float = 1.0,
+):
+    """Genera figura de líneas (NB vs factor PV) con ★ en cambios de ranking.
+
+    Sprint 6.5 — pareja visual de :func:`ranking_table_pv`.
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from pathlib import Path
+
+    factors = rank_df["factor"].to_numpy()
+    fig, ax = plt.subplots(figsize=(8, 5))
+
+    colors = plt.get_cmap("tab10").colors
+    for i, s in enumerate(scenarios):
+        nb = rank_df[f"NB_{s}"].to_numpy() / 1e6  # COP -> millones COP
+        c = colors[i % len(colors)]
+        ax.plot(factors, nb, marker="o", color=c, lw=1.6, label=s)
+        if f"star_{s}" in rank_df.columns:
+            stars_idx = np.where(rank_df[f"star_{s}"].to_numpy() == "★")[0]
+            if len(stars_idx) > 0:
+                ax.scatter(factors[stars_idx], nb[stars_idx],
+                           marker="*", s=180, color=c,
+                           edgecolors="black", linewidths=1.0,
+                           zorder=5)
+
+    ax.axvline(baseline_factor, color="gray", lw=0.8, ls="--", alpha=0.5)
+    ax.set_xlabel("PV scaling factor (× baseline)")
+    ax.set_ylabel("Net benefit [million COP]")
+    ax.set_title(title)
+    ax.legend(loc="best", fontsize=9)
+    ax.grid(alpha=0.3)
+    fig.tight_layout()
+    out_path = Path(out_path)
+    fig.savefig(out_path, dpi=130, bbox_inches="tight")
+    plt.close(fig)
+    return out_path
+
+
 def _find_descending_threshold(sa_pgb: list, alt: str) -> Optional[float]:
     """
     Encuentra el pi_gb donde P2P deja de superar la alternativa `alt`

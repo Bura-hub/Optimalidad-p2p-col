@@ -98,6 +98,13 @@ Sub-meter selection follows a protocol to place each institution's demand-to-gen
 
 Representative profiles for two contrasting institutions are shown in Fig. \ref{fig:profiles_2agents}. Udenar exhibits strong solar generation (morning and afternoon peaks, near zero overnight) paired with highly variable academic load (lectures, labs, cafeteria). HUDN (Hospital) exhibits strong solar generation but nearly constant load (24/7 operation: emergency services, ICU, heating/cooling). These heterogeneous patterns—one institution with steep demand variability, the other with flat baseline consumption—drive the peer-trading arbitrage that differentiates P2P from administrative settlement mechanisms.
 
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{outputs/paper/fig_paper_profiles_2agents.png}
+\caption{One-week demand and PV-generation profiles, August 2025. (Top) Hospital HUDN: nearly constant industrial load contrasted with diurnal solar generation. (Bottom) Universidad de Narino: variable academic load with weekend dips, paired with the same solar profile. The heterogeneity of demand patterns motivates peer-to-peer arbitrage.}
+\label{fig:profiles_2agents}
+\end{figure}
+
 ### III.C Tariff homogenization
 
 The Colombian retail tariff distinguishes commercial and official categories. For this paper, all institutions are homogenized to the commercial profile (956 COP/kWh on average for the August 2025 horizon, with monthly variation per Cedenar's official CU components [3], [17]). This homogenization yields a uniform admissibility window $[\pi_{gb}, \pi_{gs}]$ for the Replicator Dynamics, eliminating multi-equilibria caused by tariff heterogeneity. Thesis-level heterogeneity analysis is reserved for the dissertation.
@@ -153,7 +160,14 @@ UCC dominates the C1 advantage (425 K COP) because its sub-meter has the largest
 
 ### IV.D PV-factor sweep and phase transition
 
-The decisive empirical finding of this paper is reported in Table III and visualized in `outputs/paper/fig_pv_ranking_cal29_canonical.png`. Generation profiles are scaled by a factor $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$, holding demand and prices fixed.
+The decisive empirical finding of this paper is reported in Table III and visualized in Fig. \ref{fig:pv_ranking}. Generation profiles are scaled by a factor $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$, holding demand and prices fixed.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{outputs/paper/fig_pv_ranking_cal29_canonical.png}
+\caption{PV-factor sweep over $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$ on the August 2025 horizon. Net benefit (million COP) per scenario as a function of community PV coverage. The phase transition between $\phi = 1.0$ and $\phi = 1.5$ marks the over-generation regime in which P2P (rank 1) dominates both Colombian regulatory schemes; stars (★) flag rank changes versus the baseline.}
+\label{fig:pv_ranking}
+\end{figure}
 
 **TABLE III.** PV-factor sweep, August 2025. Net benefit in million COP (M COP); rank within row in parentheses.
 
@@ -218,7 +232,14 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 
 At baseline community coverage of 96 %, the residual surplus is sizable: even in P2P, the bulk of injected energy (3,559.7 kWh of the total) is exported to the spot market because internal peer demand is limited. Both C1 and P2P eventually monetize this residual at the hourly bolsa price, removing one of the two regulatory differentiators. The 2.9 % gap between C1 and P2P is accounted for almost entirely by C1's Type 1 advantage (valued at $\pi_{gs} - \pi^{C}$, approximately 600 COP/kWh) on the small portion that crosses the monthly $H_x$ boundary individually. Because the Type 1 valuation exceeds any peer-cleared price (which is bounded above by $\pi_{gs}$ in the RD admissibility window), the C1 mechanism extracts marginally more value than P2P when the community is roughly balanced.
 
-This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator algorithm we adopt was originally proposed by Chacón et al. \cite{Chacon2025EMS}, who report a welfare error below 6\,\% as the explicit cost of the equity-preserving design (Sec. V; Table VII shows IE = $+0.01$ for replicator dynamics versus IE = $-0.89$ for the centralized planner). Our 6144-h calibration falls comfortably within the authors' acceptable trade-off, and the audit (Sec.~\ref{sec:audit}) shows the gap concentrates in drought months when high spot prices structurally favour C1's net-metering remuneration.
+This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator algorithm we adopt was originally proposed by Chacón et al. \cite{Chacon2025EMS}, who report a welfare error below 6\,\% as the explicit cost of the equity-preserving design (Sec. V; Table VII shows IE = $+0.01$ for replicator dynamics versus IE = $-0.89$ for the centralized planner). Our 6144-h calibration falls comfortably within the authors' acceptable trade-off, and the audit (Sec.~\ref{sec:audit}) shows the gap concentrates in drought months when high spot prices structurally favour C1's net-metering remuneration. Figure \ref{fig:monthly_breakdown} disaggregates the 6144-h horizon by month: in dry months (July--August 2025, El Niño), the high spot-price regime favours C1's individual surplus liquidation, while in high-irradiance months (January 2026), P2P captures more value through hourly clearing. The aggregate 3\,\% deficit is therefore concentrated in a specific climatic window, not uniform across the horizon.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{outputs/paper/fig12_comparacion_mensual.png}
+\caption{Monthly net benefit by scenario (P2P, C1, C4) over the 6144-h horizon (Jul 2025 -- Feb 2026). The C1 advantage concentrates in drought months (Jul--Aug 2025, El Niño) where elevated spot prices structurally reward individual net-metering; P2P captures more value in high-irradiance months. Source: CAL-8 official thesis run, 2026-04-28.}
+\label{fig:monthly_breakdown}
+\end{figure}
 
 ### V.B Why P2P wins at PV factors at or above 1.5: The phase transition as a defense scenario
 

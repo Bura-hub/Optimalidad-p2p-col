@@ -289,7 +289,7 @@ Ningún test asercionaba sobre numeración de artículos en docstrings.
 
 ---
 
-## §7 Pendientes para autor humano
+## §7 Pendientes para autor humano (originales)
 
 1. **Verificación umbral usuario no-regulado 2025-2026**: contactar
    gestornormativo.creg.gov.co o Concepto CREG 14534/2025 para cita
@@ -301,6 +301,155 @@ Ningún test asercionaba sobre numeración de artículos en docstrings.
 4. **CREG 174 art. 24 modificado por CREG 101-087/2025**: verificar texto
    completo para confirmar que no afecta valoración horaria de bolsa
    usada en C1 Tipo 2 / C3 / C4.
+
+---
+
+## §7-bis Resolución de pendientes (follow-up 2026-05-03)
+
+Búsqueda en sitios alternativos a gestornormativo.creg.gov.co
+(creg.gov.co preguntas frecuentes, secretariasenado, funcionpublica,
+xm.com.co, vlex.com.co, jurinfo.jep.gov.co, presidencia.gov.co).
+
+### §7.1 Pendiente 1 — Umbral usuario no-regulado ✓ CONFIRMADO
+
+**Resultado**: el umbral **0.1 MW (100 kW) y/o 55 MWh/mes** sigue
+**vigente en 2025-2026**, sin cambios desde el 1° de enero de 2000.
+
+**Cita literal** (CREG, Preguntas Frecuentes Energía Eléctrica):
+
+> *"la demanda promedio de potencia o de energía durante los últimos
+> seis (6) meses sea superior a 0.1 MW de potencia y 55 MWh de energía"*
+
+**Fuentes verificadas**:
+- https://www.creg.gov.co/preguntas-frecuentes/2/energia-electrica/
+- Concepto CREG 3057/2025
+
+**Implicación MTE**: La comunidad MTE como usuario no-regulado agregado
+(CAL-13) está correctamente sustentada. El supuesto de C2 con peajes
+T+D+PR+Rm sin Cvm/COT (porque el no-regulado contrata directo sin
+comercializador minorista) es válido.
+
+**Acción**: ✓ Sin cambios al modelo. Cita CREG 086/1996 art. 3 mod.
+039/2001 vigente.
+
+### §7.2 Pendiente 2 — Prórroga contribución 4% ⚠ ALERTA: ERROR DE CITA
+
+**Resultado**: **Ley 2099/2021 art. 45 NO contiene la prórroga del 4%**.
+El art. 45 trata de *"Promoción de planes, programas y proyectos por
+parte del IPSE"*. El art. 48 modifica el régimen de subsidios; el art.
+49 trata de movilidad eléctrica.
+
+**La cita actual del proyecto en `data/cedenar_tariff.py:714-715`,
+`scripts/seed_ruflo_adr.py`, `tests/test_cal16_savings_decomposition.py`
+y `comparison_engine.py:128` parece tener un error.**
+
+**Hipótesis del cite correcto** (no confirmadas, requiere consulta asesor):
+- Ley 2099/2021 **art. 48** (modifica régimen subsidios Ley 142/1994 art. 89).
+- Ley 1430/2010 (anterior reforma a contribuciones).
+- Ley 142/1994 art. 89.1 (régimen base del 20% solidaridad).
+
+**Estado contribución 20%** (Ley 142/1994 art. 89.1, estratos 5-6 +
+comercial-industrial): **VIGENTE 2025-2026**. En sept-2025 MinHacienda
+publicó borrador para que sectores industriales exonerados desde Ley
+1430/2010 vuelvan a contribuir.
+
+**Aplicabilidad MTE** (universidades públicas + privadas):
+- Universidades **privadas**: tarifa comercial → SÍ paga contribución.
+- Universidades **públicas**: tarifa oficial → caso por caso (verificar
+  con CEDENAR la clasificación de cada institución).
+
+**Fuentes verificadas**:
+- https://www.funcionpublica.gov.co/eva/gestornormativo/norma.php?i=166326 (Ley 2099)
+- https://www.presidencia.gov.co/prensa/Paginas/Proyecto-sobre-contribucion-solidaria-de-energia-...
+
+**Acción tomada**:
+- ✏ `data/cedenar_tariff.py:714-715`: comentario actualizado señalando
+  el error de cita y la hipótesis art. 48 / pendiente confirmación.
+- ❌ NO se cambió el valor `0.04 × G` (sigue operativo bajo el supuesto
+  de vigencia 2025-2026).
+- 🔔 Reporte explícito en §8 de pendientes para asesor.
+
+### §7.3 Pendiente 3 — CREG 101 028/2023 modifica CREG 119/2007 ✓ ANALIZADO
+
+**Resultado**: el **art. 5 de CREG 101 028/2023** modifica el art. 11 de
+CREG 119/2007 introduciendo un nuevo componente:
+
+> *"COTn,j,m: Costo asociado con la recuperación del saldo de la opción
+> tarifaria del nivel de tensión n, en el mercado de comercialización j
+> y en el mes m, expresado en $/kWh."*
+
+Mantiene `CvRn,m,i,j` (variable que remunera atención de usuarios
+regulados). También referencia art. 11 de Resolución CREG 180/2014 para
+`Cfm,j` (cargo fijo).
+
+**Riesgo para nuestro modelo**: **BAJO**.
+
+El CSV oficial de CEDENAR (`tarifas_cedenar_mensual.csv`) cubre 2024-2026,
+es decir post-CREG 101 028/2023. El componente COT está separado y se
+usa en CAL-16 vía `cot_alpha`. **Verificación menor pendiente**:
+confirmar que la columna `Cvm` del CSV NO duplique COT (debería ser
+disjuntas).
+
+**Fuentes verificadas**:
+- https://gestornormativo.creg.gov.co/gestor/entorno/docs/resolucion_creg_101-28_2023.htm
+- https://vlex.com.co/vid/resolucion-numero-101-028-972704725
+
+**Acción**: añadir nota en §8 — "verificar columnas CSV CEDENAR no
+dupliquen Cvm con COT".
+
+### §7.4 Pendiente 4 — CREG 101-087/2025 modifica CREG 174 art. 24 ✓ CORREGIDO
+
+**Resultado**: corrección a la cita del ADR-0031 inicial.
+
+**Cita inicial (ERRÓNEA)**: "Art. 13 de CREG 101-087/2025 modifica
+CREG 174 art. 24". El art. 13 modifica **CREG 101 072 art. 20**, no
+CREG 174 art. 24.
+
+**Cita correcta**: **Art. 6 de CREG 101-087/2025** modifica el art. 24
+de CREG 174/2021 (*"Tratamiento de Excedentes de los AGPE en el ASIC y
+el LAC"*). Reescribe completamente el artículo con reglas diferenciadas
+para comercializadores integrados/no integrados con el OR.
+
+**Impacto en el precio bolsa horario**: **NULO directo**. El tope que
+afecta valoración de excedentes AGPE sigue en el **parágrafo 1° del art.
+23** (no del 24). Cita literal:
+
+> *"Cuando la variable MCm supere el precio de escasez de activación
+> definido en la Resolución CREG 071 de 2006, dicho precio... no podrá
+> superar el precio de escasez ponderado, o... no podrá superar el
+> precio de transacción en bolsa."*
+
+**Implicación para C1 Tipo 2 / C3 / C4**: el `pi_bolsa_horario` (PB_PROM
+XM) usado en el modelo **NO se ve afectado** por la modificación al art.
+24. Lo que cambia es CÓMO se liquidan los excedentes en ASIC/LAC, no la
+formación del precio.
+
+**Acción tomada**:
+- ✏ ADR-0031 actualizado: ahora documenta que CREG 101-087/2025 tiene
+  DOS modificatorias (art. 6 → CREG 174 art. 24; art. 13 → CREG 101 072
+  art. 20).
+- ✓ Sin cambios al modelo (precio bolsa horario invariante).
+
+---
+
+## §8 Pendientes para autor humano (post-follow-up)
+
+1. **🚨 Verificar cita "Ley 2099/2021 art. 45" → corregir si aplica.**
+   El art. 45 NO contiene la prórroga del 4%. Posibles candidatos:
+   art. 48 (régimen subsidios). Confirmar con asesor (Pantoja/Obando)
+   o con MinMinas / MinHacienda. Actualizar:
+   - `data/cedenar_tariff.py:714-715` (ya con nota de revisión)
+   - `tests/test_cal16_savings_decomposition.py:17`
+   - `scenarios/comparison_engine.py:128`
+   - `scripts/seed_ruflo_adr.py:226, 515`
+2. **Verificar columnas CSV CEDENAR**: confirmar que `Cvm` no duplique
+   `COT` en `tarifas_cedenar_mensual.csv` post-CREG 101 028/2023.
+3. **Aplicabilidad contribución 20% a universidades MTE**: pedir a
+   CEDENAR clasificación tarifaria oficial de cada institución
+   (Udenar, Mariana, UCC, HUDN, Cesmag) para confirmar si pagan
+   contribución sobre el componente G.
+
+---
 
 ---
 

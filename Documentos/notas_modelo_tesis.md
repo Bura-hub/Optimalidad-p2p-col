@@ -3794,3 +3794,39 @@ distinción.
 - ADR: `docs/adr/0031-cal31-renumeracion-art-creg-101072.md`.
 - Auditoría completa: `Documentos/audit_regulatorio_C1_C4.md`.
 - Plan: `radiant-sleeping-eagle.md` §7 Sprint 8.
+
+### Follow-up CAL-31 (2026-05-03 sesión tarde)
+
+Búsqueda en sitios alternativos (creg.gov.co, secretariasenado,
+funcionpublica, vlex.com.co) cerró los 4 pendientes:
+
+**§7.1 Umbral usuario no-regulado** ✓ CONFIRMADO 100 kW / 55 MWh-mes
+vigente 2025-2026 (CREG Preguntas Frecuentes + Concepto CREG 3057/2025).
+Sin cambios al modelo.
+
+**§7.2 Prórroga contribución 4%** 🚨 ALERTA: la cita "Ley 2099/2021 art.
+45" en código y notas tiene un **error de cita**. El art. 45 trata del
+IPSE, no de la prórroga. Posible cita correcta: art. 48 (régimen
+subsidios). PENDIENTE consulta a asesor antes de publicar. Modelo sigue
+operativo bajo supuesto de vigencia 2025-2026 (valor 0.04 × G no
+cambia). Nota añadida a `data/cedenar_tariff.py:714-715`.
+
+**§7.3 CREG 101 028/2023 mod CREG 119/2007** ✓ ANALIZADO. El art. 5
+modifica art. 11 introduciendo COT (Costo opción tarifaria). Riesgo
+para nuestro modelo: BAJO. CSV oficial CEDENAR cubre 2024-2026 post-
+modificación. Verificación menor pendiente: confirmar que columnas Cvm
+y COT no se dupliquen en el CSV.
+
+**§7.4 CREG 101-087/2025 modifica CREG 174 art. 24** ✓ CORREGIDO. La
+cita inicial del ADR-0031 era errónea: NO es art. 13 sino **art. 6**
+de CREG 101-087/2025 el que modifica art. 24 de CREG 174/2021.
+Impacto en `pi_bolsa_horario` que usa el modelo: NULO directo. ADR-0031
+actualizado con la corrección.
+
+### Documentación actualizada (follow-up)
+
+- `Documentos/audit_regulatorio_C1_C4.md` §7-bis añadido con resolución
+  de los 4 pendientes y §8 con pendientes nuevos para autor humano.
+- `docs/adr/0031-cal31-renumeracion-art-creg-101072.md` corregido
+  (CREG 101-087/2025 art. 6, no 13).
+- `data/cedenar_tariff.py:714-715` con nota de revisión Ley 2099 art. 45.

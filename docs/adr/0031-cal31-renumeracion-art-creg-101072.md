@@ -50,13 +50,20 @@ La auditoría (`Documentos/audit_regulatorio_C1_C4.md`) incluyó:
 
 ### G-05 — Modificación regulatoria 2025 NO trackeada
 
-**CREG 101-087/2025 art. 13** modifica:
-- CREG 101 072/2025 art. 20 (caso 4 amplía a fuentes no-FNCER).
-- CREG 174/2021 art. 24 (definiciones de precio).
+**CREG 101-087/2025** modifica vía DOS artículos distintos (corrección
+follow-up 2026-05-03 tras búsqueda en sitios alternativos):
+- **Art. 13** modifica CREG 101 072/2025 art. 20 (caso 4 amplía a fuentes
+  no-FNCER).
+- **Art. 6** modifica CREG 174/2021 art. 24 ("Tratamiento de Excedentes
+  de los AGPE en el ASIC y el LAC"); reescribe completamente con reglas
+  diferenciadas para comercializadores integrados/no integrados con OR.
 
-**Impacto en MTE**: NULO numéricamente. Todas las plantas MTE son solar
-(FNCER), por lo que la ampliación a no-FNCER no aplica. Cambios en
-art. 24 son definiciones; el cálculo horario de bolsa permanece.
+**Impacto en MTE**: NULO numéricamente.
+- Caso 4 no-FNCER no aplica (todas las plantas MTE son solar/FNCER).
+- Cambios en art. 24 afectan CÓMO se liquidan los excedentes en ASIC/LAC,
+  NO la formación del precio de bolsa horario. El tope sigue en el
+  parágrafo 1° del art. 23 (CREG 174). El `pi_bolsa_horario` (PB_PROM XM)
+  que usamos NO se ve afectado por art. 24.
 
 ### G-06 — Terminología "Tipo 1/Tipo 2/Hx" no es literal CREG 174
 

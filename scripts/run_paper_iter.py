@@ -977,6 +977,28 @@ def main() -> int:
         except Exception as exc:
             print(f"  [paper] fairness skipped: {exc}")
 
+        # Figuras nuevas paper-specific en ingles + IEEE style
+        try:
+            from visualization.paper_figures.thesis_adapted_en import (
+                fig_paper_per_agent_benefit,
+                fig_paper_market_activity,
+                fig_paper_hourly_prices,
+            )
+            attempts.append(("fig_paper_per_agent_benefit",
+                             lambda: fig_paper_per_agent_benefit(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_per_agent_benefit")))
+            attempts.append(("fig_paper_market_activity",
+                             lambda: fig_paper_market_activity(
+                                 p2p_results,
+                                 Path(out_dir) / "fig_paper_market_activity")))
+            attempts.append(("fig_paper_hourly_prices",
+                             lambda: fig_paper_hourly_prices(
+                                 p2p_results,
+                                 Path(out_dir) / "fig_paper_hourly_prices")))
+        except Exception as exc:
+            print(f"  [paper] thesis_adapted_en skipped: {exc}")
+
         generated, failed = [], []
         for name, fn in attempts:
             try:

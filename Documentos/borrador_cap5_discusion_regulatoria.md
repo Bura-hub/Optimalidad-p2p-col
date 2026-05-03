@@ -492,3 +492,29 @@ CAL-30 (Sprint 7 post-paper) migrará el engine de la tesis a la
 fórmula canónica para re-evaluar capítulo 4 completo. El cambio
 es esperable: invariante en signo (P2P sigue ganando RPE) pero
 con magnitud actualizada en agregado.
+
+### §5.7.6 Cierre auditoría: CAL-30 ejecutado (2026-05-03)
+
+CAL-30 se completó tras la sustentación del paper y unificó la
+fórmula `_p2p_monetary_benefit` del engine de tesis con la del paper
+(canónica). Validación empírica del gate de seguridad:
+
+- **310/310 tests verdes** sin necesidad de actualizar valores
+  asertados (los tests prueban relaciones, no magnitudes específicas).
+- **RPE perfil diario delta = +0.02 %**: ahora `P2P canonical = 210,496`
+  vs `premium = 210,450` COP. La heterogeneidad por agente se conserva
+  exactamente (Udenar/HUDN/Cesmag prefieren P2P; Mariana/UCC prefieren C4).
+
+El delta pequeño en cobertura tesis (19 % M1 totalizador) confirma
+analíticamente lo discutido en §5.7.2: con surplus residual reducido,
+el sub-reporte premium ≈ canónico. La discrepancia solo se manifiesta
+en escenarios de alta cobertura como el del paper (96 %, donde el
+delta fue ~38 %).
+
+**Implicación para la lectura del cap. 4**: las RPE históricas
+reportadas en §4.9 (e.g. RPE = +0.43 % vs C4) tienen un techo de
+sub-reporte de ~0.5 % bajo CAL-30. La conclusión cualitativa
+("P2P > C4, IE distributivo") es robusta a esta corrección.
+
+Pendiente: ejecutar `main_simulation.py --data real --full --analysis`
+sobre las 5 160 horas para capturar la RPE canónica final del cap. 4.

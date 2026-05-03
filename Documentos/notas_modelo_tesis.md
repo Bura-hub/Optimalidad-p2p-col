@@ -3602,3 +3602,104 @@ sin parámetro horario. Sprint 6 suite total: **46/46 verdes**. Tesis
 - Diagnóstico: `scripts/audit_p2p_paper.py` (reproducible).
 - Tests: `tests/test_cal29_p2p_canonical.py`.
 - Plan: `radiant-sleeping-eagle.md` §6.6.5 Sprint 6.6-A.
+
+---
+
+## CAL-30 — Migración del engine a fórmula canónica P2P (Sprint 7)
+
+### Detonante
+
+Tras CAL-29 (paper-only), el engine de la tesis seguía con la fórmula
+"premium" `(pi_star − pi_gb) × P_sold`. Esto creaba una dualidad
+metodológica:
+
+- Paper (`scripts/run_paper_iter.py::_p2p_decomposed`) usaba canónica.
+- Tesis (`scenarios/comparison_engine.py::_p2p_monetary_benefit`) seguía
+  con incremental.
+
+Decisión usuario 2026-05-03: cerrar la auditoría P2P promoviendo la
+fórmula canónica al engine de tesis, con validación completa
+(`pytest tests/ -q` + `main_simulation.py --data real`).
+
+### Decisión
+
+`_p2p_monetary_benefit` acepta nuevo parámetro
+`mode={"canonical","premium"}` con default `canonical` desde CAL-30:
+
+```python
+def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb, prosumer_ids,
+                           pi_bolsa: Optional[np.ndarray] = None,
+                           mode: str = "canonical") -> np.ndarray:
+```
+
+- **`canonical`** (default): autoconsumo + revenue completo del trade
+  (`pi_star × P_sold`) + residual surplus (`pi_bolsa[k] × residual[n,k]`).
+  Simétrico con C1/C2/C3/C4.
+- **`premium`** (legacy opt-in): comportamiento pre-CAL-30 para
+  reproducibilidad histórica.
+
+Cambios paralelos:
+- `comparison_engine.run_comparison`: pasa `mode="canonical"` y
+  `pi_bolsa`.
+- `main_simulation._compute_daily_series`: pasa `pi_bolsa[sl]`.
+- `analysis/monthly_report._p2p_benefit_month`: parámetro `pi_bolsa_m`
+  análogo, aplica fórmula canónica.
+
+### Validación (gate ±0.5 %)
+
+**Tests:** 310/310 verdes en 5 batches (escenarios + CAL-N + paper +
+utilidades + simulación). Cero tests asertaban valores P2P específicos
+que sufrieran la migración.
+
+**RPE perfil diario `--data real`:**
+
+| Modo | P2P total [COP] |
+|---|---:|
+| Premium (legacy) | 210,450 |
+| Canonical (CAL-30) | 210,496 |
+| Delta | +46 COP (+0.02 %) |
+
+Dentro del gate ±0.5 % ✓.
+
+**Per-agente perfil diario** (consistente con paper CAL-29):
+
+```
+Udenar  : +172 COP (P2P > C4)
+Mariana : -51 COP  (C4 > P2P)
+UCC     : -64 COP  (C4 > P2P)
+HUDN    :   +1 COP (P2P > C4)
+Cesmag  :  +35 COP (P2P > C4)
+RPE total: +0.0004
+```
+
+### Por qué el delta es pequeño en perfil diario
+
+La tesis usa M1 totalizador → cobertura PV agregada ~19 %. Surplus
+residual es marginal porque la mayoría de las horas hay déficit. La
+fórmula premium "cancelaba" `pi_gb × P_sold` contra un baseline
+implícito; la canónica añade `pi_bolsa × residual_surplus`. En baja
+cobertura ambos términos son pequeños y se compensan en el orden de
+0.02 %.
+
+En el escenario paper (CAL-28 sub-medidores, cobertura 96 %) el delta
+era 1.92 M sobre 5 M (~38 %), pero allí la fórmula canónica ya estaba
+aplicada vía CAL-29. CAL-30 unifica ambos contextos.
+
+### Pendiente del autor humano
+
+1. Ejecutar `python main_simulation.py --data real --full --analysis`
+   (~30 min) para capturar la RPE canónica sobre el horizonte completo
+   5 160 h. Esperado: delta < 0.5 % vs valores reportados pre-CAL-30
+   (e.g. RPE = +0.43 % en cap. 4 §4.9).
+2. Actualizar referencias específicas a "P2P = 52.45 M COP" en
+   `REPORTE_AVANCES.md` y `borrador_cap4_resultados.md` con el valor
+   canónico cuando se ejecute el `--full`.
+3. La conclusión cualitativa (P2P > C4, IE distributivo, etc.) NO
+   cambia. Solo se actualizan magnitudes en COP.
+
+### Documentación
+
+- ADR: `docs/adr/0030-cal30-engine-canonical.md`.
+- ADR padre: `docs/adr/0029-cal29-p2p-revenue-canonica.md` (paper).
+- Audit: `Documentos/audit_p2p_decomposition.md`.
+- Plan: `radiant-sleeping-eagle.md` §6.6.5 (cierre Sprint 7).

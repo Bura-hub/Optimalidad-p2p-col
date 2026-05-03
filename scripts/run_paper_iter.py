@@ -91,7 +91,11 @@ def horizonte_mensual(month: str) -> tuple[str, str]:
 
 
 def cargar_mte_subset(t_start: str, t_end: str):
-    """Carga MTE completo y devuelve subset alineado al mes."""
+    """Carga MTE completo (M1 totalizador) y devuelve subset alineado al mes.
+
+    Este es el flujo legacy (status quo de la tesis). Ver
+    ``cargar_mte_paper`` para CAL-28.
+    """
     from data.xm_data_loader import MTEDataLoader, slice_horizon, AGENTS
 
     mte_root = os.environ.get("MTE_ROOT", str(ROOT / "MedicionesMTE_v3"))
@@ -99,6 +103,109 @@ def cargar_mte_subset(t_start: str, t_end: str):
     D_full, G_full, idx_full = loader.load(verbose=False)
     D, G, idx = slice_horizon(D_full, G_full, idx_full, t_start, t_end)
     return D, G, idx, list(AGENTS)
+
+
+# ─── CAL-28 — Selección de medidor puntual ────────────────────────────────
+
+
+def _read_meter_csvs(meter_dir: Path,
+                      col_demand: str = "totalActivePower",
+                      tz: str = "America/Bogota") -> pd.Series:
+    """Lee todos los CSVs de un medidor y devuelve serie horaria (kW)
+    localizada en la zona horaria del proyecto."""
+    csvs = sorted(meter_dir.glob("*.csv"))
+    if not csvs:
+        raise FileNotFoundError(f"Sin CSVs en {meter_dir}")
+    parts = []
+    for csv in csvs:
+        try:
+            df = pd.read_csv(csv, low_memory=False)
+        except Exception:
+            continue
+        if "date" not in df.columns or col_demand not in df.columns:
+            continue
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df[col_demand] = pd.to_numeric(df[col_demand], errors="coerce")
+        df = df.dropna(subset=["date", col_demand])
+        parts.append(df.set_index("date")[col_demand])
+    if not parts:
+        raise ValueError(f"Sin datos válidos en {meter_dir}")
+    s = pd.concat(parts).sort_index()
+    # Localizar a tz del proyecto (las series CSV son tz-naive). Se asume
+    # que las marcas de tiempo del datalogger son hora local Colombia.
+    s.index = s.index.tz_localize(tz, ambiguous="NaT", nonexistent="NaT")
+    s = s[s.index.notna()]
+    # Resample 1h con media (kW promedio por hora)
+    s_hourly = s.resample("1h").mean()
+    return s_hourly
+
+
+def cargar_mte_paper(t_start: str, t_end: str,
+                      config_csv: Optional[Path] = None
+                      ) -> tuple[np.ndarray, np.ndarray,
+                                  pd.DatetimeIndex, list[str]]:
+    """
+    Carga MTE para el paper IEEE WEEF (CAL-28).
+
+    Para cada institución, lee el medidor configurado en
+    ``data/paper_meter_config.csv`` (default M3 sub-medidor o
+    M1 escalado para Mariana).
+
+    La generación G se carga via MTEDataLoader normal (los inversores
+    son comunes; no se reemplazan).
+
+    Devuelve (D, G, idx, agents) con la misma firma que ``cargar_mte_subset``.
+    """
+    from data.xm_data_loader import MTEDataLoader, slice_horizon, AGENTS
+
+    if config_csv is None:
+        config_csv = ROOT / "data" / "paper_meter_config.csv"
+    if not config_csv.exists():
+        raise FileNotFoundError(
+            f"Falta {config_csv}. Necesario para CAL-28."
+        )
+    cfg = pd.read_csv(config_csv)
+    if not {"institucion", "carpeta", "medidor_nombre",
+            "factor_escala"} <= set(cfg.columns):
+        raise ValueError(f"CSV inválido: {config_csv}")
+
+    mte_root = Path(os.environ.get("MTE_ROOT",
+                                     str(ROOT / "MedicionesMTE_v3")))
+
+    # 1. Generación: viene de MTEDataLoader normal (inversores).
+    loader = MTEDataLoader(root_path=str(mte_root))
+    D_full, G_full, idx_full = loader.load(verbose=False)
+    agents = list(AGENTS)
+
+    # 2. Demanda: reemplazar por medidor configurado por institución.
+    D_paper_full = np.zeros_like(D_full)
+    cfg_by_inst = cfg.set_index("institucion").to_dict("index")
+
+    print(f"  [CAL-28] Cargando medidores puntuales ({len(agents)} inst)...")
+    for n, inst in enumerate(agents):
+        if inst not in cfg_by_inst:
+            print(f"    {inst}: sin config → usando M1 totalizador")
+            D_paper_full[n, :] = D_full[n, :]
+            continue
+        cfg_inst = cfg_by_inst[inst]
+        meter_dir = (mte_root / inst / cfg_inst["carpeta"]
+                      / f"{cfg_inst['medidor_nombre']} - electricMeter")
+        try:
+            s = _read_meter_csvs(meter_dir)
+            s = s.reindex(idx_full).interpolate(method="time", limit=6)
+            s = s.fillna(0.0) * float(cfg_inst["factor_escala"])
+            # Clip a no-negativo (evita ruido negativo)
+            D_paper_full[n, :] = np.maximum(s.to_numpy(), 0.0)
+            mean_kw = float(D_paper_full[n].mean())
+            print(f"    {inst}: {cfg_inst['medidor_nombre']} "
+                  f"× {cfg_inst['factor_escala']} → D̄={mean_kw:.2f} kW")
+        except Exception as e:
+            print(f"    {inst}: ERROR ({e}); fallback a M1 totalizador")
+            D_paper_full[n, :] = D_full[n, :]
+
+    # 3. Slice al horizonte solicitado (mes específico).
+    D, G, idx = slice_horizon(D_paper_full, G_full, idx_full, t_start, t_end)
+    return D, G, idx, agents
 
 
 # ─── Setup parametros y series ─────────────────────────────────────────────
@@ -363,6 +470,9 @@ def main() -> int:
                     help="Metodo PDE para C4 (default capacity_proportional).")
     ap.add_argument("--keep-profile", action="store_true",
                     help="NO homogeneizar (debug). Por defecto se aplica A1.")
+    ap.add_argument("--no-paper-meters", action="store_true",
+                    help="NO usar selección CAL-28 (usar M1 totalizador). "
+                         "Solo para comparación con baseline tesis.")
     args = ap.parse_args()
 
     print()
@@ -382,8 +492,15 @@ def main() -> int:
     print(f"  [CAL-25/G ] Horizonte: [{t_start} .. {t_end})")
 
     t0 = time.time()
-    D, G, idx, agents = cargar_mte_subset(t_start, t_end)
+    if args.no_paper_meters:
+        print(f"  [CAL-28]  DESACTIVADO (--no-paper-meters): usando M1 totalizador")
+        D, G, idx, agents = cargar_mte_subset(t_start, t_end)
+    else:
+        # CAL-28 por defecto: medidores puntuales para el paper
+        D, G, idx, agents = cargar_mte_paper(t_start, t_end)
     print(f"  [paper] D={D.shape}, G={G.shape}, agentes={agents}")
+    cobertura = G.sum() / max(D.sum(), 1e-9)
+    print(f"  [paper] Cobertura PV agregada G/D = {cobertura*100:.1f} %")
     if D.shape[1] < 24:
         print(f"  [paper] ERROR: subset demasiado corto ({D.shape[1]}h)")
         return 1

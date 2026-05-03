@@ -1,0 +1,6 @@
+institucion,carpeta,medidor_nombre,factor_escala,nota
+Udenar,electricMeter,Bloque Sur - Medidor 3,1.0,Sub-medidor circuito Bloque Sur
+Mariana,electricMeter,Medidor 1 - Alvernia,0.3,M3 vacío; M1 escalado al 30% representa una facultad
+UCC,electricMeter,Medidor 3 - UCC,1.0,Sub-medidor circuito UCC
+HUDN,electricMeter,Medidor 3 - HUDN,1.0,Sub-medidor circuito HUDN
+Cesmag,eletricMeter,Medidor 3 - Cesmag,1.0,Sub-medidor circuito Cesmag

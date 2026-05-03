@@ -513,3 +513,114 @@ baseline mediante el wrapper de telemetria
 distributiva sin perder bienestar agregado; la arquitectura completa
 (24 ADRs) garantiza trazabilidad regulatoria y reproducibilidad
 hacia auditores y asesores.]
+
+---
+
+## §6.5 — Subset paper IEEE WEEF 2026 (modo paper, CAL-25..29)
+
+### Configuración paper
+
+El paper IEEE WEEF 2026 usa un subset de la corrida de tesis con
+ajustes acordados con asesores (reunión 2026-05-01,
+`Documentos/Reunion0105.txt`):
+
+- **CAL-25** (modo paper): homogeneización a perfil tarifario
+  `comercial` y filtrado a 3 escenarios (P2P, C1=CREG 174, C2=C4
+  renombrado=CREG 101 072). La tesis mantiene heterogeneidad oficial
+  vs comercial.
+- **CAL-28** (medidor puntual): selección de sub-medidor M3 por
+  institución (Mariana M1 × 0.3) → cobertura PV agregada **96 %**
+  vs **19 %** del totalizador M1. Mercado P2P pasa de 0 % a 29.7 %
+  de horas activas.
+- **CAL-29** (fórmula canónica): autoconsumo en TODAS las horas +
+  revenue completo del trade + residual surplus a `pi_bolsa[k]`.
+  Simétrico con C1/C2.
+- **CAL-26/CAL-27** opt-in: PDE excedentes y C4 monthly_hx (no
+  modifican baseline).
+
+### Resultados paper — agosto-2025, baseline 1.0× PV
+
+| Escenario | Ahorro autoconsumo [M COP] | Venta excedentes [M COP] | Total [M COP] |
+|---|---:|---:|---:|
+| P2P (Stackelberg + RD) | 3.60 | 1.21 | **4.81** |
+| C1 (CREG 174) | 3.60 | 1.35 | **4.95** |
+| C2 (CREG 101 072) | 3.60 | 0.98 | **4.58** |
+
+P2P queda 2.9 % bajo C1 y 5.0 % sobre C2. La descomposición confirma
+empíricamente la intuición del asesor: el autoconsumo es **offset
+físico común** (3.60 M COP idéntico en los 3 escenarios); las ventas
+de excedentes son el **diferenciador regulatorio real**.
+
+### Heterogeneidad por institución
+
+| Agente | P2P [COP] | C1 [COP] | C2 [COP] | Mejor |
+|---|---:|---:|---:|:---:|
+| Udenar | 787 250 | 759 326 | 704 467 | **P2P** (+27K vs C1) |
+| Mariana | 855 641 | 873 086 | 815 953 | C1 (+17K vs P2P) |
+| UCC | 1 376 917 | 1 802 451 | 1 431 606 | C1 (+425K vs P2P) |
+| HUDN | 815 894 | 789 266 | 751 983 | **P2P** (+27K vs C1) |
+| Cesmag | 972 226 | 726 314 | 873 599 | **P2P** (+246K vs C1) |
+
+**3 de 5 instituciones individualmente prefieren P2P** sobre C1.
+La agregación oculta heterogeneidad relevante para análisis de
+adopción.
+
+### Sensibilidad PV — transición de fase a P2P
+
+Barrido `factor ∈ {1.0, 1.5, 2.0, 2.5, 3.0}` (96 %–288 % cobertura
+comunitaria):
+
+| Factor | Cobertura | P2P [M] | C1 [M] | C2 [M] | Rank P2P | Rank C1 | Rank C2 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 1.0 | 96 % | 4.81 | 4.95 | 4.58 | 2 | 1 | 3 |
+| 1.5 | 144 % | 5.94 | 5.63 | 5.76 | **1** | 3 | 2 |
+| 2.0 | 192 % | 6.87 | 6.64 | 6.75 | **1** | 3 | 2 |
+| 2.5 | 240 % | 7.74 | 7.57 | 7.65 | **1** | 3 | 2 |
+| 3.0 | 288 % | 8.59 | 8.44 | 8.51 | **1** | 3 | 2 |
+
+**Hallazgo principal del paper**: P2P es competitivo a baseline
+(rank 2) y se convierte en óptimo absoluto a partir de factor 1.5×.
+La transición ocurre entre 1.0× y 1.5× cobertura.
+
+### Auditoría histórica del fix CAL-29
+
+La descomposición `_p2p_decomposed` previa a CAL-29 sub-reportaba P2P
+en 1.92 M COP debido a dos bugs:
+
+- Bug 1: `(pi_star − pi_gb) × P_sold` (incremental sobre baseline
+  bolsa) en lugar de revenue completo + residual a `pi_bolsa`.
+- Bug 2: autoconsumo solo en horas con mercado activo (omitía
+  523/744 horas).
+
+Con la fórmula buggy P2P aparecía perdiendo 38 % vs C1; corregido,
+la diferencia es solo 2.9 %. Verificación empírica del audit:
+`delta = pi_bolsa_mean × E_surplus_total = 234.5 × 4085.6 ≈ 958 K
+COP`, coincide exacto con la cifra observada. Documento completo
+en `Documentos/audit_p2p_decomposition.md` (Sprint 6.6-A).
+
+### Trazabilidad regulatoria
+
+Los 3 escenarios del paper se sustentan en ADRs específicos:
+
+- **C1** → ADR-0010 (CAL-10 Tipo 1/2 + Cvm), CAL-9 (`pi_gs`
+  temporal), CAL-14 (techo PES CREG 101 066), CAL-17 (auditoría
+  pydataxm).
+- **C2** (CREG 101 072) → ADR-0011 (CAL-15 herencia CREG 174),
+  ADR-0026 (PDE excedentes opt-in), ADR-0027 (monthly_hx).
+- **P2P** → CAL-1 a CAL-7 (parámetros núcleo), ADR-0029 (fórmula
+  canónica paper-only).
+
+CAL-24 (swarm validador regulatorio) confirma PASS 15/15 sobre el
+repo post-Sprint 6.
+
+### Borrador del paper
+
+Documentos producidos para IEEE WEEF 2026 (deadline 2026-05-10):
+
+- `Documentos/paper_weef.md` — borrador en inglés, 9 páginas
+  estimadas, ~5 000 palabras.
+- `Documentos/paper_weef_bib.bib` — 26 entradas BibTeX.
+
+Pendiente al cierre de la tesis (no a este capítulo): conversión
+LaTeX con plantilla IEEEtran + validación IEEE PDF eXpress (Conf
+ID 71988X) + submit ACOFI Papers.

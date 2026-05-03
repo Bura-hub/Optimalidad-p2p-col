@@ -391,3 +391,104 @@ beneficiarios distinta.
    y citas bibliograficas BibTeX.
 4. Cruzar verificacion cuantitativa con §4.9 del capitulo 4
    (resultados deben coincidir).
+
+---
+
+## §5.7 — Discusión regulatoria: subset paper IEEE WEEF 2026
+
+Esta sección extiende §5.2 con la lectura regulatoria del subset
+paper (CAL-25..29). Las cifras y trazabilidad se documentan en
+`borrador_cap4_resultados.md` §6.5.
+
+### §5.7.1 Naturaleza del offset común
+
+El paper confirma con sub-medidores (CAL-28, cobertura 96 %) la
+hipótesis del asesor expresada en `Reunion0105.txt` líneas 414-462:
+**el ahorro por autoconsumo (3.60 M COP en agosto-2025) es físicamente
+idéntico en P2P, C1 y C2**. La energía que nunca atraviesa la frontera
+del sitio del prosumidor no es objeto de regulación CREG: `pi_gs`
+completo aplica como ahorro implícito.
+
+Esta simetría no es trivial: en la simulación pre-CAL-29 el offset
+P2P aparecía como 2.64 M COP (solo horas con mercado activo) — un
+artefacto de implementación que ocultaba la equivalencia física. La
+fórmula canónica de CAL-29 restaura la simetría y permite afirmar
+sin ambigüedades que **los tres escenarios solo se diferencian en
+qué pasa con el excedente**.
+
+### §5.7.2 Diferenciador regulatorio: la valoración del excedente
+
+Ya con el offset común aislado, las ventas de excedentes en
+agosto-2025 se distribuyen así (M COP):
+
+- **C1 (CREG 174)**: 1.35 M, vía Tipo 1 a `(pi_gs − Cvm) ≈ 600
+  COP/kWh` y Tipo 2 a `pi_bolsa[k] ≈ 234`.
+- **C2 (CREG 101 072)**: 0.98 M, mismo mecanismo Tipo 1/Tipo 2
+  pero sobre el balance comunitario agregado vía PDE
+  (`capacity_proportional`).
+- **P2P**: 1.21 M, vía price discovery Stackelberg
+  (`pi_star ∈ [pi_gb, pi_gs]`) sobre la fracción transada
+  internamente (525.88 kWh, 12 % del excedente total) y `pi_bolsa[k]`
+  sobre el residual (88 % del excedente).
+
+C1 supera a P2P por 142 K COP debido a la diferencia entre
+`pi_gs − Cvm` (Tipo 1) y `pi_star` para los kWh que crucen Hx en C1.
+P2P supera a C2 porque el price discovery interno extrae un spread
+que el PDE comunitario administrativo no puede capturar.
+
+### §5.7.3 Phase transition: P2P óptimo a partir de PV factor ≥ 1.5
+
+El barrido PV revela el aporte estructural del mercado P2P en
+escenarios de mayor penetración solar:
+
+- A 96 % cobertura (1.0×): P2P rank 2, marginalmente bajo C1.
+- A ≥ 144 % cobertura (≥ 1.5×): **P2P se vuelve óptimo absoluto**,
+  superando ambos esquemas regulatorios CREG.
+
+La interpretación regulatoria es directa: cuando la comunidad alcanza
+sobre-generación estructural, el mecanismo administrativo de
+permuta-más-bolsa (compartido por C1 y C2) deja eficiencia sobre la
+mesa. El P2P captura esa eficiencia vía price discovery dinámico.
+
+Esto sugiere que la elección regulatoria de Colombia entre CREG 174
+(individual) y CREG 101 072 (colectivo) no es ortogonal a la velocidad
+de despliegue solar: ambos se vuelven sub-óptimos simultáneamente
+cuando la comunidad supera 144 % cobertura. Bajo el plan UPME
+2025-2039, este umbral es alcanzable en comunidades educativas
+universitarias en horizonte 5-10 años.
+
+### §5.7.4 Heterogeneidad por agente y adopción
+
+A nivel agente individual (CAL-29 per-agent breakdown):
+
+- **Udenar, HUDN, Cesmag** (3/5): prefieren P2P sobre C1 individualmente.
+- **Mariana, UCC** (2/5): prefieren C1.
+
+La heterogeneidad se explica por el perfil generación/demanda. UCC
+tiene la cobertura más baja (alta demanda) y se beneficia más del
+crédito Tipo 1 a `pi_gs − Cvm` que del trading P2P (donde es
+predominantemente comprador). Cesmag, con perfil más equilibrado,
+gana 246 K COP adicionales cuando puede vender a sus pares.
+
+**Implicación de adopción**: una decisión regulatoria sobre P2P no
+debería ignorar esta heterogeneidad. Comunidades con perfiles diversos
+generan ganadores y perdedores entre mecanismos; un esquema mixto
+(opcional) podría ser preferible a un mandato uniforme.
+
+### §5.7.5 Limitaciones y trabajo futuro
+
+La conclusión del paper se sostiene bajo:
+
+1. Un mes (agosto-2025), 5 instituciones (N=5 pequeño).
+2. Cobertura 96 % obtenida vía sub-medidores M3 (paper-only).
+   El cap. 4 §6.4 mantiene el escenario tesis (cobertura 19 % con
+   M1 totalizador) donde P2P-vs-C4 da `RPE = +0.43 %`, también
+   favorable.
+3. Sin demand response (`alpha=0`).
+4. PV factor ≥ 1.5× ilustrativo, no realista para edificios
+   comerciales actuales.
+
+CAL-30 (Sprint 7 post-paper) migrará el engine de la tesis a la
+fórmula canónica para re-evaluar capítulo 4 completo. El cambio
+es esperable: invariante en signo (P2P sigue ganando RPE) pero
+con magnitud actualizada en agregado.

@@ -47,9 +47,23 @@ plt.rcParams.update({
 })
 
 
-def _save(fig, path: str, dpi: int = 150) -> str:
-    fig.savefig(path, dpi=dpi, bbox_inches="tight",
+def _save(fig, path: str, dpi: int | None = None) -> str:
+    """Guarda fig en PNG. Si dpi es None, usa rcParams['savefig.dpi'].
+
+    Cuando ``apply_ieee_style()`` (visualization/ieee_style.py) se ha
+    llamado antes, rcParams['savefig.dpi']=300 y se exporta tambien
+    PDF vectorial junto al PNG (sibling con extension .pdf).
+    """
+    actual_dpi = dpi if dpi is not None else int(plt.rcParams.get("savefig.dpi", 150))
+    fig.savefig(path, dpi=actual_dpi, bbox_inches="tight",
                 facecolor="white", edgecolor="none")
+    if actual_dpi >= 300 and str(path).lower().endswith(".png"):
+        pdf_path = str(path)[:-4] + ".pdf"
+        try:
+            fig.savefig(pdf_path, format="pdf", bbox_inches="tight",
+                        facecolor="white", edgecolor="none")
+        except Exception:
+            pass
     plt.close(fig)
     return path
 

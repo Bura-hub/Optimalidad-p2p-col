@@ -152,9 +152,14 @@ class SolverParams:
     tau_buyers:        float = 0.01     # tau3 en JoinFinal.m (escala comprador)
     t_span:            tuple = (0.0, 0.01)   # iguala t_span=[0,0.01] de JoinFinal.m
     n_points:          int   = 300           # Euler compradores; dt=3.33e-5
+    # Default `iters=2`, `tol=1e-3`, `max=10` sustentados por CAL-1 (sintetico)
+    # y CAL-19 (empirico MTE 168h). Ver `docs/adr/0019-cal19-stackelberg-
+    # convergencia-empirica.md` y `analysis/stackelberg_convergence_real.py`.
+    # Trade-off: |Δwelfare(iters=2) - welfare(iters=10)| < 0.02% con 2.4×
+    # speedup vs iters=10 sobre el subset.
     stackelberg_iters: int   = 2    # iteraciones mínimas (min_iter)
     stackelberg_tol:   float = 1e-3  # tolerancia relativa ||P_new - P_old|| / (||P_old|| + ε)
-    stackelberg_max:   int   = 10    # iteraciones máximas
+    stackelberg_max:   int   = 10    # iteraciones máximas (red de seguridad)
     parallel:          bool  = True
     ode_method:        str   = "LSODA"   # solver de scipy para solve_sellers
 

@@ -313,73 +313,166 @@ PAPER_RENAMING = {
 }
 
 
+def _p2p_decomposed(p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids):
+    """
+    Decompone net_benefit P2P en (autoconsumo, mercado) por agente.
+
+    Replica la lógica de scenarios.comparison_engine._p2p_monetary_benefit
+    pero retorna las dos componentes separadas (CAL-Sprint 6.4).
+
+    autoconsumo[n]   = sum_t min(G_klim[n,t], D[n,t]) * pi_gs[n,t]
+    mercado[n]       = vendedor_premium[n] + comprador_savings[n]
+                       (todo lo que no es autoconsumo)
+    """
+    from scenarios._pi_gs import as_pi_gs_array
+
+    N, T = D.shape
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+
+    autoconsumo_per_agent = np.zeros(N)
+    mercado_per_agent = np.zeros(N)
+
+    for k_local, r in enumerate(p2p_results):
+        if r.P_star is None:
+            continue
+        # Autoconsumo: ocurre antes del juego, igual en todos los escenarios.
+        for n in prosumer_ids:
+            auto_kn = float(min(G_klim[n, k_local], D[n, k_local]))
+            autoconsumo_per_agent[n] += auto_kn * float(pi_gs_v[n, k_local])
+
+        # Mercado P2P: prima del vendedor + ahorro del comprador
+        if r.pi_star is None:
+            continue
+        sids = r.seller_ids or []
+        bids = r.buyer_ids or []
+        if not sids or not bids:
+            continue
+        try:
+            pi_st = np.asarray(r.pi_star, dtype=float)
+            P = np.asarray(r.P_star, dtype=float)
+        except Exception:
+            continue
+        if np.any(~np.isfinite(pi_st)) or np.any(~np.isfinite(P)):
+            continue
+        # Vendedor j ofrece sum_i P[j,i] al precio promedio de pi_star.
+        for j_idx, j in enumerate(sids):
+            sold = float(P[j_idx].sum())
+            if sold > 1e-9:
+                price_avg = float((pi_st * P[j_idx]).sum()) / sold
+                premium = (price_avg - pi_gb) * sold
+                mercado_per_agent[j] += premium
+        # Comprador i recibe sum_j P[j,i] al precio P2P.
+        for i_idx, i in enumerate(bids):
+            bought = float(P[:, i_idx].sum())
+            if bought > 1e-9:
+                pi_buy = float(pi_st[i_idx])
+                pi_gs_ki = float(pi_gs_v[i, k_local])
+                savings = (pi_gs_ki - pi_buy) * bought
+                mercado_per_agent[i] += savings
+
+    return autoconsumo_per_agent, mercado_per_agent
+
+
 def construir_resumen(p2p_results, c1_per_agent, c4_result,
                        agents: list[str], D, G_klim, pi_gs, pi_gb,
                        prosumer_ids) -> pd.DataFrame:
     """Construye DataFrame Resumen con renaming del paper.
 
-    P2P net_benefit usa la misma fórmula que C1/C4
-    (autoconsumo + welfare del juego) vía
-    `_p2p_monetary_benefit` para que las cifras sean comparables.
-    """
-    from scenarios.comparison_engine import _p2p_monetary_benefit
+    Sprint 6.4: separa Ahorro_autoconsumo (offset común) vs
+    Venta_excedentes (diferenciador) por escenario, además del Total.
 
+    P2P net_benefit usa la misma fórmula que C1/C4 vía decomposición
+    explícita autoconsumo + mercado P2P.
+    """
     N = len(agents)
 
-    # P2P agregado: autoconsumo + welfare del juego, comparable con C1/C4
-    p2p_net_per_agent = _p2p_monetary_benefit(
+    # P2P decompuesto
+    p2p_auto, p2p_mercado = _p2p_decomposed(
         p2p_results, D, G_klim, pi_gs, pi_gb, prosumer_ids,
     )
+    p2p_net_per_agent = p2p_auto + p2p_mercado
     p2p_net = float(np.sum(p2p_net_per_agent))
+    p2p_auto_total = float(p2p_auto.sum())
+    p2p_mercado_total = float(p2p_mercado.sum())
     active = [r for r in p2p_results
               if r.P_star is not None and np.sum(r.P_star) > 1e-4]
     p2p_kwh = sum(float(np.sum(r.P_star)) for r in active)
 
-    # C1 agregado
-    c1_net_per_agent = np.array([
-        c1_per_agent[n]["net_benefit"] if n in c1_per_agent else 0.0
-        for n in range(N)
-    ])
-    c1_total = float(np.sum(c1_net_per_agent))
+    # C1 decompuesto (savings = autoconsumo + Tipo 1; surplus_revenue = Tipo 2 bolsa)
+    c1_auto = np.zeros(N); c1_mercado = np.zeros(N)
+    for n in range(N):
+        if n in c1_per_agent:
+            d = c1_per_agent[n]
+            # En C1, "savings" = E_auto*pi_gs + E_t1*(pi_gs-Cvm). El offset
+            # "Ahorro autoconsumo" comparable es E_auto*pi_gs; el resto
+            # (Tipo 1 + Tipo 2) es "Venta excedentes".
+            E_auto = d.get("E_auto", 0.0)
+            # Aproximamos el ahorro de autoconsumo como pi_gs * E_auto
+            # usando el promedio comunitario del periodo. Más preciso seria
+            # leer pi_gs[n] del periodo, pero al estar homogeneizado (CAL-25)
+            # el promedio = el escalar comercial.
+            pi_gs_avg = float(np.nanmean(pi_gs))
+            ahorro_n = E_auto * pi_gs_avg
+            c1_auto[n] = ahorro_n
+            c1_mercado[n] = d["net_benefit"] - ahorro_n
+    c1_net_per_agent = c1_auto + c1_mercado
+    c1_total = float(c1_net_per_agent.sum())
 
-    # C4 agregado (renombrado a C2 paper)
+    # C4 decompuesto: savings = autoconsumo; pde_credits = Tipo 1; surplus_revenue = Tipo 2
     c4_per_agent = c4_result["per_agent"]
-    c4_net_per_agent = np.array([
-        c4_per_agent[n]["net_benefit"] if n in c4_per_agent else 0.0
-        for n in range(N)
-    ])
-    c4_total = float(np.sum(c4_net_per_agent))
+    c4_auto = np.zeros(N); c4_mercado = np.zeros(N)
+    for n in range(N):
+        if n in c4_per_agent:
+            d = c4_per_agent[n]
+            # En C4 "savings" = autoconsumo*pi_gs (sin permuta), separado.
+            c4_auto[n] = float(d.get("savings", 0.0))
+            c4_mercado[n] = (float(d.get("pde_credits", 0.0))
+                              + float(d.get("surplus_revenue", 0.0)))
+    c4_net_per_agent = c4_auto + c4_mercado
+    c4_total = float(c4_net_per_agent.sum())
 
     rows = [
         {
             "Escenario": PAPER_RENAMING["P2P"],
-            "net_benefit_total_COP": round(p2p_net, 1),
-            "kWh_P2P_total": round(p2p_kwh, 3),
-            "horas_activas": len(active),
-            "Mecanismo": "Stackelberg leader-follower + Replicator Dynamics",
-            "Fuente legal": "—",
+            "Ahorro_autoconsumo_COP": round(p2p_auto_total, 1),
+            "Venta_excedentes_COP":   round(p2p_mercado_total, 1),
+            "Total_COP":              round(p2p_net, 1),
+            "kWh_P2P_total":          round(p2p_kwh, 3),
+            "horas_activas":          len(active),
+            "Mecanismo":              "Stackelberg leader-follower + Replicator Dynamics",
+            "Fuente legal":           "—",
         },
         {
             "Escenario": PAPER_RENAMING["C1"],
-            "net_benefit_total_COP": round(c1_total, 1),
-            "kWh_P2P_total": 0.0,
-            "horas_activas": 0,
-            "Mecanismo": "AGPE Tipo 1 / Tipo 2 + componente Cvm",
-            "Fuente legal": "CREG 174/2021 art. 22-25",
+            "Ahorro_autoconsumo_COP": round(float(c1_auto.sum()), 1),
+            "Venta_excedentes_COP":   round(float(c1_mercado.sum()), 1),
+            "Total_COP":              round(c1_total, 1),
+            "kWh_P2P_total":          0.0,
+            "horas_activas":          0,
+            "Mecanismo":              "AGPE Tipo 1 / Tipo 2 + componente Cvm",
+            "Fuente legal":           "CREG 174/2021 art. 22-25",
         },
         {
             "Escenario": PAPER_RENAMING["C4"],
-            "net_benefit_total_COP": round(c4_total, 1),
-            "kWh_P2P_total": 0.0,
-            "horas_activas": 0,
-            "Mecanismo": "PDE comunitario + herencia CREG 174",
-            "Fuente legal": "Decreto 2236/2023 + CREG 101 072/2025",
+            "Ahorro_autoconsumo_COP": round(float(c4_auto.sum()), 1),
+            "Venta_excedentes_COP":   round(float(c4_mercado.sum()), 1),
+            "Total_COP":              round(c4_total, 1),
+            "kWh_P2P_total":          0.0,
+            "horas_activas":          0,
+            "Mecanismo":              "PDE comunitario + herencia CREG 174",
+            "Fuente legal":           "Decreto 2236/2023 + CREG 101 072/2025",
         },
     ]
+    # mantener compatibilidad: por_agente recibe scenarios_data como antes.
     return pd.DataFrame(rows), {
         PAPER_RENAMING["P2P"]: (p2p_net, p2p_net_per_agent),
         PAPER_RENAMING["C1"]:  (c1_total, c1_net_per_agent),
         PAPER_RENAMING["C4"]:  (c4_total, c4_net_per_agent),
+    }, {
+        # Decomposición separada para la figura barras apiladas
+        PAPER_RENAMING["P2P"]: (p2p_auto_total, p2p_mercado_total),
+        PAPER_RENAMING["C1"]:  (float(c1_auto.sum()), float(c1_mercado.sum())),
+        PAPER_RENAMING["C4"]:  (float(c4_auto.sum()), float(c4_mercado.sum())),
     }
 
 
@@ -399,8 +492,9 @@ def construir_por_agente(agents, scenarios_data: dict) -> pd.DataFrame:
 
 def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
               D, G, idx, agents: list[str], out_dir: Path,
-              tag: str, month: str) -> dict:
-    """Genera xlsx + png de perfiles."""
+              tag: str, month: str,
+              decomposition: dict | None = None) -> dict:
+    """Genera xlsx + png de perfiles + figura barras apiladas (Sprint 6.4)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     xlsx_path = out_dir / f"resultados_paper_{tag}.xlsx"
     with pd.ExcelWriter(xlsx_path, engine="openpyxl") as w:
@@ -451,6 +545,53 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
         print(f"  [paper] Figura -> {rel_png}")
     except Exception as e:
         print(f"  [paper] Figura skipped ({e})")
+
+    # Sprint 6.4: figura barras apiladas (offset común vs diferencial)
+    if decomposition:
+        try:
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            scenarios = list(decomposition.keys())
+            ahorro_vals  = [decomposition[s][0] / 1e6 for s in scenarios]
+            venta_vals   = [decomposition[s][1] / 1e6 for s in scenarios]
+
+            fig, ax = plt.subplots(figsize=(8, 5))
+            x = np.arange(len(scenarios))
+            width = 0.6
+            b1 = ax.bar(x, ahorro_vals, width, label="Self-consumption savings (offset)",
+                         color="tab:gray", alpha=0.85)
+            b2 = ax.bar(x, venta_vals, width, bottom=ahorro_vals,
+                         label="Surplus revenue (differentiator)",
+                         color="tab:blue", alpha=0.85)
+            for i, (a, v) in enumerate(zip(ahorro_vals, venta_vals)):
+                ax.text(i, a / 2, f"{a:.2f}", ha="center", va="center",
+                        fontsize=8, color="white")
+                ax.text(i, a + v / 2, f"{v:.2f}", ha="center", va="center",
+                        fontsize=8, color="white")
+                ax.text(i, a + v + 0.05 * max(ahorro_vals + venta_vals),
+                        f"Total {a+v:.2f}", ha="center", fontsize=9,
+                        fontweight="bold")
+            ax.set_xticks(x)
+            ax.set_xticklabels([s.replace(" (", "\n(") for s in scenarios],
+                                fontsize=9)
+            ax.set_ylabel("Net benefit [million COP]")
+            ax.set_title(f"Self-consumption (common offset) vs. surplus revenue\n"
+                          f"({month}, IEEE WEEF paper)")
+            ax.legend(loc="upper right", fontsize=9)
+            ax.grid(axis="y", alpha=0.3)
+            fig.tight_layout()
+            stack_path = out_dir / f"fig_offset_vs_diferencial_{tag}.png"
+            fig.savefig(stack_path, dpi=130, bbox_inches="tight")
+            plt.close(fig)
+            try:
+                rel_stack = stack_path.relative_to(ROOT)
+            except ValueError:
+                rel_stack = stack_path
+            print(f"  [paper] Figura barras apiladas -> {rel_stack}")
+        except Exception as e:
+            print(f"  [paper] Figura barras apiladas skipped ({e})")
 
     return {"xlsx": str(xlsx_path), "month": month, "tag": tag}
 
@@ -545,8 +686,8 @@ def main() -> int:
     elapsed = time.time() - t0
     print(f"\n  [paper] Simulacion completada en {elapsed:.1f}s")
 
-    # Resumen + por_agente
-    resumen, scenarios_data = construir_resumen(
+    # Resumen + por_agente + decomposición ahorro/venta
+    resumen, scenarios_data, decomposition = construir_resumen(
         p2p_results, c1_per_agent, c4_result, agents,
         D, G_klim, p["pi_gs"], pi_gb, prosumer_ids,
     )
@@ -562,7 +703,8 @@ def main() -> int:
     # Export
     out_dir = Path(args.out_dir)
     info = exportar(resumen, por_agente, D, G, idx, agents,
-                     out_dir, args.tag, args.month)
+                     out_dir, args.tag, args.month,
+                     decomposition=decomposition)
     print(f"\n  [paper] Hecho. tag={info['tag']}")
     return 0
 

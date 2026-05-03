@@ -85,7 +85,13 @@ def run_c1_creg174(
         deficit_h[k] = max(D[n,k] - G[n,k], 0)   ← retirado de la red
         auto_h[k]    = min(G[n,k], D[n,k])       ← autoconsumo directo
 
-    Búsqueda de hora Hx (CREG 174 art. 22-23):
+    Búsqueda de hora Hx (mecánica derivada de CREG 174 art. 25):
+    -- NOTA TERMINOLÓGICA (CAL-31, 2026-05-03): "Tipo 1", "Tipo 2" y
+       "hora Hx" son denominaciones DIDÁCTICAS del sector (EDEQ, Solsta,
+       etc.), NO cita literal de CREG 174/2021. El art. 25 habla de
+       "crédito de energía" (excedentes ≤ importación) y "valoración
+       horaria del residual" (excedentes > importación). El algoritmo
+       implementa esa mecánica con etiquetas internas.
 
         inyección_acum, retiro_acum = 0, 0
         for k_local, k_global in enumerate(hours):
@@ -121,7 +127,8 @@ def run_c1_creg174(
           tanto C no aplica.
         - Permuta Tipo 1: la energía sí circula por la red distribución y
           por el sistema de medición bidireccional, lo que justifica que
-          el comercializador siga cobrando C bajo CREG 174 art. 22.
+          el comercializador siga cobrando C bajo CREG 174 art. 25
+          (créditos de energía).
 
     Notas
     -----
@@ -208,7 +215,8 @@ def run_c1_creg174(
             # ── Valoración ───────────────────────────────────────────────
             # Autoconsumo: pi_gs completo (no toca la red → C no aplica).
             # Permuta Tipo 1: (pi_gs - pi_C) (sí toca la red, C se factura).
-            # CREG 174 art. 22-23, Decreto 2469/2014 art. 2.2.3.2.4.1.
+            # CREG 174 art. 25 (créditos + valoración horaria),
+            # Decreto 2469/2014 art. 2.2.3.2.4.1.
             pi_gs_period = float(pi_gs_v[n, hours].mean())
             pi_C_period  = float(pi_C_v[n, hours].mean())
             pi_eff_t1    = pi_gs_period - pi_C_period

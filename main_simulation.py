@@ -132,11 +132,43 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             print(f"    Basado en {D_full.shape[1]} horas reales")
             print(f"    Para horizonte completo: --full")
 
-        # Precios de bolsa: real si hay CSV, sintético si no
+        # Precios de bolsa: real si hay CSV, sintético si no.
+        # CAL-17 Sprint 1.1b (2026-05-02): se pasa t_start/t_end derivados
+        # del index MTE para alinear pi_bolsa por fecha con D y G en los
+        # modos --full y --day. Antes el cache se cargaba con default
+        # t_start=2025-07-01 y los 6144 valores indexados [0..T-1] quedaban
+        # desplazados ~88 dias respecto al horizonte MTE (abr-2025 a
+        # dic-2025). Ver ADR-0017 post-script Sprint 1.1b.
         xm_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                "data", "xm_precios_bolsa.csv")
-        pi_bolsa = get_pi_bolsa(T, csv_path=xm_csv if os.path.exists(xm_csv) else None,
-                                 scenario="2025_normal")
+        if full_horizon:
+            t_start_xm = index_full[0].strftime("%Y-%m-%d")
+            t_end_xm = (index_full[-1] + pd.Timedelta(hours=1)).strftime("%Y-%m-%d")
+            pi_bolsa = get_pi_bolsa(
+                T,
+                t_start=t_start_xm,
+                t_end=t_end_xm,
+                csv_path=xm_csv if os.path.exists(xm_csv) else None,
+                scenario="2025_normal",
+            )
+        elif single_day:
+            t_start_xm = idx_day[0].strftime("%Y-%m-%d")
+            t_end_xm = (idx_day[-1] + pd.Timedelta(hours=1)).strftime("%Y-%m-%d")
+            pi_bolsa = get_pi_bolsa(
+                T,
+                t_start=t_start_xm,
+                t_end=t_end_xm,
+                csv_path=xm_csv if os.path.exists(xm_csv) else None,
+                scenario="2025_normal",
+            )
+        else:
+            # Modo perfil diario promedio (T=24): mantiene defaults para no
+            # forzar alineacion fecha-a-fecha de un perfil agregado.
+            pi_bolsa = get_pi_bolsa(
+                T,
+                csv_path=xm_csv if os.path.exists(xm_csv) else None,
+                scenario="2025_normal",
+            )
         cov = tariff_coverage(t_start_cal, t_end_cal)
         if cov["meses_faltantes"]:
             print(f"    AVISO: {len(cov['meses_faltantes'])} mes(es) sin "

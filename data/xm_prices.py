@@ -37,12 +37,18 @@ from datetime import datetime, timedelta
 warnings.filterwarnings("ignore")
 
 # ── Promedios mensuales REALES verificados (COP/kWh) ─────────────────────────
-# PB_PROM oficial XM (media ponderada por demanda) por mes.
-# Fuentes (verificadas en CAL-17 audit, 2026-05-02):
+# PB_PROM oficial XM (media ponderada por demanda) por mes para los 7 meses
+# verificados en CAL-17 audit (2026-05-02), mas la media aritmetica del cache
+# para los 3 meses adicionales (abr/may/jun 2025) extendidos en Sprint 1.1b.
+# Fuentes verificadas (jul-2025 a ene-2026):
 #   - xm.com.co/noticias/{8119,8184,8442,8584,8759}
 #   - sinergox.xm.com.co/.../03_Informe_Precios_y_Transacciones_*.xlsx
-# Ver docs/adr/0017-cal17-pydataxm-vs-ptb-audit.md
+# Provisional cache mean (abr/may/jun 2025), pendiente verificacion oficial:
+#   - follow-up CAL-17b. Ver docs/adr/0017-cal17-pydataxm-vs-ptb-audit.md
 XM_MONTHLY_REAL = {
+    "2025-04": 132.51,  # cache mean (CAL-17b pendiente verificacion oficial)
+    "2025-05": 126.70,  # cache mean (CAL-17b pendiente verificacion oficial)
+    "2025-06": 112.51,  # cache mean (CAL-17b pendiente verificacion oficial)
     "2025-07": 138.36,  # Informe XM jul-2025 (xm.com.co/noticias/8119)
     "2025-08": 251.50,  # Informe XM ago-2025 (xm.com.co/noticias/8184)
     "2025-09": 292.65,  # Sinergox sep-2025 (Comportamiento_PBNal_Horario)

@@ -49,8 +49,8 @@ PB_OFFICIAL_PROM_MES = {
     "2026-01": (213.00, "xm.com.co/noticias/8759"),
 }
 
-T_HORIZONTE = 5160  # jul-2025 a ene-2026 (215 dias)
-T_START = "2025-07-01"
+T_HORIZONTE = 7272  # abr-2025 a ene-2026 (303 dias) — extendido en Sprint 1.1b
+T_START = "2025-04-04"  # alineado con horizonte MTE, ver ADR-0017 post-script
 
 
 def cargar_cache(apply_ceiling: bool = False) -> pd.Series:
@@ -98,7 +98,11 @@ def resumen_ejecutivo(df: pd.DataFrame, tolerance_pct: float) -> None:
     print()
     print("=" * 78)
     print(f"CAL-17 Auditoria pydataxm vs PB_PROM oficial XM")
-    print(f"Horizonte: {T_START} a 2026-02-01 ({T_HORIZONTE} h, 7 meses)")
+    print(f"Horizonte: {T_START} a 2026-02-01 ({T_HORIZONTE} h, 10 meses)")
+    print(f"Solo se auditan meses con PB_PROM oficial verificado:")
+    print(f"  {', '.join(sorted(PB_OFFICIAL_PROM_MES.keys()))}")
+    print(f"Meses en cache pero sin oficial verificado (CAL-17b pendiente):")
+    print(f"  2025-04, 2025-05, 2025-06")
     print(f"Tolerancia: {tolerance_pct*100:.0f} %")
     print("=" * 78)
 

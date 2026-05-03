@@ -4,36 +4,66 @@ scenario_c4_creg101072.py
 Escenario C4: Autogeneración Colectiva (AGRC)
 Resolución CREG 101 072 de 2025 + Decreto 2236 de 2023
 
-Este es el escenario más relevante para la tesis:
-representa la alternativa regulatoria vigente contra la cual
-se compara el mercado P2P dinámico.
+Este es el escenario más relevante para la tesis: representa la
+alternativa regulatoria vigente contra la cual se compara el mercado
+P2P dinámico.
 
 Mecanismo - Porcentaje de Distribución de Excedentes (PDE):
   - Los excedentes de generación de la comunidad se distribuyen
-    administrativamente entre los miembros según ponderadores PDE_n
+    administrativamente entre los miembros según ponderadores PDE_n.
   - La distribución es ESTÁTICA: no responde a preferencias individuales
-    ni a condiciones de oferta/demanda en tiempo real
+    ni a condiciones de oferta/demanda en tiempo real.
   - Restricciones regulatorias clave:
       * Capacidad total <= 100 kW (régimen simplificado)
-      * Ningún participante puede tener más del 10% de la capacidad
-        instalada de otro sin activar restricciones de composición
-      * Precio de liquidación de excedentes: precio de bolsa horario
+      * Ningún participante puede tener más del 10 % de la capacidad
+        instalada de otro sin activar restricciones de composición.
+      * Componente Cvm,i,j del comercializador retenido en permuta Tipo 1.
+      * Excedentes Tipo 2 a precio de bolsa horario.
 
-Fórmula de distribución:
-    excedente_comunitario(k) = max(0, Σ_n G_n(k) - Σ_n D_n(k))
-    crédito_n(k) = PDE_n * excedente_comunitario(k)
+Marco regulatorio (CAL-15, 2026-05-01):
+  El Decreto 2236/2023 art. 4 y la CREG 101 072/2025 art. 5 establecen
+  que cada miembro AGRC se liquida bajo el régimen de Generador
+  Distribuido y AGPE. Por linealidad regulatoria C4 hereda CREG 174/2021
+  art. 25:
+    - Permuta intracomunitaria (Tipo 1) → (pi_gs - Cvm,i,j)
+    - Exportación residual (Tipo 2)     → pi_bolsa[k] horario
+
+Algoritmo (hora a hora, mode="creg174_inheritance"):
+    autoconsumo[n,k]  = min(G[n,k], D[n,k])              # local
+    surplus_ind[n,k]  = max(G[n,k] - D[n,k], 0)          # al pool
+    deficit_ind[n,k]  = max(D[n,k] - G[n,k], 0)          # de la red
+    inyeccion_total[k] = sum_n surplus_ind[n,k]
+    credit[n,k]        = pde[n] * inyeccion_total[k]
+    permuta_t1[n,k]    = min(credit[n,k], deficit_ind[n,k])
+    excedente_t2[n,k]  = max(credit[n,k] - deficit_ind[n,k], 0)
+    grid_buy[n,k]      = max(deficit_ind[n,k] - credit[n,k], 0)
+
+    savings_auto[n] = sum_k autoconsumo[n,k]  * pi_gs[n,k]
+    savings_t1[n]   = sum_k permuta_t1[n,k]   * (pi_gs[n,k] - pi_C[n,k])
+    revenue_t2[n]   = sum_k excedente_t2[n,k] * pi_bolsa[k]
+    grid_cost[n]    = sum_k grid_buy[n,k]     * pi_gs[n,k]   (diagnóstico)
+
+    net_benefit[n] = savings_auto[n] + savings_t1[n] + revenue_t2[n]
 
 Referencia regulatoria:
-    Decreto 2236 de 2023 - Marco AGRC
-    Resolución CREG 101 072 de 2025 - Condiciones regulatorias
-    Resolución CREG 101 066 de 2024 - Techos tarifarios
+    Decreto 2236 de 2023 art. 4 (marco AGRC, hereda AGPE).
+    Resolución CREG 101 072 de 2025 art. 5 (condiciones operativas).
+    Resolución CREG 174 de 2021 art. 25 (Cvm,i,j sobre permuta).
+    Resolución CREG 119 de 2007 art. 11 (definición Cvm,i,j).
+    Resolución CREG 101 066 de 2024 (techos tarifarios — CAL-14).
+
+Historico:
+    Pre-CAL-15: créditos PDE valorados a pi_gs completo, sin distinción
+    Tipo 1 / Tipo 2, modo `pde_only` por defecto silenciaba la
+    exportación a bolsa. CAL-15 (2026-05-01) corrige a la lectura
+    legalmente consistente.
 """
 
 import warnings as _warnings
 import numpy as np
 from typing import Literal, Optional, Union
 
-from ._pi_gs import as_pi_gs_array
+from ._pi_gs import as_pi_gs_array, as_component_c_array
 
 
 def validate_pde(
@@ -45,29 +75,71 @@ def validate_pde(
 
 
 def compute_pde_weights(
-    capacity: np.ndarray,    # (N,) capacidad instalada kW de cada agente
+    metric: np.ndarray,       # (N,) métrica de ponderación según method
     method: str = "capacity_proportional",
 ) -> np.ndarray:
     """
     Calcula los ponderadores PDE.
 
     Métodos disponibles:
-        'capacity_proportional' : PDE_n = cap_n / sum(cap)  (más común)
-        'equal'                 : PDE_n = 1/N
+        'capacity_proportional'    : PDE_n = cap_n / sum(cap)  (default, CREG 101 072 art. 5)
+            metric esperada: capacidad instalada en kW.
+        'equal'                    : PDE_n = 1/N
+            metric ignorada (se usa solo para tamaño N).
+        'excedentes_proportional'  : PDE_n = exc_n / sum(exc)  (CAL-26, opt-in)
+            metric esperada: excedentes acumulados en kWh
+            (use ``compute_excedentes_acumulados(G, D)`` para construirlos).
 
-    En la práctica, la CREG 101 072 permite ponderadores acordados
-    entre miembros, con estas opciones como referencia.
+    Fallback: si ``sum(metric) <= 0`` (e.g., comunidad sin generación),
+    devuelve PDE uniforme 1/N en todos los métodos proporcionales.
+
+    En la práctica, la CREG 101 072 art. 5 permite ponderadores acordados
+    entre miembros; los listados aquí son referencias.
+
+    CAL-26 (ADR-0026): ``excedentes_proportional`` es opt-in. El default
+    sigue siendo ``capacity_proportional``. Para el paper IEEE WEEF se
+    reportan ambos lado a lado como sensibilidad de robustez.
     """
-    if method == "capacity_proportional":
-        total = float(np.sum(capacity))
+    if method == "capacity_proportional" or method == "excedentes_proportional":
+        total = float(np.sum(metric))
         if total < 1e-10:
-            return np.ones(len(capacity)) / len(capacity)
-        return capacity / total
+            return np.ones(len(metric)) / len(metric)
+        return np.asarray(metric, dtype=float) / total
     elif method == "equal":
-        N = len(capacity)
+        N = len(metric)
         return np.ones(N) / N
     else:
-        raise ValueError(f"Método PDE desconocido: {method}")
+        raise ValueError(
+            f"Método PDE desconocido: {method!r}. "
+            f"Use 'capacity_proportional' (default), 'equal' "
+            f"o 'excedentes_proportional' (CAL-26 opt-in)."
+        )
+
+
+def compute_excedentes_acumulados(
+    G: np.ndarray,    # (N, T) generación bruta [kWh]
+    D: np.ndarray,    # (N, T) demanda [kWh]
+) -> np.ndarray:
+    """
+    Computa el vector (N,) de excedentes brutos acumulados por agente
+    sobre toda la ventana de tiempo:
+
+        exc_n = sum_t max(G_n(t) - D_n(t), 0)
+
+    Útil como ``metric`` para
+    ``compute_pde_weights(metric, method="excedentes_proportional")``
+    según CAL-26 (ADR-0026).
+
+    Devuelve (N,) en kWh.
+    """
+    G = np.asarray(G, dtype=float)
+    D = np.asarray(D, dtype=float)
+    if G.shape != D.shape:
+        raise ValueError(
+            f"G shape {G.shape} != D shape {D.shape}"
+        )
+    surplus = np.maximum(G - D, 0.0)
+    return surplus.sum(axis=1)
 
 
 def run_c4_creg101072(
@@ -76,113 +148,233 @@ def run_c4_creg101072(
     pi_gs: Union[float, np.ndarray],  # escalar, (N,) o (N, T) — CAL-9
     pi_bolsa: np.ndarray,       # (T,) precio de bolsa $/kWh
     pde: np.ndarray,            # (N,) Porcentaje de Distribución de Excedentes
-    capacity: Optional[np.ndarray] = None,  # (N,) kW instalados (para validación)
-    max_capacity_kw: float = 100.0,         # límite régimen simplificado
-    mode: Literal["pde_only", "pde_plus_residual_export"] = "pde_only",
+    capacity: Optional[np.ndarray] = None,    # (N,) kW instalados (validación)
+    max_capacity_kw: float = 100.0,           # límite régimen simplificado
+    component_c: Union[str, float, np.ndarray, None] = "auto",  # CAL-15
+    mode: Literal[
+        "creg174_inheritance", "pde_only", "pde_plus_residual_export",
+    ] = "creg174_inheritance",
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
 
-    Modos disponibles (Tabla I propuesta):
-      pde_only (default)          : el excedente comunitario se redistribuye
-                                    completamente via PDE; no hay venta individual
-                                    a bolsa. Corresponde al mecanismo AGRC puro.
-      pde_plus_residual_export    : se exporta a bolsa solo el remanente que
-                                    supera la absorción interna (Σ déficit); se
-                                    distribuye según PDE entre los generadores.
+    Parámetros nuevos en CAL-15 (2026-05-01):
+      component_c : igual contrato que C1 (`scenarios._pi_gs.as_component_c_array`):
+        - "auto" (default): pi_C = pi_gs * C_FRACTION (~13.85 %)
+        - None / 0.0       : sin descuento (legacy pre-CAL-15)
+        - float            : COP/kWh fijo
+        - ndarray (N,)/(T,)/(N,T) : per-agente / temporal / completo
 
-    Este mecanismo es ESTÁTICO: el PDE no varía según condiciones de mercado.
+    Modos:
+      creg174_inheritance (default, CAL-15):
+        Algoritmo Tipo 1 / Tipo 2 hora a hora derivado de Decreto 2236
+        + CREG 101 072 + CREG 174 art. 25. Permuta intracomunitaria a
+        (pi_gs - Cvm); excedente residual a pi_bolsa[k] horario.
+
+      pde_only (DEPRECATED desde CAL-15):
+        Comportamiento pre-CAL-15: créditos a pi_gs completo, sin
+        exportación residual. Conservado para regression-test y
+        comparación histórica. Emite DeprecationWarning.
+
+      pde_plus_residual_export (DEPRECATED desde CAL-15):
+        Comportamiento pre-CAL-15 con exportación residual a bolsa
+        agregada (no per-agente). Subsumido por
+        creg174_inheritance que es per-agente y por hora.
     """
+    if mode in ("pde_only", "pde_plus_residual_export"):
+        _warnings.warn(
+            f"C4: mode='{mode}' es legacy pre-CAL-15. "
+            "Use mode='creg174_inheritance' (default) que aplica "
+            "CREG 174 art. 25 sobre permuta intracomunitaria. "
+            "Ver docs/adr/0011-cal15-c4-creg101072-tipo-1-2-cvm.md",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _run_c4_legacy(
+            D, G, pi_gs, pi_bolsa, pde, capacity,
+            max_capacity_kw, mode,
+        )
+
+    return _run_c4_creg174_inheritance(
+        D, G, pi_gs, pi_bolsa, pde, capacity,
+        max_capacity_kw, component_c,
+    )
+
+
+def _validate_capacity(
+    capacity: Optional[np.ndarray],
+    max_capacity_kw: float,
+) -> None:
+    """Validaciones regulatorias CREG 101 072 (régimen simplificado)."""
+    if capacity is None:
+        return
+    total_cap = float(np.sum(capacity))
+    if total_cap > max_capacity_kw:
+        raise ValueError(
+            f"Capacidad total {total_cap:.1f} kW excede límite de "
+            f"{max_capacity_kw} kW para régimen simplificado"
+        )
+    pos_cap = capacity[capacity > 0]
+    if len(pos_cap) > 1:
+        ratio = float(np.max(pos_cap)) / float(np.min(pos_cap))
+        if ratio > 10.0:
+            _warnings.warn(
+                f"C4: relación capacidad máx/mín = {ratio:.1f}× > 10×. "
+                "Verificar restricción de composición CREG 101 072.",
+                UserWarning,
+                stacklevel=3,
+            )
+
+
+def _run_c4_creg174_inheritance(
+    D, G, pi_gs, pi_bolsa, pde, capacity,
+    max_capacity_kw, component_c,
+):
+    """Implementación CAL-15: Tipo 1 a (pi_gs-Cvm), Tipo 2 a pi_bolsa."""
     N, T = D.shape
-    pi_gs_v = as_pi_gs_array(pi_gs, N, T)   # (N, T) — CAL-9
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+    pi_C    = as_component_c_array(component_c, pi_gs_v, N, T)
 
     if not validate_pde(pde):
         raise ValueError(f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}")
 
-    # Validaciones regulatorias CREG 101 072
-    if capacity is not None:
-        total_cap = float(np.sum(capacity))
-        if total_cap > max_capacity_kw:
-            raise ValueError(
-                f"Capacidad total {total_cap:.1f} kW excede límite de "
-                f"{max_capacity_kw} kW para régimen simplificado"
-            )
-        # Advertencia 10 %: relación capacidad máx/mín no debe superar 10×
-        pos_cap = capacity[capacity > 0]
-        if len(pos_cap) > 1:
-            ratio = float(np.max(pos_cap)) / float(np.min(pos_cap))
-            if ratio > 10.0:
-                _warnings.warn(
-                    f"C4: relación capacidad máx/mín = {ratio:.1f}× > 10×. "
-                    "Verificar restricción de composición CREG 101 072.",
-                    UserWarning,
-                    stacklevel=2,
-                )
-    # Advertencia comercializador único (supuesto implícito del modelo)
+    _validate_capacity(capacity, max_capacity_kw)
     _warnings.warn(
         "C4: se asume un único comercializador de respaldo. "
         "Verificar con admin MTE antes de publicar.",
         UserWarning,
-        stacklevel=2,
+        stacklevel=3,
     )
 
-    # Resultados por agente
-    savings       = np.zeros(N)     # ahorro por autoconsumo propio
-    credits_pde   = np.zeros(N)     # créditos recibidos vía PDE
-    grid_cost     = np.zeros(N)     # costo de compras a la red
-    surplus_sell  = np.zeros(N)     # ingresos por venta excedentes a bolsa
+    # Flujos individuales hora a hora.
+    G_pos       = np.maximum(G, 0.0)
+    D_pos       = np.maximum(D, 0.0)
+    autoconsumo = np.minimum(G_pos, D_pos)              # (N, T)
+    surplus_ind = np.maximum(G_pos - D_pos, 0.0)        # (N, T) al pool
+    deficit_ind = np.maximum(D_pos - G_pos, 0.0)        # (N, T) de la red
 
-    # Seguimiento horario
+    # Inyección comunitaria total: lo que cruza la frontera comunitaria.
+    # CAL-15: se distribuye vía PDE como dato BRUTO (no neto), porque
+    # ese es el monto que el comercializador ve en el medidor de la
+    # planta colectiva (Decreto 2236/2023 art. 4).
+    inyeccion_total = surplus_ind.sum(axis=0)           # (T,)
+
+    # Crédito PDE administrativo per agente.
+    credit = pde[:, None] * inyeccion_total[None, :]    # (N, T)
+
+    # Tipo 1 / Tipo 2 / compra residual a la red.
+    permuta_t1   = np.minimum(credit, deficit_ind)              # (N, T)
+    excedente_t2 = np.maximum(credit - deficit_ind, 0.0)        # (N, T)
+    grid_buy     = np.maximum(deficit_ind - credit, 0.0)        # (N, T)
+
+    # Valoración (CAL-10b.2 inheritance: solo Cvm,i,j en permuta).
+    savings   = (autoconsumo  * pi_gs_v).sum(axis=1)            # (N,)
+    pde_t1    = (permuta_t1   * (pi_gs_v - pi_C)).sum(axis=1)   # (N,)
+    surplus   = (excedente_t2 * pi_bolsa[None, :]).sum(axis=1)  # (N,)
+    grid_cost = (grid_buy     * pi_gs_v).sum(axis=1)            # (N,)
+
+    net_benefit = savings + pde_t1 + surplus
+
+    # Diagnóstico horario agregado (compatibilidad con código existente).
+    hourly_community_surplus = np.maximum(
+        inyeccion_total - deficit_ind.sum(axis=0), 0.0)         # neto a bolsa
+    hourly_distribution      = credit                           # (N, T)
+
+    results_per_agent = {}
+    for n in range(N):
+        results_per_agent[n] = {
+            "savings":         float(savings[n]),
+            "pde_credits":     float(pde_t1[n]),
+            "surplus_revenue": float(surplus[n]),
+            "grid_cost":       float(grid_cost[n]),
+            "net_benefit":     float(net_benefit[n]),
+            "pde_weight":      float(pde[n]),
+        }
+
+    return {
+        "per_agent": results_per_agent,
+        "aggregate": {
+            "total_savings":         float(savings.sum()),
+            "total_pde_credits":     float(pde_t1.sum()),
+            "total_surplus_revenue": float(surplus.sum()),
+            "total_grid_cost":       float(grid_cost.sum()),
+            "total_net_benefit":     float(net_benefit.sum()),
+        },
+        "hourly": {
+            "community_surplus":    hourly_community_surplus,
+            "pde_distribution":     hourly_distribution,
+            "inyeccion_total":      inyeccion_total,
+            "permuta_t1":           permuta_t1,
+            "excedente_t2":         excedente_t2,
+            "grid_buy":             grid_buy,
+        },
+        "regulatory": {
+            "pde_weights":          pde,
+            "static_mechanism":     True,
+            "creg174_inheritance":  True,         # CAL-15
+        },
+        "params": {
+            "mode":            "creg174_inheritance",
+            "max_capacity_kw": max_capacity_kw,
+        },
+    }
+
+
+def _run_c4_legacy(
+    D, G, pi_gs, pi_bolsa, pde, capacity,
+    max_capacity_kw, mode,
+):
+    """
+    Implementación legacy pre-CAL-15 (mode='pde_only' o
+    'pde_plus_residual_export'). Conservada para regression-test;
+    no debe usarse en producción.
+    """
+    N, T = D.shape
+    pi_gs_v = as_pi_gs_array(pi_gs, N, T)
+
+    if not validate_pde(pde):
+        raise ValueError(f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}")
+
+    _validate_capacity(capacity, max_capacity_kw)
+    _warnings.warn(
+        "C4: se asume un único comercializador de respaldo. "
+        "Verificar con admin MTE antes de publicar.",
+        UserWarning,
+        stacklevel=4,
+    )
+
+    savings       = np.zeros(N)
+    credits_pde   = np.zeros(N)
+    grid_cost     = np.zeros(N)
+    surplus_sell  = np.zeros(N)
     hourly_community_surplus = np.zeros(T)
     hourly_distribution      = np.zeros((N, T))
 
     for k in range(T):
         total_gen = float(np.sum(np.maximum(G[:, k], 0)))
         total_dem = float(np.sum(np.maximum(D[:, k], 0)))
+        autoconsumo_k = np.minimum(np.maximum(G[:, k], 0),
+                                    np.maximum(D[:, k], 0))
+        deficit_k = np.maximum(D[:, k] - G[:, k], 0.0)
 
-        # Paso 1: Autoconsumo individual
-        autoconsumo_k = np.minimum(np.maximum(G[:, k], 0), np.maximum(D[:, k], 0))
-        deficit_k     = np.maximum(D[:, k] - G[:, k], 0.0)
-        surplus_ind_k = np.maximum(G[:, k] - D[:, k], 0.0)
-
-        # Paso 2: Excedente comunitario
         community_surplus = max(0.0, total_gen - total_dem)
         hourly_community_surplus[k] = community_surplus
-
-        # Paso 3: Distribución PDE del excedente comunitario
         credits_k = pde * community_surplus
         hourly_distribution[:, k] = credits_k
-
-        # Paso 4: Déficit residual tras créditos PDE
         deficit_after_pde = np.maximum(deficit_k - credits_k, 0.0)
 
-        # Paso 5: Contabilización (cada agente a su tarifa pi_gs[n, k])
         for n in range(N):
-            # Ahorro por autoconsumo propio
-            savings[n] += autoconsumo_k[n] * pi_gs_v[n, k]
+            savings[n]      += autoconsumo_k[n] * pi_gs_v[n, k]
+            credits_pde[n]  += min(credits_k[n], deficit_k[n]) * pi_gs_v[n, k]
+            grid_cost[n]    += deficit_after_pde[n] * pi_gs_v[n, k]
 
-            # Créditos PDE (valorizados a la tarifa del receptor)
-            credits_received = min(credits_k[n], deficit_k[n])
-            credits_pde[n]  += credits_received * pi_gs_v[n, k]
-
-            # Costo de energía que aún falta comprar a la red
-            grid_cost[n] += deficit_after_pde[n] * pi_gs_v[n, k]
-
-        # Excedente comunitario: destino según modo regulatorio
         if mode == "pde_plus_residual_export":
-            # Solo se exporta el remanente que supera la absorción interna (Σ déficit).
-            # CREG 101 072: permite exportar el excedente no absorbido por la comunidad.
             total_deficit_k = float(np.sum(deficit_k))
             residual_export = max(0.0, community_surplus - total_deficit_k)
             if residual_export > 0:
                 for n in range(N):
                     surplus_sell[n] += pde[n] * residual_export * pi_bolsa[k]
-        # En mode == "pde_only" (default): surplus_sell permanece en cero.
-        # El excedente queda dentro de la comunidad redistribuido vía PDE.
 
-    # Ganancia = ahorro por autoconsumo + créditos PDE + ingresos excedentes.
-    # No se resta grid_cost: esa energía la compraría la comunidad igual sin
-    # tener el sistema solar — no es una pérdida del mecanismo AGRC.
     net_benefit = savings + credits_pde + surplus_sell
 
     results_per_agent = {}
@@ -195,9 +387,8 @@ def run_c4_creg101072(
             "net_benefit":     float(net_benefit[n]),
             "pde_weight":      float(pde[n]),
         }
-
-    results = {
-        "per_agent":   results_per_agent,
+    return {
+        "per_agent": results_per_agent,
         "aggregate": {
             "total_savings":         float(np.sum(savings)),
             "total_pde_credits":     float(np.sum(credits_pde)),
@@ -206,20 +397,19 @@ def run_c4_creg101072(
             "total_net_benefit":     float(np.sum(net_benefit)),
         },
         "hourly": {
-            "community_surplus":    hourly_community_surplus,
-            "pde_distribution":     hourly_distribution,
+            "community_surplus": hourly_community_surplus,
+            "pde_distribution":  hourly_distribution,
         },
         "regulatory": {
-            "pde_weights":          pde,
-            "static_mechanism":     True,   # flag: no responde a mercado
+            "pde_weights":         pde,
+            "static_mechanism":    True,
+            "creg174_inheritance": False,
         },
         "params": {
             "mode":            mode,
             "max_capacity_kw": max_capacity_kw,
         },
     }
-
-    return results
 
 
 def regulatory_risk_c4(
@@ -229,8 +419,8 @@ def regulatory_risk_c4(
     """
     Evalúa riesgos regulatorios del esquema C4:
       - Violación del límite de 100 kW
-      - Violación de la regla del 10% de participación
-    
+      - Violación de la regla del 10 % de participación
+
     Este análisis es parte del Objetivo 4 de la tesis.
     """
     N = len(agent_capacities)
@@ -241,7 +431,7 @@ def regulatory_risk_c4(
         "capacity_exceeded":      total_cap > max_total_kw,
         "total_capacity_kw":      total_cap,
         "max_single_share":       max_share,
-        "concentration_risk":     max_share > 0.10,   # regla del 10%
+        "concentration_risk":     max_share > 0.10,
         "n_agents":               N,
         "min_agents_for_stability": int(np.ceil(1 / 0.10)) if max_share > 0 else N,
     }
@@ -264,17 +454,10 @@ def static_spread_c4_vs_p2p(
     spread = np.zeros(T)
 
     for k in range(T):
-        total_gen = float(np.sum(np.maximum(G[:, k], 0)))
-        total_dem = float(np.sum(np.maximum(D[:, k], 0)))
-
-        # Agentes con déficit y agentes con superávit
         deficit_agents  = np.sum(np.maximum(D[:, k] - G[:, k], 0))
         surplus_agents  = np.sum(np.maximum(G[:, k] - D[:, k], 0))
 
-        # Desequilibrio que PDE no puede redistribuir eficientemente
-        # porque aplica el mismo porcentaje a todos sin importar necesidad
         if deficit_agents > 0 and surplus_agents > 0:
-            # Lo que PDE asigna a quien no lo necesita
             pde_to_surplus_agents = float(
                 np.dot(pde, np.maximum(G[:, k] - D[:, k], 0))
             )

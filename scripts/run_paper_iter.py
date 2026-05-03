@@ -409,16 +409,19 @@ def main() -> int:
 
     print(f"\n  [paper 3/3] C2 = C4 (CREG 101 072)...")
     capacity = np.maximum(G.mean(axis=1), 0)
+    from scenarios.scenario_c4_creg101072 import (
+        compute_pde_weights, compute_excedentes_acumulados,
+    )
     if args.pde == "capacity":
-        from scenarios.scenario_c4_creg101072 import compute_pde_weights
         pde = compute_pde_weights(capacity, method="capacity_proportional")
+        print(f"  [paper] PDE: capacity_proportional (CREG 101 072 art. 5)")
     else:
-        # Excedentes proportional (CAL-26 — implementado en Sprint 6.2)
-        excedentes = np.maximum(G - D, 0).sum(axis=1)
-        if excedentes.sum() > 1e-9:
-            pde = excedentes / excedentes.sum()
-        else:
-            pde = np.ones_like(excedentes) / len(excedentes)
+        # CAL-26: excedentes_proportional (opt-in)
+        excedentes = compute_excedentes_acumulados(G, D)
+        pde = compute_pde_weights(excedentes,
+                                    method="excedentes_proportional")
+        print(f"  [paper] PDE: excedentes_proportional (CAL-26 opt-in)")
+    print(f"          PDE = {[round(float(p), 4) for p in pde]}")
     c4_result = correr_c4(D, G_klim, p["pi_gs"], p["pi_bolsa"],
                             pde, capacity, component_c="auto")
 

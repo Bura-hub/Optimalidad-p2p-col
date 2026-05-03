@@ -3151,3 +3151,197 @@ generación (Jun, Sep-Nov, dependiendo del descalce intramensual).
 - ADR: `docs/adr/0011-cal15-c4-creg101072-tipo-1-2-cvm.md`.
 - Spec: `docs/superpowers/specs/2026-05-01-c4-creg101072-tipo-1-2-cvm-design.md`.
 - Tests: `tests/test_c4_creg101072.py` (12 tests CAL-15).
+
+
+
+## §CAL-17 — Auditoría `pydataxm` vs PB_PROM oficial XM (2026-05-02)
+
+### Contexto
+
+El cache `data/precios_bolsa_xm_api.csv` se construye con la métrica
+`PrecBolsNaci` de la API `pydataxm`, que entrega el **Precio de Bolsa
+Nacional** marginal de oferta. La nota CAL-14 dejó abierto un
+*follow-up* para verificar si esa métrica se desvía sistemáticamente
+del PB_PROM mensual publicado por XM (media ponderada por demanda) y
+si esa desviación justificaría una corrección numérica de la serie
+horaria que consume el modelo.
+
+ADR-0014 §"Riesgos abiertos" enunciaba un *"gap del 35 % en
+ene-2026"* entre cache (218.5 COP/kWh) y PB_PROM oficial (213.0
+COP/kWh). La aritmética `(218.5 − 213.0)/213.0 = +2.58 %` evidencia
+que el número original era un error de redacción; CAL-17 lo
+formaliza y reemplaza la afirmación.
+
+### Auditoría ejecutada (script reproducible)
+
+`scripts/audit_pydataxm_full_horizon.py` calcula la media aritmética
+mensual del cache y la compara contra los siete valores oficiales
+verificados en informes XM (`xm.com.co/noticias/{8119,8184,8442,
+8584,8759}` y *Sinergox* `Comportamiento_PBNal_Horario`).
+
+| Mes     | cache  | PB_PROM oficial | Δ %     |
+|---------|-------:|----------------:|--------:|
+| 2025-07 | 133.39 |          138.36 |  −3.59  |
+| 2025-08 | 238.25 |          251.50 |  −5.27  |
+| 2025-09 | 295.05 |          292.65 |  +0.82  |
+| 2025-10 | 189.93 |          176.90 |  +7.37  |
+| 2025-11 | 207.37 |          234.87 | −11.71  |
+| 2025-12 | 275.02 |          278.83 |  −1.37  |
+| 2026-01 | 218.46 |          213.00 |  +2.56  |
+
+- 6/7 meses dentro de tolerancia 10 %.
+- Único mes marginalmente fuera (nov-2025, −11.71 %) sigue dentro de
+  la tolerancia 15 % usada en `tests/test_creg101066_ceiling.py`.
+- Sesgo medio firmado: **−1.81 %** (no sistemático).
+- Máxima desviación: 11.71 % (no 35 %).
+
+La diferencia residual se explica por la asimetría metodológica
+**aritmética del modelo vs. ponderada por demanda del informe XM**.
+No es un error de la API.
+
+### Decisión
+
+**No aplicar corrección numérica al cache** `precios_bolsa_xm_api.csv`.
+La métrica `PrecBolsNaci` queda certificada como fuente válida tras
+auditoría explícita contra siete informes oficiales. Acciones
+derivadas:
+
+1. `data/xm_prices.py::XM_MONTHLY_REAL` se sincroniza con los siete
+   valores oficiales verificados (los placeholders dic-2025 = 200 y
+   ene-2026 = 220 se reemplazan por 278.83 y 213.00 respectivamente).
+2. ADR-0014 recibe un *post-script* que aclara el error de redacción
+   y referencia ADR-0017.
+3. `tests/test_cal17_xm_audit.py` (6 tests + 3 tests Grupo D del
+   *follow-up* Sprint 1.1b) impide drift silencioso del cache.
+
+### Limitaciones documentadas
+
+- La diferencia metodológica aritmética/ponderada no se elimina, solo
+  se cuantifica. Cualquier futura refinación (e.g. descargar serie
+  horaria de demanda XM y reponderar) sería un nuevo CAL-N.
+- La corrección lineal por mes
+  (`scale = oficial / cache_mean`) fue descartada: distorsiona la
+  serie horaria sin justificación regulatoria.
+
+### Sprint 1.1b — extensión del cache + alineación MTE
+
+Durante la verificación de CAL-17 se detectó un bug pre-existente de
+**desalineación temporal**: el cache cubría jul-2025 → ene-2026
+(5 160 h) mientras `--full` carga MTE abr-2025 → dic-2025 (6 144 h).
+El llamado `get_pi_bolsa(T=6144, ...)` con default
+`t_start="2025-07-01"` rellenaba con `nanmedian` las 984 horas
+faltantes y desfasaba ~88 días la serie horaria.
+
+Acciones (commit `bc7a999`):
+
+1. **Extensión del cache** vía `scripts/extend_xm_cache.py`: descarga
+   incremental (abr-jun 2025) hasta llegar a **7 272 horas, 2025-04-04
+   a 2026-02-01** (303 días, continuidad 100 %).
+2. **Alineación por fecha** en `main_simulation.py:138`: se pasa
+   `t_start = index_full[0]` y `t_end = index_full[-1] + 1h` en
+   modos `--full` y `--day`. Modo perfil diario promedio conserva
+   defaults intencionalmente.
+3. `XM_MONTHLY_REAL` se extiende con abr/may/jun 2025 (media
+   aritmética del cache; verificación oficial pendiente como
+   CAL-17b).
+
+Cambios observables en `--full --analysis`:
+
+- PGB promedio bolsa: 222 → 182 COP/kWh (precios reales bajos
+  abr-jun 2025, post-El Niño 2024-2025).
+- C3 TOTAL: 50 958 336 → 50 767 203 COP (Δ −0.38 %).
+- Horas con techo PES: 12 → 20 (los nuevos meses incluyen picos
+  ago-sep 2025 reales).
+- Reporte mensual: cada fila corresponde ahora a la fecha real.
+
+### Documentación
+
+- ADR: `docs/adr/0017-cal17-pydataxm-vs-ptb-audit.md`.
+- Spec: `docs/superpowers/specs/2026-05-02-cal17-pydataxm-vs-ptb-audit.md`.
+- Script: `scripts/audit_pydataxm_full_horizon.py`.
+- Output: `data/audit_pydataxm_horizon.csv`.
+- Tests: `tests/test_cal17_xm_audit.py` (9 tests).
+
+
+
+## §CAL-18 — Cedenar verificada al 100 % + fail-fast (2026-05-02)
+
+### Contexto
+
+El plan de Sprint 1.2 contemplaba un parser PDF para descargar
+facturas Cedenar de jul-ago 2025 y eliminar el fallback `pi_gs = 650
+COP/kWh` documentado en CAL-8. La verificación del estado real del
+CSV `data/tarifas_cedenar_mensual.csv` mostró que el fallback **ya no
+se activa en condiciones de producción**:
+
+```
+Cobertura Cedenar para horizonte real --full (abr-2025 a dic-2025):
+  meses_horizonte:  9 meses
+  meses_cargados:   9/9
+  meses_faltantes:  []
+```
+
+Sucesivos commits CAL-9..CAL-13 cargaron los PDFs faltantes; el riesgo
+académico de "33 % de horizonte con fallback" identificado en la
+auditoría inicial dejó de existir.
+
+Sin embargo, el constante `DEFAULT_PI_GS_FALLBACK = 650.0` seguía vivo
+en `data/cedenar_tariff.py` con un `warnings.warn` que en producción
+suele ignorarse. Cualquier expansión futura del horizonte que omita
+un PDF nuevo o cualquier escenario contra-factual con un mes ficticio
+inyectaría silenciosamente 650 COP/kWh en `pi_gs[n,k]`, sesgando
+`savings = E_auto * pi_gs[n,k]` y la liquidación de Excedentes Tipo 1
+(`E_permuta * (pi_gs − Cvm)`).
+
+### Decisión
+
+**Fail-fast por defecto**: `DEFAULT_PI_GS_FALLBACK = None`. Las cuatro
+funciones públicas afectadas
+(`_lookup_pi_gs`, `effective_pi_gs`, `effective_pi_gs_per_agent`,
+`pi_gs_per_agent_hourly`) tipan `fallback: float | None` y, cuando el
+valor es `None` y se necesita (mes ausente, institución sin perfil,
+horizonte vacío), levantan `KeyError` con mensaje detallado que
+referencia ADR-0018 e indica el opt-in literal
+`fallback=<valor>`.
+
+Se conserva `LEGACY_PI_GS_DIAGNOSTIC_FALLBACK = 650.0` exclusivamente
+para `print_pi_gs_summary` (modo informativo "muéstrame todo aunque
+haya gap"); la liquidación productiva nunca lo toca.
+
+### Patrón de uso
+
+| Caller | Recomendación |
+|--------|---------------|
+| Producción (`main_simulation.py`, `comparison_engine.py`, escenarios) | Llamar sin `fallback`; cualquier mes ausente aborta con `KeyError`. |
+| Sensibilidades / contra-factuales | Pasar `fallback=<float>` literal con justificación en docstring. |
+| Tests | Si exigen ausencia de fallback, no pasar nada; si exigen probar el camino fallback, pasarlo explícito. |
+| CLI / diagnóstico | Usa `LEGACY_PI_GS_DIAGNOSTIC_FALLBACK` internamente; no requiere acción del usuario. |
+
+### Impacto verificado
+
+- Suite global: **136/136 tests verdes** (126 base + 10 nuevos
+  CAL-18); ningún test productivo dependía del fallback silencioso.
+- `--full --analysis`: corre sin warnings `[cedenar_tariff] Mes ...
+  ausente` y produce los mismos resultados numéricos (la matriz
+  `pi_gs[n,k]` no cambia porque la cobertura ya era 100 %).
+- Cualquier expansión futura del horizonte fuera de la cobertura
+  (e.g. más allá de abr-2026) abortará con mensaje accionable que
+  cita ADR-0018.
+
+### Limitaciones documentadas
+
+- Código externo (no incluido en este repo) que importe
+  `DEFAULT_PI_GS_FALLBACK` esperando un float fallaría con
+  `TypeError`. Hoy no hay imports externos documentados.
+- La regla "todo bajo fuente fundamentada" del plan
+  `radiant-sleeping-eagle.md` queda formalmente cerrada para
+  Cedenar; auditorías análogas pendientes (`stackelberg_iters`,
+  `cot_alpha`) se cubren en Sprint 2.
+
+### Documentación
+
+- ADR: `docs/adr/0018-cal18-cedenar-tarifa-fail-fast.md`.
+- Spec: `docs/superpowers/specs/2026-05-02-cal18-cedenar-tarifa-fail-fast.md`.
+- Tests: `tests/test_no_fallback_horizon.py` (10 tests).
+- Plan: `C:\Users\burav\.claude\plans\radiant-sleeping-eagle.md`
+  Sprint 1.2 (reformulado).

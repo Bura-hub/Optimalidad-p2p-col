@@ -102,6 +102,10 @@ def run_c2_bilateral(
     cot_component: Union[float, np.ndarray, None] = None,  # COT CREG 101-028
     mem_costs:     Union[float, np.ndarray, None] = None,  # FAZNI+4%+rep
     cot_alpha:     float = 1.0,                            # peso COT [0,1]
+    # CAL-23 (ADR-0023): CXC opt-in. Default 0.0 = cota conservadora
+    # (usuario sigue pagando CXC bajo PPA, interpretacion industrial).
+    cxc_component: Union[float, np.ndarray, None] = None,  # CXC CREG 071/2006
+    cxc_alpha:     float = 0.0,                            # peso CXC [0,1]
     # Compatibilidad pre-CAL-16: si solo se pasa pi_G se trata como G+Cvm+COT
     pi_G: Union[float, np.ndarray, None] = None,
 ) -> dict:
@@ -167,10 +171,15 @@ def run_c2_bilateral(
         cot_v = np.zeros((N, T))
         mem_v = np.zeros((N, T))
 
+    # CAL-23: CXC opt-in (default cero si no se pasa).
+    cxc_v = (as_pi_gs_array(cxc_component, N, T)
+             if cxc_component is not None else np.zeros((N, T)))
+
     savings_gen   = np.zeros(N)    # autoconsumo + ingreso PPA del prosumidor
     savings_G     = np.zeros(N)    # ahorro componente G (Ley 143/1994)
     savings_Cvm   = np.zeros(N)    # ahorro Cvm (CREG 086/1996)
     savings_COT   = np.zeros(N)    # ahorro α·COT (CREG 101-028/2023)
+    savings_CXC   = np.zeros(N)    # ahorro α·CXC (CAL-23, opt-in)
     mem_costs_arr = np.zeros(N)    # egresos MEM no-regulado (FAZNI+4%+rep)
     grid_cost     = np.zeros(N)    # costo energía aún comprada a red
     grid_revenue  = np.zeros(N)    # ingresos por venta excedente a red
@@ -199,6 +208,8 @@ def run_c2_bilateral(
                 savings_G[i]     += e * (g_v[i, k] - pi_ppa)
                 savings_Cvm[i]   += e *  cvm_v[i, k]
                 savings_COT[i]   += e *  cot_v[i, k] * cot_alpha
+                # CAL-23: CXC parametrizable (default 0.0 = cota conservadora)
+                savings_CXC[i]   += e *  cxc_v[i, k] * cxc_alpha
                 mem_costs_arr[i] += e *  mem_v[i, k]
                 # Déficit residual → red al CU completo
                 residual = max(0.0, deficits[i] - e)
@@ -218,8 +229,9 @@ def run_c2_bilateral(
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs_v[i, k]
 
-    # CAL-16: savings_ppa es la suma neta descompuesta
-    savings_ppa = savings_G + savings_Cvm + savings_COT - mem_costs_arr
+    # CAL-16: savings_ppa es la suma neta descompuesta. CAL-23 agrega CXC.
+    savings_ppa = (savings_G + savings_Cvm + savings_COT + savings_CXC
+                    - mem_costs_arr)
     net_benefit = savings_gen + savings_ppa + grid_revenue
 
     results_per_agent = {
@@ -228,6 +240,7 @@ def run_c2_bilateral(
             "savings_G":           float(savings_G[n]),
             "savings_Cvm":         float(savings_Cvm[n]),
             "savings_COT":         float(savings_COT[n]),
+            "savings_CXC":         float(savings_CXC[n]),
             "mem_costs":           float(mem_costs_arr[n]),
             "savings_ppa":         float(savings_ppa[n]),
             # Compatibilidad: savings_cons era el agregado pre-CAL-16
@@ -248,6 +261,7 @@ def run_c2_bilateral(
             "total_savings_G":    float(np.sum(savings_G)),
             "total_savings_Cvm":  float(np.sum(savings_Cvm)),
             "total_savings_COT":  float(np.sum(savings_COT)),
+            "total_savings_CXC":  float(np.sum(savings_CXC)),
             "total_mem_costs":    float(np.sum(mem_costs_arr)),
             "total_savings_ppa":  float(np.sum(savings_ppa)),
             # Compat
@@ -259,6 +273,7 @@ def run_c2_bilateral(
             "pi_ppa":     pi_ppa,
             "pi_gb":      pi_gb,
             "cot_alpha":  cot_alpha,
+            "cxc_alpha":  cxc_alpha,
             "pi_gs":      pi_gs_v.mean(axis=1).tolist(),
             "G_mean":     g_v.mean(axis=1).tolist(),
             "Cvm_mean":   cvm_v.mean(axis=1).tolist(),

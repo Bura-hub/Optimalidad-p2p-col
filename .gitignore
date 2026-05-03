@@ -30,6 +30,9 @@ Documentos/informe_*.md
 Documentos/p2p_explicacion.txt
 Documentos/.notas_backups/  # CAL-Sprint 4.5 (backup_notas_tesis.py)
 
+# === Outputs telemetria Sprint 5.1 (D3) ===
+outputs/telemetry/
+
 # === Resultados y artefactos de corrida ===
 *.xlsx
 *.log

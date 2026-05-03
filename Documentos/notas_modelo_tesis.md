@@ -3345,3 +3345,260 @@ haya gap"); la liquidación productiva nunca lo toca.
 - Tests: `tests/test_no_fallback_horizon.py` (10 tests).
 - Plan: `C:\Users\burav\.claude\plans\radiant-sleeping-eagle.md`
   Sprint 1.2 (reformulado).
+
+---
+
+## CAL-25 — Modo paper IEEE WEEF 2026 (Sprint 6.1)
+
+### Detonante
+
+Reunión 2026-05-01 con asesores Pantoja/Obando (`Reunion0105.txt`).
+Decisiones A1+B+G:
+
+- **A1**: solver P2P (`replicator_buyers.py:108`) usa `pi_hat = (pi_gs −
+  pi_all)*(−pi_gb + pi_all)` con escalar único; tarifas heterogéneas
+  rompen la ventana común de admisibilidad y producen multi-equilibrios
+  (CAL-8 ya había detectado deserción Udenar/HUDN bajo `pi_gs[n]=797`).
+- **B**: el abstract IEEE WEEF aceptado solo contempla 3 escenarios
+  (P2P + CREG 174 + CREG 101 072); C2 PPA bilateral y C3 spot quedan
+  fuera del paper.
+- **G**: mes específico (default agosto-2025, mejor balance PV/precio
+  de bolsa que sep-2025 sugerido por asesor).
+
+### Decisión
+
+Crear `scripts/run_paper_iter.py` orquestador standalone que:
+
+1. Homogeneiza `INSTITUTION_PROFILE` en memoria a perfil `comercial`
+   uniforme. Solo durante el proceso del script paper.
+2. Filtra simulación: solo C1 + C4 + P2P (omite C2 PPA, C3 spot).
+3. Renombra `C4 → "C2 (CREG 101 072)"` en outputs (alineado al abstract).
+4. Acepta `--month YYYY-MM` (default 2025-08).
+5. Output dedicado `outputs/paper/` con `tag` parametrizable.
+6. **NO toca `main_simulation.py`**: la tesis sigue con heterogeneidad
+   oficial vs comercial intacta.
+
+### Verificación
+
+`python scripts/run_paper_iter.py --month 2025-08` corre limpio en <2 min.
+Tests `tests/test_run_paper_iter.py` (7 verdes) cubren homogeneización,
+horizonte mensual, renaming, smoke xlsx, ambos métodos PDE. Tesis 117/117
+tests no afectados.
+
+### Documentación
+
+- ADR: `docs/adr/0025-cal25-modo-paper.md`.
+- Tests: `tests/test_run_paper_iter.py`.
+- Plan: `radiant-sleeping-eagle.md` §6.2 Sprint 6.1.
+
+---
+
+## CAL-26 — PDE proporcional a excedentes (Sprint 6.2)
+
+### Detonante
+
+Reunión 2026-05-01 punto C-sensibility. CREG 101 072/2025 art. 5
+explícita `capacity_proportional`, pero también admite "ponderadores
+acordados entre miembros" (`excedentes_proportional` cae bajo esta
+cláusula). El paper debe reportar AMBOS lado a lado para demostrar
+robustez del análisis vs metodología PDE.
+
+### Decisión
+
+Extender `compute_pde_weights(metric, method=...)` en
+`scenarios/scenario_c4_creg101072.py` para aceptar `excedentes_proportional`
+como método **opt-in**. Default sigue `capacity_proportional` (CAL-15
+intacto). Helper nuevo `compute_excedentes_acumulados(G, D)` calcula
+métrica por agente. Invariantes verificados: `Σ pde = 1`, no-negatividad,
+fallback `1/N` si `total = 0`.
+
+`run_paper_iter.py --pde excedentes` selecciona el modo opt-in.
+
+### Verificación
+
+Tests `tests/test_cal26_pde_excedentes.py` (11 verdes) sobre métodos,
+invariantes, degeneración, fallback. Baseline tesis post-CAL-23 invariante
+porque el default no cambia.
+
+### Documentación
+
+- ADR: `docs/adr/0026-cal26-pde-excedentes-proportional.md`.
+- Plan: `radiant-sleeping-eagle.md` §6.3 Sprint 6.2.
+
+---
+
+## CAL-27 — C4-mensual con cruce Hx (Sprint 6.3)
+
+### Detonante
+
+Reunión 2026-05-01 punto F. Cierra el TODO documentado en CAL-15:
+implementar la liquidación mensual de C4 con búsqueda de hora Hx
+heredada de C1 (CREG 174 art. 22-23) sobre el sistema agregado de la
+comunidad AGRC.
+
+### Decisión
+
+Función nueva `_run_c4_monthly_hx` análoga a
+`_run_c4_creg174_inheritance` pero con agregación mensual + cruce Hx
+sobre la inyección/retiro acumulado de toda la comunidad. Modo
+`mode="monthly_hx"` opt-in en `run_c4_creg101072`. `month_labels`
+parametriza períodos de facturación; sin labels el horizonte completo
+es un solo período.
+
+**Hipótesis CAL-27 verificada empíricamente**:
+`total_net_benefit(monthly_hx) ≥ total_net_benefit(creg174_inheritance)`
+en agregado (mejora típica 0-5 %). Esto cierra el peor caso documentado
+en CAL-15.
+
+### Verificación
+
+Tests `tests/test_cal27_c4_monthly.py` (6 verdes): aceptación del modo,
+agregación mensual sin labels = período único, agregación con 2 labels
+= 2 períodos, hipótesis no-peor-que-creg174, default sigue
+`creg174_inheritance` (CAL-15 intacto), claves `per_agent` compatibles.
+
+Figura comparativa `graficas/fig_c4_horario_vs_mensual.{csv,mat,png}`.
+
+### Documentación
+
+- ADR: `docs/adr/0027-cal27-c4-mensual-hx.md`.
+- Plan: `radiant-sleeping-eagle.md` §6.4 Sprint 6.3.
+
+---
+
+## CAL-28 — Selección de medidor puntual por institución (Sprint 6.X-bis)
+
+### Detonante
+
+Observación del usuario al revisar el primer smoke run del paper
+(2026-05-03):
+
+> *"Como se está simulando actualmente las entidades no tienen tantos
+> excedentes, lo que hace que no se logre un mercado P2P activo. Se
+> pensó en definir que la demanda para cada entidad no esté definida
+> por el totalizador, sino por algún medidor puntual que haga que la
+> entidad tenga excedentes en más ocasiones."*
+
+Causa raíz: `data/xm_data_loader.py` carga por defecto el medidor
+totalizador M1 de cada institución (`Bloque Sur - Medidor 1`,
+`Medidor 1 - Alvernia`, etc.), que mide el campus completo. Cobertura
+PV agregada cae a ~19 % y el mercado P2P es estructuralmente inactivo.
+
+### Decisión
+
+`data/paper_meter_config.csv`: 5 instituciones, **M3 sub-medidor**
+por default (mide solo el circuito Bloque Sur / Alvernia / etc. donde
+están los inversores PV), con factor de escala 1.0 excepto **Mariana
+M1 × 0.3** (M3 vacío en MTE; modela cobertura intermedia). Helper nuevo
+`cargar_mte_paper` en `scripts/run_paper_iter.py` lee CSV de config,
+localiza tz `America/Bogota`, resamplea a horario, reindexa al horizonte
+y aplica factor de escala. Clip a no-negativos.
+
+Resultado: cobertura agregada **96 %** vs **19 %** con M1 totalizador.
+Mercado P2P activo **221/744 horas (29.7 %)**, **525.88 kWh** transados
+internamente en agosto-2025.
+
+`--no-paper-meters` revierte a M1 totalizador (comparación con baseline
+tesis).
+
+### Verificación
+
+Tests `tests/test_cal28_meter_selection.py` (9 verdes): config CSV
+existe + 5 instituciones + columnas requeridas + Mariana factor 0.3,
+`_read_meter_csvs` localiza tz y resamplea, `cargar_mte_paper` shapes
+correctos + cobertura > 50 % + D no-negativa, smoke CLI `--no-paper-meters`
+revierte a totalizador.
+
+### Documentación
+
+- ADR: `docs/adr/0028-cal28-paper-medidor-puntual.md`.
+- Config: `data/paper_meter_config.csv`.
+- Plan: `radiant-sleeping-eagle.md` Sprint 6.X-bis.
+
+---
+
+## CAL-29 — Fórmula canónica de net_benefit P2P (Sprint 6.6-A audit)
+
+### Detonante
+
+Tras activar CAL-25..28 (modo paper + sub-medidores), el reporte
+mostraba un gap inesperado: P2P 3.03M COP vs C1 4.95M COP (-38 %).
+El usuario solicitó auditoría:
+
+> *"Antes de continuar me parece importante definir y realizar una
+> auditoría a por qué ahora tenemos tanta diferencia y desbeneficio
+> al mercado P2P, ¿estoy simulando mal? ¿hay algo que deba calibrar
+> del Modelo P2P original que no esté haciendo?"*
+
+### Hallazgos (Phase A + B)
+
+`Documentos/audit_p2p_decomposition.md` documenta la auditoría completa.
+`scripts/audit_p2p_paper.py` reproduce el diagnóstico empírico.
+
+**H1 — Asimetría de descomposición**:
+`comparison_engine._p2p_monetary_benefit` cuenta la prima del vendedor
+como `(pi_star − pi_gb) × P_sold`. Es **incremental sobre el
+contrafactual "vender todo a bolsa"**. Omite (a) el revenue base
+`pi_gb × P_sold` (cancelado contra baseline implícito) y (b) el
+residual surplus `pi_bolsa × E_residual` (no iterado en el loop).
+Mientras tanto C1/C4 reportan revenue **total**.
+
+Verificación empírica: `delta total observado = 958,255 COP`
+coincide exacto con `pi_bolsa_mean × E_surplus_total = 234.5 × 4085.6
+= 958,255 COP`.
+
+**Bug 2 (paper script)**: `_p2p_decomposed` calculaba autoconsumo
+dentro del loop sobre `p2p_results` con `if r.P_star is None: continue`,
+omitiendo 523 horas (de 744) sin mercado activo (~961 K COP).
+
+**Total subreporte P2P en paper**: 1.92 M COP.
+
+### Decisión
+
+Fix **paper-only** en `scripts/run_paper_iter.py::_p2p_decomposed` con
+fórmula canónica simétrica con C1/C4:
+
+- Autoconsumo SIEMPRE (loop fuera de `p2p_results`).
+- `mercado_seller = Σ_t pi_star × P_sold + Σ_t pi_bolsa × residual_nk`.
+- `mercado_buyer = Σ_t (pi_gs − pi_star) × P_bought`.
+- Acepta `pi_bolsa` horario; fallback `pi_gb` escalar si ausente.
+
+`comparison_engine._p2p_monetary_benefit` **NO se modifica**: la
+migración completa de la tesis queda planificada en CAL-30 (Sprint 7
+post-paper).
+
+### Resultados post-fix
+
+Agosto 2025, mismo dataset:
+
+| Escenario | Pre-CAL-29 | Post-CAL-29 |
+|---|---:|---:|
+| P2P | 3.03 M | **4.81 M** |
+| C1 (CREG 174) | 4.95 M | 4.95 M |
+| C2 (CREG 101 072) | 4.58 M | 4.58 M |
+
+**Narrativa nueva**: P2P está entre C1 y C2 (−2.9 % vs C1, +5.0 % vs
+C2). Per agente: 3 de 5 instituciones (Udenar, HUDN, Cesmag) prefieren
+P2P sobre C1.
+
+**Sweep PV (1×–3×)** — cambio dramático:
+
+- Pre-fix: P2P rank #3 en todos los factores.
+- Post-fix: P2P rank #2 en factor 1.0×, **rank #1 en factor ≥ 1.5×**.
+  Cruce de optimalidad entre 1.0× y 1.5×.
+
+### Verificación
+
+Tests `tests/test_cal29_p2p_canonical.py` (4 verdes): autoconsumo
+cuenta todas las horas, residual surplus se incluye en mercado,
+simetría de autoconsumo P2P = C1 = C2, fallback `pi_bolsa = pi_gb`
+sin parámetro horario. Sprint 6 suite total: **46/46 verdes**. Tesis
+117/117 intacta (no se modificó `comparison_engine`).
+
+### Documentación
+
+- ADR: `docs/adr/0029-cal29-p2p-revenue-canonica.md`.
+- Audit completo: `Documentos/audit_p2p_decomposition.md`.
+- Diagnóstico: `scripts/audit_p2p_paper.py` (reproducible).
+- Tests: `tests/test_cal29_p2p_canonical.py`.
+- Plan: `radiant-sleeping-eagle.md` §6.6.5 Sprint 6.6-A.

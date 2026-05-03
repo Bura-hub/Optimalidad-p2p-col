@@ -180,3 +180,60 @@ antes de sesiones grandes es una alternativa segura.
 - Plan: `C:\Users\burav\.claude\plans\radiant-sleeping-eagle.md` Sprint 4
 - ADR-0017 (CAL-17) — caso histórico que motivó F2
 - `Documentos/notas_modelo_tesis.md` — fuente protegida por C4
+
+## Sprint 6 — Modo paper IEEE WEEF (CAL-25..29)
+
+`scripts/run_paper_iter.py` no reemplaza `main_simulation.py`; es un
+orquestador paralelo que aplica los ajustes acordados con asesores
+(reunión 2026-05-01):
+
+```bash
+# Smoke baseline (agosto 2025, sub-medidores M3, fórmula canónica):
+python scripts/run_paper_iter.py --month 2025-08 --tag baseline
+
+# Con sweep PV (1x..3x) para figura ranking persistencia:
+python scripts/run_paper_iter.py --month 2025-08 --tag sweep --ranking-pv
+
+# Comparación con baseline tesis (totalizador M1, sin homogeneización):
+python scripts/run_paper_iter.py --keep-profile --no-paper-meters --tag baseline_tesis
+```
+
+CAL-25..29 implementan la corrida del paper sin tocar la tesis:
+
+- **CAL-25**: homogeneización `INSTITUTION_PROFILE → comercial` + filtrado
+  a 3 escenarios (P2P, C1, C2 = C4 renombrado).
+- **CAL-26**: PDE `excedentes_proportional` opt-in (`--pde excedentes`).
+  Default sigue `capacity_proportional` (CREG 101 072 art. 5).
+- **CAL-27**: C4-mensual con cruce Hx (modo opt-in `monthly_hx`).
+- **CAL-28**: medidor puntual M3 por institución (`data/paper_meter_config.csv`).
+  `--no-paper-meters` revierte al M1 totalizador.
+- **CAL-29**: fórmula canónica de net_benefit P2P (autoconsumo todas las
+  horas + revenue completo del trade + residual a `pi_bolsa` horario).
+
+### Auditoría del modelo P2P (Sprint 6.6-A)
+
+`scripts/audit_p2p_paper.py` reproduce el diagnóstico que descubrió
+CAL-29:
+
+```bash
+python scripts/audit_p2p_paper.py --month 2025-08
+python scripts/audit_p2p_paper.py --month 2025-08 --iters-sweep
+```
+
+Imprime tabla de energías + monetario por agente con la verificación
+empírica `delta = pi_bolsa_mean × E_surplus_total` (invariante H1 del
+audit). Documento completo en `Documentos/audit_p2p_decomposition.md`.
+
+### Snapshots Ruflo `paper_runs`
+
+Por cada corrida de `run_paper_iter.py`, sembrar en namespace
+`paper_runs` (mismo patrón que `runs` del baseline tesis):
+
+```bash
+npx @claude-flow/cli@latest memory store \
+  --key "paper-run-2025-08-cal29" \
+  --value "tag=cal29_canonical mes=2025-08 P2P=4.81M C1=4.95M C2=4.58M
+  cobertura=96% horas_activas=221/744 kwh_p2p=525.88
+  ranking_pv_factor_1.0=#2 ranking_pv_factor_>=1.5=#1 ADR=0029" \
+  --namespace paper_runs --upsert
+```

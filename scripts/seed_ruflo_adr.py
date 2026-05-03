@@ -177,6 +177,27 @@ ADR_SUMMARIES = {
         "sin regresion smoke daily 0 horas cap full ~12 horas 0.23 porciento "
         "horizonte delta 3676 COP/kWh actividad 3.x"
     ),
+    "0024-cal24-swarm-validador-regulatorio": (
+        "CAL-24 swarm validador regulatorio 3 agentes ADR-0024 Sprint 5.2 "
+        "scripts/swarm_regulatory_validator.py modos local default y swarm "
+        "MCP. Tres agentes especializados CREG174Validator C1 Excedentes "
+        "Tipo 1/2 Cvm month_labels mensual ADR-0010 Accepted; "
+        "CREG101072Validator C4 PDE Tipo 1 intracomunitaria Tipo 2 residual "
+        "bolsa Cvm,i,j herencia CREG 174 art 25 ADR-0011 cal15 Accepted; "
+        "CREG101066Validator C3 apply_creg101066_ceiling load_creg_ceiling "
+        "get_pi_bolsa apply_ceiling=True default CSV precios_escasez_creg "
+        "ADR-0014 Accepted. Modo local heuristico estatico ~1s deterministico "
+        "regex sobre archivos. Modo swarm MCP claude-flow swarm_init "
+        "agent_spawn researcher reviewer code-analyzer graceful degradation "
+        "a local si MCP no disponible. Veredicto agregado PASS si los 3 PASS "
+        "PARCIAL si mix FAIL si algun FAIL. Test "
+        "tests/test_swarm_regulatory_validator.py 12 verdes agentes individuales "
+        "aggregate logic verdict thresholds CLI smoke local json-only swarm "
+        "graceful degradation. Repo actual veredicto agregado PASS 15/15 "
+        "checks coherencia codigo-ADR-resoluciones validada. Cierre formal "
+        "Sprint 5.2 plan radiant-sleeping-eagle herramienta defensa "
+        "auditoria periodica pre-publicacion actividad 1.0 4.1 4.2"
+    ),
     "0021-cal21-c2-f-split-sensibilidad": (
         "CAL-21 sensibilidad split factor f en C2 PPA bilateral ADR-0021 "
         "Sprint 3.1 sustento default 0.5 postulado normativo CAL-11. "

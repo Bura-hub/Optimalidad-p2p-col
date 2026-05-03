@@ -33,11 +33,12 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
-                                   encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
-                                   encoding="utf-8", errors="replace")
+def _wrap_stdout_utf8():
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
+                                       encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
+                                       encoding="utf-8", errors="replace")
 
 # Regex globales
 RE_CAL_REF = re.compile(r"\bCAL[-‑–](\d{1,3})\b")  # CAL-N en cualquier texto
@@ -245,4 +246,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _wrap_stdout_utf8()
     sys.exit(main())

@@ -37,11 +37,12 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
-                                   encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
-                                   encoding="utf-8", errors="replace")
+def _wrap_stdout_utf8():
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
+                                       encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
+                                       encoding="utf-8", errors="replace")
 
 
 def cargar_mte(t_start: str, t_end: str):
@@ -179,4 +180,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _wrap_stdout_utf8()
     sys.exit(main())

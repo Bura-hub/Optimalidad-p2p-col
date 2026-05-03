@@ -27,11 +27,12 @@ import sys
 from difflib import SequenceMatcher
 from pathlib import Path
 
-if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
-                                   encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
-                                   encoding="utf-8", errors="replace")
+def _wrap_stdout_utf8():
+    if sys.platform == "win32":
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
+                                       encoding="utf-8", errors="replace")
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
+                                       encoding="utf-8", errors="replace")
 
 DEFAULT_THRESHOLD = 0.85
 DEFAULT_PATTERN = "scenarios/scenario_c*.py"
@@ -189,4 +190,5 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    _wrap_stdout_utf8()
     sys.exit(main())

@@ -33,6 +33,13 @@ Documentos/.notas_backups/  # CAL-Sprint 4.5 (backup_notas_tesis.py)
 # === Outputs telemetria Sprint 5.1 (D3) ===
 outputs/telemetry/
 
+# === Outputs paper Sprint 6.1 (CAL-25) ===
+# Mantenemos solo el xlsx final del paper; los logs y figuras intermedias
+# se gitignoran salvo si el autor las mueve al repo manualmente.
+outputs/paper/log_*.txt
+outputs/paper/.cache/
+outputs/paper/intermediate_*.csv
+
 # === Resultados y artefactos de corrida ===
 *.xlsx
 *.log

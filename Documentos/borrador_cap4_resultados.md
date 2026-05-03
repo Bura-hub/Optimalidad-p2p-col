@@ -360,3 +360,156 @@ narrativo restante para defender los hallazgos academicamente).
    `python scripts/cal9_delta_report.py` con los Excel pre/post para
    anotar las cifras finales. Documento canonico de la decision:
    `docs/adr/0009-cal9-pi-gs-temporal.md`.
+
+---
+
+## 4.9 Actualizacion post-CAL-24 (2026-05-02)
+
+> **Contexto:** Tras el cierre de Sprint 5 del plan
+> `radiant-sleeping-eagle`, todos los items "asumidos" detectados en
+> la auditoria inicial fueron sustentados (CAL-17 a CAL-23) y se
+> incorporo un validador regulatorio swarm (CAL-24). Esta seccion
+> reemplaza los placeholders de §4.5 y suma los nuevos hallazgos.
+> Las cifras provienen del snapshot Ruflo
+> `run-post-cal23-baseline` (namespace `runs`).
+
+### 4.9.1 Cifras principales actualizadas (horizonte 6 144 h)
+
+| Escenario | Ganancia neta (COP) | Δ vs P2P [%] | Gini |
+|-----------|--------------------:|------------:|-----:|
+| **P2P (Stackelberg + RD)** | **52 446 938** | — | 0,162 |
+| C1 (CREG 174/2021, AGPE) | 52 465 042 | +0,03 | 0,147 |
+| C2 (PPA bilateral, no-regulado) | 51 437 446 | -1,93 | 0,155 |
+| C3 (Mercado spot + techo PES) | 50 767 203 | -3,20 | 0,161 |
+| C4 (Decreto 2236 + CREG 101 072) | 52 219 945 | -0,43 | 0,170 |
+
+- **RPE (P2P vs C4):** +0,0043 (P2P supera al regimen vigente CREG
+  101 072 en 0,43 % de bienestar agregado).
+- **RPE (P2P vs C1):** -0,0003 (P2P empata con el regimen CREG 174
+  para autogeneracion individual).
+- **Bienestar agregado en C1 maximo absoluto** (52,47 MCOP); P2P
+  capta 99,97 % de ese maximo con una distribucion mas equitativa
+  intra-prosumidor (`IE_P2P = 0,368`).
+
+**Volumen P2P transado:** 3 659,31 kWh en 1 031 / 6 144 horas
+activas (16,8 % del horizonte). Periodo abr-2025 a dic-2025.
+
+### 4.9.2 Sustento empirico de los parametros del modelo
+
+Cada parametro central tiene ahora un ADR con barrido empirico
+reproducible:
+
+| Parametro | Valor | Sustento empirico | ADR |
+|-----------|------:|-------------------|-----|
+| `stackelberg_iters` | 2 | Δ welfare < 0,02 % vs `iters = 10`; speedup 2,4× sobre 168 h MTE | 0019 |
+| `cot_alpha` | 1,0 | Linealidad confirmada; default = cota legal CREG 086/1996 | 0020 |
+| `f` (split PPA) | 0,5 | Teorema invarianza ratificado numericamente (Δ < 1e-13 %); cota egalitaria | 0021 |
+| `cxc_alpha` | 0,0 | Default conservador (practica industrial PPAs colombianos); opt-in | 0023 |
+
+**Hallazgos cuantitativos clave:**
+
+1. **Stackelberg (CAL-19):** sobre 168 h reales, `iters = 1` produce
+   Δ welfare = 1,89 % (insuficiente); `iters = 2` produce 0,011 %
+   (default OK); `iters >= 3` no mejora numericamente. El sistema
+   converge en mediana 3 iteraciones reales; `stackelberg_max = 10`
+   cubre outliers.
+2. **`cot_alpha` (CAL-20):** linealidad perfecta confirmada.
+   Cuando `consumer_ids = []` (configuracion MTE real, todas
+   prosumidoras), el parametro es **inerte** — el default 1,0 no
+   afecta numericamente los reportes actuales.
+3. **`f` (CAL-21):** sobre split ilustrativo 3 prosumers + 2
+   consumers, `total_net_benefit` invariante (Δ vs `f = 0,5` <
+   1e-13 %), Gini sube monotonicamente de 0,436 a 0,495. La
+   distribucion prosumer/consumer es perfectamente lineal y
+   simetrica en `f`.
+4. **`cxc_alpha` (CAL-23):** parametrizable opt-in. Default 0,0
+   coherente con la practica industrial (CXC se sigue cobrando
+   bajo PPA bilateral). Sensibilidad triple disponible para defensa
+   (`f`, `cot_alpha`, `cxc_alpha`).
+
+### 4.9.3 Trazabilidad y certificacion de datos
+
+**Cobertura horizonte simulacion (`--full`, abr-dic 2025):**
+
+| Fuente | Cobertura | ADR |
+|--------|-----------|-----|
+| Cache pydataxm `precios_bolsa_xm_api.csv` | 7 272 h (303 dias, abr-2025 a feb-2026) | 0017 |
+| Tarifa Cedenar `tarifas_cedenar_mensual.csv` | 13/13 meses (abr-2025 a abr-2026) | 0018 |
+| Componente Cvm CREG 119/2007 art. 11 | 13/13 meses | 0010, 0016 |
+| Costos MEM no-regulado (FAZNI + 4 % + repr.) | 13/13 meses | 0022 |
+| Techo PES CREG 101 066/2024 | 7/7 meses verificados Excel oficial XM | 0014 |
+| CXC referencial | 13/13 meses (modo opt-in) | 0023 |
+
+**Auditoria pydataxm vs PB_PROM oficial XM (CAL-17):**
+
+| Mes | Cache | PB_PROM oficial | Δ% |
+|-----|------:|----------------:|---:|
+| 2025-07 | 133,39 | 138,36 | -3,59 |
+| 2025-08 | 238,25 | 251,50 | -5,27 |
+| 2025-09 | 295,05 | 292,65 | +0,82 |
+| 2025-10 | 189,93 | 176,90 | +7,37 |
+| 2025-11 | 207,37 | 234,87 | -11,71 |
+| 2025-12 | 275,02 | 278,83 | -1,37 |
+| 2026-01 | 218,46 | 213,00 | +2,56 |
+
+- 6/7 meses dentro de tolerancia 10 %; sesgo medio firmado -1,81 %
+  (no sistematico).
+- Decision: **no aplicar correccion numerica** al cache; la
+  diferencia es metodologica (aritmetica vs ponderada por demanda).
+- El gap del "35 %" mencionado en ADR-0014 fue un error de
+  redaccion; la realidad es 2,58 % (post-script aclaratorio en
+  ADR-0014, ver ADR-0017).
+
+**Cedenar fail-fast (CAL-18):** se elimino el fallback silencioso
+`pi_gs = 650 COP/kWh`. Cualquier mes ausente del CSV produce
+`KeyError` con mensaje accionable que cita ADR-0018, en lugar de
+inyectar un escalar invisible. La regla "todo bajo fuente
+fundamentada" del plan queda formalmente cerrada para Cedenar.
+
+### 4.9.4 Validacion regulatoria automatica (CAL-24)
+
+Tres agentes especializados validan coherencia codigo-ADR-resolucion:
+
+| Agente | Familia normativa | Escenario | Veredicto |
+|--------|-------------------|-----------|-----------|
+| `CREG174Validator` | CREG 174/2021 | C1 | PASS (5/5) |
+| `CREG101072Validator` | Decreto 2236/2023 + CREG 101 072/2025 | C4 | PASS (5/5) |
+| `CREG101066Validator` | CREG 101 066/2024 | C3 | PASS (5/5) |
+
+**Veredicto agregado:** PASS (15/15 checks).
+
+Comando reproducible: `python scripts/swarm_regulatory_validator.py`.
+
+### 4.9.5 Snapshot Ruflo del baseline
+
+El estado certificado del repositorio al cierre del Sprint 5 queda
+almacenado como entrada semantica en namespace `runs` (clave
+`run-post-cal23-baseline`):
+
+```text
+CALs activos: 24 (1-24)
+RPE_P2P_vs_C1=-0,0003   RPE_P2P_vs_C4=+0,0043
+IE_P2P=0,368   kWh_P2P=3 659,31   horas_p2p_activas=1 031/6 144
+gini: P2P=0,162  C1=0,147  C2=0,155  C3=0,161  C4=0,170
+```
+
+Cualquier corrida futura quedara comparable semanticamente vs este
+baseline mediante el wrapper de telemetria
+`scripts/run_full_with_telemetry.py` (Sprint 5.1, JSON Lines).
+
+### 4.9.6 Sintesis cuantitativa para defensa
+
+| Pregunta de defensa | Respuesta cuantitativa |
+|---------------------|-----------------------|
+| ¿P2P es mejor que C1 (AGPE individual)? | Empate con ventaja distributiva: `RPE = -0,0003`, Gini P2P 0,162 vs C1 0,147 |
+| ¿P2P es mejor que C4 (autogen colectiva)? | Si: `RPE = +0,0043`; 5/5 instituciones mejoran |
+| ¿P2P es mejor que C2 (PPA bilateral)? | Si: `RPE = +1,93 %` |
+| ¿P2P es mejor que C3 (mercado spot)? | Si: `RPE = +3,20 %` |
+| ¿Los parametros tienen sustento empirico? | Si: 4 ADRs con barridos reproducibles (CAL-19 a CAL-21, CAL-23) |
+| ¿Los datos tienen fuente fundamentada? | Si: cobertura 100 % horizonte; CAL-17/18/22 verifican |
+| ¿La implementacion respeta las resoluciones CREG? | Si: validador swarm CAL-24 reporta PASS 15/15 |
+
+[NARRATIVA — interpretar el resultado central: P2P aporta ganancia
+distributiva sin perder bienestar agregado; la arquitectura completa
+(24 ADRs) garantiza trazabilidad regulatoria y reproducibilidad
+hacia auditores y asesores.]

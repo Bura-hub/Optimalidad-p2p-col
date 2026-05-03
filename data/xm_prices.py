@@ -37,15 +37,19 @@ from datetime import datetime, timedelta
 warnings.filterwarnings("ignore")
 
 # ── Promedios mensuales REALES verificados (COP/kWh) ─────────────────────────
-# Fuente: Informes mensuales XM publicados en xm.com.co/noticias
+# PB_PROM oficial XM (media ponderada por demanda) por mes.
+# Fuentes (verificadas en CAL-17 audit, 2026-05-02):
+#   - xm.com.co/noticias/{8119,8184,8442,8584,8759}
+#   - sinergox.xm.com.co/.../03_Informe_Precios_y_Transacciones_*.xlsx
+# Ver docs/adr/0017-cal17-pydataxm-vs-ptb-audit.md
 XM_MONTHLY_REAL = {
-    "2025-07": 138.4,   # Informe ago-2025: 138 COP/kWh
-    "2025-08": 251.5,   # Informe sep-2025: 251 COP/kWh
-    "2025-09": 304.8,   # Informe oct-2025: 304.8 COP/kWh
-    "2025-10": 176.9,   # Informe nov-2025: 176.9 COP/kWh
-    "2025-11": 234.9,   # Informe dic-2025: 234.87 COP/kWh
-    "2025-12": 200.0,   # Estimado (tendencia post-El Niño 2024-2025)
-    "2026-01": 220.0,   # Estimado
+    "2025-07": 138.36,  # Informe XM jul-2025 (xm.com.co/noticias/8119)
+    "2025-08": 251.50,  # Informe XM ago-2025 (xm.com.co/noticias/8184)
+    "2025-09": 292.65,  # Sinergox sep-2025 (Comportamiento_PBNal_Horario)
+    "2025-10": 176.90,  # Informe XM oct-2025 (xm.com.co/noticias/8442)
+    "2025-11": 234.87,  # Informe XM nov-2025 (xm.com.co/noticias/8584)
+    "2025-12": 278.83,  # Sinergox dic-2025 (Comportamiento_PBNal_Horario)
+    "2026-01": 213.00,  # Informe XM ene-2026 (xm.com.co/noticias/8759)
 }
 
 # Patrón intradiario colombiano (factor multiplicador por hora)

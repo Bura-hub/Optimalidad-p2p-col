@@ -61,7 +61,7 @@ This temporal granularity—monthly settlement versus hourly clearing—is the k
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_paper_monthly_vs_hourly.png}
+\includegraphics[width=0.48\textwidth]{fig_paper_monthly_vs_hourly.png}
 \caption{Conceptual comparison: (a) C1/C4 monthly settlement aggregates all surpluses into a single monthly pool, liquidated at monthly average spot price. (b) P2P clears hour-by-hour, with prices $\pi^*_k$ responding to instantaneous supply and demand heterogeneity. The hourly granularity is the mechanism's principal advantage in capturing intra-month arbitrage.}
 \label{fig:monthly_vs_hourly}
 \end{figure}
@@ -100,7 +100,7 @@ Representative profiles for two contrasting institutions are shown in Fig. \ref{
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_paper_profiles_2agents.png}
+\includegraphics[width=0.48\textwidth]{fig_paper_profiles_2agents.png}
 \caption{One-week demand and PV-generation profiles, August 2025. (Top) Hospital HUDN: nearly constant industrial load contrasted with diurnal solar generation. (Bottom) Universidad de Narino: variable academic load with weekend dips, paired with the same solar profile. The heterogeneity of demand patterns motivates peer-to-peer arbitrage.}
 \label{fig:profiles_2agents}
 \end{figure}
@@ -133,7 +133,7 @@ P2P ranks second at baseline, 2.9 % below C1 and 1.6 % below C4. The decompositi
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_paper_ahorro_decomposition.png}
+\includegraphics[width=0.48\textwidth]{fig_paper_ahorro_decomposition.png}
 \caption{Decomposition of aggregate net benefit: self-consumption term (identical across P2P, C1, C4) versus surplus-revenue differential. The baseline offsetting effect is identical by mechanism; all scenario differences are explained by the value of surplus energy.}
 \label{fig:ahorro_decomposition}
 \end{figure}
@@ -156,7 +156,14 @@ Table II reports the per-agent net benefit. Three of the five institutions indiv
 | HUDN    |     815,894 |     789,266 |     801,155 | P2P (+27 K vs C1)    |
 | Cesmag  |     972,226 |     726,314 |     750,280 | P2P (+246 K vs C1)   |
 
-UCC dominates the C1 advantage (425 K COP) because its sub-meter has the largest deficit profile of the community: under CREG 174's Type 1 mechanism, every kilowatt-hour permuted is valued at $\pi_{gs} - \pi^{C}$ (approximately 600 COP/kWh), while the P2P market clears at a price below $\pi_{gs}$. The aggregate result of "C1 wins by 2.9 %" therefore conceals heterogeneity that is relevant for adoption analysis: the institutions whose role in the P2P market is to *sell* (Udenar, HUDN, Cesmag) capture more value through peer trades than through individual permutation; the institution whose role is to *buy* (UCC) captures more value through Type 1 permutation against itself.
+UCC dominates the C1 advantage (425 K COP) because its sub-meter has the largest deficit profile of the community: under CREG 174's Type 1 mechanism, every kilowatt-hour permuted is valued at $\pi_{gs} - \pi^{C}$ (approximately 600 COP/kWh), while the P2P market clears at a price below $\pi_{gs}$. The aggregate result of "C1 wins by 2.9 %" therefore conceals heterogeneity that is relevant for adoption analysis: the institutions whose role in the P2P market is to *sell* (Udenar, HUDN, Cesmag) capture more value through peer trades than through individual permutation; the institution whose role is to *buy* (UCC) captures more value through Type 1 permutation against itself. Figure \ref{fig:per_agent_benefit} visualizes this per-agent split.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_per_agent_benefit.png}
+\caption{Per-agent net benefit by mechanism over August 2025. Three institutions (Udenar, HUDN, Cesmag) individually prefer the P2P market; UCC and Mariana favour C1 due to their structurally larger deficit profile that benefits from Type 1 permutation valuation.}
+\label{fig:per_agent_benefit}
+\end{figure}
 
 ### IV.D PV-factor sweep and phase transition
 
@@ -164,7 +171,7 @@ The decisive empirical finding of this paper is reported in Table III and visual
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_pv_ranking_cal29_canonical.png}
+\includegraphics[width=0.48\textwidth]{fig_pv_ranking_cal29_canonical.png}
 \caption{PV-factor sweep over $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$ on the August 2025 horizon. Net benefit (million COP) per scenario as a function of community PV coverage. The phase transition between $\phi = 1.0$ and $\phi = 1.5$ marks the over-generation regime in which P2P (rank 1) dominates both Colombian regulatory schemes; stars (★) flag rank changes versus the baseline.}
 \label{fig:pv_ranking}
 \end{figure}
@@ -201,25 +208,39 @@ The PDE method for C4 is admissible in two forms under CREG 101 072/2025 art. 5 
 
 ### IV.G P2P market activity
 
-At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon), trading 525.88 kWh internally and exporting 3,559.7 kWh as residual surplus to the spot market. Internal trade volume scales with PV factor: at $\phi = 3.0$, internal trades absorb a substantially larger fraction of the surplus because peer demand can monetize a larger portion at peer-cleared prices above the spot floor.
+At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon), trading 525.88 kWh internally and exporting 3,559.7 kWh as residual surplus to the spot market. Internal trade volume scales with PV factor: at $\phi = 3.0$, internal trades absorb a substantially larger fraction of the surplus because peer demand can monetize a larger portion at peer-cleared prices above the spot floor. Figure \ref{fig:market_activity} shows the day-by-hour pattern of market activity and Fig. \ref{fig:hourly_prices} reports the distribution of cleared prices by hour of day.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_audit_heterogeneidad_horaria.png}
+\includegraphics[width=0.48\textwidth]{fig_paper_market_activity.png}
+\caption{Day $\times$ hour heatmap of P2P market activity over August 2025. Trades concentrate in solar peak hours (10--15 h); off-solar hours have no internal trade because there is no community surplus.}
+\label{fig:market_activity}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_hourly_prices.png}
+\caption{Distribution of P2P cleared prices $\pi^{*}$ by hour of day (median and P10--P90 band). Prices substantially exceed the spot floor (234 COP/kWh) during solar peak hours, evidencing the value captured by hourly peer clearing relative to monthly spot liquidation.}
+\label{fig:hourly_prices}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_audit_heterogeneidad_horaria.png}
 \caption{Hourly P2P-vs-C4 dominance. Hours 10–15 h (solar peak) concentrate 88 % of the daily welfare advantage. Global Dispatch Ratio (GDR) = 0.99, cumulative delta = +42,696 COP over synthetic 24-h profile. Audit axis 1 (B3), CAL-8.}
 \label{fig:audit_heterogeneity}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_audit_calibration_robustness.png}
+\includegraphics[width=0.48\textwidth]{fig_audit_calibration_robustness.png}
 \caption{Calibration robustness grid: 4×4 sweep of $\alpha_n$ and $\theta$ over daily MTE profile. All 16 configurations yield identical outcomes (IE = 0.0000, welfare = 211,102 COP invariant), confirming Pareto efficiency of baseline under realistic PV coverage (11.3 \%). Audit axis 2 (B1), CAL-8.}
 \label{fig:audit_robustness}
 \end{figure}
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig_audit_chacon_comparison.png}
+\includegraphics[width=0.48\textwidth]{fig_audit_chacon_comparison.png}
 \caption{Index of Equity comparison: this paper (P2P $= +0.37$, C1 $= -0.01$, MTE 6144 h) versus Chacon et al. \cite{Chacon2025EMS} Table VII (replicator dynamics $= +0.01$, centralized planner $= -0.89$). The decentralized mechanism preserves equitable surplus distribution in both calibrations. Audit axis 3 (B5), CAL-8.}
 \label{fig:audit_chacon}
 \end{figure}
@@ -236,7 +257,7 @@ This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator a
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{outputs/paper/fig12_comparacion_mensual.png}
+\includegraphics[width=0.48\textwidth]{fig12_comparacion_mensual.png}
 \caption{Monthly net benefit by scenario (P2P, C1, C4) over the 6144-h horizon (Jul 2025 -- Feb 2026). The C1 advantage concentrates in drought months (Jul--Aug 2025, El Niño) where elevated spot prices structurally reward individual net-metering; P2P captures more value in high-irradiance months. Source: CAL-8 official thesis run, 2026-04-28.}
 \label{fig:monthly_breakdown}
 \end{figure}

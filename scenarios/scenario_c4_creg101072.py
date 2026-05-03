@@ -20,11 +20,11 @@ Mecanismo - Porcentaje de Distribución de Excedentes (PDE):
       * Componente Cvm,i,j del comercializador retenido en permuta Tipo 1.
       * Excedentes Tipo 2 a precio de bolsa horario.
 
-Marco regulatorio (CAL-15, 2026-05-01):
-  El Decreto 2236/2023 art. 4 y la CREG 101 072/2025 art. 5 establecen
-  que cada miembro AGRC se liquida bajo el régimen de Generador
-  Distribuido y AGPE. Por linealidad regulatoria C4 hereda CREG 174/2021
-  art. 25:
+Marco regulatorio (CAL-15, 2026-05-01; renumeración corregida CAL-31, 2026-05-03):
+  El Decreto 2236/2023 art. 4 y la CREG 101 072/2025 art. 19 (PDE) +
+  art. 20 caso 1 (capacidad ≤ 100 kW) establecen que cada miembro AGRC
+  se liquida bajo el régimen de Generador Distribuido y AGPE. Por
+  linealidad regulatoria C4 hereda CREG 174/2021 art. 25:
     - Permuta intracomunitaria (Tipo 1) → (pi_gs - Cvm,i,j)
     - Exportación residual (Tipo 2)     → pi_bolsa[k] horario
 
@@ -45,12 +45,18 @@ Algoritmo (hora a hora, mode="creg174_inheritance"):
 
     net_benefit[n] = savings_auto[n] + savings_t1[n] + revenue_t2[n]
 
-Referencia regulatoria:
+Referencia regulatoria (numeración verificada 2026-05-03 vs gestornormativo.creg.gov.co):
     Decreto 2236 de 2023 art. 4 (marco AGRC, hereda AGPE).
-    Resolución CREG 101 072 de 2025 art. 5 (condiciones operativas).
-    Resolución CREG 174 de 2021 art. 25 (Cvm,i,j sobre permuta).
-    Resolución CREG 119 de 2007 art. 11 (definición Cvm,i,j).
-    Resolución CREG 101 066 de 2024 (techos tarifarios — CAL-14).
+    Resolución CREG 101 072 de 2025 art. 19 (PDE) + art. 20 caso 1
+        (capacidad ≤ 100 kW). Modificada por CREG 101-087/2025 art. 13
+        (caso 4 amplía a no-FNCER, no aplica a MTE solar).
+    Resolución CREG 174 de 2021 art. 25 (créditos energía + valoración
+        horaria del residual; "Tipo 1/Tipo 2/Hx" son denominaciones
+        didácticas del sector, no cita literal CREG).
+    Resolución CREG 119 de 2007 art. 11 (definición Cvm,i,j; modificada
+        por CREG 101 028/2023).
+    Resolución CREG 101 066 de 2024 art. 3 (PES referencial mensual,
+        aplicado horario via min(pi_bolsa[k], PES_mes) — CAL-14).
 
 Historico:
     Pre-CAL-15: créditos PDE valorados a pi_gs completo, sin distinción
@@ -82,7 +88,7 @@ def compute_pde_weights(
     Calcula los ponderadores PDE.
 
     Métodos disponibles:
-        'capacity_proportional'    : PDE_n = cap_n / sum(cap)  (default, CREG 101 072 art. 5)
+        'capacity_proportional'    : PDE_n = cap_n / sum(cap)  (default, CREG 101 072 art. 19)
             metric esperada: capacidad instalada en kW.
         'equal'                    : PDE_n = 1/N
             metric ignorada (se usa solo para tamaño N).
@@ -93,7 +99,7 @@ def compute_pde_weights(
     Fallback: si ``sum(metric) <= 0`` (e.g., comunidad sin generación),
     devuelve PDE uniforme 1/N en todos los métodos proporcionales.
 
-    En la práctica, la CREG 101 072 art. 5 permite ponderadores acordados
+    En la práctica, la CREG 101 072 art. 19 permite ponderadores acordados
     entre miembros; los listados aquí son referencias.
 
     CAL-26 (ADR-0026): ``excedentes_proportional`` es opt-in. El default

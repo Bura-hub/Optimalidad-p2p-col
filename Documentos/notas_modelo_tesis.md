@@ -3703,3 +3703,94 @@ aplicada vía CAL-29. CAL-30 unifica ambos contextos.
 - ADR padre: `docs/adr/0029-cal29-p2p-revenue-canonica.md` (paper).
 - Audit: `Documentos/audit_p2p_decomposition.md`.
 - Plan: `radiant-sleeping-eagle.md` §6.6.5 (cierre Sprint 7).
+
+---
+
+## CAL-31 — Auditoría regulatoria integral C1-C4 (Sprint 8)
+
+### Detonante
+
+Solicitud usuario 2026-05-03: *"con superpowers y ruflo audita que C1, C2,
+C3 y C4 estén correctamente implementados siguiendo también la regulación,
+revisa si existe algún parámetro que se esté simulando mal, tanto para la
+tesis como para el paper, investiga en internet y valida todo lo necesario"*.
+
+Sprint 8 ejecutó 6 fases:
+- Fase A: WebFetch a 9 fuentes oficiales (gestornormativo.creg.gov.co +
+  secretariasenado + funcionpublica).
+- Fase B: mapeo cláusula↔código por escenario.
+- Fase C: cross-check 8 parámetros hardcoded.
+- Fase D: análisis de gaps + fix.
+- Fase E: documento `Documentos/audit_regulatorio_C1_C4.md` (~12 páginas).
+- Fase F: validación cruzada CAL-24 swarm.
+
+### Hallazgos
+
+**Lógica matemática**: ✓ correcta en C1, C2, C3, C4.
+**Parámetros hardcoded**: ✓ 8/8 verificados, ninguno con magnitud incorrecta.
+**Documentación**: ⚠ 5 referencias con numeración incorrecta + 2
+modificaciones regulatorias 2025 no trackeadas.
+
+### Numeración corregida (verificada vs texto oficial)
+
+| Concepto | Cita anterior | Cita verificada |
+|---|---|---|
+| C4: PDE en CREG 101 072 | art. 5 | **art. 19** |
+| C4: Capacidad ≤ 100 kW | art. 3 | **art. 20 caso 1** |
+| C1: Mecánica créditos energía | art. 22-23 | **art. 25** |
+| C2: CREG 086/1996 mod 039/2001 | art. 1 mod | **art. 3 mod por 039 art. 1** |
+
+### Modificaciones 2025 trackeadas
+
+**CREG 101-087/2025 art. 13** modifica:
+- CREG 101 072/2025 art. 20 (caso 4 amplía a no-FNCER) → no aplica MTE
+  (todas las plantas son solar FNCER).
+- CREG 174/2021 art. 24 (definiciones de precio) → no afecta cálculo
+  horario de bolsa usado en C1 Tipo 2 / C3 / C4.
+
+**Impacto numérico**: NULO. Tracking solo defensibilidad académica.
+
+### Aclaratoria terminológica
+
+CREG 174/2021 art. 25 habla literalmente de:
+- *"crédito de energía"* (excedentes ≤ importación)
+- *"valoración horaria de la energía que exceda"* (residual)
+
+Las denominaciones **"Tipo 1", "Tipo 2", "hora cruce Hx"** son construcciones
+**didácticas del sector** (EDEQ, Solsta), no cita literal. Docstrings de
+`scenario_c1_creg174.py` y `scenario_c4_creg101072.py` ahora aclaran esta
+distinción.
+
+### Fixes aplicados (todos docstring-only)
+
+- `scenarios/scenario_c1_creg174.py`: 3 ediciones (numeración + nota
+  terminológica).
+- `scenarios/scenario_c2_bilateral.py`: 1 edición (numeración).
+- `scenarios/scenario_c4_creg101072.py`: 5 ediciones (numeración +
+  tracking CREG 101-087/2025 + nota PES).
+
+**Cero cambios de lógica matemática.**
+
+### Validación
+
+- pytest 310/310 verdes (sin cambios funcionales).
+- CAL-24 swarm validator: PASS 15/15.
+- main_simulation.py --data real: RPE delta = 0.
+
+### Pendientes para autor humano
+
+1. **Verificar umbral usuario no-regulado 2025-2026**: contactar
+   gestornormativo.creg.gov.co o Concepto CREG 14534/2025 para cita
+   exacta (era 100 kW / 55 MWh-mes en 2007).
+2. **Verificar prórroga contribución 4%**: revisar Ley 2099/2021 art. 45
+   para fecha exacta de expiración.
+3. **Lectura literal CREG 101 028/2023 mod CREG 119/2007**: confirmar
+   que no afecta cálculo Cvm post-2023.
+4. **CREG 174 art. 24 modificado por CREG 101-087/2025**: verificar
+   texto completo (HTML truncado en WebFetch).
+
+### Documentación
+
+- ADR: `docs/adr/0031-cal31-renumeracion-art-creg-101072.md`.
+- Auditoría completa: `Documentos/audit_regulatorio_C1_C4.md`.
+- Plan: `radiant-sleeping-eagle.md` §7 Sprint 8.

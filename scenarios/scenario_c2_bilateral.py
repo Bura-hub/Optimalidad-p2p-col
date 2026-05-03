@@ -10,8 +10,9 @@ y la **comunidad MTE constituida como usuario no-regulado agregado**
 ALCANCE FORMAL CAL-13 (2026-05-01) — comunidad como usuario no-regulado
 =======================================================================
 
-Bajo Ley 143/1994 art. 41 + Decreto 388/2007 + CREG 086/1996 art. 1
-mod. 039/2001, las 5 instituciones MTE constituidas como persona
+Bajo Ley 143/1994 art. 41 + Decreto 388/2007 + CREG 086/1996
+(art. 3 modificado por CREG 039/2001 art. 1; numeración corregida
+en CAL-31, 2026-05-03), las 5 instituciones MTE constituidas como persona
 jurídica común (asociación, cooperativa o comunidad energética con
 demanda agregada ≥ 55 MWh/mes o potencia conectada ≥ 100 kW)
 califican como **usuario no-regulado** y pueden firmar contratos

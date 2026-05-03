@@ -596,6 +596,114 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
     return {"xlsx": str(xlsx_path), "month": month, "tag": tag}
 
 
+# ─── Sprint 6.5 — Barrido PV con detector de cruces de ranking ──────────────
+
+
+def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
+                      pi_gb, pde_method: str = "capacity",
+                      factors: tuple = (1.0, 1.5, 2.0, 2.5, 3.0)) -> list:
+    """Re-ejecuta P2P + C1 + C4 escalando la generación por cada factor.
+
+    Devuelve lista de dicts compatible con
+    :func:`analysis.sensitivity.ranking_table_pv`.
+    """
+    from scenarios.scenario_c4_creg101072 import (
+        compute_pde_weights, compute_excedentes_acumulados,
+    )
+
+    sweep = []
+    print(f"\n  [Sprint 6.5] Barrido PV factors={list(factors)} "
+          f"({pde_method})")
+    print(f"  {'factor':>7}  {'cob%':>5}  {'P2P [M]':>9}  {'C1 [M]':>9}  "
+          f"{'C2 [M]':>9}  {'horas':>5}")
+    print("  " + "─" * 60)
+
+    for f in factors:
+        G_scaled = G * float(f)
+        cap_scaled = np.maximum(G_scaled.mean(axis=1), 0)
+        if pde_method == "capacity":
+            pde = compute_pde_weights(cap_scaled,
+                                       method="capacity_proportional")
+        else:
+            ex = compute_excedentes_acumulados(G_scaled, D)
+            pde = compute_pde_weights(ex, method="excedentes_proportional")
+
+        p2p_res, G_klim = correr_p2p(D, G_scaled, agents, params["b_cal"],
+                                       pi_gs_eff, pi_gb)
+        c1_per_agent = correr_c1(D, G_klim, params["pi_gs"], params["pi_bolsa"],
+                                  prosumer_ids, idx)
+        c4_res = correr_c4(D, G_klim, params["pi_gs"], params["pi_bolsa"],
+                            pde, cap_scaled, component_c="auto")
+
+        _resumen, scenarios_data, _decomp = construir_resumen(
+            p2p_res, c1_per_agent, c4_res, agents,
+            D, G_klim, params["pi_gs"], pi_gb, prosumer_ids,
+        )
+        nb_dict = {esc: float(total) for esc, (total, _) in scenarios_data.items()}
+        active = [r for r in p2p_res
+                  if r.P_star is not None and np.sum(r.P_star) > 1e-4]
+        kwh = sum(float(np.sum(r.P_star)) for r in active)
+        cov = float(G_scaled.sum()) / max(float(D.sum()), 1e-9)
+
+        sweep.append({
+            "param_value": float(f),
+            "coverage": cov,
+            "net_benefit": nb_dict,
+            "kwh_p2p": kwh,
+            "horas_activas": len(active),
+        })
+        print(f"  {f:>7.2f}  {cov*100:>4.0f}%  "
+              f"{nb_dict.get(PAPER_RENAMING['P2P'], 0)/1e6:>9.2f}  "
+              f"{nb_dict.get(PAPER_RENAMING['C1'], 0)/1e6:>9.2f}  "
+              f"{nb_dict.get(PAPER_RENAMING['C4'], 0)/1e6:>9.2f}  "
+              f"{len(active):>5}")
+    return sweep
+
+
+def exportar_ranking_pv(sweep: list, scenarios: list, out_dir: Path,
+                          tag: str, graficas_dir: Optional[Path] = None) -> dict:
+    """Genera tabla de ranking PV + figura + siblings .csv/.mat (Sprint 6.5)."""
+    from analysis.sensitivity import ranking_table_pv, plot_pv_ranking
+
+    rank_df = ranking_table_pv(sweep, scenarios=scenarios, baseline_factor=1.0)
+
+    out_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = out_dir / f"fig_pv_ranking_{tag}.csv"
+    rank_df.to_csv(csv_path, index=False)
+    png_path = out_dir / f"fig_pv_ranking_{tag}.png"
+    plot_pv_ranking(rank_df, scenarios, png_path,
+                     title="PV factor sweep — paper IEEE WEEF 2026")
+
+    print(f"  [Sprint 6.5] CSV ranking -> {csv_path.relative_to(ROOT) if csv_path.is_relative_to(ROOT) else csv_path}")
+    print(f"  [Sprint 6.5] Fig ranking -> {png_path.relative_to(ROOT) if png_path.is_relative_to(ROOT) else png_path}")
+
+    info = {"csv": str(csv_path), "png": str(png_path)}
+
+    if graficas_dir is not None:
+        graficas_dir.mkdir(parents=True, exist_ok=True)
+        rank_df.to_csv(graficas_dir / "fig_pv_ranking.csv", index=False)
+        plot_pv_ranking(rank_df, scenarios, graficas_dir / "fig_pv_ranking.png",
+                         title="PV factor sweep — paper IEEE WEEF 2026")
+        try:
+            from scipy.io import savemat
+            mat_data = {
+                "factor": rank_df["factor"].to_numpy(dtype=float),
+            }
+            for s in scenarios:
+                # MATLAB no acepta espacios/paréntesis en nombres de campos.
+                key = (s.replace(" ", "_").replace("(", "").replace(")", "")
+                          .replace("+", "").replace("-", "_"))
+                mat_data[f"NB_{key}"] = rank_df[f"NB_{s}"].to_numpy(dtype=float)
+                mat_data[f"rank_{key}"] = rank_df[f"rank_{s}"].to_numpy(dtype=int)
+            savemat(graficas_dir / "fig_pv_ranking.mat", mat_data)
+        except Exception as e:
+            print(f"  [Sprint 6.5] .mat skipped ({e})")
+        info["graficas_csv"] = str(graficas_dir / "fig_pv_ranking.csv")
+        info["graficas_png"] = str(graficas_dir / "fig_pv_ranking.png")
+
+    return info
+
+
 # ─── Main orquestador ──────────────────────────────────────────────────────
 
 
@@ -614,6 +722,11 @@ def main() -> int:
     ap.add_argument("--no-paper-meters", action="store_true",
                     help="NO usar selección CAL-28 (usar M1 totalizador). "
                          "Solo para comparación con baseline tesis.")
+    ap.add_argument("--ranking-pv", action="store_true",
+                    help="Sprint 6.5: barrido de factor PV {1,1.5,2,2.5,3} "
+                         "con detector de cruces de ranking + figura.")
+    ap.add_argument("--pv-factors", default="1.0,1.5,2.0,2.5,3.0",
+                    help="Factores PV (CSV). Default '1.0,1.5,2.0,2.5,3.0'.")
     args = ap.parse_args()
 
     print()
@@ -705,6 +818,26 @@ def main() -> int:
     info = exportar(resumen, por_agente, D, G, idx, agents,
                      out_dir, args.tag, args.month,
                      decomposition=decomposition)
+
+    # Sprint 6.5 — barrido de factor PV opcional
+    if args.ranking_pv:
+        try:
+            factors = tuple(float(x) for x in args.pv_factors.split(",")
+                            if x.strip())
+        except Exception:
+            print(f"  [Sprint 6.5] --pv-factors inválido: {args.pv_factors}")
+            return 1
+        sweep = barrido_pv_paper(
+            D, G, idx, agents, p, prosumer_ids, pi_gs_eff, pi_gb,
+            pde_method=args.pde, factors=factors,
+        )
+        graficas_dir = ROOT / "graficas"
+        scenarios_paper = [PAPER_RENAMING["P2P"],
+                            PAPER_RENAMING["C1"],
+                            PAPER_RENAMING["C4"]]
+        exportar_ranking_pv(sweep, scenarios_paper, out_dir, args.tag,
+                              graficas_dir=graficas_dir)
+
     print(f"\n  [paper] Hecho. tag={info['tag']}")
     return 0
 

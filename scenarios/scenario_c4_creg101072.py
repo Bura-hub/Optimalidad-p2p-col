@@ -194,7 +194,7 @@ def run_c4_creg101072(
             f"C4: mode='{mode}' es legacy pre-CAL-15. "
             "Use mode='creg174_inheritance' (default) que aplica "
             "CREG 174 art. 25 sobre permuta intracomunitaria. "
-            "Ver docs/adr/0011-cal15-c4-creg101072-tipo-1-2-cvm.md",
+            "Ver docs/adr/0015-cal15-c4-creg101072-tipo-1-2-cvm.md",
             DeprecationWarning,
             stacklevel=2,
         )

@@ -170,8 +170,8 @@ def validate_creg_101072(root: Path = ROOT) -> AgentVerdict:
                            code_checks["Tipo 2"]))
     v.checks.append(Check("scenario_c4 hereda Cvm,i,j de CREG 174 art. 25",
                            code_checks[r"pi_gs\s*-\s*[Cc]vm|cvm"]))
-    v.checks.append(Check("ADR-0011 (CAL-15) Accepted",
-                           _adr_estado("0011-cal15-c4-creg101072-tipo-1-2-cvm.md")
+    v.checks.append(Check("ADR-0015 (CAL-15) Accepted",
+                           _adr_estado("0015-cal15-c4-creg101072-tipo-1-2-cvm.md")
                            == "Accepted"))
     return v
 

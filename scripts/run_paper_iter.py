@@ -546,65 +546,92 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
         rel_xlsx = xlsx_path
     print(f"  [paper] Excel  -> {rel_xlsx}")
 
-    # Figura de perfiles del mes
+    # Figura de perfiles del mes (IEEE 300dpi + PDF vectorial)
     try:
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
+        from visualization.ieee_style import (
+            apply_ieee_style, save_ieee, COLORS, COLORS_AGENT,
+        )
 
-        fig, axes = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
+        apply_ieee_style()
+
+        fig, axes = plt.subplots(2, 1, figsize=(7.0, 4.5), sharex=True)
         N, T = D.shape
         hours = np.arange(T)
         agg_D = D.sum(axis=0)
         agg_G = G.sum(axis=0)
         axes[0].plot(hours, agg_D, label="Demand (community)",
-                      color="tab:red", lw=1)
+                      color=COLORS_AGENT[2], lw=1.0)
         axes[0].plot(hours, agg_G, label="Generation (community)",
-                      color="tab:green", lw=1)
-        axes[0].set_ylabel("kW")
+                      color=COLORS["C1"], lw=1.0)
+        axes[0].set_ylabel("Power [kW]")
         axes[0].set_title(f"Community profiles ({month}, "
-                           f"5 institutions homogenized to commercial)")
-        axes[0].legend(loc="upper right", fontsize=9)
+                           f"5 institutions, commercial profile)")
+        axes[0].legend(loc="upper right")
         axes[0].grid(alpha=0.3)
 
         for n, name in enumerate(agents):
-            axes[1].plot(hours, G[n], label=name, lw=0.8)
+            axes[1].plot(hours, G[n], label=name, lw=0.7,
+                         color=COLORS_AGENT[n % len(COLORS_AGENT)])
         axes[1].set_xlabel("Hour")
         axes[1].set_ylabel("Generation per institution [kW]")
-        axes[1].legend(loc="upper right", fontsize=8, ncol=5)
+        axes[1].legend(loc="upper right", ncol=5, fontsize=7)
         axes[1].grid(alpha=0.3)
 
         fig.tight_layout()
         png_path = out_dir / f"perfiles_{month}.png"
-        fig.savefig(png_path, dpi=130, bbox_inches="tight")
-        plt.close(fig)
+        save_ieee(fig, str(png_path).replace(".png", ""), dpi=300, also_pdf=True)
         try:
             rel_png = png_path.relative_to(ROOT)
         except ValueError:
             rel_png = png_path
-        print(f"  [paper] Figura -> {rel_png}")
+        print(f"  [paper] Figura -> {rel_png} (300dpi + PDF)")
     except Exception as e:
         print(f"  [paper] Figura skipped ({e})")
 
-    # Sprint 6.4: figura barras apiladas (offset común vs diferencial)
+    # Sprint 6.4: figura barras apiladas (offset comun vs diferencial)
     if decomposition:
         try:
             import matplotlib
             matplotlib.use("Agg")
             import matplotlib.pyplot as plt
+            from visualization.ieee_style import (
+                apply_ieee_style, save_ieee, COLORS,
+            )
+
+            apply_ieee_style()
 
             scenarios = list(decomposition.keys())
             ahorro_vals  = [decomposition[s][0] / 1e6 for s in scenarios]
             venta_vals   = [decomposition[s][1] / 1e6 for s in scenarios]
 
-            fig, ax = plt.subplots(figsize=(8, 5))
+            # Mapeo escenario -> color del proyecto
+            def _color_for(s: str) -> str:
+                if s.startswith("P2P"):
+                    return COLORS["P2P"]
+                if s.startswith("C1"):
+                    return COLORS["C1"]
+                if s.startswith("C2 (CREG 101"):
+                    return COLORS["C4"]  # internamente C4 renombrado a C2
+                if s.startswith("C2"):
+                    return COLORS["C2"]
+                if s.startswith("C3"):
+                    return COLORS["C3"]
+                if s.startswith("C4"):
+                    return COLORS["C4"]
+                return "#888888"
+
+            fig, ax = plt.subplots(figsize=(7.0, 4.0))
             x = np.arange(len(scenarios))
             width = 0.6
-            b1 = ax.bar(x, ahorro_vals, width, label="Self-consumption savings (offset)",
-                         color="tab:gray", alpha=0.85)
-            b2 = ax.bar(x, venta_vals, width, bottom=ahorro_vals,
-                         label="Surplus revenue (differentiator)",
-                         color="tab:blue", alpha=0.85)
+            ax.bar(x, ahorro_vals, width,
+                   label="Self-consumption savings (common offset)",
+                   color="#bbbbbb", alpha=0.85)
+            ax.bar(x, venta_vals, width, bottom=ahorro_vals,
+                   label="Surplus revenue (differentiator)",
+                   color=[_color_for(s) for s in scenarios], alpha=0.92)
             for i, (a, v) in enumerate(zip(ahorro_vals, venta_vals)):
                 ax.text(i, a / 2, f"{a:.2f}", ha="center", va="center",
                         fontsize=8, color="white")
@@ -618,18 +645,18 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
                                 fontsize=9)
             ax.set_ylabel("Net benefit [million COP]")
             ax.set_title(f"Self-consumption (common offset) vs. surplus revenue\n"
-                          f"({month}, IEEE WEEF paper)")
-            ax.legend(loc="upper right", fontsize=9)
+                          f"({month}, paper case study)")
+            ax.legend(loc="upper right")
             ax.grid(axis="y", alpha=0.3)
             fig.tight_layout()
             stack_path = out_dir / f"fig_offset_vs_diferencial_{tag}.png"
-            fig.savefig(stack_path, dpi=130, bbox_inches="tight")
-            plt.close(fig)
+            save_ieee(fig, str(stack_path).replace(".png", ""),
+                      dpi=300, also_pdf=True)
             try:
                 rel_stack = stack_path.relative_to(ROOT)
             except ValueError:
                 rel_stack = stack_path
-            print(f"  [paper] Figura barras apiladas -> {rel_stack}")
+            print(f"  [paper] Figura barras apiladas -> {rel_stack} (300dpi + PDF)")
         except Exception as e:
             print(f"  [paper] Figura barras apiladas skipped ({e})")
 

@@ -528,14 +528,33 @@ def plot_pv_ranking(
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from pathlib import Path
+    from visualization.ieee_style import (
+        apply_ieee_style, save_ieee, COLORS,
+    )
+
+    apply_ieee_style()
+
+    def _color_for(s: str) -> str:
+        if s.startswith("P2P"):
+            return COLORS["P2P"]
+        if s.startswith("C1"):
+            return COLORS["C1"]
+        if s.startswith("C2 (CREG 101"):
+            return COLORS["C4"]
+        if s.startswith("C2"):
+            return COLORS["C2"]
+        if s.startswith("C3"):
+            return COLORS["C3"]
+        if s.startswith("C4"):
+            return COLORS["C4"]
+        return "#888888"
 
     factors = rank_df["factor"].to_numpy()
-    fig, ax = plt.subplots(figsize=(8, 5))
+    fig, ax = plt.subplots(figsize=(7.0, 4.0))
 
-    colors = plt.get_cmap("tab10").colors
     for i, s in enumerate(scenarios):
-        nb = rank_df[f"NB_{s}"].to_numpy() / 1e6  # COP -> millones COP
-        c = colors[i % len(colors)]
+        nb = rank_df[f"NB_{s}"].to_numpy() / 1e6
+        c = _color_for(s)
         ax.plot(factors, nb, marker="o", color=c, lw=1.6, label=s)
         if f"star_{s}" in rank_df.columns:
             stars_idx = np.where(rank_df[f"star_{s}"].to_numpy() == "★")[0]
@@ -549,12 +568,11 @@ def plot_pv_ranking(
     ax.set_xlabel("PV scaling factor (× baseline)")
     ax.set_ylabel("Net benefit [million COP]")
     ax.set_title(title)
-    ax.legend(loc="best", fontsize=9)
+    ax.legend(loc="best")
     ax.grid(alpha=0.3)
     fig.tight_layout()
     out_path = Path(out_path)
-    fig.savefig(out_path, dpi=130, bbox_inches="tight")
-    plt.close(fig)
+    save_ieee(fig, str(out_path).replace(".png", ""), dpi=300, also_pdf=True)
     return out_path
 
 

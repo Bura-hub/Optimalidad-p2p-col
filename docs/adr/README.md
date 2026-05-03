@@ -29,6 +29,7 @@ Estado posibles: `Proposed | Accepted | Superseded | Deprecated`.
 | 0018 | CAL-18: Cedenar verificada 100 % + fail-fast (sin fallback silencioso) | Accepted | 2026-05-02 |
 | 0019 | CAL-19: Convergencia empírica del juego Stackelberg (sustento `iters=2`) | Accepted | 2026-05-02 |
 | 0020 | CAL-20: Sensibilidad de `cot_alpha` en C2 (sustento default 1.0) | Accepted | 2026-05-02 |
+| 0021 | CAL-21: Sensibilidad del split factor `f` en C2 (sustento `f=0.5`) | Accepted | 2026-05-02 |
 
 > **Nota numeración:** CAL-15 / ADR `0011-cal15-c4-creg101072-tipo-1-2-cvm.md`
 > está reservado para el trabajo en C4 (Decreto 2236/2023 + CREG

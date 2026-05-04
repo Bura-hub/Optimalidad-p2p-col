@@ -1,9 +1,27 @@
+<!--
+Submission target — verified against the official Acofi/EIEI requirements
+(https://acofipapers.org/index.php/eiei/avances) on 2026-05-04:
+  Venue        : WEEF (IFEES & GEDC) 2026 — Encuentro Internacional de Educacion en Ingenieria
+  Track        : Energy
+  Track ID     : Research Advances
+  Length cap   : 9 pages MAX, including tables, figures, and bibliographic references
+  Abstract cap : 1 page (formatted with the provided abstract template)
+  Language     : same as the accepted abstract — this paper is in English
+  Format       : IEEE Conference Proceedings template (mandatory)
+  Submission   : PDF only, validated via IEEE PDF eXpress (Conference ID 71988X)
+  Deadline     : full paper 2026-05-10; payment 2026-08-05; presentation 2026-09-22..24
+  Author limit : maximum 2 papers per author across the venue
+  Output       : papers accepted receive DOI and ISSN identifiers
+-->
+
 # Empirical Validation of a Peer-to-Peer Energy Market Against Colombian Regulatory Schemes: A Phase Transition to P2P Optimality at Community Over-Generation
 
 **Brayan S. Lopez-Mendez**, *Student Member, IEEE*; **Andres Pantoja**, *Member, IEEE*; **German Obando**
 
 Department of Electronic Engineering, Universidad de Narino, Pasto, Colombia
 Email: bralopez@udenar.edu.co
+
+*Research Advances submission — Track: Energy — WEEF (IFEES & GEDC) 2026.*
 
 ---
 

@@ -270,7 +270,7 @@ def correr_p2p(D, G, agents, b_cal, pi_gs_eff: float, pi_gb: float):
     )
     ems = EMSP2P(agent_params, grid, solver)
     p2p_results, G_klim, _ = ems.run(D, G)
-    return p2p_results, G_klim
+    return p2p_results, G_klim, ems
 
 
 # ─── Simulación regulatorios ───────────────────────────────────────────────
@@ -546,119 +546,16 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
         rel_xlsx = xlsx_path
     print(f"  [paper] Excel  -> {rel_xlsx}")
 
-    # Figura de perfiles del mes (IEEE 300dpi + PDF vectorial)
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        from visualization.ieee_style import (
-            apply_ieee_style, save_ieee, COLORS, COLORS_AGENT,
-        )
+    # NOTE: community-wide profile plot ("perfiles_<month>.png") was a thesis
+    # artefact; the paper now uses fig_paper_profiles_2agents (Udenar + HUDN
+    # contrast) instead, which is cited as fig:profiles_2agents. The redundant
+    # full-community plot is no longer generated into outputs/paper/.
 
-        apply_ieee_style()
-
-        fig, axes = plt.subplots(2, 1, figsize=(7.0, 4.5), sharex=True)
-        N, T = D.shape
-        hours = np.arange(T)
-        agg_D = D.sum(axis=0)
-        agg_G = G.sum(axis=0)
-        axes[0].plot(hours, agg_D, label="Demand (community)",
-                      color=COLORS_AGENT[2], lw=1.0)
-        axes[0].plot(hours, agg_G, label="Generation (community)",
-                      color=COLORS["C1"], lw=1.0)
-        axes[0].set_ylabel("Power [kW]")
-        axes[0].set_title(f"Community profiles ({month}, "
-                           f"5 institutions, commercial profile)")
-        axes[0].legend(loc="upper right")
-        axes[0].grid(alpha=0.3)
-
-        for n, name in enumerate(agents):
-            axes[1].plot(hours, G[n], label=name, lw=0.7,
-                         color=COLORS_AGENT[n % len(COLORS_AGENT)])
-        axes[1].set_xlabel("Hour")
-        axes[1].set_ylabel("Generation per institution [kW]")
-        axes[1].legend(loc="upper right", ncol=5, fontsize=7)
-        axes[1].grid(alpha=0.3)
-
-        fig.tight_layout()
-        png_path = out_dir / f"perfiles_{month}.png"
-        save_ieee(fig, str(png_path).replace(".png", ""), dpi=300, also_pdf=True)
-        try:
-            rel_png = png_path.relative_to(ROOT)
-        except ValueError:
-            rel_png = png_path
-        print(f"  [paper] Figura -> {rel_png} (300dpi + PDF)")
-    except Exception as e:
-        print(f"  [paper] Figura skipped ({e})")
-
-    # Sprint 6.4: figura barras apiladas (offset comun vs diferencial)
-    if decomposition:
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-            from visualization.ieee_style import (
-                apply_ieee_style, save_ieee, COLORS,
-            )
-
-            apply_ieee_style()
-
-            scenarios = list(decomposition.keys())
-            ahorro_vals  = [decomposition[s][0] / 1e6 for s in scenarios]
-            venta_vals   = [decomposition[s][1] / 1e6 for s in scenarios]
-
-            # Mapeo escenario -> color del proyecto
-            def _color_for(s: str) -> str:
-                if s.startswith("P2P"):
-                    return COLORS["P2P"]
-                if s.startswith("C1"):
-                    return COLORS["C1"]
-                if s.startswith("C2 (CREG 101"):
-                    return COLORS["C4"]  # internamente C4 renombrado a C2
-                if s.startswith("C2"):
-                    return COLORS["C2"]
-                if s.startswith("C3"):
-                    return COLORS["C3"]
-                if s.startswith("C4"):
-                    return COLORS["C4"]
-                return "#888888"
-
-            fig, ax = plt.subplots(figsize=(7.0, 4.0))
-            x = np.arange(len(scenarios))
-            width = 0.6
-            ax.bar(x, ahorro_vals, width,
-                   label="Self-consumption savings (common offset)",
-                   color="#bbbbbb", alpha=0.85)
-            ax.bar(x, venta_vals, width, bottom=ahorro_vals,
-                   label="Surplus revenue (differentiator)",
-                   color=[_color_for(s) for s in scenarios], alpha=0.92)
-            for i, (a, v) in enumerate(zip(ahorro_vals, venta_vals)):
-                ax.text(i, a / 2, f"{a:.2f}", ha="center", va="center",
-                        fontsize=8, color="white")
-                ax.text(i, a + v / 2, f"{v:.2f}", ha="center", va="center",
-                        fontsize=8, color="white")
-                ax.text(i, a + v + 0.05 * max(ahorro_vals + venta_vals),
-                        f"Total {a+v:.2f}", ha="center", fontsize=9,
-                        fontweight="bold")
-            ax.set_xticks(x)
-            ax.set_xticklabels([s.replace(" (", "\n(") for s in scenarios],
-                                fontsize=9)
-            ax.set_ylabel("Net benefit [million COP]")
-            ax.set_title(f"Self-consumption (common offset) vs. surplus revenue\n"
-                          f"({month}, paper case study)")
-            ax.legend(loc="upper right")
-            ax.grid(axis="y", alpha=0.3)
-            fig.tight_layout()
-            stack_path = out_dir / f"fig_offset_vs_diferencial_{tag}.png"
-            save_ieee(fig, str(stack_path).replace(".png", ""),
-                      dpi=300, also_pdf=True)
-            try:
-                rel_stack = stack_path.relative_to(ROOT)
-            except ValueError:
-                rel_stack = stack_path
-            print(f"  [paper] Figura barras apiladas -> {rel_stack} (300dpi + PDF)")
-        except Exception as e:
-            print(f"  [paper] Figura barras apiladas skipped ({e})")
+    # Decomposition stacked bars are now produced by
+    # visualization.paper_figures.thesis_adapted_en.fig_paper_flow_breakdown
+    # (English, IEEE 300dpi, paper renaming, cited as fig:flow_breakdown).
+    # The legacy fig_offset_vs_diferencial_<tag>.png was redundant with that
+    # paper-spec figure and is no longer generated.
 
     return {"xlsx": str(xlsx_path), "month": month, "tag": tag}
 
@@ -695,8 +592,8 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
             ex = compute_excedentes_acumulados(G_scaled, D)
             pde = compute_pde_weights(ex, method="excedentes_proportional")
 
-        p2p_res, G_klim = correr_p2p(D, G_scaled, agents, params["b_cal"],
-                                       pi_gs_eff, pi_gb)
+        p2p_res, G_klim, _ems_pv = correr_p2p(D, G_scaled, agents, params["b_cal"],
+                                                pi_gs_eff, pi_gb)
         c1_per_agent = correr_c1(D, G_klim, params["pi_gs"], params["pi_bolsa"],
                                   prosumer_ids, idx)
         c4_res = correr_c4(D, G_klim, params["pi_gs"], params["pi_bolsa"],
@@ -841,8 +738,8 @@ def main() -> int:
 
     # B - solo C1, C4, P2P
     print(f"\n  [paper 1/3] EMS P2P...")
-    p2p_results, G_klim = correr_p2p(D, G, agents, p["b_cal"],
-                                       pi_gs_eff, pi_gb)
+    p2p_results, G_klim, ems = correr_p2p(D, G, agents, p["b_cal"],
+                                            pi_gs_eff, pi_gb)
     print(f"             {time.time() - t0:.1f}s acumulado")
 
     print(f"\n  [paper 2/3] C1 (CREG 174)...")
@@ -920,62 +817,14 @@ def main() -> int:
         except Exception as exc:
             print(f"  [paper] apply_ieee_style fallo ({exc}); continuando con default")
 
-        N = D.shape[0]
-        consumer_ids = [n for n in range(N) if n not in prosumer_ids]
-
-        # Construir ComparisonResult via run_comparison
-        cr = None
-        try:
-            from scenarios.comparison_engine import run_comparison
-            cr = run_comparison(
-                D=D, G_klim=G_klim, G_raw=G,
-                p2p_results=p2p_results,
-                pi_gs=p["pi_gs"], pi_gb=pi_gb,
-                pi_bolsa=p["pi_bolsa"],
-                prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-                pde=pde, capacity=capacity,
-                component_c="auto",
-            )
-            print(f"  [paper] ComparisonResult construido para fig pipeline")
-        except Exception as exc:
-            print(f"  [paper] run_comparison fallo: {exc}")
-
-        # Figuras base fig1-6
-        if cr is not None:
-            try:
-                from visualization.plots import generate_all_plots
-                paths = generate_all_plots(D, G, G_klim, p2p_results, cr,
-                                            agents, str(out_dir), "COP")
-                print(f"  [paper] generate_all_plots OK ({len(paths)} figs base)")
-            except Exception as exc:
-                print(f"  [paper] generate_all_plots fallo: {exc}")
-
-        # Figuras de analisis adicionales (best-effort)
-        from visualization import plots as P
+        # NOTE: thesis figures from visualization.plots (fig1-6, fig13, fig15,
+        # fig20, fig23) are intentionally NOT generated into outputs/paper/:
+        # they are Spanish, do not honor PAPER_RENAMING, and have paper-spec
+        # equivalents in visualization.paper_figures.thesis_adapted_en. The
+        # main_simulation.py pipeline still emits them to graficas/ for the
+        # thesis. See plan: "Plan 2 — Cleanup huerfanas (2026-05-04)".
 
         attempts = []
-        if cr is not None:
-            attempts.append(("fig13_flow_breakdown",
-                             lambda: P.plot_flow_breakdown(cr, str(out_dir), "COP")))
-            attempts.append(("fig15_c1_vs_c4",
-                             lambda: P.plot_c1_vs_c4(cr, agents, D, G_klim,
-                                                       p["pi_bolsa"], pde,
-                                                       pi_gs_eff,
-                                                       str(out_dir), "COP")))
-        attempts.append(("fig23_perfiles_diarios",
-                         lambda: P.plot_fig23_perfiles_diarios(D, G, agents, str(out_dir))))
-
-        # fig20 Price of Fairness — requiere fairness_result
-        try:
-            from analysis.fairness import compute_pof
-            fr = None
-            if cr is not None:
-                fr = compute_pof(cr.net_benefit_per_agent, cr.gini)
-            if fr is not None:
-                attempts.append(("fig20_price_of_fairness",
-                                 lambda: P.plot_fig20_price_of_fairness(fr, str(out_dir), "COP")))
-        except Exception as exc:
-            print(f"  [paper] fairness skipped: {exc}")
 
         # Figuras nuevas paper-specific en ingles + IEEE style
         try:
@@ -987,6 +836,9 @@ def main() -> int:
                 fig_paper_classification,
                 fig_paper_subperiod,
                 fig_paper_c1_vs_c4_detailed,
+                fig_paper_convergence,
+                fig_paper_price_of_fairness,
+                fig_paper_flow_breakdown,
             )
             attempts.append(("fig_paper_per_agent_benefit",
                              lambda: fig_paper_per_agent_benefit(
@@ -1010,12 +862,37 @@ def main() -> int:
                                  Path(out_dir) / "fig_paper_classification")))
             attempts.append(("fig_paper_subperiod",
                              lambda: fig_paper_subperiod(
-                                 scenarios_data, agents, p2p_results,
+                                 scenarios_data, agents, p2p_results, G_klim,
                                  Path(out_dir) / "fig_paper_subperiod")))
             attempts.append(("fig_paper_c1_vs_c4_detailed",
                              lambda: fig_paper_c1_vs_c4_detailed(
                                  scenarios_data, agents,
                                  Path(out_dir) / "fig_paper_c1_vs_c4_detailed")))
+            attempts.append(("fig_paper_price_of_fairness",
+                             lambda: fig_paper_price_of_fairness(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_price_of_fairness")))
+            attempts.append(("fig_paper_flow_breakdown",
+                             lambda: fig_paper_flow_breakdown(
+                                 scenarios_data, decomposition,
+                                 Path(out_dir) / "fig_paper_flow_breakdown")))
+
+            # Convergence trajectories (RD + Stackelberg) — game-theoretic certificate
+            try:
+                conv_data = ems.run_convergence(
+                    D=D, G=G, G_klim=G_klim,
+                    p2p_results=p2p_results,
+                    n_iters_conv=8, max_hours=2,
+                )
+                if conv_data:
+                    attempts.append(("fig_paper_convergence",
+                                     lambda cd=conv_data: fig_paper_convergence(
+                                         cd, agents,
+                                         Path(out_dir) / "fig_paper_convergence")))
+                else:
+                    print("  [paper] convergence: no representative hours (skipped)")
+            except Exception as exc:
+                print(f"  [paper] run_convergence skipped: {exc}")
         except Exception as exc:
             print(f"  [paper] thesis_adapted_en skipped: {exc}")
 

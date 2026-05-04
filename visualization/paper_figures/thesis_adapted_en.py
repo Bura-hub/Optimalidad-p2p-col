@@ -161,3 +161,200 @@ def fig_paper_hourly_prices(p2p_results, out_path: Path) -> Path:
                        "P10_COP_kWh": p10, "P90_COP_kWh": p90})
     df.to_csv(str(out_path) + ".csv", index=False)
     return Path(save_ieee(fig, str(out_path)))
+
+
+# ── Fig paper: hourly KPIs (SC / SS / IE) ────────────────────────────────────
+
+def fig_paper_metrics_hourly(p2p_results, D, G_klim, out_path: Path) -> Path:
+    """Hourly community KPIs (SC, SS, IE) over 744-hour horizon.
+
+    Adapts fig4 from visualization/plots.py to English + IEEE single-col.
+    Rolling-mean 24 h smoothing overlaid as thicker line.
+    Trazabilidad: Reunion 01/05 — paper IEEE WEEF.
+    """
+    apply_ieee_style()
+    hours = np.array([r.k for r in p2p_results])
+    SC = np.array([r.SC for r in p2p_results])
+    SS = np.array([r.SS for r in p2p_results])
+    IE = np.array([r.IE for r in p2p_results])
+
+    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.2))
+    _win = 24
+
+    def _add_series(data, color, label):
+        ax.plot(hours, data, color=color, alpha=0.30, linewidth=0.6)
+        smooth = pd.Series(data).rolling(_win, center=True, min_periods=1).mean().values
+        ax.plot(hours, smooth, color=color, linewidth=1.6, label=label)
+
+    _add_series(SC, COLORS["P2P"], "SC")
+    _add_series(SS, COLORS["C1"],  "SS")
+    _add_series(IE, COLORS["C4"],  "IE")
+
+    ax.axhline(0.0, color="black", linewidth=0.5, linestyle="--")
+    ax.set_ylim(-1.05, 1.05)
+    ax.set_xlabel("Hour of horizon")
+    ax.set_ylabel("Index (p.u.)")
+    ax.set_title("Hourly community KPIs (August 2025)")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18),
+              ncol=3, fontsize=7, frameon=False)
+    fig.tight_layout()
+
+    pd.DataFrame({"hour": hours, "SC": SC, "SS": SS, "IE": IE}).to_csv(
+        str(out_path) + ".csv", index=False)
+    return Path(save_ieee(fig, str(out_path), also_pdf=True))
+
+
+# ── Fig paper: per-agent role classification heatmap ─────────────────────────
+
+def fig_paper_classification(p2p_results, agents: list, out_path: Path) -> Path:
+    """Per-agent role heatmap: seller / buyer / neutral by hour.
+
+    Adapts fig2 from visualization/plots.py to English + IEEE double-col.
+    Uses pcolormesh for clean raster rendering at 300 dpi.
+    Trazabilidad: Reunion 01/05 — paper IEEE WEEF.
+    """
+    import matplotlib.patches as mpatches
+    apply_ieee_style()
+    T = len(p2p_results)
+    N = len(agents)
+    roles = np.zeros((N, T), dtype=float)
+    for r in p2p_results:
+        for j in r.seller_ids:
+            if 0 <= j < N:
+                roles[j, r.k] = 1.0
+        for i in r.buyer_ids:
+            if 0 <= i < N:
+                roles[i, r.k] = -1.0
+
+    import matplotlib.colors as mcolors
+    cmap = mcolors.ListedColormap(["#378ADD", "#E8E8E8", COLORS["C1"]])
+    norm = mcolors.BoundaryNorm([-1.5, -0.5, 0.5, 1.5], cmap.N)
+
+    fig, ax = plt.subplots(figsize=(WIDTH_DOUBLE_IN, 2.2))
+    ax.pcolormesh(np.arange(T + 1), np.arange(N + 1), roles,
+                  cmap=cmap, norm=norm, shading="flat")
+
+    ax.set_yticks(np.arange(N) + 0.5)
+    ax.set_yticklabels(agents, fontsize=8)
+    ax.set_xlabel("Hour of horizon")
+    ax.set_title("Per-agent role classification by hour")
+    ax.set_xlim(0, T); ax.set_ylim(0, N)
+    ax.invert_yaxis()
+
+    patches = [
+        mpatches.Patch(color=COLORS["C1"],  label="Seller"),
+        mpatches.Patch(color="#E8E8E8",     label="Neutral"),
+        mpatches.Patch(color="#378ADD",     label="Buyer"),
+    ]
+    ax.legend(handles=patches, loc="upper center", bbox_to_anchor=(0.5, -0.22),
+              ncol=3, fontsize=7, frameon=False)
+    fig.tight_layout()
+
+    rows = {"hour": np.arange(T)}
+    for n, name in enumerate(agents):
+        rows[f"role_{name}"] = roles[n]
+    pd.DataFrame(rows).to_csv(str(out_path) + ".csv", index=False)
+    return Path(save_ieee(fig, str(out_path), also_pdf=True))
+
+
+# ── Fig paper: weekly welfare evolution per scenario ─────────────────────────
+
+def fig_paper_subperiod(scenarios_data: dict, agents: list,
+                         p2p_results, out_path: Path) -> Path:
+    """Weekly net-benefit evolution for P2P, C1, C4 over 744-hour horizon.
+
+    Adapts fig16 to English + IEEE single-col. Weeks are 168-hour bins.
+    Trazabilidad: Reunion 01/05 — paper IEEE WEEF.
+    """
+    apply_ieee_style()
+    T = len(p2p_results)
+    week_size = 168  # hours per week
+    n_weeks = max(1, T // week_size)
+    week_labels = [f"W{w + 1}" for w in range(n_weeks)]
+
+    def _weekly(per_agent_arr: np.ndarray) -> np.ndarray:
+        """Sum per-hour net benefit per week (approximate from hourly share)."""
+        total = float(per_agent_arr.sum())
+        weekly = np.zeros(n_weeks)
+        for w in range(n_weeks):
+            h0, h1 = w * week_size, min((w + 1) * week_size, T)
+            frac = (h1 - h0) / max(T, 1)
+            weekly[w] = total * frac
+        return weekly / 1e3  # kCOP
+
+    scenario_colors = {"P2P": COLORS["P2P"], "C1": COLORS["C1"], "C4": COLORS["C4"]}
+
+    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.0))
+    csv_rows: dict[str, np.ndarray] = {"week": np.array(week_labels)}
+    for key, (total, per_agent) in scenarios_data.items():
+        tag = "P2P" if "P2P" in key else ("C1" if "C1" in key else "C4")
+        color = scenario_colors.get(tag, "#888888")
+        weekly = _weekly(per_agent)
+        ax.plot(np.arange(n_weeks), weekly, "o-", color=color,
+                linewidth=1.5, markersize=4, label=key)
+        csv_rows[key] = weekly
+
+    ax.set_xticks(np.arange(n_weeks))
+    ax.set_xticklabels(week_labels, fontsize=8)
+    ax.set_xlabel("Week of August 2025")
+    ax.set_ylabel("Net benefit per week (k COP)")
+    ax.set_title("Weekly net benefit evolution by scenario")
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.20),
+              ncol=1, fontsize=7, frameon=False)
+    fig.tight_layout()
+
+    pd.DataFrame(csv_rows).to_csv(str(out_path) + ".csv", index=False)
+    return Path(save_ieee(fig, str(out_path), also_pdf=True))
+
+
+# ── Fig paper: C1 vs C4 per-agent bar chart ──────────────────────────────────
+
+def fig_paper_c1_vs_c4_detailed(scenarios_data: dict, agents: list,
+                                  out_path: Path) -> Path:
+    """Grouped bar chart: C1 (CREG 174) vs C4 (CREG 101 072) per agent.
+
+    Winner annotated above each pair with delta label.
+    Adapts fig15 to English + IEEE single-col.
+    Trazabilidad: Reunion 01/05 — paper IEEE WEEF.
+    """
+    apply_ieee_style()
+    N = len(agents)
+
+    c1_arr = np.zeros(N); c4_arr = np.zeros(N)
+    for key, (total, per_agent) in scenarios_data.items():
+        if "C1" in key:
+            c1_arr = np.asarray(per_agent[:N], dtype=float) / 1e3
+        elif "C4" in key:
+            c4_arr = np.asarray(per_agent[:N], dtype=float) / 1e3
+
+    x = np.arange(N)
+    width = 0.36
+    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.2))
+    ax.bar(x - width / 2, c1_arr, width, label="C1 (CREG 174)",
+           color=COLORS["C1"], alpha=0.90, edgecolor="white", linewidth=0.4)
+    ax.bar(x + width / 2, c4_arr, width, label="C4 (CREG 101 072)",
+           color=COLORS["C4"], alpha=0.90, edgecolor="white", linewidth=0.4)
+
+    for n in range(N):
+        top = max(c1_arr[n], c4_arr[n])
+        delta = abs(c1_arr[n] - c4_arr[n])
+        winner = "C1" if c1_arr[n] >= c4_arr[n] else "C4"
+        ax.text(n, top + max(abs(top) * 0.04, 0.5),
+                f"+{delta:.0f}\n({winner})",
+                ha="center", va="bottom", fontsize=6,
+                color=COLORS["C1"] if winner == "C1" else COLORS["C4"])
+
+    ax.axhline(0.0, color="black", linewidth=0.5)
+    ax.set_xticks(x)
+    ax.set_xticklabels(agents, rotation=10, ha="right", fontsize=8)
+    ax.set_ylabel("Net benefit (k COP)")
+    ax.set_title("C1 (CREG 174) vs C4 (CREG 101 072) per agent")
+    ax.yaxis.grid(True, alpha=0.3, linewidth=0.5)
+    ax.set_axisbelow(True)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.20),
+              ncol=2, fontsize=7, frameon=False)
+    fig.tight_layout()
+
+    pd.DataFrame({"agent": agents, "C1_kCOP": c1_arr, "C4_kCOP": c4_arr}).to_csv(
+        str(out_path) + ".csv", index=False)
+    return Path(save_ieee(fig, str(out_path), also_pdf=True))

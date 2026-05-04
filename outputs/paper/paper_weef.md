@@ -140,7 +140,14 @@ P2P ranks second at baseline, 2.9 % below C1 and 1.6 % below C4. The decompositi
 
 ### IV.B Self-consumption is identical across scenarios
 
-The result $E^{auto} \pi_{gs} = 3.60$ M COP in all three rows of Table I is not an artifact: under the same physical generation $G$ and demand $D$ profiles, the energy displaced behind the meter (the minimum of the two) is identical, and it is valued at the same retail tariff $\pi_{gs}$ in all scenarios. The decomposition therefore isolates the regulatory choice as the surplus-revenue term, validating the "common offset, regulatory differential" framing emphasized in the advisor consultation that motivated this work.
+The result $E^{auto} \pi_{gs} = 3.60$ M COP in all three rows of Table I is not an artifact: under the same physical generation $G$ and demand $D$ profiles, the energy displaced behind the meter (the minimum of the two) is identical, and it is valued at the same retail tariff $\pi_{gs}$ in all scenarios. The decomposition therefore isolates the regulatory choice as the surplus-revenue term, validating the "common offset, regulatory differential" framing emphasized in the advisor consultation that motivated this work. Figure \ref{fig:metrics_hourly} reports the hourly evolution of the three community KPIs (self-consumption SC, self-sufficiency SS, and Index of Equity IE) over the 744-hour horizon: SC and SS both peak around midday solar generation (typical 60--90\% range), while IE remains close to zero throughout, indicating equitable surplus distribution by P2P clearing.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_metrics_hourly.png}
+\caption{Hourly community KPIs (self-consumption SC, self-sufficiency SS, Index of Equity IE) over the 744-hour horizon, raw signal (light) and 24-hour rolling mean (bold). SC and SS track solar generation; IE stays near zero indicating equitable distribution.}
+\label{fig:metrics_hourly}
+\end{figure}
 
 ### IV.C Per-agent heterogeneity
 
@@ -226,6 +233,20 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 
 \begin{figure}[ht]
 \centering
+\includegraphics[width=0.48\textwidth]{fig_paper_classification.png}
+\caption{Per-agent role classification by hour of horizon (seller / buyer / neutral). The active P2P market emerges from the alignment of surplus-providing agents (sellers, green) and deficit agents (buyers, purple); off-solar hours remain neutral (no community surplus).}
+\label{fig:classification}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_subperiod.png}
+\caption{Weekly accumulated net benefit by mechanism over the August 2025 horizon. P2P, C1, and C2 (CREG 101 072) track closely, with C1 leading by a small margin throughout the month — consistent with the aggregate ranking reported in Table I.}
+\label{fig:subperiod}
+\end{figure}
+
+\begin{figure}[ht]
+\centering
 \includegraphics[width=0.48\textwidth]{fig_audit_heterogeneidad_horaria.png}
 \caption{Hourly P2P-vs-C4 dominance. Hours 10–15 h (solar peak) concentrate 88 % of the daily welfare advantage. Global Dispatch Ratio (GDR) = 0.99, cumulative delta = +42,696 COP over synthetic 24-h profile. Audit axis 1 (B3), CAL-8.}
 \label{fig:audit_heterogeneity}
@@ -252,6 +273,15 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 ### V.A Why P2P is competitive (not winning) at baseline
 
 At baseline community coverage of 96 %, the residual surplus is sizable: even in P2P, the bulk of injected energy (3,559.7 kWh of the total) is exported to the spot market because internal peer demand is limited. Both C1 and P2P eventually monetize this residual at the hourly bolsa price, removing one of the two regulatory differentiators. The 2.9 % gap between C1 and P2P is accounted for almost entirely by C1's Type 1 advantage (valued at $\pi_{gs} - \pi^{C}$, approximately 600 COP/kWh) on the small portion that crosses the monthly $H_x$ boundary individually. Because the Type 1 valuation exceeds any peer-cleared price (which is bounded above by $\pi_{gs}$ in the RD admissibility window), the C1 mechanism extracts marginally more value than P2P when the community is roughly balanced.
+
+Figure \ref{fig:c1_vs_c4_detailed} compares C1 and C2 directly per agent: the institutions whose role under P2P is selling (Udenar, HUDN, Cesmag) capture more value via C2's PDE-allocated permutation than via individual C1 Type 1, but the aggregate is dominated by UCC's strong C1 advantage.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_c1_vs_c4_detailed.png}
+\caption{Per-agent net benefit, C1 (CREG 174) versus C2 (CREG 101 072). Triangles flag the per-agent winner; the aggregate rank reverses for some institutions because PDE community pooling redistributes surplus across community members.}
+\label{fig:c1_vs_c4_detailed}
+\end{figure}
 
 This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator algorithm we adopt was originally proposed by Chacón et al. \cite{Chacon2025EMS}, who report a welfare error below 6\,\% as the explicit cost of the equity-preserving design (Sec. V; Table VII shows IE = $+0.01$ for replicator dynamics versus IE = $-0.89$ for the centralized planner). Our 6144-h calibration falls comfortably within the authors' acceptable trade-off, and the audit (Sec.~\ref{sec:audit}) shows the gap concentrates in drought months when high spot prices structurally favour C1's net-metering remuneration. Figure \ref{fig:monthly_breakdown} disaggregates the 6144-h horizon by month: in dry months (July--August 2025, El Niño), the high spot-price regime favours C1's individual surplus liquidation, while in high-irradiance months (January 2026), P2P captures more value through hourly clearing. The aggregate 3\,\% deficit is therefore concentrated in a specific climatic window, not uniform across the horizon.
 

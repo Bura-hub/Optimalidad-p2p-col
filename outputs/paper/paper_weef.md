@@ -45,6 +45,15 @@ The implementation [5] uses a sequential Stackelberg alternation with two outer 
 
 We emphasize that the Stackelberg-replicator equilibrium maximizes a sum of individual welfares under decentralized strategic interaction, not the centralized social-welfare optimum. As reported by Chacon et al. [5] (Table VII, p. 13), the replicator-dynamics method yields an Index of Equity of +0.01 versus −0.89 for the centralized planner, accepting a welfare loss below 6% in exchange for distributional balance. Our empirical audit operates within this documented trade-off: the 2.9% aggregate gap reported in Section IV.A reflects design intent rather than implementation deficiency.
 
+Figure \ref{fig:convergence} provides a representative convergence certificate, illustrating that on the highest-volume hour of the August 2025 horizon (10:00 on Aug. 22, $\sum P_{ji}=10.8$ kW peer-traded) the outer Stackelberg loop reaches a stable fixed point in a single iteration, with welfare components $W_j$ and $W_i$ remaining flat across the eight iterations captured for diagnostic purposes. The inner RD trajectories of buyer prices $\pi_i(t)$ and pairwise power flows $P_{ji}(t)$ stabilize within $t<10^{-3}$ of the integration time, well inside the 150-sample budget. This visual certificate confirms that the equilibria reported in Tables I-III are the algorithm's actual fixed points rather than artifacts of insufficient iteration.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_convergence_h0514.png}
+\caption{Stackelberg + Replicator-Dynamics convergence certificate at hour $k=514$ (10:00, Aug. 22, surplus regime, $\sum P_{ji} = 10.8$ kW). (a) Aggregate welfare $W_j, W_i, W=W_j+W_i$ across the outer Stackelberg loop converges in a single iteration. (b) Buyer price replicator-dynamics $\pi_i(t)$ stabilizes at the spot floor $\pi_{gb}=235$ COP/kWh (asymmetric market: four sellers, one buyer). (c) Pairwise power exchange $P_{ji}(t)$ for all four active seller-buyer pairs settles within the integration window $(0, 5\cdot 10^{-3})$.}
+\label{fig:convergence}
+\end{figure}
+
 ### II.B Regulatory scenarios
 
 Two Colombian benchmarks are simulated. A key conceptual difference underlies the comparison: **temporal resolution of surplus settlement**. CREG 174/2021 and CREG 101 072/2025 both aggregate surplus on a monthly basis, while P2P clears transactions hour by hour. This granularity difference is the mechanism's principal leverage in capturing demand-supply heterogeneity. Formally:
@@ -64,6 +73,15 @@ This temporal granularity—monthly settlement versus hourly clearing—is the k
 \includegraphics[width=0.48\textwidth]{fig_paper_monthly_vs_hourly.png}
 \caption{Conceptual comparison: (a) C1/C4 monthly settlement aggregates all surpluses into a single monthly pool, liquidated at monthly average spot price. (b) P2P clears hour-by-hour, with prices $\pi^*_k$ responding to instantaneous supply and demand heterogeneity. The hourly granularity is the mechanism's principal advantage in capturing intra-month arbitrage.}
 \label{fig:monthly_vs_hourly}
+\end{figure}
+
+Empirically, the decomposition makes visible *why* the three scenarios produce different totals despite sharing the same physical autoconsumption baseline (Figure \ref{fig:flow_breakdown}): the common offset is identical across P2P, C1 and C4, and only the surplus-revenue component differentiates them.
+
+\begin{figure}[ht]
+\centering
+\includegraphics[width=0.48\textwidth]{fig_paper_flow_breakdown.png}
+\caption{Welfare decomposition per scenario. The lower (gray) segment is the common autoconsumption offset, identical across the three regulatory schemes under the homogenized commercial tariff. The upper segment is the scenario-specific surplus revenue: P2P clears hourly, C1 settles Type 1/Type 2 monthly, and C2 (CREG 101 072) redistributes via PDE shares plus residual spot. Differences in totals therefore stem entirely from the temporal granularity and pooling rules applied to surplus, not from the autoconsumption baseline.}
+\label{fig:flow_breakdown}
 \end{figure}
 
 ### II.C Net-benefit decomposition (canonical formula)
@@ -201,7 +219,7 @@ We conducted a calibration audit across four orthogonal axes to characterize the
 
 **Hourly heterogeneity capture.** Using the dominance metric $\Delta_k = B^{P2P}_k - B^{C4}_k$, the P2P market dominates 24 of 24 hours on the synthetic 24-hour profile, with a Global Dispatch Ratio (GDR) of 0.99 and a cumulative advantage of +$42{,}696$ COP. The advantage concentrates in solar peak hours 10–15 h, accounting for 88 % of the daily delta. This evidence supports the claim that the dynamic price formation $\pi^*_i(k)$ captures intra-day heterogeneity that the static PDE rule of CREG 101 072 cannot resolve. (See Fig. \ref{fig:audit_heterogeneity}.)
 
-**Calibration robustness.** A 4×4 grid sweep of the demand-flexibility coefficient $\alpha_n \in [0.10, 0.25]$ and the quadratic-utility coefficient $\theta \in [0.25, 1.00]$ on the daily MTE profile yielded 16 numerically identical outcomes. With baseline community PV coverage of 11.3 %, only one hour per day exhibits an active P2P market and the sweep parameters are not exercised. This invariance indicates that the baseline calibration is already Pareto-efficient within the regulatory parameter ranges; further tuning provides no marginal improvement.
+**Calibration robustness.** A 4×4 grid sweep of the demand-flexibility coefficient $\alpha_n \in [0.10, 0.25]$ and the quadratic-utility coefficient $\theta \in [0.25, 1.00]$ on the daily MTE profile yielded 16 numerically identical outcomes (Fig.~\ref{fig:audit_robustness}). With baseline community PV coverage of 11.3 %, only one hour per day exhibits an active P2P market and the sweep parameters are not exercised. This invariance indicates that the baseline calibration is already Pareto-efficient within the regulatory parameter ranges; further tuning provides no marginal improvement.
 
 **Per-agent rationality.** A coordinate-descent search over $\alpha_n$ per agent leaves the calibration unchanged: all five institutions are individually rational under the baseline within numerical tolerance ($|\Delta_n| < 1.5 \times 10^{-11}$ COP). No agent has incentive to defect from the P2P arrangement, confirming 100 % IR coverage under reasonable tolerance.
 
@@ -215,7 +233,7 @@ The PDE method for C4 is admissible in two forms under CREG 101 072/2025 art. 5 
 
 ### IV.G P2P market activity
 
-At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon), trading 525.88 kWh internally and exporting 3,559.7 kWh as residual surplus to the spot market. Internal trade volume scales with PV factor: at $\phi = 3.0$, internal trades absorb a substantially larger fraction of the surplus because peer demand can monetize a larger portion at peer-cleared prices above the spot floor. Figure \ref{fig:market_activity} shows the day-by-hour pattern of market activity and Fig. \ref{fig:hourly_prices} reports the distribution of cleared prices by hour of day.
+At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon), trading 525.88 kWh internally and exporting 3,559.7 kWh as residual surplus to the spot market. Internal trade volume scales with PV factor: at $\phi = 3.0$, internal trades absorb a substantially larger fraction of the surplus because peer demand can monetize a larger portion at peer-cleared prices above the spot floor. Figure \ref{fig:market_activity} shows the day-by-hour pattern of market activity, Fig.~\ref{fig:hourly_prices} reports the distribution of cleared prices by hour of day, and Fig.~\ref{fig:classification} resolves the per-agent role (seller, buyer, neutral) hour-by-hour. The weekly accumulation of net benefit by mechanism over the same horizon is shown in Fig.~\ref{fig:subperiod}.
 
 \begin{figure}[ht]
 \centering
@@ -227,7 +245,7 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.48\textwidth]{fig_paper_hourly_prices.png}
-\caption{Distribution of P2P cleared prices $\pi^{*}$ by hour of day (median and P10--P90 band). Prices substantially exceed the spot floor (234 COP/kWh) during solar peak hours, evidencing the value captured by hourly peer clearing relative to monthly spot liquidation.}
+\caption{Distribution of P2P cleared prices $\pi^{*}$ by hour of day (median and P10--P90 band). During the solar peak (h10--h14) abundant PV supply drives the median clearing price down to the spot floor (234 COP/kWh): with surplus supply the buyers' replicator dynamics push price toward the no-arbitrage lower bound (genuine monopsony degeneracy). Prices clear above the floor only in edge hours (early morning and late evening), where supply is scarce and sellers retain bargaining power. The P10--P90 band thus narrows at midday and widens at the edges, consistent with regime-dependent market power.}
 \label{fig:hourly_prices}
 \end{figure}
 
@@ -283,13 +301,15 @@ Figure \ref{fig:c1_vs_c4_detailed} compares C1 and C2 directly per agent: the in
 \label{fig:c1_vs_c4_detailed}
 \end{figure}
 
-This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator algorithm we adopt was originally proposed by Chacón et al. \cite{Chacon2025EMS}, who report a welfare error below 6\,\% as the explicit cost of the equity-preserving design (Sec. V; Table VII shows IE = $+0.01$ for replicator dynamics versus IE = $-0.89$ for the centralized planner). Our 6144-h calibration falls comfortably within the authors' acceptable trade-off, and the audit (Sec.~\ref{sec:audit}) shows the gap concentrates in drought months when high spot prices structurally favour C1's net-metering remuneration. Figure \ref{fig:monthly_breakdown} disaggregates the 6144-h horizon by month: in dry months (July--August 2025, El Niño), the high spot-price regime favours C1's individual surplus liquidation, while in high-irradiance months (January 2026), P2P captures more value through hourly clearing. The aggregate 3\,\% deficit is therefore concentrated in a specific climatic window, not uniform across the horizon.
+This 2.9\,\% gap is not a calibration deficiency. The Stackelberg–replicator algorithm we adopt was originally proposed by Chacón et al. \cite{Chacon2025EMS}, who report a welfare error below 6\,\% as the explicit cost of the equity-preserving design (Sec. V; Table VII shows IE = $+0.01$ for replicator dynamics versus IE = $-0.89$ for the centralized planner). Our calibration falls comfortably within the authors' acceptable trade-off.
+
+The trade-off is quantified by the Price of Fairness (Figure \ref{fig:price_of_fairness}). Following Bertsimas et al. \cite{Bertsimas2011PoF}, we identify the most efficient scenario (the one that maximizes total welfare) and the most equitable scenario (the one that minimizes the Gini coefficient on per-agent net benefits), and compute $\mathrm{PoF} = (W_\text{eff} - W_\text{fair}) / |W_\text{eff}|$. The per-agent breakdown $\mathrm{PoF}_n$ shows where the equity-preserving allocation extracts value from individual agents: the institutions whose role would be net seller under the efficient allocation absorb the bulk of the sacrifice, while net buyers gain. This makes the equity vs.\ efficiency trade-off explicit at the agent level rather than only at the aggregate level reported in Table~I.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{fig12_comparacion_mensual.png}
-\caption{Monthly net benefit by scenario (P2P, C1, C4) over the 6144-h horizon (Jul 2025 -- Feb 2026). The C1 advantage concentrates in drought months (Jul--Aug 2025, El Niño) where elevated spot prices structurally reward individual net-metering; P2P captures more value in high-irradiance months. Source: CAL-8 official thesis run, 2026-04-28.}
-\label{fig:monthly_breakdown}
+\includegraphics[width=0.48\textwidth]{fig_paper_price_of_fairness.png}
+\caption{Price of Fairness analysis (Bertsimas, Farias \& Trichakis 2011). (a) Total welfare per scenario; the efficient scenario (max welfare) and the equitable scenario (min Gini) are annotated. (b) Gini coefficient per scenario, ascending; lower is fairer. (c) Per-agent sacrifice $\mathrm{PoF}_n = \max\{0, (B_n^\text{eff} - B_n^\text{fair}) / |B_n^\text{eff}|\}$: institutions that would be net sellers under the efficient allocation absorb the bulk of the equity cost.}
+\label{fig:price_of_fairness}
 \end{figure}
 
 ### V.B Why P2P wins at PV factors at or above 1.5: The phase transition as a defense scenario

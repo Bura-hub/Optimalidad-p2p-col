@@ -52,11 +52,11 @@ CSV_PATH  = REPO_ROOT / "graficas" / "fig13_desglose_flujos.csv"
 # Escenarios de interes (sin C2/C3 segun decision reunion)
 SCENARIOS = ["P2P", "C1", "C4"]
 
-# Etiquetas eje X
+# Etiquetas eje X (renombrado del paper: C4 -> C2)
 X_LABELS = {
     "P2P": "P2P\n(Stackelberg+RD)",
     "C1":  "C1\n(CREG 174)",
-    "C4":  "C4\n(CREG 101 072)",
+    "C4":  "C2\n(CREG 101 072)",
 }
 
 
@@ -153,7 +153,7 @@ def build_figure(
     """Construye la figura de barras apiladas."""
     apply_ieee_style()
 
-    fig, ax = plt.subplots(figsize=(3.5, 3.5))
+    fig, ax = plt.subplots(figsize=(3.8, 3.6))
 
     x = np.arange(len(SCENARIOS))
     base_color = "#cccccc"
@@ -200,7 +200,8 @@ def build_figure(
 
     # Ejes
     ax.set_xticks(x)
-    ax.set_xticklabels([X_LABELS[s] for s in SCENARIOS], fontsize=8)
+    ax.set_xticklabels([X_LABELS[s] for s in SCENARIOS],
+                       fontsize=7, ha="center")
     ax.yaxis.set_major_formatter(
         mticker.FuncFormatter(lambda v, _: f"{v / 1e6:.1f} M")
     )

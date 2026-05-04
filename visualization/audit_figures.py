@@ -99,7 +99,7 @@ def fig_audit_chacon_comparison(out_path: Path) -> Path:
     labels = _CHACON_DATA["labels"]
     ie_vals = _CHACON_DATA["IE"]
 
-    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 2.8))
+    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.2))
 
     colors = COLORS_AGENT[: len(labels)]
     bars = ax.barh(labels, ie_vals, color=colors, height=0.55)
@@ -110,7 +110,8 @@ def fig_audit_chacon_comparison(out_path: Path) -> Path:
     ax.set_xlabel("Index of Equity (IE)")
     ax.set_xlim(-1.05, 0.55)
     ax.set_title("Index of Equity: this paper\nvs Chacon et al. (2025, Table VII)")
-    ax.legend(loc="lower right", fontsize=7)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22),
+              fontsize=7, frameon=False)
 
     for bar, val in zip(bars, ie_vals):
         offset = 0.03 if val >= 0 else -0.03

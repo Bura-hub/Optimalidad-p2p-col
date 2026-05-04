@@ -230,7 +230,7 @@ def fig_paper_classification(p2p_results, agents: list, out_path: Path) -> Path:
     cmap = mcolors.ListedColormap(["#378ADD", "#E8E8E8", COLORS["C1"]])
     norm = mcolors.BoundaryNorm([-1.5, -0.5, 0.5, 1.5], cmap.N)
 
-    fig, ax = plt.subplots(figsize=(WIDTH_DOUBLE_IN, 2.2))
+    fig, ax = plt.subplots(figsize=(WIDTH_DOUBLE_IN, 2.8))
     ax.pcolormesh(np.arange(T + 1), np.arange(N + 1), roles,
                   cmap=cmap, norm=norm, shading="flat")
 
@@ -246,9 +246,9 @@ def fig_paper_classification(p2p_results, agents: list, out_path: Path) -> Path:
         mpatches.Patch(color="#E8E8E8",     label="Neutral"),
         mpatches.Patch(color="#378ADD",     label="Buyer"),
     ]
-    ax.legend(handles=patches, loc="upper center", bbox_to_anchor=(0.5, -0.22),
+    ax.legend(handles=patches, loc="upper center", bbox_to_anchor=(0.5, -0.32),
               ncol=3, fontsize=7, frameon=False)
-    fig.tight_layout()
+    fig.tight_layout(rect=(0, 0.08, 1, 1))
 
     rows = {"hour": np.arange(T)}
     for n, name in enumerate(agents):
@@ -359,13 +359,13 @@ def fig_paper_c1_vs_c4_detailed(scenarios_data: dict, agents: list,
     fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.2))
     ax.bar(x - width / 2, c1_arr, width, label="C1 (CREG 174)",
            color=COLORS["C1"], alpha=0.90, edgecolor="white", linewidth=0.4)
-    ax.bar(x + width / 2, c4_arr, width, label="C4 (CREG 101 072)",
+    ax.bar(x + width / 2, c4_arr, width, label="C2 (CREG 101 072)",
            color=COLORS["C4"], alpha=0.90, edgecolor="white", linewidth=0.4)
 
     for n in range(N):
         top = max(c1_arr[n], c4_arr[n])
         delta = abs(c1_arr[n] - c4_arr[n])
-        winner = "C1" if c1_arr[n] >= c4_arr[n] else "C4"
+        winner = "C1" if c1_arr[n] >= c4_arr[n] else "C2"
         ax.text(n, top + max(abs(top) * 0.04, 0.5),
                 f"+{delta:.0f}\n({winner})",
                 ha="center", va="bottom", fontsize=6,
@@ -375,9 +375,11 @@ def fig_paper_c1_vs_c4_detailed(scenarios_data: dict, agents: list,
     ax.set_xticks(x)
     ax.set_xticklabels(agents, rotation=10, ha="right", fontsize=8)
     ax.set_ylabel("Net benefit (k COP)")
-    ax.set_title("C1 (CREG 174) vs C4 (CREG 101 072) per agent")
+    ax.set_title("C1 (CREG 174) vs C2 (CREG 101 072) per agent", pad=8)
     ax.yaxis.grid(True, alpha=0.3, linewidth=0.5)
     ax.set_axisbelow(True)
+    y_top = max(c1_arr.max(), c4_arr.max())
+    ax.set_ylim(top=y_top * 1.18)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.20),
               ncol=2, fontsize=7, frameon=False)
     fig.tight_layout()

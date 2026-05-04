@@ -983,6 +983,10 @@ def main() -> int:
                 fig_paper_per_agent_benefit,
                 fig_paper_market_activity,
                 fig_paper_hourly_prices,
+                fig_paper_metrics_hourly,
+                fig_paper_classification,
+                fig_paper_subperiod,
+                fig_paper_c1_vs_c4_detailed,
             )
             attempts.append(("fig_paper_per_agent_benefit",
                              lambda: fig_paper_per_agent_benefit(
@@ -996,6 +1000,22 @@ def main() -> int:
                              lambda: fig_paper_hourly_prices(
                                  p2p_results,
                                  Path(out_dir) / "fig_paper_hourly_prices")))
+            attempts.append(("fig_paper_metrics_hourly",
+                             lambda: fig_paper_metrics_hourly(
+                                 p2p_results, D, G_klim,
+                                 Path(out_dir) / "fig_paper_metrics_hourly")))
+            attempts.append(("fig_paper_classification",
+                             lambda: fig_paper_classification(
+                                 p2p_results, agents,
+                                 Path(out_dir) / "fig_paper_classification")))
+            attempts.append(("fig_paper_subperiod",
+                             lambda: fig_paper_subperiod(
+                                 scenarios_data, agents, p2p_results,
+                                 Path(out_dir) / "fig_paper_subperiod")))
+            attempts.append(("fig_paper_c1_vs_c4_detailed",
+                             lambda: fig_paper_c1_vs_c4_detailed(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_c1_vs_c4_detailed")))
         except Exception as exc:
             print(f"  [paper] thesis_adapted_en skipped: {exc}")
 

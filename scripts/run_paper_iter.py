@@ -696,6 +696,12 @@ def main() -> int:
                     help="Genera todas las figuras de la tesis disponibles "
                          "(fig1-6 base + fig13/15/20/23 analisis) en la "
                          "misma carpeta del paper, a IEEE 300dpi + PDF.")
+    ap.add_argument("--pv-scale", type=float, default=1.0,
+                    help="Factor multiplicativo aplicado a G antes del run. "
+                         "Use --pv-scale 1.5 para correr el case study en el "
+                         "regimen forecast UPME 2030 (cobertura ~144%). "
+                         "Afecta tablas, figuras y Excel; NO afecta el "
+                         "barrido --ranking-pv (que es independiente).")
     args = ap.parse_args()
 
     print()
@@ -722,8 +728,14 @@ def main() -> int:
         # CAL-28 por defecto: medidores puntuales para el paper
         D, G, idx, agents = cargar_mte_paper(t_start, t_end)
     print(f"  [paper] D={D.shape}, G={G.shape}, agentes={agents}")
-    cobertura = G.sum() / max(D.sum(), 1e-9)
-    print(f"  [paper] Cobertura PV agregada G/D = {cobertura*100:.1f} %")
+    cob_real = G.sum() / max(D.sum(), 1e-9)
+    print(f"  [paper] Cobertura PV empirica G/D = {cob_real*100:.1f} %")
+    G_empirical = G.copy()  # preserved for --ranking-pv (sweep is on raw G)
+    if abs(args.pv_scale - 1.0) > 1e-9:
+        G = G * float(args.pv_scale)
+        cob_scaled = G.sum() / max(D.sum(), 1e-9)
+        print(f"  [paper] --pv-scale={args.pv_scale}: G escalada -> "
+              f"cobertura {cob_scaled*100:.1f} % (forecast scenario)")
     if D.shape[1] < 24:
         print(f"  [paper] ERROR: subset demasiado corto ({D.shape[1]}h)")
         return 1
@@ -797,8 +809,12 @@ def main() -> int:
         except Exception:
             print(f"  [Sprint 6.5] --pv-factors inválido: {args.pv_factors}")
             return 1
+        # Sweep operates on the empirical (unscaled) G — the factors in
+        # the sweep are absolute community PV multipliers from baseline.
+        # If --pv-scale was used for the case study, the sweep stays
+        # anchored to the empirical baseline so factors keep meaning.
         sweep = barrido_pv_paper(
-            D, G, idx, agents, p, prosumer_ids, pi_gs_eff, pi_gb,
+            D, G_empirical, idx, agents, p, prosumer_ids, pi_gs_eff, pi_gb,
             pde_method=args.pde, factors=factors,
         )
         graficas_dir = ROOT / "graficas"

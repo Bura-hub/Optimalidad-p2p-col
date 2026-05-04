@@ -4,7 +4,11 @@ Figura paper IEEE WEEF: descomposicion bienestar agregado — ahorro comun
 de autoconsumo (offset identico para todos) + revenue por venta de
 excedentes (diferenciador entre escenarios P2P, C1, C4).
 
-Fuente primaria: outputs/paper/resultados_paper_cal29_canonical.xlsx
+Fuente primaria: el xlsx mas reciente bajo outputs/paper/resultados_paper_*.xlsx
+(case study activo). Si quieres apuntar a un tag concreto, exporta la
+variable de entorno PAPER_XLSX_TAG (por ejemplo "cal29_phi15" o
+"cal29_canonical").
+
 Fallback: graficas/fig13_desglose_flujos.csv
 
 Trazabilidad: Decision asesores Pantoja + Obando, Reunion 01/05
@@ -12,6 +16,7 @@ Act 4.2 (paper IEEE WEEF).
 """
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -22,7 +27,26 @@ import matplotlib.ticker as mticker
 from visualization.ieee_style import apply_ieee_style, save_ieee, COLORS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-XLSX_PATH = REPO_ROOT / "outputs" / "paper" / "resultados_paper_cal29_canonical.xlsx"
+PAPER_DIR = REPO_ROOT / "outputs" / "paper"
+
+
+def _resolve_xlsx_path() -> Path:
+    """Devuelve el xlsx del case study activo.
+
+    Si PAPER_XLSX_TAG esta definida, usa
+    `resultados_paper_<tag>.xlsx`. Si no, prefiere `cal29_phi15` (el case
+    study actual) y, como fallback, el `cal29_canonical` historico.
+    """
+    tag = os.environ.get("PAPER_XLSX_TAG")
+    if tag:
+        return PAPER_DIR / f"resultados_paper_{tag}.xlsx"
+    preferred = PAPER_DIR / "resultados_paper_cal29_phi15.xlsx"
+    if preferred.exists():
+        return preferred
+    return PAPER_DIR / "resultados_paper_cal29_canonical.xlsx"
+
+
+XLSX_PATH = _resolve_xlsx_path()
 CSV_PATH  = REPO_ROOT / "graficas" / "fig13_desglose_flujos.csv"
 
 # Escenarios de interes (sin C2/C3 segun decision reunion)

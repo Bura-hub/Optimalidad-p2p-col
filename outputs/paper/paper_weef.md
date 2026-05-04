@@ -27,7 +27,7 @@ Email: bralopez@udenar.edu.co
 
 ## Abstract
 
-Colombia regulates individual and collective self-generation under CREG 174/2021 and CREG 101 072/2025. Both rely on administrative settlement with monthly aggregation; whether dynamic hourly market mechanisms such as Peer-to-Peer (P2P) trading offer a measurable advantage remains an open empirical question. This paper compares a Stackelberg-plus-Replicator-Dynamics P2P market against the two Colombian regulatory schemes using one month (744 hours) of metered data from five academic institutions in Pasto, Narino, collected within the Energy Technologies Measurement (MTE) pilot project. A canonical net-benefit decomposition separates a self-consumption term (identical across mechanisms) from a surplus-revenue term (the regulatory differentiator). At baseline photovoltaic (PV) coverage of 96 %, P2P ranks second: 2.9 % below CREG 174, with three of five institutions individually preferring P2P. A PV factor sweep uncovers a phase transition: at or above 1.5 times current capacity (community coverage 144 %), P2P becomes optimal, dominating both regulatory schemes. The phase transition is robust across two admissible surplus distribution methods. The findings suggest that as Colombia scales solar generation, the regulatory framework may need to accommodate dynamic clearing mechanisms.
+Colombia regulates individual and collective self-generation under CREG 174/2021 and CREG 101 072/2025. Both rely on administrative settlement with monthly aggregation; whether dynamic hourly market mechanisms such as Peer-to-Peer (P2P) trading offer a measurable advantage remains an open empirical question. This paper compares a Stackelberg-plus-Replicator-Dynamics P2P market against the two Colombian regulatory schemes using one month (744 hours) of metered demand from five academic institutions in Pasto, Narino, collected within the Energy Technologies Measurement (MTE) pilot project, with PV generation set at 1.5 times the current empirical capacity to match the community coverage projected by the UPME 2025--2039 expansion plan. A canonical net-benefit decomposition separates a self-consumption term (identical across mechanisms) from a surplus-revenue term (the regulatory differentiator). At the case-study coverage of 144 %, P2P ranks first: 5.5 % above CREG 174 and 3.1 % above CREG 101 072, with four of five institutions individually preferring P2P. A PV-factor sweep characterizes the phase transition: from the empirical baseline (96 % coverage, where C1 narrowly leads), P2P takes the lead from 1.5 times current capacity onward and remains dominant across all higher factors tested. The dominance is robust across the two admissible surplus distribution methods of CREG 101 072/2025 art. 5. The findings suggest that as Colombia scales solar generation, the regulatory framework may need to accommodate dynamic clearing mechanisms.
 
 **Keywords**: peer-to-peer energy markets, Stackelberg game, replicator dynamics, CREG 174, CREG 101 072, community energy, Colombia.
 
@@ -41,9 +41,9 @@ The Colombian regulatory framework has evolved in two stages. Resolution CREG 17
 
 Whether dynamic clearing of peer transactions through algorithms such as Stackelberg games [5], [10], [11] and population dynamics [9], [12], [13] can outperform these administrative schemes is debated in the literature [2], [6], [7]. The advantage of P2P is reported to emerge where heterogeneity, local supply-demand balance, and reduced transaction costs coincide [6], [7]. Empirical evidence specific to Colombia, however, is scarce.
 
-A conceptual caveat underlies the comparison: the Stackelberg-replicator P2P market does not seek the centralized social-welfare optimum but a decentralized strategic equilibrium \cite{Chacon2025EMS}. Chacon et al. (2025, Table VII) report a welfare error below 6 % as the explicit cost of the equity-preserving design (IE $=+0.01$ vs.\ $-0.89$ for the centralized planner). The 2.9 % gap reported below therefore reflects design intent, not implementation deficiency.
+A conceptual caveat underlies the comparison: the Stackelberg-replicator P2P market does not seek the centralized social-welfare optimum but a decentralized strategic equilibrium \cite{Chacon2025EMS}. Chacon et al. (2025, Table VII) report a welfare error below 6 % as the explicit cost of the equity-preserving design (IE $=+0.01$ vs.\ $-0.89$ for the centralized planner). Any welfare gap reported below therefore reflects design intent, not implementation deficiency.
 
-This paper contributes empirical evidence using the algorithm of [5] on metered data from five academic institutions in Pasto, Narino, during August 2025 (MTE pilot). Two findings are reported. First, at baseline community PV coverage (96 %), P2P is competitive with CREG 174 (2.9 % below in aggregate) and individually preferred by three of five institutions. Second, a PV-factor sweep reveals a phase transition: at any factor at or above 1.5 times the current capacity, P2P becomes the optimal mechanism, robustly across admissible PDE methods.
+This paper contributes empirical evidence using the algorithm of [5] on metered demand from five academic institutions in Pasto, Narino, during August 2025 (MTE pilot), with PV generation set at the 1.5 times current empirical capacity that matches the UPME 2025--2039 distributed-PV scenario for 2030. Two findings are reported. First, at the case-study coverage of 144 %, P2P ranks first by 5.5 % over CREG 174 and 3.1 % over CREG 101 072, with four of five institutions individually preferring P2P. Second, a PV-factor sweep characterizes the phase transition: from the empirical baseline (96 % coverage, where C1 narrowly leads), P2P takes the lead at 1.5 times current capacity and remains dominant across all higher factors tested, robustly across the two admissible PDE distribution methods.
 
 The remainder of the paper is organized as follows. Section II describes the methods. Section III presents the data. Section IV reports the empirical results. Section V discusses regulatory implications and limitations. Section VI concludes.
 
@@ -61,12 +61,12 @@ where $x_{ij}$ is the share of buyer $i$'s demand routed to seller $j$, $\pi_j$ 
 
 The implementation [5] uses a sequential Stackelberg alternation with two outer iterations (a parameter calibrated empirically on 168-hour subsets, with a welfare gap below 0.02 % relative to ten iterations [5]), tolerance $10^{-3}$, an EWMA smoothing constant $\tau = 10^{-3}$, and an RD time span $(0, 5\!\times\!10^{-3})$ integrated with 150 sample points. The leader-follower equilibrium is invariant under the ordering of the alternation [5].
 
-Figure \ref{fig:convergence} provides a representative convergence certificate at the highest-volume hour of the horizon (10:00 on Aug. 22, $\sum P_{ji}=10.8$ kW): the outer Stackelberg loop reaches its fixed point in a single iteration, and the inner RD trajectories of $\pi_i(t)$ and $P_{ji}(t)$ stabilize well inside the 150-sample integration budget, confirming that the equilibria of Tables I-III are actual fixed points rather than artifacts of insufficient iteration.
+Figure \ref{fig:convergence} provides a representative convergence certificate at one of the top-volume hours of the horizon (08:00 on Aug. 22): the outer Stackelberg loop reaches its fixed point in two iterations, and the inner RD trajectories of $\pi_i(t)$ and $P_{ji}(t)$ stabilize well inside the 150-sample integration budget, confirming that the equilibria of Tables I-III are actual fixed points rather than artifacts of insufficient iteration.
 
 \begin{figure}[ht]
 \centering
-\includegraphics[width=0.48\textwidth]{fig_paper_convergence_h0514.png}
-\caption{Stackelberg + Replicator-Dynamics convergence certificate at hour $k=514$ (10:00, Aug. 22, surplus regime, $\sum P_{ji} = 10.8$ kW). (a) Aggregate welfare $W_j, W_i, W=W_j+W_i$ across the outer Stackelberg loop converges in a single iteration. (b) Buyer price replicator-dynamics $\pi_i(t)$ stabilizes at the spot floor $\pi_{gb}=235$ COP/kWh (asymmetric market: four sellers, one buyer). (c) Pairwise power exchange $P_{ji}(t)$ for all four active seller-buyer pairs settles within the integration window $(0, 5\cdot 10^{-3})$.}
+\includegraphics[width=0.48\textwidth]{fig_paper_convergence_h0512.png}
+\caption{Stackelberg + Replicator-Dynamics convergence certificate at hour $k=512$ (08:00, Aug. 22, surplus regime). (a) Aggregate welfare $W_j, W_i, W=W_j+W_i$ across the outer Stackelberg loop reaches its fixed point in two iterations. (b) Buyer price replicator-dynamics $\pi_i(t)$ converges within the integration window. (c) Pairwise power exchange $P_{ji}(t)$ for all active seller-buyer pairs settles inside $(0, 5\cdot 10^{-3})$.}
 \label{fig:convergence}
 \end{figure}
 
@@ -126,7 +126,7 @@ The horizon analyzed is August 2025 (744 hours), in local time (America/Bogota).
 
 Each institution has four meters: an M1 totalizer at the campus level and three sub-meters M2/M3/M4 covering specific feeders or buildings. The default totalizer (M1) yields a community PV coverage of 19 %, as the totalizer captures campus-wide loads (HVAC, laboratories, parking) that are not typical of "P2P-eligible" prosumers operating at building or faculty level.
 
-Sub-meter selection follows a protocol to place each institution's demand-to-generation ratio in the heuristic band $[0.4, 1.5]$, enabling an active P2P market. The resulting assignment is M3 for Udenar, UCC, HUDN, and Cesmag, and M1 scaled by 0.3 for Mariana (whose sub-meters M2/M3/M4 are incomplete). The community PV coverage after sub-meter selection is approximately 96 %, remaining within the CREG 101 072/2025 individual participation limit (10 % of community capacity, 100 kW per member) [4].
+Sub-meter selection places each institution's demand-to-generation ratio in the heuristic band $[0.4, 1.5]$, enabling an active P2P market. The assignment is M3 for Udenar, UCC, HUDN, Cesmag, and M1 scaled by 0.3 for Mariana (whose sub-meters are incomplete). The empirical community PV coverage is 96.1\,\%, within the CREG 101 072/2025 individual participation limit [4]. For the case study (Sec. IV), the generation series is scaled by 1.5 to a coverage of 144.2\,\%, matching the distributed-PV penetration projected for 2030 by the UPME 2025--2039 plan [19]; the demand series is left unmodified. The PV-factor sweep of Sec. IV.D reports the comparison across $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$ (96\,\%--288\,\% coverage).
 
 Representative profiles for two contrasting institutions are shown in Fig. \ref{fig:profiles_2agents}. Udenar exhibits strong solar generation (morning and afternoon peaks, near zero overnight) paired with highly variable academic load (lectures, labs, cafeteria). HUDN (Hospital) exhibits strong solar generation but nearly constant load (24/7 operation: emergency services, ICU, heating/cooling). These heterogeneous patterns—one institution with steep demand variability, the other with flat baseline consumption—drive the peer-trading arbitrage that differentiates P2P from administrative settlement mechanisms.
 
@@ -149,19 +149,19 @@ Hourly spot prices ($\pi_{bolsa}$) are obtained from the XM API via the *pydatax
 
 ## IV. Results
 
-### IV.A Baseline (1.0 times current PV)
+### IV.A Case study (144 % community coverage)
 
-Table I reports the aggregate net benefit and its decomposition for August 2025 at baseline PV coverage. The self-consumption term is identical (3.60 M COP) across the three scenarios, confirming its role as the common physical offset of the decomposition. All scenario differences arise from the surplus-revenue term.
+Table I reports the aggregate net benefit and its decomposition for August 2025 at the case-study coverage of 144 % (PV factor 1.5 over the empirical baseline, matching the UPME 2030 distributed-PV projection [19]). The self-consumption term is identical (4.12 M COP) across the three scenarios, confirming its role as the common physical offset of the decomposition; all scenario differences arise from the surplus-revenue term.
 
-**TABLE I.** Aggregate net benefit, August 2025, baseline PV (1.0 times). All values in million COP (M COP).
+**TABLE I.** Aggregate net benefit, August 2025, PV factor 1.5 (community coverage 144 %). All values in million COP (M COP).
 
 | Scenario           | Self-consumption | Surplus revenue | Total      |
 |--------------------|-----------------:|----------------:|-----------:|
-| P2P                |             3.60 |            1.21 |       4.81 |
-| C1 (CREG 174)      |             3.60 |            1.35 |       4.95 |
-| C4 (CREG 101 072)  |             3.60 |            1.29 |       4.89 |
+| P2P                |             4.12 |            1.81 |   **5.94** |
+| C1 (CREG 174)      |             4.12 |            1.51 |       5.63 |
+| C4 (CREG 101 072)  |             4.12 |            1.64 |       5.76 |
 
-P2P ranks second at baseline, 2.9 % below C1 and 1.6 % below C4. Fig. \ref{fig:ahorro_decomposition} visualizes the decomposition: the regulatory differentiator is entirely in the surplus-revenue component.
+P2P ranks first at the case-study coverage, 5.5 % above C1 and 3.1 % above the runner-up C4; CREG 174 falls to last place. Fig.\ \ref{fig:ahorro_decomposition} visualizes the decomposition: the regulatory differentiator is entirely in the surplus-revenue component.
 
 \begin{figure}[ht]
 \centering
@@ -183,30 +183,30 @@ Figure \ref{fig:metrics_hourly} reports the hourly evolution of the three commun
 
 ### IV.C Per-agent heterogeneity
 
-Table II reports the per-agent net benefit. Three of the five institutions individually prefer P2P over C1 at baseline: Udenar, HUDN, and Cesmag.
+Table II reports the per-agent net benefit at the case-study coverage. Four of the five institutions individually prefer P2P: Udenar, Mariana, HUDN, and Cesmag. UCC is the only outlier, slightly preferring C4 over P2P; under CREG 174 (C1) it ranks last.
 
-**TABLE II.** Per-agent net benefit, August 2025, baseline PV. Values in COP. The "Best" column reports the dominant scenario per agent.
+**TABLE II.** Per-agent net benefit, August 2025, PV factor 1.5. Values in thousand COP (k COP). The "Best" column reports the dominant scenario per agent.
 
-| Agent   | P2P [COP]   | C1 [COP]    | C4 [COP]    | Best                 |
-|---------|------------:|------------:|------------:|----------------------|
-| Udenar  |     787,250 |     759,326 |     770,840 | P2P (+27 K vs C1)    |
-| Mariana |     855,641 |     873,086 |     865,092 | C1 (+17 K vs P2P)    |
-| UCC     |   1,376,917 |   1,802,451 |   1,789,603 | C1 (+425 K vs P2P)   |
-| HUDN    |     815,894 |     789,266 |     801,155 | P2P (+27 K vs C1)    |
-| Cesmag  |     972,226 |     726,314 |     750,280 | P2P (+246 K vs C1)   |
+| Agent   | P2P [k]   | C1 [k]    | C4 [k]    | Best                 |
+|---------|----------:|----------:|----------:|----------------------|
+| Udenar  |       983 |       961 |       889 | P2P (+22 vs C1)      |
+| Mariana |     1,076 |     1,061 |     1,038 | P2P (+15 vs C1)      |
+| UCC     |     1,700 |     1,658 |     1,748 | C4 (+48 vs P2P)      |
+| HUDN    |       987 |       968 |       914 | P2P (+19 vs C1)      |
+| Cesmag  |     1,192 |       982 |     1,171 | P2P (+21 vs C4)      |
 
-UCC dominates the C1 advantage (425 K COP) because its sub-meter has the largest deficit profile of the community: under CREG 174's Type 1 mechanism, every kilowatt-hour permuted is valued at $\pi_{gs} - \pi^{C}$ (approximately 600 COP/kWh), while the P2P market clears at a price below $\pi_{gs}$. The aggregate result of "C1 wins by 2.9 %" therefore conceals heterogeneity that is relevant for adoption analysis: the institutions whose role in the P2P market is to *sell* (Udenar, HUDN, Cesmag) capture more value through peer trades than through individual permutation; the institution whose role is to *buy* (UCC) captures more value through Type 1 permutation against itself. Figure \ref{fig:per_agent_benefit} visualizes this per-agent split.
+UCC's preference for C4 stems from the PDE community pooling redistributing surplus across members in proportion to installed capacity: with the largest demand profile of the community, UCC absorbs a disproportionate share of the aggregated surplus credits in C4. Under CREG 174 (C1), the same demand profile yields the worst outcome because Type 1 permutation is bounded by the agent's own consumption and any excess falls into the lower-valued Type 2 spot residual. P2P, by contrast, lets surplus-providing institutions (Udenar, HUDN, Cesmag, and now Mariana) clear directly with the deficit institution (UCC) at endogenous hourly prices. Figure \ref{fig:per_agent_benefit} visualizes the per-agent split.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.48\textwidth]{fig_paper_per_agent_benefit.png}
-\caption{Per-agent net benefit by mechanism over August 2025. Three institutions (Udenar, HUDN, Cesmag) individually prefer the P2P market; UCC and Mariana favour C1 due to their structurally larger deficit profile that benefits from Type 1 permutation valuation.}
+\caption{Per-agent net benefit by mechanism over August 2025 at the case-study coverage. Four of five institutions (Udenar, Mariana, HUDN, Cesmag) individually prefer the P2P market; UCC slightly prefers C2's PDE pooling, which absorbs the asymmetry of its large demand profile.}
 \label{fig:per_agent_benefit}
 \end{figure}
 
-### IV.D PV-factor sweep and phase transition
+### IV.D PV-factor sweep: phase transition and robustness
 
-The decisive empirical finding of this paper is reported in Table III and visualized in Fig. \ref{fig:pv_ranking}. Generation profiles are scaled by a factor $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$, holding demand and prices fixed.
+To characterize the phase transition that brackets the case study, generation profiles are scaled by $\phi \in \{1.0, 1.5, 2.0, 2.5, 3.0\}$ over the empirical baseline, holding demand and prices fixed. The case-study row ($\phi = 1.5$) is bold-faced. Table III and Fig.\ \ref{fig:pv_ranking} report the result.
 
 \begin{figure}[ht]
 \centering
@@ -215,21 +215,21 @@ The decisive empirical finding of this paper is reported in Table III and visual
 \label{fig:pv_ranking}
 \end{figure}
 
-**TABLE III.** PV-factor sweep, August 2025. Net benefit in million COP (M COP); rank within row in parentheses.
+**TABLE III.** PV-factor sweep, August 2025. Net benefit in million COP (M COP); rank within row in parentheses. The case-study row is bold-faced.
 
-| Factor | Coverage | P2P [M]      | C1 [M]      | C4 [M]      |
-|-------:|---------:|-------------:|------------:|------------:|
-|    1.0 |     96 % | 4.81 (rank 2)| 4.95 (rank 1)| 4.89 (rank 3) |
-|    1.5 |    144 % | **5.94** (rank 1, *)| 5.63 (rank 3) | 5.82 (rank 2) |
-|    2.0 |    192 % | **6.87** (rank 1, *)| 6.64 (rank 3) | 6.78 (rank 2) |
-|    2.5 |    240 % | **7.74** (rank 1, *)| 7.57 (rank 3) | 7.69 (rank 2) |
-|    3.0 |    288 % | **8.59** (rank 1, *)| 8.44 (rank 3) | 8.53 (rank 2) |
+| Factor | Coverage | P2P [M]              | C1 [M]        | C4 [M]        |
+|-------:|---------:|---------------------:|--------------:|--------------:|
+|    1.0 |     96 % | 4.81 (rank 2)        | 4.95 (rank 1) | 4.58 (rank 3) |
+| **1.5**|**144 %** | **5.94 (rank 1, *)** | **5.63 (rank 3)** | **5.76 (rank 2)** |
+|    2.0 |    192 % | 6.87 (rank 1)        | 6.64 (rank 3) | 6.76 (rank 2) |
+|    2.5 |    240 % | 7.74 (rank 1)        | 7.57 (rank 3) | 7.65 (rank 2) |
+|    3.0 |    288 % | 8.59 (rank 1)        | 8.44 (rank 3) | 8.51 (rank 2) |
 
-The phase transition occurs between $\phi = 1.0$ and $\phi = 1.5$. At any factor at or above 1.5 (corresponding to community coverage at or above 144 %), P2P is the optimal mechanism, dominating both Colombian regulatory schemes. At baseline, C1 ranks first; at or above the transition, P2P becomes optimal while C4 remains second. The phase transition is the central empirical contribution of this paper.
+The phase transition occurs between $\phi = 1.0$ and $\phi = 1.5$. Below the transition (the empirical baseline at 96 % coverage), C1 narrowly leads, P2P is competitive (2.9 % below C1, but already 5.0 % above C4), and three of five institutions individually prefer P2P. From the case study at $\phi = 1.5$ onward, P2P is the optimal mechanism and C1 collapses to last place. The dominance of P2P holds across all higher factors tested, with a margin that is positive and modest (0.09--0.31 M COP) and persists across both admissible PDE methods.
 
 ### IV.E Calibration audit findings
 
-We conducted a calibration audit across four orthogonal axes to characterize the model's behavior under baseline conditions and validate that the observed 2.9 % welfare gap with C1 reflects design intent rather than mis-calibration.
+We conducted a calibration audit across four orthogonal axes to characterize the model's behavior at the empirical baseline (where C1 narrowly leads) and validate that the audit-axis findings persist under the case-study coverage of 144 %.
 
 **Hourly heterogeneity capture.** Using the dominance metric $\Delta_k = B^{P2P}_k - B^{C4}_k$, the P2P market dominates 24 of 24 hours on the synthetic 24-hour profile, with a Global Dispatch Ratio (GDR) of 0.99 and a cumulative advantage of +$42{,}696$ COP. The advantage concentrates in solar peak hours 10–15 h, accounting for 88 % of the daily delta. This evidence supports the claim that the dynamic price formation $\pi^*_i(k)$ captures intra-day heterogeneity that the static PDE rule of CREG 101 072 cannot resolve. (See Fig. \ref{fig:audit_heterogeneity}.)
 
@@ -239,7 +239,7 @@ We conducted a calibration audit across four orthogonal axes to characterize the
 
 **Equity vs. efficiency benchmark.** Figure~\ref{fig:audit_chacon} contrasts the per-scenario Index of Equity reported in this paper (P2P $= +0.37$, C1 $= -0.01$) against Table VII of the baseline model paper \cite{Chacon2025EMS}, which reports $\mathrm{IE} = +0.01$ for the replicator-dynamics method versus $\mathrm{IE} = -0.89$ for the centralized social planner. Both pairs confirm the same qualitative pattern: the decentralized mechanism distributes surplus more evenly than the centralized counterpart, at a small aggregate-welfare cost.
 
-The audit findings are consistent with the error tolerance documented by the baseline model authors \cite{Chacon2025EMS} (Sec. V, "the error remains below 6 %"): the 2.9 % gap is well within the trade-off region accepted by the original authors as the cost of achieving equitable, decentralized welfare distribution.
+The audit findings are consistent with the error tolerance documented by the baseline model authors \cite{Chacon2025EMS} (Sec. V, "the error remains below 6 %"): the 2.9 % gap observed at the empirical baseline (where C1 leads) is well within the trade-off region accepted by the original authors as the cost of achieving equitable, decentralized welfare distribution. At the case-study coverage of 144 %, P2P is already the leader, so the same trade-off no longer manifests as a welfare deficit — the equity-preserving design now coincides with maximum aggregate welfare.
 
 ### IV.F Robustness across PDE methods
 
@@ -247,7 +247,7 @@ The PDE method for C4 is admissible in two forms under CREG 101 072/2025 art. 5 
 
 ### IV.G P2P market activity
 
-At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon), trading 525.88 kWh internally and exporting 3,559.7 kWh as residual surplus to the spot market. Internal trade volume scales with PV factor: at $\phi = 3.0$, internal trades absorb a substantially larger fraction of the surplus because peer demand can monetize a larger portion at peer-cleared prices above the spot floor. Figure \ref{fig:market_activity} shows the day-by-hour pattern of market activity, Fig.~\ref{fig:hourly_prices} reports the distribution of cleared prices by hour of day, and Fig.~\ref{fig:classification} resolves the per-agent role (seller, buyer, neutral) hour-by-hour. The weekly accumulation of net benefit by mechanism over the same horizon is shown in Fig.~\ref{fig:subperiod}.
+At the case-study coverage, the P2P market is active in 190 of 744 hours (25.5 % of the horizon), trading 452.5 kWh internally; the residual surplus is exported to the spot market. The active-hour count is lower than at the empirical baseline (221 hours at $\phi = 1.0$) because the higher PV regime saturates the community demand more often, leaving stretches in which all agents are net sellers and no peer market forms. The hours that remain active are the ones in which heterogeneous demand profiles align peers across the seller--buyer divide, and these are precisely the hours where P2P captures value that monthly settlement cannot. Figure~\ref{fig:market_activity} shows the day-by-hour pattern of market activity, Fig.~\ref{fig:hourly_prices} reports the distribution of cleared prices by hour of day, and Fig.~\ref{fig:classification} resolves the per-agent role (seller, buyer, neutral) hour-by-hour. The weekly accumulation of net benefit by mechanism over the same horizon is shown in Fig.~\ref{fig:subperiod}.
 
 \begin{figure}[ht]
 \centering
@@ -273,7 +273,7 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.48\textwidth]{fig_paper_subperiod.png}
-\caption{Weekly accumulated net benefit by mechanism over the August 2025 horizon. P2P, C1, and C2 (CREG 101 072) track closely, with C1 leading by a small margin throughout the month — consistent with the aggregate ranking reported in Table I.}
+\caption{Weekly accumulated net benefit by mechanism over the August 2025 horizon at the case-study coverage. P2P leads each week, followed by C2 and then C1 (the same rank as Table I). The week-on-week pattern tracks community PV availability: weeks of higher irradiance widen the gap as the surplus regime is more pronounced.}
 \label{fig:subperiod}
 \end{figure}
 
@@ -302,20 +302,20 @@ At baseline, the P2P market is active in 221 of 744 hours (29.7 % of the horizon
 
 ## V. Discussion
 
-### V.A Why P2P is competitive (not winning) at baseline
+### V.A Why P2P wins at 144 % community coverage
 
-At baseline community coverage of 96 %, the residual surplus is sizable: even in P2P, the bulk of injected energy (3,559.7 kWh of the total) is exported to the spot market because internal peer demand is limited. Both C1 and P2P eventually monetize this residual at the hourly bolsa price, removing one of the two regulatory differentiators. The 2.9 % gap between C1 and P2P is accounted for almost entirely by C1's Type 1 advantage (valued at $\pi_{gs} - \pi^{C}$, approximately 600 COP/kWh) on the small portion that crosses the monthly $H_x$ boundary individually. Because the Type 1 valuation exceeds any peer-cleared price (which is bounded above by $\pi_{gs}$ in the RD admissibility window), the C1 mechanism extracts marginally more value than P2P when the community is roughly balanced.
+At 144\,\% community coverage, the regulatory differentiators of monthly settlement lose traction: C1's Type 1 cap is bounded by each agent's own consumption, so additional high-PV surplus falls into the lower-valued Type 2 spot residual; C4's PDE pooling re-allocates the aggregate, but is itself capped by the community's monthly deficit. P2P faces neither cap — any seller-buyer pair can clear surplus hourly at an endogenous price, monetizing what would otherwise hit an administrative ceiling.
 
-Figure \ref{fig:c1_vs_c4_detailed} compares C1 and C2 directly per agent: the institutions whose role under P2P is selling (Udenar, HUDN, Cesmag) capture more value via C2's PDE-allocated permutation than via individual C1 Type 1, but the aggregate is dominated by UCC's strong C1 advantage.
+Figure \ref{fig:c1_vs_c4_detailed} compares C1 and C2 per agent at the case study: C1 outperforms C2 for the three smaller-load prosumers (Udenar, Mariana, HUDN); C2 wins for UCC (large deficit absorbing the PDE share) and Cesmag (largest surplus, redistributed favourably). The aggregate favours C2 by 0.13 M COP, but both administrative schemes remain dominated by P2P (Table I).
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.48\textwidth]{fig_paper_c1_vs_c4_detailed.png}
-\caption{Per-agent net benefit, C1 (CREG 174) versus C2 (CREG 101 072). Triangles flag the per-agent winner; the aggregate rank reverses for some institutions because PDE community pooling redistributes surplus across community members.}
+\caption{Per-agent net benefit at the case-study coverage, C1 (CREG 174) versus C2 (CREG 101 072). C1 outperforms C2 for the three smaller-load prosumers (Udenar, Mariana, HUDN) where individual Type 1 valuation extracts more value, while C2 outperforms C1 for UCC (large demand absorbing the PDE share) and Cesmag (largest surplus profile redistributed via PDE). The aggregate favours C2 because the two C2-winning margins exceed the three C1-winning margins.}
 \label{fig:c1_vs_c4_detailed}
 \end{figure}
 
-The trade-off is quantified by the Price of Fairness (Fig.~\ref{fig:price_of_fairness}). Following Bertsimas et al.\ \cite{Bertsimas2011PoF}, we identify the most efficient scenario (max total welfare) and the most equitable one (min Gini on per-agent net benefits), and compute $\mathrm{PoF} = (W_\text{eff} - W_\text{fair}) / |W_\text{eff}|$. The per-agent breakdown $\mathrm{PoF}_n$ resolves the trade-off at the institutional level: net sellers under the efficient allocation absorb the bulk of the sacrifice while net buyers gain. The 2.9\,\% aggregate gap therefore matches the welfare error documented by the original authors of the algorithm \cite{Chacon2025EMS} as the explicit cost of equity preservation.
+The Price-of-Fairness analysis of Bertsimas et al.\ \cite{Bertsimas2011PoF} (Fig.~\ref{fig:price_of_fairness}) makes the equity vs.\ efficiency trade-off explicit at the case-study coverage. At $\phi = 1.5$, P2P maximizes total welfare while C1 minimizes the per-agent Gini coefficient (5.94 M COP, $G = 0.110$ vs.\ 5.63 M COP, $G = 0.106$); the aggregate $\mathrm{PoF} = (W_\text{eff} - W_\text{fair}) / |W_\text{eff}| = 5.2\,\%$. The per-agent breakdown $\mathrm{PoF}_n$ shows that imposing the equitable allocation in place of P2P would cost Cesmag 17.6\,\% of its individual welfare, while the remaining institutions sacrifice less than 2.5\,\% each. The 5.2\,\% aggregate cost matches the welfare-error window documented by the algorithm's original authors \cite{Chacon2025EMS} as the explicit price of equity preservation.
 
 \begin{figure}[ht]
 \centering
@@ -324,33 +324,31 @@ The trade-off is quantified by the Price of Fairness (Fig.~\ref{fig:price_of_fai
 \label{fig:price_of_fairness}
 \end{figure}
 
-### V.B Why P2P wins at PV factors at or above 1.5
+### V.B Robustness above the case-study coverage
 
-Above 144\,\% community coverage the P2P advantage becomes structural: internal peer trades absorb a growing fraction of surplus at clearing prices in the 400--500 COP/kWh range, well above the spot floor (234 COP/kWh, August mean). C1 cannot exploit this regime — its Type 1 cap is bounded by the agent's own consumption, so additional surplus always falls into Type 2 and liquidates at the monthly spot average. C4 is similarly constrained by the community's aggregated deficit. P2P, by contrast, lets any pair clear surplus at a price that internalizes heterogeneity, so the rank-1 position holds across all higher factors tested with a modest but persistent margin (0.08--0.18 M COP, Table III, Fig.\ \ref{fig:pv_ranking}) and is robust across both admissible PDE methods.
+The ranking obtained at the case-study coverage (P2P > C4 > C1) is preserved at higher PV factors: P2P keeps rank 1 across $\phi \in \{1.5, 2.0, 2.5, 3.0\}$ with margins of 0.18, 0.12, 0.09 and 0.08 M COP respectively over the runner-up C4, while C1 remains in last place. Internal peer trades absorb a growing fraction of the community surplus at clearing prices that exceed the spot floor (234 COP/kWh, August mean) over the active window, value that monthly settlement schemes structurally cannot capture (their Type 1 / PDE caps are bounded by the community's monthly net deficit, while the surplus regime exceeds it). The P2P dominance also persists across both admissible PDE methods of CREG 101 072/2025 art.\ 5, ruling out the specific PDE rule as an artifact of the case-study finding.
 
 ### V.C Per-agent heterogeneity matters for adoption
 
-The aggregate "C1 wins by 2.9\,\%" at baseline conceals individual outcomes: three of five institutions individually prefer P2P. Under voluntary adoption, the prosumer-typed institutions (Udenar, HUDN, Cesmag) would join a P2P market even at baseline coverage; an adoption analysis based solely on the aggregate would mis-classify them.
+The aggregate ranking conceals consequential individual outcomes. At the empirical baseline (96 \% coverage) C1 narrowly leads but three of five institutions already prefer P2P (Udenar, HUDN, Cesmag); at the case-study coverage of 144 \% the count climbs to four of five (adding Mariana), with UCC the only outlier. Under voluntary adoption, an analysis based solely on the aggregate would mis-classify the institutions whose role under P2P is to *sell* (Udenar, HUDN, Cesmag) and the ones with mixed-role profiles (Mariana) — precisely the agents on which the success of any community energy scheme depends.
 
 ### V.D Policy implication
 
-CREG 174/2021 (C1) and CREG 101 072/2025 (C4) are not equivalent at over-generation. At PV factor 1.5 and beyond, C1 becomes the worst-performing mechanism while C4 remains second. Both administrative schemes are dominated by P2P. As Colombia scales solar capacity (UPME 2025-2039 plan [19] forecasts 8 GW of distributed PV by 2030), the regulatory framework may need to accommodate dynamic clearing mechanisms. One possibility, consistent with the "agreed-among-members" clause of CREG 101 072/2025 art. 5 [4], is to admit dynamic PDE rules derived from market mechanisms rather than fixed administrative weights. The phase transition reported here motivates regulatory analysis of such an extension.
+CREG 174/2021 (C1) and CREG 101 072/2025 (C4) are not equivalent under the case-study coverage projected by UPME for 2030 [19]: at $\phi = 1.5$ and beyond, C1 becomes the worst-performing mechanism while C4 remains second; both administrative schemes are dominated by P2P. As Colombia scales solar capacity per the UPME 2025--2039 plan, the regulatory framework may need to accommodate dynamic clearing mechanisms. One possibility, consistent with the "agreed-among-members" clause of CREG 101 072/2025 art.\ 5 [4], is to admit dynamic PDE rules derived from market mechanisms rather than fixed administrative weights. The empirical evidence reported here motivates regulatory analysis of such an extension.
 
 ### V.E Limitations
 
-Five limitations are recognized. First, the horizon is one month (744 hours); seasonal variation and the El Nino/La Nina cycle are not captured. Second, the community is small (five institutions in a single city); generalization requires further empirical validation. Third, no demand response is modeled — flexible loads could shift peer demand into surplus hours and modify the phase transition. Fourth, the PV factor sweep above 1.5 is illustrative; current commercial buildings rarely exceed 100\,\% coverage, and oversizing requires storage or curtailment (neither modeled). Fifth, the P2P market is not currently reglamented in Colombia; legal admissibility would need to be established either via an extended reading of CREG 101 072/2025 art.\ 5 [4] (dynamic PDE) or via a generalization of the bilateral PPA framework of Law 143/1994 [20].
+Five limitations are recognized. First, the horizon is one month (744 hours); seasonal variation and the El Nino/La Nina cycle are not captured. Second, the community is small (five institutions in a single city); generalization requires further empirical validation. Third, the case-study generation is the empirical MTE series scaled by 1.5 to match the UPME 2030 distributed-PV projection [19]; the demand series is empirical but the PV regime is forecast, so the case study has the methodological status of an empirically-grounded scenario rather than a direct measurement at 144\,\% coverage. Fourth, no demand response is modeled — flexible loads could shift peer demand into surplus hours and modify both the phase transition and the case-study margin. Fifth, the P2P market is not currently reglamented in Colombia; legal admissibility would need to be established either via an extended reading of CREG 101 072/2025 art.\ 5 [4] (dynamic PDE) or via a generalization of the bilateral PPA framework of Law 143/1994 [20]. Storage and curtailment, both relevant under sustained over-generation, are not modeled either.
 
 ---
 
 ## VI. Conclusions
 
-This paper compared a Stackelberg-plus-Replicator-Dynamics P2P market against the two principal Colombian regulatory schemes (CREG 174/2021 individual self-generation and CREG 101 072/2025 collective community settlement) on metered data from five academic institutions in Pasto, Narino, during August 2025.
+This paper compared a Stackelberg-plus-Replicator-Dynamics P2P market against CREG 174/2021 individual self-generation and CREG 101 072/2025 collective community settlement on metered demand from five academic institutions in Pasto, Narino (August 2025), with PV generation scaled to the 1.5 times empirical capacity that matches the UPME 2025--2039 projection for 2030.
 
-At baseline community PV coverage of 96 %, P2P ranks second: 2.9 % below C1 and 1.6 % below C4, with three of five institutions individually preferring P2P over C1. A canonical net-benefit decomposition shows that the self-consumption term (3.60 M COP) is identical across mechanisms and that all scenario differences are explained by the surplus-revenue term.
+At the case-study coverage of 144 %, P2P ranks first: 5.5 % above C1 and 3.1 % above C4, with four of five institutions individually preferring P2P. The canonical decomposition shows a common self-consumption term (4.12 M COP); all scenario differences arise from the surplus-revenue term, where hourly P2P clearing extracts value beyond the monthly Type 1 / PDE caps. The Price-of-Fairness analysis quantifies the equity vs.\ efficiency trade-off at 5.2 %, with the bulk borne by a single institution.
 
-A PV factor sweep uncovers a phase transition: at any factor at or above 1.5 times the current PV capacity (corresponding to community coverage at or above 144 %), P2P becomes the optimal mechanism, dominating both Colombian schemes. The result is robust across alternative admissible PDE methods. The phase transition is the central empirical contribution of this work.
-
-As Colombia scales solar capacity, neither individual (CREG 174) nor collective administrative (CREG 101 072) settlement is optimal under over-generation; a dynamic clearing mechanism, admissible under a market-based reading of CREG 101 072 art.\ 5, captures additional surplus value that administrative rules cannot extract. The 2.9\,\% deficit at baseline therefore reflects a design choice (equity preservation under decentralized coordination), not a deficiency of the algorithm. Future work will extend the horizon to a full year, calibrate per-agent levelized costs, model demand response and storage, and run a global sensitivity analysis on the phase-transition threshold.
+A PV-factor sweep brackets the case study: at the empirical baseline (96 \% coverage) C1 narrowly leads with a 2.9 \% gap that lies within the 6 \% trade-off tolerance of [5], and three of five institutions already prefer P2P; from $\phi = 1.5$ onward P2P is optimal across all factors tested, robust across both admissible PDE methods. As Colombia scales solar capacity, neither individual (CREG 174) nor collective administrative (CREG 101 072) settlement is optimal in the over-generation regime projected for 2030; a dynamic clearing mechanism, admissible under a market-based reading of CREG 101 072 art.\ 5, captures surplus that administrative rules cannot. Future work will extend the horizon to a full year, calibrate per-agent levelized costs, model demand response and storage, and conduct a global sensitivity analysis around the phase-transition threshold.
 
 ---
 

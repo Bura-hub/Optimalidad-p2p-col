@@ -75,7 +75,7 @@ def _build_agents_real(N: int, agent_names: list[str]):
     b = get_b_for_real_data(N, agent_names)
     return AgentParams(
         N=N,
-        a=np.zeros(N), b=b, c=np.full(N, 1.2),
+        a=np.zeros(N), b=b, c=np.zeros(N),  # CAL-32 (2026-05-06b): c=0 PV puro
         lam=np.full(N, 100.0),
         theta=np.full(N, 0.5),
         etha=np.full(N, 0.1),

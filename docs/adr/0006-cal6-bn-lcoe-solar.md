@@ -131,3 +131,11 @@ es `fig_paper_convergence_h0512` panel (c), que ahora muestra
 transitorio P_ji genuino al perderse la simetria perfecta.
 
 Verificado por `scripts/debug_convergence_h512.py` post-fix.
+
+---
+
+**Implementacion final 2026-05-10:** el fix queda confirmado en
+`data/xm_prices.py:520+` con el dict `INVERTER_BY_AGENT`. Tambien
+incluye un fix CAL-28b en `download_via_api` que evitaba que un
+`UnicodeEncodeError` (caracteres no-ASCII en print bajo stdout cp1252)
+fuera silenciosamente atrapado por `except Exception`.

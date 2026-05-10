@@ -15,6 +15,28 @@ Metodologia de override:
   Para datos reales (--data daily), alpha=0 es el default de produccion porque
   la demanda MTE es un insumo fijo observado (sin DR activo). El sweep mueve
   alpha fuera de ese default para cuantificar el efecto sobre equidad.
+
+USO ON-PAPER — sweep phi x theta con alpha=0 (default):
+
+    python -m analysis.audit.equidad_sweep --data daily --sweep-axis phi
+
+  Mide theta-invariancia bajo varios niveles de cobertura PV
+  (phi ∈ {1.0, 1.25, 1.5, 1.75}). Es el sweep que va al paper porque
+  ambos ejes son parametros del modelo presentado: phi aparece como
+  variable de politica (case study UPME 2030 = 1.5) y theta es la
+  curvatura privada de la utility cuadratica.
+
+USO LEGACY — sweep alpha x theta (off-paper, requiere DR activo):
+
+    python -m analysis.audit.equidad_sweep --data daily --sweep-axis alpha --pv-scale 1.5
+
+  Mide sensibilidad a la fraccion de demanda flexible. NO va al paper:
+  el case study corre con alpha=0 (run_paper_iter.py:263, "sin DR"). Util
+  como extension prospectiva si en futuras versiones se añade un programa
+  de respuesta a la demanda al modelo.
+
+Lectura completa de la figura on-paper en
+`Documentos/notas_modelo_tesis.md` §A.9.
 """
 
 import argparse
@@ -54,7 +76,8 @@ from data.cedenar_tariff import (
 from data.xm_data_loader import MTEDataLoader, daily_profiles
 
 # --- Grids de barrido ---------------------------------------------------------
-ALPHA_GRID = [0.10, 0.15, 0.20, 0.25]  # fraccion de demanda flexible
+ALPHA_GRID = [0.10, 0.15, 0.20, 0.25]  # fraccion de demanda flexible (off-paper, requiere DR)
+PHI_GRID   = [1.00, 1.25, 1.50, 1.75]  # factor cobertura PV (case study UPME 2030 = 1.5)
 THETA_GRID = [0.25, 0.50, 0.75, 1.00]  # coeficiente cuadratico de costo
 
 # Nombres de agentes MTE
@@ -159,12 +182,15 @@ def _load_synthetic_data() -> dict:
 
 
 def run_one_config(data: dict, alpha_uniform: float,
-                   theta_uniform: float) -> dict:
+                   theta_uniform: float, phi: float = 1.0) -> dict:
     """
-    Ejecuta un run P2P + comparacion con alpha_n y theta uniformes.
+    Ejecuta un run P2P + comparacion con alpha_n, theta y phi uniformes.
+
+    phi escala G multiplicativamente dentro de la funcion (no muta data).
+    Para el sweep on-paper se mantiene alpha=0 y se barre phi x theta.
 
     Retorna dict con IE_p2p, IE_C1, IE_C4, gini_p2p, welfare_p2p,
-    welfare_C1, welfare_C4, pof, alpha, theta, compute_time.
+    welfare_C1, welfare_C4, pof, alpha, theta, phi, compute_time.
     """
     N = data["N"]
 
@@ -172,7 +198,7 @@ def run_one_config(data: dict, alpha_uniform: float,
         N=N,
         a=np.zeros(N),
         b=np.zeros(N),
-        c=np.full(N, 1.2) if data["g_arg"] is not None else np.zeros(N),
+        c=np.zeros(N),  # CAL-32 (apendice 2026-05-06b): c=0 PV puro
         lam=np.full(N, 100.0),
         theta=np.full(N, theta_uniform),
         etha=np.full(N, 0.1),
@@ -191,7 +217,7 @@ def run_one_config(data: dict, alpha_uniform: float,
 
     ems = EMSP2P(agents, grid, solver)
     D_run = data["D"].copy()
-    G_run = data["G"].copy()
+    G_run = data["G"].copy() * phi
     p2p_results, G_klim, D_star = ems.run(D_run, G_run)
 
     if np.any(agents.alpha > 1e-9):
@@ -229,6 +255,7 @@ def run_one_config(data: dict, alpha_uniform: float,
         "welfare_C1":  cr.net_benefit.get("C1",  float("nan")),
         "welfare_C4":  cr.net_benefit.get("C4",  float("nan")),
         "pof":         pof_val,
+        "phi":         phi,
     }
 
 
@@ -250,6 +277,16 @@ def main() -> None:
         "--output-dir", default=None,
         help="Directorio de salida (default: outputs/audit_<fecha>/equidad/)",
     )
+    ap.add_argument(
+        "--pv-scale", type=float, default=1.0,
+        help="Factor multiplicativo aplicado a G (legacy; se ignora si --sweep-axis=phi)",
+    )
+    ap.add_argument(
+        "--sweep-axis", choices=["alpha", "phi"], default="phi",
+        help=("Eje primario del barrido. 'phi' (default, on-paper): barre "
+              "cobertura PV con alpha=0; 'alpha' (off-paper): barre DR "
+              "fraction con phi=1.0 — requiere modelo con DR activo"),
+    )
     args = ap.parse_args()
 
     fecha = datetime.datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -263,33 +300,67 @@ def main() -> None:
     else:
         data = _load_synthetic_data()
     print(f"[B1] N={data['N']}  T={data['T']}h  agentes={data['agent_names']}")
+    print(f"[B1] sweep_axis = {args.sweep_axis}")
 
     rows = []
     t_global = time.monotonic()
-    for alpha in ALPHA_GRID:
-        for theta in THETA_GRID:
-            print(f"[B1] alpha={alpha:.2f}  theta={theta:.2f} ...", flush=True)
-            t0 = time.monotonic()
-            try:
-                res = run_one_config(data, alpha, theta)
-            except Exception as exc:  # noqa: BLE001
-                print(f"     ERROR: {exc}")
-                res = {k: float("nan") for k in [
-                    "IE_p2p", "IE_C1", "IE_C4", "gini_p2p", "gini_C1",
-                    "welfare_p2p", "welfare_C1", "welfare_C4", "pof",
-                ]}
-            res["alpha"] = alpha
-            res["theta"] = theta
-            res["compute_time"] = round(time.monotonic() - t0, 2)
-            rows.append(res)
-            print(f"     IE_p2p={res['IE_p2p']:+.4f}  IE_C1={res['IE_C1']:+.4f}"
-                  f"  gini_p2p={res['gini_p2p']:.4f}"
-                  f"  W_p2p={res['welfare_p2p']:,.0f}"
-                  f"  [{res['compute_time']:.1f}s]")
+    if args.sweep_axis == "phi":
+        # On-paper: alpha=0 (sin DR), barre phi x theta
+        for phi in PHI_GRID:
+            for theta in THETA_GRID:
+                print(f"[B1] phi={phi:.2f}  theta={theta:.2f}  alpha=0.00 ...",
+                      flush=True)
+                t0 = time.monotonic()
+                try:
+                    res = run_one_config(data, 0.0, theta, phi=phi)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"     ERROR: {exc}")
+                    res = {k: float("nan") for k in [
+                        "IE_p2p", "IE_C1", "IE_C4", "gini_p2p", "gini_C1",
+                        "welfare_p2p", "welfare_C1", "welfare_C4", "pof",
+                    ]}
+                    res["phi"] = phi
+                res["alpha"] = 0.0
+                res["theta"] = theta
+                res["compute_time"] = round(time.monotonic() - t0, 2)
+                rows.append(res)
+                print(f"     IE_p2p={res['IE_p2p']:+.4f}  "
+                      f"IE_C1={res['IE_C1']:+.4f}  "
+                      f"gini_p2p={res['gini_p2p']:.4f}  "
+                      f"W_p2p={res['welfare_p2p']:,.0f}  "
+                      f"[{res['compute_time']:.1f}s]")
+    else:
+        # Off-paper (legacy): barre alpha x theta. Aplica pv-scale legacy.
+        if args.pv_scale != 1.0:
+            data["G"] = data["G"] * args.pv_scale
+            print(f"[B1] PV scale legacy aplicado: factor={args.pv_scale}")
+        for alpha in ALPHA_GRID:
+            for theta in THETA_GRID:
+                print(f"[B1] alpha={alpha:.2f}  theta={theta:.2f}  "
+                      f"phi={args.pv_scale:.2f} ...", flush=True)
+                t0 = time.monotonic()
+                try:
+                    res = run_one_config(data, alpha, theta)
+                except Exception as exc:  # noqa: BLE001
+                    print(f"     ERROR: {exc}")
+                    res = {k: float("nan") for k in [
+                        "IE_p2p", "IE_C1", "IE_C4", "gini_p2p", "gini_C1",
+                        "welfare_p2p", "welfare_C1", "welfare_C4", "pof",
+                    ]}
+                    res["phi"] = args.pv_scale
+                res["alpha"] = alpha
+                res["theta"] = theta
+                res["compute_time"] = round(time.monotonic() - t0, 2)
+                rows.append(res)
+                print(f"     IE_p2p={res['IE_p2p']:+.4f}  "
+                      f"IE_C1={res['IE_C1']:+.4f}  "
+                      f"gini_p2p={res['gini_p2p']:.4f}  "
+                      f"W_p2p={res['welfare_p2p']:,.0f}  "
+                      f"[{res['compute_time']:.1f}s]")
 
     t_total = time.monotonic() - t_global
     df = pd.DataFrame(rows)
-    cols_order = ["alpha", "theta", "IE_p2p", "IE_C1", "IE_C4",
+    cols_order = ["phi", "alpha", "theta", "IE_p2p", "IE_C1", "IE_C4",
                   "gini_p2p", "gini_C1", "welfare_p2p", "welfare_C1",
                   "welfare_C4", "pof", "compute_time"]
     df = df[cols_order]

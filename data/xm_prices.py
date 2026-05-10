@@ -201,18 +201,24 @@ def download_via_api(t_start="2025-07-01", t_end="2026-02-01",
             for metric in candidatos:
                 try:
                     df = obj.request_data(metric, "Sistema", s, e)
-                    if df is not None and not df.empty:
-                        all_series.append(df)
-                        metric_ok = metric
-                        success = True
-                        print(f"    ✓ {s}→{e}  ({metric})")
-                        # Una vez encontrado el nombre correcto, solo usar ese
-                        candidatos = [metric]
-                        break
                 except Exception:
-                    pass
+                    df = None
+                # Fix CAL-28b (2026-05-06): el print con caracteres no-ASCII
+                # ('✓', '→') estaba DENTRO del try; un UnicodeEncodeError
+                # bajo stdout cp1252 (Windows) era atrapado por
+                # 'except Exception: pass' silenciosamente, dejando
+                # success=False aunque los datos ya se hubieran cargado.
+                # Ahora la captura de excepciones se limita a
+                # request_data; success/break/print viven fuera del try.
+                if df is not None and not df.empty:
+                    all_series.append(df)
+                    metric_ok = metric
+                    success = True
+                    candidatos = [metric]   # estabilizar metrica
+                    print(f"    [OK] {s}->{e}  ({metric})")
+                    break
             if not success:
-                print(f"    ✗ {s}→{e}: ninguna métrica funcionó")
+                print(f"    [FAIL] {s}->{e}: ninguna metrica funciono")
             current = block_end
 
         if not all_series:
@@ -514,10 +520,30 @@ def print_price_summary(prices, t_start="2025-07-01", label="Precios XM"):
 
 def calibrate_b_parameters(agent_names, capacity_kw=None,
                              irradiance_kwh_m2_day=4.2):
+    """LCOE empírico por agente (CAL-6 corregido 2026-05-06).
+
+    El lookup original `B_CALIBRATED.get(f"{n.lower()}_fronius", ...)`
+    fallaba por case-mismatch (las claves de B_CALIBRATED están
+    capitalizadas, p.ej. "Udenar_fronius") y todas las búsquedas caían
+    al fallback `default_pasto = 220`. Como consecuencia los 5 agentes
+    obtenían el mismo valor uniforme, anulando la heterogeneidad
+    intencional de CAL-6 (Cesmag = 210 por inversor distinto).
+
+    Fix: dict explícito INVERTER_BY_AGENT que matchea las claves reales
+    de B_CALIBRATED. Ahora b = {225, 225, 225, 225, 210} × adj.
+    """
     irr_ref = 4.5
     adj = irr_ref / max(irradiance_kwh_m2_day, 1.0)
-    b = [B_CALIBRATED.get(f"{n.lower()}_fronius",
-         B_CALIBRATED["default_pasto"]) * adj for n in agent_names]
+    INVERTER_BY_AGENT = {
+        "Udenar":  "Udenar_fronius",
+        "Mariana": "Mariana_fronius",
+        "UCC":     "UCC_fronius",
+        "HUDN":    "HUDN_fronius",
+        "Cesmag":  "Cesmag_inv",
+    }
+    b = [B_CALIBRATED.get(INVERTER_BY_AGENT.get(n, "default_pasto"),
+                            B_CALIBRATED["default_pasto"]) * adj
+         for n in agent_names]
     return np.array(b, dtype=float)
 
 

@@ -184,24 +184,42 @@ def cargar_mte_paper(t_start: str, t_end: str,
     print(f"  [CAL-28] Cargando medidores puntuales ({len(agents)} inst)...")
     for n, inst in enumerate(agents):
         if inst not in cfg_by_inst:
-            print(f"    {inst}: sin config → usando M1 totalizador")
+            # Fix CAL-28b (2026-05-06): caracteres ASCII puros para evitar
+            # UnicodeEncodeError bajo stdout cp1252 (Windows). Antes se usaba
+            # '→' que disparaba el except de mas abajo y restauraba M1.
+            print(f"    {inst}: sin config -> usando M1 totalizador")
             D_paper_full[n, :] = D_full[n, :]
             continue
         cfg_inst = cfg_by_inst[inst]
         meter_dir = (mte_root / inst / cfg_inst["carpeta"]
                       / f"{cfg_inst['medidor_nombre']} - electricMeter")
+        # Fix CAL-28b (2026-05-06): el print con caracteres no-ASCII estaba
+        # DENTRO del try; un UnicodeEncodeError (Windows cp1252) hacia que el
+        # except sobrescribiera D_paper_full[n,:] con M1 totalizador despues
+        # de haberlo cargado correctamente desde el sub-medidor M3. Ahora la
+        # carga y el print estan separados; el print no puede afectar D_paper_full.
+        loaded_ok = False
+        load_error: Exception | None = None
         try:
             s = _read_meter_csvs(meter_dir)
             s = s.reindex(idx_full).interpolate(method="time", limit=6)
             s = s.fillna(0.0) * float(cfg_inst["factor_escala"])
             # Clip a no-negativo (evita ruido negativo)
             D_paper_full[n, :] = np.maximum(s.to_numpy(), 0.0)
-            mean_kw = float(D_paper_full[n].mean())
-            print(f"    {inst}: {cfg_inst['medidor_nombre']} "
-                  f"× {cfg_inst['factor_escala']} → D̄={mean_kw:.2f} kW")
+            loaded_ok = True
         except Exception as e:
-            print(f"    {inst}: ERROR ({e}); fallback a M1 totalizador")
+            load_error = e
             D_paper_full[n, :] = D_full[n, :]
+
+        if loaded_ok:
+            mean_kw = float(D_paper_full[n].mean())
+            # Caracteres ASCII puros: 'x' en vez de '×', '->' en vez de '→',
+            # 'D_mean' en vez de 'D̄' (D + combining macron U+0304).
+            print(f"    {inst}: {cfg_inst['medidor_nombre']} "
+                  f"x {cfg_inst['factor_escala']} -> D_mean={mean_kw:.2f} kW")
+        else:
+            print(f"    {inst}: ERROR ({load_error}); "
+                  f"fallback a M1 totalizador")
 
     # 3. Slice al horizonte solicitado (mes específico).
     D, G, idx = slice_horizon(D_paper_full, G_full, idx_full, t_start, t_end)
@@ -256,11 +274,16 @@ def correr_p2p(D, G, agents, b_cal, pi_gs_eff: float, pi_gb: float):
     N = D.shape[0]
     agent_params = AgentParams(
         N=N,
-        a=np.zeros(N), b=b_cal, c=np.full(N, 1.2),
+        # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro grid-tied.
+        # El equilibrio es invariante en c_j por CAL-32 (verificado empiricamente
+        # en scripts/demo_invariancia_c_lambda.py — diff_P_max=0 entre c=1.2 y c=0).
+        # Convencion canonica para renovables (Yang 2024 [40], Martinez-Piazuelo
+        # 2022 [16]); alineado con base_case_data.py:46 (modo sintetico C=zeros).
+        a=np.zeros(N), b=b_cal, c=np.zeros(N),
         lam=np.full(N, 100.0),
         theta=np.full(N, 0.5),
         etha=np.full(N, 0.1),
-        alpha=np.zeros(N),  # sin DR
+        alpha=np.zeros(N),  # sin DR (caso de estudio del paper)
     )
     grid = GridParams(pi_gs=pi_gs_eff, pi_gb=pi_gb)
     solver = SolverParams(
@@ -276,8 +299,15 @@ def correr_p2p(D, G, agents, b_cal, pi_gs_eff: float, pi_gb: float):
 # ─── Simulación regulatorios ───────────────────────────────────────────────
 
 
-def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx):
-    """C1 = CREG 174/2021. Mensual con Hx (CAL-10b)."""
+def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx,
+               component_c="auto"):
+    """C1 = CREG 174/2021. Mensual con Hx (CAL-10b).
+
+    component_c: "auto" usa aproximacion proporcional pi_gs * C_FRACTION
+    (CAL-10 default historico). Para el paper IEEE WEEF se pasa la matriz
+    literal Cvm desde el CSV mensual de Cedenar (CAL-10b.2 — fidelidad
+    regulatoria con CREG 174/2021 art. 25).
+    """
     from scenarios.scenario_c1_creg174 import run_c1_creg174
 
     month_labels = np.array(
@@ -286,7 +316,7 @@ def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx):
     return run_c1_creg174(
         D, G_klim, pi_gs, pi_bolsa, prosumer_ids,
         month_labels=month_labels,
-        component_c="auto",
+        component_c=component_c,
     )
 
 
@@ -574,6 +604,10 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
     from scenarios.scenario_c4_creg101072 import (
         compute_pde_weights, compute_excedentes_acumulados,
     )
+    # CAL-10b.2: Cvm literal para todo el sweep (constante en agentes/horas
+    # del case study NT2 Aug 2025).
+    from data.cedenar_tariff import cvm_per_agent_hourly
+    cvm_matrix_sweep = cvm_per_agent_hourly(agents, idx)
 
     sweep = []
     print(f"\n  [Sprint 6.5] Barrido PV factors={list(factors)} "
@@ -595,9 +629,10 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
         p2p_res, G_klim, _ems_pv = correr_p2p(D, G_scaled, agents, params["b_cal"],
                                                 pi_gs_eff, pi_gb)
         c1_per_agent = correr_c1(D, G_klim, params["pi_gs"], params["pi_bolsa"],
-                                  prosumer_ids, idx)
+                                  prosumer_ids, idx,
+                                  component_c=cvm_matrix_sweep)
         c4_res = correr_c4(D, G_klim, params["pi_gs"], params["pi_bolsa"],
-                            pde, cap_scaled, component_c="auto")
+                            pde, cap_scaled, component_c=cvm_matrix_sweep)
 
         _resumen, scenarios_data, _decomp = construir_resumen(
             p2p_res, c1_per_agent, c4_res, agents,
@@ -756,8 +791,17 @@ def main() -> int:
 
     print(f"\n  [paper 2/3] C1 (CREG 174)...")
     prosumer_ids = list(range(D.shape[0]))
+    # CAL-10b.2: usar Cvm literal de la factura Cedenar mensual
+    # (data/cedenar_pdfs/) en vez de la aproximacion proporcional.
+    # Esto cumple CREG 174/2021 art. 25 al pie de la letra y restaura la
+    # trazabilidad XLSX <-> paper sobre el componente C de comercializacion.
+    from data.cedenar_tariff import cvm_per_agent_hourly
+    cvm_matrix = cvm_per_agent_hourly(agents, idx)
+    print(f"  [paper] pi_C (Cvm literal Cedenar): "
+          f"mean={float(np.nanmean(cvm_matrix)):.2f} COP/kWh "
+          f"(case study NT2 Aug 2025)")
     c1_per_agent = correr_c1(D, G_klim, p["pi_gs"], p["pi_bolsa"],
-                              prosumer_ids, idx)
+                              prosumer_ids, idx, component_c=cvm_matrix)
 
     print(f"\n  [paper 3/3] C2 = C4 (CREG 101 072)...")
     capacity = np.maximum(G.mean(axis=1), 0)
@@ -775,7 +819,7 @@ def main() -> int:
         print(f"  [paper] PDE: excedentes_proportional (CAL-26 opt-in)")
     print(f"          PDE = {[round(float(p), 4) for p in pde]}")
     c4_result = correr_c4(D, G_klim, p["pi_gs"], p["pi_bolsa"],
-                            pde, capacity, component_c="auto")
+                            pde, capacity, component_c=cvm_matrix)
 
     elapsed = time.time() - t0
     print(f"\n  [paper] Simulacion completada en {elapsed:.1f}s")
@@ -854,7 +898,6 @@ def main() -> int:
                 fig_paper_c1_vs_c4_detailed,
                 fig_paper_convergence,
                 fig_paper_price_of_fairness,
-                fig_paper_flow_breakdown,
             )
             attempts.append(("fig_paper_per_agent_benefit",
                              lambda: fig_paper_per_agent_benefit(
@@ -867,7 +910,9 @@ def main() -> int:
             attempts.append(("fig_paper_hourly_prices",
                              lambda: fig_paper_hourly_prices(
                                  p2p_results,
-                                 Path(out_dir) / "fig_paper_hourly_prices")))
+                                 Path(out_dir) / "fig_paper_hourly_prices",
+                                 agents=agents,
+                                 pi_gs=pi_gs_eff, pi_gb=pi_gb)))
             attempts.append(("fig_paper_metrics_hourly",
                              lambda: fig_paper_metrics_hourly(
                                  p2p_results, D, G_klim,
@@ -888,10 +933,9 @@ def main() -> int:
                              lambda: fig_paper_price_of_fairness(
                                  scenarios_data, agents,
                                  Path(out_dir) / "fig_paper_price_of_fairness")))
-            attempts.append(("fig_paper_flow_breakdown",
-                             lambda: fig_paper_flow_breakdown(
-                                 scenarios_data, decomposition,
-                                 Path(out_dir) / "fig_paper_flow_breakdown")))
+            # fig_paper_flow_breakdown removido (2026-05-04): redundante con
+            # fig_paper_ahorro_decomposition (mismos datos, distinto visual).
+            # Sección II.B ahora hace forward-ref a Fig.\ref{fig:ahorro_decomposition}.
 
             # Convergence trajectories (RD + Stackelberg) — game-theoretic certificate
             try:

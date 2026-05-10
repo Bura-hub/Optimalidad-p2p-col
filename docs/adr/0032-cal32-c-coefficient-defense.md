@@ -172,3 +172,21 @@ paper IEEE WEEF y las Tablas I-III no cambian numericamente. El
 `fig_paper_convergence_h0512` regenerado post-fix tiene P*, pi*
 identicos al pre-fix (`scripts/debug_convergence_h512.py` lo
 confirma).
+
+
+---
+
+## Apendice 2026-05-10 — Aplicacion a `main_simulation.py`
+
+Tras la audit metodologica defensa-asesores (ver `notas_modelo_tesis.md`
+seccion CAL-32), el cambio se propaga a la ruta principal de la tesis:
+
+- **Archivo:** `main_simulation.py:236-241`
+- **Cambio:** `c=np.full(N, 1.2)` -> `c=np.zeros(N)` en modo `--data real`
+- **Modo sintetico:** intacto (`c=np.array(p["c"])`) para preservar
+  golden test del caso canonico Sofia Chacon Bienestar6p.py.
+
+Verificacion: `python scripts/demo_invariancia_c_lambda.py` confirma
+`diff_P_max < 1e-9 kW`, `diff_pi_max < 1e-6 COP/kWh` entre `c=1.2` y
+`c=0.0`. Las metricas RPE/Gini/IE reportadas en `borrador_cap4_resultados.md`
+son robustas a este cambio.

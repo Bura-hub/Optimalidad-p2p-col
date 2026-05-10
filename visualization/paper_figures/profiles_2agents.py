@@ -1,68 +1,89 @@
 """
 visualization/paper_figures/profiles_2agents.py
-Figura paper IEEE WEEF: perfiles 1 semana de Hospital (HUDN) + Udenar.
+Figura paper IEEE WEEF: perfiles 1 semana real de Hospital (HUDN) + Udenar.
 
-Fuente de datos: graficas/fig1_perfiles.csv (promedios diarios horarios
-del horizonte canonico).  Los datos MTE crudos (MedicionesMTE/) no estan
-disponibles en este entorno, por lo que se construye una semana
-representativa repitiendo el perfil diario promedio 7 veces con
-modulacion diferenciada de fin de semana (demanda academica Udenar ~70 %
-el sabado y ~55 % el domingo; Hospital permanece estable toda la semana).
+Fuente de datos (post-redesign 2026-05-05): MTE Aug 2025 raw vía
+cargar_mte_paper("2025-08-01", "2025-09-01") — los MISMOS datos que el
+case study (consistencia inter-figura).
+
+Aug 1 2025 fue viernes. Se elige la semana Mon-Sun Aug 11-17 (no Aug 4-10)
+para evitar el feriado de Batalla de Boyaca (jueves 7-Aug 2025, demanda
+academica residual de jueves a domingo). Aug 11-17 es la primera semana
+del mes sin feriados nacionales (Aug 18 ya es lunes festivo trasladado
+por Asuncion 15-Aug).
+Esa semana se extrae directamente del horizonte 744h sin sintetizar.
 
 Trazabilidad: Reunion 01/05 con asesores Pantoja + Obando.
-Periodo sintetico representativo: lunes-domingo, agosto 2025.
+Caso de estudio: phi=1.5 (UPME 2030), week Aug 11-17, 2025 (real, hourly).
 """
 
 from pathlib import Path
+import sys
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT))
+
 from visualization.ieee_style import (
     apply_ieee_style,
     save_ieee,
     COLORS_AGENT,
     set_column_width,
+    WIDTH_SINGLE_IN,
 )
 
-# Agentes segun orden canonico: ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
-IDX_UDENAR = 0
-IDX_HUDN = 3
-
-# Factores de modulacion por dia de semana (lun=0 .. dom=6)
-# Hospital: demanda industrial constante (factor 1.0 toda la semana)
-# Udenar: academica — baja en fines de semana
-WEEKEND_FACTOR_UDENAR = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 0.90, 5: 0.70, 6: 0.55}
-WEEKEND_FACTOR_HUDN   = {d: 1.0 for d in range(7)}
-
-ROOT = Path(__file__).resolve().parents[2]
-CSV_PROFILES = ROOT / "graficas" / "fig1_perfiles.csv"
 OUT_DIR = ROOT / "outputs" / "paper"
 
-WEEK_META = "Representative week: Monday 2025-08-04 to Sunday 2025-08-10 (synthetic from daily averages)"
+WEEK_META = "Real week: Monday 2025-08-11 to Sunday 2025-08-17 (MTE 744h, phi=1.5)"
 
 
-def _load_daily_profiles() -> pd.DataFrame:
-    """Lee fig1_perfiles.csv y devuelve DataFrame de 24 filas."""
-    df = pd.read_csv(CSV_PROFILES)
-    assert len(df) == 24, f"Se esperaban 24 filas, hay {len(df)}"
-    return df
+def _load_real_week() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Carga datos reales Aug 2025 via cargar_mte_paper, extrae Mon-Sun Aug 11-17.
 
+    Returns (D_hudn, G_hudn, D_udenar, G_udenar) cada uno con 168 valores.
+    Aplica homogeneizacion CAL-25/A1 + factor phi=1.5 (UPME 2030 case study)
+    para consistencia exacta con el resto de figuras del paper.
 
-def _build_week(daily_D: np.ndarray, daily_G: np.ndarray,
-                weekend_factors: dict) -> tuple[np.ndarray, np.ndarray]:
-    """Construye arrays de 168 puntos (7 dias x 24 h) con modulacion weekend."""
-    D_week = np.concatenate([daily_D * weekend_factors[d] for d in range(7)])
-    G_week = np.concatenate([daily_G * max(0.0, weekend_factors[d] * 0.95)
-                              for d in range(7)])
-    return D_week, G_week
+    Se elige Aug 11-17 (no Aug 4-10) para evitar el feriado de Batalla de
+    Boyaca (jueves 7 de agosto), que produce demanda academica residual
+    desde el jueves hasta el domingo en el caso de Udenar.
+    """
+    from scripts.run_paper_iter import (
+        cargar_mte_paper, homogeneizar_a_comercial,
+    )
+    print("[B2] CAL-25/A1: homogeneizando perfiles institucionales...")
+    homogeneizar_a_comercial()
+    print("[B2] Cargando MTE Aug 2025 (744h)...")
+    D, G, idx, agents = cargar_mte_paper("2025-08-01", "2025-09-01")
+    # Case study: phi=1.5 PV scaling (UPME 2030)
+    G = G * 1.5
+
+    # Aug 1 2025 = Friday. Mon Aug 4 = day 4 (h72), Mon Aug 11 = day 11 (h240).
+    # Se elige Aug 11-17 (h240-h407) por estar libre de feriados nacionales:
+    # Aug 7 (Batalla de Boyaca, jueves) ya paso; Aug 18 (Asuncion trasladado)
+    # cae el lunes siguiente. Mon Aug 11 to Sun Aug 17 = h240 a h407 (168 h).
+    week_start = 240
+    week_end = week_start + 168
+
+    udenar_i = agents.index("Udenar")
+    hudn_i = agents.index("HUDN")
+    print(f"[B2] Extrayendo semana Mon Aug 11 - Sun Aug 17 (h{week_start}-h{week_end-1})")
+    print(f"        agentes: Udenar idx={udenar_i}, HUDN idx={hudn_i}")
+    return (
+        D[hudn_i,   week_start:week_end],
+        G[hudn_i,   week_start:week_end],
+        D[udenar_i, week_start:week_end],
+        G[udenar_i, week_start:week_end],
+    )
 
 
 def _xtick_labels() -> tuple[np.ndarray, list[str]]:
-    """Ticks al inicio de cada dia con nombre corto (Mon..Sun)."""
-    days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    """Ticks al inicio de cada dia con nombre corto Mon..Sun (Aug 11-17)."""
+    days = ["Mon\n11", "Tue\n12", "Wed\n13", "Thu\n14", "Fri\n15", "Sat\n16", "Sun\n17"]
     ticks = np.arange(7) * 24
     return ticks, days
 
@@ -70,16 +91,7 @@ def _xtick_labels() -> tuple[np.ndarray, list[str]]:
 def main() -> None:
     apply_ieee_style()
 
-    df = _load_daily_profiles()
-    h24 = np.arange(24)
-
-    D24_hudn   = df["D_HUDN_kW"].values
-    G24_hudn   = df["G_HUDN_kW"].values
-    D24_udenar = df["D_Udenar_kW"].values
-    G24_udenar = df["G_Udenar_kW"].values
-
-    D_hudn,   G_hudn   = _build_week(D24_hudn,   G24_hudn,   WEEKEND_FACTOR_HUDN)
-    D_udenar, G_udenar = _build_week(D24_udenar, G24_udenar, WEEKEND_FACTOR_UDENAR)
+    D_hudn, G_hudn, D_udenar, G_udenar = _load_real_week()
 
     hours = np.arange(168)
     xticks, xlabels = _xtick_labels()
@@ -87,34 +99,70 @@ def main() -> None:
     color_D = COLORS_AGENT[3]   # violeta
     color_G = COLORS_AGENT[0]   # azul
 
-    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True, figsize=(7.0, 4.5))
-    set_column_width(fig, "double")
+    # Single-column IEEE: figsize 3.5x4.0, ratio compacto para 2 paneles
+    # apilados verticalmente.
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex=True,
+                                     figsize=(WIDTH_SINGLE_IN, 4.0),
+                                     gridspec_kw={"hspace": 0.28})
+
+    # Y-axis comun para comparacion directa de magnitudes
+    y_max_common = max(float(D_hudn.max()), float(D_udenar.max()),
+                       float(G_hudn.max()), float(G_udenar.max())) * 1.20
+
+    # Weekend strips
+    for ax in (ax1, ax2):
+        ax.axvspan(120, 168, alpha=0.10, color="#7A7A7A", zorder=0)
+        ax.axvline(120, color="#7A7A7A", linestyle=":", linewidth=0.6,
+                   alpha=0.6, zorder=1)
 
     # Panel A — Hospital (HUDN)
-    ax1.plot(hours, D_hudn, label="Demand", color=color_D, linewidth=1.2)
-    ax1.plot(hours, G_hudn, label="PV generation", color=color_G,
-             linestyle="--", linewidth=1.0)
-    ax1.set_title("(a) Hospital Universitario (HUDN) — industrial, constant demand")
-    ax1.set_ylabel("Power [kW]")
-    ax1.legend(loc="lower right", framealpha=0.9)
+    ax1.plot(hours, D_hudn, label="Demand", color=color_D, linewidth=1.0,
+             zorder=3)
+    ax1.plot(hours, G_hudn, label="PV gen.", color=color_G,
+             linestyle="--", linewidth=0.9, zorder=3)
+    ax1.set_title("(a) HUDN — Hospital (24/7)",
+                  fontsize=7.5, fontweight="normal", pad=2)
+    ax1.set_ylabel("Power [kW]", fontsize=7)
+    ax1.set_ylim(0, y_max_common)
+    ax1.legend(loc="upper left", framealpha=0.92, fontsize=5.5, ncol=2,
+               handlelength=1.2, handletextpad=0.4, columnspacing=0.8)
+    ax1.tick_params(labelsize=6)
     ax1.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f"))
+    ax1.grid(True, alpha=0.25, linestyle=":", zorder=1)
 
     # Panel B — Udenar
-    ax2.plot(hours, D_udenar, label="Demand", color=color_D, linewidth=1.2)
-    ax2.plot(hours, G_udenar, label="PV generation", color=color_G,
-             linestyle="--", linewidth=1.0)
-    ax2.set_title("(b) Universidad de Narino (Udenar) — academic, variable demand")
-    ax2.set_xlabel("Day of week (Mon 00:00 — Sun 23:00), August 2025")
-    ax2.set_ylabel("Power [kW]")
-    ax2.legend(loc="lower right", framealpha=0.9)
+    ax2.plot(hours, D_udenar, label="Demand", color=color_D, linewidth=1.0,
+             zorder=3)
+    ax2.plot(hours, G_udenar, label="PV gen.", color=color_G,
+             linestyle="--", linewidth=0.9, zorder=3)
+    ax2.set_title("(b) Udenar — University (weekday)",
+                  fontsize=7.5, fontweight="normal", pad=2)
+    ax2.set_ylabel("Power [kW]", fontsize=7)
+    ax2.set_ylim(0, y_max_common)
+    ax2.legend(loc="upper left", framealpha=0.92, fontsize=5.5, ncol=2,
+               handlelength=1.2, handletextpad=0.4, columnspacing=0.8)
+    ax2.tick_params(labelsize=6)
     ax2.yaxis.set_major_formatter(mticker.FormatStrFormatter("%.0f"))
+    ax2.grid(True, alpha=0.25, linestyle=":", zorder=1)
+
+    # "Sat/Sun" header arriba del strip
+    for ax in (ax1, ax2):
+        ax.text(144, y_max_common * 0.95, "Sa/Su",
+                ha="center", va="top",
+                fontsize=5.5, color="#666666",
+                fontweight="bold", fontstyle="italic")
 
     ax2.set_xticks(xticks)
-    ax2.set_xticklabels(xlabels)
+    ax2.set_xticklabels(xlabels, fontsize=5.5)
     ax2.set_xlim(0, 167)
 
-    fig.suptitle("One-week demand and PV-generation profiles, August 2025")
-    fig.tight_layout()
+    fig.suptitle(
+        "One-week demand vs PV generation",
+        fontsize=8.5, y=0.99, fontweight="bold",
+    )
+
+    fig.subplots_adjust(top=0.93, bottom=0.10, left=0.13, right=0.97,
+                         hspace=0.30)
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / "fig_paper_profiles_2agents"
@@ -133,8 +181,8 @@ def main() -> None:
     csv_path = str(out) + ".csv"
     original = Path(csv_path).read_text(encoding="utf-8")
     header = (f"# {WEEK_META}\n"
-              "# Source: graficas/fig1_perfiles.csv (24-h daily averages, full horizon)\n"
-              "# Weekend modulation: Udenar Sat x0.70, Sun x0.55; HUDN constant x1.0\n")
+              "# Source: cargar_mte_paper('2025-08-01','2025-09-01') h240-h407\n"
+              "# Same MTE data as case study; phi=1.5 PV scaling applied\n")
     Path(csv_path).write_text(header + original, encoding="utf-8")
 
     print(f"[B2] saved {out}.png")

@@ -82,7 +82,11 @@ except ImportError:
         def _draw(self, force=False):
             pct   = self.n / self.total if self.total else 1.0
             done  = int(pct * self._W)
-            bar   = "█" * done + "░" * (self._W - done)
+            # Fix CAL-28b (2026-05-06): caracteres ASCII puros para
+            # evitar UnicodeEncodeError bajo stdout cp1252 (Windows)
+            # cuando un script auxiliar importa EMSP2P sin wrapear stdout.
+            # Antes: "█"*done + "░"*(W-done) (caracteres no-ASCII)
+            bar   = "#" * done + "-" * (self._W - done)
             ela   = time.time() - self.t0
             rem   = (ela / pct - ela) if pct > 1e-6 else 0.0
             rate  = f"{self.n/ela:.1f}h/s" if ela > 0.1 else "---"
@@ -91,8 +95,13 @@ except ImportError:
             line  = (f"\r  {self.desc}: {int(pct*100):3d}%|{bar}| "
                      f"{self.n}/{self.total}h "
                      f"[{ela_s}<{rem_s}, {rate}]  ")
-            sys.stdout.write(line)
-            sys.stdout.flush()
+            try:
+                sys.stdout.write(line)
+                sys.stdout.flush()
+            except UnicodeEncodeError:
+                # Defense-in-depth: si el stdout no acepta el line,
+                # fallback silencioso (no rompe el solver).
+                pass
             if self.n >= self.total:
                 sys.stdout.write("\n")
                 sys.stdout.flush()
@@ -182,6 +191,17 @@ class ConvergenceData:
     P_traj          : (J, I, n_t)  trayectoria de potencias
     t_buyers        : eje de tiempo Euler compradores (última iteración)
     pi_traj         : (I, n_t)  trayectoria de precios
+
+    Campos coupled-ODE (opcionales, populados cuando run_convergence se
+    llama con use_coupled_ode=True). Vienen del solver acoplado en
+    `core.coupled_ode_convergence.solve_coupled_for_hour`, que replica
+    JoinFinal.m linea 139 (single ode15s sobre [P, pi]).
+    coupled_t       : (n_t,) eje tiempo s ∈ [0, 0.01]
+    coupled_pi_t    : (I, n_t) precios continuos
+    coupled_P_t     : (J, I, n_t) potencias continuas
+    coupled_Wj_t    : (n_t,) welfare sellers continuo W_j(t)
+    coupled_Wi_t    : (n_t,) welfare buyers  continuo W_i(t)
+    coupled_W_t     : (n_t,) welfare total    W(t) = W_j(t) + W_i(t)
     """
     hour:           int
     seller_ids:     list
@@ -195,6 +215,16 @@ class ConvergenceData:
     P_traj:         np.ndarray   # (J, I, n_t)
     t_buyers:       np.ndarray
     pi_traj:        np.ndarray   # (I, n_t)
+    coupled_t:      Optional[np.ndarray] = None
+    coupled_pi_t:   Optional[np.ndarray] = None
+    coupled_P_t:    Optional[np.ndarray] = None
+    coupled_Wj_t:   Optional[np.ndarray] = None
+    coupled_Wi_t:   Optional[np.ndarray] = None
+    coupled_W_t:    Optional[np.ndarray] = None
+    # Cotas admisibles efectivas usadas por el solver P2P en esta hora
+    # (escalares; ver CAL-9 + memo coupled-ODE para por que NO son hora-a-hora).
+    pi_gs:          Optional[float] = None
+    pi_gb:          Optional[float] = None
 
 
 @dataclass
@@ -391,6 +421,7 @@ class EMSP2P:
         p2p_results: list,
         n_iters_conv: int = 8,
         max_hours:    int = 2,
+        use_coupled_ode: bool = True,
     ) -> list:
         """
         Captura las trayectorias ODE del algoritmo RD+Stackelberg para
@@ -502,7 +533,7 @@ class EMSP2P:
                     t_buyers_last  = t_b
                     pi_traj_last   = pi_traj
 
-            conv_list.append(ConvergenceData(
+            cd = ConvergenceData(
                 hour=k,
                 seller_ids=sids,
                 buyer_ids=bids,
@@ -515,7 +546,49 @@ class EMSP2P:
                 P_traj=P_traj_last,
                 t_buyers=t_buyers_last,
                 pi_traj=pi_traj_last,
-            ))
+                pi_gs=float(gr.pi_gs),
+                pi_gb=float(gr.pi_gb),
+            )
+
+            # ── Coupled-ODE solver (replica JoinFinal.m:139) ────────────
+            # Se ejecuta en paralelo al alternante para obtener trayectoria
+            # continua de welfare W(t) sobre Time(s), matching Chacon Fig 3a.
+            # P_star coincide con alternante <1e-5 kW. pi_star puede diferir
+            # <200 COP/kWh en horas con clip activo.
+            #
+            # Override t_span/n_points: el pipeline del paper usa
+            # sv.t_span=(0, 0.005) — demasiado corto para mostrar el
+            # transitorio P_ji visible en Chacon Fig 3a (x-axis [0, 0.04]s).
+            # Con factores 0.08/10 aplicados (matching JoinFinal.m:160-161),
+            # el transitorio seller necesita ~0.03-0.04s para visualizarse.
+            # Esto SOLO afecta la figura de convergencia, no las 16 figuras
+            # que usan el solver alternante de produccion.
+            COUPLED_T_SPAN_VIS   = (0.0, 0.04)   # x-axis Chacon Fig 3a
+            COUPLED_N_POINTS_VIS = 400            # 100 us resolution
+            if use_coupled_ode:
+                try:
+                    from core.coupled_ode_convergence import solve_coupled_for_hour
+                    coupled = solve_coupled_for_hour(
+                        G_net_j=G_net_j, D_net_i=D_net_i,
+                        a_j=a_j, b_j=b_j, lam_j=lam_j, theta_j=theta_j,
+                        G_klim_i=G_klim_i, lam_i=lam_i, theta_i=theta_i,
+                        etha_i=etha_i,
+                        pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
+                        tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
+                        t_span=COUPLED_T_SPAN_VIS, n_points=COUPLED_N_POINTS_VIS,
+                        method=sv.ode_method,
+                    )
+                    if coupled.success:
+                        cd.coupled_t    = coupled.t
+                        cd.coupled_pi_t = coupled.pi_t
+                        cd.coupled_P_t  = coupled.P_t
+                        cd.coupled_Wj_t = coupled.Wj_t
+                        cd.coupled_Wi_t = coupled.Wi_t
+                        cd.coupled_W_t  = coupled.W_t
+                except Exception as exc:
+                    print(f"  [coupled-ODE] hour {k} skipped: {exc}")
+
+            conv_list.append(cd)
 
         return conv_list
 

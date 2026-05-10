@@ -24,7 +24,10 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from visualization.ieee_style import apply_ieee_style, save_ieee, COLORS
+from visualization.ieee_style import (
+    apply_ieee_style, save_ieee, COLORS,
+    WIDTH_SINGLE_IN,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PAPER_DIR = REPO_ROOT / "outputs" / "paper"
@@ -49,8 +52,9 @@ def _resolve_xlsx_path() -> Path:
 XLSX_PATH = _resolve_xlsx_path()
 CSV_PATH  = REPO_ROOT / "graficas" / "fig13_desglose_flujos.csv"
 
-# Escenarios de interes (sin C2/C3 segun decision reunion)
-SCENARIOS = ["P2P", "C1", "C4"]
+# Escenarios de interes (sin C2/C3 segun decision reunion).
+# Orden por performance: P2P (best), C4 (mid), C1 (worst).
+SCENARIOS = ["P2P", "C4", "C1"]
 
 # Etiquetas eje X (renombrado del paper: C4 -> C2)
 X_LABELS = {
@@ -150,76 +154,166 @@ def build_figure(
     revenue: dict[str, float],
     source_label: str,
 ) -> plt.Figure:
-    """Construye la figura de barras apiladas."""
+    """Construye la figura de barras apiladas con UN SOLO panel.
+
+    Layout (revision 2026-05-04, post broken-axis):
+      - Panel unico, eje y continuo de 0 a ~6.1 M COP.
+      - Barras: gris (baseline) + color (revenue) apiladas en orden P2P,
+        C2, C1 (mejor a peor).
+      - Linea horizontal punteada naranja al tope del baseline (4.125 M)
+        cruzando los 3 bars — marca visual del separador.
+      - Tick especial en el eje y a 4.125 M en color naranja bold +
+        etiqueta "(baseline)" — sustituye el tick generico de 4.0 M.
+      - Anotaciones: Total encima, revenue dentro de la barra coloreada,
+        Δ vs C1 dentro de la barra al borde inferior.
+      - Caja "Identical baseline" en zona gris (debajo de la linea de
+        separacion).
+    """
     apply_ieee_style()
 
-    fig, ax = plt.subplots(figsize=(3.8, 3.6))
+    fig, ax = plt.subplots(figsize=(WIDTH_SINGLE_IN, 3.2))
 
     x = np.arange(len(SCENARIOS))
     base_color = "#cccccc"
-
-    # Stack inferior — autoconsumo comun (identico para los 3)
-    auto_bars = ax.bar(
-        x, [common_auto] * len(SCENARIOS),
-        color=base_color,
-        label="Common autoconsumption savings",
-        zorder=3,
-    )
-
-    # Stack superior — revenue diferenciador
     rev_vals = [revenue[s] for s in SCENARIOS]
-    rev_bars = ax.bar(
-        x, rev_vals,
-        bottom=[common_auto] * len(SCENARIOS),
-        color=[COLORS[s] for s in SCENARIOS],
-        label="Revenue from surplus sales",
-        zorder=3,
+    bar_colors = [COLORS[s] for s in SCENARIOS]
+
+    # ── Stack bars (baseline + revenue) ─────────────────────────────────
+    ax.bar(
+        x, [common_auto] * len(SCENARIOS),
+        color=base_color, edgecolor="black", linewidth=0.4, zorder=3,
+    )
+    ax.bar(
+        x, rev_vals, bottom=[common_auto] * len(SCENARIOS),
+        color=bar_colors, edgecolor="black", linewidth=0.4, zorder=3,
     )
 
-    # Anotacion del offset comun (centrada en el stack inferior)
-    mid_auto = common_auto / 2
-    ax.text(
-        len(SCENARIOS) - 0.5, mid_auto,
-        "common baseline\n(offset)",
-        ha="right", va="center",
-        fontsize=7, color="#555555",
-        style="italic",
-    )
+    # ── Escala custom: [0, baseline] comprimida, [baseline, ymax] expandida.
+    # Bottom 30% del eje visual muestra [0, 4.125 M]; top 70% muestra el
+    # rango de revenue [4.125 M, ymax]. Asi el baseline aparece "pequeño"
+    # pero los numeros son reales y continuos (sin broken-axis).
+    y_max = common_auto + max(rev_vals) + 0.30e6
+    SPLIT = 0.30  # fraccion de altura visual dedicada al baseline
 
-    # Anotaciones sobre cada stack superior (valor revenue exacto)
-    max_total = common_auto + max(rev_vals)
-    for i, s in enumerate(SCENARIOS):
-        total = common_auto + revenue[s]
-        ax.text(
-            i, total + 0.015 * max_total,
-            f"{revenue[s] / 1e6:.3f} M",
-            ha="center", va="bottom",
-            fontsize=7.5, fontweight="bold",
-            color=COLORS[s],
+    def _forward(y):
+        y = np.asarray(y, dtype=float)
+        out = np.empty_like(y)
+        mask = y <= common_auto
+        out[mask] = SPLIT * (y[mask] / common_auto)
+        out[~mask] = SPLIT + (1.0 - SPLIT) * (
+            (y[~mask] - common_auto) / (y_max - common_auto)
         )
+        return out
 
-    # Ejes
-    ax.set_xticks(x)
-    ax.set_xticklabels([X_LABELS[s] for s in SCENARIOS],
-                       fontsize=7, ha="center")
-    ax.yaxis.set_major_formatter(
-        mticker.FuncFormatter(lambda v, _: f"{v / 1e6:.1f} M")
+    def _inverse(s):
+        s = np.asarray(s, dtype=float)
+        out = np.empty_like(s)
+        mask = s <= SPLIT
+        out[mask] = common_auto * (s[mask] / SPLIT)
+        out[~mask] = common_auto + (s[~mask] - SPLIT) / (1.0 - SPLIT) * (
+            y_max - common_auto
+        )
+        return out
+
+    ax.set_yscale("function", functions=(_forward, _inverse))
+    ax.set_ylim(0, y_max)
+
+    # ── Linea horizontal punteada al tope del baseline ──────────────────
+    BASELINE_COLOR = "#cc6600"
+    ax.axhline(
+        common_auto, color=BASELINE_COLOR, linestyle="--",
+        linewidth=1.2, alpha=0.85, zorder=4,
     )
-    ax.set_ylabel("Welfare [COP]", fontsize=9)
-    ax.set_title(
-        "Welfare decomposition\n(common offset + scenario-specific revenue)",
-        fontsize=9,
-    )
 
-    # Leyenda DEBAJO del eje x para no tapar las etiquetas de totales
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18),
-              ncol=2, fontsize=7, framealpha=0.9, frameon=False)
+    # Custom yticks: el baseline en naranja, los demas en orden natural.
+    yticks = [0.0, 1e6, 2e6, 3e6, common_auto, 5e6, 6e6]
+    ax.set_yticks(yticks)
+    yticklabels = []
+    for y in yticks:
+        if abs(y - common_auto) < 1:
+            yticklabels.append(f"{y / 1e6:.3f} M\n(baseline)")
+        else:
+            yticklabels.append(f"{y / 1e6:.1f} M")
+    ax.set_yticklabels(yticklabels)
 
-    # Grilla horizontal solo
+    for tick_lbl, y in zip(ax.get_yticklabels(), yticks):
+        if abs(y - common_auto) < 1:
+            tick_lbl.set_color(BASELINE_COLOR)
+            tick_lbl.set_fontweight("bold")
+            tick_lbl.set_fontsize(6.0)
+
     ax.yaxis.grid(True, alpha=0.35, linewidth=0.5, zorder=0)
     ax.set_axisbelow(True)
 
-    fig.tight_layout(pad=0.8)
+    # ── Anotaciones: Total + Revenue + Δ vs C1 ──────────────────────────
+    rev_c1 = float(revenue["C1"])
+    for i, s in enumerate(SCENARIOS):
+        total = common_auto + revenue[s]
+        rev_s = revenue[s]
+        # Total (encima de la barra, bold negro)
+        ax.text(
+            i, total + 0.04e6,
+            f"{total / 1e6:.2f}M",
+            ha="center", va="bottom",
+            fontsize=6, fontweight="bold", color="black",
+        )
+        # Revenue dentro de la barra coloreada (centro, blanco bold)
+        rev_mid = common_auto + rev_s / 2
+        ax.text(
+            i, rev_mid,
+            f"{rev_s / 1e6:.3f}M",
+            ha="center", va="center",
+            fontsize=6, fontweight="bold", color="white",
+        )
+        # Delta vs C1 — compacto, sin caja (mas espacio)
+        delta_y = common_auto + 0.12e6
+        if s != "C1":
+            delta = rev_s - rev_c1
+            delta_pct = (delta / rev_c1) * 100
+            ax.text(
+                i, delta_y,
+                f"$\\Delta$+{delta / 1e6:.3f}M\n(+{delta_pct:.1f}%)",
+                ha="center", va="bottom",
+                fontsize=5.5, fontweight="bold",
+                color="#003060",
+                bbox=dict(facecolor="white", edgecolor="#003060",
+                           boxstyle="round,pad=0.12", linewidth=0.4,
+                           alpha=0.95),
+            )
+
+    # ── Etiquetas eje x y ──────────────────────────────────────────────
+    ax.set_xticks(x)
+    ax.set_xticklabels([X_LABELS[s] for s in SCENARIOS],
+                        fontsize=6.5, ha="center")
+    ax.set_ylabel("Welfare [COP]", fontsize=7.5)
+    ax.tick_params(axis="y", labelsize=6.0)
+
+    # ── Suptitle compacto (case study tag movido al caption del paper) ─
+    fig.suptitle(
+        "Welfare decomposition",
+        fontsize=8.5, fontweight="bold", color="#222222", y=0.99,
+    )
+
+    # ── Leyenda al pie compacta ────────────────────────────────────────
+    from matplotlib.patches import Patch
+    from matplotlib.lines import Line2D
+    legend_handles = [
+        Patch(facecolor=base_color, edgecolor="black", linewidth=0.4,
+               label="Baseline (autoconsumption)"),
+        Patch(facecolor=COLORS["P2P"], edgecolor="black", linewidth=0.4,
+               label="Surplus revenue"),
+        Line2D([0], [0], color=BASELINE_COLOR, linestyle="--",
+                linewidth=1.0,
+                label=f"Baseline {common_auto / 1e6:.2f}M"),
+    ]
+    fig.legend(handles=legend_handles, loc="lower center",
+                bbox_to_anchor=(0.5, 0.005), ncol=3, fontsize=5.5,
+                frameon=False, columnspacing=1.2, handletextpad=0.4)
+
+    # Ajuste explicito de margenes
+    fig.subplots_adjust(
+        top=0.90, bottom=0.16, left=0.18, right=0.97,
+    )
     return fig
 
 

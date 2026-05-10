@@ -119,8 +119,12 @@ codigo-ADR-resolucion.
 [NARRATIVA — desarrollar:
 - Cobertura PV agregada del 19 % en MTE; con cobertura 30-44 % la
   actividad P2P satura (SA-2 §4.5.2).
-- LCOE solar `b_n = 225 COP/kWh` homogeneo (CAL-6); pendiente
-  heterogeneizar con fichas tecnicas reales de inversores.
+- LCOE solar `b_n` heterogeneo {241, 241, 241, 241, 225} COP/kWh
+  post-fix CAL-6 (2026-05-06); heterogeneidad de 6,67 % limitada a
+  Cesmag por inversor distinto. Pendiente extenderla via horas-sol
+  equivalentes y CapEx per-institución cuando MTE confirme fichas
+  técnicas. `c_n` y `lambda_n` uniformes (CAL-32, CAL-33);
+  invariantes en el equilibrio bajo α=0.
 - Horizonte abr-dic 2025 (~256 dias); estacionalidad anual completa
   no observada.
 - Heredada de Chacon et al. 2025: parametros `tau`, `theta`, `etha`,
@@ -218,12 +222,19 @@ codigo-ADR-resolucion.
 [NARRATIVA — desarrollar respuesta integrada. Hallazgo principal:
 P2P empata con C1 en bienestar agregado (RPE = -0,03 %) pero supera
 a C2, C3 y C4 en margenes que van de +0,43 % (C4) a +3,20 % (C3).
-La eficiencia se complementa con una distribucion mas equitativa
-intra-comunidad (Gini P2P 0,162 vs C4 0,170). Bajo el horizonte
+La distribucion intra-comunidad medida por Gini sobre net benefits
+per-agente es comparable entre escenarios (P2P 0,162; C1 0,147;
+C4 0,170): P2P es ligeramente mas equitativo que C4, ligeramente
+menos que C1, y la diferencia maxima ($\Delta G \approx 0{,}023$) es
+despreciable en literatura P2P-energy. La ventaja P2P proviene por
+tanto de **expandir el bienestar agregado** sin trade-off
+distributivo significativo, no de redistribuirlo. Bajo el horizonte
 MTE actual (cobertura PV 19 %), el P2P aporta ganancia
 distributiva marginal vs C1 individual; en escenarios con mayor
 cobertura PV (SA-2: 44 %) la actividad P2P se intensifica
-significativamente.]
+significativamente. Nota: el "Index of Equity" de Chacon (IE_P2P =
++0,3677 en este horizonte) es un indice de balance comprador-vendedor,
+no de equidad distributiva — ver notas_modelo_tesis.md §A.10.]
 
 ### 6.5.2 Aporte metodologico
 

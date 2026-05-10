@@ -264,8 +264,8 @@ Validado: 16 archivos `.mat` y 44 archivos `.csv` se cargan sin error con `scipy
 |---------|-------------|-------|
 | SC | Self-Consumption: fracción de D cubierta localmente | [0, 1] |
 | SS | Self-Sufficiency: fracción de G usada en comunidad | [0, 1] |
-| IE | Equity Index: distribución del beneficio entre roles | [-1, +1] |
-| Gini | Índice de Gini por escenario (concentración del beneficio) | [0, 1] |
+| IE | Seller-buyer balance index [Chacon 2025]: posición de π* en rango admisible (0=balanceado, +1=buyer-favoring, −1=seller-favoring); NO es equidad distributiva — ver `Documentos/notas_modelo_tesis.md §A.10` | [-1, +1] |
+| Gini | **Métrica primaria de equidad distributiva** (estándar P2P-energy): inequidad entre net benefits per-agente; lower = más equitativo | [0, 1] |
 | RPE | Rendimiento Relativo de Equidad P2P vs C4: (W_P2P−W_C4)/|W_P2P| | (−∞, 1] |
 | PoF | Price of Fairness [Bertsimas 2011]: (W_eff−W_fair)/W_eff; eficiente=max Σ B_n, equitativo=min Gini | [0, 1] |
 | GDR | Global Dispatch Ratio: eficiencia de clearing del mercado | [0, 1] |
@@ -313,7 +313,7 @@ sólo cambia la calibración de `pi_gs`):
 | C4  | 36,56 MCOP | 50,29 MCOP | +37,6 % |
 | RPE (P2P vs C4) | +0,0321 | **+0,0408** | +27 % en magnitud |
 | Σ ventaja P2P sobre C4 | 1,21 MCOP | **2,14 MCOP** | +77 % |
-| IE P2P | +0,4063 | +0,3677 | −0,04 (vendedores capturan algo más) |
+| IE P2P (balance comp.-vend.) | +0,4063 | +0,3677 | −0,04 (precio se acerca al midpoint, sigue siendo buyer-favoring; ver §A.10) |
 
 La jerarquía cualitativa **C1 ≥ P2P > C2 ≥ C3 > C4** se conserva. La activación de la heterogeneidad oficial/comercial **amplifica la prima de flexibilidad del P2P** sobre C4 en términos absolutos (Σ ventaja casi se duplica) sin invertir signos.
 
@@ -325,7 +325,7 @@ La jerarquía cualitativa **C1 ≥ P2P > C2 ≥ C3 > C4** se conserva. La activa
 
 **Sensibilidad global Sobol-Saltelli (Act. 4.1, n_base = 128, ejecutado 2026-04-27, ~111 min)**:
 - `factor_PV` domina en eficiencia: ST = 0.66 (ganancia), 0.82 (SC).
-- `PGB` domina en equidad: ST = 0.99 (IE).
+- `PGB` domina en el seller-buyer balance: ST = 0.99 (IE; mide posición de π* en rango admisible, no equidad distributiva).
 - 1 367/2 048 muestras válidas (66.7%); ST acotados en [0,1] tras eliminar artefactos del muestreo n=64 previo.
 - Decisión 2026-04-27: `_fast_mode` deprecado por cuelgues en LSODA con samples patológicos (~58% del espacio Saltelli). El GSA opera en modo preciso con timeout-wrapper de 45 s por evaluación.
 

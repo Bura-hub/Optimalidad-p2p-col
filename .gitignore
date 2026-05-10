@@ -43,7 +43,17 @@ outputs/paper/intermediate_*.csv
 # === Resultados y artefactos de corrida ===
 *.xlsx
 *.log
-outputs/
+# Pattern outputs/* (no outputs/) para permitir excepciones via !outputs/paper/...
+outputs/*
+!outputs/paper/
+
+# === Excepciones: paper IEEE WEEF source files (markdown + BibTeX) ===
+# El paper md y su bibliografia viven en outputs/paper/ junto con los
+# assets generados, pero deben trackearse en git (a diferencia del resto
+# de outputs/ que es regenerable).
+outputs/paper/*
+!outputs/paper/paper_weef.md
+!outputs/paper/paper_weef_bib.bib
 p2p_breakdown_flujos.csv
 p2p_breakdown_resumen_horario.csv
 

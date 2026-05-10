@@ -59,3 +59,83 @@ directa **no tendria sentido fisico** en el modo real.
 
 Hallazgo D2 cerrado como discrepancia documentada (no bug). Decision
 defendible.
+
+## Apendice — Bug fix 2026-05-06 (case-mismatch en lookup)
+
+Durante la auditoria de parametros para el paper IEEE WEEF 2026 se
+descubrio que la implementacion de `calibrate_b_parameters`
+(`data/xm_prices.py:519-520`) tenia un bug de case-mismatch:
+
+```python
+# Codigo buggy (antes del fix):
+b = [B_CALIBRATED.get(f"{n.lower()}_fronius",
+     B_CALIBRATED["default_pasto"]) * adj for n in agent_names]
+```
+
+Para `agent_names = ['Udenar', 'Mariana', 'UCC', 'HUDN', 'Cesmag']`,
+la expresion `n.lower()` produce las claves `'udenar_fronius'`, etc.
+Pero las claves reales de `B_CALIBRATED` estan capitalizadas
+(`'Udenar_fronius'`, `'Cesmag_inv'`, etc.). Las 5 busquedas fallaban y
+caian al fallback `default_pasto = 220`. **La intencion de CAL-6
+(Cesmag=210 por inversor distinto) nunca se ejecutaba**: los 5 agentes
+obtenian `b = 220 × adj ≈ 235.7` uniforme.
+
+### Sintoma observable
+
+En `scripts/debug_convergence_h512.py` el equilibrio P_ji resulto
+*perfectamente* simetrico (P0 = P_final dentro de 0.04% de variacion),
+porque costos identicos producen asignacion uniforme P*[j,i] = D_i/J,
+que coincide con la condicion inicial P0 de JoinFinal.m. La figura de
+convergencia `fig_paper_convergence_h0512` panel (c) Power flows
+mostraba lineas planas en lugar del transitorio visible en Chacon
+Fig. 3a.
+
+### Fix aplicado
+
+Reemplazado el lookup por un dict explicito `INVERTER_BY_AGENT` que
+matchea las claves reales:
+
+```python
+INVERTER_BY_AGENT = {
+    "Udenar":  "Udenar_fronius",
+    "Mariana": "Mariana_fronius",
+    "UCC":     "UCC_fronius",
+    "HUDN":    "HUDN_fronius",
+    "Cesmag":  "Cesmag_inv",
+}
+b = [B_CALIBRATED.get(INVERTER_BY_AGENT.get(n, "default_pasto"),
+                        B_CALIBRATED["default_pasto"]) * adj
+     for n in agent_names]
+```
+
+Resultado del sanity check:
+
+| Agente  | b (COP/kWh) |
+|---|---:|
+| Udenar  | 241.07 |
+| Mariana | 241.07 |
+| UCC     | 241.07 |
+| HUDN    | 241.07 |
+| Cesmag  | 225.00 |
+
+Heterogeneidad Cesmag vs resto: 6.67%, exactamente lo que CAL-6
+documentaba como intencion.
+
+### Impacto en resultados anteriores
+
+Las 16 figuras del paper y las Tablas I-III usaban implicitamente el
+b uniforme. Como CAL-6 ya defendia b homogeneo `=225` mediana, el
+delta numerico en Tabla III (welfare totales) es < 1% per CAL-2 /
+CAL-5 inertia. La unica figura que se beneficia visualmente del fix
+es `fig_paper_convergence_h0512` panel (c), que ahora muestra
+transitorio P_ji genuino al perderse la simetria perfecta.
+
+Verificado por `scripts/debug_convergence_h512.py` post-fix.
+
+---
+
+**Implementacion final 2026-05-10:** el fix queda confirmado en
+`data/xm_prices.py:520+` con el dict `INVERTER_BY_AGENT`. Tambien
+incluye un fix CAL-28b en `download_via_api` que evitaba que un
+`UnicodeEncodeError` (caracteres no-ASCII en print bajo stdout cp1252)
+fuera silenciosamente atrapado por `except Exception`.

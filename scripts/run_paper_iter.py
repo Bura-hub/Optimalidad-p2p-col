@@ -184,24 +184,42 @@ def cargar_mte_paper(t_start: str, t_end: str,
     print(f"  [CAL-28] Cargando medidores puntuales ({len(agents)} inst)...")
     for n, inst in enumerate(agents):
         if inst not in cfg_by_inst:
-            print(f"    {inst}: sin config → usando M1 totalizador")
+            # Fix CAL-28b (2026-05-06): caracteres ASCII puros para evitar
+            # UnicodeEncodeError bajo stdout cp1252 (Windows). Antes se usaba
+            # '→' que disparaba el except de mas abajo y restauraba M1.
+            print(f"    {inst}: sin config -> usando M1 totalizador")
             D_paper_full[n, :] = D_full[n, :]
             continue
         cfg_inst = cfg_by_inst[inst]
         meter_dir = (mte_root / inst / cfg_inst["carpeta"]
                       / f"{cfg_inst['medidor_nombre']} - electricMeter")
+        # Fix CAL-28b (2026-05-06): el print con caracteres no-ASCII estaba
+        # DENTRO del try; un UnicodeEncodeError (Windows cp1252) hacia que el
+        # except sobrescribiera D_paper_full[n,:] con M1 totalizador despues
+        # de haberlo cargado correctamente desde el sub-medidor M3. Ahora la
+        # carga y el print estan separados; el print no puede afectar D_paper_full.
+        loaded_ok = False
+        load_error: Exception | None = None
         try:
             s = _read_meter_csvs(meter_dir)
             s = s.reindex(idx_full).interpolate(method="time", limit=6)
             s = s.fillna(0.0) * float(cfg_inst["factor_escala"])
             # Clip a no-negativo (evita ruido negativo)
             D_paper_full[n, :] = np.maximum(s.to_numpy(), 0.0)
-            mean_kw = float(D_paper_full[n].mean())
-            print(f"    {inst}: {cfg_inst['medidor_nombre']} "
-                  f"× {cfg_inst['factor_escala']} → D̄={mean_kw:.2f} kW")
+            loaded_ok = True
         except Exception as e:
-            print(f"    {inst}: ERROR ({e}); fallback a M1 totalizador")
+            load_error = e
             D_paper_full[n, :] = D_full[n, :]
+
+        if loaded_ok:
+            mean_kw = float(D_paper_full[n].mean())
+            # Caracteres ASCII puros: 'x' en vez de '×', '->' en vez de '→',
+            # 'D_mean' en vez de 'D̄' (D + combining macron U+0304).
+            print(f"    {inst}: {cfg_inst['medidor_nombre']} "
+                  f"x {cfg_inst['factor_escala']} -> D_mean={mean_kw:.2f} kW")
+        else:
+            print(f"    {inst}: ERROR ({load_error}); "
+                  f"fallback a M1 totalizador")
 
     # 3. Slice al horizonte solicitado (mes específico).
     D, G, idx = slice_horizon(D_paper_full, G_full, idx_full, t_start, t_end)
@@ -256,11 +274,16 @@ def correr_p2p(D, G, agents, b_cal, pi_gs_eff: float, pi_gb: float):
     N = D.shape[0]
     agent_params = AgentParams(
         N=N,
-        a=np.zeros(N), b=b_cal, c=np.full(N, 1.2),
+        # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro grid-tied.
+        # El equilibrio es invariante en c_j por CAL-32 (verificado empiricamente
+        # en scripts/demo_invariancia_c_lambda.py — diff_P_max=0 entre c=1.2 y c=0).
+        # Convencion canonica para renovables (Yang 2024 [40], Martinez-Piazuelo
+        # 2022 [16]); alineado con base_case_data.py:46 (modo sintetico C=zeros).
+        a=np.zeros(N), b=b_cal, c=np.zeros(N),
         lam=np.full(N, 100.0),
         theta=np.full(N, 0.5),
         etha=np.full(N, 0.1),
-        alpha=np.zeros(N),  # sin DR
+        alpha=np.zeros(N),  # sin DR (caso de estudio del paper)
     )
     grid = GridParams(pi_gs=pi_gs_eff, pi_gb=pi_gb)
     solver = SolverParams(
@@ -270,14 +293,21 @@ def correr_p2p(D, G, agents, b_cal, pi_gs_eff: float, pi_gb: float):
     )
     ems = EMSP2P(agent_params, grid, solver)
     p2p_results, G_klim, _ = ems.run(D, G)
-    return p2p_results, G_klim
+    return p2p_results, G_klim, ems
 
 
 # ─── Simulación regulatorios ───────────────────────────────────────────────
 
 
-def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx):
-    """C1 = CREG 174/2021. Mensual con Hx (CAL-10b)."""
+def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx,
+               component_c="auto"):
+    """C1 = CREG 174/2021. Mensual con Hx (CAL-10b).
+
+    component_c: "auto" usa aproximacion proporcional pi_gs * C_FRACTION
+    (CAL-10 default historico). Para el paper IEEE WEEF se pasa la matriz
+    literal Cvm desde el CSV mensual de Cedenar (CAL-10b.2 — fidelidad
+    regulatoria con CREG 174/2021 art. 25).
+    """
     from scenarios.scenario_c1_creg174 import run_c1_creg174
 
     month_labels = np.array(
@@ -286,7 +316,7 @@ def correr_c1(D, G_klim, pi_gs, pi_bolsa, prosumer_ids, idx):
     return run_c1_creg174(
         D, G_klim, pi_gs, pi_bolsa, prosumer_ids,
         month_labels=month_labels,
-        component_c="auto",
+        component_c=component_c,
     )
 
 
@@ -546,92 +576,16 @@ def exportar(resumen: pd.DataFrame, por_agente: pd.DataFrame,
         rel_xlsx = xlsx_path
     print(f"  [paper] Excel  -> {rel_xlsx}")
 
-    # Figura de perfiles del mes
-    try:
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
+    # NOTE: community-wide profile plot ("perfiles_<month>.png") was a thesis
+    # artefact; the paper now uses fig_paper_profiles_2agents (Udenar + HUDN
+    # contrast) instead, which is cited as fig:profiles_2agents. The redundant
+    # full-community plot is no longer generated into outputs/paper/.
 
-        fig, axes = plt.subplots(2, 1, figsize=(11, 6), sharex=True)
-        N, T = D.shape
-        hours = np.arange(T)
-        agg_D = D.sum(axis=0)
-        agg_G = G.sum(axis=0)
-        axes[0].plot(hours, agg_D, label="Demand (community)",
-                      color="tab:red", lw=1)
-        axes[0].plot(hours, agg_G, label="Generation (community)",
-                      color="tab:green", lw=1)
-        axes[0].set_ylabel("kW")
-        axes[0].set_title(f"Community profiles ({month}, "
-                           f"5 institutions homogenized to commercial)")
-        axes[0].legend(loc="upper right", fontsize=9)
-        axes[0].grid(alpha=0.3)
-
-        for n, name in enumerate(agents):
-            axes[1].plot(hours, G[n], label=name, lw=0.8)
-        axes[1].set_xlabel("Hour")
-        axes[1].set_ylabel("Generation per institution [kW]")
-        axes[1].legend(loc="upper right", fontsize=8, ncol=5)
-        axes[1].grid(alpha=0.3)
-
-        fig.tight_layout()
-        png_path = out_dir / f"perfiles_{month}.png"
-        fig.savefig(png_path, dpi=130, bbox_inches="tight")
-        plt.close(fig)
-        try:
-            rel_png = png_path.relative_to(ROOT)
-        except ValueError:
-            rel_png = png_path
-        print(f"  [paper] Figura -> {rel_png}")
-    except Exception as e:
-        print(f"  [paper] Figura skipped ({e})")
-
-    # Sprint 6.4: figura barras apiladas (offset común vs diferencial)
-    if decomposition:
-        try:
-            import matplotlib
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-
-            scenarios = list(decomposition.keys())
-            ahorro_vals  = [decomposition[s][0] / 1e6 for s in scenarios]
-            venta_vals   = [decomposition[s][1] / 1e6 for s in scenarios]
-
-            fig, ax = plt.subplots(figsize=(8, 5))
-            x = np.arange(len(scenarios))
-            width = 0.6
-            b1 = ax.bar(x, ahorro_vals, width, label="Self-consumption savings (offset)",
-                         color="tab:gray", alpha=0.85)
-            b2 = ax.bar(x, venta_vals, width, bottom=ahorro_vals,
-                         label="Surplus revenue (differentiator)",
-                         color="tab:blue", alpha=0.85)
-            for i, (a, v) in enumerate(zip(ahorro_vals, venta_vals)):
-                ax.text(i, a / 2, f"{a:.2f}", ha="center", va="center",
-                        fontsize=8, color="white")
-                ax.text(i, a + v / 2, f"{v:.2f}", ha="center", va="center",
-                        fontsize=8, color="white")
-                ax.text(i, a + v + 0.05 * max(ahorro_vals + venta_vals),
-                        f"Total {a+v:.2f}", ha="center", fontsize=9,
-                        fontweight="bold")
-            ax.set_xticks(x)
-            ax.set_xticklabels([s.replace(" (", "\n(") for s in scenarios],
-                                fontsize=9)
-            ax.set_ylabel("Net benefit [million COP]")
-            ax.set_title(f"Self-consumption (common offset) vs. surplus revenue\n"
-                          f"({month}, IEEE WEEF paper)")
-            ax.legend(loc="upper right", fontsize=9)
-            ax.grid(axis="y", alpha=0.3)
-            fig.tight_layout()
-            stack_path = out_dir / f"fig_offset_vs_diferencial_{tag}.png"
-            fig.savefig(stack_path, dpi=130, bbox_inches="tight")
-            plt.close(fig)
-            try:
-                rel_stack = stack_path.relative_to(ROOT)
-            except ValueError:
-                rel_stack = stack_path
-            print(f"  [paper] Figura barras apiladas -> {rel_stack}")
-        except Exception as e:
-            print(f"  [paper] Figura barras apiladas skipped ({e})")
+    # Decomposition stacked bars are now produced by
+    # visualization.paper_figures.thesis_adapted_en.fig_paper_flow_breakdown
+    # (English, IEEE 300dpi, paper renaming, cited as fig:flow_breakdown).
+    # The legacy fig_offset_vs_diferencial_<tag>.png was redundant with that
+    # paper-spec figure and is no longer generated.
 
     return {"xlsx": str(xlsx_path), "month": month, "tag": tag}
 
@@ -650,6 +604,10 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
     from scenarios.scenario_c4_creg101072 import (
         compute_pde_weights, compute_excedentes_acumulados,
     )
+    # CAL-10b.2: Cvm literal para todo el sweep (constante en agentes/horas
+    # del case study NT2 Aug 2025).
+    from data.cedenar_tariff import cvm_per_agent_hourly
+    cvm_matrix_sweep = cvm_per_agent_hourly(agents, idx)
 
     sweep = []
     print(f"\n  [Sprint 6.5] Barrido PV factors={list(factors)} "
@@ -668,12 +626,13 @@ def barrido_pv_paper(D, G, idx, agents, params, prosumer_ids, pi_gs_eff,
             ex = compute_excedentes_acumulados(G_scaled, D)
             pde = compute_pde_weights(ex, method="excedentes_proportional")
 
-        p2p_res, G_klim = correr_p2p(D, G_scaled, agents, params["b_cal"],
-                                       pi_gs_eff, pi_gb)
+        p2p_res, G_klim, _ems_pv = correr_p2p(D, G_scaled, agents, params["b_cal"],
+                                                pi_gs_eff, pi_gb)
         c1_per_agent = correr_c1(D, G_klim, params["pi_gs"], params["pi_bolsa"],
-                                  prosumer_ids, idx)
+                                  prosumer_ids, idx,
+                                  component_c=cvm_matrix_sweep)
         c4_res = correr_c4(D, G_klim, params["pi_gs"], params["pi_bolsa"],
-                            pde, cap_scaled, component_c="auto")
+                            pde, cap_scaled, component_c=cvm_matrix_sweep)
 
         _resumen, scenarios_data, _decomp = construir_resumen(
             p2p_res, c1_per_agent, c4_res, agents,
@@ -768,6 +727,16 @@ def main() -> int:
                          "con detector de cruces de ranking + figura.")
     ap.add_argument("--pv-factors", default="1.0,1.5,2.0,2.5,3.0",
                     help="Factores PV (CSV). Default '1.0,1.5,2.0,2.5,3.0'.")
+    ap.add_argument("--all-figures", action="store_true",
+                    help="Genera todas las figuras de la tesis disponibles "
+                         "(fig1-6 base + fig13/15/20/23 analisis) en la "
+                         "misma carpeta del paper, a IEEE 300dpi + PDF.")
+    ap.add_argument("--pv-scale", type=float, default=1.0,
+                    help="Factor multiplicativo aplicado a G antes del run. "
+                         "Use --pv-scale 1.5 para correr el case study en el "
+                         "regimen forecast UPME 2030 (cobertura ~144%). "
+                         "Afecta tablas, figuras y Excel; NO afecta el "
+                         "barrido --ranking-pv (que es independiente).")
     args = ap.parse_args()
 
     print()
@@ -794,8 +763,14 @@ def main() -> int:
         # CAL-28 por defecto: medidores puntuales para el paper
         D, G, idx, agents = cargar_mte_paper(t_start, t_end)
     print(f"  [paper] D={D.shape}, G={G.shape}, agentes={agents}")
-    cobertura = G.sum() / max(D.sum(), 1e-9)
-    print(f"  [paper] Cobertura PV agregada G/D = {cobertura*100:.1f} %")
+    cob_real = G.sum() / max(D.sum(), 1e-9)
+    print(f"  [paper] Cobertura PV empirica G/D = {cob_real*100:.1f} %")
+    G_empirical = G.copy()  # preserved for --ranking-pv (sweep is on raw G)
+    if abs(args.pv_scale - 1.0) > 1e-9:
+        G = G * float(args.pv_scale)
+        cob_scaled = G.sum() / max(D.sum(), 1e-9)
+        print(f"  [paper] --pv-scale={args.pv_scale}: G escalada -> "
+              f"cobertura {cob_scaled*100:.1f} % (forecast scenario)")
     if D.shape[1] < 24:
         print(f"  [paper] ERROR: subset demasiado corto ({D.shape[1]}h)")
         return 1
@@ -810,14 +785,23 @@ def main() -> int:
 
     # B - solo C1, C4, P2P
     print(f"\n  [paper 1/3] EMS P2P...")
-    p2p_results, G_klim = correr_p2p(D, G, agents, p["b_cal"],
-                                       pi_gs_eff, pi_gb)
+    p2p_results, G_klim, ems = correr_p2p(D, G, agents, p["b_cal"],
+                                            pi_gs_eff, pi_gb)
     print(f"             {time.time() - t0:.1f}s acumulado")
 
     print(f"\n  [paper 2/3] C1 (CREG 174)...")
     prosumer_ids = list(range(D.shape[0]))
+    # CAL-10b.2: usar Cvm literal de la factura Cedenar mensual
+    # (data/cedenar_pdfs/) en vez de la aproximacion proporcional.
+    # Esto cumple CREG 174/2021 art. 25 al pie de la letra y restaura la
+    # trazabilidad XLSX <-> paper sobre el componente C de comercializacion.
+    from data.cedenar_tariff import cvm_per_agent_hourly
+    cvm_matrix = cvm_per_agent_hourly(agents, idx)
+    print(f"  [paper] pi_C (Cvm literal Cedenar): "
+          f"mean={float(np.nanmean(cvm_matrix)):.2f} COP/kWh "
+          f"(case study NT2 Aug 2025)")
     c1_per_agent = correr_c1(D, G_klim, p["pi_gs"], p["pi_bolsa"],
-                              prosumer_ids, idx)
+                              prosumer_ids, idx, component_c=cvm_matrix)
 
     print(f"\n  [paper 3/3] C2 = C4 (CREG 101 072)...")
     capacity = np.maximum(G.mean(axis=1), 0)
@@ -835,7 +819,7 @@ def main() -> int:
         print(f"  [paper] PDE: excedentes_proportional (CAL-26 opt-in)")
     print(f"          PDE = {[round(float(p), 4) for p in pde]}")
     c4_result = correr_c4(D, G_klim, p["pi_gs"], p["pi_bolsa"],
-                            pde, capacity, component_c="auto")
+                            pde, capacity, component_c=cvm_matrix)
 
     elapsed = time.time() - t0
     print(f"\n  [paper] Simulacion completada en {elapsed:.1f}s")
@@ -869,8 +853,12 @@ def main() -> int:
         except Exception:
             print(f"  [Sprint 6.5] --pv-factors inválido: {args.pv_factors}")
             return 1
+        # Sweep operates on the empirical (unscaled) G — the factors in
+        # the sweep are absolute community PV multipliers from baseline.
+        # If --pv-scale was used for the case study, the sweep stays
+        # anchored to the empirical baseline so factors keep meaning.
         sweep = barrido_pv_paper(
-            D, G, idx, agents, p, prosumer_ids, pi_gs_eff, pi_gb,
+            D, G_empirical, idx, agents, p, prosumer_ids, pi_gs_eff, pi_gb,
             pde_method=args.pde, factors=factors,
         )
         graficas_dir = ROOT / "graficas"
@@ -879,6 +867,108 @@ def main() -> int:
                             PAPER_RENAMING["C4"]]
         exportar_ranking_pv(sweep, scenarios_paper, out_dir, args.tag,
                               graficas_dir=graficas_dir)
+
+    # --all-figures: corre las funciones de plots.py reusables con paper data
+    if args.all_figures:
+        print(f"\n  [paper] --all-figures: generando figuras tesis en {out_dir}")
+        try:
+            from visualization.ieee_style import apply_ieee_style
+            apply_ieee_style()  # rcParams['savefig.dpi']=300, _save() los hereda
+        except Exception as exc:
+            print(f"  [paper] apply_ieee_style fallo ({exc}); continuando con default")
+
+        # NOTE: thesis figures from visualization.plots (fig1-6, fig13, fig15,
+        # fig20, fig23) are intentionally NOT generated into outputs/paper/:
+        # they are Spanish, do not honor PAPER_RENAMING, and have paper-spec
+        # equivalents in visualization.paper_figures.thesis_adapted_en. The
+        # main_simulation.py pipeline still emits them to graficas/ for the
+        # thesis. See plan: "Plan 2 — Cleanup huerfanas (2026-05-04)".
+
+        attempts = []
+
+        # Figuras nuevas paper-specific en ingles + IEEE style
+        try:
+            from visualization.paper_figures.thesis_adapted_en import (
+                fig_paper_per_agent_benefit,
+                fig_paper_market_activity,
+                fig_paper_hourly_prices,
+                fig_paper_metrics_hourly,
+                fig_paper_classification,
+                fig_paper_subperiod,
+                fig_paper_c1_vs_c4_detailed,
+                fig_paper_convergence,
+                fig_paper_price_of_fairness,
+            )
+            attempts.append(("fig_paper_per_agent_benefit",
+                             lambda: fig_paper_per_agent_benefit(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_per_agent_benefit")))
+            attempts.append(("fig_paper_market_activity",
+                             lambda: fig_paper_market_activity(
+                                 p2p_results,
+                                 Path(out_dir) / "fig_paper_market_activity")))
+            attempts.append(("fig_paper_hourly_prices",
+                             lambda: fig_paper_hourly_prices(
+                                 p2p_results,
+                                 Path(out_dir) / "fig_paper_hourly_prices",
+                                 agents=agents,
+                                 pi_gs=pi_gs_eff, pi_gb=pi_gb)))
+            attempts.append(("fig_paper_metrics_hourly",
+                             lambda: fig_paper_metrics_hourly(
+                                 p2p_results, D, G_klim,
+                                 Path(out_dir) / "fig_paper_metrics_hourly")))
+            attempts.append(("fig_paper_classification",
+                             lambda: fig_paper_classification(
+                                 p2p_results, agents,
+                                 Path(out_dir) / "fig_paper_classification")))
+            attempts.append(("fig_paper_subperiod",
+                             lambda: fig_paper_subperiod(
+                                 scenarios_data, agents, p2p_results, G_klim,
+                                 Path(out_dir) / "fig_paper_subperiod")))
+            attempts.append(("fig_paper_c1_vs_c4_detailed",
+                             lambda: fig_paper_c1_vs_c4_detailed(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_c1_vs_c4_detailed")))
+            attempts.append(("fig_paper_price_of_fairness",
+                             lambda: fig_paper_price_of_fairness(
+                                 scenarios_data, agents,
+                                 Path(out_dir) / "fig_paper_price_of_fairness")))
+            # fig_paper_flow_breakdown removido (2026-05-04): redundante con
+            # fig_paper_ahorro_decomposition (mismos datos, distinto visual).
+            # Sección II.B ahora hace forward-ref a Fig.\ref{fig:ahorro_decomposition}.
+
+            # Convergence trajectories (RD + Stackelberg) — game-theoretic certificate
+            try:
+                conv_data = ems.run_convergence(
+                    D=D, G=G, G_klim=G_klim,
+                    p2p_results=p2p_results,
+                    n_iters_conv=8, max_hours=2,
+                )
+                if conv_data:
+                    attempts.append(("fig_paper_convergence",
+                                     lambda cd=conv_data: fig_paper_convergence(
+                                         cd, agents,
+                                         Path(out_dir) / "fig_paper_convergence")))
+                else:
+                    print("  [paper] convergence: no representative hours (skipped)")
+            except Exception as exc:
+                print(f"  [paper] run_convergence skipped: {exc}")
+        except Exception as exc:
+            print(f"  [paper] thesis_adapted_en skipped: {exc}")
+
+        generated, failed = [], []
+        for name, fn in attempts:
+            try:
+                fn()
+                generated.append(name)
+            except Exception as exc:
+                failed.append((name, str(exc)[:80]))
+
+        print(f"  [paper] all-figures: {len(generated)} OK / {len(failed)} fallidas")
+        for name in generated:
+            print(f"    OK  {name}")
+        for name, err in failed:
+            print(f"    ERR {name}: {err}")
 
     print(f"\n  [paper] Hecho. tag={info['tag']}")
     return 0

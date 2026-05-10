@@ -323,7 +323,7 @@ def main() -> int:
         results_by_iter = {}
         for it in [2, 5, 10]:
             ap_pars = AgentParams(
-                N=N, a=np.zeros(N), b=p["b_cal"], c=np.full(N, 1.2),
+                N=N, a=np.zeros(N), b=p["b_cal"], c=np.zeros(N),  # CAL-32 (2026-05-06b)
                 lam=np.full(N, 100.0), theta=np.full(N, 0.5),
                 etha=np.full(N, 0.1), alpha=np.zeros(N),
             )

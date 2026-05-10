@@ -424,7 +424,8 @@ if __name__ == "__main__":
 
     grid_base = GridParams(**GRID_PARAMS_REAL)
     agents = AgentParams(
-        N=N, a=np.zeros(N), b=np.array(p["b"]), c=np.full(N, 1.2),
+        # CAL-32 (apendice 2026-05-06b): c=0 PV puro
+        N=N, a=np.zeros(N), b=np.array(p["b"]), c=np.zeros(N),
         lam=np.full(N, 100.0), theta=np.full(N, 0.5), etha=np.full(N, 0.1),
     )
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),

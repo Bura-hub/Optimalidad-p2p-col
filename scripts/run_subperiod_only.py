@@ -48,7 +48,7 @@ def main():
         N=N,
         a=np.zeros(N),
         b=b_cal,
-        c=np.full(N, 1.2),
+        c=np.zeros(N),  # CAL-32 (apendice 2026-05-06b): c=0 PV puro
         lam=np.full(N, 100.0),
         theta=np.full(N, 0.5),
         etha=np.full(N, 0.1),

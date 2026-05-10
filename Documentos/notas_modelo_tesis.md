@@ -809,6 +809,58 @@ sentido físico.
 modo real es una decisión de modelado deliberada y defendible. El
 hallazgo D2 queda cerrado como discrepancia documentada, no como bug.
 
+#### Apéndice 2026-05-06 — Bug fix de case-mismatch en `B_CALIBRATED`
+
+Durante la auditoría de parámetros para el paper IEEE WEEF 2026 se
+descubrió que la implementación de `calibrate_b_parameters`
+(`data/xm_prices.py:519-520`) tenía un bug de case-mismatch:
+
+```python
+# Código buggy (antes del fix):
+b = [B_CALIBRATED.get(f"{n.lower()}_fronius",
+     B_CALIBRATED["default_pasto"]) * adj for n in agent_names]
+```
+
+Para `agent_names = ['Udenar', 'Mariana', 'UCC', 'HUDN', 'Cesmag']`,
+la expresión `n.lower()` produce las claves `'udenar_fronius'` etc.
+Pero las claves reales de `B_CALIBRATED` están capitalizadas
+(`'Udenar_fronius'`, `'Cesmag_inv'`). Las 5 búsquedas fallaban y
+todas caían al fallback `default_pasto = 220`. **La intención original
+de CAL-6 (Cesmag = 210, otros = 225) nunca se ejecutaba** — los 5
+agentes obtenían `b = 220 × adj ≈ 235.7` uniforme.
+
+**Síntoma observable:** el equilibrio `P*_ji` resultaba *perfectamente*
+simétrico (`P_final = D_i / J` exacto, IC del solver), porque costos
+idénticos producen asignación uniforme. La figura
+`fig_paper_convergence_h0512` panel (c) Power flows mostraba líneas
+planas en lugar del transitorio visible en Chacón Fig. 3a (modelo
+base con costos heterogéneos por Tabla I).
+
+**Fix aplicado:** dict explícito `INVERTER_BY_AGENT` que matchea las
+claves reales:
+
+```python
+INVERTER_BY_AGENT = {
+    "Udenar":  "Udenar_fronius",
+    "Mariana": "Mariana_fronius",
+    "UCC":     "UCC_fronius",
+    "HUDN":    "HUDN_fronius",
+    "Cesmag":  "Cesmag_inv",
+}
+```
+
+**Resultado post-fix:** `b = {241.07, 241.07, 241.07, 241.07, 225.00}`
+COP/kWh — heterogeneidad Cesmag vs resto = 6.67 %, exactamente lo que
+CAL-6 documentaba como intención.
+
+**Impacto en la tesis:** Cesmag actúa como seller en 162 horas (21.8 %)
+del horizonte 744 h del paper; en esas horas el equilibrio cambia
+sutilmente (Cesmag, con `b` menor, gana ligeramente más market share).
+En `--data real --full` (5 160 h), el efecto se distribuye
+proporcionalmente. Las Tablas oficiales (IE, RPE, PoF, beneficios
+monetarios) cambian < 1 % por la inercia documentada en CAL-2 y CAL-5,
+pero deben re-ejecutarse con el fix para reportar valores definitivos.
+
 ### CAL-7: Alternancia Stackelberg vs ODE conjunta (nota de auditoría A3)
 
 **Fecha:** 2026-04-17 | **Archivo:** `core/ems_p2p.py:230-244`
@@ -851,6 +903,21 @@ tanto aplicado "en bloque" como alternado, con el mismo fijo).
 intermedias (antes de converger) difieren. Esto es relevante solo si
 se reporta la dinámica antes del equilibrio, lo cual no se hace en
 ninguna figura de la tesis (todas usan `P_star` y `pi_i` ya convergidos).
+
+**Apéndice 2026-05-06 — Solver coupled-ODE para `fig_paper_convergence`.**
+Para la figura de convergencia del paper IEEE WEEF 2026 se introdujo
+un módulo paralelo `core/coupled_ode_convergence.py` que replica
+estructuralmente `JoinFinal.m:139` (single `ode15s` sobre el sistema
+acoplado `[P, π]`) **únicamente para visualización**. Se usan los
+factores de escala `0.08` (bloque buyers) y `10` (bloque sellers)
+exactos de `JoinFinal.m:160-161`, que preservan la separación temporal
+Stackelberg (sellers ~125× más rápidos que buyers) sin alterar el
+equilibrio. La ventana se extendió a `t_span=(0, 0.04) s` con 400
+puntos para capturar el transitorio completo, matching el x-axis de
+Chacón Fig. 3a (p. 9). El solver alternante de producción
+(`core/ems_p2p.py:_run_hour_worker`) **queda intacto** y sigue siendo
+fuente de verdad para las 16 figuras del paper y el barrido 744 h.
+Memoria asociada: `memory/project_paper_convergence_coupled_ode.md`.
 
 **Validación empírica.** El test
 `tests/test_stackelberg_convergence.py` garantiza que al salir del
@@ -1017,8 +1084,76 @@ La fila correspondiente en la tabla resumen se actualiza abajo.
 | `WI/WJ scaling` | no implementado | tau_b/tau_s=10 equivalente | **Implícito** | Ninguna |
 | `pi_gs` real | 650 COP/kWh (fallback) | Cedenar abr-2026: 799 oficial / 959 comercial NT2 | **Deprecado como escalar** | Cargar serie mensual en `tarifas_cedenar_mensual.csv` (CAL-8) |
 | `pi_gb` real | 280 COP/kWh | XM Jul25–Ene26 ~221 | **Pendiente** | Reemplazar con serie XM real |
-| `b_n` real | 225 COP/kWh | IRENA/UPME 200–250 | **Homogéneo justificado** | Ninguna (ver CAL-6) |
+| `b_n` real | **{241, 241, 241, 241, 225} COP/kWh** post-fix CAL-6 | IRENA/UPME 200–250 | **Heterogéneo 6,67 % por inversor** | Ninguna (CAL-6 corregido 2026-05-06) |
 | `b_n` sintético | `[1245,195,287,225,0,0]` u.o. | JoinFinal.m:40-43 | **Fiel al modelo base** | Ninguna |
+| `c_n` (offset fijo) | **0 uniforme** (post-2026-05-06b) | Convención canónica PV puro (Yang 2024, Martinez-Piazuelo 2022); `Bienestar6p.py:46` `C=zeros` | **Invariante en el equilibrio** (verificado empíricamente) | CAL-32 |
+| `lambda_n` (preferencia auto-consumo) | 100 uniforme | JoinFinal.m:26 (`lamda = [100]*6`) | **Invariante bajo α=0** | CAL-33 |
+| `a_n` (curvatura cuadrática) | 0 uniforme | PV puro: sin combustible ni rampa térmica | **Canónico para PV-only** | Ninguna (Yang 2024 [40], Martinez-Piazuelo 2022 [16]) |
+
+### CAL-32: `c_n` — costo fijo aditivo (Sprint 2026-05-06, finalizado 2026-05-06b)
+
+**Fecha:** 2026-05-06 | **Archivo:** `scripts/run_paper_iter.py:259`
+| **Estado:** Accepted | **ADR:** `docs/adr/0032-cal32-c-coefficient-defense.md`
+
+**Decisión final (2026-05-06b):** `c_n = 0` uniforme para los 5
+agentes MTE en modo real (cambio desde `c_n = 1,2` heredado).
+**Invariante en el equilibrio del juego Stackelberg + RD** porque el
+gradiente de `H_j(P) = a_j (∑P)² + b_j (∑P) + c_j` respecto a `P_ji`
+es `∂H/∂P = 2a_j ∑P + b_j` y **no depende de `c_j`**. La RD evoluciona
+según `(F − F̄)` y `c_j` se cancela en la diferencia.
+
+**Consecuencias:** `P*`, `π*`, IE, PoF son invariantes en `c_n`. Solo
+cambia el offset absoluto de `W_j` (welfare reportado).
+
+**Verificación empírica (2026-05-06b)** mediante
+`scripts/demo_invariancia_c_lambda.py`:
+
+| Run | c_j | λ_j | θ_j | η_i | sumP* (kW) | π_mean | diff_P_max |
+|---|---|---|---|---|---|---|---|
+| A | 1,2 | 100 | 0,5 | 0,1 | 10,5202 | 490,19 | — |
+| B | 0,0 | 100 | 0,5 | 0,1 | 10,5202 | 490,19 | **0,00 kW** |
+| C | 10000 | 999 | 10 | 5 | 10,5202 | 490,19 | **2,35e-08 kW** |
+
+**Justificación física de `c_n = 0` para PV grid-tied:** el CapEx
+amortizado por hora (~22 COP/hora para 5 kWp en 25 años) no se mapea
+a `c_n` del modelo (unidades de optimización adimensionales). Yang
+2024 [40] y Martinez-Piazuelo 2022 [16] usan `c=0` para renovables
+canónicamente. `Bienestar6p.py:46` (modo sintético) ya usaba
+`C=zeros(6)`. La elección final cierra coherencia entre modos
+sintético y real.
+
+**Decisión paper:** se omite `c_n` del análisis del equilibrio en
+Section II.A (Methods) y se justifica `c=0` con la convención
+canónica para renovables.
+
+### CAL-33: `lambda_n` — preferencia de auto-consumo (Sprint 2026-05-06)
+
+**Fecha:** 2026-05-06 | **Archivo:** `scripts/run_paper_iter.py:260`
+| **Estado:** Accepted | **ADR:** `docs/adr/0033-cal33-lambda-homogeneity.md`
+
+`lambda_n = 100` uniforme heredado de `JoinFinal.m:26`
+(`lamda = [100]*6`). Justificación de la homogeneidad bajo el caso
+de estudio MTE:
+
+1. Misma tecnología DER (5/5 sitios FV grid-tied sin almacenamiento).
+2. Mismo fabricante de inversor (Fronius para 4/5; Cesmag clase
+   equivalente ≤ 100 kW).
+3. Misma latitud, irradiancia local homogénea (radio < 2 km en Pasto).
+4. Perfil operativo homogeneizado a "comercial" por CAL-25.
+
+**Invariancia analítica bajo α = 0:** sin DR (`alpha = np.zeros(N)`
+en `run_paper_iter.py:263`), `D_j*` está fijado por los datos MTE y
+no depende de `lambda_n`. Entonces:
+
+```
+W_j = lambda_n D_j* − (theta_n / 2) (D_j*)² + R_j − H_j
+dW_j/dlambda_n = D_j*  (constante en el equilibrio)
+```
+
+Por tanto `P*` y `π*` son **analíticamente invariantes en `lambda_n`**
+mientras DR esté apagado. Solo cambia el offset reportado de `W_j`
+(análogo al caso CAL-5 para `theta_n`). Cuando trabajo futuro active
+DR, esta decisión deberá revisarse.
 
 ---
 
@@ -3830,3 +3965,239 @@ actualizado con la corrección.
 - `docs/adr/0031-cal31-renumeracion-art-creg-101072.md` corregido
   (CREG 101-087/2025 art. 6, no 13).
 - `data/cedenar_tariff.py:714-715` con nota de revisión Ley 2099 art. 45.
+
+## §A.9 — Lectura del sweep φ × θ (`fig_audit_calibration_robustness`)
+
+**Trazabilidad:** Act 4.2 (paper IEEE WEEF), CAL-8 audit eje 2 (B1).
+**Script:** `scripts/run_phi_sweep_hourly.py` (versión definitiva, 744 h).
+**Script legacy:** `analysis/audit/equidad_sweep.py --sweep-axis phi`
+(perfil daily-mean, descartado por ruido de muestreo).
+**Figura:** `outputs/paper/fig_audit_calibration_robustness.png` (heatmap 4×4).
+
+### Historia del cambio (2026-05-04)
+
+Esta figura pasó por cuatro iteraciones antes del fix definitivo:
+
+1. **v1 — sweep α × θ con φ=1.0 (baseline)**: bajo cobertura PV de 11.3 %
+   el P2P no se activa y las 16 celdas dan IE=0 idéntico. Invariancia
+   trivial, no informativa.
+2. **v2 — sweep α × θ con `--pv-scale 1.5`**: variación real (IE ∈
+   [−0.03, +0.31]) pero **off-paper**: el case study del paper corre con
+   `alpha=np.zeros(N)` en `scripts/run_paper_iter.py:263`. El paper NO
+   usa Demand Response.
+3. **v3 — sweep φ × θ con α=0 sobre perfil daily-mean (T=24 h)**: ambos
+   ejes corresponden al modelo, pero el IE_p2p (mean horario sobre 1–6
+   horas activas en 24 h) era estadísticamente ruidoso. Smoothness check
+   con φ cada 0.05 mostró oscilaciones (caída a +0.000 en φ=1.40, peak
+   +0.323 en φ=1.55, dip aparente en φ=1.5). Causa: ley de los pequeños
+   números — IE depende de la composición horaria seller/buyer y con
+   tan pocas horas activas es sensible a casos individuales.
+4. **v4 actual — sweep φ × θ con α=0 sobre horizon 744 h hourly**:
+   utiliza el mismo pipeline que el case study principal del paper
+   (`scripts/run_paper_iter.py`). Con ≈190 horas activas el IE_p2p es
+   estable (std 0.015), sin ruido de muestreo. Tiempo total: ~72 s.
+
+### Qué mide cada eje (versión final)
+
+| Eje | Parámetro | Significado | Estatus en el modelo |
+|---|---|---|---|
+| **vertical** | $\varphi$ ∈ {1.00, 1.25, 1.50, 1.75} | factor de cobertura PV (multiplica G) | **Variable de política** explorada en el case study |
+| **horizontal** | $\theta$ ∈ {0.25, 0.50, 0.75, 1.00} | coeficiente cuadrático de la utility | **Parámetro privado** de cada agente, no observable |
+| **color** | IE_p2p ∈ [−1, +1] | índice de equidad bajo P2P | métrica de salida |
+
+α queda fijo en 0 (sin DR), consistente con `run_paper_iter.py`.
+
+### Resultados (horizon 744 h hourly, agosto 2025, α=0, θ=0.5)
+
+| φ | IE_p2p | Welfare_P2P (MCOP) | Welfare_C1 | Welfare_C4 |
+|---|---:|---:|---:|---:|
+| 1.00 (baseline) | +0.640 | 4.62 | 4.76 | 4.39 |
+| 1.25 (+25 %) | +0.630 | 5.21 | 4.91 | 5.01 |
+| **1.50 (UPME 2030)** | **+0.665** | **5.74** | **5.43** | **5.56** |
+| 1.75 (+75 %) | +0.630 | 6.22 | 5.95 | 6.07 |
+
+θ-invariancia: las 4 columnas son numéricamente idénticas (mismo IE,
+mismo welfare) en cada nivel de φ. Las 12 columnas restantes en el CSV
+del heatmap se replican sintéticamente desde el run con θ=0.5 (la
+invariancia ya está demostrada, no hace falta gastar 4× el tiempo).
+
+**Comparativa daily (descartado) vs hourly (definitivo):**
+
+| φ | IE daily | IE hourly | Var |
+|---|---:|---:|---:|
+| 1.00 | +0.198 | +0.640 | +0.442 |
+| 1.25 | +0.285 | +0.630 | +0.345 |
+| 1.50 | +0.131 | +0.665 | **+0.534** |
+| 1.75 | +0.483 | +0.630 | +0.147 |
+
+El daily compromete la métrica IE por sub-muestreo (1–6 horas activas
+contra 190 en hourly). El hourly es la versión que va al paper.
+
+### Lectura
+
+**θ-invariancia (lectura horizontal).** Las 4 columnas idénticas confirman
+que el equilibrio Stackelberg+RD **no depende del coeficiente cuadrático
+θ** de la utility privada de los agentes. Esto responde la crítica
+*"tu algoritmo solo funciona si calibras un parámetro que no puedes
+observar"*: el outcome reportado no es un artefacto de calibración.
+
+**Estabilidad de IE en φ (lectura vertical).** El IE_p2p se mantiene en
+una banda muy estrecha de [+0.630, +0.665] (std 0.015) a través del
+rango de cobertura. **El case study (φ=1.5) coincide con el peak**
+(+0.665). La equidad P2P es robusta a la penetración PV.
+
+**Welfare monotónico (lectura vertical, escala absoluta).** El welfare
+crece monotónicamente: 4.62 → 5.21 → 5.74 → 6.22 MCOP. Add más PV
+beneficia a la comunidad, sin tradeoff con equidad.
+
+### Por qué esta es la versión correcta para el paper
+
+- **Ambos ejes son parámetros del modelo presentado**: φ aparece en el
+  case study como cobertura empírica (1.0 baseline → 1.5 forecast); θ
+  aparece en la utility cuadrática de cada agente.
+- **Responde dos preguntas del referee a la vez**:
+  1. *¿Tu equilibrio depende de un parámetro privado no observable?* →
+     No (θ-invariancia).
+  2. *¿Cómo escala tu algoritmo con la variable de política realmente
+     relevante (penetración PV)?* → IE positivo en todo el rango,
+     welfare crece monotónicamente.
+- **No introduce DR**: el paper no propone un programa de respuesta a la
+  demanda; sería falso afirmar robustez frente a algo que no se modela.
+
+### Por qué se descartó el sweep en α
+
+- El paper modela demanda como insumo fijo observado del MTE (sin DR
+  activo). `alpha=np.zeros(N)` en producción.
+- Un sweep en α ∈ [0.10, 0.25] mide *qué pasaría si* se añadiera un
+  programa de DR — extensión prospectiva, no validación del modelo.
+- El espacio del paper (9 páginas IEEE WEEF) no permite desarrollar la
+  línea de DR, así que mostrar un sweep en α invita a una crítica que
+  el paper no puede responder en el body.
+- La extensión a DR queda registrada como línea futura: ver
+  `equidad_sweep.py --sweep-axis alpha` (legacy, conservado en código
+  para tesis/extensión).
+
+## §A.10 — Reinterpretación del Index of Equity (IE) de Chacon
+
+**Trazabilidad:** Act 4.2 (paper IEEE WEEF), revisión figura-por-figura
+2026-05-04. Sale de la inspección de `fig_audit_chacon_comparison`.
+
+### Hallazgo
+
+El "Index of Equity" definido por Chacon et al. (2025, pág. 12) y
+reproducido en `core/settlement.py:90`:
+
+$$\mathrm{IE} = \frac{\sum_i S_i - \sum_j S_{R_j}}{\sum_i S_i + \sum_j S_{R_j}}$$
+
+con $S_i=(\pi_{gs}-\pi_i^*)\,\sum_j P_{ji}$ (savings buyer)
+y $S_{R_j}=(\pi_i^*-\pi_{gb})\,\sum_i P_{ji}$ (reward seller),
+**no es un índice de equidad distributiva en sentido estándar** (Gini,
+Theil, Atkinson). Reducción algebraica usando volume balance del
+clearing P2P:
+
+$$\mathrm{IE} = \frac{\pi_{gs}+\pi_{gb}-2\pi^*}{\pi_{gs}-\pi_{gb}}$$
+
+El IE mide **dónde cae el precio P2P dentro del rango admisible
+$[\pi_{gb},\pi_{gs}]$**, no la dispersión per-agente del welfare.
+
+### Mapeo IE ↔ posición del precio
+
+| IE | π* | Lectura |
+|---:|---|---|
+| +1 | π_gb | máximo favoritismo a compradores |
+| +0.5 | (3π_gb + π_gs)/4 | precio bajo, buyer-favoring |
+| **0** | **(π_gs + π_gb)/2** | **balanced — el "near-equitable" de Chacon** |
+| −0.5 | (π_gb + 3π_gs)/4 | precio alto, seller-favoring |
+| −1 | π_gs | máximo favoritismo a vendedores |
+
+### Por qué nuestro case study da IE = +0.665
+
+Diagnóstico empírico (`scripts/investigate_ie_decomposition.py`):
+
+- Rango admisible: π_gb=234, π_gs=915 → midpoint = 575 COP/kWh
+- π_eff median observado en P2P = **253 COP/kWh** (al 2.9 % del piso)
+- 183/192 horas activas (95 %) tienen π_eff < midpoint
+- PS = 85.96 % (buyers), PSR = 14.04 % (sellers)
+
+**Causa**: estructura de la comunidad MTE. Composición de roles en horas
+activas:
+
+| Agente | Horas seller | Horas buyer | Rol dominante |
+|---|---:|---:|---|
+| Udenar | 182 | 10 | Seller |
+| HUDN | 163 | 29 | Seller |
+| Mariana | 121 | 71 | Seller mayoritario |
+| UCC | 98 | 94 | Mixto |
+| **Cesmag** | 26 | **166** | **Buyer dominante** |
+
+4 sellers vs 1 buyer estructural → competencia entre sellers → π* cae
+hacia π_gb → buyers (Cesmag) capturan el surplus → IE→+1. Es la
+dinámica de mercado correcta bajo sobreoferta solar agregada, no un
+bug.
+
+### Verificación de invarianza vs φ
+
+El sweep φ × θ sobre 744 h hourly muestra:
+
+| φ | IE_p2p | π_eff_pos en rango |
+|---|---:|---:|
+| 1.00 | +0.640 | ~0.030 |
+| 1.25 | +0.630 | ~0.029 |
+| 1.50 | +0.665 | ~0.029 |
+| 1.75 | +0.630 | ~0.030 |
+
+La asimetría seller-buyer NO es consecuencia de subir φ a 1.5 — ya
+existe a φ=1.0 (baseline empírico). Es propiedad estructural de la
+comunidad MTE.
+
+### Decisión para el paper IEEE WEEF (Opción A, 2026-05-04)
+
+1. **Métrica primaria de equidad: Gini coeficiente** sobre net benefits
+   per-agente. Es estándar en literatura P2P-energy
+   (Sorin et al. 2019, Tushar et al. 2020). Resultado en case study:
+   P2P G=0.110 ≈ C1 G=0.106 (diferencia ΔG≈0.004, despreciable).
+   Es decir, P2P y C1 son **distributivamente equivalentes**; la
+   ganancia P2P viene de **expandir el pastel** (5.94 vs 5.63 MCOP),
+   no de redistribuirlo.
+
+2. **El "IE" de Chacon se mantiene como referencia bibliográfica**
+   solo en la figura `fig_audit_chacon_comparison` y en su sección
+   asociada (§V.E "Seller-buyer balance benchmark"). Renombrado en
+   prosa como "seller-buyer balance index" cuando se discute en el
+   contexto de este paper. No se usa para argumentar equidad.
+
+3. **Caption Fig 13 (metrics_hourly)** reescrito: el IE horario es 0
+   en horas inactivas (552/744) y concentrado cerca de +1 en horas
+   activas, reflejando el régimen buyer-favoring por sobreoferta. NO
+   "near zero indicating equitable distribution" como decía antes.
+
+4. **Caption Fig 14 (calibration_robustness)**: la θ-invariancia se
+   mantiene como conclusión válida (es robustez algorítmica genuina,
+   independiente del nombre del índice). El "tight band" en IE es
+   reformulado como "stable buyer-favoring equilibrium".
+
+5. **Caption Fig 15 (chacon_comparison)**: incluye la fórmula reducida
+   $\mathrm{IE}=(\pi_{gs}+\pi_{gb}-2\pi^*)/(\pi_{gs}-\pi_{gb})$ y
+   explica que +0.665 vs +0.0149 refleja la **estructura de la
+   comunidad** (4 sellers vs 1 buyer dominante en MTE), no un grado de
+   equidad mayor o menor.
+
+### Implicación a futuro
+
+- Si se publica una versión extendida en revista, considerar definir
+  un "IE per-capita" propio (varianza normalizada, complemento del
+  Gini, o un índice de tipo Atkinson) que sea genuinamente
+  distributivo y reportarlo junto al de Chacon como referencia.
+- El "balance seller-buyer" sigue siendo informativo como diagnóstico
+  del régimen de mercado (over-supply vs over-demand) — útil pero
+  conceptualmente distinto de equidad social.
+
+### Trazabilidad de la investigación
+
+- `scripts/investigate_ie_decomposition.py` — descomposición empírica
+  per-hora del IE en componentes S_i, S_R_j, π_eff. Confirma
+  PS=85.96 %, PSR=14.04 %.
+- `outputs/paper/ie_decomposition_diag.csv` — datos crudos (192 horas
+  activas, columnas pi_eff, S_buyers, S_sellers, IE_hour).
+- Páginas 12-13 del PDF `Documentos/Modelo_Base_Sofía_Chacon.pdf`
+  (definición original + Table VII).

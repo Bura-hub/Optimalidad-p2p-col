@@ -520,41 +520,187 @@ def plot_pv_ranking(
     title: str = "PV factor sweep — ranking persistence",
     baseline_factor: float = 1.0,
 ):
-    """Genera figura de líneas (NB vs factor PV) con ★ en cambios de ranking.
+    """Genera figura 2-panel (NB curves + Δ bars) con audit-style highlights.
 
-    Sprint 6.5 — pareja visual de :func:`ranking_table_pv`.
+    Sprint 6.5 + redesign 2026-05-05 (Brayan paper review):
+      - Panel (a): NB lines con axvspan zonas + ★ case study + anotacion crossover
+      - Panel (b): bar chart Δ(P2P-C1) por φ — revela saturation pattern
+      - Suptitle peso normal con case study tag + crossover
+      - Key message orange italic (crossover + saturation)
+      - Footer azul italic con KPIs por φ
     """
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     from pathlib import Path
+    from visualization.ieee_style import (
+        apply_ieee_style, save_ieee, COLORS, WIDTH_SINGLE_IN,
+    )
+
+    apply_ieee_style()
+
+    def _color_for(s: str) -> str:
+        if s.startswith("P2P"):
+            return COLORS["P2P"]
+        if s.startswith("C1"):
+            return COLORS["C1"]
+        if s.startswith("C2 (CREG 101"):
+            return COLORS["C4"]
+        if s.startswith("C2"):
+            return COLORS["C2"]
+        if s.startswith("C3"):
+            return COLORS["C3"]
+        if s.startswith("C4"):
+            return COLORS["C4"]
+        return "#888888"
 
     factors = rank_df["factor"].to_numpy()
-    fig, ax = plt.subplots(figsize=(8, 5))
+    p2p_col = next((s for s in scenarios if s.startswith("P2P")), None)
+    c1_col = next((s for s in scenarios if s.startswith("C1")), None)
+    c2_col = next((s for s in scenarios
+                    if s.startswith("C2") or s.startswith("C4")), None)
 
-    colors = plt.get_cmap("tab10").colors
+    # IEEE single-column: figsize 3.5x4.4, gridspec 2x1 con panel (a)
+    # de 70% altura y panel (b) de 30%.
+    fig, (ax, ax2) = plt.subplots(
+        2, 1, figsize=(WIDTH_SINGLE_IN, 4.4), sharex=True,
+        gridspec_kw={"height_ratios": [2.2, 1.0], "hspace": 0.12},
+    )
+
+    # Crossover zones — visualiza el ranking flip
+    f_min = float(factors.min())
+    f_max = float(factors.max())
+    ax.axvspan(f_min - 0.05, 1.2, alpha=0.10, color="#D85A30", zorder=0,
+               label="Reg.-favorable")
+    ax.axvspan(1.3, f_max + 0.05, alpha=0.08, color=COLORS.get("P2P", "#7F77DD"),
+               zorder=0, label="P2P-favorable")
+
     for i, s in enumerate(scenarios):
-        nb = rank_df[f"NB_{s}"].to_numpy() / 1e6  # COP -> millones COP
-        c = colors[i % len(colors)]
-        ax.plot(factors, nb, marker="o", color=c, lw=1.6, label=s)
-        if f"star_{s}" in rank_df.columns:
-            stars_idx = np.where(rank_df[f"star_{s}"].to_numpy() == "★")[0]
-            if len(stars_idx) > 0:
-                ax.scatter(factors[stars_idx], nb[stars_idx],
-                           marker="*", s=180, color=c,
-                           edgecolors="black", linewidths=1.0,
-                           zorder=5)
+        nb = rank_df[f"NB_{s}"].to_numpy() / 1e6
+        c = _color_for(s)
+        is_p2p = s.startswith("P2P")
+        # Etiqueta corta (P2P/C1/C2) para legend compacta
+        short_label = s.split(" ")[0]
+        ax.plot(factors, nb, marker="o", color=c,
+                lw=1.4 if is_p2p else 1.0,
+                markersize=3.2 if is_p2p else 2.6,
+                markeredgecolor="white", markeredgewidth=0.4,
+                label=short_label, zorder=4 if is_p2p else 3)
 
-    ax.axvline(baseline_factor, color="gray", lw=0.8, ls="--", alpha=0.5)
-    ax.set_xlabel("PV scaling factor (× baseline)")
-    ax.set_ylabel("Net benefit [million COP]")
-    ax.set_title(title)
-    ax.legend(loc="best", fontsize=9)
-    ax.grid(alpha=0.3)
-    fig.tight_layout()
+    # ★ grande en case study (φ=1.5) sobre P2P
+    case_study_idx = int(np.argmin(np.abs(factors - 1.5)))
+    has_cs = abs(factors[case_study_idx] - 1.5) < 0.01
+    if p2p_col and has_cs:
+        nb_p2p_cs = float(rank_df[f"NB_{p2p_col}"].iloc[case_study_idx]) / 1e6
+        ax.plot([1.5], [nb_p2p_cs], marker="*", markersize=11,
+                color=COLORS["P2P"], markeredgecolor="black",
+                markeredgewidth=0.6, zorder=6, linestyle="none")
+        ax.annotate(r"$\varphi$=1.5",
+                    xy=(1.5, nb_p2p_cs),
+                    xytext=(1.65, nb_p2p_cs - 0.5),
+                    fontsize=5.5, color=COLORS["P2P"],
+                    fontweight="bold", fontstyle="italic",
+                    ha="left", va="top",
+                    arrowprops=dict(arrowstyle="->", color=COLORS["P2P"],
+                                    lw=0.4, connectionstyle="arc3,rad=0.20"),
+                    bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
+                              edgecolor=COLORS["P2P"], lw=0.4, alpha=0.95))
+
+    # Anotacion crossover en φ=1.0 (compacta)
+    if c1_col and p2p_col:
+        nb_c1_phi1 = float(rank_df[f"NB_{c1_col}"].iloc[0]) / 1e6
+        nb_p2p_phi1 = float(rank_df[f"NB_{p2p_col}"].iloc[0]) / 1e6
+        delta_phi1 = (nb_c1_phi1 - nb_p2p_phi1) * 1000  # kCOP
+        ax.annotate(rf"C1 wins $\varphi$=1.0",
+                    xy=(1.0, nb_c1_phi1),
+                    xytext=(1.05, nb_c1_phi1 + 0.9),
+                    fontsize=5.5, color="#A03020",
+                    fontweight="bold", fontstyle="italic",
+                    ha="left", va="bottom",
+                    arrowprops=dict(arrowstyle="->", color="#A03020",
+                                    lw=0.4, connectionstyle="arc3,rad=-0.25"),
+                    bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
+                              edgecolor="#A03020", lw=0.4, alpha=0.95))
+
+    ax.axvline(baseline_factor, color="gray", lw=0.6, ls="--", alpha=0.5)
+    ax.set_ylabel("Net benefit [M COP]", fontsize=7)
+    ax.tick_params(axis="y", labelsize=6)
+    ax.grid(alpha=0.25, linestyle=":")
+    ax.tick_params(labelbottom=False)  # x-label en panel (b)
+
+    # ── Panel (b): Δ P2P-C1 line + filled area (escalable a sweeps densos) ───
+    if p2p_col and c1_col:
+        delta_kCOP = (rank_df[f"NB_{p2p_col}"].to_numpy()
+                       - rank_df[f"NB_{c1_col}"].to_numpy()) / 1e3
+
+        # Background zones (consistencia con panel a)
+        ax2.axvspan(f_min - 0.05, 1.2, alpha=0.10, color="#D85A30", zorder=0)
+        ax2.axvspan(1.3, f_max + 0.05, alpha=0.08,
+                     color=COLORS.get("P2P", "#7F77DD"), zorder=0)
+
+        # Filled area: rojo donde Δ<0 (C1 wins), azul donde Δ>0 (P2P wins)
+        ax2.fill_between(factors, 0, delta_kCOP,
+                          where=(delta_kCOP < 0), interpolate=True,
+                          color="#D85A30", alpha=0.45, zorder=2)
+        ax2.fill_between(factors, 0, delta_kCOP,
+                          where=(delta_kCOP >= 0), interpolate=True,
+                          color=COLORS["P2P"], alpha=0.40, zorder=2)
+
+        # Linea principal (smooth curve)
+        ax2.plot(factors, delta_kCOP, color=COLORS["P2P"], linewidth=1.2,
+                  marker="o", markersize=2.6, markeredgecolor="white",
+                  markeredgewidth=0.4, zorder=4)
+
+        # ★ peak (case study highlight)
+        peak_phi_idx = int(np.argmax(delta_kCOP))
+        ax2.plot([factors[peak_phi_idx]], [delta_kCOP[peak_phi_idx]],
+                  marker="*", markersize=9, color=COLORS["P2P"],
+                  markeredgecolor="black", markeredgewidth=0.5,
+                  zorder=5, linestyle="none")
+
+        # Anotaciones compactas en puntos clave
+        ax2.annotate(f"{delta_kCOP[0]:+.0f}",
+                      xy=(factors[0], delta_kCOP[0]),
+                      xytext=(factors[0] + 0.04, delta_kCOP[0] - 18),
+                      fontsize=5.5, fontweight="bold", color="#A03020",
+                      ha="left", va="top")
+        # Plateau range
+        plateau_max = float(delta_kCOP[1:6].max())
+        plateau_min = float(delta_kCOP[1:6].min())
+        ax2.annotate(rf"+{plateau_min:.0f}..+{plateau_max:.0f}",
+                      xy=(1.3, plateau_max),
+                      xytext=(1.3, plateau_max + 50),
+                      fontsize=5.5, fontweight="bold", fontstyle="italic",
+                      color=COLORS["P2P"], ha="center", va="bottom")
+        # φ=3.0 (saturation tail)
+        ax2.annotate(f"+{delta_kCOP[-1]:.0f}\n(sat.)",
+                      xy=(factors[-1], delta_kCOP[-1]),
+                      xytext=(factors[-1], delta_kCOP[-1] - 55),
+                      fontsize=5.5, fontweight="bold", color=COLORS["P2P"],
+                      ha="center", va="top",
+                      arrowprops=dict(arrowstyle="->", color=COLORS["P2P"],
+                                      lw=0.4, alpha=0.7))
+
+        ax2.axhline(0, color="black", lw=0.5, alpha=0.6)
+        ax2.set_ylabel(r"$\Delta$ P2P-C1" "\n" "[kCOP]", fontsize=6.5)
+        ax2.set_xlabel(r"PV scaling factor $\varphi$", fontsize=7)
+        ax2.tick_params(labelsize=6)
+        ax2.grid(alpha=0.25, linestyle=":", axis="y")
+        ax2.set_ylim(min(delta_kCOP) - 80, max(delta_kCOP) + 110)
+
+    fig.suptitle(
+        "PV factor sweep: crossover and saturation",
+        fontsize=8.5, y=0.99, fontweight="bold",
+    )
+
+    ax.legend(loc="lower right", fontsize=5.5, framealpha=0.92, ncol=1,
+              handlelength=1.2, handletextpad=0.4)
+
+    fig.subplots_adjust(top=0.94, bottom=0.10, left=0.16, right=0.97,
+                         hspace=0.12)
+
     out_path = Path(out_path)
-    fig.savefig(out_path, dpi=130, bbox_inches="tight")
-    plt.close(fig)
+    save_ieee(fig, str(out_path).replace(".png", ""), dpi=300, also_pdf=True)
     return out_path
 
 

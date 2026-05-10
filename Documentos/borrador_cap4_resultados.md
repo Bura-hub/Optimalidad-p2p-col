@@ -52,7 +52,9 @@ formalizadas en los ADRs 0001-0008 (ver Apendice A):
 | `alpha_p`, `alpha_c` | 0.20, 0.10 | Optimo empirico DR | 0003 |
 | `tau_buyers/tau_sellers` | 10 | Replica WI/WJ JoinFinal | 0004 |
 | `theta` | 0.5 | JoinFinal.m | 0005 |
-| `b_n` (LCOE solar) | 225 COP/kWh (210 Cesmag) | IRENA/UPME | 0006 |
+| `b_n` (LCOE solar) | **{241, 241, 241, 241, 225} COP/kWh** post-fix (Cesmag = 225 por inversor distinto) | IRENA 2024 / UPME 2025-2039 | 0006 (apéndice 2026-05-06) |
+| `c_n` (offset fijo) | **0 uniforme** (post-fix CAL-32 2026-05-06b) | Convención canónica PV puro (Yang 2024, Martinez-Piazuelo 2022); equilibrio invariante (verificado empíricamente) | 0032 |
+| `lambda_n` (preferencia auto-consumo) | 100 uniforme | JoinFinal.m:26 (PV homogéneo + α=0) | 0033 |
 | Solver Stackelberg | Alternancia secuencial | Paralelizacion | 0007 |
 | `pi_gs` (perfil diario) | Vector `(N,)` Cedenar promedio horizonte | Tarifa CU 101-028/23 | 0008 |
 | `pi_gs` (`--full` / `--day`) | Matriz `(N, T)` mes a mes | CU mensual CSV Cedenar | **0009** |
@@ -111,17 +113,22 @@ es invariante bajo factorizacion del operador de actualizacion").
 
 ### 4.3.1 Bienestar agregado por escenario
 
-| Escenario | Ganancia neta (MCOP) | SC | SS | IE |
-|---|---:|---:|---:|---:|
-| **P2P (Stackelberg + RD)** | **52,43** | 0,188 | 0,981 | +0,3677 |
-| C1 (CREG 174/2021, AGPE) | 54,04 | 0,176 | 0,921 | -0,0115 |
-| C2 (Bilateral PPA) | 51,44 | 0,176 | 0,921 | +0,0292 |
-| C3 (Mercado spot) | 50,96 | 0,176 | 0,921 | +0,0375 |
-| C4 (CREG 101 072) ★ | 50,29 | 0,176 | 0,921 | +0,0517 |
+| Escenario | Ganancia neta (MCOP) | SC | SS | IE | Gini |
+|---|---:|---:|---:|---:|---:|
+| **P2P (Stackelberg + RD)** | **52,43** | 0,188 | 0,981 | +0,3677 | 0,162 |
+| C1 (CREG 174/2021, AGPE) | 54,04 | 0,176 | 0,921 | -0,0115 | 0,147 |
+| C2 (Bilateral PPA) | 51,44 | 0,176 | 0,921 | +0,0292 | 0,155 |
+| C3 (Mercado spot) | 50,96 | 0,176 | 0,921 | +0,0375 | 0,161 |
+| C4 (CREG 101 072) ★ | 50,29 | 0,176 | 0,921 | +0,0517 | 0,170 |
 
 **Notacion:** SC = autoconsumo (self-consumption), SS = autosuficiencia
-(self-sufficiency), IE = indice de equidad (positivo = compradores
-capturan excedente, negativo = vendedores).
+(self-sufficiency), IE = indice de balance comprador-vendedor
+(\cite{Chacon2025EMS}; positivo = compradores capturan excedente,
+negativo = vendedores; mide la posicion del precio P2P en el rango
+admisible $[\pi_{gb},\pi_{gs}]$, no la equidad distributiva — ver
+notas_modelo_tesis.md §A.10), Gini = coeficiente de inequidad
+distributiva sobre net benefits per-agente (estandar en literatura
+P2P-energy, Sorin et al. 2019; lower = mas equitativo).
 
 Metricas derivadas:
 
@@ -163,8 +170,17 @@ mensual C1-C3 para los 12 meses MTE_v3.]
 ### 4.4.1 Indices SC/SS/IE/RPE
 
 [NARRATIVA — referir a `analysis/optimality.py` y al patron horario
-de los indices. Discusion del por que IE_P2P > 0 (compradores
-comerciales capturan 71,4 % del excedente por su mayor `pi_gs[i]`).]
+de los indices. El IE de Chacon ($\sum S_i - \sum S_{R_j}$ sobre
+$\sum S_i + \sum S_{R_j}$) se reduce a $(\pi_{gs}+\pi_{gb}-2\pi^*)/(\pi_{gs}-\pi_{gb})$
+dado el clearing P2P, midiendo donde cae el precio de equilibrio
+$\pi^*$ dentro del rango regulatorio admisible. Bajo esta lectura,
+IE_P2P=+0,3677 indica un precio de equilibrio cerca del piso $\pi_{gb}$,
+favoreciendo a los compradores comerciales (que capturan 71,4 % del
+excedente por su mayor $\pi_{gs}[i]$). Esto NO contradice la equidad
+distributiva, que se mide aparte con el coeficiente de Gini (P2P=0,162
+vs C1=0,147; ambos en rango "moderadamente equitativo" en literatura
+P2P-energy). Ver notas_modelo_tesis.md §A.10 para el desarrollo
+algebraico y la decision de usar Gini como metrica primaria.]
 
 ### 4.4.2 Price of Fairness (Bertsimas et al. 2011)
 
@@ -310,8 +326,17 @@ significativa con efecto grande.]
 - Cobertura PV del 19 % comunitaria es relativamente baja; resultados
   con cobertura 44 % (SA-2) deberian validarse con datos reales
   futuros.
-- LCOE solar `b_n = 225 COP/kWh` homogeneo es supuesto (ADR 0006);
-  pendiente de heterogeneizar con fichas tecnicas de inversores.
+- LCOE solar `b_n` calibrado a 241 COP/kWh (Fronius) y 225 COP/kWh
+  (Cesmag) tras fix CAL-6 del 2026-05-06; heterogeneidad limitada a
+  6,67 % (sólo varía Cesmag por inversor distinto). Pendiente de
+  ampliar a heterogeneidad por horas-sol equivalentes y CapEx
+  per-institución cuando MTE confirme fichas técnicas
+  (`Inventario_Act_1_0.md:30-34`).
+- `c_n = 0` (PV puro, convención canónica, fix 2026-05-06b CAL-32) y
+  `lambda_n = 100` uniformes; ambos analíticamente invariantes en el
+  equilibrio bajo α = 0 (sin DR), sólo afectan el offset reportado de
+  bienestar. Verificado empíricamente vía
+  `scripts/demo_invariancia_c_lambda.py`.
 - Nivel de tension NT2 asumido para todas las instituciones; pendiente
   de confirmar contra factura mensual real.
 - Horizonte 6 144 h cubre solo abr-dic 2025; estacionalidad anual
@@ -388,8 +413,14 @@ narrativo restante para defender los hallazgos academicamente).
 - **RPE (P2P vs C1):** -0,0003 (P2P empata con el regimen CREG 174
   para autogeneracion individual).
 - **Bienestar agregado en C1 maximo absoluto** (52,47 MCOP); P2P
-  capta 99,97 % de ese maximo con una distribucion mas equitativa
-  intra-prosumidor (`IE_P2P = 0,368`).
+  capta 99,97 % de ese maximo con un equilibrio de mercado que
+  redistribuye el excedente hacia los compradores comerciales
+  (`IE_P2P = +0,368` indica precio cerca de $\pi_{gb}$,
+  buyer-favoring). El coeficiente de Gini per-agente, que sí mide
+  inequidad distributiva en sentido estandar, es 0,162 para P2P vs
+  0,147 para C1 — diferencia despreciable; ambos escenarios son
+  distributivamente equivalentes y la ventaja P2P viene de **expandir
+  el pastel** sin redistribuir significativamente.
 
 **Volumen P2P transado:** 3 659,31 kWh en 1 031 / 6 144 horas
 activas (16,8 % del horizonte). Periodo abr-2025 a dic-2025.

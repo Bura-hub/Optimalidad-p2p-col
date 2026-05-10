@@ -514,7 +514,10 @@ delta fue ~38 %).
 **Implicación para la lectura del cap. 4**: las RPE históricas
 reportadas en §4.9 (e.g. RPE = +0.43 % vs C4) tienen un techo de
 sub-reporte de ~0.5 % bajo CAL-30. La conclusión cualitativa
-("P2P > C4, IE distributivo") es robusta a esta corrección.
+("P2P > C4 en welfare agregado, con Gini per-agente comparable) es
+robusta a esta corrección. El IE de Chacon es un índice de balance
+comprador-vendedor, no de equidad distributiva — ver
+notas_modelo_tesis.md §A.10.
 
 Pendiente: ejecutar `main_simulation.py --data real --full --analysis`
 sobre las 5 160 horas para capturar la RPE canónica final del cap. 4.

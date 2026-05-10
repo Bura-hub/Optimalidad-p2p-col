@@ -230,10 +230,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     t0   = time.time()
     grid = GridParams(**grid_params)
 
+    # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro en modo --data real.
+    # Equilibrio invariante en c_j (verificado por scripts/demo_invariancia_c_lambda.py).
+    # Modo sintetico mantiene C=zeros(6) de Bienestar6p.py (golden test).
     agents = AgentParams(
         N=N, a=np.zeros(N) if use_real_data else np.array(p["a"]),
         b=b_cal if use_real_data else np.array(p["b"]),
-        c=np.full(N, 1.2) if use_real_data else np.array(p["c"]),
+        c=np.zeros(N) if use_real_data else np.array(p["c"]),
         lam=np.full(N, 100.0), theta=np.full(N, 0.5), etha=np.full(N, 0.1),
     ) if use_real_data else AgentParams(**p)
 

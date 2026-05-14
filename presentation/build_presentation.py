@@ -123,9 +123,9 @@ def slide_03_mte_intro(prs):
         ("🏥 HUDN", "Hospital Universitario Dpto. Nariño"),
         ("🏫 Cesmag", "Universidad Cesmag"),
     ]
-    cols = [Inches(0.5), Inches(3.2), Inches(5.9), Inches(8.6), Inches(11.3)]
+    cols = [Inches(0.5), Inches(3.2), Inches(5.9), Inches(8.6)]  # 4 posiciones fila superior
     for i, (icon_name, full) in enumerate(insts):
-        x = cols[i] if i < 4 else Inches(5.9)
+        x = cols[i] if i < 4 else Inches(5.9)   # Cesmag: centrado en fila 2
         y = Inches(1.5) if i < 4 else Inches(3.8)
         add_rect(s, x, y, Inches(2.5), Inches(1.6), DARK_BOX)
         add_textbox(s, icon_name, x + Inches(0.1), y + Inches(0.1),

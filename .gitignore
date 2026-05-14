@@ -83,3 +83,6 @@ comp/
 # === Backups defensivos de CSV (regenerables vía pydataxm) ===
 data/*.bak_*
 data/*.csv.bak_*
+
+# Presentación generada
+presentation/*.pptx

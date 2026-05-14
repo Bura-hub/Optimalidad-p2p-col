@@ -144,10 +144,11 @@ def slide_03_mte_intro(prs):
         font_size=13, color=TEXT_MUTE, italic=True, align=PP_ALIGN.CENTER
     )
     add_speaker_note(s,
-        "El MTE instala sensores en cada institución que registran cuánta energía se "
-        "consume y cuánta producen los paneles, cada dos minutos. Un mes completo. "
-        "Agosto del año pasado. Eso nos da 744 horas de datos reales — no encuestas, "
-        "no estimaciones, datos medidos acá en Pasto."
+        "El proyecto MTE lo conforman 5 instituciones de Pasto: Udenar, Mariana, UCC, "
+        "el Hospital Universitario y Cesmag. En agosto de 2025 instalamos sensores en "
+        "cada una y durante un mes completo registramos cada dos minutos cuánta energía "
+        "se consumía y cuánta generaban los paneles. Eso nos da 744 horas de datos "
+        "reales — no encuestas, no estimaciones nacionales, datos medidos acá en Pasto."
     )
     return s
 
@@ -175,10 +176,11 @@ def slide_04_que_es_mte(prs):
         add_textbox(s, rest, Inches(3.7), y + Inches(0.2), Inches(8.8), Inches(0.6),
                     font_size=16, color=TEXT_SEC)
     add_speaker_note(s,
-        "El MTE instala sensores en cada institución que registran cuánta energía se "
-        "consume y cuánta producen los paneles, cada dos minutos. Un mes completo. "
-        "Agosto del año pasado. Eso nos da 744 horas de datos reales — no encuestas, "
-        "no estimaciones, datos medidos acá en Pasto."
+        "Estos cuatro indicadores resumen qué tan grande fue la medición. "
+        "9.9 kilovatios de paneles, cinco instituciones, una lectura cada dos minutos "
+        "durante agosto completo. Eso da 744 horas. ¿Por qué agosto? Es el mes de mayor "
+        "irradiancia solar en Pasto y con las cinco instituciones en plena actividad. "
+        "Los datos se agruparon por hora para el análisis — sin perder la resolución."
     )
     return s
 
@@ -425,8 +427,9 @@ def slide_10_resultado_principal(prs):
     add_speaker_note(s,
         "Aquí están los resultados. En agosto 2025, con la cobertura solar del caso "
         "de estudio, P2P genera 5.94 millones de pesos de beneficio neto para las "
-        "cinco instituciones. C2 genera 5.75 y C1 genera 5.63 millones. P2P gana "
-        "por un 5.5% sobre la regulación individual y un 3.3% sobre la colectiva. "
+        "cinco instituciones. C2 genera 5.75 y C1 genera 5.63 millones. "
+        "P2P gana 5.5% sobre C1 (la regulación individual) y 3.3% sobre C2 "
+        "(la colectiva); C2 a su vez gana 2.1% sobre C1. "
         "Importante: el autoconsumo — los 4.12 millones — es idéntico en los tres. "
         "La diferencia completa viene del excedente. La figura lo visualiza."
     )

@@ -1,8 +1,7 @@
-from pptx.util import Inches, Pt, Emu
+from pptx.util import Inches, Pt
 from pptx.dml.color import RGBColor
 from pptx.enum.text import PP_ALIGN
-from pptx.oxml.ns import qn
-from lxml import etree
+from pptx.enum.shapes import MSO_AUTO_SHAPE_TYPE
 
 # Paleta oscura (consistente con figuras del paper)
 BG        = RGBColor(0x0F, 0x17, 0x2A)   # fondo principal
@@ -61,7 +60,7 @@ def add_title(slide, text, color=TEXT_PRI, size=36):
 
 def add_image(slide, path, left, top, width, height=None):
     """Inserta imagen; si height=None la escala por ancho."""
-    if height:
+    if height is not None:
         return slide.shapes.add_picture(str(path), left, top, width, height)
     return slide.shapes.add_picture(str(path), left, top, width)
 
@@ -76,7 +75,7 @@ def add_speaker_note(slide, text):
 def add_rect(slide, left, top, width, height, fill_color, border_color=None, border_pt=0):
     """Agrega un rectángulo de color sólido."""
     shape = slide.shapes.add_shape(
-        1,  # MSO_SHAPE_TYPE.RECTANGLE
+        MSO_AUTO_SHAPE_TYPE.RECTANGLE,
         left, top, width, height
     )
     shape.fill.solid()

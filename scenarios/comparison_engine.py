@@ -447,6 +447,23 @@ def run_comparison(
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _effective_buyer_prices(pi_star, buyer_ids, pi_gs_v, k_local):
+    """CAL-35 (ADR-0035): precio efectivo por comprador en el settlement.
+
+        pi_eff[i] = min(pi_star[i], pi_gs[i, k])
+
+    El juego (Stackelberg+RD, fiel a Chacón ec. 8) acota pi_star con un
+    techo ESCALAR comunitario; un comprador real nunca paga por encima de
+    SU tarifa de red. El cap se aplica solo al contar dinero — el juego no
+    se modifica. Garantías: (a) no-op con techos homogéneos (sintético
+    1250 / paper 956) → resultados idénticos; (b) el total comunitario es
+    invariante (vendedor+comprador = pi_gs[i]·kWh, el precio se cancela);
+    (c) solo redistribuye vendedor→comprador cuando pi_star > pi_gs[i,k].
+    """
+    caps = np.array([float(pi_gs_v[i, k_local]) for i in buyer_ids])
+    return np.minimum(np.asarray(pi_star, dtype=float), caps)
+
+
 def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                            prosumer_ids,
                            pi_bolsa: Optional[np.ndarray] = None,
@@ -538,10 +555,15 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 r.pi_star is not None and np.isnan(r.pi_star).any()):
             continue
 
+        # CAL-35: precios efectivos por comprador para esta hora.
+        pi_eff = (_effective_buyer_prices(r.pi_star, r.buyer_ids,
+                                          pi_gs_v, k_local)
+                  if r.pi_star is not None else None)
+
         # Vendedores
         for idx_j, j in enumerate(r.seller_ids):
-            if r.pi_star is not None:
-                income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
+            if pi_eff is not None:
+                income = float(np.dot(pi_eff, r.P_star[idx_j, :]))
             else:
                 income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             sold = float(np.sum(r.P_star[idx_j, :]))
@@ -560,8 +582,8 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             pi_ref = float(pi_gs_v[i, k_local])
-            if r.pi_star is not None:
-                paid = r.pi_star[idx_i] * received
+            if pi_eff is not None:
+                paid = pi_eff[idx_i] * received
             else:
                 paid = received * pi_ref
             net[i] += received * pi_ref - paid
@@ -623,9 +645,13 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
     for k_local, r in enumerate(results):
         if r.P_star is None:
             continue
+        # CAL-35: precio efectivo por comprador (ver _effective_buyer_prices).
+        pi_eff = (_effective_buyer_prices(r.pi_star, r.buyer_ids,
+                                          pi_gs_v, k_local)
+                  if r.pi_star is not None else None)
         for idx_j, j in enumerate(r.seller_ids):
-            if r.pi_star is not None:
-                income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
+            if pi_eff is not None:
+                income = float(np.dot(pi_eff, r.P_star[idx_j, :]))
             else:
                 income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
             baseline = float(np.sum(r.P_star[idx_j, :])) * pi_gb
@@ -633,7 +659,7 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
             pi_ref = float(pi_gs_v[i, k_local])
-            paid     = (r.pi_star[idx_i] * received if r.pi_star is not None
+            paid     = (pi_eff[idx_i] * received if pi_eff is not None
                         else received * pi_ref)
             ahorro  += max(0.0, received * pi_ref - paid)
     return prima, ahorro

@@ -81,3 +81,20 @@ def test_flow_breakdown_usa_precio_efectivo():
     assert prima == pytest.approx(2609.0 - 546.0)
     # oficial: 0 ; comercial: (956-906)*2 = 100
     assert ahorro == pytest.approx(100.0)
+
+
+def test_csv_flujos_reporta_precio_efectivo(tmp_path):
+    from analysis.p2p_breakdown import export_p2p_hourly
+    D, G_klim, pi_gs, results = _fixture()
+    # pi_gs por agente como vector (convención del breakdown)
+    pi_gs_vec = np.array([956.0, 797.0, 956.0])
+    flows, _ = export_p2p_hourly(results, ["V", "OF", "CO"], pi_gs_vec,
+                                 PI_GB, out_dir=str(tmp_path), verbose=False)
+    por_comprador = {f["comprador"]: f for f in flows}
+    # comprador oficial: efectivo capado a 797, clearing crudo 906
+    assert por_comprador["OF"]["precio_COP_kWh"] == pytest.approx(797.0)
+    assert por_comprador["OF"]["precio_clearing_COP_kWh"] == pytest.approx(906.0)
+    assert por_comprador["OF"]["ahorro_comprador_COP"] == pytest.approx(0.0)
+    # comprador comercial: 906 ≤ 956, sin cap
+    assert por_comprador["CO"]["precio_COP_kWh"] == pytest.approx(906.0)
+    assert por_comprador["CO"]["ahorro_comprador_COP"] == pytest.approx(100.0)

@@ -134,7 +134,11 @@ def export_p2p_hourly(
                 kwh_ij = float(P_star[j_idx, i_idx])
                 if kwh_ij < 1e-6:
                     continue
-                precio_i    = float(pi_star[i_idx])
+                precio_clearing = float(pi_star[i_idx])
+                # CAL-35 (ADR-0035): el settlement capa el precio del
+                # comprador a su tarifa; el CSV reporta el efectivo y
+                # conserva el clearing crudo para trazabilidad.
+                precio_i    = min(precio_clearing, float(pi_gs_v[i]))
                 valor_cop   = kwh_ij * precio_i
                 prima_j     = kwh_ij * max(0.0, precio_i - pi_gb)
                 ahorro_i    = kwh_ij * max(0.0, pi_gs_v[i] - precio_i)
@@ -144,6 +148,7 @@ def export_p2p_hourly(
                     "comprador":          nombre_comprador,
                     "kWh_transados":      round(kwh_ij,   4),
                     "precio_COP_kWh":     round(precio_i, 2),
+                    "precio_clearing_COP_kWh": round(precio_clearing, 2),
                     "valor_COP":          round(valor_cop, 2),
                     "prima_vendedor_COP": round(prima_j,  2),
                     "ahorro_comprador_COP": round(ahorro_i, 2),
@@ -226,7 +231,7 @@ def print_p2p_sample(flows_rows: list, summary_rows: list,
 
 _FLOWS_COLS = [
     "hora", "vendedor", "comprador",
-    "kWh_transados", "precio_COP_kWh", "valor_COP",
+    "kWh_transados", "precio_COP_kWh", "precio_clearing_COP_kWh", "valor_COP",
     "prima_vendedor_COP", "ahorro_comprador_COP",
 ]
 

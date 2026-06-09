@@ -54,7 +54,8 @@ def _save(fig, path: str, dpi: int | None = None) -> str:
     llamado antes, rcParams['savefig.dpi']=300 y se exporta tambien
     PDF vectorial junto al PNG (sibling con extension .pdf).
     """
-    actual_dpi = dpi if dpi is not None else int(plt.rcParams.get("savefig.dpi", 150))
+    _sd = plt.rcParams.get("savefig.dpi", 150)
+    actual_dpi = dpi if dpi is not None else (int(_sd) if isinstance(_sd, (int, float)) else 150)
     fig.savefig(path, dpi=actual_dpi, bbox_inches="tight",
                 facecolor="white", edgecolor="none")
     if actual_dpi >= 300 and str(path).lower().endswith(".png"):

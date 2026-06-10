@@ -229,15 +229,24 @@ def check_c2(tier, ds, results, sample_hours=None) -> list:
                 endpoints[k] = (P_c, pi_c)
 
     relP_list, relpi_int, n_clip = [], [], 0
+    relM_list = []   # matriz completa (INFO: el split P_ij es degenerado)
     for k in hours:
         if k not in endpoints:
             continue
         r = results[k]
         P_c = np.clip(endpoints[k][0], 0.0, None)
         pi_c = np.clip(endpoints[k][1], gr.pi_gb, gr.pi_gs)
-        nP = float(np.linalg.norm(r.P_star))
-        relP = float(np.linalg.norm(P_c - r.P_star)) / (nP + 1e-12)
+        # MARGINALES, no matriz completa: el emparejamiento P_ij es
+        # degenerado (S2 tier 1: dP=0.32 con dπ=0.0 — mismo equilibrio
+        # económico, distinto split). Lo determinado: ventas por vendedor
+        # (filas) y compras por comprador (columnas).
+        marg_a = np.concatenate([r.P_star.sum(axis=1), r.P_star.sum(axis=0)])
+        marg_c = np.concatenate([P_c.sum(axis=1), P_c.sum(axis=0)])
+        relP = float(np.linalg.norm(marg_c - marg_a)) / \
+            (float(np.linalg.norm(marg_a)) + 1e-12)
         relP_list.append(relP)
+        nP = float(np.linalg.norm(r.P_star))
+        relM_list.append(float(np.linalg.norm(P_c - r.P_star)) / (nP + 1e-12))
         # Δπ solo donde el precio alternante es interior (>1% dentro de banda)
         interior = (r.pi_star > gr.pi_gb + 0.01 * band) & \
                    (r.pi_star < gr.pi_gs - 0.01 * band)
@@ -259,12 +268,15 @@ def check_c2(tier, ds, results, sample_hours=None) -> list:
             verdict = "WARN"
         rows.append(CheckResult(
             "C2", "equivalencia", ds["name"],
-            f"‖ΔP*‖ rel acoplada-vs-alternancia ({len(relP_list)} h, "
+            f"Δ marginales acoplada-vs-alternancia ({len(relP_list)} h, "
             f"{n_fail} fallas ODE)",
             f"med={medP:.4f} max={maxP:.4f}",
-            "mediana<=5% y max<=15%", verdict, tier, time.time() - t0,
+            "mediana<=5% y max<=15% (marginales; split P_ij degenerado)",
+            verdict, tier, time.time() - t0,
             detail=f"horas>5%: {n_soft}; horas con π* 100% clipeado "
-                   f"(excluidas de Δπ): {n_clip}"))
+                   f"(excluidas de Δπ): {n_clip}; Δmatriz completa (INFO): "
+                   f"med={float(np.median(relM_list)):.4f} "
+                   f"max={float(np.max(relM_list)):.4f}"))
         if relpi_int:
             medpi = float(np.median(relpi_int))
             maxpi = float(np.max(relpi_int))

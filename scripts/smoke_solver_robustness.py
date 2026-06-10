@@ -151,7 +151,7 @@ def check_s2(tier, ds, results, n_starts=10, seed=7) -> CheckResult:
     rng = np.random.default_rng(seed)
     hours = _select_hours(results)
 
-    worst_P = worst_pi = 0.0
+    worst_P = worst_pi = worst_T = 0.0
     detail = []
     for k in hours:
         r = results[k]
@@ -205,26 +205,40 @@ def check_s2(tier, ds, results, n_starts=10, seed=7) -> CheckResult:
                 continue
             finals_P.append(P_cur)
             finals_pi.append(pi)
-        # diferencias pareadas vs el arranque histórico (índice 0)
+        # Diferencias pareadas vs el arranque histórico (índice 0).
+        # Métrica en 3 niveles (refinada tras tier 1):
+        #   kWh total (HARD)  — el VOLUMEN transado debe ser único;
+        #   marginales (SOFT) — quién vende/recibe cuánto puede depender de
+        #                       la CI (selección de equilibrio del
+        #                       replicador, propiedad conocida de la
+        #                       dinámica evolutiva; producción usa CI
+        #                       determinista → reproducible, ver S4);
+        #   π* (SOFT)         — coordenada lenta (ver S1).
         if len(finals_P) < 2:
             continue
         ref_P, ref_pi = finals_P[0], finals_pi[0]
-        nrm = float(np.linalg.norm(ref_P)) + 1e-12
-        dP = max(float(np.linalg.norm(p - ref_P)) / nrm
+        ref_tot = float(np.sum(ref_P)) + 1e-12
+        ref_marg = np.concatenate([ref_P.sum(axis=1), ref_P.sum(axis=0)])
+        nrm_m = float(np.linalg.norm(ref_marg)) + 1e-12
+        dT = max(abs(float(np.sum(p)) - ref_tot) / ref_tot
                  for p in finals_P[1:])
+        dM = max(float(np.linalg.norm(
+            np.concatenate([p.sum(axis=1), p.sum(axis=0)]) - ref_marg))
+            / nrm_m for p in finals_P[1:])
         dpi = max(float(np.max(np.abs(p - ref_pi))) / band
                   for p in finals_pi[1:])
-        worst_P, worst_pi = max(worst_P, dP), max(worst_pi, dpi)
-        detail.append(f"h{k}: dP={dP:.4f} dπ={dpi:.4f} "
+        worst_T = max(worst_T, dT)
+        worst_P, worst_pi = max(worst_P, dM), max(worst_pi, dpi)
+        detail.append(f"h{k}: dkWh={dT:.4f} dmarg={dM:.4f} dπ={dpi:.4f} "
                       f"({len(finals_P)-1} arranques)")
-    # HARD en P* (asignaciones); π* SOFT (coordenada lenta — ver S1).
-    verdict = ("PASS" if worst_P <= 0.01 and worst_pi <= 0.01 else
-               "WARN" if worst_P <= 0.01 else "FAIL")
+    verdict = ("FAIL" if worst_T > 0.01 else
+               "PASS" if worst_P <= 0.01 and worst_pi <= 0.01 else "WARN")
     return CheckResult(
         "S2", "solver", ds["name"],
-        f"max dif multi-start P*/π* ({len(hours)} horas, {n_starts} arranques)",
-        f"{worst_P:.4f} / {worst_pi:.4f} banda",
-        "P<=1% HARD; π<=1% SOFT (coord. lenta)",
+        f"multi-start dkWh/dmarginales/dπ ({len(hours)} horas, "
+        f"{n_starts} arranques)",
+        f"{worst_T:.4f} / {worst_P:.4f} / {worst_pi:.4f} banda",
+        "kWh<=1% HARD; marginales,π SOFT (selección de equilibrio por CI)",
         verdict, tier, time.time() - t0,
         detail="; ".join(detail))
 

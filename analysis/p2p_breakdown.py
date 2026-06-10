@@ -66,7 +66,23 @@ def export_p2p_hourly(
     """
     flows_rows   = []
     summary_rows = []
-    pi_gs_v = as_pi_gs_vector(pi_gs, len(agent_names))
+    # CAL-38 (ADR-0038, smoke P5): si llega la matriz (N, T) de CAL-9, el
+    # techo CAL-35 del CSV usa la tarifa DEL MES de cada trade — igual que
+    # el settlement del engine. Con vector (N,) o escalar se conserva el
+    # comportamiento histórico (cap estático; el smoke P5 midió 218/4790
+    # trades ≈ 4.6 % con cap promedio ≠ cap mensual en COB-M1).
+    _pi_gs_arr = np.asarray(pi_gs, dtype=float) \
+        if not np.isscalar(pi_gs) else None
+    _pi_gs_mat = _pi_gs_arr if (_pi_gs_arr is not None
+                                and _pi_gs_arr.ndim == 2) else None
+    pi_gs_v = (as_pi_gs_vector(_pi_gs_mat.mean(axis=1), len(agent_names))
+               if _pi_gs_mat is not None
+               else as_pi_gs_vector(pi_gs, len(agent_names)))
+
+    def _cap(i: int, hora: int) -> float:
+        if _pi_gs_mat is not None and 0 <= hora < _pi_gs_mat.shape[1]:
+            return float(_pi_gs_mat[i, hora])
+        return float(pi_gs_v[i])
 
     for r in p2p_results:
         hora = r.k
@@ -138,10 +154,12 @@ def export_p2p_hourly(
                 # CAL-35 (ADR-0035): el settlement capa el precio del
                 # comprador a su tarifa; el CSV reporta el efectivo y
                 # conserva el clearing crudo para trazabilidad.
-                precio_i    = min(precio_clearing, float(pi_gs_v[i]))
+                # CAL-38: tarifa del MES del trade si hay matriz CAL-9.
+                cap_i       = _cap(i, hora)
+                precio_i    = min(precio_clearing, cap_i)
                 valor_cop   = kwh_ij * precio_i
                 prima_j     = kwh_ij * max(0.0, precio_i - pi_gb)
-                ahorro_i    = kwh_ij * max(0.0, pi_gs_v[i] - precio_i)
+                ahorro_i    = kwh_ij * max(0.0, cap_i - precio_i)
                 flows_rows.append({
                     "hora":               hora,
                     "vendedor":           nombre_vendedor,

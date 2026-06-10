@@ -95,6 +95,12 @@ def run_comparison(
     cot_component: Union[float, np.ndarray, None] = None,
     mem_costs:     Union[float, np.ndarray, None] = None,
     cot_alpha:     float = 1.0,
+    # ── CAL-37 (ADR-0037): escenario C5 AGR (CREG 101 099/2026) ─────────
+    # Default OFF: el paper no usa run_comparison, pero el OFF garantiza
+    # que ningún caller existente cambie de comportamiento.
+    include_c5:    bool = False,
+    pi_escasez:    Optional[np.ndarray] = None,   # (T,) PES mensual→horario
+    f_split_c5:    float = 0.5,
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -227,6 +233,26 @@ def run_comparison(
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
     cr.net_benefit_per_agent["C4"] = c4_net
 
+    # ── C5 (CAL-37, ADR-0037): AGR CREG 101 099/2026 ────────────────────
+    c5 = None
+    c5_net = None
+    if include_c5:
+        from .scenario_c5_agr_creg101099 import run_c5_agr_creg101099
+        c5 = run_c5_agr_creg101099(
+            D, G_klim, pi_gs_v,
+            pi_bolsa if pi_bolsa is not None else np.full(T, float(pi_gb)),
+            g_component=g_component if g_component is not None else 0.0,
+            cvm_component=cvm_component if cvm_component is not None else 0.0,
+            cot_component=cot_component if cot_component is not None else 0.0,
+            mem_costs=mem_costs if mem_costs is not None else 0.0,
+            cot_alpha=cot_alpha, f_split=f_split_c5, pi_escasez=pi_escasez,
+            prosumer_ids=prosumer_ids,
+        )
+        c5_net = np.array([c5["per_agent"][n]["net_benefit"]
+                           for n in range(N)])
+        cr.net_benefit["C5"]           = float(np.sum(c5_net))
+        cr.net_benefit_per_agent["C5"] = c5_net
+
     # ── P2P ─────────────────────────────────────────────────────────────
     # CAL-30 (ADR-0030): default mode="canonical" — net_benefit incluye
     # revenue completo del trade + residual surplus a pi_bolsa horario,
@@ -259,7 +285,7 @@ def run_comparison(
 
     sc_base = _sc_index_static(G_klim, D)
     ss_base = _ss_index_static(G_klim, D)
-    for esc in ["C1", "C2", "C3", "C4"]:
+    for esc in ["C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else []):
         cr.self_consumption[esc] = sc_base
         cr.self_sufficiency[esc] = ss_base
 
@@ -328,8 +354,9 @@ def run_comparison(
 
     if len(consumer_ids) > 0:
         # Comunidad mixta (prosumidores + consumidores puros): fórmula original
-        for esc, net in [("C1", c1_net), ("C2", c2_net),
-                         ("C3", c3_net), ("C4", c4_net)]:
+        for esc, net in ([("C1", c1_net), ("C2", c2_net),
+                          ("C3", c3_net), ("C4", c4_net)]
+                         + ([("C5", c5_net)] if include_c5 else [])):
             s_gen  = float(np.sum(net[prosumer_ids]))
             s_cons = float(np.sum(net[consumer_ids]))
             total  = abs(s_gen) + abs(s_cons)
@@ -343,8 +370,9 @@ def run_comparison(
         high_cov = [n for n in prosumer_ids if gd_ratio[n] >= gd_median]  # vendedores natos
         low_cov  = [n for n in prosumer_ids if gd_ratio[n] <  gd_median]  # compradores natos
 
-        for esc, net in [("C1", c1_net), ("C2", c2_net),
-                         ("C3", c3_net), ("C4", c4_net)]:
+        for esc, net in ([("C1", c1_net), ("C2", c2_net),
+                          ("C3", c3_net), ("C4", c4_net)]
+                         + ([("C5", c5_net)] if include_c5 else [])):
             s_alta = float(np.sum(net[high_cov])) if high_cov else 0.0
             s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
             total  = abs(s_alta) + abs(s_baja)
@@ -353,8 +381,9 @@ def run_comparison(
     # ── Gini (Índice de desigualdad, propuesta §VI.C Nivel 2) ───────────────
     # Se calcula sobre beneficios netos por agente para todos los escenarios.
     # Gini=0: todos los agentes ganan lo mismo; Gini=1: máxima concentración.
-    for esc, net in [("P2P", p2p_net), ("C1", c1_net),
-                     ("C2", c2_net), ("C3", c3_net), ("C4", c4_net)]:
+    for esc, net in ([("P2P", p2p_net), ("C1", c1_net),
+                      ("C2", c2_net), ("C3", c3_net), ("C4", c4_net)]
+                     + ([("C5", c5_net)] if include_c5 else [])):
         cr.gini[esc] = gini_index(net)
 
     # ── Desglose de flujos por componente (Activity 3.2 — Nivel 1) ──────────
@@ -410,6 +439,12 @@ def run_comparison(
             "Permutación":    c1_permutacion,
             "Excedente neto": c1_excedente,
         },
+        # CAL-37: C2 cableado al desglose (gap detectado por el autor).
+        "C2": {
+            "Autoconsumo + ingreso PPA": c2["aggregate"]["total_savings_gen"],
+            "Ahorro no-regulado (PPA)":  c2["aggregate"]["total_savings_ppa"],
+            "Excedente bolsa":           c2["aggregate"]["total_grid_revenue"],
+        },
         "C3": {
             "Autoconsumo":     c3_auto_total,
             "Excedente bolsa": c3_excedente,
@@ -420,6 +455,12 @@ def run_comparison(
             "Excedente bolsa": c4_excedente,
         },
     }
+    if include_c5 and c5 is not None:
+        cr.flow_breakdown["C5"] = {
+            "Autoconsumo":       c5["aggregate"]["total_autoconsumo"],
+            "Compensación AGR":  c5["aggregate"]["total_compensacion"],
+            "Excedente bolsa":   c5["aggregate"]["total_residual_bolsa"],
+        }
 
     # ── Act 3.3: Bienestar de optimización (Nivel 2 — u.o.) ─────────────
     # Acumula los valores W_j y W_i calculados por el motor P2P hora a hora.
@@ -756,12 +797,15 @@ def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
     print("  (muestra cómo se genera el beneficio neto en cada escenario)")
     print("="*68)
 
-    esc_order = ["P2P", "C1", "C3", "C4"]
+    # CAL-37: orden canónico, pero solo se imprimen los presentes en el dict
+    esc_order = ["P2P", "C1", "C2", "C3", "C4", "C5"]
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1":  "C1  CREG 174 — AGPE",
+        "C2":  "C2  Bilateral PPA (no regulado)",
         "C3":  "C3  Mercado spot",
         "C4":  "C4  CREG 101 072 — AGRC",
+        "C5":  "C5  CREG 101 099 — AGR",
     }
     col_w = 16
 

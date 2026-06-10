@@ -37,30 +37,71 @@ from smoke_common import (
 HOUR_BASE = 13   # hora 14 sintética (la del golden) como base de P1/P2
 
 
+SOLVE_TIMEOUT_S = 60      # tope por solve (SIGALRM, Linux)
+VOLUME_FLOOR_KWH = 0.05   # mercados degenerados quedan fuera del barrido
+
+
 def _solve_fixture_hour(G_net, D_net, a_j, b_j, etha_i, pi_gs, pi_gb,
                         sv=None):
-    """Resuelve una hora aislada con el loop Stackelberg de producción."""
+    """Resuelve una hora aislada con el loop Stackelberg de producción.
+
+    Blindajes (lección server 2026-06-10, OOM kill silencioso):
+    - ``return_traj=True`` en solve_sellers fuerza ``t_eval`` → scipy solo
+      almacena n_points; sin t_eval, en fixtures extremos (D_net minúscula
+      → ultra-stiff) LSODA acumula MILLONES de pasos internos y explota la
+      RAM (observado: 1.9 GB y subiendo en el server).
+    - tope de 60 s por solve vía SIGALRM (Linux); el punto que no converge
+      a tiempo retorna None y el barrido sigue con los demás.
+    - piso de volumen: mercados degenerados (< 0.05 kWh del lado corto)
+      no se barren — la monotonía económica no se define ahí.
+    """
+    import signal
     from core.replicator_sellers import solve_sellers
     from core.replicator_buyers import solve_buyers
     sv = sv or make_solver()
+
+    if min(float(np.sum(G_net)), float(np.sum(D_net))) < VOLUME_FLOOR_KWH:
+        return None, None
+
+    use_alarm = hasattr(signal, "SIGALRM")
+
+    class _Timeout(Exception):
+        pass
+
+    def _handler(signum, frame):                           # pragma: no cover
+        raise _Timeout()
+
+    if use_alarm:
+        signal.signal(signal.SIGALRM, _handler)
+
     I = len(D_net)
     P = (np.tile(D_net / len(G_net), (len(G_net), 1))
          if np.sum(G_net) >= np.sum(D_net)
          else np.tile(G_net / I, (I, 1)).T)
     P = np.clip(P, 1e-10, None)
     pi = np.full(I, pi_gb)
-    for it in range(sv.stackelberg_max):
-        P_old = P.copy()
-        P = solve_sellers(pi, G_net, D_net, a_j, b_j, tau=sv.tau,
-                          t_span=sv.t_span, n_points=sv.n_points,
-                          method=sv.ode_method)
-        pi = solve_buyers(P, a_j, b_j, etha_i, pi_gs=pi_gs, pi_gb=pi_gb,
-                          tau=sv.tau_buyers, t_span=sv.t_span,
-                          n_points=sv.n_points)
-        pi = np.clip(pi, pi_gb, pi_gs)
-        nr = np.linalg.norm(P - P_old) / (np.linalg.norm(P_old) + 1e-9)
-        if it + 1 >= sv.stackelberg_iters and nr < sv.stackelberg_tol:
-            break
+    try:
+        for it in range(sv.stackelberg_max):
+            P_old = P.copy()
+            if use_alarm:
+                signal.alarm(SOLVE_TIMEOUT_S)
+            P, _, _ = solve_sellers(pi, G_net, D_net, a_j, b_j, tau=sv.tau,
+                                    t_span=sv.t_span, n_points=sv.n_points,
+                                    method=sv.ode_method, return_traj=True)
+            pi = solve_buyers(P, a_j, b_j, etha_i, pi_gs=pi_gs, pi_gb=pi_gb,
+                              tau=sv.tau_buyers, t_span=sv.t_span,
+                              n_points=sv.n_points)
+            if use_alarm:
+                signal.alarm(0)
+            pi = np.clip(pi, pi_gb, pi_gs)
+            nr = np.linalg.norm(P - P_old) / (np.linalg.norm(P_old) + 1e-9)
+            if it + 1 >= sv.stackelberg_iters and nr < sv.stackelberg_tol:
+                break
+    except Exception:                                      # noqa: BLE001
+        return None, None
+    finally:
+        if use_alarm:
+            signal.alarm(0)
     if np.isnan(P).any() or np.isnan(pi).any():
         return None, None
     return P, pi
@@ -107,6 +148,12 @@ def check_p1(tier) -> list:
         pis.append(float(np.mean(pi)))
         used.append(float(r_target))
     pis = np.array(pis); used = np.array(used)
+    if len(pis) < 5:
+        return [CheckResult(
+            "P1", "precios", "FIX-h14",
+            f"monotonía: solo {len(pis)}/10 puntos resolubles "
+            f"(timeout/piso de volumen)",
+            "insuficiente", ">=5 puntos", "WARN", tier, time.time() - t0)]
     rho = _spearman(used, pis)
     worst_drop = 0.0
     for i in range(1, len(pis)):

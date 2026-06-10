@@ -86,37 +86,64 @@ def run_tier(tier: int, only: str | None) -> list:
     if tier == 0:
         return tier0()
 
+    def _run_eje(nombre, fn):
+        """Ejecuta un eje y GUARDA INCREMENTALMENTE (los veredictos
+        sobreviven si un eje posterior crashea — lección server 2026-06-10:
+        muerte silenciosa en P1 perdió el eje de equivalencia completo)."""
+        print(f"\n  ── eje {nombre} ──")
+        t_eje = time.time()
+        eje_rows = fn()
+        save_results(eje_rows, tier)
+        rows.extend(eje_rows)
+        for r in eje_rows:
+            print(f"  {r.id} [{r.datos}] {r.verdict}: {r.value}")
+        print(f"  ── eje {nombre}: {len(eje_rows)} checks "
+              f"({time.time()-t_eje:.0f}s) ──")
+
     if tier == 1:
         _ensure_oracle(real=False)
         ds = ["SYN"]
         if only in (None, "reparto"):
-            rows += smoke_settlement.run_checks(1, ds)
+            _run_eje("reparto", lambda: smoke_settlement.run_checks(1, ds))
         if only in (None, "equivalencia"):
-            rows += smoke_equivalence.run_checks(1, ds, c2_all=True)
+            _run_eje("equivalencia",
+                     lambda: smoke_equivalence.run_checks(1, ds, c2_all=True))
         if only in (None, "precios"):
-            rows += smoke_price_dynamics.run_checks(1, ds)
+            _run_eje("precios",
+                     lambda: smoke_price_dynamics.run_checks(1, ds))
         if only in (None, "solver"):
-            rows += smoke_solver_robustness.run_checks(1, ds)
+            _run_eje("solver",
+                     lambda: smoke_solver_robustness.run_checks(1, ds))
     elif tier == 2:
         _ensure_oracle(real=True)
         if only in (None, "reparto"):
-            rows += smoke_settlement.run_checks(2, ["COB-M1"])
+            _run_eje("reparto",
+                     lambda: smoke_settlement.run_checks(2, ["COB-M1"]))
         if only in (None, "equivalencia"):
-            rows += smoke_equivalence.run_checks(2, ["COB-M1"], c2_all=True)
+            _run_eje("equivalencia",
+                     lambda: smoke_equivalence.run_checks(
+                         2, ["COB-M1"], c2_all=True))
         if only in (None, "precios"):
-            rows += smoke_price_dynamics.run_checks(2, ["COB-M1"])
+            _run_eje("precios",
+                     lambda: smoke_price_dynamics.run_checks(2, ["COB-M1"]))
         if only in (None, "solver"):
-            rows += smoke_solver_robustness.run_checks(
-                2, ["ago-2025", "COB-M1"])
+            _run_eje("solver",
+                     lambda: smoke_solver_robustness.run_checks(
+                         2, ["ago-2025", "COB-M1"]))
     elif tier == 3:
         if only in (None, "reparto"):
-            rows += smoke_settlement.run_checks(3, ["COB-M3"])
+            _run_eje("reparto",
+                     lambda: smoke_settlement.run_checks(3, ["COB-M3"]))
         if only in (None, "equivalencia"):
-            rows += smoke_equivalence.run_checks(3, ["COB-M3"], c2_all=True)
+            _run_eje("equivalencia",
+                     lambda: smoke_equivalence.run_checks(
+                         3, ["COB-M3"], c2_all=True))
         if only in (None, "precios"):
-            rows += smoke_price_dynamics.run_checks(3, ["COB-M3"])
+            _run_eje("precios",
+                     lambda: smoke_price_dynamics.run_checks(3, ["COB-M3"]))
         if only in (None, "solver"):
-            rows += smoke_solver_robustness.run_checks(3, ["COB-M3"])
+            _run_eje("solver",
+                     lambda: smoke_solver_robustness.run_checks(3, ["COB-M3"]))
     else:
         raise SystemExit(f"tier {tier} desconocido")
     return rows

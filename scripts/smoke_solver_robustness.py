@@ -219,7 +219,32 @@ def check_s2(tier, ds, results, n_starts=10, seed=7) -> CheckResult:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def check_s3(tier, ds, results) -> CheckResult:
+    """rtol/atol del acoplado. Cada solve con tope de 90 s (SIGALRM, Linux)
+    — mismo blindaje que el worker C2: las horas stiff pueden arrastrarse
+    >5 min sin converger y S3 corre en el proceso principal."""
+    import signal
     from core.coupled_ode_convergence import solve_coupled_for_hour
+
+    use_alarm = hasattr(signal, "SIGALRM")
+
+    class _Timeout(Exception):
+        pass
+
+    def _handler(signum, frame):                           # pragma: no cover
+        raise _Timeout()
+
+    if use_alarm:
+        signal.signal(signal.SIGALRM, _handler)
+
+    def _solve(**kwargs):
+        try:
+            if use_alarm:
+                signal.alarm(90)
+            return solve_coupled_for_hour(**kwargs)
+        finally:
+            if use_alarm:
+                signal.alarm(0)
+
     t0 = time.time()
     gr, ag = ds["grid"], ds["agents"]
     sv = make_solver()
@@ -240,11 +265,14 @@ def check_s3(tier, ds, results) -> CheckResult:
                   tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
                   t_span=(0.0, 0.04), n_points=50, method="LSODA")
         try:
-            base = solve_coupled_for_hour(rtol=1e-6, atol=1e-9, **kw)
+            base = _solve(rtol=1e-6, atol=1e-9, **kw)
             if not base.success:
                 continue
             for rt, at in ((1e-8, 1e-9), (1e-6, 1e-12), (1e-8, 1e-12)):
-                alt = solve_coupled_for_hour(rtol=rt, atol=at, **kw)
+                try:
+                    alt = _solve(rtol=rt, atol=at, **kw)
+                except Exception:                          # noqa: BLE001
+                    continue
                 if not alt.success:
                     continue
                 nP = float(np.linalg.norm(base.P_star)) + 1e-12

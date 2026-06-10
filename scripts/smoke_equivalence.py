@@ -110,11 +110,37 @@ def check_c1(tier, ds, results, ref_path, hard: bool) -> CheckResult:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# C2 — alternancia vs ODE acoplada
+# C2 — alternancia vs ODE acoplada (paralelizado por hora)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def check_c2(tier, ds, results, sample_hours=None) -> list:
+def _c2_hour_worker(args):
+    """Worker top-level (picklable). Resuelve el acoplado para una hora con
+    cascada de reintentos. Primer intento: LSODA sobre [0, 0.01] — la
+    ventana ORIGINAL de JoinFinal.m:128 (la de 0.04 s es solo para
+    visualizar transitorios y resulta ~4-10x más cara en horas stiff;
+    medido localmente: hasta ~3.6 min/hora con la cascada vieja)."""
     from core.coupled_ode_convergence import solve_coupled_for_hour
+    (k, G_net, D_net, a_j, b_j, lam_j, theta_j, G_klim_i,
+     lam_i, theta_i, etha_i, pi_gs, pi_gb, tau_s, tau_b) = args
+    kw = dict(G_net_j=G_net, D_net_i=D_net, a_j=a_j, b_j=b_j,
+              lam_j=lam_j, theta_j=theta_j, G_klim_i=G_klim_i,
+              lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
+              pi_gs=pi_gs, pi_gb=pi_gb,
+              tau_sellers=tau_s, tau_buyers=tau_b, n_points=50)
+    for t_span, method in (((0.0, 0.01), "LSODA"), ((0.0, 0.01), "BDF"),
+                           ((0.0, 0.04), "LSODA")):
+        try:
+            cpl = solve_coupled_for_hour(t_span=t_span, method=method, **kw)
+            if cpl.success and np.isfinite(cpl.P_star).all() \
+                    and np.isfinite(cpl.pi_star).all():
+                return k, cpl.P_star, cpl.pi_star
+        except Exception:                                  # noqa: BLE001
+            continue
+    return k, None, None
+
+
+def check_c2(tier, ds, results, sample_hours=None) -> list:
+    from concurrent.futures import ProcessPoolExecutor, as_completed
     t0 = time.time()
     ag, gr = ds["agents"], ds["grid"]
     sv = make_solver()
@@ -123,29 +149,41 @@ def check_c2(tier, ds, results, sample_hours=None) -> list:
     hours = act if sample_hours is None else \
         [k for k in act if k in set(sample_hours)]
 
-    relP_list, relpi_int, n_clip, n_fail = [], [], 0, 0
+    jobs = []
     for k in hours:
         r = results[k]
         G_net, D_net = _net_arrays(r)
-        try:
-            cpl = solve_coupled_for_hour(
-                G_net_j=G_net, D_net_i=D_net,
-                a_j=ag.a[r.seller_ids], b_j=ag.b[r.seller_ids],
-                lam_j=ag.lam[r.seller_ids], theta_j=ag.theta[r.seller_ids],
-                G_klim_i=r.G_klim_k[r.buyer_ids],
-                lam_i=ag.lam[r.buyer_ids], theta_i=ag.theta[r.buyer_ids],
-                etha_i=ag.etha[r.buyer_ids],
-                pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
-                tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
-                t_span=(0.0, 0.04), n_points=50, method="LSODA")
-            if not cpl.success:
+        jobs.append((k, G_net, D_net,
+                     ag.a[r.seller_ids], ag.b[r.seller_ids],
+                     ag.lam[r.seller_ids], ag.theta[r.seller_ids],
+                     r.G_klim_k[r.buyer_ids],
+                     ag.lam[r.buyer_ids], ag.theta[r.buyer_ids],
+                     ag.etha[r.buyer_ids],
+                     float(gr.pi_gs), float(gr.pi_gb), sv.tau, sv.tau_buyers))
+
+    endpoints = {}
+    n_fail = 0
+    done = 0
+    with ProcessPoolExecutor() as ex:
+        futs = [ex.submit(_c2_hour_worker, j) for j in jobs]
+        for f in as_completed(futs):
+            k, P_c, pi_c = f.result()
+            done += 1
+            if done % 10 == 0 or done == len(jobs):
+                print(f"    [C2] {done}/{len(jobs)} horas "
+                      f"({time.time()-t0:.0f}s)")
+            if P_c is None:
                 n_fail += 1
-                continue
-        except Exception:                                  # noqa: BLE001
-            n_fail += 1
+            else:
+                endpoints[k] = (P_c, pi_c)
+
+    relP_list, relpi_int, n_clip = [], [], 0
+    for k in hours:
+        if k not in endpoints:
             continue
-        P_c = np.clip(cpl.P_star, 0.0, None)
-        pi_c = np.clip(cpl.pi_star, gr.pi_gb, gr.pi_gs)
+        r = results[k]
+        P_c = np.clip(endpoints[k][0], 0.0, None)
+        pi_c = np.clip(endpoints[k][1], gr.pi_gb, gr.pi_gs)
         nP = float(np.linalg.norm(r.P_star))
         relP = float(np.linalg.norm(P_c - r.P_star)) / (nP + 1e-12)
         relP_list.append(relP)

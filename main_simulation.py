@@ -53,7 +53,7 @@ from data.cedenar_tariff import (
 
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
-         single_day: str = None):
+         single_day: str = None, paper_meters: bool = False):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -72,7 +72,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                          "MedicionesMTE_v3"),
         )
         print(f"\n[1/5] Cargando datos empíricos MTE...")
-        loader = MTEDataLoader(mte_root)
+        demand_cfg = None
+        if paper_meters:
+            # CAL-36 (ADR-0036): escenario M3 sub-medidores (cobertura ~89%),
+            # mismos medidores del paper CAL-28, pipeline de limpieza de tesis.
+            from data.preprocessing import PAPER_METER_DEMAND_CONFIG
+            demand_cfg = PAPER_METER_DEMAND_CONFIG
+            print("    [CAL-36] Escenario M3 sub-medidores (paper meters): "
+                  "demanda = circuito PV, no campus completo")
+        loader = MTEDataLoader(mte_root, demand_config=demand_cfg)
         D_full, G_full, index_full = loader.load(verbose=True)
         print_validation_report(validate_load(D_full, G_full, index_full))
 
@@ -1403,6 +1411,9 @@ if __name__ == "__main__":
                     help="Ejecutar análisis de sensibilidad global Sobol/Saltelli")
     ap.add_argument("--n-base", type=int, default=64, metavar="N",
                     help="Tamaño base muestra Saltelli (default 64 → 1024 eval.)")
+    ap.add_argument("--paper-meters", action="store_true",
+                    help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
+                         "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
     args = ap.parse_args()
 
     if args.gsa:
@@ -1425,8 +1436,9 @@ if __name__ == "__main__":
         print(f"\nGSA completado. Resultados en: {out_path}")
     elif args.day:
         main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
-             single_day=args.day)
+             single_day=args.day, paper_meters=args.paper_meters)
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
-             run_analysis=args.analysis)
+             run_analysis=args.analysis,
+             paper_meters=args.paper_meters)

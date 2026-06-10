@@ -149,6 +149,23 @@ RECONSTRUCTION_INVERTERS_CONFIG: dict[str, list[str]] = {
     "Cesmag":  [],
 }
 
+# CAL-36 (ADR-0036): escenario de cobertura "M3 sub-medidores" — los mismos
+# medidores del paper (CAL-28, data/paper_meter_config.csv) procesados con el
+# pipeline de limpieza de la tesis. Los sub-medidores miden SOLO el circuito
+# alimentado por el PV (cobertura G/D ~89%) mientras el M1 totalizador mide el
+# campus completo (~19%). La tesis reporta AMBOS como escenarios de cobertura.
+# Todos son "gross" (sin reconstrucción; el clip>=0 absorbe ruido negativo,
+# fiel al tratamiento del paper). Mariana: M3 vacío -> M1 escalado x0.3
+# (una facultad), clave "scale".
+PAPER_METER_DEMAND_CONFIG: dict[str, dict] = {
+    "Udenar":  {"subfolder": "Bloque Sur - Medidor 3 - electricMeter", "kind": "gross"},
+    "Mariana": {"subfolder": "Medidor 1 - Alvernia - electricMeter",   "kind": "gross",
+                "scale": 0.3},
+    "UCC":     {"subfolder": "Medidor 3 - UCC - electricMeter",        "kind": "gross"},
+    "HUDN":    {"subfolder": "Medidor 3 - HUDN - electricMeter",       "kind": "gross"},
+    "Cesmag":  {"subfolder": "Medidor 3 - Cesmag - electricMeter",     "kind": "gross"},
+}
+
 
 # ── Helpers de lectura ────────────────────────────────────────────────────────
 
@@ -299,6 +316,13 @@ def build_demand_generation(
                       f"({cfg_d['subfolder']})")
         elif verbose:
             print(f"  A{n} {agent}: sin carpeta de medidores")
+
+        # CAL-36: factor de escala opcional del medidor (ej. Mariana M1 x0.3
+        # en el escenario M3 sub-medidores). Default 1.0 = sin efecto.
+        if cfg_d is not None and float(cfg_d.get("scale", 1.0)) != 1.0:
+            D_raw = D_raw * float(cfg_d["scale"])
+            if verbose:
+                print(f"    [scale] demanda x{cfg_d['scale']}")
 
         # ── Generación EMS: un solo inversor ──────────────────────────
         inv_root = _find_subdir(adir, INVERTER_FOLDER[agent])

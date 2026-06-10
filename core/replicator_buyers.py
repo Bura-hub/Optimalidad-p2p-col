@@ -30,11 +30,17 @@ tolerancias declaradas en ``tests/golden_test_sofia.py``
 ``outputs/run_day_2025-08-06_1458.log`` muestra ``Σ W_i = +1 318.93``
 u.o. y convergencia RD+Stackelberg sin warnings.
 
-La corrección formal (reemplazar por ``etha * (ones - eye)`` aplicado
-sobre ``P_ij`` antes de sumar por vendedor) está pendiente del run
-``--full`` para cuantificar el diff numérico contra el golden y
-actualizar valores de IE/RPE en una sola iteración.
+ADR-0038 (campaña de smokes, 2026-06-10): la forma matricial queda
+disponible como flag opt-in ``buyer_competition="matrix"`` (default
+``"aggregate"`` = comportamiento histórico bit a bit). El smoke A2 de
+la campaña (`scripts/smoke_solver_robustness.py`) cuantifica el diff
+numérico sobre sintético + horizonte completo para cerrar o escalar
+esta deuda. El parámetro ``pi0`` (default None = CI histórica de
+JoinFinal.m) habilita el multi-start del smoke S2 (unicidad del
+equilibrio); ningún caller de producción lo usa.
 """
+
+from typing import Optional
 
 import numpy as np
 
@@ -55,6 +61,9 @@ def solve_buyers(
     t_span:      tuple = (0.0, 0.01),
     n_points:    int   = 500,
     return_traj: bool  = False,
+    # ── ADR-0038 (opt-in, defaults = comportamiento histórico) ──────────
+    buyer_competition: str = "aggregate",   # "aggregate" | "matrix"
+    pi0:         Optional[np.ndarray] = None,  # CI de precios (I,) o (I+1,)
 ):
     """
     Resuelve la dinámica de compradores con Euler implícito
@@ -63,14 +72,37 @@ def solve_buyers(
     Si return_traj=True, retorna (pi_star, t_arr, pi_traj) donde
       t_arr   : (n_points,)  eje de tiempo
       pi_traj : (I, n_points)  trayectoria de precios de compradores reales
+
+    buyer_competition (ADR-0038):
+      "aggregate" (default) — término histórico ``etha_s * sum_Pji``.
+      "matrix"              — forma matricial de JoinFinal.m:187-200 /
+                              Welfarei: ``compe_i = etha_i[i] *
+                              Σ_{k≠i} π_k · ΣP_·k`` (consistente con
+                              ``buyer_welfare`` de este módulo).
+    pi0 (ADR-0038): condición inicial de precios para multi-start.
+      None (default) = CI de JoinFinal.m (simétrica simple/(I+1)).
+      Acepta (I,) — el jugador virtual conserva su CI histórica — o (I+1,).
     """
     J, I  = P_mat.shape
     simple = pi_gs * I
 
-    # ---- Condiciones iniciales (JoinFinal.m) ----
+    if buyer_competition not in ("aggregate", "matrix"):
+        raise ValueError(
+            f"buyer_competition={buyer_competition!r}; use 'aggregate' o 'matrix'")
+
+    # ---- Condiciones iniciales (JoinFinal.m; pi0 opcional ADR-0038) ----
     pi_all   = np.full(I + 1, simple / (I + 1))   # incluye jugador virtual
+    if pi0 is not None:
+        pi0 = np.asarray(pi0, dtype=float).reshape(-1)
+        if pi0.shape[0] == I:
+            pi_all[:I] = np.clip(pi0, pi_gb, pi_gs)
+        elif pi0.shape[0] == I + 1:
+            pi_all = np.clip(pi0.copy(), pi_gb, pi_gs)
+        else:
+            raise ValueError(f"pi0 debe ser (I,) o (I+1,); recibido {pi0.shape}")
     gamma    = 0.1 * np.ones(J)
     y_filt   = np.ones(J)
+    matriz   = (np.ones((I, I)) - np.eye(I)) if buyer_competition == "matrix" else None
 
     dt = (t_span[1] - t_span[0]) / n_points
     etha_s = float(np.mean(etha_i))
@@ -93,10 +125,13 @@ def solve_buyers(
         # trestris = sum_j(y_filt_j * P_ji)  ← señal de costo filtrada
         trestris = np.array([float(np.dot(y_filt, P_mat[:, i])) for i in range(I)])
 
-        # competencia: -etha * sum_Pji  (forma agregada, A2 pendiente del --full)
-        # JoinFinal.m:187-200 usa compe = etha * matriz con matriz = ones(I,I)-eye(I).
-        # Ver nota de auditoría en el docstring del módulo.
-        compe = etha_s * sum_Pji
+        # competencia (A2): forma agregada histórica vs matricial JoinFinal.m
+        # (flag opt-in ADR-0038; ver nota de auditoría en el docstring).
+        if matriz is None:
+            compe = etha_s * sum_Pji                       # "aggregate" (histórico)
+        else:
+            # "matrix": compe_i = etha_i[i] * Σ_{k≠i} π_k · ΣP_·k
+            compe = etha_i * (matriz @ (pi_real * sum_Pji))
 
         # fitness compradores reales
         dwi = pagos - compe + trestris

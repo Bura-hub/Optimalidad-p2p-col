@@ -171,6 +171,11 @@ class SolverParams:
     stackelberg_max:   int   = 10    # iteraciones máximas (red de seguridad)
     parallel:          bool  = True
     ode_method:        str   = "LSODA"   # solver de scipy para solve_sellers
+    # ADR-0038 (campaña de smokes): forma del término de competencia de
+    # compradores. "aggregate" (default) = histórico bit a bit; "matrix" =
+    # forma matricial de JoinFinal.m:187-200 (smoke A2). Solo afecta a
+    # solve_buyers; ningún caller de producción cambia.
+    buyer_competition: str   = "aggregate"
 
 
 @dataclass
@@ -265,7 +270,7 @@ def _run_hour_worker(args):
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
-     min_iter, tol, max_iter, ode_method) = args
+     min_iter, tol, max_iter, ode_method, buyer_competition) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -300,7 +305,8 @@ def _run_hour_worker(args):
         # Algoritmo 3: RD compradores (tau_buyers = tau3 de JoinFinal.m)
         pi_i   = solve_buyers(P_star, a_j, b_j, etha_i,
                               pi_gs=pi_gs, pi_gb=pi_gb,
-                              tau=tau_buyers, t_span=t_span, n_points=n_points)
+                              tau=tau_buyers, t_span=t_span, n_points=n_points,
+                              buyer_competition=buyer_competition)
         pi_i   = np.clip(pi_i, pi_gb, pi_gs)
         iter_count += 1
         norm_rel = (np.linalg.norm(P_star - P_old)
@@ -389,7 +395,7 @@ class EMSP2P:
                          gr.pi_gs, gr.pi_gb,
                          sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                          sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
-                         sv.ode_method))
+                         sv.ode_method, sv.buyer_competition))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -518,6 +524,7 @@ class EMSP2P:
                     pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
                     tau=sv.tau, t_span=sv.t_span, n_points=sv.n_points,
                     return_traj=True,
+                    buyer_competition=sv.buyer_competition,
                 )
                 pi_i = np.clip(pi_i, gr.pi_gb, gr.pi_gs)
 
@@ -601,4 +608,4 @@ class EMSP2P:
                                   gr.pi_gs, gr.pi_gb,
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
-                                  sv.ode_method))
+                                  sv.ode_method, sv.buyer_competition))

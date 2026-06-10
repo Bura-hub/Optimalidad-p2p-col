@@ -15,6 +15,8 @@ Diferencias clave respecto a versión anterior:
   4. Constantes: VEL_GRAD=1e6, BGRANDE=1e6, VEL_RD=0.1  (JoinFinal.m)
 """
 
+from typing import Optional
+
 import numpy as np
 from scipy.integrate import solve_ivp
 
@@ -82,6 +84,8 @@ def solve_sellers(
     rng_seed:    int   = 42,
     return_traj: bool  = False,
     method:      str   = "LSODA",
+    # ── ADR-0038 (opt-in, default = comportamiento histórico) ───────────
+    P0:          Optional[np.ndarray] = None,   # CI de potencias (J, I)
 ):
     """
     Retorna P_star (J, I).
@@ -94,6 +98,12 @@ def solve_sellers(
         de MATLAB en JoinFinal.m:139). Alternativas: "Radau", "BDF", "RK45".
         VelGrad=1e6 hace el sistema stiff en los multiplicadores λ/β; los
         solvers stiff-aware aceptan pasos mayores sin perder precisión.
+
+    P0 (ADR-0038): condición inicial de potencias (J, I) para el
+        multi-start del smoke S2 (unicidad del equilibrio). None
+        (default) = CI de JoinFinal.m (reparto uniforme del lado corto).
+        Se recorta a ≥1e-10 (dominio del replicador). Ningún caller de
+        producción la usa.
     """
     J = len(G_net_j)
     I = len(D_net_i)
@@ -107,11 +117,16 @@ def solve_sellers(
             return np.zeros((J, I)), t_arr, np.zeros((J, I, n_points))
         return np.zeros((J, I))
 
-    # CI de P — idénticas a JoinFinal.m
-    if sum_G >= sum_D:
-        P0 = np.tile(D_net_i / J, (J, 1))
+    # CI de P — idénticas a JoinFinal.m (o P0 explícita, ADR-0038)
+    if P0 is None:
+        if sum_G >= sum_D:
+            P0 = np.tile(D_net_i / J, (J, 1))
+        else:
+            P0 = np.tile(G_net_j / I, (I, 1)).T
     else:
-        P0 = np.tile(G_net_j / I, (I, 1)).T
+        P0 = np.asarray(P0, dtype=float)
+        if P0.shape != (J, I):
+            raise ValueError(f"P0 debe ser (J={J}, I={I}); recibido {P0.shape}")
 
     P0 = np.clip(P0, 1e-10, None)
     lam0 = 0.1 * np.ones(J)

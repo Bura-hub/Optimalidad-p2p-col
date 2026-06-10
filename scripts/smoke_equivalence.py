@@ -1,0 +1,364 @@
+"""
+smoke_equivalence.py — EJE 2: convergencia y equivalencia con el original (C1-C5)
+==================================================================================
+ADR-0038. Verifica que la adaptación Python resuelve "parecido al modelo
+original" (JoinFinal.m / Bienestar6p.py de Chacón et al. 2025):
+
+  C1 golden_oracle          HARD(syn)/HARD-o-INFO(real)  equilibrio RD vs
+        oráculo SLSQP multi-hora (tolerancias del golden: |ΔP_total| ≤
+        max(0.15 kWh, 5% ref); precios en banda). El real degrada a INFO si
+        el oráculo se generó con >25 % de fallas (meta.degraded).
+  C2 alternancia_vs_acoplada  SOFT/hora + HARD global  CAL-7 a escala:
+        endpoint del solver acoplado (réplica JoinFinal.m:139) vs alternancia
+        de producción en TODAS las horas activas. Δπ se evalúa solo en horas
+        con π* interior (en los bordes de banda el precio es indeterminado —
+        ambos solvers clipean; se reporta aparte como INFO).
+  C3 steady_state_alcanzado  HARD  planitud del último 10 % de las
+        trayectorias de producción ≤ 0.5 % del valor final.
+  C4 estabilidad_iters       HARD  default (2,10,1e-3) vs estricto
+        (6,20,1e-5): |ΔW_money| ≤ 0.1 %, Δπ* medio ≤ 1 % banda.
+  C5 nan_guard_contable      HARD  0 horas descartadas con volumen ≥0.01 kWh;
+        tasa de descarte como INFO.
+
+Uso:
+    python scripts/smoke_equivalence.py --datasets SYN --tier 1
+    python scripts/smoke_equivalence.py --datasets COB-M1 --tier 2 [--c2-all]
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import sys
+import time
+
+import numpy as np
+
+from smoke_common import (
+    CheckResult, ROOT, VOLUME_MIN_KWH, load_dataset, make_solver,
+    run_ems_cached, active_hours, save_results, hard_failures,
+    setup_stdout_utf8,
+)
+
+REF_SYN  = os.path.join(ROOT, "Documentos", "copy", "reference_syn24.json")
+REF_REAL = os.path.join(ROOT, "Documentos", "copy",
+                        "reference_real_sample.json")
+
+# Umbral del golden existente (tests/golden_test_sofia.py)
+GOLDEN_ATOL_KWH = 0.15
+GOLDEN_RTOL     = 0.05
+
+
+def _net_arrays(r):
+    G_net = np.array([r.G_klim_k[j] - r.D_k[j] for j in r.seller_ids])
+    D_net = np.array([r.D_k[i] - r.G_klim_k[i] for i in r.buyer_ids])
+    return G_net, D_net
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C1 — oráculo SLSQP
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_c1(tier, ds, results, ref_path, hard: bool) -> CheckResult:
+    t0 = time.time()
+    if not os.path.exists(ref_path):
+        return CheckResult("C1", "equivalencia", ds["name"], "oráculo SLSQP",
+                           "sin referencia", "generar con "
+                           "scripts/generate_reference_oracle.py",
+                           "SKIP", tier, time.time() - t0)
+    with open(ref_path, encoding="utf-8") as f:
+        ref = json.load(f)
+    degraded = bool(ref["meta"].get("degraded", False))
+    scale = float(ref["meta"].get("scale", 1.0))
+    pgb = float(ds["grid"].pi_gb)
+    pgs = float(ds["grid"].pi_gs)
+
+    n_cmp = n_bad = 0
+    worst = 0.0
+    bad_hours = []
+    for k_str, h in ref["hours"].items():
+        if not h.get("ok"):
+            continue
+        k = int(k_str)
+        if k >= len(results):
+            continue
+        r = results[k]
+        if r.P_star is None or np.isnan(r.P_star).any():
+            continue
+        n_cmp += 1
+        p_ref = float(h["P_total"])
+        p_ems = float(np.sum(r.P_star))
+        tol = max(GOLDEN_ATOL_KWH, GOLDEN_RTOL * abs(p_ref))
+        dp = abs(p_ems - p_ref)
+        worst = max(worst, dp / tol)
+        in_band = bool(np.all(r.pi_star >= pgb - 1e-6)
+                       and np.all(r.pi_star <= pgs + 1e-6))
+        if dp > tol or not in_band:
+            n_bad += 1
+            bad_hours.append(f"h{k}: ΔP={dp:.3f} (tol {tol:.3f})"
+                             + ("" if in_band else " π fuera de banda"))
+    verdict = "PASS" if n_bad == 0 else ("INFO" if not hard or degraded
+                                         else "FAIL")
+    if degraded:
+        verdict = "INFO"
+    return CheckResult(
+        "C1", "equivalencia", ds["name"],
+        f"horas fuera de tolerancia golden (de {n_cmp} comparadas"
+        + (", oráculo DEGRADADO" if degraded else "") + ")",
+        str(n_bad), "0", verdict, tier, time.time() - t0,
+        detail="; ".join(bad_hours[:12]))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C2 — alternancia vs ODE acoplada
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_c2(tier, ds, results, sample_hours=None) -> list:
+    from core.coupled_ode_convergence import solve_coupled_for_hour
+    t0 = time.time()
+    ag, gr = ds["agents"], ds["grid"]
+    sv = make_solver()
+    band = float(gr.pi_gs) - float(gr.pi_gb)
+    act = active_hours(results)
+    hours = act if sample_hours is None else \
+        [k for k in act if k in set(sample_hours)]
+
+    relP_list, relpi_int, n_clip, n_fail = [], [], 0, 0
+    for k in hours:
+        r = results[k]
+        G_net, D_net = _net_arrays(r)
+        try:
+            cpl = solve_coupled_for_hour(
+                G_net_j=G_net, D_net_i=D_net,
+                a_j=ag.a[r.seller_ids], b_j=ag.b[r.seller_ids],
+                lam_j=ag.lam[r.seller_ids], theta_j=ag.theta[r.seller_ids],
+                G_klim_i=r.G_klim_k[r.buyer_ids],
+                lam_i=ag.lam[r.buyer_ids], theta_i=ag.theta[r.buyer_ids],
+                etha_i=ag.etha[r.buyer_ids],
+                pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
+                tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
+                t_span=(0.0, 0.04), n_points=50, method="LSODA")
+            if not cpl.success:
+                n_fail += 1
+                continue
+        except Exception:                                  # noqa: BLE001
+            n_fail += 1
+            continue
+        P_c = np.clip(cpl.P_star, 0.0, None)
+        pi_c = np.clip(cpl.pi_star, gr.pi_gb, gr.pi_gs)
+        nP = float(np.linalg.norm(r.P_star))
+        relP = float(np.linalg.norm(P_c - r.P_star)) / (nP + 1e-12)
+        relP_list.append(relP)
+        # Δπ solo donde el precio alternante es interior (>1% dentro de banda)
+        interior = (r.pi_star > gr.pi_gb + 0.01 * band) & \
+                   (r.pi_star < gr.pi_gs - 0.01 * band)
+        if interior.any():
+            relpi_int.append(float(np.max(
+                np.abs(pi_c[interior] - r.pi_star[interior]))) / band)
+        else:
+            n_clip += 1
+
+    rows = []
+    if relP_list:
+        medP = float(np.median(relP_list))
+        maxP = float(np.max(relP_list))
+        n_soft = sum(1 for v in relP_list if v > 0.05)
+        verdict = "PASS"
+        if medP > 0.05 or maxP > 0.15:
+            verdict = "FAIL"
+        elif n_soft:
+            verdict = "WARN"
+        rows.append(CheckResult(
+            "C2", "equivalencia", ds["name"],
+            f"‖ΔP*‖ rel acoplada-vs-alternancia ({len(relP_list)} h, "
+            f"{n_fail} fallas ODE)",
+            f"med={medP:.4f} max={maxP:.4f}",
+            "mediana<=5% y max<=15%", verdict, tier, time.time() - t0,
+            detail=f"horas>5%: {n_soft}; horas con π* 100% clipeado "
+                   f"(excluidas de Δπ): {n_clip}"))
+        if relpi_int:
+            medpi = float(np.median(relpi_int))
+            maxpi = float(np.max(relpi_int))
+            v2 = "PASS" if maxpi <= 0.15 and medpi <= 0.05 else (
+                "WARN" if maxpi <= 0.25 else "FAIL")
+            rows.append(CheckResult(
+                "C2b", "equivalencia", ds["name"],
+                f"Δπ*/banda en horas interiores ({len(relpi_int)} h)",
+                f"med={medpi:.4f} max={maxpi:.4f}",
+                "mediana<=5% y max<=15%", v2, tier, 0.0))
+    else:
+        rows.append(CheckResult(
+            "C2", "equivalencia", ds["name"], "acoplada vs alternancia",
+            "sin horas comparables", "-", "SKIP", tier, time.time() - t0))
+    return rows
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C3 — steady state alcanzado en el t_span de producción
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_c3(tier, ds, results) -> CheckResult:
+    from core.replicator_sellers import solve_sellers
+    from core.replicator_buyers import solve_buyers
+    t0 = time.time()
+    sv = make_solver()
+    gr = ds["grid"]
+    act = active_hours(results)
+    if not act:
+        return CheckResult("C3", "equivalencia", ds["name"], "planitud",
+                           "sin horas activas", "-", "SKIP", tier, 0.0)
+    # horas: máximo volumen + mediana
+    vols = sorted(act, key=lambda k: float(np.sum(results[k].P_star)))
+    hours = sorted({vols[-1], vols[len(vols) // 2]})
+
+    worst = 0.0
+    for k in hours:
+        r = results[k]
+        G_net, D_net = _net_arrays(r)
+        a_j = ds["agents"].a[r.seller_ids]
+        b_j = ds["agents"].b[r.seller_ids]
+        etha_i = ds["agents"].etha[r.buyer_ids]
+        P_star, _, P_traj = solve_sellers(
+            r.pi_star, G_net, D_net, a_j, b_j,
+            tau=sv.tau, t_span=sv.t_span, n_points=sv.n_points,
+            method=sv.ode_method, return_traj=True)
+        _, _, pi_traj = solve_buyers(
+            P_star, a_j, b_j, etha_i, pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
+            tau=sv.tau_buyers, t_span=sv.t_span, n_points=sv.n_points,
+            return_traj=True)
+        for traj, ref in ((P_traj.reshape(-1, P_traj.shape[-1]),
+                           float(np.max(np.abs(P_star))) + 1e-12),
+                          (pi_traj, float(gr.pi_gs))):
+            n_t = traj.shape[-1]
+            tail = traj[:, int(0.9 * n_t):]
+            var = float(np.max(np.ptp(tail, axis=1)))
+            worst = max(worst, var / ref)
+    return CheckResult(
+        "C3", "equivalencia", ds["name"],
+        f"variación máx último 10% de la ventana (h={hours})",
+        f"{worst:.4%}", "<=0.5%",
+        "PASS" if worst <= 0.005 else "FAIL", tier, time.time() - t0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C4 — estabilidad ante iteraciones estrictas
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_c4(tier, ds, results) -> CheckResult:
+    from scenarios.comparison_engine import _p2p_monetary_benefit
+    from scenarios._pi_gs import as_pi_gs_array
+    t0 = time.time()
+    N, T = ds["D"].shape
+    pi_gs_m = as_pi_gs_array(ds["pi_gs_matrix"], N, T)
+    band = float(ds["grid"].pi_gs) - float(ds["grid"].pi_gb)
+
+    sv_strict = make_solver(stackelberg_iters=6, stackelberg_max=20,
+                            stackelberg_tol=1e-5)
+    res_strict, G_klim, _ = run_ems_cached(ds, sv_strict)
+    res_def, G_klim_d, _ = run_ems_cached(ds, make_solver())
+
+    def _money(res, gk):
+        return _p2p_monetary_benefit(res, ds["D"], gk, pi_gs_m,
+                                     float(ds["grid"].pi_gb),
+                                     ds["prosumer_ids"],
+                                     pi_bolsa=ds["pi_bolsa"],
+                                     mode="canonical")
+    w_def = float(np.sum(_money(res_def, G_klim_d)))
+    w_str = float(np.sum(_money(res_strict, G_klim)))
+    dW = abs(w_str - w_def) / max(abs(w_def), 1e-9)
+
+    dpis = []
+    for rd, rs in zip(res_def, res_strict):
+        if rd.P_star is None or rs.P_star is None:
+            continue
+        if rd.pi_star.shape == rs.pi_star.shape:
+            dpis.append(float(np.mean(np.abs(rd.pi_star - rs.pi_star))) / band)
+    dpi = float(np.mean(dpis)) if dpis else 0.0
+    ok = dW <= 1e-3 and dpi <= 0.01
+    return CheckResult(
+        "C4", "equivalencia", ds["name"],
+        "ΔW_money / Δπ* medio (default vs estricto)",
+        f"{dW:.5%} / {dpi:.4%} banda", "<=0.1% / <=1%",
+        "PASS" if ok else "FAIL", tier, time.time() - t0)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# C5 — NaN guard contable
+# ─────────────────────────────────────────────────────────────────────────────
+
+def check_c5(tier, ds, results) -> CheckResult:
+    t0 = time.time()
+    n_none = n_material = 0
+    worst_vol = 0.0
+    for r in results:
+        if r.P_star is not None:
+            continue
+        if not r.seller_ids or not r.buyer_ids:
+            continue          # sin mercado por estructura (J=0 o I=0): OK
+        n_none += 1
+        G_net, D_net = _net_arrays(r)
+        vol = min(float(np.sum(G_net)), float(np.sum(D_net)))
+        worst_vol = max(worst_vol, vol)
+        if vol >= VOLUME_MIN_KWH:
+            n_material += 1
+    rate = n_none / max(len(results), 1)
+    return CheckResult(
+        "C5", "equivalencia", ds["name"],
+        f"horas None materiales (tasa None c/mercado={rate:.3%}, "
+        f"max vol={worst_vol:.4f} kWh)",
+        str(n_material), "0", "PASS" if n_material == 0 else "FAIL",
+        tier, time.time() - t0)
+
+
+def run_checks(tier: int, datasets: list, c2_all: bool = False,
+               c2_sample: int = 48) -> list:
+    rows = []
+    for ds_name in datasets:
+        ds = load_dataset(ds_name)
+        results, G_klim, _ = run_ems_cached(ds, make_solver())
+        act = active_hours(results)
+        print(f"  [{ds_name}] horas activas={len(act)}")
+
+        if ds_name == "SYN":
+            rows.append(check_c1(tier, ds, results, REF_SYN, hard=True))
+        elif os.path.exists(REF_REAL):
+            with open(REF_REAL, encoding="utf-8") as f:
+                meta = json.load(f)["meta"]
+            if meta.get("case", "").endswith(ds_name):
+                rows.append(check_c1(tier, ds, results, REF_REAL,
+                                     hard=not meta.get("degraded", False)))
+
+        if c2_all or ds_name == "SYN":
+            rows.extend(check_c2(tier, ds, results))
+        else:
+            rng = np.random.default_rng(42)
+            sample = sorted(rng.choice(
+                act, size=min(c2_sample, len(act)), replace=False).tolist())
+            rows.extend(check_c2(tier, ds, results, sample_hours=sample))
+
+        rows.append(check_c3(tier, ds, results))
+        rows.append(check_c4(tier, ds, results))
+        rows.append(check_c5(tier, ds, results))
+    return rows
+
+
+def main():
+    setup_stdout_utf8()
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--datasets", nargs="+", default=["SYN"])
+    ap.add_argument("--tier", type=int, default=1)
+    ap.add_argument("--c2-all", action="store_true",
+                    help="C2 sobre TODAS las horas activas (overnight)")
+    ap.add_argument("--c2-sample", type=int, default=48)
+    args = ap.parse_args()
+    print("=== EJE 2 — Convergencia y equivalencia (C1-C5) ===")
+    rows = run_checks(args.tier, args.datasets, c2_all=args.c2_all,
+                      c2_sample=args.c2_sample)
+    save_results(rows, args.tier)
+    for r in rows:
+        print(f"  {r.id} [{r.datos}] {r.verdict}: {r.metric} = {r.value}")
+    return 1 if hard_failures(rows) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

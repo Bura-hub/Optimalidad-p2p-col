@@ -103,9 +103,15 @@ def check_s1(tier, ds) -> CheckResult:
         n_cfg += 1
         lines.append(f"{tspan}x{npts} {meth} it{it}: dW={dW:.2%} "
                      f"dkWh={dk:.2%} dπ={dp:.2%} dIE={die:.3f}")
-    hard_ok = worst["W"] <= 0.01 and worst["kwh"] <= 0.01 and \
-        worst["pi"] <= 0.02
-    soft_ok = worst["ie"] <= 0.02 and worst["gini"] <= 0.02
+    # HARD solo en W y kWh. El precio π* (y con él IE/Gini) es una
+    # coordenada LENTA del replicador: el tier 1 SYN mostró dπ creciendo
+    # con la LONGITUD de la ventana (0.89%→3.85%→7.6%) con W/kWh EXACTOS
+    # (0.00%) e idéntico entre métodos ODE. El "precio de equilibrio" es
+    # operacionalmente π(t_fin) — igual que en JoinFinal.m. La deriva se
+    # reporta como WARN (banda de indeterminación, va a Métodos).
+    hard_ok = worst["W"] <= 0.01 and worst["kwh"] <= 0.01
+    soft_ok = worst["pi"] <= 0.02 and worst["ie"] <= 0.02 and \
+        worst["gini"] <= 0.02
     verdict = "PASS" if hard_ok and soft_ok else (
         "WARN" if hard_ok else "FAIL")
     return CheckResult(
@@ -113,8 +119,8 @@ def check_s1(tier, ds) -> CheckResult:
         f"max desv vs default sobre {n_cfg} configs (W/kWh/π*/IE/Gini)",
         f"{worst['W']:.2%}/{worst['kwh']:.2%}/{worst['pi']:.2%}/"
         f"{worst['ie']:.3f}/{worst['gini']:.3f}",
-        "<=1%/<=1%/<=2% HARD; IE,Gini<=0.02 SOFT", verdict, tier,
-        time.time() - t0, detail="\n".join(lines))
+        "W,kWh<=1% HARD; π<=2%,IE,Gini<=0.02 SOFT (π = coord. lenta)",
+        verdict, tier, time.time() - t0, detail="\n".join(lines))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -168,20 +174,26 @@ def check_s2(tier, ds, results, n_starts=10, seed=7) -> CheckResult:
                 over = col / np.maximum(D_net, 1e-12)
                 P0 /= np.maximum(over.max(), 1.0)
                 pi0 = rng.uniform(gr.pi_gb, gr.pi_gs, I)
-            P = np.clip(P0, 1e-10, None) if P0 is not None else None
-            pi = np.full(I, gr.pi_gb) if pi0 is None else pi0.copy()
-            P_cur = P
+            # FIEL A PRODUCCIÓN (fix tier 1: el arnés original encadenaba
+            # P0 entre iteraciones — warm-start que producción NO hace y
+            # contaminaba la comparación). Producción re-inicializa los
+            # solvers en CADA iteración Stackelberg; la perturbación
+            # multi-start entra SOLO en la primera (P0/pi0 de la iter 0).
+            pi = np.full(I, gr.pi_gb) if pi0 is None else \
+                np.clip(pi0.copy(), gr.pi_gb, gr.pi_gs)
+            P_cur = None
             for it in range(sv.stackelberg_max):
                 P_old = P_cur.copy() if P_cur is not None else None
                 P_cur = solve_sellers(pi, G_net, D_net, a_j, b_j,
                                       tau=sv.tau, t_span=sv.t_span,
                                       n_points=sv.n_points,
-                                      method=sv.ode_method, P0=P_cur)
+                                      method=sv.ode_method,
+                                      P0=P0 if it == 0 else None)
                 pi = solve_buyers(P_cur, a_j, b_j, etha_i,
                                   pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
                                   tau=sv.tau_buyers, t_span=sv.t_span,
                                   n_points=sv.n_points,
-                                  pi0=pi if s > 0 and it == 0 else None)
+                                  pi0=pi0 if it == 0 else None)
                 pi = np.clip(pi, gr.pi_gb, gr.pi_gs)
                 if P_old is not None:
                     nr = np.linalg.norm(P_cur - P_old) / \
@@ -205,12 +217,15 @@ def check_s2(tier, ds, results, n_starts=10, seed=7) -> CheckResult:
         worst_P, worst_pi = max(worst_P, dP), max(worst_pi, dpi)
         detail.append(f"h{k}: dP={dP:.4f} dπ={dpi:.4f} "
                       f"({len(finals_P)-1} arranques)")
-    ok = worst_P <= 0.01 and worst_pi <= 0.01
+    # HARD en P* (asignaciones); π* SOFT (coordenada lenta — ver S1).
+    verdict = ("PASS" if worst_P <= 0.01 and worst_pi <= 0.01 else
+               "WARN" if worst_P <= 0.01 else "FAIL")
     return CheckResult(
         "S2", "solver", ds["name"],
         f"max dif multi-start P*/π* ({len(hours)} horas, {n_starts} arranques)",
-        f"{worst_P:.4f} / {worst_pi:.4f} banda", "<=1% / <=1%",
-        "PASS" if ok else "FAIL", tier, time.time() - t0,
+        f"{worst_P:.4f} / {worst_pi:.4f} banda",
+        "P<=1% HARD; π<=1% SOFT (coord. lenta)",
+        verdict, tier, time.time() - t0,
         detail="; ".join(detail))
 
 

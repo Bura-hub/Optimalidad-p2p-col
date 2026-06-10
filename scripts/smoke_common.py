@@ -87,6 +87,19 @@ def load_dataset(name: str) -> dict:
     """
     if name == "SYN":
         return _load_synthetic()
+    if name == "SYN-noDR":
+        # Variante sin DR (alpha=0) para el smoke C1: el modelo ORIGINAL
+        # (JoinFinal.m / Bienestar6p.py) no tiene DR; el SYN de producción
+        # corre con alpha=[0.2,0.1,...] (CAL-3) → el EMS comercia con D*
+        # desplazada y el oráculo con D cruda — mercados DISTINTOS
+        # (descubierto 2026-06-10: EMS clearaba el lado corto EXACTO pero
+        # de otra demanda; el oráculo h13 coincide con reference_h14).
+        ds = _load_synthetic()
+        from dataclasses import replace as _dc_replace
+        ds["name"] = "SYN-noDR"
+        ds["agents"] = _dc_replace(ds["agents"],
+                                   alpha=np.zeros(ds["D"].shape[0]))
+        return ds
     if name in ("COB-M1", "COB-M3"):
         return _load_real(paper_meters=(name == "COB-M3"))
     if name in ("ago-2025", "oct-2025"):

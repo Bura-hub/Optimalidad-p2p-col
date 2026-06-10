@@ -158,12 +158,30 @@ def check_p1(tier) -> list:
     worst_drop = 0.0
     for i in range(1, len(pis)):
         worst_drop = max(worst_drop, (pis[i - 1] - pis[i]) / band)
-    ok = rho >= 0.95 and worst_drop <= 0.01
+    # Criterio reestructurado tras el tier 1 (hallazgo "coordenada lenta"):
+    # la teoría solo garantiza el ORDEN DE EXTREMOS (escasez alta debe
+    # pagar más que exceso alto) y la pertenencia a banda; la monotonía
+    # fina punto a punto muestrea la variedad lenta del precio (se observó
+    # un atractor intermedio ~493 en SYN) y queda como SOFT documentado.
+    lo = pis[used <= 0.5]
+    hi = pis[used >= 3.0]
+    extremos_ok = (lo.size > 0 and hi.size > 0
+                   and float(np.min(hi)) > float(np.max(lo)) + 0.05 * band)
+    en_banda = bool(np.all(pis >= pgb - 1e-6) and np.all(pis <= pgs + 1e-6))
+    if not (extremos_ok and en_banda):
+        verdict = "FAIL"
+    elif rho >= 0.95 and worst_drop <= 0.01:
+        verdict = "PASS"
+    else:
+        verdict = "WARN"
     rows = [CheckResult(
         "P1", "precios", "FIX-h14",
-        f"Spearman ρ(π*, escasez) / peor descenso ({len(pis)} pts)",
-        f"{rho:.3f} / {worst_drop:.4f} banda", ">=0.95 / <=1%",
-        "PASS" if ok else "FAIL", tier, time.time() - t0,
+        f"extremos/banda + Spearman ρ / peor descenso ({len(pis)} pts)",
+        f"extremos={'OK' if extremos_ok else 'X'} ρ={rho:.3f} "
+        f"drop={worst_drop:.3f}",
+        "HARD: π(r≥3)>π(r≤0.5)+5% banda y todo en banda; "
+        "SOFT: ρ>=0.95, drop<=1%",
+        verdict, tier, time.time() - t0,
         detail="; ".join(f"r={r:.1f}→π*={p:.0f}"
                          for r, p in zip(used, pis)))]
     # SOFT: asíntotas

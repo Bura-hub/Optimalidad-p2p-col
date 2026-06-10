@@ -60,6 +60,16 @@ def compute_monthly_metrics(
     pde:          np.ndarray,        # (N,)
     capacity:     Optional[np.ndarray] = None,
     component_c:  "str | float | np.ndarray" = "auto",   # CAL-10b
+    # ── CAL-37 (ADR-0037): C2 y C5 en el reporte mensual ────────────────
+    pi_ppa:        Optional[float] = None,        # si no es None → C2 mensual
+    g_component:   Optional[np.ndarray] = None,   # CAL-16 (N, T)
+    cvm_component: Optional[np.ndarray] = None,
+    cot_component: Optional[np.ndarray] = None,
+    mem_costs:     Optional[np.ndarray] = None,
+    cot_alpha:     float = 1.0,
+    include_c5:    bool = False,
+    pi_escasez:    Optional[np.ndarray] = None,   # (T,) PES→horario
+    f_split_c5:    float = 0.5,
 ) -> list[dict]:
     """
     Calcula métricas de comparación mes a mes.
@@ -160,6 +170,41 @@ def compute_monthly_metrics(
         sc_reg = auto_m / D_total_m if D_total_m > 1e-10 else 0.0
         ss_reg = auto_m / G_total_m if G_total_m > 1e-10 else 0.0
 
+        # ── C2 y C5 mensuales (CAL-37) ────────────────────────────────────
+        def _sl(x):
+            """Slice mensual de matrices (N, T); passthrough para el resto."""
+            return (x[:, idx_arr]
+                    if isinstance(x, np.ndarray) and x.ndim == 2 else x)
+
+        nb_extra = {}
+        if pi_ppa is not None:
+            from scenarios.scenario_c2_bilateral import run_c2_bilateral
+            c2 = run_c2_bilateral(
+                D_m, G_klim_m, pi_gs_m, pi_gb, pi_ppa,
+                prosumer_ids, consumer_ids,
+                g_component=_sl(g_component),
+                cvm_component=_sl(cvm_component),
+                cot_component=_sl(cot_component),
+                mem_costs=_sl(mem_costs),
+                cot_alpha=cot_alpha,
+                pi_bolsa=pb_m,            # CAL-37: bolsa horaria del mes
+            )
+            nb_extra["C2"] = c2["aggregate"]["total_net_benefit"]
+        if include_c5:
+            from scenarios.scenario_c5_agr_creg101099 import (
+                run_c5_agr_creg101099)
+            c5 = run_c5_agr_creg101099(
+                D_m, G_klim_m, pi_gs_m, pb_m,
+                g_component=_sl(g_component) if g_component is not None else 0.0,
+                cvm_component=_sl(cvm_component) if cvm_component is not None else 0.0,
+                cot_component=_sl(cot_component) if cot_component is not None else 0.0,
+                mem_costs=_sl(mem_costs) if mem_costs is not None else 0.0,
+                cot_alpha=cot_alpha, f_split=f_split_c5,
+                pi_escasez=(pi_escasez[idx_arr]
+                            if pi_escasez is not None else None),
+            )
+            nb_extra["C5"] = c5["aggregate"]["total_net_benefit"]
+
         monthly.append({
             "month":        yyyymm,
             "month_label":  _month_label(yyyymm),
@@ -169,6 +214,7 @@ def compute_monthly_metrics(
                 "C1":  net_c1,
                 "C3":  net_c3,
                 "C4":  net_c4,
+                **nb_extra,
             },
             "ie_p2p":      ie_m,
             "ps_p2p":      ps_m,
@@ -265,13 +311,17 @@ def _p2p_benefit_month(
 
 def print_monthly_table(monthly: list[dict], currency: str = "COP") -> None:
     """Imprime la tabla resumen mensual en consola."""
-    esc = ["P2P", "C1", "C3", "C4"]
+    # CAL-37: columnas dinámicas según escenarios presentes (C2/C5 opcionales)
+    canon = ["P2P", "C1", "C2", "C3", "C4", "C5"]
+    presentes = monthly[0]["net_benefit"].keys() if monthly else []
+    esc = [e for e in canon if e in presentes]
     col_w = 14
 
     header = f"  {'Mes':<10}" + "".join(f"{e:>{col_w}}" for e in esc)
     header += f"  {'IE_P2P':>8}  {'PS%':>6}  {'PSR%':>6}  {'kWh_P2P':>9}"
     print("\n" + "="*len(header))
-    print(f"  BENEFICIO NETO MENSUAL ({currency})  —  P2P vs C1 / C3 / C4")
+    print(f"  BENEFICIO NETO MENSUAL ({currency})  —  "
+          f"P2P vs {' / '.join(esc[1:])}")
     print("="*len(header))
     print(header)
     print("-"*len(header))

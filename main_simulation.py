@@ -53,7 +53,8 @@ from data.cedenar_tariff import (
 
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
-         single_day: str = None, paper_meters: bool = False):
+         single_day: str = None, paper_meters: bool = False,
+         include_c5: bool = False):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -399,6 +400,25 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         print(f"    [CAL-16] C2 modo agregado CAL-13 (caso sintético): "
               f"pi_G≈{pi_G_mean_default:.1f} COP/kWh.")
 
+    # ── CAL-37 (ADR-0037): PES horario para el diagnóstico LBC de C5 ────
+    pi_escasez_arr = None
+    if include_c5 and isinstance(month_labels, np.ndarray):
+        try:
+            import pandas as _pd
+            _pes_df = _pd.read_csv(os.path.join(
+                os.path.dirname(os.path.abspath(__file__)),
+                "data", "precios_escasez_creg.csv"))
+            _pes_map = {int(str(m).replace("-", "")): float(v)
+                        for m, v in zip(_pes_df["mes"],
+                                        _pes_df["pes_cop_kwh"])}
+            pi_escasez_arr = np.array(
+                [_pes_map.get(int(m), np.inf) for m in month_labels])
+            _n_pes = int(np.isfinite(pi_escasez_arr).sum())
+            print(f"    [CAL-37] C5 AGR activo: PES cargado para "
+                  f"{_n_pes}/{len(pi_escasez_arr)} horas (LBC diagnóstico)")
+        except Exception as _e:                          # noqa: BLE001
+            print(f"    [CAL-37] PES no cargado ({_e}) → LBC sin trigger")
+
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
@@ -417,6 +437,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         cot_component=cot_arg,
         mem_costs=mem_arg,
         cot_alpha=cot_alpha_default,
+        # CAL-37: escenario C5 AGR (CREG 101 099/2026)
+        include_c5=include_c5,
+        pi_escasez=pi_escasez_arr,
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
@@ -428,10 +451,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # Nota: en la propuesta de tesis, el escenario "Individual" = C1 (CREG 174),
     # y los escenarios "C1"→"C3" de la propuesta corresponden a C2→C4 del código.
     # Los encabezados ya reflejan esto: "C1 Individual", "C4 Colectivo", etc.
-    esc = ["P2P", "C1", "C2", "C3", "C4"]
+    esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+           if e in cr.net_benefit]                       # CAL-37: C5 opcional
     esc_labels = {
         "P2P": "P2P", "C1": "C1-Indiv", "C2": "C2-Bilat",
-        "C3": "C3-Spot", "C4": "C4-Colect",
+        "C3": "C3-Spot", "C4": "C4-Colect", "C5": "C5-AGR",
     }
     print(f"\n  Ganancia neta por agente ({currency}/período):")
     print(f"  {'Institución':<12}" + "".join(f"{esc_labels[e]:>14}" for e in esc))
@@ -469,6 +493,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pde=pde,
             capacity=cap,
             component_c=component_c_arg,
+            # CAL-37: C2 y C5 en la tabla mensual
+            pi_ppa=pi_ppa_default,
+            g_component=g_arg,
+            cvm_component=cvm_arg,
+            cot_component=cot_arg,
+            mem_costs=mem_arg,
+            cot_alpha=cot_alpha_default,
+            include_c5=include_c5,
+            pi_escasez=pi_escasez_arr,
         )
         print_monthly_table(monthly_data, currency=currency)
 
@@ -1414,6 +1447,10 @@ if __name__ == "__main__":
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
+    ap.add_argument("--include-c5", action="store_true",
+                    help="CAL-37: añade el escenario C5 AGR (CREG 101 099/2026) "
+                         "a la comparación (compensación horaria, tasa "
+                         "no-regulada; LBC/PES como diagnóstico)")
     args = ap.parse_args()
 
     if args.gsa:
@@ -1436,9 +1473,11 @@ if __name__ == "__main__":
         print(f"\nGSA completado. Resultados en: {out_path}")
     elif args.day:
         main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
-             single_day=args.day, paper_meters=args.paper_meters)
+             single_day=args.day, paper_meters=args.paper_meters,
+             include_c5=args.include_c5)
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
              run_analysis=args.analysis,
-             paper_meters=args.paper_meters)
+             paper_meters=args.paper_meters,
+             include_c5=args.include_c5)

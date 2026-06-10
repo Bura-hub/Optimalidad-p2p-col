@@ -852,13 +852,16 @@ def _ss_index_static(G_klim, D) -> float:
 
 
 def print_comparison_report(cr: ComparisonResult) -> None:
-    scenarios = ["P2P", "C1", "C2", "C3", "C4"]
+    # CAL-37: C5 aparece si fue calculado (include_c5 en run_comparison)
+    scenarios = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+                 if e in cr.net_benefit]
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1":  "C1  Individual CREG 174/2021",
         "C2":  f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)",
         "C3":  "C3  Spot (bolsa mayorista)",
         "C4":  "C4  Colectivo CREG 101 072",
+        "C5":  "C5  AGR CREG 101 099/2026",
     }
     print("\n" + "="*80)
     print("  COMPARACIÓN REGULATORIA  —  BENEFICIO ECONÓMICO DEL SISTEMA SOLAR")

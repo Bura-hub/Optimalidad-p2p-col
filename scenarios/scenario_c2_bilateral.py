@@ -109,6 +109,13 @@ def run_c2_bilateral(
     cxc_alpha:     float = 0.0,                            # peso CXC [0,1]
     # Compatibilidad pre-CAL-16: si solo se pasa pi_G se trata como G+Cvm+COT
     pi_G: Union[float, np.ndarray, None] = None,
+    # CAL-37 (ADR-0037): excedente NO colocado vía PPA valorado a bolsa
+    # HORARIA. Fix del artefacto detectado en la corrida M3 (auditoría §7.5):
+    # con consumer_ids=[] el PPA nunca ejecuta y el excedente se vendía a
+    # pi_gb PLANO (constante stale PGB_COP=280 vs serie real ~182), inflando
+    # C2 +11% e invirtiendo el ranking. Si pi_bolsa es None se conserva el
+    # comportamiento histórico (retro-compatible con tests CAL-13/16/21).
+    pi_bolsa: Union[np.ndarray, None] = None,
 ) -> dict:
     """
     Lógica:
@@ -185,7 +192,12 @@ def run_c2_bilateral(
     grid_cost     = np.zeros(N)    # costo energía aún comprada a red
     grid_revenue  = np.zeros(N)    # ingresos por venta excedente a red
 
+    if pi_bolsa is not None:
+        pi_bolsa = np.asarray(pi_bolsa, dtype=float).reshape(-1)
+
     for k in range(T):
+        # CAL-37: precio horario para el excedente no colocado (fallback pi_gb).
+        pb_k = float(pi_bolsa[k]) if pi_bolsa is not None else pi_gb
         gen_surplus = np.maximum(G[:, k] - D[:, k], 0.0)
         deficits    = np.maximum(D[:, k] - G[:, k], 0.0)
         total_surplus = float(np.sum(gen_surplus[prosumer_ids]))
@@ -223,10 +235,10 @@ def run_c2_bilateral(
                 ppa_sold = frac * float(np.sum(ppa_delivered))
                 savings_gen[n]  += ppa_sold * pi_ppa
                 grid_revenue[n] += max(0.0,
-                                        gen_surplus[n] - ppa_sold) * pi_gb
+                                        gen_surplus[n] - ppa_sold) * pb_k
         else:
             for n in prosumer_ids:
-                grid_revenue[n] += gen_surplus[n] * pi_gb
+                grid_revenue[n] += gen_surplus[n] * pb_k
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs_v[i, k]
 

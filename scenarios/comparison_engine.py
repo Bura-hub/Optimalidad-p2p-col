@@ -203,6 +203,8 @@ def run_comparison(
         cot_alpha=cot_alpha,
         # CAL-13 retro-compatibilidad
         pi_G=pi_G_v,
+        # CAL-37: excedente no colocado a bolsa HORARIA (fix artefacto §7.5)
+        pi_bolsa=pi_bolsa,
     )
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))

@@ -86,3 +86,14 @@ data/*.csv.bak_*
 
 # Presentación generada
 presentation/*.pptx
+
+# === Transcripciones y material privado de reuniones (repo público: NO subir) ===
+Documentos/reuniones/
+
+# === Outputs traídos del servidor (regenerables) ===
+SALIDAS_SERVIDOR/
+
+# === Material divulgativo local + scratch ===
+fanzine/
+.superpowers/
+borrar.py

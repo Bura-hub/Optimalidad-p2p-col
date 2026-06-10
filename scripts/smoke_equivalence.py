@@ -113,12 +113,30 @@ def check_c1(tier, ds, results, ref_path, hard: bool) -> CheckResult:
 # C2 — alternancia vs ODE acoplada (paralelizado por hora)
 # ─────────────────────────────────────────────────────────────────────────────
 
+C2_ATTEMPT_TIMEOUT_S = 90   # tope por intento (solo Linux, via SIGALRM)
+
+
+class _C2AttemptTimeout(Exception):
+    pass
+
+
+def _c2_alarm(signum, frame):                              # pragma: no cover
+    raise _C2AttemptTimeout()
+
+
 def _c2_hour_worker(args):
     """Worker top-level (picklable). Resuelve el acoplado para una hora con
     cascada de reintentos. Primer intento: LSODA sobre [0, 0.01] — la
     ventana ORIGINAL de JoinFinal.m:128 (la de 0.04 s es solo para
-    visualizar transitorios y resulta ~4-10x más cara en horas stiff;
-    medido localmente: hasta ~3.6 min/hora con la cascada vieja)."""
+    visualizar transitorios y resulta ~4-10x más cara en horas stiff).
+
+    Cada intento tiene TOPE de 90 s (SIGALRM, Linux): `solve_ivp` no acota
+    su propio tiempo y en horas patológicamente stiff puede arrastrarse
+    >5 min sin converger (observado en server 2026-06-10, 14/24 horas SYN
+    en lockstep). La hora que agota la cascada cuenta como falla honesta
+    (n_fail) — hallazgo a favor de la alternancia de producción (CAL-7),
+    no defecto de ella."""
+    import signal
     from core.coupled_ode_convergence import solve_coupled_for_hour
     (k, G_net, D_net, a_j, b_j, lam_j, theta_j, G_klim_i,
      lam_i, theta_i, etha_i, pi_gs, pi_gb, tau_s, tau_b) = args
@@ -127,15 +145,23 @@ def _c2_hour_worker(args):
               lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
               pi_gs=pi_gs, pi_gb=pi_gb,
               tau_sellers=tau_s, tau_buyers=tau_b, n_points=50)
+    use_alarm = hasattr(signal, "SIGALRM")
+    if use_alarm:
+        signal.signal(signal.SIGALRM, _c2_alarm)
     for t_span, method in (((0.0, 0.01), "LSODA"), ((0.0, 0.01), "BDF"),
                            ((0.0, 0.04), "LSODA")):
         try:
+            if use_alarm:
+                signal.alarm(C2_ATTEMPT_TIMEOUT_S)
             cpl = solve_coupled_for_hour(t_span=t_span, method=method, **kw)
             if cpl.success and np.isfinite(cpl.P_star).all() \
                     and np.isfinite(cpl.pi_star).all():
                 return k, cpl.P_star, cpl.pi_star
         except Exception:                                  # noqa: BLE001
             continue
+        finally:
+            if use_alarm:
+                signal.alarm(0)
     return k, None, None
 
 

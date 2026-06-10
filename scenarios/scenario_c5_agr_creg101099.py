@@ -27,6 +27,18 @@ Mecánica horaria:
      ``pi_bolsa[k] > pi_escasez[k]`` (PES superior mensual replicado horario,
      supuesto S3).
 
+Precisiones del Informe 4 MTE (Fajardo, 2026-05-27) y texto oficial:
+  - **Supuesto declarado**: el activo MTE (87.75 kWp) NO participa en
+    mecanismos del cargo por confiabilidad, ni en el mercado secundario,
+    ni tiene asignaciones de OEF — condición habilitante del tratamiento
+    de los arts. 18/36 de la 101 099.
+  - **CERE**: la norma define una devolución específica ``CERE × ERMIC``
+    (arts. 18/36/56: energía registrada que máximo iguala el consumo
+    horario, valorada al CERE del cargo por confiabilidad CREG 071/2006)
+    del agente generador al AGR/PMR. Aquí se asume embebida en G
+    (supuesto S1, ampliado en auditoría — pregunta a asesores); es de
+    segundo orden frente a la tasa CAL-16.
+
 Supuestos S1–S6 declarables en Métodos: ver spec
 ``docs/superpowers/specs/2026-06-09-cal37-c5-agr-design.md`` y ADR-0037.
 

@@ -28,6 +28,17 @@ Marco regulatorio (CAL-15, 2026-05-01; renumeración corregida CAL-31, 2026-05-0
     - Permuta intracomunitaria (Tipo 1) → (pi_gs - Cvm,i,j)
     - Exportación residual (Tipo 2)     → pi_bolsa[k] horario
 
+ALCANCE — Art. 13 CREG 101 072 (Informe 4 MTE, Fajardo 2026-05-27):
+  El Art. 13 de la 101 072 pospone a resolución aparte la metodología
+  para el traslado del costo de compras de los AC/GDC a la tarifa
+  regulada (componente G del CU). El crédito PDE que este módulo modela
+  (arts. 19-21, por remisión a los arts. 25-26 de la CREG 174) SÍ está
+  plenamente definido; lo pendiente es el canal tarifario del
+  comercializador. Por tanto el `net_benefit` de C4 debe leerse como
+  **benchmark bajo el supuesto de herencia CREG 174 (CAL-15)**, cuya
+  materialización plena en factura está supeditada a la reglamentación
+  del Art. 13. Ver auditoría Capa 2.6 y Capa 5.
+
 Algoritmo (hora a hora, mode="creg174_inheritance"):
     autoconsumo[n,k]  = min(G[n,k], D[n,k])              # local
     surplus_ind[n,k]  = max(G[n,k] - D[n,k], 0)          # al pool

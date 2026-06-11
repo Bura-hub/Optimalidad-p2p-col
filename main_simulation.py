@@ -601,8 +601,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             analyze_creg_101072_compliance)
         from visualization.plots import generate_sensitivity_plots
 
-        # SA-1: variación PGB
-        pgb_range = np.array([200, 250, 280, 300, 350, 400, 450, 500])
+        # SA-1: variación PGB. CAL-39 (aprobado por el autor): rango
+        # extendido a [150..500] — la serie XM real está en 182-235 y el
+        # rango histórico [200..500] arrancaba por encima de la realidad.
+        # El valor NOMINAL PGB=280 no cambia (gated a asesores, Anexo A).
+        pgb_range = np.array([150, 200, 250, 280, 300, 350, 400, 450, 500])
         sa_pgb = run_sensitivity_pgb(
             D=D, G=G, G_klim=G_klim, agents=agents, grid_base=grid,
             solver=solver, p2p_results_base=p2p_results,

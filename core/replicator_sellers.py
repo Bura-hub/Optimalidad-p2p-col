@@ -105,6 +105,17 @@ def solve_sellers(
         Se recorta a ≥1e-10 (dominio del replicador). Ningún caller de
         producción la usa.
     """
+    # CAL-39 (ADR-0039): guard contra activación accidental del modo
+    # deprecado (cuelgues LSODA en samples patológicos, GSA 2026-04-26).
+    # Warning y no error: tests/test_fast_mode_equivalence.py lo usa
+    # legítimamente. El filtro default de warnings lo muestra una vez.
+    if _fast_mode:
+        import warnings
+        warnings.warn(
+            "_fast_mode de replicator_sellers está DEPRECADO para "
+            "producción (solo tests de equivalencia); ver "
+            "feedback_fast_mode_deprecado / ADR-0039.",
+            RuntimeWarning, stacklevel=2)
     J = len(G_net_j)
     I = len(D_net_i)
     sum_G = float(np.sum(G_net_j))

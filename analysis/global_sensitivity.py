@@ -93,11 +93,20 @@ def _eval_sample(params: np.ndarray) -> tuple:
 
     Retorna (ganancia_neta_p2p, sc_comunidad, ie_p2p) o (nan, nan, nan) si falla.
     """
-    # Suprimir stdout/stderr para evitar UnicodeEncodeError en subprocess hijos
-    # de Windows (cp1252) cuando tqdm escribe caracteres Unicode (█░).
+    # CAL-39: redirigir stdout/stderr de los workers a ARCHIVO en vez de
+    # devnull — el devnull silenciaba errores reales (worker mudo + timeout
+    # de 45 s aplicado a fallos invisibles). Mantiene el propósito original
+    # (evitar UnicodeEncodeError cp1252 de tqdm en hijos de Windows) y deja
+    # rastro: outputs/gsa_worker_<pid>.log (line-buffered).
     import os, sys
-    sys.stdout = open(os.devnull, "w", encoding="utf-8")
-    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+    _wlog = os.path.join("outputs", f"gsa_worker_{os.getpid()}.log")
+    try:
+        os.makedirs("outputs", exist_ok=True)
+        sys.stdout = sys.stderr = open(_wlog, "a", encoding="utf-8",
+                                       buffering=1)
+    except OSError:
+        sys.stdout = open(os.devnull, "w", encoding="utf-8")
+        sys.stderr = open(os.devnull, "w", encoding="utf-8")
 
     from core.ems_p2p       import EMSP2P, AgentParams, GridParams, SolverParams
     from scenarios          import run_comparison

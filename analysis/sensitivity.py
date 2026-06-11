@@ -78,7 +78,8 @@ def run_sensitivity_pgb(
     from scenarios import run_comparison
 
     if pi_gb_range is None:
-        pi_gb_range = np.array([200, 250, 280, 300, 350, 400, 450, 500])
+        # CAL-39: rango extendido hacia abajo (serie XM real 182-235).
+        pi_gb_range = np.array([150, 200, 250, 280, 300, 350, 400, 450, 500])
     if prosumer_ids is None:
         prosumer_ids = list(range(D.shape[0]))
 

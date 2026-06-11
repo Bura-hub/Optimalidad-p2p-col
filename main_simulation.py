@@ -1440,12 +1440,18 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         "- Sensibilidad SA-1/2/3/3b (`analysis/sensitivity.py`)",
         "- Análisis de optimalidad P2P vs C4 hora a hora (`analysis/optimality.py`)",
         "- Factibilidad FA-1/2/3/4 (`analysis/feasibility.py`)",
-        "- Bootstrap Kunsch + Wilcoxon (`tests/statistical_tests.py`)",
-        "- Sobol/Saltelli implementado (`analysis/global_sensitivity.py`)",
+        "- Bootstrap Kunsch + Wilcoxon (`tests/statistical_tests.py`) — "
+        "corrida canónica 2026-06-11 (seed 42): Δ(P2P−C4) significativo en "
+        "ambas coberturas (M1 d=0.84, M3 d=0.72)",
+        "- GSA Sobol/Saltelli COMPLETADO (n_base=128, 1999/2048 válidas, "
+        "2026-06-11): factor_PV domina ganancia/SC; PGB domina IE",
+        "- Escenario C5/AGR (CREG 101 099) en comparación, PoF y SA-1/2 "
+        "(CAL-37/39)",
         "- **Price of Fairness formal** (`analysis/fairness.py`) — Act 3.3",
         "",
         "### Pendiente 🔲",
-        "- Ejecutar GSA Sobol: `python main_simulation.py --data real --gsa --n-base 64`",
+        "- Decisiones con asesores: S1-S9 + PGB nominal + NT2 "
+        "(`Documentos/preguntas_asesores_S1-S9.md`)",
         "- Verificar LCOE real de inversores (dato de campo, no de código)",
         "",
         "---",

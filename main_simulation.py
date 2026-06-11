@@ -1463,17 +1463,31 @@ if __name__ == "__main__":
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
     ap.add_argument("--include-c5", action="store_true",
-                    help="CAL-37: añade el escenario C5 AGR (CREG 101 099/2026) "
-                         "a la comparación (compensación horaria, tasa "
-                         "no-regulada; LBC/PES como diagnóstico)")
+                    help="CAL-37/39: añade el escenario C5 AGR (CREG 101 099) "
+                         "a la comparación, al PoF y a los barridos SA-1/SA-2 "
+                         "(FA-2 de la 101 072 no aplica a C5; SA-3 tampoco — "
+                         "su pgs sintético no define la tasa no-regulada)")
     args = ap.parse_args()
+
+    # ── CAL-39: validación de combinaciones de flags (antes, combinaciones
+    # inválidas se ignoraban en silencio: --gsa descartaba --full/--analysis/
+    # --include-c5/--paper-meters sin avisar; --day pisaba --full) ──────────
+    if args.gsa and (args.full or args.analysis or args.include_c5
+                     or args.paper_meters or args.day):
+        ap.error("--gsa corre el modelo de referencia sintético y es "
+                 "incompatible con --full/--analysis/--include-c5/"
+                 "--paper-meters/--day")
+    if args.day and args.full:
+        ap.error("--day y --full son mutuamente exclusivos")
 
     if args.gsa:
         from analysis.global_sensitivity import (
             run_sobol_analysis, compute_indices, save_results)
         import multiprocessing
         multiprocessing.freeze_support()
-        if args.n_base >= 256:
+        # CAL-39: el prompt interactivo solo con TTY — bajo nohup/tee el
+        # stdin está cerrado e input() reventaba el GSA en el server.
+        if args.n_base >= 256 and sys.stdin is not None and sys.stdin.isatty():
             ans = input(
                 f"--n-base={args.n_base} genera "
                 f"{args.n_base*(2*7+2)} evaluaciones (~5 h). "
@@ -1482,6 +1496,9 @@ if __name__ == "__main__":
             if ans.strip().lower() != "s":
                 print("Cancelado.")
                 sys.exit(0)
+        elif args.n_base >= 256:
+            print(f"[gsa] no-TTY: continuando con --n-base={args.n_base} "
+                  f"({args.n_base*(2*7+2)} evaluaciones) sin confirmación")
         Y_dict   = run_sobol_analysis(n_base=args.n_base, seed=42, parallel=True)
         idx_dict = compute_indices(Y_dict)
         out_path = save_results(idx_dict, Y_dict=Y_dict)

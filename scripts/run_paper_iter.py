@@ -734,7 +734,7 @@ def main() -> int:
     ap.add_argument("--pv-scale", type=float, default=1.0,
                     help="Factor multiplicativo aplicado a G antes del run. "
                          "Use --pv-scale 1.5 para correr el case study en el "
-                         "regimen forecast UPME 2030 (cobertura ~144%). "
+                         "regimen forecast UPME 2030 (cobertura ~144%%). "
                          "Afecta tablas, figuras y Excel; NO afecta el "
                          "barrido --ranking-pv (que es independiente).")
     args = ap.parse_args()

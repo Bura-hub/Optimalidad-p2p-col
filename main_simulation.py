@@ -908,9 +908,28 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
     outputs_dir = os.path.join(base_dir, "outputs")
     os.makedirs(outputs_dir, exist_ok=True)
     path = os.path.join(outputs_dir, "resultados_comparacion.xlsx")
-    esc  = ["P2P", "C1", "C2", "C3", "C4"]
+    # CAL-39: lista dinámica — C5 entra al Excel cuando está presente
+    # (antes el hardcode C1-C4 lo omitía de resultados_comparacion.xlsx).
+    esc  = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+            if e in cr.net_benefit]
     N, T = G_klim.shape
     with pd.ExcelWriter(path, engine="openpyxl") as w:
+        # CAL-39 (D8): hoja Diagnostico — timestamp, modo y procedencia,
+        # para detectar Excel stale entre corridas parciales y --full.
+        try:
+            import subprocess as _sp
+            _git = _sp.run(["git", "rev-parse", "--short", "HEAD"],
+                           capture_output=True, text=True, cwd=base_dir,
+                           timeout=5).stdout.strip() or "n/a"
+        except Exception:                                  # noqa: BLE001
+            _git = "n/a"
+        pd.DataFrame([{
+            "generado": pd.Timestamp.now().isoformat(timespec="seconds"),
+            "n_horas": T, "n_agentes": N,
+            "escenarios": ",".join(esc),
+            "git_hash": _git,
+            "comando": " ".join(sys.argv),
+        }]).to_excel(w, sheet_name="Diagnostico", index=False)
         pd.DataFrame({
             "Escenario": esc,
             f"Ganancia_neta_{currency}": [cr.net_benefit[e] for e in esc],

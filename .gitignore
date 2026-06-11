@@ -23,6 +23,7 @@ MedicionesMTE_v3/
 
 # === Documentos: trackeo por defecto, ignoro lo no apto ===
 Documentos/FinalTesis/
+Documentos/FinalTesisV2/
 Documentos/copy/
 Documentos/*.pdf
 Documentos/conversacion_*.txt

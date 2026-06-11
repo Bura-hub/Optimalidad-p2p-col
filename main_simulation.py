@@ -25,9 +25,16 @@ warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Windows: forzar UTF-8 en stdout para soportar caracteres Unicode (█, etc.)
+# CAL-39: reconfigure() EN SITIO en vez de reemplazar sys.stdout — el
+# reemplazo dejaba huérfano al wrapper original y su buffer compartido se
+# cerraba por GC, matando a quien conservara la referencia vieja (pytest:
+# "I/O operation on closed file"; descubierto 2026-06-10 al correr tests/
+# entero de una sola pasada).
 if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        pass
 
 import numpy as np
 import pandas as pd

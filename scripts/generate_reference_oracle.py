@@ -33,7 +33,7 @@ warnings.filterwarnings("ignore")
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, ROOT)
 
-if sys.platform == "win32":
+if sys.platform == "win32" and "pytest" not in sys.modules:   # CAL-39
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8",
                                   errors="replace")

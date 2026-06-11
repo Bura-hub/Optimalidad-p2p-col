@@ -14,7 +14,7 @@ con
         por representante MEM (CREG 086/1996 + CREG 156/2012)
   - α·COT cota de margen tributario (CREG 101-028/2023; default α=1.0)
   - MEM = FAZNI + 0.04·G + π_rep
-        (Ley 1715/2014 art. 19 + Ley 1117/2006 + Ley 2099/2021 art. 45)
+        (Ley 1715/2014 art. 19 + Ley 1117/2006 + prorroga por confirmar (no es la Ley 2099, correccion 2026-06-11))
 
 Ref: ADR-0016; spec docs/superpowers/specs/2026-05-02-cal16-c2-savings-decomposition.md
 """

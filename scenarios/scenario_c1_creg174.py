@@ -4,7 +4,8 @@ scenario_c1_creg174.py
 Escenario C1: Autogeneración a Pequeña Escala (AGPE)
 Resolución CREG 174 de 2021 — balance por período de facturación
 
-Mecanismo (alineado con arts. 22-23 CREG 174 y Decreto 2469/2014):
+Mecanismo (alineado con el art. 25 de la CREG 174 — renumeración CAL-31,
+residuo "arts. 22-23" corregido 2026-06-11 — y Decreto 2469/2014):
   1. Autoconsumo directo hora a hora  → ahorro = pi_gs
                                           (la energía nunca pasó por la
                                           red; no se factura C sobre esos

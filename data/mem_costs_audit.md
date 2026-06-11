@@ -121,8 +121,10 @@ costo material pero no dominante para el bienestar agregado C2.
    **Mitigación:** valor 2.00 está dentro del rango ASOCODIS 2024
    reportado; documentado aquí con bandas razonables.
 
-3. **Contribución 4 %**: si la Ley 2099/2021 art. 45 expira o se
-   modifica antes del cierre de tesis, el cálculo debe ajustarse.
+3. **Contribución 4 %** (base: Ley 1117/2006 art. 2; verificado
+   2026-06-11: la Ley 2099/2021 NO contiene la prórroga — norma de
+   prórroga vigente por confirmar con asesores): si la prórroga expira
+   o se modifica antes del cierre de tesis, el cálculo debe ajustarse.
    **Mitigación:** la tasa 0.04 está hardcoded en `cedenar_tariff.py`
    con cita explícita a la ley; un cambio normativo se trataría como
    nuevo CAL-N.

@@ -711,13 +711,14 @@ def mem_costs_per_agent_hourly(agent_names: list[str],
     Componentes:
       - **FAZNI** (Ley 1715/2014 art. 19): valor fijo anual publicado UPME.
         Modelado como 1.90 COP/kWh referencial 2025-2026.
-      - **Contribucion 4 % al sector** (Ley 1117/2006 art. 2 prorrogada;
-        cita "Ley 2099/2021 art. 45" REVISADA en CAL-31 sub-fase, NO
-        coincide — art. 45 trata del IPSE, no de la prorroga del 4 %.
-        Probable cita correcta: Ley 2099/2021 art. 48 (modifica regimen
-        de subsidios Ley 142/1994 art. 89). PENDIENTE confirmacion con
-        asesor antes de publicar; valor 0.04 x G se mantiene operativo
-        bajo el supuesto de vigencia 2025-2026): 0.04 x G del agente/mes.
+      - **Contribucion 4 % al sector** (Ley 1117/2006 art. 2; VERIFICADO
+        2026-06-11 contra el texto oficial de la Ley 2099/2021
+        (Documentos/regulacion/LEY_2099_2021.html): esa ley NO contiene
+        la prorroga del 4 % (0 menciones de "contribucion"; la unica
+        referencia a la 1117 es el PRONE en el art. 41/Fonenergia).
+        La norma de prorroga vigente queda POR CONFIRMAR con asesores;
+        el valor 0.04 x G se mantiene operativo bajo el supuesto de
+        vigencia 2025-2026): 0.04 x G del agente/mes.
       - **Comision del representante en bolsa** (CREG 156/2012): pacto
         privado, valor referencial ASOCODIS 2024 (≈ 2,00 COP/kWh).
 

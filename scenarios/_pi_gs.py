@@ -107,7 +107,8 @@ def as_component_c_array(
     """
     Normaliza el componente C de Comercialización a matriz (N, T) en COP/kWh.
 
-    Bajo Res. CREG 174/2021 arts. 22-23 el comercializador sigue cobrando el
+    Bajo Res. CREG 174/2021 art. 25 (renumeración CAL-31) el
+    comercializador sigue cobrando el
     componente C aunque el AGPE permute energía. CAL-10 modela este efecto
     valorando la permuta a (pi_gs - pi_C) en lugar de pi_gs completo.
 

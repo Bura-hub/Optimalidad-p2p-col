@@ -224,7 +224,8 @@ def run_comparison(
 
     # ── C4 ──────────────────────────────────────────────────────────────
     # CAL-15: C4 hereda CREG 174 art. 25 vía Decreto 2236/2023 art. 4 +
-    # CREG 101 072/2025 art. 5. Permuta intracomunitaria a (pi_gs - Cvm),
+    # CREG 101 072/2025 art. 19 (PDE) + art. 20 caso 1 (residuo "art. 5"
+    # corregido 2026-06-11). Permuta intracomunitaria a (pi_gs - Cvm),
     # excedente residual a pi_bolsa[k]. component_c reusa el helper Cvm
     # de CAL-10b.2 (mismo argumento que C1).
     c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,

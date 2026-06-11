@@ -55,9 +55,19 @@ def run_sensitivity_pgb(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    # ── CAL-39 (ADR-0039): C5/AGR opt-in + componentes CAL-16 ───────────
+    # Sin los componentes, la tasa no-regulada del C5 sería 0 y el C2 del
+    # barrido caería al modo agregado; defaults None = comportamiento
+    # histórico intacto (el paper no usa estas rutas).
+    include_c5: bool = False,
+    f_split_c5: float = 0.5,
+    g_component=None, cvm_component=None, cot_component=None,
+    mem_costs=None, cot_alpha: float = 1.0,
 ) -> list:
     """
-    SA-1: Varía PGB entre pi_gb_range y recalcula los escenarios C1-C4.
+    SA-1: Varía PGB entre pi_gb_range y recalcula los escenarios C1-C4
+    (y C5 si include_c5; el diagnóstico LBC no aplica — bolsa sintética
+    plana, pi_escasez=None).
     El mercado P2P (p2p_results_base) se mantiene fijo — su despacho no
     cambia con el precio de bolsa, solo cambia la valoración monetaria.
 
@@ -96,15 +106,20 @@ def run_sensitivity_pgb(
             capacity=np.maximum(G.mean(axis=1), 0),
             month_labels=month_labels,                 # CAL-9 fix
             component_c=component_c,                    # CAL-10b fix
+            g_component=g_component, cvm_component=cvm_component,
+            cot_component=cot_component, mem_costs=mem_costs,
+            cot_alpha=cot_alpha,
+            include_c5=include_c5, f_split_c5=f_split_c5,   # CAL-39
         )
 
         active = [r for r in p2p_results_base
                   if r.P_star is not None and np.sum(r.P_star) > 1e-4]
         kwh = sum(float(np.sum(r.P_star)) for r in active)
 
+        esc = ["P2P", "C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else [])
         sr = SensitivityResult(
             param_name="PGB_COP_kWh", param_value=float(pgb),
-            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            net_benefit={e: cr.net_benefit.get(e, 0) for e in esc},
             net_per_agent={
                 "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
                 "C1":  cr.net_benefit_per_agent["C1"].tolist(),
@@ -140,9 +155,15 @@ def run_sensitivity_pv(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    # CAL-39 (ADR-0039): C5/AGR opt-in + componentes CAL-16 (ver SA-1).
+    include_c5: bool = False,
+    f_split_c5: float = 0.5,
+    g_component=None, cvm_component=None, cot_component=None,
+    mem_costs=None, cot_alpha: float = 1.0,
 ) -> list:
     """
     SA-2: Escala la generación G multiplicando por pv_factors.
+    Con include_c5, añade la serie C5/AGR en cada punto del barrido.
     Simula qué pasaría si las instituciones instalan más capacidad solar.
 
     pv_factors: factores de escala sobre G_base (1.0 = actual)
@@ -197,15 +218,20 @@ def run_sensitivity_pv(
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c,                     # CAL-10b fix
             capacity=np.maximum(G_scaled.mean(axis=1), 0),
+            g_component=g_component, cvm_component=cvm_component,
+            cot_component=cot_component, mem_costs=mem_costs,
+            cot_alpha=cot_alpha,
+            include_c5=include_c5, f_split_c5=f_split_c5,   # CAL-39
         )
 
         active = [r for r in p2p_res
                   if r.P_star is not None and np.sum(r.P_star) > 1e-4]
         kwh = sum(float(np.sum(r.P_star)) for r in active)
 
+        esc = ["P2P", "C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else [])
         sr = SensitivityResult(
             param_name="PV_factor", param_value=float(factor),
-            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            net_benefit={e: cr.net_benefit.get(e, 0) for e in esc},
             net_per_agent={
                 "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
                 "C4":  cr.net_benefit_per_agent["C4"].tolist(),
@@ -749,6 +775,11 @@ def run_sensitivity_pgs(
     π_gs es el precio que los usuarios pagan a la red por cada kWh.
     Si π_gs sube → el ahorro por autoconsumo y P2P crece → P2P más atractivo.
     Si π_gs baja → la ventaja del P2P se reduce.
+
+    NOTA CAL-39: este barrido NO incluye C5/AGR — el π_gs sintético del
+    sweep no define la tasa no-regulada real (G+Cvm+α·COT−MEM) que valora
+    la compensación del C5; mezclar ambos sería inconsistente (misma razón
+    por la que tampoco se pasa component_c real, ver llamada en main).
 
     A diferencia de SA-1 (PGB fijo), SA-3 re-ejecuta el EMS P2P porque G_klim
     depende de π_gs (Algoritmo 1: la restricción de generación usa pi_gs en la

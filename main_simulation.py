@@ -610,6 +610,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             prosumer_ids=prosumer_ids, verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c_arg,                 # CAL-10b fix
+            include_c5=include_c5,                      # CAL-39
+            g_component=g_arg, cvm_component=cvm_arg,
+            cot_component=cot_arg, mem_costs=mem_arg,
+            cot_alpha=cot_alpha_default,
         )
 
         # SA-2: variación cobertura PV
@@ -624,6 +628,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             prosumer_ids=prosumer_ids, verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c_arg,                 # CAL-10b fix
+            include_c5=include_c5,                      # CAL-39
+            g_component=g_arg, cvm_component=cvm_arg,
+            cot_component=cot_arg, mem_costs=mem_arg,
+            cot_alpha=cot_alpha_default,
         )
 
         # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)

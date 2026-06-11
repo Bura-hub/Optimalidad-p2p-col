@@ -311,11 +311,15 @@ def build_demand_generation(
             kind = cfg_d.get("kind", "gross")
             if mdir is not None:
                 D_raw = _read_single_meter(mdir, COL_DEMAND, idx, divide_by=1.0)
-            elif verbose:
-                print(f"  A{n} {agent}: subcarpeta de medidor no encontrada "
-                      f"({cfg_d['subfolder']})")
-        elif verbose:
-            print(f"  A{n} {agent}: sin carpeta de medidores")
+            else:
+                # CAL-40a (H-D-008): aviso INCONDICIONAL — antes solo con
+                # verbose, y una institución sin medidor (D=NaN) podía
+                # pasar inadvertida en modo test.
+                print(f"  A{n} {agent}: AVISO — subcarpeta de medidor no "
+                      f"encontrada ({cfg_d['subfolder']}); demanda queda NaN")
+        else:
+            print(f"  A{n} {agent}: AVISO — sin carpeta de medidores; "
+                  "demanda queda NaN")
 
         # CAL-36: factor de escala opcional del medidor (ej. Mariana M1 x0.3
         # en el escenario M3 sub-medidores). Default 1.0 = sin efecto.

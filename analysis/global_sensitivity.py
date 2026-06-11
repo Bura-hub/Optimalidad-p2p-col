@@ -413,12 +413,26 @@ def compute_indices(Y_dict: dict) -> dict:
                      ("ie",       Y_dict["Y_ie"])]:
         mask   = ~np.isnan(Y)
         n_good = mask.sum()
-        if n_good < len(Y) * 0.5:
-            print(f"  [AVISO] {label}: solo {n_good}/{len(Y)} muestras válidas; "
-                  "índices pueden ser poco fiables.")
+        # CAL-40a (H-C-002 del code review 2026-06-10): umbral de
+        # confiabilidad al 10 % de fallas (antes 50 %). La imputación por
+        # media se mantiene como mecanismo (SALib exige el vector Saltelli
+        # completo de N*(2k+2) muestras; excluir bloques rompería el
+        # apareamiento A/B/AB), pero ahora se REPORTA SIEMPRE la fracción
+        # imputada para que el sesgo (compresión hacia el centro de S1/ST)
+        # quede cuantificado. Corrida canónica 2026-06-11: 2.4 % imputado
+        # (1999/2048), margen de dominancia factor_PV 3x → conclusión
+        # robusta.
+        frac_bad = 1.0 - n_good / max(len(Y), 1)
+        if frac_bad > 0.0:
+            print(f"  [GSA] {label}: {len(Y)-n_good}/{len(Y)} muestras "
+                  f"imputadas por media ({frac_bad:.1%}) — sesgo hacia el "
+                  "centro; ver nota CAL-40a")
+        if frac_bad > 0.10:
+            print(f"  [AVISO] {label}: imputación {frac_bad:.1%} > 10% — "
+                  "índices Sobol NO confiables; aumentar timeout o n_base.")
 
         Y_clean = Y.copy()
-        Y_clean[~mask] = np.nanmean(Y)   # imputación simple por la media
+        Y_clean[~mask] = np.nanmean(Y)   # ver nota CAL-40a arriba
 
         Si = sobol_analyze(
             problem, Y_clean,

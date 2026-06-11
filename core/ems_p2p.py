@@ -522,7 +522,12 @@ class EMSP2P:
                 pi_i, t_b, pi_traj = solve_buyers(
                     P_star, a_j, b_j, etha_i,
                     pi_gs=gr.pi_gs, pi_gb=gr.pi_gb,
-                    tau=sv.tau, t_span=sv.t_span, n_points=sv.n_points,
+                    # CAL-40a (H-A-011): tau_buyers (=tau3 JoinFinal), no el
+                    # tau de sellers — el error solo afectaba la TRAYECTORIA
+                    # de visualización (el worker de producción y el solver
+                    # acoplado siempre usaron el correcto).
+                    tau=sv.tau_buyers, t_span=sv.t_span,
+                    n_points=sv.n_points,
                     return_traj=True,
                     buyer_competition=sv.buyer_competition,
                 )

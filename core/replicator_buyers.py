@@ -66,8 +66,9 @@ def solve_buyers(
     pi0:         Optional[np.ndarray] = None,  # CI de precios (I,) o (I+1,)
 ):
     """
-    Resuelve la dinámica de compradores con Euler implícito
-    (equivalente a ode15s de MATLAB para sistemas stiff).
+    Resuelve la dinámica de compradores con Euler EXPLÍCITO de paso fijo
+    (dt pequeño constante; CAL-40a corrige el docstring que decía
+    "implícito" — H-A-004 del code review 2026-06-10).
     Retorna pi_star (I,).
     Si return_traj=True, retorna (pi_star, t_arr, pi_traj) donde
       t_arr   : (n_points,)  eje de tiempo

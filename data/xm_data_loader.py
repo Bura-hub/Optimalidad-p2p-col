@@ -68,7 +68,10 @@ def _read_one(path: Path, col: str) -> Optional[pd.Series]:
     """
     raw = path.read_bytes()
     enc = "utf-8"
-    for e in ["utf-8-sig", "utf-8", "latin-1", "cp1252"]:
+    # CAL-40a (H-D-001): cp1252 ANTES de latin-1 — latin-1 acepta cualquier
+    # byte, así que puesto antes hacía inalcanzable a cp1252 (Excel
+    # colombiano) y corrompía el rango 0x80-0x9F.
+    for e in ["utf-8-sig", "utf-8", "cp1252", "latin-1"]:
         try:
             raw.decode(e)
             enc = e
@@ -79,10 +82,16 @@ def _read_one(path: Path, col: str) -> Optional[pd.Series]:
     try:
         df = pd.read_csv(path, encoding=enc, low_memory=False,
                          on_bad_lines="skip")
-    except Exception:
+    except Exception as exc:                                # noqa: BLE001
+        # CAL-40a (H-D-002): nunca silencioso — un archivo caído puede
+        # significar una institución entera ausente aguas arriba.
+        print(f"  [xm_data_loader] AVISO: fallo leyendo {path.name}: "
+              f"{type(exc).__name__}: {exc} — se retorna None")
         return None
 
     if COL_DATE not in df.columns or col not in df.columns:
+        print(f"  [xm_data_loader] AVISO: {path.name} sin columnas "
+              f"esperadas ({COL_DATE!r}/{col!r}) — se retorna None")
         return None
 
     # pandas >= 2.0: to_datetime sin infer_datetime_format

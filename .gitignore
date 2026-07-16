@@ -98,3 +98,16 @@ SALIDAS_SERVIDOR/
 fanzine/
 .superpowers/
 borrar.py
+
+# === Deliberación interna + evaluación de terceros (repo público: NO subir) — 2026-07 ===
+# Retirados del tracking conservando copia local (git rm --cached). Nombran a los
+# asesores (AP/DS/Fajardo) y al IP del MTE (Wilson) con juicios internos.
+Documentos/evaluacion_analisis_paralelo_wilson_mte.md
+Documentos/acta_reunion_asesores_2026-06.md
+Documentos/preguntas_asesores_S1-S9.md
+Documentos/auditoria_sync_paper_tesis.md
+Documentos/notas_modelo_tesis.md
+Documentos/notas_calibracion_audit.md
+Documentos/audit_p2p_decomposition.md
+Documentos/audit_regulatorio_C1_C4.md
+Documentos/bib_verificacion_2026-04-30.md

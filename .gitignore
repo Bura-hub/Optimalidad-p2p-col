@@ -100,6 +100,9 @@ scripts/export_ruflo_memory.py
 scripts/ruflo_index_mte_profiles.py
 scripts/ruflo_snapshot_run.py
 scripts/backup_notas_tesis.py
+tests/test_ruflo_snapshot_run.py
+tests/test_backup_notas.py
+tests/test_mte_profiles_indexer.py
 
 # === Datos MTE derivados (licencia restringida, no redistribuir) ===
 graficas/*.csv

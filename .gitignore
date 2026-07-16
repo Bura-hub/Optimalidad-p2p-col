@@ -21,15 +21,10 @@ Thumbs.db
 MedicionesMTE/
 MedicionesMTE_v3/
 
-# === Documentos: trackeo por defecto, ignoro lo no apto ===
-Documentos/FinalTesis/
-Documentos/FinalTesisV2/
-Documentos/copy/
-Documentos/*.pdf
-Documentos/conversacion_*.txt
-Documentos/informe_*.md
-Documentos/p2p_explicacion.txt
-Documentos/.notas_backups/  # CAL-Sprint 4.5 (backup_notas_tesis.py)
+# === Documentos: material de tesis / notas / normativa — LOCAL, no publico (2026-07) ===
+# El repo publico deja solo la estructura de codigo. Toda la carpeta Documentos/
+# (propuesta, notas, bibliografia y copias de normativa CREG) se conserva local.
+Documentos/
 
 # === Outputs telemetria Sprint 5.1 (D3) ===
 outputs/telemetry/
@@ -70,10 +65,6 @@ CLAUDE.md.bak
 ruvector.db
 *.db
 
-# === Snapshots Ruflo (binarios y JSON regenerables) ===
-Documentos/exports/*.json
-Documentos/exports/*.db
-
 # === Ruflo runtime extra (instalación local) ===
 agentdb.rvf
 agentdb.rvf.lock
@@ -99,29 +90,9 @@ fanzine/
 .superpowers/
 borrar.py
 
-# === Deliberación interna + evaluación de terceros (repo público: NO subir) — 2026-07 ===
-# Retirados del tracking conservando copia local (git rm --cached). Nombran a los
-# asesores (AP/DS/Fajardo) y al IP del MTE (Wilson) con juicios internos.
-Documentos/evaluacion_analisis_paralelo_wilson_mte.md
-Documentos/acta_reunion_asesores_2026-06.md
-Documentos/preguntas_asesores_S1-S9.md
-Documentos/auditoria_sync_paper_tesis.md
-Documentos/notas_modelo_tesis.md
-Documentos/notas_calibracion_audit.md
-Documentos/audit_p2p_decomposition.md
-Documentos/audit_regulatorio_C1_C4.md
-Documentos/bib_verificacion_2026-04-30.md
-
-# === Borradores de capitulos (WIP; la version final vive en FinalTesisV2/, ya ignorada) ===
-Documentos/borrador_cap4_resultados.md
-Documentos/borrador_cap5_discusion_regulatoria.md
-Documentos/borrador_cap6_conclusiones.md
-
 # === Proceso asistido por IA / ingenieria interna (repo publico: NO subir) ===
-Documentos/metodologia_avancesjunio.md
 docs/
 
 # === Datos MTE derivados (licencia restringida, no redistribuir) ===
 graficas/*.csv
 graficas/*.mat
-Documentos/reporte_calidad_datos_MTE.md

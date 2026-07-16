@@ -120,3 +120,8 @@ Documentos/borrador_cap6_conclusiones.md
 # === Proceso asistido por IA / ingenieria interna (repo publico: NO subir) ===
 Documentos/metodologia_avancesjunio.md
 docs/
+
+# === Datos MTE derivados (licencia restringida, no redistribuir) ===
+graficas/*.csv
+graficas/*.mat
+Documentos/reporte_calidad_datos_MTE.md

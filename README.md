@@ -113,7 +113,7 @@ python tests/statistical_tests.py --n-bootstrap 10000 --block-days 7
 ## Datos empíricos MTE — Instituciones
 
 **MTE** = Medición de Tecnologías de Energía (proyecto de monitoreo de
-5 instituciones en Pasto, Nariño; ver `Documentos/Inventario_Act_1_0.md:13`).
+5 instituciones en Pasto, Nariño).
 
 ### Pipeline de datos (`data/preprocessing.py`)
 
@@ -144,8 +144,6 @@ Configuración por institución (sobreescribible vía kwargs a `MTEDataLoader`):
 
 Período: **2025-04-04 → 2025-12-16 · 6 144 h · 256 días** (horizonte sólido común sobre `MedicionesMTE_v3`).
 
-Detalle completo de decisiones, verificación empírica del net metering en Udenar y trazabilidad con la auditoría: ver `Documentos/notas_modelo_tesis.md` § 3.1.
-
 Auditorías regenerables:
 
 ```powershell
@@ -167,15 +165,14 @@ python scripts/plot_coverage_gantt.py    # graficas/data_coverage_gantt.png
 | PGB | 114 (adim.) | **280 COP/kWh** | Precio bolsa promedio XM |
 | b_n | 194.76 (adim.) | **~225 COP/kWh** | LCOE solar Pasto, Fronius |
 
-> **CAL-8** (`Documentos/notas_modelo_tesis.md` §CAL-8): la tarifa real
+> **CAL-8**: la tarifa real
 > Cedenar se carga desde `data/tarifas_cedenar_mensual.csv` y se propaga
 > per-agente a los escenarios C1-C4. Los escenarios aceptan
 > `pi_gs : float | np.ndarray (N,)` vía
 > `scenarios._pi_gs.as_pi_gs_vector`. Cobertura del CSV: 13 meses
 > (abr-2025 → abr-2026), respaldados por PDFs en `data/cedenar_pdfs/`.
 >
-> **CAL-9** (`Documentos/notas_modelo_tesis.md` §CAL-9,
-> `docs/adr/0009-cal9-pi-gs-temporal.md`): el contrato canónico de los
+> **CAL-9**: el contrato canónico de los
 > escenarios pasa a `pi_gs : float | (N,) | (N, T)`. En modo `--full`
 > y `--day` cada hora liquida con el CU del mes que la contiene
 > (vía `pi_gs_per_agent_hourly`). El helper canónico es
@@ -264,7 +261,7 @@ Validado: 16 archivos `.mat` y 44 archivos `.csv` se cargan sin error con `scipy
 |---------|-------------|-------|
 | SC | Self-Consumption: fracción de D cubierta localmente | [0, 1] |
 | SS | Self-Sufficiency: fracción de G usada en comunidad | [0, 1] |
-| IE | Seller-buyer balance index [Chacon 2025]: posición de π* en rango admisible (0=balanceado, +1=buyer-favoring, −1=seller-favoring); NO es equidad distributiva — ver `Documentos/notas_modelo_tesis.md §A.10` | [-1, +1] |
+| IE | Seller-buyer balance index [Chacon 2025]: posición de π* en rango admisible (0=balanceado, +1=buyer-favoring, −1=seller-favoring); NO es equidad distributiva | [-1, +1] |
 | Gini | **Métrica primaria de equidad distributiva** (estándar P2P-energy): inequidad entre net benefits per-agente; lower = más equitativo | [0, 1] |
 | RPE | Rendimiento Relativo de Equidad P2P vs C4: (W_P2P−W_C4)/|W_P2P| | (−∞, 1] |
 | PoF | Price of Fairness [Bertsimas 2011]: (W_eff−W_fair)/W_eff; eficiente=max Σ B_n, equitativo=min Gini | [0, 1] |
@@ -295,8 +292,7 @@ días, abril–diciembre 2025) **con calibración Cedenar CAL-8 per-agente**
 > MCOP** según `α` y costos del MEM (FAZNI + 4 % + comisión representante).
 > Esto **refuerza la conclusión P2P > C2** (la diferencia P2P − C2 crece de
 > ~0,99 MCOP a ~20+ MCOP). La regeneración con `--full --analysis` está
-> pendiente. Detalle: `docs/adr/0016-cal16-c2-savings-decomposition.md` y
-> `docs/superpowers/specs/2026-05-01-c2-funcionamiento-completo.md`.
+> pendiente.
 
 **Métricas agregadas**: SC P2P = 0.188 · SS P2P = 0.981 · IE P2P = +0.3677 · **RPE P2P vs C4 = +0.0408** · PoF = 0.0000 (eficiente = equitativo = C1) · Spread C4 = 1 004,4 kWh.
 
@@ -313,7 +309,7 @@ sólo cambia la calibración de `pi_gs`):
 | C4  | 36,56 MCOP | 50,29 MCOP | +37,6 % |
 | RPE (P2P vs C4) | +0,0321 | **+0,0408** | +27 % en magnitud |
 | Σ ventaja P2P sobre C4 | 1,21 MCOP | **2,14 MCOP** | +77 % |
-| IE P2P (balance comp.-vend.) | +0,4063 | +0,3677 | −0,04 (precio se acerca al midpoint, sigue siendo buyer-favoring; ver §A.10) |
+| IE P2P (balance comp.-vend.) | +0,4063 | +0,3677 | −0,04 (precio se acerca al midpoint, sigue siendo buyer-favoring) |
 
 La jerarquía cualitativa **C1 ≥ P2P > C2 ≥ C3 > C4** se conserva. La activación de la heterogeneidad oficial/comercial **amplifica la prima de flexibilidad del P2P** sobre C4 en términos absolutos (Σ ventaja casi se duplica) sin invertir signos.
 
@@ -342,13 +338,13 @@ La jerarquía cualitativa **C1 ≥ P2P > C2 ≥ C3 > C4** se conserva. La activa
 
 El flag `_fast_mode` en `core/replicator_sellers.py` (commit `a5f2dc4`, introducido el 2026-04-26) reducía `VEL_GRAD` de 1e6 a 1e3 y relajaba tolerancias del solver ODE para acelerar el GSA ~10×. **Nunca completó un GSA exitosamente**: ~58% de los samples Saltelli disparan ciclos infinitos del Newton iterativo de LSODA, atascando los workers. El test `tests/test_fast_mode_equivalence.py` valida solo 8 horas representativas y por eso pasa verde, pero no cubre la distribución completa del muestreo Saltelli.
 
-Tras la investigación del 2026-04-27 (utilidad de diagnóstico `scripts/probe_gsa_samples.py`), se desactivó `_fast_mode` en `analysis/global_sensitivity.py:_eval_sample` y se añadió un wrapper con timeout de 45 s en `_worker` como defensa adicional (samples patológicos se marcan NaN y se filtran del estimador Sobol). Trazabilidad completa en `Documentos/notas_modelo_tesis.md` §A.7.
+Tras la investigación del 2026-04-27 (utilidad de diagnóstico `scripts/probe_gsa_samples.py`), se desactivó `_fast_mode` en `analysis/global_sensitivity.py:_eval_sample` y se añadió un wrapper con timeout de 45 s en `_worker` como defensa adicional (samples patológicos se marcan NaN y se filtran del estimador Sobol).
 
 ---
 
 ## Estado de actividades (propuesta de tesis)
 
-Las 10 actividades 1.0 → 4.2 están **completas y validadas con datos empíricos MTE_v3**. Trazabilidad detallada por actividad en `Documentos/Matriz_Trazabilidad.md`.
+Las 10 actividades 1.0 → 4.2 están **completas y validadas con datos empíricos MTE_v3**.
 
 ### Hitos completados
 
@@ -375,5 +371,5 @@ Las 10 actividades 1.0 → 4.2 están **completas y validadas con datos empíric
 
 - [ ] (diferido) GSA Sobol con `n_base ≥ 256` para IC más estrechos — solo si el comité lo solicita
 - [ ] Verificar LCOE real de inversores instalados en cada institución MTE
-- [ ] Confirmar autores de referencias `[22][24][26][27]` en `Documentos/references.bib`
-- [ ] Manuscrito Capítulos 4 (resultados) y 5 (conclusiones) — vive en `Documentos/FinalTesis/` (otro repositorio)
+- [ ] Confirmar autores de referencias `[22][24][26][27]` de la bibliografía
+- [ ] Manuscrito Capítulos 4 (resultados) y 5 (conclusiones) — vive en un repositorio aparte

@@ -43,13 +43,10 @@ outputs/paper/intermediate_*.csv
 outputs/*
 !outputs/paper/
 
-# === Excepciones: paper IEEE WEEF source files (markdown + BibTeX) ===
-# El paper md y su bibliografia viven en outputs/paper/ junto con los
-# assets generados, pero deben trackearse en git (a diferencia del resto
-# de outputs/ que es regenerable).
+# === Paper WEEF: fuente md + BibTeX — LOCAL, no publico (2026-07) ===
+# El paper es entregable, pero se retira del repo publico por decision del autor.
+# Se conserva local junto con el resto de outputs/paper/ (regenerable).
 outputs/paper/*
-!outputs/paper/paper_weef.md
-!outputs/paper/paper_weef_bib.bib
 p2p_breakdown_flujos.csv
 p2p_breakdown_resumen_horario.csv
 

@@ -76,6 +76,13 @@ data/*.csv.bak_*
 # Presentación generada
 presentation/*.pptx
 
+# === Docs meta y de avance — LOCAL, no publico (2026-07) ===
+# CLAUDE.md (instrucciones de proceso/IA), SERVER_SETUP.md (despliegue interno)
+# y REPORTE_AVANCES.md (bitacora) se conservan localmente, fuera del repo publico.
+/CLAUDE.md
+/SERVER_SETUP.md
+/REPORTE_AVANCES.md
+
 # === Transcripciones y material privado de reuniones (repo público: NO subir) ===
 Documentos/reuniones/
 

@@ -13,7 +13,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# === Claude Code y agentes ===
+# === Herramientas y agentes locales ===
 .claude/
 .worktrees/
 
@@ -53,7 +53,7 @@ p2p_breakdown_resumen_horario.csv
 # === Backups defensivos creados por planes de auditoria ===
 _backup_*/
 
-# === Ruflo / claude-flow runtime ===
+# === Runtime local de agentes ===
 .claude-flow/
 .swarm/
 .mcp.json
@@ -96,6 +96,10 @@ borrar.py
 
 # === Proceso asistido por IA / ingenieria interna (repo publico: NO subir) ===
 docs/
+scripts/export_ruflo_memory.py
+scripts/ruflo_index_mte_profiles.py
+scripts/ruflo_snapshot_run.py
+scripts/backup_notas_tesis.py
 
 # === Datos MTE derivados (licencia restringida, no redistribuir) ===
 graficas/*.csv

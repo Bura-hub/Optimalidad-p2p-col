@@ -39,8 +39,8 @@ Precisiones del Informe 4 MTE (Fajardo, 2026-05-27) y texto oficial:
     (supuesto S1, ampliado en auditoría — pregunta a asesores); es de
     segundo orden frente a la tasa CAL-16.
 
-Supuestos S1–S6 declarables en Métodos: ver spec
-``docs/superpowers/specs/2026-06-09-cal37-c5-agr-design.md`` y ADR-0037.
+Supuestos S1–S6 declarables en Métodos: ver la especificacion de
+diseno interna (CAL-37) y la decision ADR-0037.
 
 Filosofía A (validada con Pantoja): ``net_benefit = autoconsumo +
 compensación (receptor+generador) + residual_bolsa``; los costos del consumo

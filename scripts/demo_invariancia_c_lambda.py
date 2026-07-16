@@ -3,12 +3,12 @@
 Demo numerica de invariancia del equilibrio del juego Stackelberg + RD
 respecto a c_j, lambda_j, theta_j, eta_i bajo alpha=0.
 
-Verifica empiricamente la derivacion analitica documentada en:
-  - docs/adr/0002-cal2-etha.md (eta inerte)
-  - docs/adr/0005-cal5-theta.md (theta inerte)
-  - docs/adr/0032-cal32-c-coefficient-defense.md (c invariante)
-  - docs/adr/0033-cal33-lambda-homogeneity.md (lambda invariante alpha=0)
-  - plan: con-ruflo-puedes-orquestar-twinkly-leaf.md §4 (derivacion)
+Verifica empiricamente la derivacion analitica documentada en las
+decisiones de calibracion internas:
+  - CAL-2 (eta inerte)
+  - CAL-5 (theta inerte)
+  - CAL-32 (c invariante)
+  - CAL-33 (lambda invariante alpha=0)
 
 Estrategia:
 1. Carga el caso h=512 (max P2P volume del horizonte 744h).

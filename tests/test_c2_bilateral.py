@@ -22,9 +22,8 @@ ADR-0011 (CAL-11):
   7. C2 acepta pi_gs como matriz (N, T) (compatibilidad CAL-9).
 
 Referencias:
-  - docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md
-  - docs/superpowers/specs/2026-04-30-c2-ppa-bilateral-audit.md
-  - Documentos/notas_modelo_tesis.md §3.8
+  - ADR-0011 (CAL-11, C2 PPA bilateral, modelo formal)
+  - Especificacion de diseno interna (auditoria PPA bilateral C2)
 """
 
 from __future__ import annotations

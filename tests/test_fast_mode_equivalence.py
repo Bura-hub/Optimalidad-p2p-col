@@ -24,8 +24,7 @@ Seleccion de 8 horas representativas:
   - 2 horas nocturnas (sin generacion, mercado inactivo)
   - hasta 2 horas historicamente problematicas (subset de h0012, h0014, h3683)
 
-Ref: Documentos/PropuestaTesis.txt VI.D, Act 4.1
-     docs/superpowers/specs/2026-04-26-gsa-mte-v3-design.md
+Ref: Propuesta de tesis VI.D, Act 4.1 (especificacion de diseno interna GSA MTE_v3).
 """
 
 import os

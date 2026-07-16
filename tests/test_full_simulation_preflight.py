@@ -328,40 +328,6 @@ def test_main_simulation_pasa_pi_G_arg_a_run_comparison():
     )
 
 
-# ─── 9. Verificación de ADRs sembrados ──────────────────────────────────────
-
-def test_adrs_completos_en_docs():
-    """Los 13 ADRs deben existir en docs/adr/."""
-    adr_dir = REPO_ROOT / "docs" / "adr"
-    adrs = sorted(adr_dir.glob("0*.md"))
-    assert len(adrs) >= 13, (
-        f"Esperaba ≥ 13 ADRs (0001..0013); encontré {len(adrs)}: "
-        f"{[a.name for a in adrs]}"
-    )
-    # Verificar específicamente los ADRs de C2
-    expected_c2_adrs = [
-        "0011-cal11-c2-ppa-bilateral-modelo-formal.md",
-        "0012-cal12-c2-fom-peajes.md",
-        "0013-cal13-c2-no-regulado.md",
-    ]
-    nombres = {a.name for a in adrs}
-    for expected in expected_c2_adrs:
-        assert expected in nombres, f"ADR faltante: {expected}"
-
-
-def test_specs_de_c2_existen():
-    """Los specs documentales de C2 deben existir."""
-    specs_dir = REPO_ROOT / "docs" / "superpowers" / "specs"
-    expected_specs = [
-        "2026-04-30-c2-ppa-bilateral-audit.md",
-        "2026-05-01-c1-c2-regulatory-alignment-audit.md",
-        "2026-05-01-c2-funcionamiento-completo.md",
-    ]
-    for spec in expected_specs:
-        path = specs_dir / spec
-        assert path.exists(), f"Spec faltante: {path}"
-
-
 # ─── 10. Tests con datos reales MTE_v3 (skip si no disponible) ───────────────
 
 # El dataset MTE_v3 está en gitignore; en CI o entornos sin datos los

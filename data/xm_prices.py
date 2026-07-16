@@ -720,7 +720,7 @@ def price_source_analysis(
 # Tabla mensual: data/precios_escasez_creg.csv
 # Validacion de valores: sheet Comportamiento_PBNal_Horario en
 #   sinergox.xm.com.co/.../03_Informe_Precios_y_Transacciones_MM_2025.xlsx
-# Spec: docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md
+# Spec: especificacion de diseno interna (CAL-14, techo PES CREG 101 066)
 
 _CEILING_LEVEL_COL = {
     "PEI": "pei_cop_kwh",
@@ -773,7 +773,7 @@ def load_creg_ceiling(
     if not path.exists():
         raise FileNotFoundError(
             f"Falta {csv_path}. Esperado: tabla mensual PEI/PE/PES CREG 101 066. "
-            f"Ver docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md"
+            f"Ver la especificacion de diseno interna del techo PES (CAL-14)."
         )
 
     df = pd.read_csv(path)

@@ -7,8 +7,7 @@ Verifica que `data/cedenar_tariff.py` opera en modo fail-fast por
 defecto (sin fallback silencioso) y que la cobertura actual permite
 correr la simulacion sin fallback explicito.
 
-Referencia: docs/adr/0018-cal18-cedenar-tarifa-fail-fast.md
-            docs/superpowers/specs/2026-05-02-cal18-cedenar-tarifa-fail-fast.md
+Referencia: ADR-0018 (CAL-18, tarifa Cedenar fail-fast).
 """
 from __future__ import annotations
 

@@ -6,7 +6,7 @@ Brayan S. Lopez-Mendez · Udenar 2026 · Actividad 3.x
 Verifica el cargador de la tabla mensual PEI/PE/PES y la aplicacion del
 techo regulatorio al precio de bolsa horario.
 
-Referencia: docs/superpowers/specs/2026-05-01-cal14-creg101066-pes-ceiling.md
+Referencia: especificacion de diseno interna (CAL-14, techo PES CREG 101 066).
 """
 
 from __future__ import annotations

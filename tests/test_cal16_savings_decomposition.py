@@ -16,7 +16,7 @@ con
   - MEM = FAZNI + 0.04·G + π_rep
         (Ley 1715/2014 art. 19 + Ley 1117/2006 + prorroga por confirmar (no es la Ley 2099, correccion 2026-06-11))
 
-Ref: ADR-0016; spec docs/superpowers/specs/2026-05-02-cal16-c2-savings-decomposition.md
+Ref: ADR-0016 (CAL-16, descomposicion de ahorro C2).
 """
 
 import numpy as np

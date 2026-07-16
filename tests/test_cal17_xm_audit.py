@@ -7,8 +7,7 @@ Verifica el invariante de tolerancia entre el cache pydataxm y el PB_PROM
 oficial XM, y la sincronia entre `XM_MONTHLY_REAL` y los valores oficiales
 declarados en el script de auditoria.
 
-Referencia: docs/adr/0017-cal17-pydataxm-vs-ptb-audit.md
-            docs/superpowers/specs/2026-05-02-cal17-pydataxm-vs-ptb-audit.md
+Referencia: ADR-0017 (CAL-17, auditoria pydataxm vs PTB).
 """
 from __future__ import annotations
 

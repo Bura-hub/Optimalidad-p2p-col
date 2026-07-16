@@ -51,7 +51,7 @@ RE_README_TABLE_ROW = re.compile(
 SCAN_EXTS = {".py", ".md", ".csv", ".txt", ".rst", ".yaml", ".yml"}
 EXCLUDE_DIRS = {".venv", "__pycache__", ".git", "node_modules",
                  ".pytest_cache", ".mypy_cache", ".ruff_cache",
-                 ".claude", ".worktrees", "MedicionesMTE",
+                 ".worktrees", "MedicionesMTE",
                  "MedicionesMTE_v3", "outputs", ".vscode", ".idea"}
 
 

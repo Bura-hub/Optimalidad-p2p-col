@@ -1,6 +1,6 @@
 """Auditoria de calibracion P2P para defensa academica del paper.
 
-Modulos por eje (Wave 2 del swarm):
+Modulos por eje:
   * equidad_sweep         — eje 1: alpha_n x theta -> IE/Gini/PoF
   * robustez_sweep        — eje 2: alpha_n per-agente -> IR coverage (delta_n)
   * heterogeneidad_analysis — eje 3: dominancia horaria P2P vs C4

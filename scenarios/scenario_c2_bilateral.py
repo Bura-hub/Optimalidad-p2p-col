@@ -75,10 +75,10 @@ compatibilidad con tests CAL-11/CAL-12 y `pi_G=None` cae al
 comportamiento BTM legacy.
 
 Ver:
-  - docs/adr/0011-cal11-c2-ppa-bilateral-modelo-formal.md
-  - docs/adr/0012-cal12-c2-fom-peajes.md
-  - docs/adr/0013-cal13-c2-no-regulado.md
-  - docs/superpowers/specs/2026-05-01-c1-c2-regulatory-alignment-audit.md
+  - ADR-0011 (CAL-11, C2 PPA bilateral, modelo formal)
+  - ADR-0012 (CAL-12, C2 FOM, peajes)
+  - ADR-0013 (CAL-13, C2 no regulado)
+  - Especificacion de diseno interna (auditoria alineacion regulatoria C1-C2)
   - tests/test_c2_bilateral.py
 """
 

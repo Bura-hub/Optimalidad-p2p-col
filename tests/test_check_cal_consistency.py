@@ -163,8 +163,27 @@ def test_strict_mode_exit_code(tmp_path):
 # ─── F — repo real (smoke) ──────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    not (ROOT / "docs" / "adr").is_dir(),
+    reason="sin docs/adr en este arbol: el detector es tooling local y no "
+           "tiene nada que analizar (docs/ esta gitignorado desde la "
+           "reduccion de privacidad del arbol publico)",
+)
 def test_repo_real_corre_sin_crash():
-    """Smoke: el detector corre sobre el repo real sin crashear."""
+    """Smoke: el detector corre sobre el repo real sin crashear.
+
+    CAL-43b — POR QUE LLEVA `skipif`. Este es el unico test del fichero que
+    mira el repo REAL; los demas construyen repos sinteticos en `tmp_path`. Y
+    el repo real publico **no tiene `docs/`**: esta gitignorado desde la
+    reduccion de privacidad, de modo que `check_cal_consistency.py` aborta con
+    `FileNotFoundError`, sale con codigo 1 —que el `assert` de abajo acepta— y
+    el test se rompia despues, al parsear un `stdout` vacio.
+
+    Es decir: el arbol publico contenia un test que NO PUEDE pasar en el arbol
+    publico. Se detecto el 2026-08-08 al correr el preflight en el servidor,
+    sobre un clon limpio. Saltarlo donde no aplica conserva la cobertura donde
+    si aplica; excluirlo con `--deselect` lo habria escondido tambien en local.
+    """
     res = subprocess.run(
         [sys.executable, str(SCRIPT), "--json-only"],
         cwd=str(ROOT), capture_output=True, text=True, encoding="utf-8",

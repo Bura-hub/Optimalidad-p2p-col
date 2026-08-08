@@ -959,11 +959,23 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
                            timeout=5).stdout.strip() or "n/a"
         except Exception:                                  # noqa: BLE001
             _git = "n/a"
+        # CAL-43: PROCEDENCIA DE LOS DATOS, en el artefacto y no solo en el log.
+        # `get_pi_bolsa` sustituye la serie real por una SINTETICA cuando no
+        # encuentra fuente, y hasta ahora el único rastro era una línea de
+        # stdout: una corrida entera podía salir de precios inventados sin que
+        # el .xlsx lo dijera. Es la misma clase de fallo que CAL-28b.
+        try:
+            from data import xm_prices as _xmp
+            _fuente_bolsa = _xmp.ULTIMA_FUENTE or "desconocida"
+        except Exception:                                  # noqa: BLE001
+            _fuente_bolsa = "desconocida"
         pd.DataFrame([{
             "generado": pd.Timestamp.now().isoformat(timespec="seconds"),
             "n_horas": T, "n_agentes": N,
             "escenarios": ",".join(esc),
             "git_hash": _git,
+            "fuente_bolsa": _fuente_bolsa,
+            "mte_root": os.environ.get("MTE_ROOT", "(default del repo)"),
             "comando": " ".join(sys.argv),
         }]).to_excel(w, sheet_name="Diagnostico", index=False)
         pd.DataFrame({
@@ -1061,6 +1073,13 @@ def _compute_daily_series(
         tl_d = (tolls[:, sl]
                 if isinstance(tolls, np.ndarray) and tolls.ndim == 2
                 else tolls)
+        # CAL-43: el bootstrap liquida C4 en base HORARIA a proposito, y no
+        # en la mensual de CAL-42. La razon es metodologica, no un olvido:
+        # la serie es DIARIA y un dia no es un periodo de facturacion, de
+        # modo que no hay permuta mensual que cruzar dentro del bloque.
+        # Consecuencia util: el bootstrap de esta corrida es directamente
+        # comparable con el que publica el articulo, que tambien se
+        # remuestrea contra el C4 Caso 2 horario (CANON.md §3.2).
         c4 = run_c4_creg101072(
             D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap,
             component_c=cc_d, tolls=tl_d,
@@ -1086,8 +1105,12 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                 row = {"PGB_COP_kWh": r.param_value,
                        "IE_P2P": r.ie_p2p, "RPE": r.rpe,
                        "Horas_mercado": r.market_hours, "kWh_P2P": r.kwh_p2p}
-                row.update({f"Net_{e}": r.net_benefit[e]
-                             for e in ["P2P","C1","C2","C3","C4"]})
+                # CAL-43: lo que el barrido TRAIGA, no una lista fija. El
+                # hardcode dejaba fuera del Excel el C4_mensual que el
+                # propio barrido ya calcula, y con el la base que publica
+                # el articulo habria seguido viniendo de fuera.
+                row.update({f"Net_{e}": v
+                            for e, v in r.net_benefit.items()})
                 rows.append(row)
             pd.DataFrame(rows).to_excel(w, sheet_name="SA1_PGB", index=False)
 
@@ -1098,8 +1121,8 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                        "Cobertura_pct": r.param_value * 0.113 * 100,
                        "IE_P2P": r.ie_p2p, "SS_P2P": r.ss_p2p,
                        "Horas_mercado": r.market_hours, "kWh_P2P": r.kwh_p2p}
-                row.update({f"Net_{e}": r.net_benefit[e]
-                             for e in ["P2P","C1","C4"]})
+                row.update({f"Net_{e}": v            # CAL-43
+                            for e, v in r.net_benefit.items()})
                 rows.append(row)
             pd.DataFrame(rows).to_excel(w, sheet_name="SA2_PV", index=False)
 
@@ -1199,7 +1222,8 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
     from datetime import datetime
     now   = datetime.now().strftime("%Y-%m-%d %H:%M")
     N, T  = G_klim.shape
-    esc   = ["P2P", "C1", "C2", "C3", "C4"]
+    esc   = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual",   # CAL-43
+                         "C5"] if e in cr.net_benefit]
 
     active = [r for r in p2p_results
               if r.P_star is not None and np.sum(r.P_star) > 1e-4]

@@ -876,7 +876,11 @@ def run_sensitivity_pgs(
         sr = SensitivityResult(
             param_name="pi_gs",
             param_value=float(pgs),
-            net_benefit={e: cr.net_benefit.get(e, 0) for e in ["P2P","C1","C2","C3","C4"]},
+            # CAL-43: SA-3 tambien propaga month_labels, de modo que C4_mensual
+            # existe y hasta ahora se descartaba.
+            net_benefit={e: cr.net_benefit.get(e, 0)
+                         for e in ["P2P", "C1", "C2", "C3", "C4",
+                                   "C4_mensual"] if e in cr.net_benefit},
             net_per_agent={
                 "P2P": cr.net_benefit_per_agent["P2P"].tolist(),
                 "C1":  cr.net_benefit_per_agent["C1"].tolist(),

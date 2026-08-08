@@ -654,9 +654,12 @@ def plot_sensitivity_pgb(sa_results, out_dir, currency="COP"):
     """Fig 7 — Sensibilidad al precio de bolsa PGB con contexto hidrológico colombiano."""
     pgb    = [r.param_value for r in sa_results]
     # CAL-39: C5 condicional — entra solo si el barrido lo computó.
+    # CAL-43: y C4_mensual con el mismo criterio.
     esc    = ["P2P", "C1", "C2", "C3", "C4"]
-    if sa_results and "C5" in sa_results[0].net_benefit:
-        esc.append("C5")
+    _tiene = sa_results[0].net_benefit if sa_results else {}
+    for _e in ("C4_mensual", "C5"):
+        if _e in _tiene:
+            esc.append(_e)
     colors = {e: COLORS_ESC.get(e, "#8C564B") for e in esc}
 
     # ── Zonas hidrológicas colombianas (COP/kWh bolsa XM) ──────────────────

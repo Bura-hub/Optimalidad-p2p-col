@@ -421,6 +421,11 @@ def generate_synthetic_prices(T, t_start="2025-07-01",
 
 # ── Función principal ─────────────────────────────────────────────────────────
 
+# CAL-43: procedencia efectiva de la ultima serie de bolsa devuelta por
+# `get_pi_bolsa`. Existe porque el intento 4 sustituye la serie real por
+# una SINTETICA y hasta ahora eso solo se sabia leyendo stdout.
+ULTIMA_FUENTE = None
+
 def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
                  csv_path=None, use_api=True,
                  scenario="2025_real", seed=42,
@@ -439,21 +444,29 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
     ceiling_level : {"PEI", "PE", "PES"}
         Nivel del techo. Default ``"PES"`` (techo absoluto superior).
     """
+    global ULTIMA_FUENTE
     base_dir = Path(__file__).parent
 
     prices = None
+    ULTIMA_FUENTE = None
 
     # Intento 1: API pydataxm (con cache)
     if use_api:
         cache = base_dir / "precios_bolsa_xm_api.csv"
         if cache.exists():
             prices = load_xm_prices(str(cache), t_start, t_end)
+            if prices is not None:
+                ULTIMA_FUENTE = f"cache_api:{cache.name}"
         if prices is None:
             prices = download_via_api(t_start, t_end, save_path=str(cache))
+            if prices is not None:
+                ULTIMA_FUENTE = "api_pydataxm"
 
     # Intento 2: CSV explícito
     if prices is None and csv_path:
         prices = load_xm_prices(csv_path, t_start, t_end)
+        if prices is not None:
+            ULTIMA_FUENTE = f"csv:{Path(csv_path).name}"
 
     # Intento 3: CSV automático en data/
     if prices is None:
@@ -464,6 +477,7 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
             if p.exists():
                 prices = load_xm_prices(str(p), t_start, t_end)
                 if prices is not None:
+                    ULTIMA_FUENTE = f"csv_auto:{name}"
                     break
 
     # Intento 4: sintético calibrado
@@ -472,6 +486,11 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
         print(f"    pip install pydataxm  (descarga automática)")
         print(f"    o descargar CSV de sinergox.xm.com.co → Históricos → Precios")
         print(f"    y guardarlo como: {base_dir}/precios_bolsa_xm.csv")
+        # CAL-43: la sustitucion por precios SINTETICOS solo dejaba rastro
+        # en una linea de stdout. Si el log se pierde o no se lee, una
+        # corrida entera puede salir de precios inventados sin que nada en
+        # el artefacto lo diga. `ULTIMA_FUENTE` viaja a la hoja Diagnostico.
+        ULTIMA_FUENTE = f"SINTETICO:{scenario}"
         prices = generate_synthetic_prices(T, t_start, scenario, seed)
 
     prices = _adj(prices, T)

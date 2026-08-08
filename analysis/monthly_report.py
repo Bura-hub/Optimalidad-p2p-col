@@ -60,6 +60,7 @@ def compute_monthly_metrics(
     pde:          np.ndarray,        # (N,)
     capacity:     Optional[np.ndarray] = None,
     component_c:  "str | float | np.ndarray" = "auto",   # CAL-10b
+    tolls:        "float | np.ndarray | None" = None,    # CAL-41
     # ── CAL-37 (ADR-0037): C2 y C5 en el reporte mensual ────────────────
     pi_ppa:        Optional[float] = None,        # si no es None → C2 mensual
     g_component:   Optional[np.ndarray] = None,   # CAL-16 (N, T)
@@ -139,6 +140,11 @@ def compute_monthly_metrics(
             cc_m = component_c[:, idx_arr]
         else:
             cc_m = component_c
+        # CAL-41: los peajes de C4 se recortan igual que component_c.
+        if isinstance(tolls, np.ndarray) and tolls.ndim == 2:
+            tolls_m = tolls[:, idx_arr]
+        else:
+            tolls_m = tolls
         c1 = run_c1_creg174(
             D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids,
             month_labels=None,   # mes completo = un único período de facturación
@@ -152,19 +158,32 @@ def compute_monthly_metrics(
 
         # ── C4 (AGRC): distribución PDE ──────────────────────────────────
         # CAL-15: hereda Cvm,i,j de CREG 174 art. 25 (mismo cc_m que C1).
-        try:
-            c4 = run_c4_creg101072(
-                D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity,
-                component_c=cc_m,
-            )
-            net_c4 = c4["aggregate"]["total_net_benefit"]
-        except ValueError:
-            # Si la capacidad supera el límite del régimen, reportar sin error
-            c4 = run_c4_creg101072(
-                D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity=None,
-                component_c=cc_m,
-            )
-            net_c4 = c4["aggregate"]["total_net_benefit"]
+        def _c4(**extra):
+            try:
+                r = run_c4_creg101072(
+                    D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity,
+                    component_c=cc_m, tolls=tolls_m, **extra,
+                )
+            except ValueError:
+                # Si la capacidad supera el límite del régimen, reportar sin
+                # error.
+                r = run_c4_creg101072(
+                    D_m, G_klim_m, pi_gs_m, pb_m, pde, capacity=None,
+                    component_c=cc_m, tolls=tolls_m, **extra,
+                )
+            return r, r["aggregate"]["total_net_benefit"]
+
+        c4, net_c4 = _c4()
+
+        # CAL-42: la GRANULARIDAD MENSUAL de C4, que es la que corresponde al
+        # régimen (art. 25: «al cierre de cada período de facturación»).
+        # Asimetría que esto corrige: C1 ya se liquidaba aquí con el mes
+        # completo como período único (`month_labels=None` sobre un mes), pero
+        # C4 se quedaba en el modo horario, de modo que la tabla mensual
+        # comparaba dos granularidades distintas sin decirlo. El vector de
+        # etiquetas es constante porque el slice YA es un solo mes.
+        _lab_m = np.full(T_m, int(yyyymm), dtype=int)
+        c4m, net_c4m = _c4(mode="monthly_hx", month_labels=_lab_m)
 
         # SC/SS regulatorios (sin mercado P2P): min(G,D)/sum(D|G)
         sc_reg = auto_m / D_total_m if D_total_m > 1e-10 else 0.0
@@ -214,13 +233,16 @@ def compute_monthly_metrics(
                 "C1":  net_c1,
                 "C3":  net_c3,
                 "C4":  net_c4,
+                "C4_mensual": net_c4m,           # CAL-42
                 **nb_extra,
             },
             "ie_p2p":      ie_m,
             "ps_p2p":      ps_m,
             "psr_p2p":     psr_m,
-            "sc":  {"P2P": sc_p2p, "C1": sc_reg, "C3": sc_reg, "C4": sc_reg},
-            "ss":  {"P2P": ss_p2p, "C1": ss_reg, "C3": ss_reg, "C4": ss_reg},
+            "sc":  {"P2P": sc_p2p, "C1": sc_reg, "C3": sc_reg, "C4": sc_reg,
+                    "C4_mensual": sc_reg},
+            "ss":  {"P2P": ss_p2p, "C1": ss_reg, "C3": ss_reg, "C4": ss_reg,
+                    "C4_mensual": ss_reg},
             "market_hours": len(active_m),
             "kwh_p2p":      kwh_m,
         })
@@ -312,7 +334,7 @@ def _p2p_benefit_month(
 def print_monthly_table(monthly: list[dict], currency: str = "COP") -> None:
     """Imprime la tabla resumen mensual en consola."""
     # CAL-37: columnas dinámicas según escenarios presentes (C2/C5 opcionales)
-    canon = ["P2P", "C1", "C2", "C3", "C4", "C5"]
+    canon = ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
     presentes = monthly[0]["net_benefit"].keys() if monthly else []
     esc = [e for e in canon if e in presentes]
     col_w = 14

@@ -55,6 +55,7 @@ def run_sensitivity_pgb(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    tolls = None,                                      # CAL-41: T+D+PR+Rm de C4
     # ── CAL-39 (ADR-0039): C5/AGR opt-in + componentes CAL-16 ───────────
     # Sin los componentes, la tasa no-regulada del C5 sería 0 y el C2 del
     # barrido caería al modo agregado; defaults None = comportamiento
@@ -107,6 +108,7 @@ def run_sensitivity_pgb(
             capacity=np.maximum(G.mean(axis=1), 0),
             month_labels=month_labels,                 # CAL-9 fix
             component_c=component_c,                    # CAL-10b fix
+            tolls=tolls,                                # CAL-41
             g_component=g_component, cvm_component=cvm_component,
             cot_component=cot_component, mem_costs=mem_costs,
             cot_alpha=cot_alpha,
@@ -117,7 +119,13 @@ def run_sensitivity_pgb(
                   if r.P_star is not None and np.sum(r.P_star) > 1e-4]
         kwh = sum(float(np.sum(r.P_star)) for r in active)
 
-        esc = ["P2P", "C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else [])
+        # CAL-43: `C4_mensual` YA se calcula dentro de run_comparison (el
+        # barrido propaga `month_labels`); antes se descartaba. Ningun
+        # consumidor de `net_benefit` itera las claves —todos indexan por
+        # nombre—, de modo que anadirla no altera ninguna figura existente.
+        esc = ([e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual"]
+                if e in cr.net_benefit]
+               + (["C5"] if include_c5 else []))
         sr = SensitivityResult(
             param_name="PGB_COP_kWh", param_value=float(pgb),
             net_benefit={e: cr.net_benefit.get(e, 0) for e in esc},
@@ -156,6 +164,7 @@ def run_sensitivity_pv(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    tolls = None,                                      # CAL-41: T+D+PR+Rm de C4
     # CAL-39 (ADR-0039): C5/AGR opt-in + componentes CAL-16 (ver SA-1).
     include_c5: bool = False,
     f_split_c5: float = 0.5,
@@ -218,6 +227,7 @@ def run_sensitivity_pv(
             pde=pde_v, pi_ppa=grid.pi_gb + 0.5*(grid.pi_gs - grid.pi_gb),
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c,                     # CAL-10b fix
+            tolls=tolls,                                 # CAL-41
             capacity=np.maximum(G_scaled.mean(axis=1), 0),
             g_component=g_component, cvm_component=cvm_component,
             cot_component=cot_component, mem_costs=mem_costs,
@@ -229,7 +239,13 @@ def run_sensitivity_pv(
                   if r.P_star is not None and np.sum(r.P_star) > 1e-4]
         kwh = sum(float(np.sum(r.P_star)) for r in active)
 
-        esc = ["P2P", "C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else [])
+        # CAL-43: `C4_mensual` YA se calcula dentro de run_comparison (el
+        # barrido propaga `month_labels`); antes se descartaba. Ningun
+        # consumidor de `net_benefit` itera las claves —todos indexan por
+        # nombre—, de modo que anadirla no altera ninguna figura existente.
+        esc = ([e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual"]
+                if e in cr.net_benefit]
+               + (["C5"] if include_c5 else []))
         sr = SensitivityResult(
             param_name="PV_factor", param_value=float(factor),
             net_benefit={e: cr.net_benefit.get(e, 0) for e in esc},
@@ -271,6 +287,7 @@ def run_sensitivity_ppa(
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
     component_c = "auto",                              # CAL-10b fix
+    tolls = None,                                      # CAL-41: T+D+PR+Rm de C4
     pi_G = None,                                       # CAL-13b fix
     # CAL-16: descomposición regulatoria del ahorro
     g_component   = None,
@@ -363,6 +380,7 @@ def run_sensitivity_ppa(
             capacity=capacity,
             month_labels=month_labels,                  # CAL-9
             component_c=component_c,                     # CAL-10b
+            tolls=tolls,                                 # CAL-41
             pi_G=pi_G,                                    # CAL-13b
             # CAL-16: descomposición explícita
             g_component=g_component,
@@ -372,7 +390,9 @@ def run_sensitivity_ppa(
             cot_alpha=cot_alpha,
         )
 
-        nb = {e: cr.net_benefit.get(e, 0.0) for e in ["P2P", "C1", "C2", "C3", "C4"]}
+        nb = {e: cr.net_benefit.get(e, 0.0)                 # CAL-43
+              for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual"]
+              if e in cr.net_benefit}
         c2_per = cr.net_benefit_per_agent["C2"].tolist()
 
         # Desglose de C2: re-cálculo directo para obtener saving_cons y

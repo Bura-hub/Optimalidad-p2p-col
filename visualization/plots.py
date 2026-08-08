@@ -28,7 +28,11 @@ warnings.filterwarnings("ignore")
 AGENTS_REAL = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 COLORS_AGT  = ["#378ADD", "#1D9E75", "#D85A30", "#7F77DD", "#BA7517", "#D4537E"]
 COLORS_ESC  = {"P2P": "#534AB7", "C1": "#1D9E75", "C2": "#BA7517",
-                "C3": "#D85A30", "C4": "#D4537E"}
+                "C3": "#D85A30", "C4": "#D4537E",
+                # CAL-43: la base mensual de C4 comparte familia cromática con
+                # su cota horaria (es el mismo régimen, otra granularidad);
+                # C5 es un régimen distinto y lleva color propio.
+                "C4_mensual": "#8C3355", "C5": "#3F6E8C"}
 
 plt.rcParams.update({
     "font.family":     "DejaVu Sans",
@@ -364,13 +368,21 @@ def plot_metrics_hourly(p2p_results, out_dir):
 # ── Fig 5 ─────────────────────────────────────────────────────────────────────
 
 def plot_regulatory_comparison(cr, out_dir, currency="COP"):
-    esc = ["P2P", "C1", "C2", "C3", "C4"]
+    # CAL-43 (A4): lista DINÁMICA. El hardcode de cinco dejaba fuera de la
+    # figura los dos escenarios que la corrida sí calcula —C4 en su base
+    # mensual (CAL-42) y C5 AGR (CAL-37)—, de modo que la figura que compara
+    # regímenes omitía justo el régimen vigente y la granularidad que el
+    # artículo publica como principal.
+    esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+           if e in cr.net_benefit]
     labels_short = {
         "P2P": "P2P\n(Stackelberg+RD)",
         "C1":  "C1\nCREG 174/2021",
         "C2":  "C2\nBilateral PPA",
         "C3":  "C3\nMercado spot",
-        "C4":  "C4\nCREG 101 072",
+        "C4":  "C4\nCREG 101 072\n(horario)",
+        "C4_mensual": "C4\nCREG 101 072\n(mensual)",
+        "C5":  "C5\nAGR\nCREG 101 099",
     }
     values = [cr.net_benefit.get(e, 0) for e in esc]
     sc_v   = [cr.self_consumption.get(e, 0) for e in esc]
@@ -490,14 +502,19 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     """
     Fig 6 — Ganancia neta por agente y escenario (Acts 2.1, 3.3).
 
-    Panel A: barras agrupadas (5 escenarios × N agentes) en valores absolutos.
+    Panel A: barras agrupadas (escenarios presentes × N agentes) en absolutos.
     Panel B: ventaja P2P − C4 por agente — visualización directa de la
-    racionalidad individual frente al régimen colectivo vigente.
+    racionalidad individual frente al régimen colectivo vigente. Cuando la
+    corrida trae la base mensual de C4 (CAL-42), se dibujan las DOS: la
+    horaria, que es cota inferior, y la mensual, que es la que corresponde al
+    régimen y la que publica el artículo.
     """
-    esc   = ["P2P", "C1", "C2", "C3", "C4"]
+    # CAL-43 (A4): lista dinámica, misma razón que en fig5 y fig12.
+    esc   = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+             if e in cr.net_benefit_per_agent]
     N     = cr.n_agents
     x     = np.arange(N)
-    w     = 0.15
+    w     = 0.80 / max(len(esc), 1)
     names = (agent_names[:N] if len(agent_names) >= N
              else [f"A{i+1}" for i in range(N)])
 
@@ -507,9 +524,10 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
                  fontsize=13, fontweight="bold")
 
     # ── Panel A: barras agrupadas absolutas ─────────────────────────────────
+    offs = np.linspace(-(len(esc) - 1) / 2, (len(esc) - 1) / 2, len(esc)) * w
     for idx, e in enumerate(esc):
         vals = [cr.net_benefit_per_agent[e][n] for n in range(N)]
-        ax_a.bar(x + (idx-2)*w, vals, w, label=e,
+        ax_a.bar(x + offs[idx], vals, w * 0.92, label=e,
                  color=COLORS_ESC[e], alpha=0.85)
 
     ax_a.axhline(0, color="black", linewidth=0.8)
@@ -517,7 +535,8 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     ax_a.set_xticklabels(names)
     ax_a.set_ylabel(f"Ganancia neta ({currency}/período)")
     ax_a.set_title("A — Ganancia neta por institución y escenario")
-    ax_a.legend(title="Escenario", ncol=5, fontsize=9, loc="best")
+    ax_a.legend(title="Escenario", ncol=min(len(esc), 4), fontsize=9,
+                loc="best")
 
     if cr.static_spread_24h is not None:
         total_spread = float(np.sum(cr.static_spread_24h))
@@ -531,21 +550,45 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     # ── Panel B: ventaja P2P − C4 por agente ────────────────────────────────
     delta = np.array([float(cr.net_benefit_per_agent["P2P"][n] -
                             cr.net_benefit_per_agent["C4"][n]) for n in range(N)])
+    hay_mes = "C4_mensual" in cr.net_benefit_per_agent
+    delta_m = (np.array([float(cr.net_benefit_per_agent["P2P"][n] -
+                               cr.net_benefit_per_agent["C4_mensual"][n])
+                         for n in range(N)]) if hay_mes else None)
+
+    y = np.arange(N)
+    hb = 0.38 if hay_mes else 0.7
     bar_colors = ["#1D9E75" if d >= 0 else "#D4537E" for d in delta]
-    bars = ax_b.barh(names, delta, color=bar_colors, alpha=0.85,
-                     edgecolor="white", linewidth=1.0)
+    bars = ax_b.barh(y + (hb / 2 if hay_mes else 0.0), delta, hb,
+                     color=bar_colors, alpha=0.85,
+                     edgecolor="white", linewidth=1.0,
+                     label="vs C4 horario (cota inferior)" if hay_mes else None)
+    todos = [bars]
+    if hay_mes:
+        col_m = ["#1D9E75" if d >= 0 else "#D4537E" for d in delta_m]
+        bars_m = ax_b.barh(y - hb / 2, delta_m, hb, color=col_m, alpha=0.45,
+                           edgecolor="white", linewidth=1.0, hatch="//",
+                           label="vs C4 mensual (base del régimen)")
+        todos.append(bars_m)
+    ax_b.set_yticks(y)
+    ax_b.set_yticklabels(names)
     ax_b.axvline(0, color="black", linewidth=0.8)
-    for bar, d in zip(bars, delta):
-        x_label = bar.get_width()
-        ha = "left" if d >= 0 else "right"
-        offset = abs(delta).max() * 0.02 if abs(delta).max() > 0 else 1
-        ax_b.text(x_label + (offset if d >= 0 else -offset),
-                  bar.get_y() + bar.get_height() / 2,
-                  f"{d:+,.0f}", ha=ha, va="center", fontsize=9, fontweight="bold")
+    ref = max(abs(delta).max(),
+              abs(delta_m).max() if hay_mes else 0.0)
+    for grupo, serie in zip(todos, ([delta, delta_m] if hay_mes else [delta])):
+        for bar, d in zip(grupo, serie):
+            ha = "left" if d >= 0 else "right"
+            offset = ref * 0.02 if ref > 0 else 1
+            ax_b.text(bar.get_width() + (offset if d >= 0 else -offset),
+                      bar.get_y() + bar.get_height() / 2,
+                      f"{d:+,.0f}", ha=ha, va="center",
+                      fontsize=8 if hay_mes else 9, fontweight="bold")
     ax_b.set_xlabel(f"Δ = B^P2P − B^C4 ({currency}/período)")
     n_pos = int(np.sum(delta > 0))
-    ax_b.set_title(f"B — Ventaja P2P sobre C4 por institución\n"
-                   f"(racionalidad individual: {n_pos}/{N} agentes prefieren P2P)")
+    sub = f"(racionalidad individual: {n_pos}/{N} agentes prefieren P2P"
+    if hay_mes:
+        sub += f"; {int(np.sum(delta_m > 0))}/{N} sobre la base mensual"
+        ax_b.legend(fontsize=8, loc="lower right")
+    ax_b.set_title("B — Ventaja P2P sobre C4 por institución\n" + sub + ")")
 
     fig.tight_layout(rect=[0, 0, 1, 0.96])
     fig_path = os.path.join(out_dir, "fig6_ganancia_por_agente.png")
@@ -555,7 +598,8 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
         {"agente": np.array(names),
          **{f"ganancia_{e}_COP": np.array([float(cr.net_benefit_per_agent[e][n])
                                            for n in range(N)]) for e in esc},
-         "delta_P2P_C4_COP": delta},
+         "delta_P2P_C4_COP": delta,
+         **({"delta_P2P_C4mensual_COP": delta_m} if hay_mes else {})},
         fig_path,
         metadata={"activity_ref": "Act 2.1, 3.3", "units": f"{currency}/período",
                   "description": "Ganancia neta por agente y escenario + ventaja P2P-C4"},
@@ -1149,9 +1193,14 @@ def plot_monthly_comparison(monthly: list, out_dir: str,
     labels  = [m["month_label"] for m in monthly]
     n_m     = len(labels)
     x       = np.arange(n_m)
-    esc     = ["P2P", "C1", "C3", "C4"]
+    # CAL-43 (A4): los escenarios se toman de lo que el informe mensual TRAIGA,
+    # no de un hardcode de cuatro. Antes C2, C5 y la base mensual de C4 se
+    # calculaban mes a mes y no llegaban a la figura.
+    _orden  = ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+    _pres   = monthly[0]["net_benefit"].keys() if monthly else []
+    esc     = [e for e in _orden if e in _pres]
     colors  = {e: COLORS_ESC[e] for e in esc}
-    w       = 0.20
+    w       = 0.80 / max(len(esc), 1)
 
     fig = plt.figure(figsize=(14, 12))
     fig.suptitle("Fig 12 — Comparación regulatoria mensual (horizonte completo)",
@@ -1178,7 +1227,9 @@ def plot_monthly_comparison(monthly: list, out_dir: str,
     ax_a.set_xticks(x); ax_a.set_xticklabels(labels)
     ax_a.set_ylabel(f"Beneficio neto ({currency})")
     ax_a.set_title(f"A — Beneficio neto mensual por escenario ({currency})")
-    ax_a.legend(title="Escenario", ncol=len(esc), fontsize=9)
+    # CAL-43: `max(...,1)` porque la lista ya no es fija; con `monthly` vacia
+    # `ncol=0` reventaria matplotlib al final de una corrida de horas.
+    ax_a.legend(title="Escenario", ncol=max(len(esc), 1), fontsize=9)
 
     # ── Panel B: IE P2P mensual ────────────────────────────────────────────
     ax_b = fig.add_subplot(gs12[1, 0])
@@ -1226,7 +1277,34 @@ def plot_monthly_comparison(monthly: list, out_dir: str,
              ha="center", fontsize=8, style="italic", color="#555555")
 
     path = os.path.join(out_dir, "fig12_comparacion_mensual.png")
-    return _save(fig, path)
+    saved = _save(fig, path)
+    # CAL-43 (A4): sibling de datos. Era la ÚNICA figura de la campaña sin
+    # `.csv`/`.mat`, de modo que la tabla mensual de la tesis no se podía
+    # contrastar contra la figura sin volver a correr el modelo.
+    datos = {"mes": np.array(labels, dtype=object),
+             "T_mes": np.array([m.get("T_month", 0) for m in monthly], dtype=float),
+             "horas_mercado": np.array([m.get("market_hours", 0)
+                                        for m in monthly], dtype=float),
+             "kwh_p2p": np.array([m.get("kwh_p2p", 0.0) for m in monthly],
+                                 dtype=float),
+             "ie_p2p": np.array(ie_vals, dtype=float)}
+    for e in esc:
+        datos[f"ganancia_{e}"] = np.array(
+            [m["net_benefit"].get(e, np.nan) for m in monthly], dtype=float)
+    for e in ("P2P", "C4"):
+        datos[f"sc_{e}"] = np.array([m["sc"].get(e, np.nan) for m in monthly],
+                                    dtype=float)
+        datos[f"ss_{e}"] = np.array([m["ss"].get(e, np.nan) for m in monthly],
+                                    dtype=float)
+    safe_export(
+        "fig12", datos, path,
+        metadata={"activity_ref": "Act 2.1",
+                  "units": f"{currency}/mes, kWh, [0-1] adim",
+                  "description": ("Comparación regulatoria mes a mes: "
+                                  "ganancia por escenario, IE, SC y SS"),
+                  "escenarios": ",".join(esc)},
+    )
+    return saved
 
 
 def plot_convergence(conv_list: list, agent_names: list,

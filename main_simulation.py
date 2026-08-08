@@ -61,7 +61,7 @@ from data.cedenar_tariff import (
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
          single_day: str = None, paper_meters: bool = False,
-         include_c5: bool = False):
+         include_c5: bool = False, out_dir: str = None):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -377,6 +377,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     if cu_comps is not None:
         g_arg, cvm_arg, cot_arg = cu_comps["G"], cu_comps["Cvm"], cu_comps["COT"]
+        # CAL-41 (ADR-0041): peajes regulados T+D+PR+Rm. Los cobra el art. 25
+        # num. 2 de la CREG 174 sobre la permuta cuando el AC cae en el Caso 2
+        # del art. 20 de la 101 072 — que es lo que ocurre con cinco fronteras,
+        # porque el PDE suma 100 % y ninguno puede quedar bajo el 10 %.
+        # Se arman desde el MISMO `cu_comps` que el resto de la descomposición,
+        # de modo que comparten origen, recorte temporal y fallback.
+        tolls_arg = (cu_comps["T"] + cu_comps["D"]
+                     + cu_comps["PR"] + cu_comps["R"])
         cot_alpha_default = 1.0
         g_mean   = float(np.nanmean(g_arg))
         cvm_mean = float(np.nanmean(cvm_arg))
@@ -395,6 +403,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     else:
         # Sin datos reales → se queda con el default CAL-13 agregado
         g_arg = cvm_arg = cot_arg = None
+        # CAL-41: sin tarifas reales no hay peajes que descontar. C4 emitirá
+        # su propio aviso si el Caso 2 aplica y los peajes faltan.
+        tolls_arg = None
         cot_alpha_default = 1.0
         pi_G_mean_default = (float(np.mean(pi_G_arg))
                              if isinstance(pi_G_arg, np.ndarray)
@@ -437,6 +448,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         capacity=cap,
         month_labels=month_labels,
         component_c=component_c_arg,
+        tolls=tolls_arg,                                # CAL-41 (art. 20 num. 2)
         pi_G=pi_G_arg,                                  # CAL-13 (compat)
         # CAL-16: descomposición explícita
         g_component=g_arg,
@@ -458,11 +470,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # Nota: en la propuesta de tesis, el escenario "Individual" = C1 (CREG 174),
     # y los escenarios "C1"→"C3" de la propuesta corresponden a C2→C4 del código.
     # Los encabezados ya reflejan esto: "C1 Individual", "C4 Colectivo", etc.
-    esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+    esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
            if e in cr.net_benefit]                       # CAL-37: C5 opcional
-    esc_labels = {
+    esc_labels = {                                       # CAL-42: C4_mensual
         "P2P": "P2P", "C1": "C1-Indiv", "C2": "C2-Bilat",
-        "C3": "C3-Spot", "C4": "C4-Colect", "C5": "C5-AGR",
+        "C3": "C3-Spot", "C4": "C4-Colect", "C4_mensual": "C4-Colect-mes",
+        "C5": "C5-AGR",
     }
     print(f"\n  Ganancia neta por agente ({currency}/período):")
     print(f"  {'Institución':<12}" + "".join(f"{esc_labels[e]:>14}" for e in esc))
@@ -500,6 +513,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pde=pde,
             capacity=cap,
             component_c=component_c_arg,
+            tolls=tolls_arg,                            # CAL-41
             # CAL-37: C2 y C5 en la tabla mensual
             pi_ppa=pi_ppa_default,
             g_component=g_arg,
@@ -514,7 +528,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     # ── 5. Exportar base ─────────────────────────────────────────────────
     print("\n[5/5] Exportando resultados y gráficas...")
-    base_dir  = os.path.dirname(os.path.abspath(__file__))
+    # CAL-43 (A5): destino de `outputs/` y `graficas/`. Por defecto la raiz
+    # del repositorio, como siempre; con --out-dir, una carpeta aparte. Sin
+    # esto, cualquier corrida de validacion PISA las figuras y los .xlsx del
+    # arbol de trabajo, y la version anterior no es recuperable si no estaba
+    # commiteada.
+    base_dir  = (os.path.abspath(out_dir) if out_dir
+                 else os.path.dirname(os.path.abspath(__file__)))
+    if out_dir:
+        os.makedirs(base_dir, exist_ok=True)
+        print(f"    [CAL-43] salidas redirigidas a {base_dir}")
 
     # Series diarias (solo modo --full con datos reales, T ≥ 48h)
     daily_series = None
@@ -526,6 +549,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pi_gs=pi_gs_arg, pi_gb=grid_params["pi_gb"],
             pi_bolsa=pi_bolsa, pde=pde, cap=cap,
             prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+            component_c=component_c_arg, tolls=tolls_arg,   # CAL-41
         )
         os.makedirs(os.path.join(base_dir, "outputs"), exist_ok=True)
         ts_str = _dt.datetime.now().strftime("%Y%m%d_%H%M")
@@ -613,6 +637,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             prosumer_ids=prosumer_ids, verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c_arg,                 # CAL-10b fix
+            tolls=tolls_arg,                            # CAL-41
             include_c5=include_c5,                      # CAL-39
             g_component=g_arg, cvm_component=cvm_arg,
             cot_component=cot_arg, mem_costs=mem_arg,
@@ -631,6 +656,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             prosumer_ids=prosumer_ids, verbose=True,
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c_arg,                 # CAL-10b fix
+            tolls=tolls_arg,                            # CAL-41
             include_c5=include_c5,                      # CAL-39
             g_component=g_arg, cvm_component=cvm_arg,
             cot_component=cot_arg, mem_costs=mem_arg,
@@ -706,6 +732,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             verbose=True,
             month_labels=month_labels,                  # CAL-9
             component_c=component_c_arg,                 # CAL-10b
+            tolls=tolls_arg,                            # CAL-41
             pi_G=pi_G_arg,                                # CAL-13b
             # CAL-16: descomposición explícita
             g_component=g_arg,
@@ -743,6 +770,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             net_benefit_c4_full=cr.net_benefit_per_agent["C4"],
             capacity=cap_arr,
             component_c=component_c_arg,  # CAL-15: hereda Cvm a C4
+            tolls=tolls_arg,              # CAL-41: y los peajes si aplica Caso 2
             verbose=True,
         )
         sc_risk = analyze_scaling_risk(
@@ -910,7 +938,9 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
     path = os.path.join(outputs_dir, "resultados_comparacion.xlsx")
     # CAL-39: lista dinámica — C5 entra al Excel cuando está presente
     # (antes el hardcode C1-C4 lo omitía de resultados_comparacion.xlsx).
-    esc  = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+    # CAL-42: C4_mensual entra igual, para que la base que el artículo publica
+    # como principal salga de la corrida y no de un recálculo externo.
+    esc  = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
             if e in cr.net_benefit]
     N, T = G_klim.shape
     with pd.ExcelWriter(path, engine="openpyxl") as w:
@@ -918,8 +948,14 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
         # para detectar Excel stale entre corridas parciales y --full.
         try:
             import subprocess as _sp
+            # CAL-43: el hash se resuelve contra la RAÍZ DEL REPOSITORIO, no
+            # contra `base_dir` (que es el directorio de SALIDA y puede estar
+            # fuera del árbol de git). Ese era el motivo de que la hoja
+            # Diagnostico de las corridas canónicas trajera git_hash vacío y de
+            # que la tesis tuviera que declarar la salvaguarda como incumplida.
+            _repo = os.path.dirname(os.path.abspath(__file__))
             _git = _sp.run(["git", "rev-parse", "--short", "HEAD"],
-                           capture_output=True, text=True, cwd=base_dir,
+                           capture_output=True, text=True, cwd=_repo,
                            timeout=5).stdout.strip() or "n/a"
         except Exception:                                  # noqa: BLE001
             _git = "n/a"
@@ -979,6 +1015,7 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
 def _compute_daily_series(
     D, G_klim, p2p_results,
     pi_gs, pi_gb, pi_bolsa, pde, cap, prosumer_ids, consumer_ids,
+    component_c="auto", tolls=None,          # CAL-41
 ):
     """
     Agrega beneficio neto comunitario por día para P2P y C4.
@@ -1012,11 +1049,21 @@ def _compute_daily_series(
             pi_bolsa=pi_bolsa[sl],   # CAL-30: residual surplus horario
         ).sum()
 
-        # CAL-15: slice diario, sin calendario mensual asociado → component_c="auto"
-        # (proporcional 13.85 % como fallback del helper Cvm).
+        # CAL-41: el slice diario se liquida con la MISMA deducción que la
+        # tabla agregada. Antes usaba component_c="auto" (proporcional
+        # 13,85 %) porque el slice no lleva calendario mensual; pero la
+        # matriz Cvm sí es recortable por índice horario, y usar el fallback
+        # dejaba la suma de la serie 0,22 % por encima del total de la
+        # comparación — desfase que contaminaba el bootstrap.
+        cc_d = (component_c[:, sl]
+                if isinstance(component_c, np.ndarray) and component_c.ndim == 2
+                else component_c)
+        tl_d = (tolls[:, sl]
+                if isinstance(tolls, np.ndarray) and tolls.ndim == 2
+                else tolls)
         c4 = run_c4_creg101072(
             D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap,
-            component_c="auto",
+            component_c=cc_d, tolls=tl_d,
         )
         nb_c4 = sum(c4["per_agent"][n]["net_benefit"] for n in range(N))
 
@@ -1490,6 +1537,9 @@ if __name__ == "__main__":
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
+    ap.add_argument("--out-dir", type=str, default=None, metavar="DIR",
+                    help="CAL-43: carpeta destino de outputs/ y graficas/ "
+                         "(por defecto, la raiz del repositorio)")
     ap.add_argument("--include-c5", action="store_true",
                     help="CAL-37/39: añade el escenario C5 AGR (CREG 101 099) "
                          "a la comparación, al PoF y a los barridos SA-1/SA-2 "
@@ -1534,10 +1584,10 @@ if __name__ == "__main__":
     elif args.day:
         main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
              single_day=args.day, paper_meters=args.paper_meters,
-             include_c5=args.include_c5)
+             include_c5=args.include_c5, out_dir=args.out_dir)
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
              run_analysis=args.analysis,
              paper_meters=args.paper_meters,
-             include_c5=args.include_c5)
+             include_c5=args.include_c5, out_dir=args.out_dir)

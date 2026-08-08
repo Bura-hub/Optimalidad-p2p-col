@@ -88,6 +88,7 @@ def run_comparison(
     capacity:     Optional[np.ndarray] = None,
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (YYYYMM)
     component_c:  Union[str, float, np.ndarray] = "auto",  # CAL-10b
+    tolls:        Union[float, np.ndarray, None] = None,   # CAL-41: T+D+PR+Rm de C4
     pi_G:         Union[float, np.ndarray, None] = None,   # CAL-13 (agregado)
     # CAL-16: descomposición regulatoria explícita del ahorro en C2
     g_component:   Union[float, np.ndarray, None] = None,
@@ -224,15 +225,32 @@ def run_comparison(
 
     # ── C4 ──────────────────────────────────────────────────────────────
     # CAL-15: C4 hereda CREG 174 art. 25 vía Decreto 2236/2023 art. 4 +
-    # CREG 101 072/2025 art. 19 (PDE) + art. 20 caso 1 (residuo "art. 5"
-    # corregido 2026-06-11). Permuta intracomunitaria a (pi_gs - Cvm),
-    # excedente residual a pi_bolsa[k]. component_c reusa el helper Cvm
-    # de CAL-10b.2 (mismo argumento que C1).
+    # CREG 101 072/2025 art. 19 (PDE) + art. 20. component_c reusa el helper
+    # Cvm de CAL-10b.2 (mismo argumento que C1).
+    # CAL-41: CUÁL numeral del art. 25 aplica lo decide el art. 20 y lo
+    # deriva `resolve_caso_art20` a partir del PDE; si sale el Caso 2, la
+    # permuta se liquida contra T+D+Cvm+PR+Rm y no solo contra Cvm. Por eso
+    # `tolls` viaja hasta aquí: sin él C4 quedaría sobrestimado.
     c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
-                            component_c=component_c)
+                            component_c=component_c, tolls=tolls)
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
     cr.net_benefit_per_agent["C4"] = c4_net
+
+    # CAL-42: C4 en su GRANULARIDAD MENSUAL. El art. 25 liquida «al cierre de
+    # cada período de facturación» y el art. 21 subscribe cada variable por mes,
+    # de modo que la base mensual es la que corresponde al régimen; la horaria de
+    # arriba se conserva como cota inferior declarada. Antes de esto la columna
+    # mensual venía de un recálculo externo, lo que partía el canon en dos
+    # (CANON.md §3). Requiere las DOS cosas: mode="monthly_hx" y month_labels.
+    if month_labels is not None:
+        c4m = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
+                                component_c=component_c, tolls=tolls,
+                                mode="monthly_hx", month_labels=month_labels)
+        c4m_net = np.array([c4m["per_agent"][n]["net_benefit"]
+                            for n in range(N)])
+        cr.net_benefit["C4_mensual"]           = float(np.sum(c4m_net))
+        cr.net_benefit_per_agent["C4_mensual"] = c4m_net
 
     # ── C5 (CAL-37, ADR-0037): AGR CREG 101 099/2026 ────────────────────
     c5 = None
@@ -286,7 +304,11 @@ def run_comparison(
 
     sc_base = _sc_index_static(G_klim, D)
     ss_base = _ss_index_static(G_klim, D)
-    for esc in ["C1", "C2", "C3", "C4"] + (["C5"] if include_c5 else []):
+    # CAL-42: C4_mensual comparte SC/SS con los demás escenarios sin mercado —
+    # la energía física es la misma; lo que cambia es el período de neteo.
+    for esc in (["C1", "C2", "C3", "C4"]
+                + (["C4_mensual"] if "C4_mensual" in cr.net_benefit else [])
+                + (["C5"] if include_c5 else [])):
         cr.self_consumption[esc] = sc_base
         cr.self_sufficiency[esc] = ss_base
 
@@ -353,10 +375,17 @@ def run_comparison(
     else:
         cr.ps_p2p = cr.psr_p2p = 50.0
 
+    # CAL-42: la base mensual de C4 entra a equidad y Gini igual que las demás.
+    # Sin esto, el Gini de C4 que reporta la tesis sería solo el de la cota
+    # horaria, y la comparación de equidad quedaría descuadrada con la columna
+    # de beneficio que sí se publica en base mensual.
+    _c4m = ([("C4_mensual", cr.net_benefit_per_agent["C4_mensual"])]
+            if "C4_mensual" in cr.net_benefit_per_agent else [])
+
     if len(consumer_ids) > 0:
         # Comunidad mixta (prosumidores + consumidores puros): fórmula original
         for esc, net in ([("C1", c1_net), ("C2", c2_net),
-                          ("C3", c3_net), ("C4", c4_net)]
+                          ("C3", c3_net), ("C4", c4_net)] + _c4m
                          + ([("C5", c5_net)] if include_c5 else [])):
             s_gen  = float(np.sum(net[prosumer_ids]))
             s_cons = float(np.sum(net[consumer_ids]))
@@ -372,7 +401,7 @@ def run_comparison(
         low_cov  = [n for n in prosumer_ids if gd_ratio[n] <  gd_median]  # compradores natos
 
         for esc, net in ([("C1", c1_net), ("C2", c2_net),
-                          ("C3", c3_net), ("C4", c4_net)]
+                          ("C3", c3_net), ("C4", c4_net)] + _c4m
                          + ([("C5", c5_net)] if include_c5 else [])):
             s_alta = float(np.sum(net[high_cov])) if high_cov else 0.0
             s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
@@ -383,7 +412,7 @@ def run_comparison(
     # Se calcula sobre beneficios netos por agente para todos los escenarios.
     # Gini=0: todos los agentes ganan lo mismo; Gini=1: máxima concentración.
     for esc, net in ([("P2P", p2p_net), ("C1", c1_net),
-                      ("C2", c2_net), ("C3", c3_net), ("C4", c4_net)]
+                      ("C2", c2_net), ("C3", c3_net), ("C4", c4_net)] + _c4m
                      + ([("C5", c5_net)] if include_c5 else [])):
         cr.gini[esc] = gini_index(net)
 
@@ -854,14 +883,16 @@ def _ss_index_static(G_klim, D) -> float:
 
 def print_comparison_report(cr: ComparisonResult) -> None:
     # CAL-37: C5 aparece si fue calculado (include_c5 en run_comparison)
-    scenarios = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C5"]
+    # CAL-42: y C4_mensual cuando hay calendario de facturación.
+    scenarios = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
                  if e in cr.net_benefit]
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1":  "C1  Individual CREG 174/2021",
         "C2":  f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)",
         "C3":  "C3  Spot (bolsa mayorista)",
-        "C4":  "C4  Colectivo CREG 101 072",
+        "C4":  "C4  Colectivo CREG 101 072 (horario)",
+        "C4_mensual": "C4m Colectivo CREG 101 072 (mensual)",
         "C5":  "C5  AGR CREG 101 099/2026",
     }
     print("\n" + "="*80)

@@ -13,20 +13,36 @@ Mecanismo - Porcentaje de Distribución de Excedentes (PDE):
     administrativamente entre los miembros según ponderadores PDE_n.
   - La distribución es ESTÁTICA: no responde a preferencias individuales
     ni a condiciones de oferta/demanda en tiempo real.
-  - Restricciones regulatorias clave:
-      * Capacidad total <= 100 kW (régimen simplificado)
-      * Ningún participante puede tener más del 10 % de la capacidad
-        instalada de otro sin activar restricciones de composición.
-      * Componente Cvm,i,j del comercializador retenido en permuta Tipo 1.
-      * Excedentes Tipo 2 a precio de bolsa horario.
+  - El PDE es un PORCENTAJE DE REPARTO ACORDADO entre los miembros que
+    debe sumar 100 % (art. 19). NO es una cuota de demanda ni de
+    capacidad: confundirlo con ellas es el error que corrigió CAL-41.
 
-Marco regulatorio (CAL-15, 2026-05-01; renumeración corregida CAL-31, 2026-05-03):
+Marco regulatorio (CAL-15, 2026-05-01; renumeración corregida CAL-31,
+2026-05-03; Caso aplicable corregido CAL-41, 2026-08-06):
   El Decreto 2236/2023 art. 4 y la CREG 101 072/2025 art. 19 (PDE) +
-  art. 20 caso 1 (capacidad ≤ 100 kW) establecen que cada miembro AGRC
-  se liquida bajo el régimen de Generador Distribuido y AGPE. Por
-  linealidad regulatoria C4 hereda CREG 174/2021 art. 25:
-    - Permuta intracomunitaria (Tipo 1) → (pi_gs - Cvm,i,j)
-    - Exportación residual (Tipo 2)     → pi_bolsa[k] horario
+  art. 20 establecen que cada miembro AGRC se liquida bajo el régimen de
+  Generador Distribuido y AGPE. Por linealidad regulatoria C4 hereda
+  CREG 174/2021 art. 25, y CUÁL de sus dos numerales aplica lo decide el
+  art. 20 (texto vigente tras el art. 13 de la CREG 101-087/2025):
+
+    Caso 1 (num. 1) — exige las TRES condiciones:
+        i.   fuentes FNCER y suma de capacidades <= límite AGPE (UPME 281)
+        ii.  capacidad instalada POR USUARIO <= 100 kW
+        iii. PDE < 10 % PARA CADA UNO de los usuarios
+      => permuta liquidada a (pi_gs - Cvm,i,j)          [art. 25 num. 1]
+
+    Caso 2 (num. 2) — si la capacidad por usuario > 100 kW O el PDE de
+      ALGÚN usuario >= 10 %:
+      => permuta a (pi_gs - (T + D + Cvm + PR + Rm))    [art. 25 num. 2]
+
+    Exportación residual (Tipo 2) → pi_bolsa[k] horario, en ambos casos.
+
+  CONSECUENCIA ARITMÉTICA (CAL-41): como sum(PDE) = 100 % por el art. 19,
+  exigir PDE < 10 % para cada uno de U usuarios obliga a U >= 11. Una
+  comunidad de cinco fronteras comerciales —la composición MTE— NO PUEDE
+  estar en el Caso 1 bajo ningún reparto acordado. `resolve_caso_art20`
+  deriva el Caso en vez de fijarlo, para que el motor sea correcto en
+  cualquier composición.
 
 ALCANCE — Art. 13 CREG 101 072 (Informe 4 MTE, Fajardo 2026-05-27):
   El Art. 13 de la 101 072 pospone a resolución aparte la metodología
@@ -133,6 +149,60 @@ def compute_pde_weights(
         )
 
 
+# CAL-41: límite de potencia para ser AGPE, Resolución UPME 281 de 2015.
+# Lo invocan el art. 20 num. 1 i y num. 2 i de la CREG 101 072 como cota a
+# la SUMA de capacidades del AC. Por encima aplica el Caso 3 (reglas de las
+# CREG 024/2015 y 096/2019), que este módulo no implementa.
+AGPE_LIMIT_KW = 1000.0
+
+
+def resolve_caso_art20(
+    pde: np.ndarray,
+    capacity: Optional[np.ndarray] = None,
+    max_capacity_kw: float = 100.0,
+    pde_limit: float = 0.10,
+) -> int:
+    """
+    Decide si un AC cae en el Caso 1 o en el Caso 2 del art. 20 de la
+    CREG 101 072/2025 (texto vigente tras el art. 13 de la 101-087/2025).
+
+    CAL-41 (ADR-0041). Literal de la norma:
+
+      num. 1 iii — "El Porcentaje de Distribución de Excedentes [...] sea
+        inferior al 10% para cada uno de los usuarios del AC."
+      num. 2 ii  — "La Capacidad Instalada por Usuario [...] sea mayor a
+        100 kW o el Porcentaje de Distribución de Excedentes [...] sea
+        superior o igual al 10% para algún usuario del AC."
+
+    El PDE es la condición dominante y no admite ambigüedad: como el
+    art. 19 obliga a que sume 100 %, `max(pde) >= 0.10` determina el
+    Caso 2 por sí solo, sea cual sea la capacidad. La condición de
+    capacidad solo puede empujar hacia el Caso 2, nunca hacia el Caso 1.
+
+    Parámetros
+    ----------
+    pde : (N,) fracciones que suman 1.0.
+    capacity : (N,) capacidad instalada POR USUARIO en kW. Si el llamador
+        pasa un proxy (p. ej. generación media) la prueba de capacidad
+        queda del lado permisivo; el PDE sigue siendo determinante.
+        `None` omite esa prueba.
+    max_capacity_kw : límite por usuario del num. 1 ii.
+    pde_limit : umbral del num. 1 iii.
+
+    Retorna
+    -------
+    1 o 2 — el numeral del art. 25 de la CREG 174/2021 que aplica.
+    """
+    pde_arr = np.asarray(pde, dtype=float)
+    if float(np.max(pde_arr)) >= pde_limit:
+        return 2
+    if capacity is not None:
+        cap = np.asarray(capacity, dtype=float)
+        if cap.size and float(np.max(cap)) > max_capacity_kw:
+            return 2
+    return 1
+
+
 def compute_excedentes_acumulados(
     G: np.ndarray,    # (N, T) generación bruta [kWh]
     D: np.ndarray,    # (N, T) demanda [kWh]
@@ -166,13 +236,15 @@ def run_c4_creg101072(
     pi_bolsa: np.ndarray,       # (T,) precio de bolsa $/kWh
     pde: np.ndarray,            # (N,) Porcentaje de Distribución de Excedentes
     capacity: Optional[np.ndarray] = None,    # (N,) kW instalados (validación)
-    max_capacity_kw: float = 100.0,           # límite régimen simplificado
+    max_capacity_kw: float = 100.0,           # límite por usuario, art. 20 num. 1 ii
     component_c: Union[str, float, np.ndarray, None] = "auto",  # CAL-15
     mode: Literal[
         "creg174_inheritance", "monthly_hx",
         "pde_only", "pde_plus_residual_export",
     ] = "creg174_inheritance",
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta período YYYYMM (CAL-27)
+    tolls: Union[float, np.ndarray, None] = None,   # CAL-41: T+D+PR+Rm
+    caso: Union[int, str] = "auto",                 # CAL-41: 1, 2 o "auto"
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
@@ -183,6 +255,25 @@ def run_c4_creg101072(
         - None / 0.0       : sin descuento (legacy pre-CAL-15)
         - float            : COP/kWh fijo
         - ndarray (N,)/(T,)/(N,T) : per-agente / temporal / completo
+
+    Parámetros nuevos en CAL-41 (2026-08-06):
+      tolls : peajes regulados T + D + PR + Rm en COP/kWh, mismo contrato
+        de forma que `component_c`. Solo se usan si el Caso resuelto es el 2
+        (art. 25 num. 2, que cobra el agregado T+D+Cvm+PR+Rm sobre la
+        permuta, y no solo Cvm). `data.cedenar_tariff.tolls_per_agent_hourly`
+        los entrega como matriz (N, T).
+      caso : 1, 2 o "auto" (default). Con "auto" se deriva del art. 20 vía
+        `resolve_caso_art20(pde, capacity, max_capacity_kw)`. Fijarlo a mano
+        solo tiene sentido para contrafácticos declarados.
+
+      Si el Caso resuelto es el 2 y no se pasan `tolls`, la permuta queda
+      liquidada como en el Caso 1 —lo que SOBRESTIMA el beneficio de C4— y
+      se emite un UserWarning nombrando esa consecuencia. El pipeline
+      canónico siempre pasa los peajes.
+
+    El dict retornado incluye `caso_art20` con el numeral aplicado y
+    `tolls_aplicados` (bool), para que la trazabilidad no dependa del
+    llamador.
 
     Modos:
       creg174_inheritance (default, CAL-15):
@@ -214,31 +305,81 @@ def run_c4_creg101072(
             max_capacity_kw, mode,
         )
 
+    # ── CAL-41: resolver el Caso del art. 20 y plegar los peajes ─────────
+    # Se pliegan aquí, una sola vez, y las tres implementaciones reciben la
+    # deducción ya completa: `as_component_c_array` deja pasar una (N, T)
+    # tal cual, de modo que ninguna de ellas necesita cambiar.
+    caso_res = (resolve_caso_art20(pde, capacity, max_capacity_kw)
+                if caso == "auto" else int(caso))
+    if caso_res not in (1, 2):
+        raise ValueError(f"caso debe ser 1, 2 o 'auto'; se recibió {caso!r}")
+
+    N_, T_ = D.shape
+    ded = as_component_c_array(component_c, as_pi_gs_array(pi_gs, N_, T_), N_, T_)
+    tolls_aplicados = False
+    if caso_res == 2:
+        if tolls is None:
+            _warnings.warn(
+                "C4: el art. 20 num. 2 aplica a esta comunidad (PDE >= 10 % "
+                "en algún usuario o capacidad por usuario > 100 kW), pero no "
+                "se pasaron `tolls`. La permuta queda liquidada solo con Cvm, "
+                "como en el Caso 1, lo que SOBRESTIMA el beneficio de C4. "
+                "Ver docs/adr/0041-cal41-c4-caso2-art20.md",
+                UserWarning,
+                stacklevel=2,
+            )
+        else:
+            ded = ded + as_component_c_array(
+                tolls, as_pi_gs_array(pi_gs, N_, T_), N_, T_)
+            tolls_aplicados = True
+
     if mode == "monthly_hx":
         # CAL-27 (ADR-0027): agregación mensual + cruce Hx por agente.
-        return _run_c4_monthly_hx(
+        res = _run_c4_monthly_hx(
             D, G, pi_gs, pi_bolsa, pde, capacity,
-            max_capacity_kw, component_c, month_labels,
+            max_capacity_kw, ded, month_labels,
+        )
+    else:
+        res = _run_c4_creg174_inheritance(
+            D, G, pi_gs, pi_bolsa, pde, capacity,
+            max_capacity_kw, ded,
         )
 
-    return _run_c4_creg174_inheritance(
-        D, G, pi_gs, pi_bolsa, pde, capacity,
-        max_capacity_kw, component_c,
-    )
+    res["caso_art20"] = caso_res
+    res["tolls_aplicados"] = tolls_aplicados
+    return res
 
 
 def _validate_capacity(
     capacity: Optional[np.ndarray],
     max_capacity_kw: float,
 ) -> None:
-    """Validaciones regulatorias CREG 101 072 (régimen simplificado)."""
+    """
+    Validaciones regulatorias del art. 20 de la CREG 101 072.
+
+    CAL-41 corrige a qué se aplica cada límite. El art. 20 impone DOS
+    cotas distintas y la versión previa las confundía en una sola:
+
+      num. 1 i  / num. 2 i  — la SUMA de capacidades <= límite AGPE de la
+        Resolución UPME 281 de 2015 (1 MW).
+      num. 1 ii / num. 2 ii — la capacidad POR USUARIO frente a los 100 kW,
+        que no es una prohibición sino el criterio que separa el Caso 1 del
+        Caso 2. Superarlo NO invalida el AC: lo manda al Caso 2, y de eso
+        se encarga `resolve_caso_art20`.
+
+    Antes de CAL-41 esta función abortaba si la suma superaba 100 kW, lo
+    que habría rechazado como inválida a una comunidad perfectamente legal
+    de, por ejemplo, doce miembros de 20 kW.
+    """
     if capacity is None:
         return
     total_cap = float(np.sum(capacity))
-    if total_cap > max_capacity_kw:
+    if total_cap > AGPE_LIMIT_KW:
         raise ValueError(
-            f"Capacidad total {total_cap:.1f} kW excede límite de "
-            f"{max_capacity_kw} kW para régimen simplificado"
+            f"Capacidad total {total_cap:.1f} kW excede el límite AGPE de "
+            f"{AGPE_LIMIT_KW:.0f} kW (UPME 281/2015; art. 20 num. 1 i). "
+            "Por encima de ese límite aplica el Caso 3 del art. 20, que "
+            "este módulo no implementa."
         )
     pos_cap = capacity[capacity > 0]
     if len(pos_cap) > 1:

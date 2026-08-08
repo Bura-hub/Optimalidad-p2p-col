@@ -9,7 +9,7 @@ Evalúa cómo 7 parámetros de entrada afectan 3 indicadores de desempeño:
     - ie_p2p              : índice de equidad P2P (fracción)
 
 Parámetros y rangos (ajustables en PARAM_BOUNDS):
-    PGB        [114, 500]   COP/kWh — precio de bolsa (CREG 101 066)
+    PGB        [114, 500]   COP/kWh — cota declarada, NO normativa (CAL-42)
     PGS        [500, 750]   COP/kWh — tarifa al usuario
     factor_PV  [0.5, 2.0]  — escalado de perfiles de generación solar
     factor_D   [0.7, 1.5]  — escalado de perfiles de demanda
@@ -53,8 +53,18 @@ logger = logging.getLogger(__name__)
 # Los rangos representan incertidumbre regulatoria y de recursos Colombia 2025.
 
 PARAM_BOUNDS = {
+    # CAL-42: el 114 NO sale de ninguna resolucion. Es el piso de banda
+    # ADIMENSIONAL del modelo base (base_case_data.py:17, "PGB = 114.0
+    # # precio compra red al usuario (adimensional)"), arrastrado a unidades
+    # monetarias. El piso real en COP es PGB_COP = 280. La CREG 101 066 fija
+    # los precios de ESCASEZ (PEI/PE/PES), 865-898 COP/kWh en el horizonte
+    # (data/precios_escasez_creg.csv), y su uso legitimo en el proyecto es el
+    # techo que xm_prices.py aplica a la serie de bolsa, no este soporte.
+    # El bound se CONSERVA —el resultado del GSA no depende de reetiquetarlo—
+    # pero se describe como lo que es: un rango de estres declarado.
     "PGB":        {"bounds": [114.0,  500.0], "dists": "unif",
-                   "desc":   "Precio de bolsa (COP/kWh); CREG 101 066: 114–500"},
+                   "desc":   "Piso de banda (COP/kWh); cota de estres declarada, "
+                             "no normativa; media empirica de la serie XM = 182"},
     "PGS":        {"bounds": [500.0,  750.0], "dists": "unif",
                    "desc":   "Tarifa al usuario (COP/kWh); subsidio→tarifa media"},
     "factor_PV":  {"bounds": [0.5,    2.0],   "dists": "unif",

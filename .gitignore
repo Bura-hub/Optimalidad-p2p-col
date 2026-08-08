@@ -76,6 +76,9 @@ data/*.csv.bak_*
 # Presentación generada
 presentation/*.pptx
 
+# === Presentación Beamer de tesis (entregable local, datos derivados MTE: NO subir) ===
+Presentacion/tesis_p2p/
+
 # === Docs meta y de avance — LOCAL, no publico (2026-07) ===
 # CLAUDE.md (instrucciones de proceso/IA), SERVER_SETUP.md (despliegue interno)
 # y REPORTE_AVANCES.md (bitacora) se conservan localmente, fuera del repo publico.
@@ -88,6 +91,9 @@ Documentos/reuniones/
 
 # === Outputs traídos del servidor (regenerables) ===
 SALIDAS_SERVIDOR/
+
+# === Cuarentena de artefactos retirados (ver auditoría 2026-08-07) ===
+_retirado_*/
 
 # === Material divulgativo local + scratch ===
 fanzine/

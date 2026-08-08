@@ -60,12 +60,16 @@ class FeasibilityReport:
     condition_never_met:       bool = True
     critical_pgb_threshold:    Optional[float] = None
 
-    # FA-2: Riesgo regulatorio C4
-    rule_10pct_satisfied:      bool  = True
+    # FA-2: Caso aplicable del art. 20 (CREG 101 072)
+    # CAL-41: `rule_10pct_*` pasa a evaluarse sobre el PDE y no sobre la
+    # cuota de demanda; y superarlo no es una violación sino el Caso 2.
+    rule_10pct_satisfied:      bool  = True   # True ⇔ PDE < 10 % en todos
     rule_10pct_violations:     dict  = field(default_factory=dict)
     rule_100kw_satisfied:      bool  = True
     rule_100kw_violations:     list  = field(default_factory=list)
-    max_supply_share_by_agent: dict  = field(default_factory=dict)
+    max_supply_share_by_agent: dict  = field(default_factory=dict)  # cobertura (diagnóstico)
+    pde_by_agent:              dict  = field(default_factory=dict)  # CAL-41: el PDE real
+    caso_art20:                int   = 1      # CAL-41: 1 o 2
     max_capacity_by_agent:     dict  = field(default_factory=dict)
     robustness_score:          float = 1.0   # 1=máxima robustez, 0=ninguna
 
@@ -542,15 +546,42 @@ def analyze_creg_101072_compliance(
     verbose: bool = True,
 ) -> FeasibilityReport:
     """
-    FA-2: Verifica si la comunidad MTE cumple las restricciones de la
-    CREG 101 072/2025 para autogeneración colectiva (C4).
+    FA-2: determina bajo qué Caso del art. 20 de la CREG 101 072/2025 queda
+    la comunidad, y por tanto cómo se liquida su permuta.
 
-    Restricciones:
-      1. Regla del 10%: ningún prosumidor puede suministrar más del 10%
-         de la demanda total de la comunidad.
-      2. Límite de 100 kW: la capacidad instalada de cada instalación
-         de autogeneración no puede superar 100 kW (pequeña escala).
+    CAL-41 (ADR-0041) — QUÉ CAMBIÓ Y POR QUÉ
+    ----------------------------------------
+    Hasta CAL-40 esta función calculaba
+
+        share = G[n].mean() / D_total.mean()
+
+    y lo comparaba contra el 10 %, llamándolo «regla del 10 %». Ese
+    cociente es la contribución de cada agente a la COBERTURA de la
+    comunidad y suma la cobertura total (19,1 % en M1), no el 100 %.
+
+    El objeto que la norma acota es otro. El art. 19 define el Porcentaje
+    de Distribución de los Excedentes (PDE) como valores «acordados por
+    los integrantes del AC» sujetos a Σ_u PDE = 100 %. Y el art. 20
+    num. 1 iii exige PDE «inferior al 10 % para cada uno de los usuarios».
+
+    Consecuencia aritmética: con Σ PDE = 100 %, exigir PDE < 10 % para
+    cada uno de U usuarios obliga a U ≥ 11. Una comunidad de cinco
+    fronteras NO PUEDE estar en el Caso 1 bajo ningún reparto acordado.
+
+    Superar el 10 % no invalida el AC: lo manda al Caso 2 (art. 20 num. 2),
+    que es un régimen perfectamente válido y solo cambia la valoración de
+    la permuta —de Cvm a T+D+Cvm+PR+Rm, por remisión al art. 25 num. 2 de
+    la CREG 174—. Por eso esta función ya no habla de «violaciones» sino
+    del Caso aplicable.
+
+    Se conserva `max_supply_share_by_agent` con el cociente antiguo, ahora
+    etiquetado como lo que es —cuota de cobertura— porque sigue siendo un
+    diagnóstico útil; simplemente no es el criterio del art. 20.
     """
+    from scenarios.scenario_c4_creg101072 import (
+        compute_pde_weights, resolve_caso_art20,
+    )
+
     report = FeasibilityReport()
     N = D.shape[0]
     T = D.shape[1]
@@ -558,22 +589,29 @@ def analyze_creg_101072_compliance(
     D_total_per_hour = D.sum(axis=0)              # demanda comunitaria (T,)
     D_total_mean     = float(D_total_per_hour.mean())
 
-    if verbose:
-        print(f"\n  FA-2: Cumplimiento CREG 101 072/2025")
-        print(f"    Demanda media comunidad: {D_total_mean:.1f} kW")
-        print(f"    Restricción 1: participación ≤ {share_limit*100:.0f}% de D_total")
-        print(f"    Restricción 2: capacidad instalada ≤ {capacity_limit_kw:.0f} kW")
+    # PDE efectivo: el mismo que usa el escenario C4 (proporcional a la
+    # capacidad, ADR-0026). Suma 1.0 por construcción.
+    cap_pde = np.maximum(G.mean(axis=1), 0.0)
+    pde     = compute_pde_weights(cap_pde)
 
-    # Regla 10%
+    if verbose:
+        print(f"\n  FA-2: Caso aplicable del art. 20 — CREG 101 072/2025")
+        print(f"    Demanda media comunidad: {D_total_mean:.1f} kW")
+        print(f"    Condición num. 1 iii: PDE < {share_limit*100:.0f} % para CADA usuario")
+        print(f"    Condición num. 1 ii : capacidad por usuario ≤ {capacity_limit_kw:.0f} kW")
+
+    # Condición iii del art. 20 num. 1, sobre el PDE (no sobre la demanda).
     violations_10pct = {}
     max_share = {}
+    pde_by_agent = {}
     for n in prosumer_ids:
         name = agent_names[n] if n < len(agent_names) else f"A{n+1}"
         g_n  = float(G[n].mean())
-        share = g_n / max(D_total_mean, 1e-6)
+        share = g_n / max(D_total_mean, 1e-6)     # cuota de cobertura (diagnóstico)
         max_share[name] = round(share * 100, 2)
-        if share > share_limit:
-            violations_10pct[name] = round(share * 100, 2)
+        pde_by_agent[name] = round(float(pde[n]) * 100, 2)
+        if float(pde[n]) >= share_limit:
+            violations_10pct[name] = round(float(pde[n]) * 100, 2)
 
     report.max_supply_share_by_agent = max_share
     report.rule_10pct_satisfied = len(violations_10pct) == 0
@@ -593,28 +631,60 @@ def analyze_creg_101072_compliance(
     report.rule_100kw_satisfied   = len(violations_100kw) == 0
     report.rule_100kw_violations  = violations_100kw
 
-    # Score de robustez: fracción de restricciones cumplidas
-    n_rules = 2 * len(prosumer_ids)
-    n_ok    = (n_rules
-               - len(violations_10pct)
-               - len(violations_100kw))
-    report.robustness_score = n_ok / max(n_rules, 1)
+    # Score de robustez. CAL-41: antes contaba el PDE ≥ 10 % como
+    # incumplimiento, lo que hundía el índice a 0,50 en una comunidad
+    # perfectamente legal. Quedar en el Caso 2 no es un fallo de robustez:
+    # es el régimen que la norma asigna a un AC de pocos miembros, y el
+    # Caso aplicable se reporta aparte en `caso_art20`.
+    # El índice mide ahora lo único cuya superación sí tiene consecuencia
+    # estructural: la cota de 100 kW por usuario del art. 20 num. 1 ii.
+    n_rules = len(prosumer_ids)
+    report.robustness_score = (n_rules - len(violations_100kw)) / max(n_rules, 1)
+
+    # CAL-41: el Caso aplicable, derivado del art. 20 por el mismo helper
+    # que usa el escenario C4, para que análisis y liquidación no puedan
+    # discrepar.
+    caso = resolve_caso_art20(pde, np.array([float(G[n].max())
+                                             for n in range(N)]),
+                              capacity_limit_kw, share_limit)
+    report.pde_by_agent = pde_by_agent
+    report.caso_art20 = caso
 
     if verbose:
-        print(f"\n    Restricción 1 — Participación por agente:")
-        for name, pct in max_share.items():
-            status = "✗ VIOLA" if name in violations_10pct else "✓"
+        # La suma se imprime del vector crudo, no del dict redondeado a dos
+        # decimales, que devolvía «100.01 %» y parecía un error de la norma.
+        print(f"\n    Condición iii — PDE por usuario (Σ = "
+              f"{float(pde.sum())*100:.2f} %):")
+        for name, pct in pde_by_agent.items():
+            status = "≥ 10 % → Caso 2" if name in violations_10pct else "< 10 %"
             print(f"      {name:<12}: {pct:>6.2f}%  {status}")
 
-        print(f"\n    Restricción 2 — Capacidad máxima [kW]:")
+        print(f"\n    Condición ii — Capacidad pico por usuario [kW]:")
         for name, cap in cap_by_agent.items():
-            status = "✗ VIOLA" if name in violations_100kw else "✓"
+            status = "> límite → Caso 2" if name in violations_100kw else "≤ límite"
             print(f"      {name:<12}: {cap:>7.1f} kW  {status}")
 
-        r1 = "CUMPLE" if report.rule_10pct_satisfied else f"VIOLA ({len(violations_10pct)} agentes)"
-        r2 = "CUMPLE" if report.rule_100kw_satisfied else f"VIOLA ({len(violations_100kw)} agentes)"
-        print(f"\n    Regla 10%:     {r1}")
-        print(f"    Límite 100 kW: {r2}")
+        print(f"\n    Diagnóstico (NO es el criterio del art. 20) — "
+              f"cuota de cobertura por agente:")
+        for name, pct in max_share.items():
+            print(f"      {name:<12}: {pct:>6.2f}%")
+        print(f"      Σ = {sum(max_share.values()):.2f} %  = cobertura de la "
+              f"comunidad, no el PDE")
+
+        if caso == 1:
+            print(f"\n    CASO 1 (art. 20 num. 1): permuta a (pi_gs − Cvm)")
+        else:
+            motivo = []
+            if violations_10pct:
+                motivo.append(f"{len(violations_10pct)} usuario(s) con PDE ≥ 10 %")
+            if violations_100kw:
+                motivo.append(f"{len(violations_100kw)} usuario(s) sobre "
+                              f"{capacity_limit_kw:.0f} kW")
+            print(f"\n    CASO 2 (art. 20 num. 2): {' y '.join(motivo)}")
+            print(f"    → permuta a (pi_gs − (T+D+Cvm+PR+Rm)), CREG 174 art. 25 num. 2")
+            if len(prosumer_ids) < 11:
+                print(f"    Nota: con {len(prosumer_ids)} usuarios y Σ PDE = 100 %, "
+                      f"el Caso 1 es inalcanzable (exige U ≥ 11).")
         print(f"    Score robustez: {report.robustness_score:.2f}")
 
     return report
@@ -667,6 +737,7 @@ def analyze_withdrawal_risk(
     capacity_limit_kw:  float = 100.0,
     share_limit:        float = 0.10,
     component_c:        "str | float | np.ndarray | None" = "auto",  # CAL-15
+    tolls:              "float | np.ndarray | None" = None,          # CAL-41
     verbose:            bool  = True,
 ) -> "WithdrawalRiskReport":
     """
@@ -725,6 +796,14 @@ def analyze_withdrawal_risk(
         else:
             pi_gs_r = pi_gs
 
+        # CAL-41: mismo slicing condicional para los peajes de C4.
+        if isinstance(tolls, np.ndarray) and tolls.shape == (N, T):
+            tolls_r = tolls[mask, :]
+        elif isinstance(tolls, np.ndarray) and tolls.shape == (N,):
+            tolls_r = tolls[mask]
+        else:
+            tolls_r = tolls
+
         # CAL-15: mismo slicing condicional para component_c.
         if isinstance(component_c, np.ndarray) and component_c.ndim == 2 \
                 and component_c.shape == (N, T):
@@ -752,6 +831,7 @@ def analyze_withdrawal_risk(
             D_r, G_raw_r, pi_gs_r, pi_bolsa, pde_r,
             capacity=cap_r,
             component_c=component_c_r,
+            tolls=tolls_r,          # CAL-41
         )
         B_C4_remaining = float(c4_r["aggregate"]["total_net_benefit"])
 
@@ -763,20 +843,24 @@ def analyze_withdrawal_risk(
             share_limit=share_limit,
             verbose=False,
         )
-        compliant = rep_r.rule_10pct_satisfied and rep_r.rule_100kw_satisfied
-
+        # CAL-41 (ADR-0041): antes de esta revisión, quedar por encima del
+        # 10 % se trataba como INVALIDEZ del AGRC y disparaba el fallback al
+        # régimen individual. Es incorrecto: el art. 20 num. 2 es un Caso
+        # válido del mismo régimen colectivo, y solo cambia cómo se valora
+        # la permuta (ya lo hace `run_c4_creg101072`, que deriva el Caso).
+        # La comunidad restante sigue siendo un AC mientras no supere el
+        # límite AGPE de la UPME 281, que es lo que ahora se comprueba.
+        caso_r = rep_r.caso_art20
+        compliant = True
         violated = []
-        if not rep_r.rule_10pct_satisfied:
-            violated.append("10%")
         if not rep_r.rule_100kw_satisfied:
-            violated.append("100kW")
+            violated.append("100kW→Caso2")
+        if not rep_r.rule_10pct_satisfied:
+            violated.append("PDE≥10%→Caso2")
 
-        # Fallback: si AGRC inválido → régimen individual (C3-like, sin PDE)
-        if compliant:
-            B_fallback = B_C4_remaining
-        else:
-            c3_r = run_c3_spot(D_r, G_raw_r, pi_gs_r, pi_bolsa, pros_r, cons_r)
-            B_fallback = float(c3_r["aggregate"]["total_net_benefit"])
+        # El AC restante conserva su régimen; el fallback es su propio C4,
+        # liquidado bajo el Caso que le corresponda.
+        B_fallback = B_C4_remaining
 
         # P2P restante (estimación conservadora: excluye net_benefit del agente retirado)
         B_P2P_remaining = float(np.sum(net_benefit_p2p[mask]))
@@ -845,14 +929,40 @@ def analyze_scaling_risk(
     if scales is None:
         scales = [1.5, 2.0, 2.5, 3.0]
 
+    from scenarios.scenario_c4_creg101072 import AGPE_LIMIT_KW
+
     N, T      = G.shape
     D_total   = float(D.sum(axis=0).mean())
     result    = {}
 
+    # CAL-42b: las DOS cotas de capacidad del art. 20, con su objeto correcto.
+    #   num. 1 i  -> la SUMA de capacidades contra el limite AGPE de la
+    #                Resolucion UPME 281 de 2015 (1 MW, verificado en el gestor
+    #                normativo). Superarlo saca al AC del art. 20 nums. 1-2 y
+    #                lo lleva al Caso 3.
+    #   num. 1 ii -> el CAPU del art. 18 —«(suma de capacidades)/U», declarado
+    #                «una referencia con el fin de aplicar los procedimientos
+    #                comerciales de que trata el articulo 20»— contra los
+    #                100 kW. Superarlo NO descalifica: es uno de los dos
+    #                disparadores del Caso 2.
+    # Antes de CAL-42b se comparaba el PICO INDIVIDUAL contra los 100 kW, que
+    # no es ninguna de las dos.
+    picos_kw   = np.array([float(G[n].max()) for n in prosumer_ids])
+    cap_agreg  = float(picos_kw.sum())
+    capu       = cap_agreg / max(len(prosumer_ids), 1)
+    f_capu     = (capacity_limit_kw / capu) if capu > 1e-9 else float("inf")
+    f_agpe     = (AGPE_LIMIT_KW / cap_agreg) if cap_agreg > 1e-9 else float("inf")
+
     if verbose:
         print("\n  FA-4: Robustez regulatoria — escalamiento de instalación")
-        print(f"    D_total media: {D_total:.1f} kW  |  límite 100 kW  |  share ≤ {share_limit*100:.0f}%")
-        print(f"    {'Agente':<12} {'G_actual':>10} {'share%':>8}  "
+        print(f"    Cota num. 1 ii: CAPU (art. 18, = suma/U) = {capu:.2f} kW "
+              f"≤ {capacity_limit_kw:.0f} kW  ->  se alcanza a {f_capu:.2f}x")
+        print(f"    Cota num. 1 i : suma = {cap_agreg:.2f} kW ≤ "
+              f"{AGPE_LIMIT_KW:.0f} kW (UPME 281/2015)  ->  a {f_agpe:.2f}x"
+              f"  <- la que separa del Caso 3")
+        print(f"    El PDE es invariante a un escalado común de todos los "
+              f"miembros, luego la condición iii no depende del factor.")
+        print(f"    {'Agente':<12} {'G_pico':>9} {'→100kW':>8}  "
               + "  ".join(f"{s}×" for s in scales))
         print(f"    {'─'*60}")
 
@@ -862,31 +972,45 @@ def analyze_scaling_risk(
         g_max   = float(G[n].max())
         share0  = g_mean / max(D_total, 1e-6)
 
+        # CAL-41 (ADR-0041): antes se exigía además
+        #     g_mean*s / D_total <= 0.10
+        # tratándolo como «la regla del 10 %». Esa prueba es doblemente
+        # inválida. Primero, el 10 % del art. 20 num. 1 iii acota el PDE,
+        # no la cuota de demanda. Y segundo —y es lo decisivo aquí— el PDE
+        # es un COCIENTE de capacidades: escalar a todos los miembros por
+        # un factor común lo deja EXACTAMENTE igual, de modo que ninguna
+        # escala puede hacer que un AC cambie de Caso por esa vía.
+        #
+        # Lo que sí puede morder al crecer es el límite por usuario del
+        # num. 1 ii: superarlo no invalida el AC, lo lleva al Caso 2.
+        # `max_ok_scale` pasa a significar «hasta qué factor el usuario
+        # permanece bajo los 100 kW», y ya no «antes de violar la norma».
         scale_ok = {}
         max_ok   = 1.0
         for s in scales:
-            g_mean_s = g_mean * s
-            g_max_s  = g_max  * s
-            ok_share = (g_mean_s / max(D_total, 1e-6)) <= share_limit
-            ok_100kw = g_max_s <= capacity_limit_kw
-            ok = ok_share and ok_100kw
+            g_max_s = g_max * s
+            ok = g_max_s <= capacity_limit_kw
             scale_ok[s] = ok
             if ok:
                 max_ok = s
+        # Factor exacto al que este usuario alcanza el límite por usuario.
+        factor_limite = (capacity_limit_kw / g_max) if g_max > 1e-9 else float("inf")
 
         result[name] = {
             "g_mean_kw":     round(g_mean, 2),
             "g_max_kw":      round(g_max, 2),
-            "share_pct":     round(share0 * 100, 2),
+            "share_pct":     round(share0 * 100, 2),   # cobertura (diagnóstico)
             "max_ok_scale":  max_ok,
             "2x_ok":         scale_ok.get(2.0, False),
             "3x_ok":         scale_ok.get(3.0, False),
             "scale_detail":  scale_ok,
+            # CAL-41: factor exacto al que se alcanza el límite por usuario.
+            "factor_limite_100kw": round(factor_limite, 2),
         }
 
         if verbose:
             flags = "  ".join("✓" if scale_ok[s] else "✗" for s in scales)
-            print(f"    {name:<12} {g_mean:>10.2f} {share0*100:>8.1f}%  {flags}  "
+            print(f"    {name:<12} {g_max:>9.2f} {factor_limite:>7.2f}×  {flags}  "
                   f"→ max ok: {max_ok}×")
 
     return result

@@ -38,7 +38,8 @@ import time
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import (ProcessPoolExecutor, FIRST_COMPLETED, wait,
+                                as_completed)  # noqa: F401 (as_completed: API)
 
 from .market_prep        import compute_generation_limit, classify_agents, net_quantities
 from .replicator_sellers import solve_sellers, seller_welfare
@@ -402,13 +403,57 @@ class EMSP2P:
         desc = f"  Mercado P2P ({T}h)"
 
         if sv.parallel:
+            # CAL-43e — VENTANA ACOTADA DE SOMETIMIENTO. No es una optimizacion:
+            # evita un INTERBLOQUEO PERMANENTE, diagnosticado en el servidor el
+            # 2026-08-08 (tres cuelgues: SA-2 a las 16:01, SA-3 a las 16:50).
+            #
+            # La version anterior sometia las T horas DE GOLPE antes de drenar
+            # el primer resultado. Cada `submit()` escribe 4 bytes en la tuberia
+            # interna de despertar del pool (`_ThreadWakeup.wakeup()` ->
+            # `send_bytes(b"")`, CPython 3.11 `concurrent/futures/process.py`).
+            # Cuando esa tuberia se llena, `submit()` bloquea el hilo principal;
+            # el hilo gestor no la vacia porque a su vez esta bloqueado
+            # empujando trabajo a la cola de llamadas, tambien llena; y los
+            # workers quedan ociosos esperando trabajo que nadie les entrega.
+            # Interbloqueo cerrado: 33 procesos vivos, 0 jiffies de CPU, log
+            # congelado, sin error ni aborto.
+            #
+            # POR QUE DEPENDE DEL USUARIO, no de la maquina ni del azar. El
+            # tamano de tuberia se raciona por UID via `fs.pipe-user-pages-soft`.
+            # Medido en el mismo instante en el servidor:
+            #     uid 0 (root, con el que corre el contenedor):  8192 B
+            #     uid 1001 (dueno del repo):                    65536 B
+            # Con 8192 B caben 2048 avisos: la hora 2049 bloquea, y T=6144 lo
+            # cruza SIEMPRE. Con 65536 B caben 16384 y no se llena nunca. Por eso
+            # la corrida canonica de junio, ejecutada COMO uid 1001, completo con
+            # este mismo codigo. **No era una carrera con suerte variable: es
+            # determinista, y lo decide el usuario que ejecuta.**
+            #
+            # La ventana mantiene los avisos pendientes en ~4*workers*4 bytes
+            # (~480 B de 8192), dos ordenes de margen, e independiente del
+            # tamano de tuberia. `rmap` se sigue indexando por hora y se
+            # reordena al final: el resultado numerico es identico, solo cambia
+            # el ritmo de sometimiento. Medido: M1 480 s vs 471,8 s de junio
+            # (+1,7 %) y M3 320 s vs 323,5 s (-1 %) — dentro del ruido.
             with _make_bar(total=T, desc=desc) as bar:
                 with ProcessPoolExecutor() as ex:
-                    futs = {ex.submit(_run_hour_worker, j): j[0] for j in jobs}
-                    for f in as_completed(futs):
-                        r = f.result()
-                        rmap[r.k] = r
-                        bar.update(1)
+                    ventana = max(4 * (getattr(ex, "_max_workers", 0) or 1), 64)
+                    pendientes = iter(jobs)
+                    activos = set()
+                    for j in pendientes:
+                        activos.add(ex.submit(_run_hour_worker, j))
+                        if len(activos) >= ventana:
+                            break
+                    while activos:
+                        hechos, activos = wait(activos,
+                                               return_when=FIRST_COMPLETED)
+                        for f in hechos:
+                            r = f.result()
+                            rmap[r.k] = r
+                            bar.update(1)
+                            j = next(pendientes, None)
+                            if j is not None:
+                                activos.add(ex.submit(_run_hour_worker, j))
         else:
             with _make_bar(total=T, desc=desc) as bar:
                 for j in jobs:

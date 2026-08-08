@@ -954,7 +954,18 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
             # Diagnostico de las corridas canónicas trajera git_hash vacío y de
             # que la tesis tuviera que declarar la salvaguarda como incumplida.
             _repo = os.path.dirname(os.path.abspath(__file__))
-            _git = _sp.run(["git", "rev-parse", "--short", "HEAD"],
+            # CAL-43d: `-c safe.directory=<repo>`. En el servidor el repo es de
+            # otro uid y el proceso corre como root, de modo que git aborta con
+            # «detected dubious ownership», sale con 128 y `git_hash` quedaba en
+            # "n/a" — el mismo campo vacío que CAL-43/A3 creía haber cerrado.
+            # A3 atacaba el `cwd`; esta es la otra mitad de la causa.
+            #
+            # Se resuelve AQUI y no con `git config --global` a proposito: la
+            # config global del servidor es su entorno, no nuestro, y cambiarla
+            # altera la procedencia de lo que se entrega. `-c` afecta solo a
+            # esta invocacion.
+            _git = _sp.run(["git", "-c", "safe.directory=%s" % _repo,
+                            "rev-parse", "--short", "HEAD"],
                            capture_output=True, text=True, cwd=_repo,
                            timeout=5).stdout.strip() or "n/a"
         except Exception:                                  # noqa: BLE001
@@ -1307,19 +1318,32 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
         "|-----------|--------------------------|-----|-----|-----|",
     ]
 
+    # CAL-43d: este es el SEGUNDO diccionario de etiquetas del fichero (el otro
+    # está en `main`, ~línea 475). Al añadir C4_mensual solo se actualizó aquél,
+    # y este reventó con `KeyError: 'C4_mensual'` — en el servidor, el
+    # 2026-08-08, DESPUÉS de escribir los dos Excel y todas las figuras. Habría
+    # reventado igual con C5, presente desde CAL-37.
+    #
+    # Dos cambios, no uno: se completan las etiquetas Y se pasa a `.get` con
+    # respaldo. El subíndice desnudo convierte «falta una etiqueta» —cosmético—
+    # en «se cae la corrida entera», que es un cambio de gravedad que ningún
+    # informe de progreso justifica.
     esc_labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1": "C1 CREG 174/2021",
         "C2": "C2 Bilateral PPA",
         "C3": "C3 Mercado spot",
-        "C4": "C4 CREG 101 072 ★",
+        "C4": "C4 CREG 101 072 ★ (horario)",
+        "C4_mensual": "C4 CREG 101 072 ★ (mensual)",
+        "C5": "C5 AGR CREG 101 099/2026",
     }
     for e in esc:
         nb = cr.net_benefit.get(e, 0)
         sc = cr.self_consumption.get(e, 0)
         ss = cr.self_sufficiency.get(e, 0)
         ie = cr.equity_index.get(e, 0)
-        lines.append(f"| {esc_labels[e]} | {nb:,.0f} | {sc:.3f} | {ss:.3f} | {ie:.4f} |")
+        lines.append(f"| {esc_labels.get(e, e)} | {nb:,.0f} | {sc:.3f} "
+                     f"| {ss:.3f} | {ie:.4f} |")
 
     rpe = cr.rpe or 0
     spread = float(np.sum(cr.static_spread_24h)) if cr.static_spread_24h is not None else 0

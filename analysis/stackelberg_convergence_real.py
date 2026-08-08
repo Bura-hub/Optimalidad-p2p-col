@@ -38,11 +38,28 @@ sys.path.insert(0, str(ROOT))
 
 # Windows: forzar stdout a UTF-8 para que la barra de progreso del EMS
 # no rompa con caracteres unicode (heredado de main_simulation.py).
+#
+# CAL-43 — `reconfigure`, NO un wrapper nuevo. Este bloque corre AL IMPORTAR, y
+# `tests/test_cal19_iters_real.py` importa este modulo. Bajo `pytest` con
+# captura, `sys.stdout` es el objeto de captura: envolver su `.buffer` y dejar
+# el wrapper puesto hacia que, al restaurar pytest su captura, el buffer
+# quedara cerrado. Resultado medido el 2026-08-07: **505 errores en cascada**
+# con `ValueError: I/O operation on closed file`, mas la perdida del resumen
+# `N passed` — es decir, la suite podia estar fallando sin que se notara.
+# `pytest.ini` fija `--capture=no`, que lo tapaba en vez de resolverlo.
+#
+# `reconfigure` MUTA el flujo existente; no crea un segundo sobre el mismo
+# descriptor. La proteccion de CAL-28b (Unicode bajo cp1252) se conserva.
 if sys.platform == "win32":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
-                                   encoding="utf-8", errors="replace")
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer,
-                                   encoding="utf-8", errors="replace")
+    for _flujo in (sys.stdout, sys.stderr):
+        try:
+            if (getattr(_flujo, "encoding", "") or "").lower() not in (
+                    "utf-8", "utf8"):
+                _flujo.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            # Flujos sin `reconfigure` (capturas de pytest, tuberias cerradas):
+            # se dejan como estan. Nunca sustituir el objeto.
+            pass
 
 
 def _load_mte_subset(t_start: str, t_end: str):

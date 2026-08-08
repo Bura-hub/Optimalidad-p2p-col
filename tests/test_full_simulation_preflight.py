@@ -316,15 +316,48 @@ def test_main_simulation_pasa_pi_G_arg_a_run_comparison():
     """El call a run_comparison en main_simulation.py debe incluir
     pi_G=pi_G_arg para que C2 use la corrección CAL-13."""
     src = (REPO_ROOT / "main_simulation.py").read_text(encoding="utf-8")
-    # Buscar el bloque de invocación a run_comparison (no en sensibilidad)
-    pattern = re.compile(r"run_comparison\([^)]*\)", re.DOTALL)
-    matches = pattern.findall(src)
-    assert len(matches) >= 1
-    main_call = next((m for m in matches if "pi_ppa=pi_ppa_default" in m), None)
+
+    # CAL-43 — POR QUE UN CONTADOR DE PARENTESIS Y NO `[^)]*`.
+    # La version anterior usaba `run_comparison\([^)]*\)`, que corta en el
+    # PRIMER `)` que encuentre. CAL-41 anadio el comentario
+    # `# CAL-41 (art. 20 num. 2)` dentro de la llamada, de modo que el bloque
+    # extraido terminaba ANTES de `pi_G=pi_G_arg` y el test fallaba **aunque el
+    # codigo estuviera bien** (`main_simulation.py:452` lo pasa). Es decir: la
+    # guarda acusaba a la produccion de un defecto que estaba en la guarda.
+    # Llevaba fallando desde el 2026-08-06, tapado por otros dos problemas de la
+    # suite (ver ADR-0043 §A6).
+    def _llamada(texto, inicio):
+        """Devuelve el texto de la llamada que empieza en `inicio`, contando
+        parentesis. Ignorar el anidamiento es lo que rompio la version vieja."""
+        i = texto.index("(", inicio)
+        prof = 0
+        for j in range(i, len(texto)):
+            if texto[j] == "(":
+                prof += 1
+            elif texto[j] == ")":
+                prof -= 1
+                if prof == 0:
+                    return texto[inicio:j + 1]
+        return texto[inicio:]
+
+    llamadas = []
+    pos = src.find("run_comparison(")
+    while pos != -1:
+        llamadas.append(_llamada(src, pos))
+        pos = src.find("run_comparison(", pos + 1)
+    assert llamadas, "no hay ninguna llamada a run_comparison"
+
+    main_call = next((m for m in llamadas if "pi_ppa=pi_ppa_default" in m), None)
     assert main_call is not None, "No se encontró el call principal a run_comparison"
     assert "pi_G=pi_G_arg" in main_call, (
         "El call principal a run_comparison no propaga pi_G_arg; "
         "C2 caerá al BTM legacy en --full."
+    )
+    # CAL-42/43: y debe propagar el calendario, sin el cual C4 no puede emitir
+    # su base mensual ni C1 netear por periodo de facturacion.
+    assert "month_labels=month_labels" in main_call, (
+        "El call principal no propaga month_labels; C4_mensual no se emitiria "
+        "y C1 netearia todo el horizonte como un unico periodo."
     )
 
 

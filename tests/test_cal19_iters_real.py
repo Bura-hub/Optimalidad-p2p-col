@@ -29,11 +29,29 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 # Windows: stdout UTF-8 para que la barra de progreso del EMS no rompa.
-if sys.platform == "win32" and not isinstance(
-    sys.stdout, io.TextIOWrapper
-):
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer,
-                                   encoding="utf-8", errors="replace")
+#
+# CAL-43 — POR QUE `reconfigure` Y NO UN WRAPPER NUEVO. La version anterior
+# hacia `sys.stdout = io.TextIOWrapper(sys.stdout.buffer, ...)`, guardada por
+# `not isinstance(sys.stdout, io.TextIOWrapper)`. Bajo `pytest` CON captura esa
+# guarda se cumple —la captura no es un TextIOWrapper—, de modo que el modulo
+# envolvia el buffer de la captura y lo dejaba puesto. Al restaurar pytest su
+# captura, el buffer quedaba cerrado y TODO lo que corriera despues moria con
+# `ValueError: I/O operation on closed file`: **505 errores en cascada**,
+# medidos el 2026-08-07. `pytest.ini` fija `--capture=no`, que lo esconde; pero
+# es un sintoma tapado, no resuelto.
+#
+# `reconfigure` MUTA el flujo existente en vez de crear un segundo sobre el
+# mismo descriptor, que es justo lo que causaba el problema. Y la proteccion
+# de CAL-28b (Unicode bajo cp1252) se conserva.
+if sys.platform == "win32":
+    try:
+        if (getattr(sys.stdout, "encoding", "") or "").lower() not in (
+                "utf-8", "utf8"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except (AttributeError, ValueError):
+        # Flujos sin `reconfigure` (capturas de pytest, tuberias cerradas):
+        # se deja como esta. Nunca sustituir el objeto.
+        pass
 
 # Tolerancia 1 % alineada con la regla del plan radiant-sleeping-eagle:
 #   |welfare(iters=2) - welfare(iters=10)| / |welfare(iters=10)| < 1%.

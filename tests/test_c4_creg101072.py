@@ -233,16 +233,52 @@ def test_c4_validate_pde_rejects_invalid():
         run_c4_creg101072(D, G, PI_GS, pi_bolsa, pde_invalido)
 
 
-def test_c4_capacity_limit_raises():
-    """Capacidad agregada > 100 kW lanza ValueError (régimen simplificado)."""
+def test_c4_capacidad_por_usuario_no_lanza_sino_que_resuelve_caso_2():
+    """La capacidad NO invalida el régimen: empuja al Caso 2 del art. 20.
+
+    CAL-43 — TEST CORREGIDO, y por que. La version anterior
+    (`test_c4_capacity_limit_raises`) exigia `ValueError` con capacidad
+    AGREGADA de 120 kW sobre dos usuarios de 60. CAL-41 (ADR-0041) derogo esa
+    lectura: el art. 20 num. 2 ii dice «la Capacidad Instalada **por Usuario**
+    [...] sea mayor a 100 kW», de modo que 60 kW por usuario no incumple nada,
+    y ademas la consecuencia normativa no es un error sino **caer en el Caso 2**
+    y liquidar la permuta contra T+D+Cvm+PR+Rm.
+
+    El test viejo llevaba fallando desde CAL-41 (2026-08-06) y estaba tapado:
+    `pytest.ini` fija `--capture=no`, con lo que el resumen `N passed` no llega
+    al log y solo el codigo de salida delata el fallo.
+    """
     D = np.zeros((2, 1))
     G = np.zeros((2, 1))
-    pde = np.array([0.5, 0.5])
     pi_bolsa = np.array([100.0])
-    cap_alta = np.array([60.0, 60.0])            # 120 kW > 100
 
-    with pytest.raises(ValueError, match="excede límite"):
-        run_c4_creg101072(D, G, PI_GS, pi_bolsa, pde, capacity=cap_alta)
+    # (a) PDE reparte 50/50 -> num. 1 iii no se cumple (>= 10 % en alguno),
+    #     luego Caso 2 por PDE, con independencia de la capacidad.
+    r = run_c4_creg101072(D, G, PI_GS, pi_bolsa, np.array([0.5, 0.5]),
+                          capacity=np.array([60.0, 60.0]))
+    assert r["caso_art20"] == 2
+
+    # (b) Un usuario POR ENCIMA de 100 kW tampoco lanza: tambien es Caso 2.
+    r = run_c4_creg101072(D, G, PI_GS, pi_bolsa, np.array([0.5, 0.5]),
+                          capacity=np.array([120.0, 5.0]))
+    assert r["caso_art20"] == 2
+
+
+def test_c4_resolve_caso_art20_literal_de_la_norma():
+    """La condicion de capacidad solo puede empujar al Caso 2, nunca al 1."""
+    from scenarios.scenario_c4_creg101072 import resolve_caso_art20
+
+    # PDE >= 10 % en alguno -> Caso 2 por si solo, sin mirar capacidad.
+    assert resolve_caso_art20(np.array([0.5, 0.5])) == 2
+    assert resolve_caso_art20(np.array([0.5, 0.5]),
+                              capacity=np.array([1.0, 1.0])) == 2
+
+    # Todos por debajo del 10 % exige >= 11 usuarios (el PDE suma 1,0).
+    pde_11 = np.full(11, 1.0 / 11)               # 9,09 % cada uno
+    assert resolve_caso_art20(pde_11) == 1
+    # ...y basta un usuario sobre 100 kW para volver al Caso 2.
+    cap = np.full(11, 5.0); cap[0] = 120.0
+    assert resolve_caso_art20(pde_11, capacity=cap) == 2
 
 
 # ─── 7. Slicing en feasibility (regression CAL-9.1 + CAL-15) ─────────────────

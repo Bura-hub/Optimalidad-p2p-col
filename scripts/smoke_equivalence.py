@@ -191,7 +191,8 @@ def _c2_hour_worker(args):
 
 
 def check_c2(tier, ds, results, sample_hours=None) -> list:
-    from concurrent.futures import ProcessPoolExecutor, as_completed
+    from concurrent.futures import (ProcessPoolExecutor, FIRST_COMPLETED,
+                                    wait)
     t0 = time.time()
     ag, gr = ds["agents"], ds["grid"]
     sv = make_solver()
@@ -215,18 +216,37 @@ def check_c2(tier, ds, results, sample_hours=None) -> list:
     endpoints = {}
     n_fail = 0
     done = 0
+    # CAL-43e: MISMA ventana acotada que `core/ems_p2p.py`, y por la misma razon.
+    # Someter las `len(jobs)` horas de golpe escribe 4 bytes por `submit()` en la
+    # tuberia de despertar del pool; con 8192 B —el tamano que `fs.pipe-user-
+    # pages-soft` concede al uid 0 en el servidor— caben 2048 avisos, y este
+    # guion llega a 6144. El interbloqueo resultante NO da error: deja el
+    # proceso vivo, con 0 CPU, para siempre. Diagnosticado el 2026-08-08 en
+    # `core/`; aqui estaba el mismo patron sin disparar por estar fuera del
+    # camino de las corridas. Se cierra ahora para no dejarlo de trampa.
     with ProcessPoolExecutor() as ex:
-        futs = [ex.submit(_c2_hour_worker, j) for j in jobs]
-        for f in as_completed(futs):
-            k, P_c, pi_c = f.result()
-            done += 1
-            if done % 10 == 0 or done == len(jobs):
-                print(f"    [C2] {done}/{len(jobs)} horas "
-                      f"({time.time()-t0:.0f}s)")
-            if P_c is None:
-                n_fail += 1
-            else:
-                endpoints[k] = (P_c, pi_c)
+        ventana = max(4 * (getattr(ex, "_max_workers", 0) or 1), 64)
+        pendientes = iter(jobs)
+        activos = set()
+        for j in pendientes:
+            activos.add(ex.submit(_c2_hour_worker, j))
+            if len(activos) >= ventana:
+                break
+        while activos:
+            hechos, activos = wait(activos, return_when=FIRST_COMPLETED)
+            for f in hechos:
+                j = next(pendientes, None)
+                if j is not None:
+                    activos.add(ex.submit(_c2_hour_worker, j))
+                k, P_c, pi_c = f.result()
+                done += 1
+                if done % 10 == 0 or done == len(jobs):
+                    print(f"    [C2] {done}/{len(jobs)} horas "
+                          f"({time.time()-t0:.0f}s)")
+                if P_c is None:
+                    n_fail += 1
+                else:
+                    endpoints[k] = (P_c, pi_c)
 
     relP_list, relpi_int, n_clip = [], [], 0
     relM_list = []   # matriz completa (INFO: el split P_ij es degenerado)

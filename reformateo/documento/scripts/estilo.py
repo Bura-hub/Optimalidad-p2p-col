@@ -1,0 +1,268 @@
+"""
+estilo.py — Identidad visual única del documento de proceso.
+=============================================================
+Todas las figuras del documento se dibujan a través de este módulo. El
+objetivo es que las ~75 figuras generadas por scripts distintos se lean
+como un solo sistema: misma paleta, misma tipografía, mismos tamaños,
+mismo formato de número.
+
+Convenciones que fija este módulo
+---------------------------------
+1. **Ancho físico.** El documento es ``article`` 12pt con
+   ``geometry margin=1in``, de modo que el ancho de caja es 6,5 in. Las
+   figuras se incrustan al 95 % de ese ancho. Dibujarlas a
+   ANCHO_COMPLETO = 6,5 in las deja prácticamente a escala 1:1, así que
+   una etiqueta de 9 pt en la figura se imprime a ~9 pt en la página.
+
+2. **Formato de número español.** Miles con punto, decimales con coma,
+   igual que en los informes del autor («4.839,52 kg», «12,0 tCO2/año»).
+   Matplotlib no lo hace solo: usar ``fmt_miles`` / ``fmt_cop`` /
+   ``fmt_pct`` o el localizador ``eje_espanol()``.
+
+3. **Dos coberturas siempre.** Casi toda figura del documento se
+   presenta como panel M1 | M3. ``figura_m1_m3()`` construye ese par ya
+   rotulado, para que ninguna figura pueda publicarse sin declarar de
+   qué frontera de medición habla.
+
+4. **Trazabilidad.** ``guardar()`` escribe el PNG y, junto a él, un
+   ``.csv`` con los datos que se dibujaron y un ``.fuente.txt`` con la
+   procedencia (ruta del artefacto canónico). Un revisor puede auditar
+   cualquier figura sin ejecutar el proyecto.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+from matplotlib.ticker import FuncFormatter
+import pandas as pd
+
+# ── Geometría ────────────────────────────────────────────────────────────────
+ANCHO_COMPLETO = 6.5    # in — ancho de caja del documento (article 12pt, 1in)
+ANCHO_MEDIO    = 3.15   # in — media caja
+ALTO_ESTANDAR  = 3.4
+ALTO_BAJO      = 2.4
+ALTO_ALTO      = 4.6
+DPI            = 300
+
+DIR_FIGURAS = Path(__file__).resolve().parent.parent / "figuras"
+
+# ── Paleta ───────────────────────────────────────────────────────────────────
+# El P2P es el protagonista y lleva el único azul saturado; los mecanismos
+# regulatorios ocupan una familia cálida, de modo que la comparación siga
+# siendo legible impresa en escala de grises (el P2P queda como el más
+# oscuro de su grupo y C4_mensual como el más oscuro de los cálidos).
+MECANISMOS = {
+    "P2P":        "#1F6F8B",   # azul petróleo — el mecanismo propuesto
+    "C1":         "#8C8C8C",   # gris medio    — autogeneración individual
+    "C2":         "#9B6BA8",   # violeta       — PPA bilateral
+    "C3":         "#B78FC2",   # violeta claro — bolsa (C2 == C3 por construcción)
+    "C4":         "#E0A458",   # ámbar claro   — colectivo, base horaria
+    "C4_mensual": "#C1642A",   # ámbar oscuro  — colectivo, base mensual (la que rige)
+    "C5":         "#5B8C5A",   # verde         — autogeneración remota (AGR)
+}
+
+# Etiquetas legibles. El documento nunca imprime el nombre interno a secas.
+ETIQUETAS = {
+    "P2P":        "P2P",
+    "C1":         "C1 · individual",
+    "C2":         "C2 · PPA",
+    "C3":         "C3 · bolsa",
+    "C4":         "C4 · colectivo (horario)",
+    "C4_mensual": "C4 · colectivo (mensual)",
+    "C5":         "C5 · AGR",
+}
+
+# Orden de presentación: el propuesto primero, luego los regulatorios en el
+# orden en que los introduce el capítulo 8.
+ORDEN_MECANISMOS = ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+
+# Instituciones, en el orden fijo de data/xm_data_loader.py::AGENTS.
+# Ninguna reutiliza el verde de C5: en las figuras de perfil ese verde ya
+# está tomado por la curva de generación, y una institución del mismo color
+# haría ilegible el panel. Por eso UCC lleva vino y no verde.
+INSTITUCIONES = {
+    "Udenar":  "#2C5F7C",   # azul pizarra
+    "Mariana": "#C1642A",   # naranja quemado
+    "UCC":     "#8B3A62",   # vino
+    "HUDN":    "#9B6BA8",   # lavanda
+    "Cesmag":  "#B0913B",   # mostaza
+}
+ORDEN_INSTITUCIONES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
+
+# Semántica de proceso: el par antes/después que recorre el capítulo 3.
+ANTES   = "#B4534B"   # rojo apagado  — el dato tal como llegó
+DESPUES = "#1F6F8B"   # azul petróleo — el dato ya tratado
+NEUTRO  = "#8C8C8C"
+APOYO   = "#D8D2C4"   # relleno de fondo, bandas, sombreados
+ALERTA  = "#C1642A"
+
+# Coberturas
+COBERTURAS = {"m1": "#2C5F7C", "m3": "#C1642A"}
+TITULO_COBERTURA = {
+    "m1": "M1 · totalizadores de campus (cobertura 19,1 %)",
+    "m3": "M3 · submedidores del circuito fotovoltaico (cobertura 91,2 %)",
+}
+
+
+# ── rcParams ─────────────────────────────────────────────────────────────────
+def aplicar_estilo() -> None:
+    """Fija los rcParams del documento. Idempotente; se llama al importar."""
+    plt.rcParams.update({
+        # Tipografía con serifa, para que la figura no choque con el cuerpo
+        # del texto (Computer Modern). CMU Serif si está instalada; si no,
+        # DejaVu Serif, que viene con matplotlib y siempre existe.
+        "font.family":       "serif",
+        "font.serif":        ["CMU Serif", "DejaVu Serif", "Times New Roman"],
+        "mathtext.fontset":  "cm",
+        # cmr10 no trae el signo menos Unicode; con esto se usa el ASCII.
+        "axes.unicode_minus": False,
+
+        "font.size":         9,
+        "axes.titlesize":    9.5,
+        "axes.labelsize":    9,
+        "xtick.labelsize":   8,
+        "ytick.labelsize":   8,
+        "legend.fontsize":   8,
+        "figure.titlesize":  10.5,
+
+        "axes.grid":         True,
+        "grid.color":        "#DDDDDD",
+        "grid.linewidth":    0.6,
+        "grid.alpha":        0.9,
+        "axes.axisbelow":    True,
+
+        "axes.spines.top":   False,
+        "axes.spines.right": False,
+        "axes.edgecolor":    "#555555",
+        "axes.linewidth":    0.8,
+
+        "lines.linewidth":   1.5,
+        "lines.markersize":  4,
+
+        "legend.frameon":    False,
+        "figure.facecolor":  "white",
+        "savefig.facecolor": "white",
+        "savefig.dpi":       DPI,
+        "savefig.bbox":      "tight",
+        "savefig.pad_inches": 0.02,
+    })
+
+
+# ── Formato de número español ────────────────────────────────────────────────
+def fmt_miles(x, decimales: int = 0) -> str:
+    """1234567.8 -> '1.234.568'. Miles con punto, decimales con coma."""
+    s = f"{x:,.{decimales}f}"
+    return s.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
+def fmt_cop(x, decimales: int = 0) -> str:
+    return fmt_miles(x, decimales) + " COP"
+
+
+def fmt_millones(x, decimales: int = 2) -> str:
+    """53619160 -> '53,62 M'. Para ejes de ganancia neta."""
+    return fmt_miles(x / 1e6, decimales) + " M"
+
+
+def fmt_pct(x, decimales: int = 1) -> str:
+    return fmt_miles(x, decimales) + " %"
+
+
+def eje_espanol(ax, eje: str = "y", modo: str = "miles", decimales: int = 0):
+    """Aplica el formato español al eje indicado ('x', 'y' o 'ambos')."""
+    func = {"miles": fmt_miles, "millones": fmt_millones, "pct": fmt_pct}[modo]
+    f = FuncFormatter(lambda v, _: func(v, decimales))
+    if eje in ("y", "ambos"):
+        ax.yaxis.set_major_formatter(f)
+    if eje in ("x", "ambos"):
+        ax.xaxis.set_major_formatter(f)
+    return ax
+
+
+# ── Constructores de figura ──────────────────────────────────────────────────
+def figura(alto: float = ALTO_ESTANDAR, ancho: float = ANCHO_COMPLETO):
+    """Figura de un solo eje, a ancho de caja."""
+    fig, ax = plt.subplots(figsize=(ancho, alto))
+    return fig, ax
+
+
+def figura_m1_m3(alto: float = ALTO_ESTANDAR, compartir_y: bool = False,
+                 titulos: bool = True):
+    """
+    El par canónico del documento: panel izquierdo M1, panel derecho M3.
+
+    Devuelve (fig, ax_m1, ax_m3). Los títulos declaran la cobertura y su
+    porcentaje, de modo que la figura no pueda leerse fuera de contexto.
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(ANCHO_COMPLETO, alto),
+                             sharey=compartir_y)
+    if titulos:
+        axes[0].set_title("M1 · totalizadores de campus\n(cobertura 19,1 %)",
+                          color=COBERTURAS["m1"], fontweight="bold", pad=8)
+        axes[1].set_title("M3 · submedidores del circuito FV\n(cobertura 91,2 %)",
+                          color=COBERTURAS["m3"], fontweight="bold", pad=8)
+    return fig, axes[0], axes[1]
+
+
+def figura_antes_despues(alto: float = ALTO_ESTANDAR, compartir_y: bool = True):
+    """El par del capítulo 3: el dato como llegó | el dato ya tratado."""
+    fig, axes = plt.subplots(1, 2, figsize=(ANCHO_COMPLETO, alto),
+                             sharey=compartir_y)
+    axes[0].set_title("Antes", color=ANTES, fontweight="bold", pad=8)
+    axes[1].set_title("Después", color=DESPUES, fontweight="bold", pad=8)
+    return fig, axes[0], axes[1]
+
+
+def color_mecanismo(nombre: str) -> str:
+    return MECANISMOS.get(nombre, NEUTRO)
+
+
+def etiqueta_mecanismo(nombre: str) -> str:
+    return ETIQUETAS.get(nombre, nombre)
+
+
+def color_institucion(nombre: str) -> str:
+    return INSTITUCIONES.get(nombre, NEUTRO)
+
+
+# ── Guardado con trazabilidad ────────────────────────────────────────────────
+def guardar(fig, nombre: str, datos=None, procedencia=None,
+            cerrar: bool = True) -> Path:
+    """
+    Guarda la figura y su rastro.
+
+    Escribe hasta tres archivos hermanos en ``figuras/``:
+      - ``<nombre>.png``          la figura
+      - ``<nombre>.csv``          los datos exactos que se dibujaron
+      - ``<nombre>.fuente.txt``   de qué artefacto canónico salieron
+
+    El tercero es el que permite auditar la figura sin ejecutar el
+    proyecto: dice literalmente qué archivo se leyó.
+    """
+    DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
+    png = DIR_FIGURAS / f"{nombre}.png"
+    fig.savefig(png)
+
+    if datos is not None:
+        df = datos if isinstance(datos, pd.DataFrame) else pd.DataFrame(datos)
+        df.to_csv(DIR_FIGURAS / f"{nombre}.csv", index=False,
+                  encoding="utf-8-sig")
+
+    if procedencia is not None:
+        rutas = [procedencia] if isinstance(procedencia, str) else list(procedencia)
+        (DIR_FIGURAS / f"{nombre}.fuente.txt").write_text(
+            "Figura: " + nombre + "\n"
+            "Artefactos leidos:\n" + "\n".join(f"  - {r}" for r in rutas) + "\n",
+            encoding="utf-8")
+
+    if cerrar:
+        plt.close(fig)
+    print(f"  [figura] {png.name}")
+    return png
+
+
+aplicar_estilo()

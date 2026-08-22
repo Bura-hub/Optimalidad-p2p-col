@@ -1,0 +1,9 @@
+# Las salidas de la corrida no se versionan; el codigo de gsa_real/ SI.
+#
+# Se evita a proposito el patron de `validacion_convergencia/.gitignore`, que
+# contiene un unico `*` y por eso dejo TODO ese modulo fuera del repositorio
+# publico — justo lo que una auditoria senalo al comprobar que el articulo
+# afirma «the code is released with the paper». Aqui solo se excluyen los
+# resultados, que son regenerables; los guiones quedan publicos.
+*
+!.gitignore

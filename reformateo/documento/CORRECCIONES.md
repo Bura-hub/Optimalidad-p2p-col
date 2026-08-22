@@ -428,6 +428,35 @@ descripciones incorrectas heredadas de documento en documento.
 
 ---
 
+## C-20 · El mapa de ubicación separa dos proximidades
+**2026-08-22 · tipo: `dato` · aplicada**
+
+El autor aportó el mapa oficial de localización del proyecto MTE (abril de
+2026, escala 1:80.000, MAGNA-SIRGAS 2018), que hasta ahora no se había
+usado. Entra como Figura 2.1 en la subsección de las cinco instituciones,
+que es donde respalda lo que el texto afirma.
+
+Confirma dos afirmaciones que hasta ahora descansaban en la palabra del
+documento: que la Universidad CESMAG queda fuera del área urbana, al sur
+del municipio, y que las otras cuatro caen dentro. Añade una tercera que
+el texto no decía: la Universidad de Nariño y la Universidad Cooperativa
+están prácticamente contiguas, lo que concuerda con que ambas se ubiquen
+en el sector Torobajo.
+
+Y permite afinar el `detallebox` de C-15. Antes decía, a secas, que el
+trabajo no afirma proximidad eléctrica. Ahora distingue las dos
+proximidades: el mapa **acredita la geográfica**, que es considerable, y
+de ahí no se sigue la eléctrica, que sería la relevante para hablar de un
+mismo circuito y que el proyecto no documenta. La distinción es más útil
+que la negación anterior, porque nombra lo que sí se sabe.
+
+El archivo se movió de la raíz a `figuras/f2_01_mapa_ubicacion.pdf`,
+siguiendo la convención de nombres, con su `.fuente.txt`. **No es
+elaboración propia**: lo elaboraron Miguel Andrade y Jenny Chapal para el
+proyecto, y así se atribuye en el pie.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

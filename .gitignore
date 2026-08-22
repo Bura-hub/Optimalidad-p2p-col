@@ -124,6 +124,12 @@ graficas/*.mat
 #   - documento/datos_cache/  series horarias reales de los medidores,
 #                         misma categoria que graficas/*.csv de arriba.
 #   - main.pdf y auxiliares de LaTeX: se regeneran al compilar.
+#
+# Nota aparte: data/inventario/Inventario_Medidores_MTE.xlsx queda fuera por
+# la regla *.xlsx de arriba, y conviene que siga asi: contiene direcciones IP
+# internas y nombres de dispositivos del sistema de supervision de las cinco
+# instituciones. Lo que ese archivo establece se publica como tabla en el
+# Capitulo 2 del documento, sin la parte de infraestructura de red.
 reformateo/*
 !reformateo/documento/
 reformateo/documento/*
@@ -131,6 +137,7 @@ reformateo/documento/*
 !reformateo/documento/referencias.bib
 !reformateo/documento/GUIA.md
 !reformateo/documento/HALLAZGOS.md
+!reformateo/documento/CORRECCIONES.md
 !reformateo/documento/sections/
 !reformateo/documento/scripts/
 reformateo/documento/scripts/__pycache__/

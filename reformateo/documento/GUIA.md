@@ -9,7 +9,7 @@ explorar el repositorio**: todo lo que necesita saber está en su ficha.
 
 ## 1. Invariantes del documento
 
-Estas ocho reglas valen para todas las secciones. Romper una es un defecto,
+Estas diez reglas valen para todas las secciones. Romper una es un defecto,
 no una variante de estilo.
 
 1. **Narrativa dato → proceso → resultado.** El documento nunca adelanta una
@@ -45,8 +45,51 @@ no una variante de estilo.
    una versión anterior del manuscrito: si una cifra no se puede rastrear a
    un artefacto canónico, no se escribe.
 
-8. **Registro de lenguaje.** El del autor, medido sobre su corpus real.
-   Las reglas y las cifras objetivo están en la sección 9.
+8. **Registro de lenguaje.** El del autor, medido sobre su corpus real:
+   los siete archivos LaTeX de las carpetas `Semestre`, sus dos informes
+   en PDF de Semestre 10 y los tres informes MTE de julio de 2026. Las
+   reglas y las cifras objetivo están en la sección 9. **Rige para todo lo
+   que se redacte y para todo lo que se corrija**, sin excepción: un
+   pasaje reescrito debe salir en ese registro, no en el de quien lo
+   reescribe. Antes de dar un capítulo por cerrado se mide con
+   `scripts/medir_estilo.py`.
+
+9. **Toda corrección se anota.** Cada cambio sobre texto ya redactado se
+   registra en `CORRECCIONES.md` con su identificador, qué decía, qué dice
+   ahora, por qué y dónde se aplicó. No es burocracia: varias de estas
+   correcciones afectan también a la tesis y al artículo, y una corrección
+   sin registrar se vuelve a cometer. Los tipos son `nombre`, `dato`,
+   `estilo` y `técnico`. Lo que no se pueda aplicar todavía va a la tabla
+   de pendientes del mismo archivo, no se pierde.
+
+10. **El artefacto técnico no entra en la prosa salvo que sea el asunto.**
+    Nombres de constantes, de variables, de funciones y rutas de archivo
+    interrumpen la lectura, y el registro del autor no los usa: sus
+    informes citan normas, resoluciones y fuentes de dato, no
+    identificadores de código. La prosa dice **de dónde sale el dato**,
+    no **cómo se llama en el programa**.
+
+    Dónde sí cabe, y solo ahí:
+
+    - En la atribución de procedencia de una figura o una tabla, dentro
+      de `\fuente{}` o al cerrar un `\notafig{}`. Citar la carpeta de
+      datos o el artefacto canónico es justamente el hábito del autor
+      al escribir «Elaboración propia a partir del Formato 1».
+    - Cuando la pieza de software es el objeto de la subsección. El
+      capítulo 3 trata del pipeline y el 6 del solucionador, de modo que
+      ahí nombrar el módulo informa en vez de estorbar. Aun así con
+      moderación: el nombre del módulo, no el de cada constante.
+    - En el Anexo A, que existe para eso.
+
+    Dónde no cabe: en prosa corriente, y sobre todo como justificación de
+    algo que se justifica mejor por su razón de fondo. El caso que
+    originó esta regla está en C-12: el orden de las instituciones no se
+    justifica diciendo qué constante lo fija, sino diciendo que
+    mantenerlo fijo permite comparar los dos paneles de cada figura sin
+    volver a buscar quién ocupa cada fila.
+
+    Prueba rápida: si al quitar el nombre técnico la frase sigue diciendo
+    lo mismo, sobraba.
 
 ---
 
@@ -390,16 +433,27 @@ de dos paneles M1 | M3.
 ## 7. Verificación antes de dar por cerrada una sección
 
 1. Compila sin error nuevo.
-2. Toda figura tiene `\fuente{}` y su `.fuente.txt` coincide.
-3. Toda cifra se rastrea a un artefacto canónico.
-4. Ningún superlativo sin comprobar contra la frontera correcta.
-5. M1 y M3 aparecen los dos.
-6. Las trampas que toca la sección están declaradas en su `trampabox`.
-7. Al terminar todas: barrido de superlativos sobre el documento completo y
-   recuento de `\ref` rotas.
+2. **Se midió con `scripts/medir_estilo.py`** y las cifras caen dentro
+   de la tolerancia de la sección 10.1. Cero rayas largas, sin excepción.
+3. **Las correcciones aplicadas quedaron anotadas en `CORRECCIONES.md`**
+   y lo que no se pudo aplicar está en su tabla de pendientes.
+4. Cada figura se refiere en el texto como «La Figura N + verbo», lleva
+   su párrafo `\notafig{}`, y el capítulo cierra con párrafo bisagra.
+5. Toda figura tiene `\fuente{}` y su `.fuente.txt` coincide.
+6. Toda cifra se rastrea a un artefacto canónico.
+7. Ningún superlativo sin comprobar contra la frontera correcta.
+8. M1 y M3 aparecen los dos.
+9. Las trampas que toca la sección están declaradas en su `trampabox`.
+10. Todo nombre propio de entidad se comprueba contra `CORRECCIONES.md`
+    antes de escribirlo: cuatro de las cinco han cambiado de
+    denominación o llevan un componente que suele omitirse.
+11. **Ningún nombre de constante, variable, función o ruta en la prosa**,
+    salvo los tres casos que admite el invariante 10. Al releer, quitar
+    cada uno y comprobar si la frase pierde algo; si no lo pierde, sobraba.
+11. Al terminar todas: barrido de superlativos sobre el documento
+    completo y recuento de `\ref` rotas.
 
 ---
-
 ## 8. Estado de la redaccion
 
 | Cap. | Estado | Notas |
@@ -432,7 +486,7 @@ referencias cruzadas rotas, en 59 paginas.
 
 ---
 
-## 9. Perfil de estilo del autor (medido)
+## 10. Perfil de estilo del autor (medido)
 
 Perfil obtenido de su corpus real: siete fuentes LaTeX de 2022-2024,
 dos informes en PDF de 2024 y los tres informes MTE de julio de 2026
@@ -440,7 +494,7 @@ dos informes en PDF de 2024 y los tres informes MTE de julio de 2026
 **Su registro actual es el de 2026**, que difiere bastante del de 2023;
 es ese el que hay que imitar.
 
-### 9.1 Cifras objetivo
+### 10.1 Cifras objetivo
 
 | Rasgo | Objetivo | Tolerancia |
 |---|---:|---|
@@ -455,7 +509,7 @@ es ese el que hay que imitar.
 Medir con `scratchpad/medir_estilo.py` antes de dar un capítulo por
 cerrado.
 
-### 9.2 Las diez reglas
+### 10.2 Las diez reglas
 
 1. **Impersonal con «se», siempre.** «Se calculó», «se identificaron»,
    «se deja recomendado». Cero primera persona, cero «el autor». En su
@@ -487,7 +541,7 @@ cerrado.
 10. **Anglicismos: español primero, inglés entre paréntesis**, glosa si
     hace falta. «topología de centro y radios (hub-and-spoke)».
 
-### 9.3 Lo que NO es suyo (no escribirlo)
+### 10.3 Lo que NO es suyo (no escribirlo)
 
 - «cabe destacar», «cabe mencionar», «es importante mencionar»: 2 y 0
   apariciones en todo el corpus. No son suyas.
@@ -501,7 +555,7 @@ cerrado.
 - Punto decimal, viñetas de conclusiones, decimales espurios
   («70.2751 bpm»). Todo eso es de 2023.
 
-### 9.4 Estado del ajuste
+### 10.4 Estado del ajuste
 
 Los capítulos 2 a 5 pasaron el ajuste de registro el 2026-08-22:
 58 rayas largas convertidas a paréntesis o comas, 17 párrafos

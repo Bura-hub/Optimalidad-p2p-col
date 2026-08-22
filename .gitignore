@@ -113,3 +113,24 @@ tests/test_mte_profiles_indexer.py
 # === Datos MTE derivados (licencia restringida, no redistribuir) ===
 graficas/*.csv
 graficas/*.mat
+
+# === Documento de proceso (reformateo/) ===
+# Se versiona SOLO el codigo y el LaTeX, coherente con la politica de
+# repositorio publico solo-codigo. Quedan fuera, a proposito:
+#   - presSar.pptx        sustentacion de terceros (Eraso y Jimenez);
+#                         redistribuirla no nos corresponde.
+#   - NuevoFormato/       plantilla de otro proyecto (manual SIVE).
+#   - documento/figuras/  y sus .csv: derivados de datos MTE.
+#   - documento/datos_cache/  series horarias reales de los medidores,
+#                         misma categoria que graficas/*.csv de arriba.
+#   - main.pdf y auxiliares de LaTeX: se regeneran al compilar.
+reformateo/*
+!reformateo/documento/
+reformateo/documento/*
+!reformateo/documento/main.tex
+!reformateo/documento/referencias.bib
+!reformateo/documento/GUIA.md
+!reformateo/documento/HALLAZGOS.md
+!reformateo/documento/sections/
+!reformateo/documento/scripts/
+reformateo/documento/scripts/__pycache__/

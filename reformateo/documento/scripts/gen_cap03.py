@@ -246,7 +246,8 @@ def f35_outliers_imputacion(cobertura: str = "m1"):
                     label=f"Atípicos: {E.fmt_miles(int(out.sum()))} h",
                     edgecolors="white", linewidths=0.4)
     ax1.set_ylabel("Demanda [kW]")
-    ax1.set_title(f"Criterio de atípicos: {inst}", pad=8)
+    ax1.set_title(f"Criterio de atípicos: {E.etiqueta_institucion(inst)}",
+                  pad=8)
     ax1.legend(loc="upper left", fontsize=7)
     ax1.tick_params(axis="x", labelrotation=25, labelsize=6.5)
 
@@ -264,7 +265,8 @@ def f35_outliers_imputacion(cobertura: str = "m1"):
     ax2.set_xticks(range(len(meses)))
     ax2.set_xticklabels([m[-2:] + "/" + m[2:4] for m in meses], fontsize=7)
     ax2.set_yticks(range(len(E.ORDEN_INSTITUCIONES)))
-    ax2.set_yticklabels(E.ORDEN_INSTITUCIONES, fontsize=7.5)
+    ax2.set_yticklabels([E.etiqueta_institucion(i)
+                         for i in E.ORDEN_INSTITUCIONES], fontsize=7.5)
     ax2.set_xlabel("Mes de 2025")
     ax2.set_title("Horas imputadas por mes", pad=8)
     ax2.grid(False)
@@ -361,7 +363,7 @@ def f38_perfiles_instituciones(cobertura: str = "m1"):
         ax.plot(pdm.index, pdm.values, color=E.color_institucion(inst),
                 linewidth=1.6)
         cob_pct = 100 * g.sum() / d.sum() if d.sum() else float("nan")
-        ax.set_title(f"{inst}  ·  {E.fmt_miles(cob_pct, 0)} %", pad=5,
+        ax.set_title(f"{E.etiqueta_institucion(inst)}  ·  {E.fmt_miles(cob_pct, 0)} %", pad=5,
                      color=E.color_institucion(inst), fontsize=9)
         ax.set_xticks(range(0, 24, 6))
         for h in pdm.index:

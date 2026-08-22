@@ -101,6 +101,164 @@ debe citar el segundo.
 
 ---
 
+## H-8 · Las cinco entidades no comparten comercializador
+
+**Estado: CERRADO como decisión metodológica (2026-08-22). Queda
+pendiente propagarlo a la tesis y al artículo.**
+
+> **Decisión del autor.** Se liquidan las cinco entidades con la tarifa
+> publicada por CEDENAR, por ser la única fuente disponible, pública y
+> auditable. Las condiciones contratadas por cada entidad con su
+> comercializador no son públicas y no se dispuso de ellas. Lo que el
+> hallazgo exige, por tanto, no es una consulta previa sino que la
+> decisión quede declarada donde se usan las cifras.
+
+Todo el aparato económico del trabajo liquida a las cinco entidades contra
+la tarifa publicada por CEDENAR. El autor informa que **la mayoría de
+ellas contrata su suministro con ASC Ingeniería**, es decir, con un
+comercializador distinto del operador de red, cosa que la regulación
+colombiana permite.
+
+**El supuesto no está declarado en ninguna parte.** Un barrido del
+repositorio no encuentra una sola mención a ASC Ingeniería en código,
+documentación ni manuscritos. La tesis, por el contrario, presenta el dato
+como si fuera un hecho: §5.5 habla de la calibración «con datos y
+referencias verificables para Colombia, tarifas reales del
+comercializador», y §3.3 titula «Estructura del costo unitario desde la
+factura del comercializador». Ninguna de las dos advierte que se trata de
+un comercializador supuesto y no del real.
+
+**Por qué importa, componente por componente.** El costo unitario se
+descompone en siete piezas y no todas dependen de quién comercialice:
+
+| Componente | Peso medio | ¿Depende del comercializador? |
+|---|---:|---|
+| Generación (G) | 38,6 % | **Sí.** La propia tesis lo llama «el único componente cuyo valor se origina en transacciones de mercado y, por ello, el único que admite ser negociado por la vía de sustituir las compras del comercializador» (§3.3) |
+| Comercialización (Cvm) | 22,0 % | **Sí.** Remunera la actividad minorista de ese comercializador |
+| Distribución, transmisión, pérdidas, restricciones | 34,1 % | No. Las fija el operador de red |
+| Otros cargos (COT) | 5,2 % | Parcialmente |
+
+Es decir, **las dos componentes de mayor peso, que suman el 60,6 % del
+costo unitario, dependen justamente del contrato de comercialización**.
+
+**Qué NO invalida.** El ordenamiento entre mecanismos. Los seis se
+liquidan contra la misma tarifa, de modo que una desviación de esa tarifa
+respecto de la real afecta a todos por igual. La comparación es interna y
+se sostiene.
+
+**Qué SÍ invalida.** Toda lectura de las cifras absolutas como factura
+real de alguna de las cinco entidades. Y debilita cualquier afirmación
+sobre ahorro monetario efectivo, que es distinta de una afirmación sobre
+ventaja relativa entre mecanismos.
+
+**Paralelismo con H-7.** Es el segundo hallazgo de la misma familia: una
+magnitud del modelo que no es lo que su rótulo dice. Allí, la cobertura
+M1 no es el campus; aquí, la tarifa CEDENAR no es la que factura la
+mayoría. En los dos casos el ordenamiento sobrevive y el valor absoluto
+no, y en los dos la resolución exige preguntar al proyecto MTE.
+
+**Acción tomada.** El Capítulo 2 deja de afirmar que comparten
+comercializador y remite a la decisión. El Capítulo 5 la declara en un
+`trampabox` que dice qué se decidió, por qué, qué componentes afecta y qué
+sobrevive: entre una tarifa auditable que no es exactamente la que se
+factura y una tarifa exacta que nadie puede comprobar, se optó por la
+primera.
+
+**Acción pendiente.** Propagar la declaración a la tesis (§3.3 y §5.5) y
+al artículo, que hoy presentan la tarifa como la del comercializador de
+las cinco. Contrastar contra las facturas efectivas queda recomendado para
+una fase posterior, no como condición de este trabajo.
+
+---
+
+## H-7 · Ni M1 es el campus ni M3 es el circuito fotovoltaico
+
+**Estado: RESUELTO por el inventario de medidores (2026-08-22). Obliga a
+renombrar las dos coberturas en todo el proyecto.**
+
+El documento, la tesis y el artículo describen las dos coberturas de
+medición como «totalizadores de campus» (M1) y «submedidores del circuito
+fotovoltaico» (M3). El archivo `Inventario_Medidores_MTE.xlsx`, que cruza
+la plataforma MTE con el inventario de instalación, el SCADA local y las
+conexiones reportadas por el instalador, establece qué mide realmente cada
+equipo. Ninguna de las dos descripciones se sostiene.
+
+### Qué mide el «Medidor 1», que el trabajo llama cobertura M1
+
+| Institución | Circuito según el inventario | Ubicación del tablero |
+|---|---|---|
+| Udenar | Circuito principal, tablero subestación | subestación del **bloque Sur** |
+| Mariana | **Circuito inyección**, totalizador principal | estación eléctrica, campus Alvernia |
+| UCC | **Circuito inyección**, totalizador principal | cuarto técnico, piso 0, **bloque A** |
+| HUDN | **Circuito inyección principal** | subestación, piso 3, bloque principal |
+| CESMAG | Circuito principal-totalizador | cuarto técnico **bloque B** |
+
+**Ninguno es un totalizador de institución.** Tres de los cinco son
+circuitos de inyección, es decir, el punto por donde entra la generación;
+los otros dos totalizan un bloque concreto y no el campus. Esto explica de
+forma directa la anomalía que motivó este hallazgo: los 9,09 kW medios del
+HUDN no son el consumo de un hospital de nivel III, sino el tránsito por
+su circuito de inyección.
+
+### Qué mide el «Medidor 3», que el trabajo llama cobertura M3
+
+| Institución | Circuito según el inventario |
+|---|---|
+| Udenar | Circuito secundario, **piso 1A** |
+| Mariana | **No tiene.** Se aproxima con el Medidor 1 escalado por 0,3 |
+| UCC | **Totalizador piso 2** |
+| HUDN | **UPS de ginecología** |
+| CESMAG | Circuito principal-totalizador, cuarto técnico **bloque A** |
+
+**Ninguno es «el circuito alimentado por el fotovoltaico».** Son circuitos
+secundarios, totalizadores de un piso y, en el caso del HUDN, la
+alimentación ininterrumpida de un servicio clínico concreto. La cobertura
+M3 no es, por tanto, una frontera homogénea entre instituciones: es
+simplemente el tercer medidor de cada sitio.
+
+### Qué NO invalida
+
+El ordenamiento entre mecanismos. Los seis se liquidan sobre la misma
+serie de demanda en cada cobertura, de modo que la comparación es interna
+y se sostiene con independencia de qué circuito represente esa serie.
+
+### Qué SÍ invalida
+
+1. Los nombres de las dos coberturas, que deben dejar de usarse.
+2. Toda lectura de la cobertura del 19,1 % o del 91,2 % como
+   autosuficiencia de la institución. Es la razón entre la generación y el
+   consumo **del circuito medido**.
+3. La contraposición «campus completo frente a ramal fotovoltaico» sobre
+   la que se explicaba la bifurcación. Lo que hay son dos circuitos
+   distintos de cada sitio, y su relación con el consumo institucional
+   está por establecer.
+
+### Nombres propuestos
+
+Se sustituye «totalizador de campus» y «submedidor del circuito
+fotovoltaico» por una descripción de lo que son: **M1, circuito principal
+o de inyección**, y **M3, circuito secundario**. Ambas se acompañan de la
+razón entre generación y consumo medido, que es lo único que la cifra
+significa.
+
+### Una cuestión abierta que el inventario deja planteada
+
+El mismo archivo documenta que cada medidor tiene un transformador de
+corriente y una escala de conversión, y advierte que el valor leído del
+equipo «puede diferir del instalador». En Mariana y CESMAG la diferencia
+es de dos órdenes de magnitud: el instalador reporta 800 y 1.600 A de
+escala mientras que la verificación lee 10 A. La portada describe además
+un procedimiento de corrección, `correct_mediciones_mte.py`, que produce
+archivos `*_corregido.csv` a partir de los originales.
+
+**Ni la carpeta `Analizador/` ni ningún archivo `*_corregido.csv` están en
+este repositorio**, y no se pudo determinar si `MedicionesMTE_v3/` es
+anterior o posterior a esa corrección. Queda abierto, y conviene
+resolverlo antes que cualquier otra cosa: si las series estuvieran sin
+corregir, el efecto sobre las magnitudes no sería menor.
+
+---
+
 ## H-6 · El horizonte termina cuatro meses antes de donde llega el dato
 
 **Estado: abierto; el documento lo declara, no lo resuelve.**

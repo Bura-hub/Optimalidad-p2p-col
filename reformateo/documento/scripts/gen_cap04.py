@@ -97,7 +97,7 @@ def f42_cobertura():
     ax2.text(101, len(D.AGENTES) - 0.35, "autosuficiencia\nnominal",
              fontsize=6.8, color=E.ALERTA, va="top")
     ax2.set_yticks(y)
-    ax2.set_yticklabels(D.AGENTES, fontsize=8)
+    ax2.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
     ax2.invert_yaxis()
     ax2.set_xlabel("Generación sobre demanda medida [%]")
     ax2.set_title("Por institución", pad=8)
@@ -190,7 +190,7 @@ def f44_inversion_papeles():
                 ha="right", va="bottom", fontsize=8, fontweight="bold",
                 color=E.MECANISMOS["C5"])
         ax.set_yticks(y)
-        ax.set_yticklabels(D.AGENTES, fontsize=8)
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
         ax.invert_yaxis()
         ax.set_xlim(-tope * 1.32, tope * 1.32)
         ax.set_xlabel("Participación en la energía transada [%]")
@@ -215,7 +215,8 @@ def f44_inversion_papeles():
         # Se resalta el papel dominante de cada frontera.
         dom_v, dom_c = r["vende_pct"].idxmax(), r["compra_pct"].idxmax()
         ax.text(0.5, -0.34,
-                f"vende sobre todo {dom_v} · compra sobre todo {dom_c}",
+                f"vende sobre todo {E.etiqueta_institucion(dom_v)} · "
+                f"compra sobre todo {E.etiqueta_institucion(dom_c)}",
                 transform=ax.transAxes, ha="center", fontsize=7.5,
                 style="italic", color=E.COBERTURAS[cob])
 

@@ -178,7 +178,7 @@ def f108_por_agente():
         ax.barh(y, delta.values, 0.62, color=colores)
         ax.axvline(0, color="#333333", linewidth=1.0)
         ax.set_yticks(y)
-        ax.set_yticklabels(D.AGENTES, fontsize=8)
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
         ax.invert_yaxis()
         rango = max(abs(delta.min()), abs(delta.max()))
         ax.set_xlim(-rango * 1.45, rango * 1.45)

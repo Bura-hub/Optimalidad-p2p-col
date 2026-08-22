@@ -51,7 +51,7 @@ def f121_cumplimiento():
         ax.text(10.6, -0.62, "límite del 10 %", color=E.ALERTA, fontsize=7.2,
                 va="center")
         ax.set_yticks(y)
-        ax.set_yticklabels(D.AGENTES, fontsize=8)
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
         ax.invert_yaxis()
         ax.set_xlabel("Participación en la energía del conjunto [%]")
         for j, v in enumerate(part):
@@ -98,7 +98,7 @@ def f122_racionalidad_individual():
         ax.barh(y, rel.values, 0.62, color=colores)
         ax.axvline(0, color="#333333", linewidth=1.0)
         ax.set_yticks(y)
-        ax.set_yticklabels(D.AGENTES, fontsize=8)
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
         ax.invert_yaxis()
         rango = max(abs(rel.min()), abs(rel.max()))
         ax.set_xlim(-rango * 1.5, rango * 1.5)
@@ -215,7 +215,7 @@ def f127_escalamiento():
                     label=f"$\\times$ {mult}" if ax is ax_m1 else None)
         ax.axvline(10, color=E.ALERTA, linestyle="--", linewidth=1.3, zorder=5)
         ax.set_yticks(y)
-        ax.set_yticklabels(D.AGENTES, fontsize=8)
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
         ax.invert_yaxis()
         ax.set_xlabel("Participación al escalar [%]")
         for inst in D.AGENTES:

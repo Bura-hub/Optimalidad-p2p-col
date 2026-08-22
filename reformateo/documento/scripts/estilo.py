@@ -93,6 +93,17 @@ INSTITUCIONES = {
 }
 ORDEN_INSTITUCIONES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
+# Como se imprime cada institucion. La clave interna viene de los CSV del
+# canon y no se toca; lo que cambia es el rotulo. CESMAG va en mayusculas
+# porque es una sigla, la del Centro de Estudios Superiores Maria Goretti,
+# y la propia universidad corrigio esa grafia por acuerdo en 2022.
+ETIQUETA_INSTITUCION = {"Udenar": "Udenar", "Mariana": "Mariana",
+                        "UCC": "UCC", "HUDN": "HUDN", "Cesmag": "CESMAG"}
+
+
+def etiqueta_institucion(nombre: str) -> str:
+    return ETIQUETA_INSTITUCION.get(nombre, nombre)
+
 # Semántica de proceso: el par antes/después que recorre el capítulo 3.
 ANTES   = "#B4534B"   # rojo apagado  — el dato tal como llegó
 DESPUES = "#1F6F8B"   # azul petróleo — el dato ya tratado
@@ -102,9 +113,18 @@ ALERTA  = "#C1642A"
 
 # Coberturas
 COBERTURAS = {"m1": "#2C5F7C", "m3": "#C1642A"}
+# Los rotulos describen lo que los medidores SON, segun el inventario de
+# instalacion, y no lo que se creyo que eran. El Medidor 1 no totaliza el
+# campus en ninguna de las cinco instituciones: en tres es el circuito de
+# inyeccion y en dos el totalizador de un bloque. El Medidor 3 tampoco es
+# el circuito alimentado por el fotovoltaico: son circuitos secundarios, un
+# totalizador de piso y, en el HUDN, la UPS de ginecologia. Ver H-7 en
+# HALLAZGOS.md y data/inventario/Inventario_Medidores_MTE.xlsx.
+# El porcentaje es la razon generacion/consumo DEL CIRCUITO MEDIDO, no la
+# autosuficiencia de la institucion.
 TITULO_COBERTURA = {
-    "m1": "M1 · totalizadores de campus (cobertura 19,1 %)",
-    "m3": "M3 · submedidores del circuito fotovoltaico (cobertura 91,2 %)",
+    "m1": "M1 · circuito principal o de inyección (G/D = 19,1 %)",
+    "m3": "M3 · circuito secundario (G/D = 91,2 %)",
 }
 
 
@@ -201,9 +221,10 @@ def figura_m1_m3(alto: float = ALTO_ESTANDAR, compartir_y: bool = False,
     fig, axes = plt.subplots(1, 2, figsize=(ANCHO_COMPLETO, alto),
                              sharey=compartir_y)
     if titulos:
-        axes[0].set_title("M1 · totalizadores de campus\n(cobertura 19,1 %)",
+        axes[0].set_title("M1 · circuito principal o de inyección\n"
+                          "(G/D = 19,1 %)",
                           color=COBERTURAS["m1"], fontweight="bold", pad=8)
-        axes[1].set_title("M3 · submedidores del circuito FV\n(cobertura 91,2 %)",
+        axes[1].set_title("M3 · circuito secundario\n(G/D = 91,2 %)",
                           color=COBERTURAS["m3"], fontweight="bold", pad=8)
     return fig, axes[0], axes[1]
 

@@ -1,0 +1,231 @@
+% =====================================================================
+% El dato crudo: cinco instituciones, veintisiete fuentes
+% Parte I — El dato
+%
+% ENCARGO: que se midio, donde y con que. 20 medidores mas 7 inversores.
+% Cobertura temporal y justificacion del horizonte de 6.144 h.
+%
+% Reglas del documento:
+% - Una idea = una subseccion = una figura.
+% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda cifra sale del canon de agosto; ver GUIA.md.
+% - M1 y M3 se reportan siempre en paralelo.
+% - Ningun superlativo sin releer el CSV de la frontera correcta.
+% =====================================================================
+\section{El dato crudo: cinco instituciones, veintisiete fuentes}
+\label{sec:dato}
+\justifying
+
+Todo lo que este documento afirma descansa sobre una base de medidas
+tomadas en cinco instituciones de San Juan de Pasto entre abril y
+diciembre de 2025. Antes de describir qué se hizo con esas medidas
+conviene decir con precisión qué son, cuántas hay y de qué calidad, porque
+la solidez de cualquier conclusión posterior está acotada por la de este
+punto de partida.
+
+\subsection{Las cinco instituciones}
+\label{sub:dato-instituciones}
+
+La comunidad estudiada la forman cinco entidades del casco urbano de
+Pasto, todas ellas con sistema fotovoltaico instalado y medición avanzada:
+la Universidad de Nariño, la Universidad Mariana, la Universidad
+Cooperativa de Colombia, el Hospital Universitario Departamental de
+Nariño y la Institución Universitaria Cesmag. A lo largo del documento se
+las nombra de forma abreviada como Udenar, Mariana, UCC, HUDN y Cesmag,
+en ese orden fijo, que es el mismo que emplea el programa.
+
+La elección del conjunto no es de conveniencia. Reúne dos condiciones que
+un mercado entre pares necesita y que rara vez coinciden: proximidad
+eléctrica (las cinco están en el mismo sistema de distribución) y
+heterogeneidad de consumo. Cuatro son instituciones educativas con jornada
+diurna y calendario académico; la quinta es un hospital, que no cierra
+nunca. Esa disparidad de rutinas es la condición material de que exista
+algo que intercambiar, y el Capítulo~\ref{sec:prep} la muestra medida.
+
+Conviene señalar también una asimetría regulatoria que el
+Capítulo~\ref{sec:precios} desarrolla y que resulta decisiva para las
+cifras: dos de las cinco, Udenar y el HUDN, son entidades públicas, y las
+otras tres, privadas. Las dos categorías pagan tarifas distintas por la
+misma energía.
+
+\subsection{Veintisiete fuentes, dos magnitudes}
+\label{sub:dato-fuentes}
+
+Cada institución está instrumentada con varios medidores eléctricos y al
+menos un inversor fotovoltaico, y cada uno de esos equipos escribe su
+propio flujo de datos. El censo completo da \textbf{veintisiete fuentes}:
+veinte medidores (cuatro por institución) y siete inversores, repartidos
+de forma desigual porque Udenar tiene tres y las demás uno cada una.
+
+De cada clase de equipo se toma una sola magnitud. De los medidores, la
+potencia activa total, registrada en kilovatios con resolución de dos
+minutos. De los inversores, la potencia de corriente alterna entregada,
+registrada en vatios con la misma resolución. Ambas se convierten y
+agregan en el Capítulo~\ref{sec:prep}.
+
+\begin{detallebox}
+No todas las fuentes instrumentadas se usan. De los veinte medidores, el
+modelo lee uno por institución en cada cobertura (el totalizador para M1,
+el submedidor del circuito fotovoltaico para M3), de modo que ocho
+medidores participan y doce quedan como auxiliares. De los siete
+inversores, cinco definen la generación que ve el modelo y los otros dos
+intervienen solo en la reconstrucción de la demanda de Udenar. La razón de
+no sumar todo lo disponible se explica en el Capítulo~\ref{sec:prep}: los
+equipos miden puntos distintos del circuito y sumarlos mezclaría
+totalizadores con ramales.
+\end{detallebox}
+
+\subsection{Cuánto tiempo hay medido}
+\label{sub:dato-gantt}
+
+La segunda pregunta después de «qué se midió» es «desde cuándo». Los
+equipos no entraron en servicio a la vez, y esa asincronía condiciona el
+horizonte del estudio. La Figura~\ref{fig:dato-gantt} sitúa cada fuente
+sobre el eje temporal y deja ver el escalonamiento con que la comunidad
+se fue instrumentando.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f2_02_gantt_fuentes.png}
+ \caption[Cobertura temporal de las 27 fuentes]{Periodo cubierto por
+ cada una de las veintisiete fuentes instrumentadas. En color, las que
+ el modelo emplea; en gris, las auxiliares. La franja sombreada es el
+ horizonte del estudio.
+ \fuente{elaboración propia recorriendo las subcarpetas de
+ \file{MedicionesMTE\_v3/}.}}
+ \label{fig:dato-gantt}
+\end{figure}
+
+\notafig{Del recorrido se siguen tres hechos que la lista de equipos
+no deja ver. Primero, las instituciones se incorporaron escalonadamente
+entre enero y abril de 2025, de modo que no hay ningún mes de 2025 con
+las cinco desde el primer día. Segundo, el Inversor MTE de Udenar entró
+en servicio en septiembre y cubre menos de la mitad del horizonte.
+Tercero, y es lo más relevante para lo que sigue, las barras se
+prolongan bastante más allá del borde derecho de la franja sombreada.
+Elaboración propia a partir del censo de las 27 subcarpetas de
+\file{MedicionesMTE\_v3/}.}
+
+\subsection{Por qué el horizonte empieza el 4 de abril}
+\label{sub:dato-horizonte}
+
+El inicio del horizonte no se eligió: viene impuesto. Un mercado entre
+cinco participantes no puede simularse mientras falte uno, de modo que la
+primera fecha utilizable es aquella en que la última fuente necesaria
+entra en servicio. La Figura~\ref{fig:dato-horizonte} ordena las fuentes
+por su primer registro y señala cuál de ellas fija esa fecha.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f2_04_horizonte.png}
+ \caption[El inicio del horizonte y su causa]{Fecha del primer registro
+ de cada fuente que el modelo emplea, ordenadas de más antigua a más
+ reciente. La línea vertical marca la última en entrar, que es la que
+ fija el inicio del horizonte.
+ \fuente{elaboración propia sobre el censo de fuentes; constantes
+ \code{T\_START} y \code{T\_END} en \file{data/xm\_data\_loader.py}.}}
+ \label{fig:dato-horizonte}
+\end{figure}
+
+\notafig{La restricción la impone el HUDN, cuyo medidor empieza a
+registrar el 3 de abril de 2025 a las 20:58 y cuyo inversor lo hace al
+día siguiente a las 05:58. Ninguna otra fuente entra después, de modo
+que la fecha no es el resultado de un criterio del investigador sino del
+calendario de puesta en marcha. Elaboración propia sobre el censo de
+fuentes.}
+
+De ahí el 4 de abril como primer día completo con las cinco instituciones
+operativas. El horizonte se cierra el 16 de diciembre de 2025, lo que da
+\num{256} días y \num{6144} horas.
+
+\begin{trampabox}
+La fecha de cierre tiene un estatuto distinto al de la fecha de inicio, y
+conviene no presentarlas como si fueran equivalentes. El inicio está
+determinado por el dato: antes del 4 de abril la comunidad no está
+completa. El cierre, en cambio, es un corte administrativo heredado de la
+auditoría con que se fijó el horizonte, y las series contienen datos que
+llegan hasta abril de 2026, es decir, unos cuatro meses más allá. El
+repositorio no registra por qué se detuvo ahí. Extender el horizonte es,
+por tanto, una posibilidad abierta y no una imposibilidad del dato;
+hacerlo obligaría a repetir la corrida completa y a rehacer la
+verificación numérica, de modo que queda como trabajo futuro y se declara
+aquí para que el lector no atribuya al dato una limitación que no tiene.
+\end{trampabox}
+
+\subsection{Cuánto dato hay, fuente por fuente}
+\label{sub:dato-cobertura}
+
+Queda la tercera pregunta: dentro de ese horizonte, ¿cuántas horas tienen
+efectivamente registro? La respuesta debe darse por separado para cada
+clase de equipo, porque medirlas igual sería un error de método. La
+Figura~\ref{fig:dato-cobertura} separa las dos clases y ordena cada una
+por su fracción de horas con registro.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f2_03_cobertura_fuentes.png}
+ \caption[Cobertura de adquisición por fuente]{Fracción de horas del
+ horizonte con registro, por fuente. Los medidores se evalúan sobre las
+ veinticuatro horas; los inversores, solo sobre la franja diurna.
+ \fuente{elaboración propia recorriendo
+ \file{MedicionesMTE\_v3/}.}}
+ \label{fig:dato-cobertura}
+\end{figure}
+
+\notafig{La cobertura media de los veinte medidores es del \pct{97.6},
+con faltantes típicos de entre el \num{1.6} y el \pct{2.0} por equipo, en
+su mayoría huecos cortos que el pipeline puede imputar. La de los siete
+inversores, evaluada en la franja de 06:00 a 18:00, es del \pct{89.9}. Lo
+que el promedio esconde es que esa pérdida no está repartida: un solo
+equipo la concentra casi por completo. Elaboración propia recorriendo
+\file{MedicionesMTE\_v3/}.}
+
+\begin{lecturabox}
+La evaluación de los inversores solo en horas diurnas no es una
+concesión: es la única medición correcta. Un inversor no produce de noche,
+de modo que contar las horas nocturnas como dato faltante confundiría la
+ausencia de sol con la ausencia de medición y hundiría artificialmente la
+cifra de todos los equipos por igual. Evaluado sobre las veinticuatro
+horas, el mismo conjunto de inversores daría una cobertura en torno al
+\pct{57}, que no describiría ningún defecto real.
+\end{lecturabox}
+
+Las dos excepciones del conjunto están acotadas y conviene nombrarlas.
+El medidor 4 de Udenar baja al \pct{88.7} por una racha larga de ausencia,
+pero es un equipo auxiliar que el modelo no emplea. El Inversor MTE de
+Udenar cubre solo el \pct{39.3} de las horas diurnas porque entró en
+servicio en septiembre; sí participa, aunque no en la matriz de generación
+sino en la reconstrucción de la demanda del Capítulo~\ref{sec:prep}. Los
+cinco inversores que definen la generación del modelo superan todos el
+\pct{97} en horas de sol.
+
+\subsection{Qué se puede y qué no se puede concluir de aquí}
+\label{sub:dato-alcance}
+
+Antes de pasar al tratamiento conviene fijar el alcance de esta base de
+datos, porque delimita lo que el resto del documento puede afirmar.
+
+Lo que sí sostiene: nueve meses continuos de medición horaria sobre cinco
+participantes reales, con cobertura de adquisición superior al \pct{97} en
+todos los equipos que el modelo emplea y con el horizonte fijado por el
+dato y no por conveniencia. Es una base empírica, no una simulación de
+perfiles sintéticos, y esa es su principal virtud frente a buena parte de
+la literatura del área.
+
+Lo que no sostiene: cinco participantes son cinco, y ninguna conclusión de
+este trabajo se extiende sin más a comunidades de otro tamaño. El
+Capítulo~\ref{sec:esc} muestra que ese número tiene además consecuencias
+regulatorias directas, porque algunos umbrales normativos se definen sobre
+la participación relativa de cada miembro y con cinco miembros ciertos
+umbrales son aritméticamente inalcanzables. Tampoco sostiene conclusiones
+estacionales completas: nueve meses cubren buena parte del ciclo anual de
+Pasto, pero no un año entero.
+
+En síntesis, la base empírica queda delimitada en veintisiete fuentes
+instrumentadas, de las cuales el modelo emplea trece, sobre un horizonte
+de \num{6144} horas cuyo inicio impone el dato y cuyo cierre es un corte
+administrativo, con una cobertura de adquisición superior al \pct{97} en
+todos los equipos que intervienen. Sobre esa base se apoya el tratamiento
+que describe el capítulo siguiente, y es también contra ella contra la que
+deben leerse las declaraciones de honestidad metodológica con que ese
+capítulo se cierra.

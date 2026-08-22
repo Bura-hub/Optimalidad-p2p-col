@@ -1,0 +1,405 @@
+% =====================================================================
+%  Analisis de Optimalidad y Validacion Regulatoria de Mercados P2P
+%  en Colombia — DOCUMENTO DE PROCESO
+%
+%  Brayan Stiven Lopez-Mendez · Universidad de Narino · 2026
+%
+%  Narrativa: dato -> proceso -> resultado. Cada transformacion del
+%  dato tiene su propia subseccion y su propia figura de impacto.
+%
+%  Formato heredado de reformateo/NuevoFormato/ (article 12pt, una
+%  columna, capitulos simulados con titlesec), con las adiciones que
+%  exige una tesis: bibliografia IEEE, indice de tablas, nomenclatura,
+%  paginas preliminares en romanos y subfiguras para los pares M1|M3.
+%
+%  Compilar:  pdflatex main -> bibtex main -> pdflatex main x2
+% =====================================================================
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish]{babel}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip} % Elimina sangría y agrega espacio entre párrafos
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{ragged2e}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{float}
+\usepackage{fancyvrb}
+\usepackage{xurl}
+
+% --- Añadidos respecto a la plantilla base ---------------------------
+% Pares de paneles M1 | M3: casi toda figura del documento es doble.
+\usepackage{subcaption}
+% Diagramas de proceso, cadenas de flujo y esquemas de medición.
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta, positioning, shapes.geometric, calc, fit,
+                backgrounds, decorations.pathreplacing}
+% Cifras con la convencion espanola: miles con punto, decimales con
+% coma. Se usa numprint y NO siunitx: la version de siunitx que
+% distribuye MiKTeX 24.1 exige un expl3 mas nuevo que el de la propia
+% distribucion, y falla con \l_siunitx_quantity_prefix_mode_str
+% indefinido. numprint es estable y cubre lo que el documento necesita.
+\usepackage{numprint}
+\npthousandsep{.}
+\npdecimalsign{,}
+% \num{4839.52} imprime <<4.839,52>>; \uni{12.0}{kWh}, <<12,0 kWh>>;
+% \pct{20} imprime <<20 %>>.
+\newcommand{\num}[1]{\numprint{#1}}
+\newcommand{\uni}[2]{\numprint{#1}\,#2}
+% OJO: \pct solo funciona en modo TEXTO. babel-spanish redefine el
+% simbolo de porcentaje con una macro que inspecciona \lastskip, y
+% dentro de $...$ el \, produce mu-glue, lo que aborta la compilacion
+% con <<Incompatible glue units>>. Escribir  $\pm$\,\pct{0.3}  y no
+% $\pm\pct{0.3}$.
+\newcommand{\pct}[1]{\numprint{#1}\,\%}
+
+% Bibliografía numérica estilo IEEE.
+\usepackage[numbers,sort&compress]{natbib}
+
+% Ruta de búsqueda de imágenes (las figuras viven en figuras/)
+\graphicspath{{./}}
+% Figuras en la posición exacta del texto (no flotantes)
+\floatplacement{figure}{H}
+\usepackage{tcolorbox}
+% Marcador de figura pendiente: permite redactar antes de generarla.
+\newcommand{\placeholderfig}[2][0.85\linewidth]{%
+  \fbox{\parbox{#1}{\centering\vspace{1.6cm}%
+  \textbf{[ FIGURA PENDIENTE ]}\\[0.4em]%
+  \small #2\vspace{1.6cm}}}%
+}
+
+% --- Profundidad de numeración y tabla de contenidos ---
+\setcounter{secnumdepth}{5}  % Numera hasta subparagraph (5 niveles)
+\setcounter{tocdepth}{3}     % Muestra en índices hasta subsubsection (3 niveles)
+
+% --- Redefinir "Cuadro" como "Tabla" para babel español ---
+\addto\captionsspanish{%
+  \def\tablename{Tabla}%
+}
+
+% --- Numeración jerárquica de figuras y tablas por sección ---
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+\numberwithin{equation}{section}
+
+% --- Colores personalizados ---
+\definecolor{darkblue}{rgb}{0.1, 0.2, 0.4}
+\definecolor{sectioncolor}{rgb}{0.15, 0.35, 0.65}
+\definecolor{codegray}{rgb}{0.96, 0.96, 0.96}
+\definecolor{codeblue}{rgb}{0.25, 0.41, 0.88}
+\definecolor{codegreen}{rgb}{0.0, 0.5, 0.0}
+\definecolor{warningcolor}{rgb}{0.8, 0.4, 0.0}
+\definecolor{successcolor}{rgb}{0.0, 0.6, 0.0}
+\definecolor{infocolor}{rgb}{0.0, 0.4, 0.8}
+% Color de las decisiones técnicas fechadas (capítulo de depuración).
+\definecolor{decisioncolor}{rgb}{0.35, 0.20, 0.50}
+
+% --- Encabezado y pie de página ---
+\pagestyle{fancy}
+\fancyhead[L]{\textbf{Mercados P2P en Colombia}}
+\fancyhead[R]{\textbf{Documento de proceso}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\footrulewidth}{0.4pt}
+
+% Estilo de página para inicio de capítulo (sin encabezado)
+\fancypagestyle{chapterpage}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0.4pt}
+}
+
+% Estilo de página para índices (sin encabezado ni líneas)
+\fancypagestyle{indexpage}{
+    \fancyhf{}
+    \fancyfoot[C]{\thepage}
+    \renewcommand{\headrulewidth}{0pt}
+    \renewcommand{\footrulewidth}{0pt}
+}
+
+% --- Hipervínculos ---
+\pdfstringdefDisableCommands{%
+  \def\code#1{#1}%
+  \def\file#1{#1}%
+  \def\CAL#1{CAL-#1}%
+}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=black,
+    pdftitle={Analisis de Optimalidad y Validacion Regulatoria de Mercados P2P en Colombia},
+    pdfauthor={Brayan Stiven Lopez-Mendez},
+    hypertexnames=false
+}
+
+% --- Estilo de títulos ---
+\titleformat{\section}[display]
+  {\normalfont\Large\bfseries\color{black}}
+  {\vspace*{1cm}\huge Capítulo \thesection}
+  {10pt}
+  {\Huge\bfseries\color{black}}
+  [\thispagestyle{chapterpage}]
+\titlespacing*{\section}
+  {0pt}{0pt}{40pt}
+
+\titleformat{\subsection}
+  {\Large\bfseries\color{black}}{\thesubsection}{1em}{}[\justifying]
+\titlespacing*{\subsection}
+  {0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\color{black}}{\thesubsubsection}{1em}{}[\justifying]
+\titlespacing*{\subsubsection}
+  {0pt}{3ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+\titleformat{\paragraph}
+  {\normalsize\bfseries\color{black}}{\theparagraph}{1em}{}[\justifying]
+\titlespacing*{\paragraph}
+  {0pt}{2.5ex plus 1ex minus .2ex}{1ex plus .2ex}
+
+\titleformat{\subparagraph}
+  {\normalsize\itshape\color{black}}{\thesubparagraph}{1em}{}[\justifying]
+\titlespacing*{\subparagraph}
+  {0pt}{2ex plus 1ex minus .2ex}{1ex plus .2ex}
+
+% Los anexos imprimen «Anexo A» en vez de «Capítulo A».
+\newcommand{\iniciaranexos}{%
+  \clearpage
+  \appendix
+  \setcounter{section}{0}%
+  \titleformat{\section}[display]
+    {\normalfont\Large\bfseries\color{black}}
+    {\vspace*{1cm}\huge Anexo \thesection}
+    {10pt}
+    {\Huge\bfseries\color{black}}
+    [\thispagestyle{chapterpage}]%
+}
+
+% --- Configuración del listado de código ---
+\lstset{
+  backgroundcolor=\color{codegray},
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{codeblue}\bfseries,
+  commentstyle=\color{codegreen},
+  stringstyle=\color{codegreen},
+  frame=single,
+  breaklines=true,
+  showstringspaces=false,
+  tabsize=2,
+  language=Python,
+  inputencoding=utf8,
+  extendedchars=true,
+  literate={á}{{\'a}}1 {é}{{\'e}}1 {í}{{\'i}}1 {ó}{{\'o}}1 {ú}{{\'u}}1
+           {Á}{{\'A}}1 {É}{{\'E}}1 {Í}{{\'I}}1 {Ó}{{\'O}}1 {Ú}{{\'U}}1
+           {ñ}{{\~n}}1 {Ñ}{{\~N}}1
+}
+
+% --- Espaciado entre líneas ---
+\onehalfspacing
+\setlength{\headheight}{16pt}
+
+% --- Comandos personalizados ---
+\newcommand{\code}[1]{\textcolor{codeblue}{\texttt{\small#1}}}
+\newcommand{\file}[1]{\textcolor{darkblue}{\texttt{\small#1}}}
+% Referencia a una decisión técnica fechada del registro (Anexo B).
+% Se llama \CAL y no \cal porque \cal ya existe en LaTeX (fuente
+% caligrafica de la version 2.09) y redefinirla rompe la compilacion.
+\newcommand{\CAL}[1]{\textcolor{decisioncolor}{\textbf{CAL-#1}}}
+% Atribución de procedencia al pie de una figura o tabla. El documento
+% no publica ninguna figura sin declarar de qué artefacto salió.
+\newcommand{\fuente}[1]{\\[0.2em]{\footnotesize\itshape Fuente: #1}}
+% Las dos coberturas de medición, siempre con su porcentaje.
+% Parrafo interpretativo bajo una figura. Es un habito del autor en
+% sus informes de 2026: tras cada figura escribe un parrafo que
+% empieza por <<Nota.>>, dice lo que la figura revela y el texto no,
+% y cierra con la procedencia.
+\newcommand{\notafig}[1]{%
+  \vspace{-0.4em}%
+  {\small\noindent\textbf{Nota.} #1\par}%
+  \vspace{0.5em}%
+}
+
+\newcommand{\Mone}{\mbox{M1}}
+\newcommand{\Mthree}{\mbox{M3}}
+
+% --- Cajas ------------------------------------------------------------
+% Reasignadas a la narrativa de proceso de este documento:
+%   detallebox  -> detalle metodológico que puede saltarse
+%   trampabox   -> trampa documentada del artefacto o del dato
+%   lecturabox  -> cómo se lee la figura que acaba de presentarse
+%   decisionbox -> decisión técnica fechada que movió las cifras
+\newtcolorbox{detallebox}{
+    colback=infocolor!10,
+    colframe=infocolor,
+    coltitle=infocolor,
+    title=\textbf{Detalle metodológico},
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{trampabox}{
+    colback=warningcolor!10,
+    colframe=warningcolor,
+    coltitle=warningcolor,
+    title=\textbf{Trampa documentada},
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{lecturabox}{
+    colback=successcolor!10,
+    colframe=successcolor,
+    coltitle=successcolor,
+    title=\textbf{Cómo leer esta figura},
+    fonttitle=\bfseries
+}
+
+\newtcolorbox{decisionbox}[1]{
+    colback=decisioncolor!8,
+    colframe=decisioncolor,
+    coltitle=decisioncolor,
+    title=\textbf{Decisión #1},
+    fonttitle=\bfseries
+}
+
+% =====================================================================
+\begin{document}
+\sloppy
+\justifying
+
+% --- PORTADA ---------------------------------------------------------
+\thispagestyle{empty}
+\begin{titlepage}
+    \centering
+    \vspace*{0.1cm}
+    {\color{black}\rule{\textwidth}{2pt}\par}
+    \vspace{0.6cm}
+    {\large\textbf{UNIVERSIDAD DE NARIÑO}}\\[0.2em]
+    {\normalsize Facultad de Ingeniería\\
+     Maestría en Ingeniería Electrónica}\\[1.4cm]
+
+    {\Large\textbf{Análisis de Optimalidad y Validación Regulatoria}}\\[0.35em]
+    {\Large\textbf{de Mercados P2P en Colombia}}\\[0.9cm]
+
+    {\large\itshape Del dato crudo al resultado: memoria detallada del proceso}\\[0.4cm]
+    {\color{black}\rule{0.6\textwidth}{0.6pt}\par}
+
+    \vfill
+
+    {\large\textbf{Brayan Stiven López-Méndez}}\\
+    \url{bsmendez24B@udenar.edu.co}\\
+    Ingeniero Electrónico --- Estudiante de Maestría en Ingeniería Electrónica\\[1.0cm]
+
+    {\normalsize\textbf{Asesores}}\\[0.3em]
+    {\large\textbf{Andrés Darío Pantoja Bucheli, PhD.}}\\
+    {\large\textbf{Germán Darío Obando Bravo, PhD.}}\\
+    Departamento de Electrónica --- Universidad de Nariño
+
+    \vspace{1.2cm}
+    {\normalsize San Juan de Pasto, Nariño --- 2026}
+    \vspace{0.6cm}
+\end{titlepage}
+
+% --- PÁGINAS PRELIMINARES (numeración romana) ------------------------
+\newpage
+\pagenumbering{roman}
+
+\renewcommand{\contentsname}{\Huge\textbf{Índice general}\vspace{-0.1cm}}
+\renewcommand{\listfigurename}{\Huge\textbf{Índice de figuras}\vspace{-0.1cm}}
+\renewcommand{\listtablename}{\Huge\textbf{Índice de tablas}\vspace{-0.1cm}}
+
+\thispagestyle{indexpage}
+\vspace*{1cm}
+\tableofcontents
+\newpage
+
+\thispagestyle{indexpage}
+\vspace*{1cm}
+\listoffigures
+\newpage
+
+\thispagestyle{indexpage}
+\vspace*{1cm}
+\listoftables
+\newpage
+
+\input{sections/00-nomenclatura}
+
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\thispagestyle{fancy}
+
+\newcommand{\sectionbreak}{\clearpage}
+
+% =====================================================================
+%  PARTE 0 — APERTURA
+% =====================================================================
+\input{sections/01-introduccion}
+
+% =====================================================================
+%  PARTE I — EL DATO
+% =====================================================================
+\input{sections/02-dato-crudo}
+\input{sections/03-preprocesamiento}
+\input{sections/04-frontera-medicion}
+\input{sections/05-precios}
+
+% =====================================================================
+%  PARTE II — EL INSTRUMENTO
+% =====================================================================
+\input{sections/06-modelo}
+\input{sections/07-verificacion}
+\input{sections/08-escenarios}
+
+% =====================================================================
+%  PARTE III — LA DEPURACIÓN
+% =====================================================================
+\input{sections/09-depuracion}
+
+% =====================================================================
+%  PARTE IV — LA EVIDENCIA
+% =====================================================================
+\input{sections/10-resultados}
+\input{sections/11-robustez}
+\input{sections/12-factibilidad}
+\input{sections/13-inferencia}
+
+% =====================================================================
+%  PARTE V — CIERRE
+% =====================================================================
+\input{sections/14-discusion}
+\input{sections/15-conclusiones}
+
+% =====================================================================
+%  BIBLIOGRAFÍA
+% =====================================================================
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{Referencias}
+\bibliographystyle{IEEEtran}
+\bibliography{referencias}
+
+% =====================================================================
+%  ANEXOS
+% =====================================================================
+\iniciaranexos
+\input{sections/A1-reproducibilidad}
+\input{sections/A2-registro-decisiones}
+\input{sections/A3-trazabilidad}
+\input{sections/A4-inventario}
+\input{sections/A5-preguntas-abiertas}
+
+\end{document}

@@ -1,0 +1,656 @@
+% =====================================================================
+% La domesticación del dato
+% Parte I — El dato
+%
+% ENCARGO: el pipeline etapa por etapa. Es el capitulo central del
+% documento: cada transformacion con su figura de antes y despues.
+%
+% Reglas del documento:
+% - Una idea = una subseccion = una figura.
+% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda cifra sale del canon de agosto; ver GUIA.md.
+% - M1 y M3 se reportan siempre en paralelo.
+% - Ningun superlativo sin releer el CSV de la frontera correcta.
+% =====================================================================
+\section{La domesticación del dato}
+\label{sec:prep}
+\justifying
+
+El capítulo anterior describió qué se midió y con qué instrumentos. Este
+describe qué hubo que hacerle a esa medición antes de que sirviera para
+algo. Es el capítulo más largo del documento y esa desproporción es
+deliberada: entre el archivo que escribe la plataforma de monitoreo y la
+matriz que consume el modelo hay diez transformaciones, y cada una de
+ellas encierra una decisión que puede cambiar el resultado final. Un
+lector que quiera juzgar la solidez de las cifras del Capítulo~\ref{sec:res}
+necesita haber visto antes estas diez.
+
+El recorrido se organiza en el orden en que el programa las ejecuta, no
+en el orden en que resultan interesantes. Cada transformación ocupa su
+propia subsección, y cada subsección muestra el dato antes y después de
+pasar por ella. Las dos rutinas que implementan el proceso son
+\file{data/xm\_data\_loader.py}, que se ocupa de la lectura y de la
+limpieza genérica de series, y \file{data/preprocessing.py}, que decide
+qué punto físico se mide en cada institución y garantiza que la demanda
+entregada al modelo no sea negativa. El punto de entrada es la función
+\code{build\_demand\_generation}.
+
+\subsection{El camino completo, de un vistazo}
+\label{sub:prep-mapa}
+
+Antes del detalle conviene tener el mapa. La Figura~\ref{fig:prep-pipeline}
+resume las diez etapas y señala en cuál de ellas se bifurcan las dos
+coberturas de medición que el Capítulo~\ref{sec:frontera} desarrolla: la
+bifurcación ocurre en la primera etapa y solo en la primera. Lo que
+cambia entre M1 y M3 es qué subcarpeta de medidor se lee; todo el
+tratamiento posterior es idéntico. Esa es una propiedad importante del
+diseño, porque permite atribuir cualquier diferencia entre las dos
+coberturas a la frontera de medición y no al procesamiento.
+
+\begin{figure}[H]
+ \centering
+ \begin{tikzpicture}[
+ font=\footnotesize,
+ etapa/.style={draw=black!55, fill=black!3, rounded corners=2pt,
+ minimum width=2.55cm, minimum height=0.78cm,
+ align=center, inner sep=3pt},
+ clave/.style={etapa, draw=infocolor, fill=infocolor!12,
+ very thick},
+ flecha/.style={-{Stealth[length=4pt]}, draw=black!55},
+ nota/.style={font=\scriptsize\itshape, text=black!60, align=center},
+ ]
+ \node[etapa] (e1) {1. Localizar\\archivos};
+ \node[etapa, right=0.42cm of e1] (e2) {2. Leer\\y decodificar};
+ \node[etapa, right=0.42cm of e2] (e3) {3. Marcas\\de tiempo};
+ \node[etapa, right=0.42cm of e3] (e4) {4. Convertir\\unidades};
+
+ \node[etapa, below=0.85cm of e1] (e5) {5. Agregar\\a una hora};
+ \node[clave, right=0.42cm of e5] (e6) {6. Clasificar\\el medidor};
+ \node[clave, right=0.42cm of e6] (e7) {7. Reconstruir\\demanda bruta};
+ \node[clave, right=0.42cm of e7] (e8) {8. Atípicos\\y huecos};
+
+ \node[etapa, below=0.85cm of e5] (e9) {9. Ensamblar\\y verificar};
+ \node[etapa, right=0.42cm of e9] (e10) {10. Localizar\\zona horaria};
+ \node[etapa, draw=successcolor, fill=successcolor!12, very thick,
+ right=0.42cm of e10, minimum width=3.4cm] (out)
+ {Matrices $D$ y $G$\\ $5 \times 6\,144$};
+
+ \draw[flecha] (e1) -- (e2);
+ \draw[flecha] (e2) -- (e3);
+ \draw[flecha] (e3) -- (e4);
+ \draw[flecha] (e4.south) -- ++(0,-0.28) -| (e5.north);
+ \draw[flecha] (e5) -- (e6);
+ \draw[flecha] (e6) -- (e7);
+ \draw[flecha] (e7) -- (e8);
+ \draw[flecha] (e8.south) -- ++(0,-0.28) -| (e9.north);
+ \draw[flecha] (e9) -- (e10);
+ \draw[flecha] (e10) -- (out);
+
+ \node[nota, above=0.10cm of e1] {aquí, y solo aquí,\\se separan M1 y M3};
+ % La llave se traza de este a oeste a propósito: la decoración
+ % «brace» abomba hacia la izquierda del sentido de avance, de modo
+ % que dibujarla de oeste a este la curvaría hacia arriba y cruzaría
+ % las tres cajas que pretende agrupar.
+ \draw[decorate, decoration={brace, amplitude=4pt}, draw=infocolor]
+ ($(e8.south east)+(0,-0.14)$) -- ($(e6.south west)+(0,-0.14)$)
+ node[midway, below=6pt, nota, text=infocolor]
+ {las tres etapas que alteran el valor del dato};
+ \end{tikzpicture}
+ \caption[El pipeline de preprocesamiento en diez etapas]{Las diez
+ etapas del preprocesamiento, en el orden en que se ejecutan. Las tres
+ resaltadas en azul son las únicas que modifican el valor numérico de
+ la serie; las restantes reorganizan, convierten o verifican. La
+ bifurcación entre las dos coberturas de medición ocurre en la etapa~1.
+ \fuente{elaboración propia a partir de \file{data/preprocessing.py}
+ y \file{data/xm\_data\_loader.py}.}}
+ \label{fig:prep-pipeline}
+\end{figure}
+
+\notafig{Las diez etapas se agrupan en tres bloques de naturaleza
+distinta. Las cinco primeras localizan, decodifican y convierten, sin
+tocar el valor. Las tres resaltadas lo modifican, y son las únicas que
+pueden alterar un resultado. Las dos últimas ensamblan y verifican. Esa
+separación es la que permite decir con precisión dónde se juega la
+fidelidad del dato. Elaboración propia a partir de
+\file{data/preprocessing.py}.}
+
+\subsection{Del archivo a la serie horaria}
+\label{sub:prep-lectura}
+
+Las cinco primeras etapas no cambian ningún valor: lo encuentran, lo
+decodifican, lo ordenan y lo expresan en las unidades del modelo.
+
+\textbf{Localización.} Los datos crudos se organizan en una carpeta por
+institución, con subcarpetas por medidor y por inversor. La búsqueda es
+deliberadamente tolerante a diferencias de mayúsculas y de escritura,
+porque los nombres de la plataforma de origen no son uniformes: la
+carpeta de medidores de Cesmag, por ejemplo, viene escrita
+\code{eletricMeter}, con la errata de origen, y se conserva así para
+reproducir exactamente la estructura de la fuente en vez de corregirla y
+perder la trazabilidad. Los registros de un mismo medidor pueden venir
+partidos en varios archivos por tramos de fecha, que se leen y concatenan.
+
+\textbf{Lectura.} Cada archivo se decodifica probando cuatro
+codificaciones en orden: \code{utf-8-sig}, \code{utf-8}, \code{cp1252} y
+\code{latin-1}. El orden no es arbitrario y conviene explicarlo, porque
+es el tipo de detalle que pasa inadvertido hasta que corrompe una serie
+entera. La codificación \code{latin-1} acepta cualquier secuencia de
+bytes y por tanto nunca falla; si se probara antes que \code{cp1252},
+ganaría siempre, y los archivos exportados por herramientas de Windows en
+configuración regional colombiana se decodificarían con caracteres
+corruptos en el rango \code{0x80}--\code{0x9F}, justamente donde viven
+las tildes. Por eso \code{cp1252} va antes y \code{latin-1} queda como
+último recurso. Un archivo ilegible no se descarta en silencio: el
+cargador emite un aviso incondicional, porque un archivo caído puede
+significar una institución entera ausente aguas abajo.
+
+\textbf{Marcas de tiempo.} La columna de fecha se convierte en modo
+tolerante: las marcas ilegibles se vuelven nulas y se descartan. Las
+marcas duplicadas, dos lecturas con el mismo instante, se consolidan
+promediándolas, lo que evita ambigüedades al concatenar los tramos.
+
+\textbf{Unidades.} La potencia de los medidores viene en kilovatios y se
+usa directamente; la de los inversores viene en vatios y se divide entre
+mil. La salida del inversor se recorta además a valores no negativos,
+porque la potencia de corriente alterna inyectada no puede serlo.
+
+\textbf{Agregación a paso horario.} Las series se remuestrean a una hora
+tomando la \emph{media} de las muestras del intervalo, no la suma. La
+razón es física y no de conveniencia: la energía de una hora es la
+integral de la potencia en ese intervalo, $E = \int P\,dt$, y con
+$\Delta t = \uni{1}{h}$ la potencia media en kilovatios coincide
+numéricamente con la energía horaria en kilovatios-hora. Las hasta treinta
+muestras de dos minutos de cada hora aproximan esa integral. La
+consecuencia práctica es que las matrices resultantes pueden leerse
+indistintamente como potencia media horaria o como energía horaria, y a
+lo largo del documento se usan las dos lecturas según convenga.
+
+\begin{detallebox}
+Si en lugar de la media se hubiera tomado la suma, cada hora quedaría
+multiplicada por el número de muestras que contiene (hasta treinta) y las
+horas con muestreo incompleto quedarían sistemáticamente subestimadas
+frente a las completas. El error no sería un factor constante que se
+cancela al comparar mecanismos, sino uno que varía con la calidad de la
+adquisición de cada hora.
+\end{detallebox}
+
+\subsection{La lectura que no puede ser}
+\label{sub:prep-negativa}
+
+Aquí empieza la parte interesante. Al graficar la demanda tal como llega
+del medidor aparece algo que no puede ser cierto: durante varias horas al
+día, la demanda de tres de las cinco instituciones es negativa. Un
+edificio no consume energía negativa. La Figura~\ref{fig:prep-negativa}
+recoge el fenómeno en sus dos dimensiones: la forma que toma a lo largo
+del día y el número de horas que afecta a cada institución.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m1.png}
+ \caption[Demanda negativa en la lectura cruda]{Perfil medio de la
+ demanda tal como la entrega el medidor, en la cobertura M1
+ (izquierda), y alcance del fenómeno por institución (derecha). La
+ franja sombreada marca la zona físicamente imposible. Las lecturas
+ bajo cero no se reparten al azar a lo largo del día: se concentran
+ entre las 11 y las 15 horas.
+ \fuente{elaboración propia desde \file{MedicionesMTE\_v3/},
+ columna \code{totalActivePower}, procesada con el pipeline del
+ proyecto.}}
+ \label{fig:prep-negativa}
+\end{figure}
+
+\notafig{Sobre las \num{6144} horas del horizonte, la demanda de Udenar
+cae bajo cero en \num{1517} horas (el \pct{24.7} del total, y el
+\pct{25.1} de las horas con dato) y llega a
+\uni{-33.57}{kW}. Mariana registra \num{213} horas bajo cero y la
+UCC \num{94}; el HUDN y Cesmag, ninguna. El reparto es, pues, muy
+desigual: una sola institución concentra el \pct{83} de todas las horas
+afectadas. Elaboración propia desde \file{MedicionesMTE\_v3/}.}
+
+\begin{lecturabox}
+Lo decisivo de esta figura no es el número de horas sino \emph{a qué hora
+del día} ocurren. Si las lecturas negativas fueran ruido del sensor, se
+repartirían de manera aproximadamente uniforme. Se concentran en cambio
+en la franja de mayor producción solar (\num{223} casos a las 13 horas,
+\num{218} a las 12) y desaparecen por completo de noche. Ese patrón
+identifica la causa sin necesidad de abrir el equipo: no es un sensor
+averiado, es un medidor que está restando la generación antes de reportar.
+\end{lecturabox}
+
+\subsection{Tres clases de medidor}
+\label{sub:prep-tipos}
+
+La explicación es de topología eléctrica. Cuando el inversor fotovoltaico
+inyecta \emph{aguas abajo} del punto de medición, el medidor no observa
+la demanda de la institución sino el flujo neto $D - G$. En las horas en
+que la generación supera la carga del circuito, ese flujo se invierte de
+sentido y el medidor registra un valor negativo. La lectura no es un
+error: es la evidencia de un autoconsumo que el medidor no puede separar.
+
+Según dónde esté el punto de medición respecto de la inyección, los
+medidores de la cobertura M1 se clasifican en tres tipos, y esa
+clasificación gobierna todo lo que sigue.
+
+\begin{figure}[H]
+ \centering
+ \begin{tikzpicture}[
+ font=\scriptsize,
+ eq/.style={draw=black!55, fill=black!3, rounded corners=1.5pt,
+ minimum width=1.5cm, minimum height=0.58cm, align=center},
+ med/.style={draw=warningcolor, fill=warningcolor!14, very thick,
+ circle, minimum size=0.72cm, inner sep=0pt},
+ inv/.style={draw=successcolor, fill=successcolor!14, very thick,
+ rounded corners=1.5pt, minimum width=1.15cm,
+ minimum height=0.55cm, align=center},
+ lin/.style={-{Stealth[length=3.5pt]}, draw=black!60},
+ et/.style={font=\scriptsize\itshape, text=black!65},
+ ]
+ % --- net ---
+ \node[et] at (-2.35,0.62) {\textbf{net}};
+ \node[eq] (r1) at (-1.0,0) {Red};
+ \node[med] (m1) at (0.55,0) {M};
+ \node[eq] (c1) at (2.35,0) {Carga};
+ \node[inv] (i1) at (2.35,-1.0) {Inversor};
+ \draw[lin] (r1) -- (m1);
+ \draw[lin] (m1) -- (c1);
+ \draw[lin] (i1) -- (c1);
+ \node[et, text width=3.5cm, right=0.30cm of c1, align=left]
+ {el medidor queda \emph{antes}\\de la inyección: ve $D-G$};
+
+ % --- gross ---
+ \node[et] at (-2.35,-2.38) {\textbf{gross}};
+ \node[eq] (r2) at (-1.0,-3.0) {Red};
+ \node[inv] (i2) at (0.55,-4.0) {Inversor};
+ \node[med] (m2) at (2.05,-3.0) {M};
+ \node[eq] (c2) at (3.6,-3.0) {Carga};
+ \draw[lin] (r2) -- (m2);
+ \draw[lin] (m2) -- (c2);
+ \draw[lin] (i2) -- (r2);
+ \node[et, text width=3.5cm, right=0.30cm of c2, align=left]
+ {el medidor queda \emph{después}:\\ve $D$ sin descontar nada};
+ \end{tikzpicture}
+ \caption[Por qué unos medidores netean y otros no]{Posición relativa
+ del medidor y del inversor en los dos casos extremos. Arriba, el punto
+ de medición está aguas abajo de la inyección y el medidor observa el
+ flujo neto, que se invierte en horas de alta irradiancia. Abajo, el
+ punto de medición no ve la inyección y registra la demanda bruta. El
+ caso intermedio, \emph{net partial}, corresponde a un medidor que
+ netea un solo inversor de peso menor frente a la carga del campus.
+ \fuente{elaboración propia a partir de la configuración de
+ \code{DEMAND\_METER\_CONFIG} en \file{data/preprocessing.py}.}}
+ \label{fig:prep-tipos}
+\end{figure}
+
+\begin{table}[H]
+ \centering
+ \caption{Clasificación de los medidores de demanda en la cobertura M1
+ y huella del neteo sobre el horizonte de \num{6144} horas. Los conteos
+ proceden de reproducir el pipeline sobre los datos vigentes.}
+ \label{tab:prep-tipos}
+ \begin{tabular}{@{}l l r r l@{}}
+ \toprule
+ \textbf{Institución} & \textbf{Tipo} & \textbf{Horas $D<0$} &
+ \textbf{Mínimo} & \textbf{Inversores que se restituyen} \\
+ \midrule
+ Udenar & \emph{net} & \num{1517} & \uni{-33.57}{kW} & tres \\
+ \addlinespace
+ Mariana & \emph{net partial} & \num{213} & \uni{-2.41}{kW} & uno \\
+ \addlinespace
+ UCC & \emph{net partial} & \num{94} & \uni{-5.91}{kW} & uno \\
+ \addlinespace
+ HUDN & \emph{gross} & \num{0} & --- & ninguno \\
+ \addlinespace
+ Cesmag & \emph{gross} & \num{0} & --- & ninguno \\
+ \bottomrule
+ \end{tabular}
+\end{table}
+
+La huella desigual tiene una explicación instrumental que responde
+directamente a por qué el fenómeno aparece en tres instituciones y no en
+las cinco. En Udenar el totalizador de campus está aguas abajo de la
+totalidad de la inyección solar y netea los tres inversores del sitio, de
+donde la magnitud de su huella. En Mariana y en la UCC el medidor netea
+un solo inversor, de peso menor frente a la carga del campus, y la
+inversión del flujo resulta ocasional. En el HUDN y en Cesmag el medidor
+está aguas arriba del punto de inyección, o cubre un circuito que la
+inyección no alimenta: ve la demanda sin descontarle generación alguna,
+de modo que nunca registra flujo inverso.
+
+\begin{trampabox}
+El docstring del módulo \file{data/preprocessing.py} cita \num{989} horas
+para Udenar, \num{216} para Mariana y \num{112} para la UCC. Esas cifras
+no reproducen contra el código y los datos vigentes, y el propio docstring
+es internamente inconsistente: su primer párrafo habla de «\textasciitilde
+\pct{20} de las horas» para Udenar, que no cuadra con
+\num{989}/\num{6144} $=$ \pct{16.1}. Las cifras de la
+Tabla~\ref{tab:prep-tipos} proceden de reproducir el pipeline sobre la
+versión vigente de los datos, con verificación de que las series
+resultantes coinciden con las del modelo hasta el último dígito
+representable. El repositorio no registra la causa de la diferencia, de
+modo que no se atribuye.
+\end{trampabox}
+
+\subsection{La reconstrucción de la demanda bruta}
+\label{sub:prep-reconstruccion}
+
+Identificada la causa, la corrección es directa de enunciar: si el medidor
+restó la generación, se le devuelve. El modelo necesita la demanda bruta
+$D$ (lo que la institución consume) y la generación $G$ por separado, de
+modo que para los medidores \emph{net} y \emph{net partial} la demanda se
+reconstruye como
+
+\begin{equation}
+ D_{\text{recon}}
+ = \Bigl(D_{\text{net}} + \sum_{\text{inversores}} G \Bigr)^{+},
+ \label{eq:prep-reconstruccion}
+\end{equation}
+
+donde la suma recorre \emph{todos} los inversores físicos que inyectan
+detrás de ese medidor y $(\cdot)^{+}$ denota el recorte a valores no
+negativos. En Udenar la suma incluye tres inversores; en Mariana y la UCC,
+su único equipo; el HUDN y Cesmag no requieren reconstrucción y reciben
+solo un recorte defensivo a cero. La Figura~\ref{fig:prep-reconstruccion}
+confronta las tres series sobre un mismo eje y muestra el resultado de
+aplicar esa devolución.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_03_reconstruccion_m1.png}
+ \caption[La reconstrucción de la demanda bruta, antes y después]{La
+ reconstrucción sobre Udenar. A la izquierda, un día concreto hora a
+ hora: en rojo la lectura del medidor, que se hunde al mediodía; en
+ beige, la generación que ese medidor había restado; en azul, la
+ demanda que resulta al devolvérsela. A la derecha, el perfil medio
+ sobre las \num{6144} horas, que confirma que el día elegido no es
+ excepcional.
+ \fuente{elaboración propia desde \file{MedicionesMTE\_v3/Udenar/},
+ aplicando la ecuación~\eqref{eq:prep-reconstruccion}.}}
+ \label{fig:prep-reconstruccion}
+\end{figure}
+
+\notafig{La coincidencia temporal es el argumento: la curva roja se
+hunde exactamente cuando el área beige alcanza su máximo, lo que ninguna
+avería de sensor produciría. La curva azul resultante recupera la forma
+que cabe esperar de un campus universitario, es decir, base nocturna
+estable, ascenso matinal, valle de almuerzo y segundo pico vespertino.
+Sobre el horizonte completo la reconstrucción devuelve \uni{33705}{kWh} a
+la serie de demanda de Udenar. Elaboración propia aplicando la
+ecuación~\eqref{eq:prep-reconstruccion}.}
+
+\begin{detallebox}
+Conviene distinguir dos papeles del inversor dentro del pipeline, porque
+se confunden con facilidad. La matriz $G$ que consume el modelo proviene
+de \emph{un} inversor designado por institución. La reconstrucción de la
+ecuación~\eqref{eq:prep-reconstruccion}, en cambio, suma \emph{todos} los
+inversores que inyectan detrás del medidor. Son conjuntos distintos: en
+Udenar el primero tiene un elemento y el segundo, tres.
+\end{detallebox}
+
+\subsection{Lo que cuesta reconstruir}
+\label{sub:prep-costo}
+
+El recorte a cero de la ecuación~\eqref{eq:prep-reconstruccion} no es
+gratuito, y conviene cuantificarlo antes de que lo haga un revisor. En
+algunas horas solares la suma de inversores sobreestima la generación que
+el medidor realmente descontó (por diferencias de muestreo, por pérdidas,
+y porque las porciones de circuito no coinciden exactamente con el punto
+de medición), de modo que $D_{\text{net}} + \sum G$ resulta negativo y el
+recorte lo lleva a cero, eliminando energía de la serie de demanda.
+
+El fenómeno afecta a \num{353} de las \num{6144} horas del horizonte
+(el \pct{5.7}), ocurre exclusivamente en la ventana solar, con
+máximo a las 13 horas, y elimina en total \uni{1013.3}{kWh}.
+Eso equivale al \pct{2.29} de la demanda de Udenar y al
+\pct{0.32} de la demanda comunitaria. La distorsión es, por
+tanto, acotada y de signo conocido: subestima levemente la demanda de
+Udenar en horas solares.
+
+\begin{lecturabox}
+Que el signo sea conocido importa más que la magnitud. Subestimar la
+demanda de Udenar en horas solares reduce su déficit y, con él, la energía
+que Udenar podría comprar en esas horas. El efecto sobre el mercado entre
+pares es, por tanto, restrictivo: hace el mercado más pequeño, no más
+grande. Es la primera de una serie de decisiones que apuntan todas en la
+misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
+\end{lecturabox}
+
+\subsection{Valores atípicos y huecos}
+\label{sub:prep-limpieza}
+
+La última etapa que altera el valor del dato es la limpieza, que aplica
+tres tratamientos en cascada sobre cada una de las diez series.
+
+Primero, los valores que superan el umbral
+$\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$
+se marcan como faltantes. El primer término es una cerca robusta de tipo
+Tukey, con un multiplicador de cinco deliberadamente más permisivo que el
+1,5 clásico, de modo que solo elimine valores físicamente inverosímiles.
+El segundo impone un piso del \pct{20} por encima del percentil
+99,5, y su función es proteger los picos operativos legítimos en series de
+carga base muy estable: cuando el rango intercuartílico es pequeño, el
+caso de la demanda de Cesmag, la primera cerca se vuelve demasiado
+estricta y recortaría consumo real.
+
+Segundo, los huecos de hasta tres horas se interpolan linealmente en el
+tiempo. Tercero, los huecos de hasta veinticuatro horas se completan con
+relleno hacia adelante y hacia atrás, bajo la heurística de que el patrón
+del día operativo anterior es representativo. Lo que aún sobrevive como
+faltante se imputa con cero, lo que corresponde sobre todo a horas
+nocturnas de las series de generación. La Figura~\ref{fig:prep-limpieza}
+sitúa el umbral sobre la serie y reparte por mes las horas que la limpieza
+tuvo que rellenar.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_05_outliers_imputacion_m1.png}
+ \caption[Criterio de atípicos e imputación por mes]{A la izquierda, la
+ serie de demanda reconstruida de una institución con el umbral de
+ atípicos dibujado y los valores marcados señalados; la separación
+ entre el umbral y la masa de la serie muestra que el criterio no
+ recorta operación normal. A la derecha, cuántas horas quedaron
+ imputadas cada mes en cada institución.
+ \fuente{elaboración propia; criterio de
+ \code{\_clean} en \file{data/xm\_data\_loader.py}.}}
+ \label{fig:prep-limpieza}
+\end{figure}
+
+\notafig{La distancia entre el umbral y la masa de la serie es lo que
+acredita el criterio: si estuviera pegado a la nube de puntos estaría
+recortando operación normal, y no lo está. En cuanto a la imputación, se
+concentra en meses concretos y no se reparte de manera uniforme, lo que
+apunta a interrupciones de adquisición y no a un defecto sistemático.
+Elaboración propia desde el caché de estados intermedios.}
+
+\begin{trampabox}
+En el proyecto conviven tres criterios de relleno distintos, y conviene
+declararlo antes de que el lector lo advierta al comparar módulos. El
+descrito aquí gobierna las diez series de medida. La serie horaria de
+precios de bolsa (\S\ref{sec:precios}) interpola huecos de hasta seis
+horas y completa el residuo con la mediana, sin marcado de atípicos: la
+diferencia en el residuo sí se sostiene (cero es una potencia legítima,
+pero un precio de cero no describe ninguna hora del mercado mayorista),
+mientras que la diferencia en el límite de interpolación no tiene
+justificación registrada. El tercer criterio, el del caso de estudio
+prospectivo, mezcla el límite de seis horas con el residuo en cero. Las
+divergencias se declaran como heterogeneidad heredada de la construcción
+incremental del repositorio, y no como elecciones fundamentadas.
+\end{trampabox}
+
+\subsection{El resultado: lo que el modelo recibe}
+\label{sub:prep-matrices}
+
+Las diez series limpias se apilan en dos matrices de dimensión
+$5 \times \num{6144}$ y se someten a una verificación de contrato: si
+alguna celda de $D$ o de $G$ resulta negativa, el programa se detiene con
+un error explícito en lugar de continuar con datos inconsistentes. La
+no-negatividad no es aquí una aspiración sino una propiedad garantizada
+por construcción y comprobada al final. La
+Figura~\ref{fig:prep-matrices} despliega las dos matrices como mapas de
+hora contra día, que es la forma en que sus estructuras se vuelven
+visibles de una vez.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_07_matrices_m1.png}
+ \caption[Las matrices que consume el modelo]{Las dos matrices
+ resultantes, dibujadas como mapas de hora del día contra día del
+ horizonte, en la cobertura M1. La generación traza una banda diurna
+ nítida que sigue el arco solar; la demanda muestra la semana laboral
+ en franjas verticales regulares.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:prep-matrices}
+\end{figure}
+
+\begin{lecturabox}
+Esta figura funciona como comprobación final del capítulo. Si hubiera un
+error de zona horaria, la banda solar aparecería desplazada respecto del
+mediodía; si la alineación temporal entre medidores e inversores fallara,
+la banda se difuminaría; si la agregación horaria estuviera mal, las
+franjas de la semana laboral no se distinguirían. Que las tres estructuras
+aparezcan donde deben es lo que autoriza a seguir adelante.
+\end{lecturabox}
+
+\subsection{Cinco ritmos distintos}
+\label{sub:prep-perfiles}
+
+Con las matrices ya construidas se puede mirar lo que caracteriza a esta
+comunidad y hace posible el intercambio: las cinco instituciones comparten
+ciudad, clima y recurso solar, pero no comparten rutina. La
+Figura~\ref{fig:prep-perfiles} pone los cinco perfiles uno junto a otro,
+con el de la comunidad completa como sexto panel.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_08_perfiles_instituciones_m1.png}
+ \caption[Perfil medio de cada institución]{Perfil medio de demanda y
+ generación por institución en la cobertura M1; el porcentaje del
+ título es la razón entre generación y demanda de cada una. La curva
+ verde sombreada es común en forma a las cinco (el sol es el mismo),
+ mientras que las curvas de demanda difieren en nivel y en forma.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:prep-perfiles}
+\end{figure}
+
+\notafig{El HUDN, que es un hospital, mantiene una demanda casi plana
+las veinticuatro horas, como corresponde a una instalación que no cierra.
+Udenar dibuja el doble pico característico de un campus universitario,
+con el valle del almuerzo entre ambos. La UCC opera al nivel más alto del
+conjunto en la cobertura M1 y concentra su consumo en la jornada diurna.
+Elaboración propia desde el caché de estados intermedios.}
+
+Esa disparidad de formas es exactamente la condición que hace que unas
+instituciones tengan excedente cuando otras tienen déficit, y sin ella no
+habría nada que intercambiar.
+
+\subsection{El ritmo semanal y el anual}
+\label{sub:prep-ritmos}
+
+Hay una segunda fuente de disparidad, esta vez temporal y común a las
+cinco: el calendario. La Figura~\ref{fig:prep-ritmos} cruza el perfil
+diario con el corte semanal y con el recorrido mensual.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_09_ritmos_m1.png}
+ \caption[Ritmo semanal y recorrido anual]{A la izquierda, día hábil
+ frente a fin de semana: la demanda cae de forma apreciable mientras la
+ generación permanece igual. A la derecha, el recorrido mensual de las
+ dos magnitudes a lo largo del horizonte.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:prep-ritmos}
+\end{figure}
+
+\notafig{El corte semanal esconde una asimetría que reaparece en los
+resultados: el fin de semana la demanda cae pero la generación no, porque
+el sol no distingue entre sábado y martes. La consecuencia es que el
+excedente disponible para intercambio es mayor precisamente cuando hay
+menos gente en los edificios, es decir, cuando la comunidad tiene menos
+capacidad de absorberlo internamente. Elaboración propia desde el caché
+de estados intermedios.}
+
+\subsection{Las decisiones que sesgan en contra}
+\label{sub:prep-sesgo}
+
+Un capítulo que describe diez transformaciones sobre el dato debe
+responder a una objeción evidente: si el investigador tomó diez decisiones
+y el resultado le favorece, ¿cuánto del resultado son las decisiones? La
+respuesta honesta no es que las decisiones sean neutrales, sino que
+conviene mirar hacia dónde apuntan.
+
+Las principales elecciones del pipeline, y la única del modelo que
+corresponde mencionar aquí, apuntan todas en la misma dirección:
+
+\begin{enumerate}[leftmargin=*, itemsep=0.35em]
+ \item \textbf{El recorte de la reconstrucción} elimina
+ \uni{1013.3}{kWh} de la demanda de Udenar en horas
+ solares (\S\ref{sub:prep-costo}). Menos demanda en horas de sol
+ significa menos déficit que cubrir y, por tanto, un mercado más
+ pequeño.
+
+ \item \textbf{Un solo medidor y un solo inversor por institución.} El
+ pipeline no suma todos los equipos disponibles sino que designa uno de
+ cada clase. La generación expuesta al mercado es, por tanto, menor que
+ la instalada en el sitio.
+
+ \item \textbf{La ausencia de gestión de la demanda.} El modelo del
+ Capítulo~\ref{sec:modelo} corre con la demanda tal como se midió, sin
+ programa de desplazamiento de carga. Toda ganancia que un despliegue
+ real obtendría moviendo consumo hacia las horas de sol queda fuera del
+ resultado.
+
+ \item \textbf{El descarte conservador de las horas numéricamente
+ difíciles.} Cuando el integrador encuentra rigidez numérica, la hora
+ se descarta sin imputarle beneficio al mercado entre pares, en vez de
+ estimarlo.
+\end{enumerate}
+
+Ninguna de las cuatro infla el resultado; las cuatro lo recortan. La
+consecuencia metodológica es que las cifras del Capítulo~\ref{sec:res}
+deben leerse como una \textbf{cota inferior} de lo que este mercado podría
+rendir, y no como una estimación centrada. Es una posición
+deliberadamente incómoda (renuncia a parte del margen) y es la que permite
+sostener el resultado ante una lectura hostil.
+
+\subsection{Declaración de honestidad metodológica}
+\label{sub:prep-honestidad}
+
+Tres elecciones de este capítulo carecen de respaldo formal y se declaran
+como tales, sin atenuarlas.
+
+\begin{enumerate}[leftmargin=*, itemsep=0.35em]
+ \item El umbral de valores atípicos
+ $\max(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5})$ se adoptó
+ por inspección de las series del proyecto. No hay referencia de
+ literatura que respalde el multiplicador cinco, ni análisis de
+ sensibilidad sobre su valor.
+
+ \item El relleno hacia adelante con límite de veinticuatro horas es una
+ heurística de «día operativo», supone que el patrón del día anterior es
+ representativo, cuyo impacto no se evaluó de forma aislada.
+
+ \item No se construyó una matriz de sensibilidad del pipeline completo,
+ es decir, variar el umbral y los límites de interpolación y relleno y
+ medir el efecto sobre los resultados. Queda como trabajo futuro.
+\end{enumerate}
+
+Como cota global, el impacto neto de estas elecciones sobre el volumen de
+energía transada se estima acotado en $\pm$\,\pct{0.3}. Conviene
+precisar el estatuto de esa cifra, porque es fácil leerla como un
+resultado y no lo es: no procede de la matriz de sensibilidad que el
+punto~(iii) declara no construida, sino de un juicio del autor apoyado en
+dos evidencias indirectas (la cobertura de adquisición por equipo, que
+supera el \pct{97} en los inversores principales, y la magnitud
+del recorte de la reconstrucción, que representa el \pct{0.32} de
+la demanda comunitaria). Es una estimación declarada y no un valor
+calculado, y así debe leerse.
+
+Con todo lo anterior, el dato queda listo para el modelo: dos matrices de
+\num{6144} horas, no negativas por construcción, con la energía que cada
+institución consume y la que produce separadas de forma explícita, y con
+el costo de cada intervención cuantificado. Queda sin embargo una decisión
+que este capítulo ha mencionado sin desarrollar, la de qué medidor se lee
+en cada institución, y de ella depende buena parte de lo que sigue: es el
+objeto del capítulo siguiente.

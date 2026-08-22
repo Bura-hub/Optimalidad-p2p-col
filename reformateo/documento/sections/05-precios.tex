@@ -1,0 +1,299 @@
+% =====================================================================
+% La otra mitad del dato: los precios
+% Parte I — El dato
+%
+% ENCARGO: bolsa XM, techo de escasez, tarifa CEDENAR y su desglose,
+% LCOE solar y la banda de precios que resulta.
+%
+% Reglas del documento:
+% - Una idea = una subseccion = una figura.
+% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda cifra sale del canon de agosto; ver GUIA.md.
+% - M1 y M3 se reportan siempre en paralelo.
+% - Ningun superlativo sin releer el CSV de la frontera correcta.
+% =====================================================================
+\section{La otra mitad del dato: los precios}
+\label{sec:precios}
+\justifying
+
+Los tres capítulos anteriores construyeron una pareja de matrices de
+energía. Con ellas todavía no se puede decir nada económico, porque un
+kilovatio-hora no tiene un valor único: vale una cosa si la institución lo
+compra a su comercializador, otra si lo inyecta a la red, y otra distinta
+si se lo compra a la institución vecina. Este capítulo reconstruye esa
+segunda mitad del dato desde las fuentes primarias, y termina delimitando
+la banda dentro de la cual puede existir un intercambio que convenga a las
+dos partes.
+
+Conviene anticipar por qué el capítulo es más largo de lo que parecería
+necesario. Todas las cifras del Capítulo~\ref{sec:res} son productos de
+una energía por un precio. La energía se midió; el precio se construyó. Un
+error de un diez por ciento en la construcción del precio es un error de
+un diez por ciento en el resultado, y por eso cada componente del precio
+se documenta con su fuente.
+
+\subsection{El precio al que la red compra}
+\label{sub:precios-bolsa}
+
+Cuando una institución produce más de lo que consume y no encuentra
+comprador dentro de la comunidad, el excedente va a la red y se liquida al
+precio del mercado mayorista. Esa serie es, por tanto, el suelo económico
+de todo el ejercicio: ningún vendedor aceptará dentro de la comunidad un
+precio inferior al que obtendría fuera. La
+Figura~\ref{fig:precios-bolsa} presenta la serie completa junto a su
+patrón intradiario.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f5_01_bolsa.png}
+ \caption[Serie horaria del precio de bolsa]{Precio del mercado
+ mayorista sobre el horizonte del estudio. A la izquierda, la serie
+ horaria en gris con la media diaria superpuesta; a la derecha, el
+ patrón intradiario con su recorrido intercuartílico.
+ \fuente{elaboración propia desde
+ \file{data/precios\_bolsa\_xm\_api.csv}, recortado a las \num{6144}
+ horas del horizonte.}}
+ \label{fig:precios-bolsa}
+\end{figure}
+
+\notafig{La media del horizonte es de \uni{182.5}{COP/kWh} y la mediana
+de \uni{114.3}{COP/kWh}. La distancia entre ambas no es un detalle
+estadístico: indica una serie muy asimétrica, con la masa concentrada en
+valores bajos y una cola larga de horas caras que llega a
+\uni{2224.0}{COP/kWh}. Elaboración propia desde
+\file{data/precios\_bolsa\_xm\_api.csv}.}
+
+\begin{trampabox}
+El archivo de caché de precios cubre hasta enero de 2026, mientras que el
+horizonte del estudio termina el 16 de diciembre de 2025. Promediar el
+archivo completo da \uni{193.6}{COP/kWh} en lugar de \uni{182.5}{}, una
+diferencia del \pct{6.1} que se propagaría a toda comparación con la
+tarifa. Todas las figuras y cifras de este capítulo usan la serie
+recortada al horizonte; el recorte lo aplica el propio lector de datos,
+para que no dependa de que cada script lo recuerde.
+\end{trampabox}
+
+\subsection{El precio al que la red vende}
+\label{sub:precios-cu}
+
+En el otro extremo está lo que la institución paga por la energía que
+compra. En Colombia ese precio es el costo unitario, una suma de siete
+componentes fijadas por resolución, y su composición importa aquí más de
+lo que suele importar en un estudio energético: cada uno de los mecanismos
+regulatorios del Capítulo~\ref{sec:esc} exime al usuario de componentes
+distintas. Sin el desglose, esas diferencias no se pueden ni enunciar. La
+Figura~\ref{fig:precios-cu} descompone el costo unitario mes a mes y
+ordena sus componentes por peso.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f5_03_cu_desglose.png}
+ \caption[Composición del costo unitario]{A la izquierda, el costo
+ unitario mes a mes desagregado en sus siete componentes, para el nivel
+ de tensión 2 en categoría oficial. A la derecha, el peso medio de cada
+ componente sobre el horizonte.
+ \fuente{elaboración propia desde
+ \file{data/tarifas\_cedenar\_mensual.csv}, transcrito de los boletines
+ mensuales del comercializador archivados en
+ \file{data/cedenar\_pdfs/}.}}
+ \label{fig:precios-cu}
+\end{figure}
+
+\notafig{El costo unitario medio del horizonte es de
+\uni{792.06}{COP/kWh} en categoría oficial, con un recorrido anual de
+\uni{50.18}{COP/kWh}, mínimo en enero de 2026 y máximo en agosto de 2025.
+La estabilidad de la barra apilada a lo largo de los trece meses indica
+que ninguna componente sufre saltos regulatorios dentro del horizonte.
+Elaboración propia desde \file{data/tarifas\_cedenar\_mensual.csv}.}
+
+Su reparto medio es:
+generación, \uni{305.6}{COP/kWh} (\pct{38.6}); comercialización,
+\uni{174.6}{} (\pct{22.0}); distribución, \uni{157.6}{} (\pct{19.9});
+transmisión, \uni{54.9}{} (\pct{6.9}); otros cargos, \uni{41.2}{}
+(\pct{5.2}); restricciones, \uni{36.8}{} (\pct{4.6}); y pérdidas,
+\uni{21.3}{} (\pct{2.7}).
+
+\begin{lecturabox}
+La cifra que conviene retener de esta figura es que \textbf{la generación
+apenas explica el \pct{38.6} de lo que se paga}. El resto, casi dos
+tercios, son cargos de red, comercialización y conceptos regulatorios. Ahí
+está la razón económica de fondo de todo el trabajo: un intercambio que
+ocurre dentro de la comunidad, sin usar la red de distribución, puede
+evitar una fracción de esos dos tercios, y esa fracción evitada es mayor
+que cualquier ganancia de eficiencia en la generación misma. El
+Capítulo~\ref{sec:disc} vuelve sobre este punto porque es también la
+objeción más seria que se le puede hacer al mecanismo.
+\end{lecturabox}
+
+\subsection{Dos tarifas para la misma comunidad}
+\label{sub:precios-categorias}
+
+Las cinco instituciones no pagan lo mismo. Dos de ellas, Udenar y el
+HUDN, son entidades públicas y pagan el costo unitario exacto; las otras
+tres (Mariana, la UCC y Cesmag) son privadas y pagan además la
+contribución de solidaridad del veinte por ciento. La
+Figura~\ref{fig:precios-categorias} pone las dos series sobre un mismo eje
+y sombrea la distancia entre ellas.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f5_04_oficial_comercial.png}
+ \caption[Costo unitario por categoría tarifaria]{Costo unitario
+ mensual de las dos categorías presentes en la comunidad. La franja
+ sombreada entre ambas es la contribución de solidaridad.
+ \fuente{elaboración propia desde
+ \file{data/tarifas\_cedenar\_mensual.csv}.}}
+ \label{fig:precios-categorias}
+\end{figure}
+
+\notafig{La diferencia media es de \uni{158.4}{COP/kWh}, exactamente el
+\pct{20.0} del costo oficial. La razón entre las dos series vale
+$1{,}2000$ en los trece meses, sin una sola excepción, lo que confirma que
+se trata de un factor regulatorio y no de una diferencia de condiciones de
+suministro. Elaboración propia desde
+\file{data/tarifas\_cedenar\_mensual.csv}.}
+
+Esta heterogeneidad tiene una consecuencia de diseño que conviene dejar
+explícita, porque es una de las decisiones metodológicas menos evidentes
+del trabajo: en la liquidación de los escenarios regulatorios, el precio
+al que cada institución compra no es un número sino una matriz, con una
+fila por institución y una columna por hora, que asigna a cada hora el
+costo unitario vigente para esa institución en el mes que la contiene. Una
+comunidad de cinco miembros con dos categorías tarifarias y trece meses de
+tarifas distintas no puede liquidarse con un escalar sin introducir un
+sesgo sistemático.
+
+\begin{detallebox}
+El juego del Capítulo~\ref{sec:modelo}, en cambio, sí usa un escalar
+comunitario. La asimetría es deliberada y conviene entenderla: la
+dinámica que busca el precio de equilibrio necesita un único techo común
+(si cada agente tuviera el suyo, no habría un precio de mercado sino
+cinco), mientras que la liquidación posterior sí puede y debe respetar la
+tarifa de cada uno. El mecanismo que reconcilia ambas cosas es un techo
+por agente aplicado en el momento de liquidar, que el
+Capítulo~\ref{sec:modelo} desarrolla.
+\end{detallebox}
+
+\subsection{La banda de ganancia mutua}
+\label{sub:precios-banda}
+
+Con las dos series construidas queda delimitado el espacio dentro del cual
+un intercambio entre pares tiene sentido económico. La condición es doble
+y elemental: el precio debe superar lo que el vendedor obtendría
+inyectando a la red, y quedar por debajo de lo que el comprador pagaría
+comprándola a su comercializador. Si se cumple, las dos partes ganan; si
+no se cumple, al menos una prefiere la red. La
+Figura~\ref{fig:precios-banda} reúne los cuatro niveles construidos en
+este capítulo y delimita con ellos la banda resultante.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f5_07_banda.png}
+ \caption[Piso y techo del precio entre pares]{Los cuatro niveles de
+ referencia construidos en este capítulo y la banda que delimitan. Todo
+ precio de equilibrio del mercado entre pares vive dentro de la franja
+ sombreada.
+ \fuente{elaboración propia desde
+ \file{data/precios\_bolsa\_xm\_api.csv} y
+ \file{data/tarifas\_cedenar\_mensual.csv}.}}
+ \label{fig:precios-banda}
+\end{figure}
+
+\notafig{La banda no procede de una diferencia de costos de producción
+sino de la distancia entre lo que la red paga por recibir energía y lo que
+cobra por entregarla. Es, por tanto, un margen de origen regulatorio y no
+tecnológico, lo que condiciona su permanencia: una reforma tarifaria puede
+estrecharlo sin que cambie nada en las instalaciones. Elaboración propia
+desde las series de bolsa y de tarifa.}
+
+La amplitud de esa banda es lo que hace viable el ejercicio, y su origen
+es enteramente regulatorio: no procede de una diferencia de costos de
+producción sino de la distancia entre lo que la red paga por recibir
+energía y lo que cobra por entregarla. Entre la media de bolsa
+(\uni{182.5}{COP/kWh}) y el costo unitario oficial, \uni{792.06}{}, hay un
+factor superior a cuatro. Cualquier precio intermedio deja a las dos
+partes mejor que la alternativa de operar contra la red.
+
+\begin{trampabox}
+A lo largo del documento aparecen varias cifras asociadas al «precio al
+que la red compra» y conviene deshacer la confusión de una vez, porque
+corresponden a papeles distintos de un mismo referente económico. El
+\emph{piso de la dinámica} del juego es una constante de
+\uni{280}{COP/kWh}, heredada de la calibración inicial, que acota
+inferiormente la búsqueda del equilibrio. La \emph{serie horaria de
+bolsa}, con media de \uni{182.5}{COP/kWh}, no interviene en esa dinámica:
+es la que liquida los escenarios que la requieren y la exportación a red
+del excedente no vendido. Y el \emph{valor nominal} de los barridos de
+sensibilidad del Capítulo~\ref{sec:rob} es también \uni{280}{}, coherente
+con el piso del juego. Piso de la dinámica, serie de liquidación y nominal
+de barridos son tres papeles y no deben confundirse.
+\end{trampabox}
+
+\subsection{Lo que cuesta generar}
+\label{sub:precios-lcoe}
+
+Falta un tercer precio, que no se compra ni se vende: lo que le cuesta a
+la propia institución el kilovatio-hora que produce. Para un sistema
+fotovoltaico ya instalado, el costo marginal de producir una unidad
+adicional es prácticamente nulo, de modo que el parámetro relevante es el
+costo nivelado, es decir, la inversión amortizada sobre la energía que el
+sistema entregará a lo largo de su vida.
+
+El valor adoptado es de \uni{225}{COP/kWh} para las cuatro instituciones
+con inversor de un fabricante y \uni{210}{} para Cesmag, que tiene otro.
+Tras el ajuste por la irradiancia local de Pasto, los valores efectivos en
+el simulador quedan en torno a \uni{241}{COP/kWh} para las primeras y
+\uni{225}{} para Cesmag, lo que introduce una heterogeneidad del
+\pct{6.67} entre ambas.
+
+El rango se sustenta en tres referencias de distinto alcance: el costo
+nivelado ponderado global de la energía solar fotovoltaica que reporta la
+agencia internacional de energías renovables; los costos de referencia
+para generación solar en Colombia del plan indicativo de expansión, entre
+\num{300} y \uni{450}{COP/kWh} para escalas utilitaria y media; y el
+análisis de incentivos económicos a la energía solar en el país, que sitúa
+el costo nivelado efectivo de sistemas distribuidos en el rango de
+\num{200} a \uni{250}{COP/kWh} bajo condiciones de financiación
+favorables.
+
+\begin{detallebox}
+El valor adoptado es conservador dentro de ese rango, y esa elección tiene
+una consecuencia contraintuitiva que el Capítulo~\ref{sec:rob} demuestra
+de forma cuantitativa: el resultado del estudio \textbf{no depende de este
+parámetro}. El análisis de sensibilidad global asigna al costo de generar
+un índice de influencia sobre la ganancia del orden de $10^{-7}$, es decir,
+indistinguible de cero. La razón es estructural: lo que el mercado transa
+es excedente después de autoconsumo, y el volumen de ese excedente lo
+determina el recurso disponible, no el costo contable de haberlo
+producido. Se documenta aquí, no obstante, con el mismo detalle que el
+resto, porque un parámetro que resulta irrelevante \emph{a posteriori} no
+podía saberse irrelevante \emph{a priori}.
+\end{detallebox}
+
+\subsection{Una provisionalidad declarada}
+\label{sub:precios-provisional}
+
+El nivel de tensión asumido para las cinco instituciones, del cual
+dependen todas las tarifas de este capítulo, es el nivel 2, y es
+provisional hasta su verificación contra facturas reales. La publicación
+tarifaria del comercializador respalda los valores de la categoría no
+residencial en ese nivel y el factor de $1{,}20$ entre las dos categorías;
+lo que queda abierto es únicamente la verificación del nivel de tensión
+efectivo de cada institución, que la revisión regulatoria del proyecto
+sitúa en el nivel 1.
+
+Se declara aquí y no en un anexo porque afecta al valor absoluto de todas
+las cifras económicas del documento. No afecta, en cambio, al
+ordenamiento entre mecanismos, que es lo que el trabajo pretende
+establecer: un cambio de nivel de tensión desplaza el techo de la banda
+para las cinco instituciones por igual, y el Capítulo~\ref{sec:rob}
+muestra que el ordenamiento sobrevive a variaciones de ese techo muy
+superiores a la diferencia entre los dos niveles.
+
+En síntesis, con este capítulo queda completo el insumo del modelo: a las
+dos matrices de energía del Capítulo~\ref{sec:prep} se suman ahora la
+serie horaria de bolsa, la matriz mensual de tarifa por institución y el
+costo nivelado de generar, junto con la banda de \uni{182.5}{} a
+\uni{792.06}{COP/kWh} dentro de la cual puede existir un intercambio que
+convenga a las dos partes. El capítulo siguiente describe el mecanismo que
+busca un precio dentro de esa banda.

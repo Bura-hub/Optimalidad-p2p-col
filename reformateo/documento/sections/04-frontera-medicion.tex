@@ -1,0 +1,286 @@
+% =====================================================================
+% La frontera de medición: M1 y M3
+% Parte I — El dato
+%
+% ENCARGO: dos coberturas, dos preguntas. La bifurcacion es en si misma
+% un resultado: invierte los papeles de los agentes.
+%
+% Reglas del documento:
+% - Una idea = una subseccion = una figura.
+% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda cifra sale del canon de agosto; ver GUIA.md.
+% - M1 y M3 se reportan siempre en paralelo.
+% - Ningun superlativo sin releer el CSV de la frontera correcta.
+% =====================================================================
+\section{La frontera de medición: M1 y M3}
+\label{sec:frontera}
+\justifying
+
+El capítulo anterior terminó con dos matrices y una advertencia: la
+bifurcación entre las coberturas M1 y M3 ocurre en la primera etapa del
+pipeline y en ninguna otra. Este capítulo desarrolla esa bifurcación, y lo
+hace en capítulo aparte por una razón que conviene anticipar: no se trata
+de dos versiones del mismo cálculo, ni de un análisis de sensibilidad
+sobre un parámetro. Se trata de dos preguntas distintas, y las dos tienen
+respuesta. Elegir una sola y presentarla como \emph{el} resultado sería la
+decisión más discutible que este trabajo podría tomar.
+
+\subsection{Dos preguntas, no dos versiones}
+\label{sub:frontera-preguntas}
+
+Cada institución de la comunidad tiene más de un medidor. El totalizador
+de campus registra todo lo que la institución consume; los submedidores
+registran ramales concretos, y entre ellos está el circuito que alimenta
+el sistema fotovoltaico. Leer uno u otro no es una preferencia técnica:
+define contra qué se compara la generación, y por tanto qué pregunta se
+está respondiendo. La Figura~\ref{fig:frontera-esquema} ubica las dos
+fronteras sobre el circuito de una institución.
+
+\begin{figure}[H]
+ \centering
+ \begin{tikzpicture}[
+ font=\scriptsize,
+ blk/.style={draw=black!55, fill=black!3, rounded corners=1.5pt,
+ minimum width=1.75cm, minimum height=0.6cm,
+ align=center},
+ med/.style={circle, draw=black!70, fill=white, minimum size=0.62cm,
+ inner sep=0pt, font=\scriptsize\bfseries},
+ inv/.style={draw=successcolor, fill=successcolor!14, very thick,
+ rounded corners=1.5pt, minimum width=1.35cm,
+ minimum height=0.55cm, align=center},
+ lin/.style={-{Stealth[length=3.5pt]}, draw=black!60},
+ et/.style={font=\scriptsize\itshape, align=left},
+ ]
+ \node[blk] (red) at (0,0) {Red};
+ \node[med, draw=sectioncolor, fill=sectioncolor!14, very thick]
+ (m1) at (2.0,0) {M1};
+ \node[blk, minimum width=2.1cm] (campus) at (4.4,0)
+ {Campus\\completo};
+
+ \node[med, draw=warningcolor, fill=warningcolor!16, very thick]
+ (m3) at (4.4,-1.35) {M3};
+ \node[blk, minimum width=2.1cm] (circ) at (4.4,-2.55)
+ {Circuito\\fotovoltaico};
+ \node[inv] (inv) at (7.3,-2.55) {Inversor};
+
+ \draw[lin] (red) -- (m1);
+ \draw[lin] (m1) -- (campus);
+ \draw[lin] (campus) -- (m3);
+ \draw[lin] (m3) -- (circ);
+ \draw[lin] (inv) -- (circ);
+
+ \node[et, text=sectioncolor, right=2.2cm of m1, anchor=west,
+ text width=4.4cm]
+ {\textbf{M1} mide todo el campus:\\
+ la generación cubre el 19,1 \%};
+ \node[et, text=warningcolor, right=0.55cm of inv, anchor=west,
+ text width=3.6cm]
+ {\textbf{M3} mide solo el ramal\\
+ que el inversor alimenta:\\
+ la generación cubre el 91,2 \%};
+ \end{tikzpicture}
+ \caption[Las dos fronteras de medición]{Posición de las dos fronteras
+ de medición en el circuito de una institución. El mismo inversor
+ entrega la misma energía en los dos casos; lo que cambia es la carga
+ contra la que se la compara.
+ \fuente{elaboración propia a partir de \code{DEMAND\_METER\_CONFIG} y
+ \code{PAPER\_METER\_DEMAND\_CONFIG} en \file{data/preprocessing.py}.}}
+ \label{fig:frontera-esquema}
+\end{figure}
+
+La cobertura \textbf{M1} pregunta: \emph{¿qué le aporta este mercado a la
+institución entera?} La cobertura \textbf{M3} pregunta: \emph{¿qué le
+aporta al circuito que efectivamente está electrificado con sol?} La
+primera es la pregunta del rector que firma la factura; la segunda, la del
+ingeniero que dimensionó la instalación. Ninguna es más legítima que la
+otra.
+
+\subsection{Qué mide cada frontera}
+\label{sub:frontera-cobertura}
+
+La diferencia entre las dos coberturas se resume en un hecho que conviene
+subrayar porque desactiva de entrada una posible objeción: \textbf{la
+generación es idéntica en las dos}. El pipeline designa el mismo inversor
+por institución en un caso y en el otro, de modo que la matriz $G$ es la
+misma matriz. Lo único que cambia es el denominador. La
+Figura~\ref{fig:frontera-cobertura} confronta las dos energías en el
+agregado comunitario y en cada institución.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f4_02_cobertura.png}
+ \caption[Cobertura de generación en cada frontera]{Energía medida en
+ el horizonte bajo cada frontera. A la izquierda, la comunidad
+ completa: la barra de generación es la misma en los dos casos y solo
+ cambia la de demanda. A la derecha, la razón entre generación y
+ demanda por institución. Las cifras se miden del caché del
+ preprocesamiento, no se fijan en el código.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:frontera-cobertura}
+\end{figure}
+
+\notafig{La demanda comunitaria medida es de \uni{318046}{kWh} bajo M1
+y de \uni{66734}{kWh} bajo M3, mientras que la generación es de
+\uni{60860}{kWh} en ambos casos, es decir, exactamente la misma cifra. De
+ahí las dos coberturas, \pct{19.1} y \pct{91.2}, que no reflejan dos
+instalaciones distintas sino dos maneras de delimitar la carga.
+Elaboración propia desde el caché de estados intermedios.}
+
+\begin{lecturabox}
+Conviene resistir la lectura de que M3 «tiene más generación». No la
+tiene: tiene la misma. Lo que M3 hace es comparar esa generación contra
+una carga cinco veces menor, porque solo mira el ramal que el inversor
+alimenta. Un sistema fotovoltaico que cubre el \pct{19} de un campus puede
+cubrir el \pct{91} de un edificio de ese campus sin que se haya instalado
+un solo panel adicional.
+\end{lecturabox}
+
+\subsection{Los mismos días, dos lecturas}
+\label{sub:frontera-perfiles}
+
+El mismo hecho visto en el eje del tiempo resulta más elocuente que en
+totales. La Figura~\ref{fig:frontera-perfiles} reúne el perfil diario de
+las dos coberturas en un mismo par de paneles.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f4_03_perfiles_m1_m3.png}
+ \caption[Perfil comunitario bajo cada frontera]{Perfil medio por hora
+ del día de la comunidad en cada cobertura. La curva verde es la misma
+ en los dos paneles; la gris cae casi un factor cinco. En M3 las dos
+ curvas llegan a cruzarse en las horas centrales, lo que en M1 no
+ ocurre nunca.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:frontera-perfiles}
+\end{figure}
+
+\notafig{El cruce del panel derecho es la consecuencia operativa de
+todo el capítulo. Bajo M1 la generación no alcanza a la demanda
+comunitaria en ninguna hora del día, de modo que la comunidad es siempre
+compradora neta frente a la red y el intercambio interno se limita a
+redistribuir un excedente escaso. Bajo M3 hay horas en que la comunidad
+genera más de lo que su circuito fotovoltaico consume, y el excedente
+disponible para intercambio es sustancialmente mayor. Elaboración propia
+desde el caché de estados intermedios.}
+
+\subsection{La inversión de los papeles}
+\label{sub:frontera-inversion}
+
+Hasta aquí el efecto es de escala, y podría parecer que M3 es simplemente
+«M1 con más recurso relativo». No lo es. El cambio de denominador altera
+qué institución tiene excedente y cuál tiene déficit en cada hora, y el
+resultado es que los papeles se invierten. La
+Figura~\ref{fig:frontera-inversion} cruza las dos coberturas conservando
+el orden de las instituciones, de modo que el vuelco se lee de un panel a
+otro.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f4_04_inversion_papeles.png}
+ \caption[Reparto de la energía transada en cada frontera]{Participación
+ de cada institución en la energía transada, hacia la derecha como
+ vendedora y hacia la izquierda como compradora. Las cinco conservan el
+ mismo orden vertical en los dos paneles, de modo que el cambio de
+ frontera se lee como un vuelco del perfil.
+ \fuente{elaboración propia desde
+ \file{p2p\_breakdown\_flujos.csv} de las dos carpetas canónicas.}}
+ \label{fig:frontera-inversion}
+\end{figure}
+
+\notafig{Bajo M1, Udenar aporta el \pct{76.3} de la energía vendida y
+la UCC absorbe el \pct{36.3} de la comprada. Bajo M3, Udenar baja al
+\pct{30.5} de lo vendido, el HUDN pasa al primer lugar con el \pct{33.9},
+y Cesmag, que en M1 vendía el \pct{8.0}, absorbe el \pct{70.9} de todo lo
+comprado. No es un reordenamiento menor: es un cambio de papel.
+Elaboración propia desde \file{p2p\_breakdown\_flujos.csv} de las dos
+carpetas canónicas.}
+
+\begin{trampabox}
+Esta figura es el origen de la regla de redacción más estricta del
+documento. Ninguna frase con superlativo («el mayor vendedor», «solo dos
+instituciones», «ninguna») puede escribirse sin decir de qué cobertura
+habla, porque la institución que domina la venta en una frontera apenas
+participa en la otra. Toda afirmación de ese tipo en los capítulos
+siguientes se comprobó releyendo el archivo de flujos de la frontera
+correspondiente.
+\end{trampabox}
+
+\subsection{El embudo de horas de mercado}
+\label{sub:frontera-embudo}
+
+Queda una magnitud que ninguna de las figuras anteriores muestra y que
+conviene fijar antes de llegar a los resultados: de las \num{6144} horas
+del horizonte, en muy pocas llega a haber mercado. La
+Figura~\ref{fig:frontera-embudo} presenta esa reducción en cuatro
+escalones sucesivos.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f4_05_embudo_horas.png}
+ \caption[Del horizonte a las horas con mercado]{Reducción sucesiva del
+ número de horas: horizonte completo, horas con generación, horas en
+ que alguna institución tiene excedente sobre su propia demanda, y
+ horas en que efectivamente se liquidó un intercambio. El último
+ escalón procede de los archivos de flujos y no de una estimación.
+ \fuente{elaboración propia desde el caché del preprocesamiento y
+ \file{p2p\_breakdown\_flujos.csv} de las dos carpetas canónicas.}}
+ \label{fig:frontera-embudo}
+\end{figure}
+
+\notafig{El recorrido es el mismo en las dos coberturas hasta el
+segundo escalón, porque hay generación en \num{3353} horas y esa cifra no
+depende de la frontera. La separación empieza en el tercero: bajo M1
+quedan \num{1047} horas con excedente y se transa en \num{1029}; bajo M3,
+\num{2512} y \num{1752}. Elaboración propia desde el caché del
+preprocesamiento y los archivos de flujos.}
+
+\begin{lecturabox}
+Que el mercado opere en el \pct{16.7} de las horas bajo M1 y en el
+\pct{28.5} bajo M3 no es un defecto del mecanismo: es una consecuencia
+del recurso. Un mercado de excedentes solares no puede funcionar de noche.
+Lo que la figura acota es la ambición razonable del ejercicio: cualquier
+ventaja que el Capítulo~\ref{sec:res} reporte se genera en esa fracción de
+horas y se diluye sobre el total.
+\end{lecturabox}
+
+\subsection{Una salvedad que hay que declarar}
+\label{sub:frontera-mariana}
+
+La cobertura M3 no es perfectamente homogénea, y conviene decirlo aquí y
+no en una nota al pie. Cuatro de las cinco instituciones tienen un
+submedidor que aísla el circuito fotovoltaico y que el pipeline lee
+directamente. Mariana no lo tiene. Para representarla en M3, el pipeline
+reutiliza su totalizador de campus escalado por un factor de $0{,}3$, bajo
+el supuesto de que el circuito relevante equivale aproximadamente a una
+facultad.
+
+Ese factor es una convención, no una medición, y se declara como tal.
+Afecta a una de las cinco instituciones y solo en una de las dos
+coberturas. Su efecto sobre el resultado agregado se examina en el
+Capítulo~\ref{sec:rob}, donde el barrido del nivel de demanda cubre
+holgadamente el rango en que ese factor podría equivocarse.
+
+\subsection{La consecuencia: reportar dos veces}
+\label{sub:frontera-consecuencia}
+
+De todo lo anterior se sigue la decisión metodológica que gobierna el
+resto del documento: \textbf{cada resultado se reporta bajo las dos
+coberturas, siempre, y sin elegir una como principal.}
+
+La tentación de elegir es real y conviene nombrarla. M1 es la frontera en
+la que el mercado entre pares obtiene su mejor resultado relativo, y una
+presentación que se quedara solo con M1 mostraría un trabajo más
+concluyente. M3 es la frontera con cobertura de medición más alta y, por
+tanto, la que un revisor consideraría más representativa del sistema
+fotovoltaico instalado; y es también la frontera en la que, como se verá,
+el mecanismo colectivo supera al mercado entre pares. Presentar solo una
+de las dos sería, en el primer caso, seleccionar el resultado favorable, y
+en el segundo, ocultar el caso en que el mecanismo propuesto funciona
+mejor.
+
+La convención adoptada evita las dos: las figuras de los capítulos de
+resultados llevan siempre dos paneles, el izquierdo M1 y el derecho M3, y
+cuando las dos coberturas dan lecturas opuestas se dicen las dos y se
+discute por qué difieren.

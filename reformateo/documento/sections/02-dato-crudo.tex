@@ -20,60 +20,218 @@ Todo lo que este documento afirma descansa sobre una base de medidas
 tomadas en cinco instituciones de San Juan de Pasto entre abril y
 diciembre de 2025. Antes de describir qué se hizo con esas medidas
 conviene decir con precisión qué son, cuántas hay y de qué calidad, porque
-la solidez de cualquier conclusión posterior está acotada por la de este
+la solidez de cualquier conclusión mas adelante está delimitada por la de este
 punto de partida.
 
 \subsection{Las cinco instituciones}
 \label{sub:dato-instituciones}
 
-La comunidad estudiada la forman cinco entidades del casco urbano de
-Pasto, todas ellas con sistema fotovoltaico instalado y medición avanzada:
-la Universidad de Nariño, la Universidad Mariana, la Universidad
-Cooperativa de Colombia, el Hospital Universitario Departamental de
-Nariño y la Institución Universitaria Cesmag. A lo largo del documento se
-las nombra de forma abreviada como Udenar, Mariana, UCC, HUDN y Cesmag,
-en ese orden fijo, que es el mismo que emplea el programa.
+La comunidad estudiada la forman cinco entidades del municipio de Pasto,
+todas ellas con sistema fotovoltaico instalado y medición avanzada: la
+Universidad de Nariño, la Universidad Mariana, la Universidad Cooperativa
+de Colombia (campus Pasto), el Hospital Universitario Departamental de
+Nariño E.S.E. y la Universidad CESMAG. A lo largo del documento se
+las nombra de forma abreviada como Udenar, Mariana, UCC, HUDN y CESMAG, y
+ese orden se conserva en todas las tablas y figuras.
 
-La elección del conjunto no es de conveniencia. Reúne dos condiciones que
-un mercado entre pares necesita y que rara vez coinciden: proximidad
-eléctrica (las cinco están en el mismo sistema de distribución) y
-heterogeneidad de consumo. Cuatro son instituciones educativas con jornada
-diurna y calendario académico; la quinta es un hospital, que no cierra
-nunca. Esa disparidad de rutinas es la condición material de que exista
-algo que intercambiar, y el Capítulo~\ref{sec:prep} la muestra medida.
+Estas cinco son las entidades que el proyecto MTE instrumentó y de las
+que, en consecuencia, existen series numéricas de generación y de consumo.
+Por lo tanto la comparación se construye alrededor de estas entidades en el marco del proyecto
 
-Conviene señalar también una asimetría regulatoria que el
-Capítulo~\ref{sec:precios} desarrolla y que resulta decisiva para las
-cifras: dos de las cinco, Udenar y el HUDN, son entidades públicas, y las
-otras tres, privadas. Las dos categorías pagan tarifas distintas por la
-misma energía.
+\begin{trampabox}
+Que el conjunto venga dado tiene una consecuencia que reaparece en el
+Capítulo~\ref{sec:esc} y que no conviene descubrir allí: son cinco, y
+cinco es un número pequeño con efectos normativos. El artículo 20 de la
+Resolución CREG 101 072 de 2025 reserva su tratamiento más favorable, el
+del numeral 1, a las comunidades que cumplen tres condiciones, y la
+tercera exige que el Porcentaje de Distribución de Excedentes sea
+«inferior al 10\% para cada uno de los usuarios». Ese porcentaje lo
+acuerdan los propios integrantes, pero el artículo 19 obliga a que sume
+exactamente el 100\%, de modo que la elección no es libre: si todos los
+usuarios quedaran por debajo del 10\%, la suma sería inferior a diez veces
+el número de usuarios, y alcanzar el 100\% exigiría entonces once
+participantes o más. Con cinco, la condición resulta aritméticamente
+inalcanzable, y no por una característica de esta comunidad sino por su
+tamaño. Tampoco hubo margen para ampliar el conjunto ni para controlar su
+composición, de modo que ninguna conclusión de este trabajo se extiende
+sin más a comunidades de otro tamaño o de otra mezcla de usos.
+\end{trampabox}
+
+El Sistema instalado en la Universidad de Nariño ocupa el Bloque
+Sur de la sede Torobajo. El de la Universidad Mariana está en en el \textbf{Campus Deportivo Alvernia}, en el sector
+occidental de la ciudad, y de ahí que los equipos que lo miden lleven ese
+nombre. Los de la Universidad Cooperativa de Colombia y el HUDN sí están
+en sus sedes principales, en el sector Torobajo y en el Parque Bolívar
+respectivamente. El de la Universidad CESMAG es el único fuera del casco
+urbano: está en el \textbf{Campus Universitario San Damián}, en el
+corregimiento de \textbf{Catambuco}.
+
+De ese conjunto interesa una característica, que no se supone sino que se
+mide: las cinco entidades no comparten rutina de consumo. Cuatro son
+instituciones educativas con jornada diurna y calendario académico,
+mientras que la quinta es un hospital que no cierra nunca. Esa disparidad
+es la que hace que en una misma hora unas tengan excedente y otras
+déficit, que es la premisa material de cualquier intercambio. El
+Capítulo~\ref{sec:prep} la muestra medida, institución por institución.
+
+\begin{detallebox}
+Lo que este trabajo \emph{no} afirma es que las cinco estén eléctricamente
+próximas. El proyecto no documenta su topología eléctrica, y la afirmación
+tampoco haría falta: el modelo del Capítulo~\ref{sec:modelo} no representa
+la red de distribución ni calcula flujos de potencia, de modo que la
+distancia eléctrica entre participantes no interviene en ningún resultado.
+
+Tampoco comparten comercializador. La mayoría de las cinco tiene contrato
+con un comercializador distinto del operador de red, y aun así este
+trabajo liquida las cinco contra la tarifa publicada por CEDENAR. Es una
+decisión tomada por disponibilidad de la fuente, y el
+Capítulo~\ref{sec:precios} la declara junto con su alcance.
+\end{detallebox}
+
+Sí interviene, en cambio, una asimetría regulatoria que el
+Capítulo~\ref{sec:precios} desarrolla: dos de las cinco, Udenar y el HUDN,
+son entidades públicas, y las otras tres, privadas. Las dos categorías
+pagan tarifas distintas por la misma energía.
 
 \subsection{Veintisiete fuentes, dos magnitudes}
 \label{sub:dato-fuentes}
 
 Cada institución está instrumentada con varios medidores eléctricos y al
-menos un inversor fotovoltaico, y cada uno de esos equipos escribe su
-propio flujo de datos. El censo completo da \textbf{veintisiete fuentes}:
-veinte medidores (cuatro por institución) y siete inversores, repartidos
-de forma desigual porque Udenar tiene tres y las demás uno cada una.
+menos un inversor fotovoltaico. Los datos llegan organizados en carpetas,
+una por institución, y dentro de cada una otra por clase de equipo, de
+modo que \textbf{cada medidor y cada inversor tiene su propia carpeta con
+sus propios archivos}. Un mismo equipo puede venir repartido en varios
+archivos, porque la exportación se hizo por tramos de fecha. Dentro de
+cada archivo hay una fila por lectura, con su marca de tiempo, y las
+lecturas se suceden cada dos minutos.
 
-De cada clase de equipo se toma una sola magnitud. De los medidores, la
-potencia activa total, registrada en kilovatios con resolución de dos
-minutos. De los inversores, la potencia de corriente alterna entregada,
-registrada en vatios con la misma resolución. Ambas se convierten y
-agregan en el Capítulo~\ref{sec:prep}.
+El censo de los equipos que aportan al modelo da \textbf{veintisiete
+fuentes}: veinte medidores, cuatro por institución, y siete inversores,
+repartidos de forma desigual porque Udenar tiene tres y las demás uno cada
+una. Hay además cuatro estaciones meteorológicas instaladas, que este
+trabajo no emplea.
+
+De cada equipo se toma una sola magnitud, y conviene subrayar cuánto se
+descarta al hacerlo. Un medidor registra \textbf{cincuenta y cinco}
+variables por lectura, entre ellas la corriente y la tensión de cada fase,
+la frecuencia, el factor de potencia y la distorsión armónica; de todas
+ellas el modelo usa una, la potencia activa total, en kilovatios. Un
+inversor registra diecinueve, entre ellas la potencia y la tensión del
+lado de corriente continua; el modelo usa una, la potencia de corriente
+alterna entregada, en vatios. Ambas se convierten y agregan en el
+Capítulo~\ref{sec:prep}.
+
+\begin{detallebox}
+Que el modelo consuma dos de las setenta y cuatro variables disponibles no
+es un desperdicio sino una consecuencia de su formulación: el mercado que
+se simula intercambia energía, y para eso bastan la que cada institución
+consume y la que produce. Las variables restantes describen la
+\emph{calidad} de esa energía, que este trabajo no modela. Quedan
+disponibles para extensiones que sí la consideren, y las estaciones
+meteorológicas, para trabajos que quieran predecir la generación en lugar
+de tomarla medida.
+\end{detallebox}
+
+\subsubsection*{Qué mide cada uno}
+
+Un flujo de datos no dice qué está midiendo. Esa información está en el
+inventario de instalación del proyecto, que cruza el nombre del equipo en
+la plataforma con el circuito al que se conectó, el tablero donde se
+instaló, el transformador de corriente y la escala de conversión. La
+Tabla~\ref{tab:dato-inventario} recoge de ahí los dos medidores que el
+modelo emplea en cada institución.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Circuito medido por los dos equipos que el modelo emplea en
+    cada institución, según el inventario de instalación. La columna
+    \emph{ubicación} indica el tablero o la subestación donde está el
+    equipo.}
+    \label{tab:dato-inventario}
+    \begin{tabular}{@{}l >{\raggedright\arraybackslash}p{4.3cm}
+                        >{\raggedright\arraybackslash}p{4.3cm}@{}}
+    \toprule
+    \textbf{Institución} & \textbf{Medidor 1 (cobertura M1)} &
+    \textbf{Medidor 3 (cobertura M3)} \\
+    \midrule
+    Udenar   & Circuito principal, tablero de la subestación del bloque Sur
+             & Circuito secundario, piso 1A \\
+    \addlinespace
+    Mariana  & Circuito de inyección, totalizador principal del campus
+               Alvernia
+             & \emph{No existe.} Se aproxima con el Medidor 1 escalado \\
+    \addlinespace
+    UCC      & Circuito de inyección, totalizador principal del bloque A
+             & Totalizador del piso 2 \\
+    \addlinespace
+    HUDN     & Circuito de inyección principal, subestación del piso 3
+             & Alimentación ininterrumpida de ginecología \\
+    \addlinespace
+    CESMAG   & Circuito principal, totalizador del bloque B
+             & Circuito principal, totalizador del bloque A \\
+    \bottomrule
+    \end{tabular}
+    \fuente{elaboración propia a partir del inventario de medidores del
+    proyecto MTE, que cruza la plataforma con el inventario de
+    instalación, el sistema de supervisión local y las conexiones
+    reportadas por el instalador.}
+\end{table}
+
+\begin{trampabox}
+Esta tabla corrige una descripción que el proyecto arrastraba y que este
+documento también empleó hasta comprobarla. Las dos coberturas venían
+llamándose «totalizadores de campus» y «submedidores del circuito
+fotovoltaico». Ninguna de las dos descripciones se sostiene.
+
+El Medidor 1 no totaliza el campus en ninguna de las cinco instituciones:
+en tres de ellas mide el circuito de inyección, es decir, el punto por
+donde entra la generación, y en las otras dos totaliza un bloque concreto.
+Eso explica una anomalía que de otro modo resultaba inexplicable, la de
+que el HUDN registre una media de \uni{9.09}{kW}: no es el consumo de un
+hospital de alta complejidad, sino el tránsito por su circuito de
+inyección.
+
+El Medidor 3 tampoco es «el circuito alimentado por el fotovoltaico». Son
+circuitos secundarios, el totalizador de un piso y, en el HUDN, la
+alimentación de un servicio clínico. La cobertura M3 no es una frontera
+homogénea entre instituciones: es, simplemente, el tercer medidor de cada
+sitio.
+
+La consecuencia para la lectura es doble. Las dos coberturas se nombran en
+adelante por lo que son, circuito principal o de inyección y circuito
+secundario. Y las razones del \pct{19.1} y del \pct{91.2} que aparecen en
+las figuras miden la generación contra el consumo \emph{del circuito
+medido}, no contra el de la institución.
+\end{trampabox}
 
 \begin{detallebox}
 No todas las fuentes instrumentadas se usan. De los veinte medidores, el
-modelo lee uno por institución en cada cobertura (el totalizador para M1,
-el submedidor del circuito fotovoltaico para M3), de modo que ocho
-medidores participan y doce quedan como auxiliares. De los siete
-inversores, cinco definen la generación que ve el modelo y los otros dos
-intervienen solo en la reconstrucción de la demanda de Udenar. La razón de
-no sumar todo lo disponible se explica en el Capítulo~\ref{sec:prep}: los
-equipos miden puntos distintos del circuito y sumarlos mezclaría
-totalizadores con ramales.
+modelo lee uno por institución en cada cobertura, de modo que ocho
+participan y doce quedan como auxiliares. De los siete inversores, cinco
+definen la generación que ve el modelo y los otros dos intervienen solo en
+la reconstrucción de la demanda de Udenar. La razón de no sumar todo lo
+disponible se explica en el Capítulo~\ref{sec:prep}: los equipos miden
+puntos distintos del circuito, y sumarlos mezclaría totalizadores con
+ramales.
 \end{detallebox}
+
+\begin{trampabox}
+El inventario deja además una cuestión abierta que conviene declarar. Cada
+medidor tiene un transformador de corriente y una escala de conversión, y
+el propio inventario advierte que el valor leído del equipo puede diferir
+del que reportó el instalador. En Mariana y en CESMAG esa diferencia es de
+dos órdenes de magnitud. El inventario describe también un procedimiento
+de corrección que genera versiones corregidas de los archivos originales.
+
+Ni ese procedimiento ni sus salidas forman parte del material disponible
+para este trabajo, y no se pudo establecer si las series empleadas son
+anteriores o posteriores a esa corrección. Se declara aquí porque, de
+estar sin corregir, el efecto sobre las magnitudes absolutas no sería
+menor. La comparación entre mecanismos no se vería afectada, por la razón
+de siempre: los seis se liquidan sobre la misma serie.
+\end{trampabox}
+
 
 \subsection{Cuánto tiempo hay medido}
 \label{sub:dato-gantt}
@@ -122,8 +280,8 @@ por su primer registro y señala cuál de ellas fija esa fecha.
  de cada fuente que el modelo emplea, ordenadas de más antigua a más
  reciente. La línea vertical marca la última en entrar, que es la que
  fija el inicio del horizonte.
- \fuente{elaboración propia sobre el censo de fuentes; constantes
- \code{T\_START} y \code{T\_END} en \file{data/xm\_data\_loader.py}.}}
+ \fuente{elaboración propia sobre el censo del primer registro de cada
+ fuente en \file{MedicionesMTE\_v3/}.}}
  \label{fig:dato-horizonte}
 \end{figure}
 

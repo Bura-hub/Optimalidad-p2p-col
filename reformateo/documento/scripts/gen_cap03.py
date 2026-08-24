@@ -20,12 +20,48 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.ticker import FuncFormatter
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import estilo as E
 import datos as D
+
+
+# ── Utilidades comunes al capítulo ───────────────────────────────────────────
+# El nombre interno del tipo de medidor viene del pipeline y está en
+# inglés. En el documento no se imprime así: el Capítulo 3 habla de
+# medidor neto, neto parcial y bruto, y la figura debe usar el mismo
+# vocabulario que el texto que la explica.
+TIPO_ES = {"net": "neto", "net_partial": "neto parcial", "gross": "bruto"}
+
+MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun",
+            "jul", "ago", "sep", "oct", "nov", "dic"]
+MESES_LARGOS = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre",
+                "diciembre"]
+DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado",
+           "domingo"]
+
+
+def _rotulo_cobertura(fig, cobertura: str, y: float = 1.0) -> None:
+    """
+    Estampa la frontera de medición sobre la figura.
+
+    Ninguna figura del documento debe poder leerse fuera de contexto: la
+    versión M1 y la M3 de una misma figura son casi idénticas en forma y
+    solo se distinguen por los números, de modo que sin este rótulo un
+    lector que vea el PNG suelto no sabe cuál tiene delante.
+    """
+    fig.suptitle(E.TITULO_COBERTURA[cobertura], fontsize=8.5,
+                 fontweight="bold", color=E.COBERTURAS[cobertura], y=y)
+
+
+def _mes_es(periodo) -> str:
+    """'2025-04' -> 'abr'. El eje de meses del documento va en español."""
+    return MESES_ES[int(str(periodo)[5:7]) - 1]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -46,56 +82,99 @@ def f32_demanda_negativa(cobertura: str = "m1"):
     series, horas = D.preproceso(cobertura)
     resumen = D.conteo_negativas(cobertura)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.5),
-                                   gridspec_kw={"width_ratios": [1.25, 1]})
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.8),
+                                   gridspec_kw={"width_ratios": [1.2, 1]})
 
     filas = []
+    minimo_perfil = 0.0
     for inst in E.ORDEN_INSTITUCIONES:
         s = series[f"{inst}__D_raw"]
         perfil = s.groupby(s.index.hour).mean()
+        minimo_perfil = min(minimo_perfil, float(perfil.min()))
         ax1.plot(perfil.index, perfil.values, color=E.color_institucion(inst),
-                 label=inst, linewidth=1.6)
+                 label=E.etiqueta_institucion(inst), linewidth=1.6)
         for h, v in perfil.items():
             filas.append({"institucion": inst, "hora": h, "D_raw_media_kW": v})
 
     ax1.axhline(0, color="#333333", linewidth=1.0)
-    lim = ax1.get_ylim()
-    ax1.axhspan(lim[0], 0, color=E.ANTES, alpha=0.10, zorder=0)
-    ax1.set_ylim(lim)
-    ax1.text(0.5, 0.06, "zona imposible: la demanda de un edificio no es negativa",
-             transform=ax1.transAxes, ha="center", fontsize=7.5,
-             color=E.ANTES, style="italic")
+    lo, hi = ax1.get_ylim()
+    # Techo ampliado: la leyenda va dentro del eje y sin este margen se
+    # imprimiría encima del pico de la institución más cargada.
+    hi = hi + 0.42 * (hi - lo)
+    pie = []
+    if minimo_perfil < 0:
+        # Suelo ampliado también: el rótulo de la banda va dentro de ella,
+        # y si la banda termina justo donde termina la curva, el rótulo se
+        # imprime encima de la curva que pretende explicar.
+        lo = lo - 0.42 * (hi - lo)
+        ax1.axhspan(lo, 0, color=E.ANTES, alpha=0.10, zorder=0)
+        ax1.text(11.5, (lo + minimo_perfil) / 2,
+                 "zona imposible: la demanda\nde un edificio no es negativa",
+                 ha="center", va="center", fontsize=7.2, color=E.ANTES,
+                 style="italic", linespacing=1.35)
+    else:
+        # En M3 ningún perfil medio cae bajo cero, aunque sí lo hagan
+        # horas sueltas. Decirlo evita que el lector concluya que en esta
+        # cobertura el fenómeno no existe. Va al pie y no dentro del eje:
+        # con las cinco curvas apoyadas en el suelo no queda hueco.
+        pie.append("Ningún perfil medio cae bajo cero en esta cobertura; "
+                   "las horas negativas son sueltas (panel derecho).")
+    ax1.set_ylim(lo, hi)
     ax1.set_xlabel("Hora del día")
-    ax1.set_ylabel("Demanda del medidor [kW]")
+    ax1.set_ylabel("Demanda del medidor (kW)")
     ax1.set_title("Perfil medio tal como llega del medidor", pad=8)
     ax1.set_xticks(range(0, 24, 3))
-    ax1.legend(ncol=2, loc="upper left", fontsize=7.5)
+    ax1.legend(ncol=3, loc="upper left", fontsize=7, columnspacing=1.0,
+               handlelength=1.4, handletextpad=0.5)
 
-    # Panel derecho: cuántas horas bajo cero, y a qué hora del día
+    # Panel derecho: cuántas horas bajo cero, y con qué tipo de medidor
     r = resumen.set_index("institucion").reindex(E.ORDEN_INSTITUCIONES)
     colores = [E.ANTES if n > 0 else E.NEUTRO for n in r["horas_negativas"]]
-    barras = ax2.barh(range(len(r)), r["horas_negativas"], color=colores,
-                      height=0.62)
+    ax2.barh(range(len(r)), r["horas_negativas"], color=colores, height=0.62)
     ax2.set_yticks(range(len(r)))
-    ax2.set_yticklabels([f"{i}\n({t})" for i, t in
-                         zip(r.index, r["tipo_medidor"])], fontsize=7.5)
+    ax2.set_yticklabels([f"{E.etiqueta_institucion(i)}\n"
+                         f"(medidor {TIPO_ES.get(t, t)})"
+                         for i, t in zip(r.index, r["tipo_medidor"])],
+                        fontsize=7.2)
     ax2.invert_yaxis()
     ax2.set_xlabel("Horas con demanda negativa (de 6.144)")
     ax2.set_title("Alcance del problema por institución", pad=8)
     E.eje_espanol(ax2, "x", "miles")
 
     tope = max(r["horas_negativas"].max(), 1)
-    for i, (n, mn) in enumerate(zip(r["horas_negativas"], r["min_D_raw_kW"])):
+    anomalas = []
+    for i, (n, mn, t, rec) in enumerate(zip(
+            r["horas_negativas"], r["min_D_raw_kW"], r["tipo_medidor"],
+            r["horas_reconstruidas"])):
         if n > 0:
-            ax2.text(n + tope * 0.03, i,
+            ax2.text(n + tope * 0.04, i,
                      f"{E.fmt_miles(n)} h  ·  mín {E.fmt_miles(mn, 1)} kW",
-                     va="center", fontsize=7.5, color=E.ANTES)
+                     va="center", fontsize=7.2, color=E.ANTES)
+            if t == "gross":
+                anomalas.append((r.index[i], int(n), int(rec)))
         else:
-            ax2.text(tope * 0.03, i, "sin negativos", va="center",
-                     fontsize=7.5, color=E.NEUTRO, style="italic")
-    ax2.set_xlim(0, tope * 1.55)
+            ax2.text(tope * 0.04, i, "sin negativos", va="center",
+                     fontsize=7.2, color=E.NEUTRO, style="italic")
+    ax2.set_xlim(0, tope * 1.78)
 
-    fig.tight_layout()
+    # Un medidor declarado bruto que aun asi entrega horas negativas es
+    # una contradiccion aparente, y el lector la ve en la figura. No es un
+    # error de la figura: en esa cobertura el pipeline no reconstruye ese
+    # medidor, sino que recorta las horas a cero. Se declara al pie.
+    for inst, n, rec in anomalas:
+        pie.append(
+            f"{E.etiqueta_institucion(inst)} conserva {E.fmt_miles(n)} h bajo "
+            f"cero pese a estar declarada como medidor bruto en esta "
+            f"cobertura: el pipeline\nno la reconstruye "
+            f"({E.fmt_miles(rec)} h reconstruidas) y esas horas se recortan "
+            f"a cero.")
+    if pie:
+        fig.text(0.5, -0.03, "\n".join(pie), ha="center", va="top",
+                 fontsize=6.8, color="#555555", style="italic",
+                 linespacing=1.45)
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
     return E.guardar(
         fig, f"f3_02_demanda_negativa_{cobertura}",
         datos=pd.DataFrame(filas).merge(
@@ -150,20 +229,30 @@ def f33_reconstruccion(cobertura: str = "m1", institucion: str = "Udenar",
         ax1.fill_between(x, dr, 0, where=bajo, color=E.ANTES, alpha=0.22,
                          zorder=2, interpolate=True)
         # La flecha apunta al mínimo real del día, que es donde el
-        # argumento se ve con más claridad.
+        # argumento se ve con más claridad. El texto va abajo a la
+        # derecha: a partir de la caída de la tarde la lectura vuelve a
+        # ser positiva y ese cuadrante queda libre, mientras que abajo a
+        # la izquierda el texto se imprimía encima de la propia curva.
         h_min = int(np.nanargmin(dr))
-        ax1.annotate("el medidor reporta menos\nenergía de la que el\nedificio gastó",
+        lo1, hi1 = ax1.get_ylim()
+        ax1.set_ylim(lo1 - 0.16 * (hi1 - lo1), hi1)
+        ax1.annotate("el medidor reporta\nmenos energía\nde la que el\n"
+                     "edificio gastó",
                      xy=(h_min, dr[h_min]),
-                     xytext=(0.04, 0.06), textcoords="axes fraction",
-                     fontsize=7.2, color=E.ANTES, ha="left", va="bottom",
+                     xytext=(0.99, 0.02), textcoords="axes fraction",
+                     fontsize=7.2, color=E.ANTES, ha="right", va="bottom",
+                     linespacing=1.35,
                      arrowprops=dict(arrowstyle="->", color=E.ANTES, lw=0.9,
-                                     connectionstyle="arc3,rad=-0.2"))
+                                     connectionstyle="arc3,rad=0.2"))
 
+    dia_ts = pd.Timestamp(dia)
     ax1.set_xlabel("Hora del día")
-    ax1.set_ylabel("Potencia [kW]")
-    ax1.set_title(f"Un día: {institucion}, {dia}", pad=8)
+    ax1.set_ylabel("Potencia (kW)")
+    ax1.set_title(f"Un día: {E.etiqueta_institucion(institucion)}, "
+                  f"{DIAS_ES[dia_ts.weekday()]} "
+                  f"{dia_ts.day} de {MESES_LARGOS[dia_ts.month - 1]} "
+                  f"de {dia_ts.year}", pad=8)
     ax1.set_xticks(range(0, 24, 3))
-    ax1.legend(loc="upper left", fontsize=7)
 
     # ── Panel derecho: el horizonte completo ────────────────────────────
     p_raw = D_raw.groupby(D_raw.index.hour).mean()
@@ -176,7 +265,7 @@ def f33_reconstruccion(cobertura: str = "m1", institucion: str = "Udenar",
     ax2.plot(p_raw.index, p_raw.values, color=E.ANTES, linewidth=1.9, zorder=4)
     ax2.plot(p_rec.index, p_rec.values, color=E.DESPUES, linewidth=1.9, zorder=5)
     ax2.set_xlabel("Hora del día")
-    ax2.set_ylabel("Potencia media [kW]")
+    ax2.set_ylabel("Potencia media (kW)")
     ax2.set_title("Las 6.144 h: perfil medio por hora", pad=8)
     ax2.set_xticks(range(0, 24, 3))
 
@@ -194,7 +283,15 @@ def f33_reconstruccion(cobertura: str = "m1", institucion: str = "Udenar",
              bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
                        edgecolor=E.NEUTRO, linewidth=0.6, alpha=0.95))
 
-    fig.tight_layout()
+    # La leyenda es común a los dos paneles y va fuera de los ejes: dentro
+    # del panel izquierdo tapaba el máximo del área de generación, que es
+    # justo la magnitud cuyo tamaño explica la caída de la lectura.
+    fig.legend(*ax1.get_legend_handles_labels(), loc="lower center",
+               bbox_to_anchor=(0.5, -0.05), ncol=3, fontsize=7.2,
+               frameon=False, columnspacing=1.6, handlelength=1.8)
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
 
     tabla = pd.DataFrame({
         "hora": p_raw.index,
@@ -245,11 +342,21 @@ def f35_outliers_imputacion(cobertura: str = "m1"):
         ax1.scatter(s.index[out], s[out], s=22, color=E.ANTES, zorder=5,
                     label=f"Atípicos: {E.fmt_miles(int(out.sum()))} h",
                     edgecolors="white", linewidths=0.4)
-    ax1.set_ylabel("Demanda [kW]")
+    ax1.set_ylabel("Demanda (kW)")
+    ax1.set_xlabel("Mes de 2025")
     ax1.set_title(f"Criterio de atípicos: {E.etiqueta_institucion(inst)}",
                   pad=8)
-    ax1.legend(loc="upper left", fontsize=7)
-    ax1.tick_params(axis="x", labelrotation=25, labelsize=6.5)
+    # Techo ampliado y leyenda a la derecha: los atípicos están sobre el
+    # umbral y a la izquierda del eje, que es justo donde la leyenda se
+    # imprimía antes. Tapaba los cuatro puntos que la figura existe para
+    # enseñar.
+    lo1, hi1 = ax1.get_ylim()
+    ax1.set_ylim(lo1, hi1 + 0.30 * (hi1 - lo1))
+    ax1.legend(loc="upper right", fontsize=7)
+    ax1.xaxis.set_major_locator(mdates.MonthLocator())
+    ax1.xaxis.set_major_formatter(
+        FuncFormatter(lambda v, _: MESES_ES[mdates.num2date(v).month - 1]))
+    ax1.tick_params(axis="x", labelsize=7)
 
     # Panel derecho: imputación por mes
     meses = None
@@ -257,33 +364,41 @@ def f35_outliers_imputacion(cobertura: str = "m1"):
     for i in E.ORDEN_INSTITUCIONES:
         imp = series[f"{i}__mask_imp_D"].astype(bool)
         por_mes = imp.groupby(imp.index.to_period("M")).sum()
-        meses = por_mes.index.astype(str)
+        meses = por_mes.index
         matriz.append(por_mes.values)
     matriz = np.array(matriz, dtype=float)
 
     im = ax2.imshow(matriz, aspect="auto", cmap="YlOrBr", vmin=0)
     ax2.set_xticks(range(len(meses)))
-    ax2.set_xticklabels([m[-2:] + "/" + m[2:4] for m in meses], fontsize=7)
+    # Nombre corto de mes: con «04/25 … 12/25» las nueve etiquetas se
+    # solapaban entre sí y con el rótulo del eje.
+    ax2.set_xticklabels([_mes_es(m) for m in meses], fontsize=7)
     ax2.set_yticks(range(len(E.ORDEN_INSTITUCIONES)))
     ax2.set_yticklabels([E.etiqueta_institucion(i)
                          for i in E.ORDEN_INSTITUCIONES], fontsize=7.5)
     ax2.set_xlabel("Mes de 2025")
-    ax2.set_title("Horas imputadas por mes", pad=8)
+    ax2.set_title(f"Horas imputadas por mes  ·  "
+                  f"{E.fmt_miles(matriz.sum())} h en total", pad=8)
     ax2.grid(False)
+    corte = 0.62 * matriz.max() if matriz.max() else 1
     for i in range(matriz.shape[0]):
         for j in range(matriz.shape[1]):
             v = int(matriz[i, j])
             if v:
+                # Sobre las celdas más oscuras el gris de siempre era
+                # ilegible; el texto se aclara donde el relleno se oscurece.
                 ax2.text(j, i, str(v), ha="center", va="center", fontsize=6.2,
-                         color="#333333")
+                         color="white" if matriz[i, j] > corte else "#333333")
     cb = fig.colorbar(im, ax=ax2, fraction=0.045, pad=0.03)
-    cb.set_label("horas", fontsize=7.5)
+    cb.set_label("Horas imputadas", fontsize=7.5)
     cb.ax.tick_params(labelsize=7)
 
-    fig.tight_layout()
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
 
     tabla = pd.DataFrame(matriz, index=E.ORDEN_INSTITUCIONES,
-                         columns=meses).reset_index(names="institucion")
+                         columns=[str(m) for m in meses]
+                         ).reset_index(names="institucion")
     return E.guardar(
         fig, f"f3_05_outliers_imputacion_{cobertura}", datos=tabla,
         procedencia=[
@@ -311,7 +426,7 @@ def f37_matrices(cobertura: str = "m1"):
     dem = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
     gen = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
 
-    fig, axes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.4))
+    fig, axes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.6))
     filas = []
     for ax, (serie, nom, cmap) in zip(axes, ((dem, "Demanda", "Greys"),
                                              (gen, "Generación", "YlOrBr"))):
@@ -319,20 +434,51 @@ def f37_matrices(cobertura: str = "m1"):
         m = pd.DataFrame({"v": serie.values, "h": serie.index.hour,
                           "d": (base - base[0]).days})
         piv = m.pivot_table(index="h", columns="d", values="v", aggfunc="mean")
+        # vmin=0 fija el origen de la escala de color. Sin él, el cero de
+        # la generación nocturna y la carga base nocturna de la demanda
+        # —que no es cero, sino decenas de kilovatios— se pintaban del
+        # mismo tono claro, y el mapa sugería que de noche no hay consumo.
         im = ax.imshow(piv.values, aspect="auto", origin="lower", cmap=cmap,
-                       extent=[0, piv.shape[1], 0, 24])
-        ax.set_xlabel("Día del horizonte")
+                       vmin=0, extent=[0, piv.shape[1], 0, 24])
+
+        # Marcas mensuales: «día 137 del horizonte» no le dice nada a
+        # nadie, y sin calendario no se puede leer el receso de julio ni
+        # el cierre de diciembre que la propia figura enseña.
+        inicio = base[0]
+        meses = list(pd.date_range(inicio.normalize(), base[-1], freq="MS"))
+        # El horizonte arranca el día 4, de modo que abril no tiene marca
+        # de primero de mes: sin este tick el eje parecería empezar en mayo.
+        ticks = [0] + [(f - inicio).days for f in meses]
+        etiquetas = [MESES_ES[inicio.month - 1]] + [MESES_ES[f.month - 1]
+                                                    for f in meses]
+        ax.set_xticks(ticks)
+        ax.set_xticklabels(etiquetas, fontsize=7)
+        ax.set_xlim(0, piv.shape[1])
+        ax.set_xlabel("Mes de 2025")
         ax.set_ylabel("Hora del día")
         ax.set_yticks(range(0, 25, 6))
-        ax.set_title(f"{nom} de la comunidad", pad=8)
+        ax.set_title(f"{nom} de la comunidad  ·  máx "
+                     f"{E.fmt_miles(np.nanmax(piv.values))} kW", pad=8)
         ax.grid(False)
         cb = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.03)
-        cb.set_label("kW", fontsize=7.5)
+        cb.set_label("Potencia media horaria (kW)", fontsize=7)
         cb.ax.tick_params(labelsize=7)
         for h in piv.index:
             filas.append({"magnitud": nom, "hora": int(h),
                           "media_kW": float(piv.loc[h].mean())})
-    fig.tight_layout()
+
+    # Las dos escalas de color son independientes, y hay que decirlo: el
+    # mismo tono oscuro vale 150 kW en un panel y 57 en el otro, de modo
+    # que comparar la intensidad de un panel con la del otro no significa
+    # nada. Lo comparable es la estructura, que es a lo que va la figura.
+    fig.text(0.5, -0.035,
+             "Cada panel lleva su propia escala de color, indicada en su "
+             "barra: los tonos no son comparables entre paneles.",
+             ha="center", va="top", fontsize=7, color="#555555",
+             style="italic")
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.955))
     return E.guardar(fig, f"f3_07_matrices_{cobertura}",
                      datos=pd.DataFrame(filas),
                      procedencia=[f"reformateo/documento/datos_cache/"
@@ -362,9 +508,14 @@ def f38_perfiles_instituciones(cobertura: str = "m1"):
         ax.plot(pgm.index, pgm.values, color=E.MECANISMOS["C5"], linewidth=1.4)
         ax.plot(pdm.index, pdm.values, color=E.color_institucion(inst),
                 linewidth=1.6)
+        # El porcentaje es la razón entre lo generado y lo consumido POR EL
+        # CIRCUITO MEDIDO. Sin el rótulo «G/D» el lector lo lee como
+        # autosuficiencia de la institución, y en M3 aparecen valores por
+        # encima del 100 % que con esa lectura no tendrían sentido.
         cob_pct = 100 * g.sum() / d.sum() if d.sum() else float("nan")
-        ax.set_title(f"{E.etiqueta_institucion(inst)}  ·  {E.fmt_miles(cob_pct, 0)} %", pad=5,
-                     color=E.color_institucion(inst), fontsize=9)
+        ax.set_title(f"{E.etiqueta_institucion(inst)}  ·  "
+                     f"G/D = {E.fmt_miles(cob_pct, 0)} %", pad=5,
+                     color=E.color_institucion(inst), fontsize=8.5)
         ax.set_xticks(range(0, 24, 6))
         for h in pdm.index:
             filas.append({"institucion": inst, "hora": int(h),
@@ -378,20 +529,36 @@ def f38_perfiles_instituciones(cobertura: str = "m1"):
     pgt = gt.groupby(gt.index.hour).mean()
     ax.fill_between(pgt.index, 0, pgt.values, color=E.MECANISMOS["C5"], alpha=0.30)
     ax.plot(pgt.index, pgt.values, color=E.MECANISMOS["C5"], linewidth=1.4,
-            label="Generación")
-    ax.plot(pdt.index, pdt.values, color="black", linewidth=1.7, label="Demanda")
-    ax.set_title(f"Comunidad  ·  {E.fmt_miles(100 * gt.sum() / dt.sum(), 0)} %",
-                 pad=5, fontsize=9)
+            label="Generación fotovoltaica")
+    ax.plot(pdt.index, pdt.values, color="black", linewidth=1.7,
+            label="Demanda (en el color de cada institución)")
+    ax.set_title(f"Comunidad  ·  "
+                 f"G/D = {E.fmt_miles(100 * gt.sum() / dt.sum(), 0)} %",
+                 pad=5, fontsize=8.5)
     ax.set_xticks(range(0, 24, 6))
-    # Arriba a la derecha: al final del dia la demanda ya ha bajado y
-    # la leyenda no cruza ninguna curva.
-    ax.legend(fontsize=6.5, loc="upper right")
 
     for ax in axes[1, :]:
         ax.set_xlabel("Hora del día")
     for ax in axes[:, 0]:
-        ax.set_ylabel("Potencia media [kW]")
-    fig.tight_layout()
+        ax.set_ylabel("Potencia media (kW)")
+
+    # La leyenda va al pie de la figura: dentro del sexto panel se
+    # imprimía sobre la curva de demanda de la comunidad.
+    fig.legend(*axes.ravel()[5].get_legend_handles_labels(),
+               loc="lower center", bbox_to_anchor=(0.5, -0.055), ncol=2,
+               fontsize=7.2, frameon=False, columnspacing=2.0,
+               handlelength=1.8)
+    # Sin esta advertencia, comparar el tamaño del área verde entre
+    # paneles induce a error: la UCC llega a 37 kW y CESMAG a 8, y las
+    # dos ocupan el mismo alto de panel.
+    fig.text(0.5, -0.10,
+             "Cada panel tiene su propia escala vertical: lo comparable "
+             "entre ellos es la forma del perfil, no su altura.",
+             ha="center", va="top", fontsize=7, color="#555555",
+             style="italic")
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.945))
     return E.guardar(fig, f"f3_08_perfiles_instituciones_{cobertura}",
                      datos=pd.DataFrame(filas),
                      procedencia=[f"reformateo/documento/datos_cache/"
@@ -426,17 +593,27 @@ def f39_ritmos(cobertura: str = "m1"):
         for h in pdm.index:
             filas.append({"corte": nombre, "hora": int(h),
                           "demanda_kW": pdm[h], "generacion_kW": pgm[h]})
-    caida = 100 * (1 - dem[dem.index.weekday >= 5].mean()
-                   / dem[dem.index.weekday < 5].mean())
-    ax1.text(0.03, 0.96,
+    habil, finde = dem.index.weekday < 5, dem.index.weekday >= 5
+    caida = 100 * (1 - dem[finde].mean() / dem[habil].mean())
+    # «La generación no cambia» es una afirmación medible, y hay que
+    # medirla antes de escribirla: entre día hábil y fin de semana la
+    # media varía lo que diga este número, no cero.
+    var_gen = 100 * (gen[finde].mean() / gen[habil].mean() - 1)
+    signo = "sube" if var_gen >= 0 else "baja"
+    # Techo ampliado: la anotación va dentro del eje y sin margen se
+    # imprimía sobre el pico de la demanda de día hábil.
+    lo1, hi1 = ax1.get_ylim()
+    ax1.set_ylim(lo1, hi1 + 0.22 * (hi1 - lo1))
+    ax1.text(0.03, 0.97,
              f"la demanda cae {E.fmt_miles(caida, 1)} % el fin de semana;\n"
-             f"la generación no cambia",
-             transform=ax1.transAxes, va="top", fontsize=7.2)
+             f"la generación apenas cambia "
+             f"({signo} {E.fmt_miles(abs(var_gen), 1)} %)",
+             transform=ax1.transAxes, va="top", fontsize=7.2,
+             linespacing=1.35)
     ax1.set_xlabel("Hora del día")
-    ax1.set_ylabel("Potencia media [kW]")
+    ax1.set_ylabel("Potencia media (kW)")
     ax1.set_title("Ritmo semanal", pad=8)
     ax1.set_xticks(range(0, 24, 3))
-    ax1.legend(fontsize=6.3, ncol=2, loc="lower center")
 
     med_g = gen.groupby(gen.index.to_period("M")).mean()
     med_d = dem.groupby(dem.index.to_period("M")).mean()
@@ -446,15 +623,27 @@ def f39_ritmos(cobertura: str = "m1"):
     ax2.plot(x, med_g.values, marker="s", markersize=3.4,
              color=E.MECANISMOS["C5"], linewidth=1.6, label="Generación")
     ax2.set_xticks(x)
-    ax2.set_xticklabels([str(p)[5:] + "/" + str(p)[2:4] for p in med_g.index],
-                        fontsize=7, rotation=45)
-    ax2.set_ylabel("Potencia media [kW]")
+    ax2.set_xticklabels([_mes_es(p) for p in med_g.index], fontsize=7)
+    ax2.set_xlabel("Mes de 2025")
+    ax2.set_ylabel("Potencia media (kW)")
+    # Desde cero: con el eje arrancando en el mínimo, una serie que va de
+    # 8,3 a 13,2 kW parece desplomarse, y la comparación entre las dos
+    # magnitudes —que es de lo que trata el panel— queda deformada.
+    ax2.set_ylim(0, max(med_d.max(), med_g.max()) * 1.18)
     ax2.set_title("Recorrido a lo largo del horizonte", pad=8)
-    ax2.legend(fontsize=7.5)
+    ax2.legend(fontsize=7.5, loc="upper right", ncol=2)
     for p, vd, vg in zip(med_g.index, med_d.values, med_g.values):
         filas.append({"corte": "mensual", "hora": str(p),
                       "demanda_kW": vd, "generacion_kW": vg})
-    fig.tight_layout()
+
+    # La leyenda del panel izquierdo son cuatro entradas largas y ninguna
+    # esquina del eje las admite sin cruzar una curva: van al pie.
+    fig.legend(*ax1.get_legend_handles_labels(), loc="lower center",
+               bbox_to_anchor=(0.5, -0.09), ncol=2, fontsize=7,
+               frameon=False, columnspacing=2.2, handlelength=2.2)
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.945))
     return E.guardar(fig, f"f3_09_ritmos_{cobertura}", datos=pd.DataFrame(filas),
                      procedencia=[f"reformateo/documento/datos_cache/"
                                   f"preproceso_{cobertura}.npz"])

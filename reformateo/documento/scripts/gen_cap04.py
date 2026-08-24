@@ -2,10 +2,12 @@
 gen_cap04.py — Figuras del capítulo 4: la frontera de medición.
 ================================================================
 El estudio corre sobre dos coberturas de medición distintas, y no son dos
-versiones del mismo cálculo: responden preguntas diferentes. M1 mide el
-campus completo por su totalizador; M3 mide solo el circuito que alimenta
-el fotovoltaico. La generación es la misma en las dos —el mismo inversor—,
-de modo que lo único que cambia es el denominador.
+versiones del mismo cálculo: responden preguntas diferentes. M1 es el
+circuito principal o de inyección; M3, un circuito secundario. Ninguno de
+los dos totaliza el campus: el inventario de instalación lo desmiente (H-7
+en HALLAZGOS.md). La generación es la misma en las dos coberturas —el mismo
+inversor por institución—, de modo que lo único que cambia es el
+denominador contra el que se la compara.
 
 Ese cambio de denominador basta para invertir quién vende y quién compra.
 La bifurcación es, por tanto, un resultado del trabajo y no un detalle de
@@ -22,6 +24,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.transforms as mtransforms
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import estilo as E
@@ -69,16 +72,26 @@ def f42_cobertura():
     ax1.bar(x - 0.19, dems, 0.36, color=E.NEUTRO, label="Demanda medida")
     ax1.bar(x + 0.19, gens, 0.36, color=E.MECANISMOS["C5"], label="Generación")
     ax1.set_xticks(x)
-    ax1.set_xticklabels(["M1\ntotalizadores", "M3\nsubmedidores"])
-    ax1.set_ylabel("Energía en el horizonte [kWh]")
+    # Los rotulos dicen lo que cada frontera mide segun el inventario de
+    # instalacion. Ni M1 totaliza el campus ni M3 es «el circuito del
+    # fotovoltaico»: esa lectura se retiro (H-7).
+    ax1.set_xticklabels(["M1\ncircuito principal\no de inyección",
+                         "M3\ncircuito\nsecundario"], fontsize=7.5)
+    ax1.set_ylabel("Energía en el horizonte (kWh)")
     ax1.set_title("La comunidad completa", pad=8)
     E.eje_espanol(ax1, "y", "miles")
+    # Holgura suficiente para que la leyenda no se monte sobre el
+    # rotulo G/D de la barra mas alta.
+    ax1.set_ylim(0, max(dems) * 1.48)
     ax1.legend(loc="upper right", fontsize=7.5)
+    # La razon G/D va encima del par de barras, no dentro: dentro se leia
+    # como si etiquetara una de las dos barras.
     for i, c in enumerate(("m1", "m3")):
-        ax1.text(i, max(dems) * 0.055, f"{E.fmt_miles(resumen[c][2], 1)} %",
-                 ha="center", fontsize=9, fontweight="bold",
+        ax1.text(i, max(dems[i], gens[i]) + max(dems) * 0.025,
+                 f"G/D = {E.fmt_miles(resumen[c][2], 1)} %",
+                 ha="center", fontsize=8, fontweight="bold",
                  color=E.COBERTURAS[c])
-    ax1.text(0.5, -0.30, "la generación no cambia: cambia el denominador",
+    ax1.text(0.5, -0.42, "la generación no cambia: cambia el denominador",
              transform=ax1.transAxes, ha="center", fontsize=7.5,
              style="italic", color=E.NEUTRO)
 
@@ -86,21 +99,29 @@ def f42_cobertura():
     df = pd.DataFrame(filas)
     ancho, y = 0.36, np.arange(len(D.AGENTES))
     for k, cob in enumerate(("m1", "m3")):
-        sub = df[df.cobertura == cob.upper()].set_index("institucion") \
-                .reindex(D.AGENTES)
+        sub = (df[df.cobertura == cob.upper()]
+               .set_index("institucion").reindex(D.AGENTES))
         ax2.barh(y + (k - 0.5) * ancho, sub["cobertura_pct"], ancho,
                  color=E.COBERTURAS[cob], label=cob.upper())
         for j, v in enumerate(sub["cobertura_pct"]):
-            ax2.text(v + 2, y[j] + (k - 0.5) * ancho, E.fmt_miles(v, 0) + " %",
+            ax2.text(v + 3, y[j] + (k - 0.5) * ancho, E.fmt_miles(v, 0) + " %",
                      va="center", fontsize=7, color=E.COBERTURAS[cob])
+    tope2 = df["cobertura_pct"].max()
+    ax2.set_xlim(0, tope2 * 1.19)
     ax2.axvline(100, color=E.ALERTA, linestyle="--", linewidth=1.0)
-    ax2.text(101, len(D.AGENTES) - 0.35, "autosuficiencia\nnominal",
-             fontsize=6.8, color=E.ALERTA, va="top")
+    # La linea del 100 % NO es autosuficiencia de la institucion: es
+    # paridad entre la generacion y la demanda DEL CIRCUITO MEDIDO. El
+    # rotulo anterior («autosuficiencia nominal») afirmaba de mas y ademas
+    # se montaba sobre el eje.
+    tr = mtransforms.blended_transform_factory(ax2.transData, ax2.transAxes)
+    ax2.text(100, 1.015, "generación = demanda del circuito medido",
+             transform=tr, ha="center", va="bottom", fontsize=6.8,
+             color=E.ALERTA)
     ax2.set_yticks(y)
     ax2.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
     ax2.invert_yaxis()
-    ax2.set_xlabel("Generación sobre demanda medida [%]")
-    ax2.set_title("Por institución", pad=8)
+    ax2.set_xlabel("Generación sobre demanda medida (%)")
+    ax2.set_title("Por institución", pad=18)
     ax2.legend(loc="lower right", fontsize=7.5)
 
     fig.tight_layout()
@@ -121,12 +142,18 @@ def f43_perfiles_m1_m3():
     cae casi un factor cinco. Es la forma más directa de mostrar que la
     frontera de medición no cambia el recurso, solo la escala contra la
     que se lo mide.
+
+    Los dos paneles **comparten el eje vertical**. Con ejes
+    independientes, la misma curva de generación se dibujaba con dos
+    alturas distintas (32 kW sobre un eje de 80 y 32 kW sobre uno de 32) y
+    la figura desmentía justamente lo que afirmaba.
     """
-    fig, ax_m1, ax_m3 = E.figura_m1_m3(alto=3.5, compartir_y=False)
-    filas = []
+    fig, ax_m1, ax_m3 = E.figura_m1_m3(alto=3.5, compartir_y=True)
+    filas = {}
     for ax, cob in ((ax_m1, "m1"), (ax_m3, "m3")):
         _, _, dem, gen = _totales(cob)
         pd_, pg = dem.groupby(dem.index.hour).mean(), gen.groupby(gen.index.hour).mean()
+        filas[cob] = (pd_, pg)
         ax.fill_between(pg.index, 0, pg.values, color=E.MECANISMOS["C5"],
                         alpha=0.28, zorder=1)
         ax.plot(pg.index, pg.values, color=E.MECANISMOS["C5"], linewidth=1.7,
@@ -135,18 +162,27 @@ def f43_perfiles_m1_m3():
                 label="Demanda medida", zorder=4)
         ax.set_xlabel("Hora del día")
         ax.set_xticks(range(0, 24, 3))
+        ax.set_xlim(0, 23)
         ax.legend(loc="upper left", fontsize=7.5)
-        cob_pct = 100 * gen.sum() / dem.sum()
-        ax.text(0.97, 0.95, f"cobertura {E.fmt_miles(cob_pct, 1)} %",
-                transform=ax.transAxes, ha="right", va="top", fontsize=7.5,
-                color=E.COBERTURAS[cob], fontweight="bold")
-        for h in pd_.index:
-            filas.append({"cobertura": cob.upper(), "hora": int(h),
-                          "demanda_media_kW": pd_[h], "generacion_media_kW": pg[h]})
-    ax_m1.set_ylabel("Potencia media [kW]")
-    ax_m3.set_ylabel("Potencia media [kW]")
+
+    # La razon G/D ya la declara el titulo de cada panel; repetirla dentro
+    # solo gastaba espacio. Lo que si hace falta decir es que la curva
+    # verde es literalmente la misma en los dos lados.
+    pico = filas["m1"][1].max()
+    ax_m3.annotate("misma curva de generación\nque en el panel M1",
+                   xy=(12, pico), xytext=(15.2, pico * 2.05),
+                   fontsize=7.2, color=E.MECANISMOS["C5"], ha="left",
+                   arrowprops=dict(arrowstyle="->", color=E.MECANISMOS["C5"],
+                                   lw=0.8, shrinkB=2))
+    ax_m1.set_ylabel("Potencia media de la comunidad (kW)")
+    ax_m1.set_ylim(0, filas["m1"][0].max() * 1.18)
+
+    tabla = pd.DataFrame([
+        {"cobertura": c.upper(), "hora": int(h),
+         "demanda_media_kW": filas[c][0][h], "generacion_media_kW": filas[c][1][h]}
+        for c in ("m1", "m3") for h in filas[c][0].index])
     fig.tight_layout()
-    return E.guardar(fig, "f4_03_perfiles_m1_m3", datos=pd.DataFrame(filas),
+    return E.guardar(fig, "f4_03_perfiles_m1_m3", datos=tabla,
                      procedencia=[
                          "reformateo/documento/datos_cache/preproceso_m1.npz",
                          "reformateo/documento/datos_cache/preproceso_m3.npz"])
@@ -190,10 +226,10 @@ def f44_inversion_papeles():
                 ha="right", va="bottom", fontsize=8, fontweight="bold",
                 color=E.MECANISMOS["C5"])
         ax.set_yticks(y)
-        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES], fontsize=8)
-        ax.invert_yaxis()
-        ax.set_xlim(-tope * 1.32, tope * 1.32)
-        ax.set_xlabel("Participación en la energía transada [%]")
+        ax.set_yticklabels([E.etiqueta_institucion(i) for i in D.AGENTES],
+                           fontsize=8)
+        ax.set_xlim(-tope * 1.22, tope * 1.22)
+        ax.set_xlabel("Participación en la energía transada (%)")
         ax.xaxis.set_major_formatter(
             plt.FuncFormatter(lambda v, _: E.fmt_miles(abs(v), 0)))
 
@@ -219,6 +255,12 @@ def f44_inversion_papeles():
                 f"compra sobre todo {E.etiqueta_institucion(dom_c)}",
                 transform=ax.transAxes, ha="center", fontsize=7.5,
                 style="italic", color=E.COBERTURAS[cob])
+
+    # Los dos ejes COMPARTEN el eje vertical (compartir_y=True). Invertirlo
+    # dentro del bucle lo invertia dos veces y lo dejaba como estaba: las
+    # instituciones salian en orden inverso al canonico, con CESMAG arriba
+    # y Udenar abajo. Se invierte una sola vez, ya fuera del bucle.
+    ax_m1.invert_yaxis()
 
     fig.tight_layout()
     return E.guardar(fig, "f4_04_inversion_papeles", datos=pd.DataFrame(filas),
@@ -256,19 +298,28 @@ def f45_embudo():
         x = np.arange(len(etapas)) + (k - 0.5) * 0.38
         ax.bar(x, n, 0.36, color=E.COBERTURAS[cob], label=cob.upper())
         for xi, v in zip(x, n):
-            ax.text(xi, v + 90, E.fmt_miles(v), ha="center", fontsize=7.2,
+            ax.text(xi, v + 300, E.fmt_miles(v), ha="center", fontsize=7.2,
                     color=E.COBERTURAS[cob])
+            if v < len(horas):
+                ax.text(xi, v + 90, E.fmt_miles(100 * v / len(horas), 1) + " %",
+                        ha="center", fontsize=6.5, color=E.COBERTURAS[cob])
         for e, v in zip(etapas, n):
             filas.append({"cobertura": cob.upper(), "etapa": e, "horas": v,
                           "pct_del_horizonte": 100 * v / len(horas)})
 
     ax.set_xticks(range(len(etapas)))
     ax.set_xticklabels(etapas)
-    ax.set_ylabel("Horas")
+    ax.set_ylabel("Número de horas (h)")
     ax.set_title("De las 6.144 h del horizonte a las horas con mercado", pad=8)
     E.eje_espanol(ax, "y", "miles")
     ax.legend(loc="upper right", fontsize=7.5)
-    ax.set_ylim(0, 6144 * 1.13)
+    ax.set_ylim(0, 6144 * 1.10)
+    # El segundo escalon coincide en las dos coberturas porque la
+    # generacion es la misma serie; decirlo evita que se lea como un error.
+    ax.text(1.0, 4520,
+            "las dos coberturas coinciden aquí:\nla generación es la misma serie",
+            ha="center", va="center", fontsize=6.8, style="italic",
+            color=E.NEUTRO)
     fig.tight_layout()
     return E.guardar(fig, "f4_05_embudo_horas", datos=pd.DataFrame(filas),
                      procedencia=[

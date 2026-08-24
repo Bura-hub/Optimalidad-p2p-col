@@ -122,10 +122,47 @@ COBERTURAS = {"m1": "#2C5F7C", "m3": "#C1642A"}
 # HALLAZGOS.md y data/inventario/Inventario_Medidores_MTE.xlsx.
 # El porcentaje es la razon generacion/consumo DEL CIRCUITO MEDIDO, no la
 # autosuficiencia de la institucion.
-TITULO_COBERTURA = {
-    "m1": "M1 · circuito principal o de inyección (G/D = 19,1 %)",
-    "m3": "M3 · circuito secundario (G/D = 91,2 %)",
+# Fuente unica: el nombre y la razon se escriben una sola vez y de ahi se
+# derivan todas las formas. Antes el titulo largo vivia aqui y la version de
+# dos lineas estaba escrita a mano dentro de figura_m1_m3(), de modo que
+# podian divergir sin que nadie lo notara.
+COBERTURA_NOMBRE = {
+    "m1": "M1 · circuito principal o de inyección",
+    "m3": "M3 · circuito secundario",
 }
+COBERTURA_GD = {"m1": "19,1 %", "m3": "91,2 %"}
+
+TITULO_COBERTURA = {
+    k: f"{COBERTURA_NOMBRE[k]} (G/D = {COBERTURA_GD[k]})"
+    for k in COBERTURA_NOMBRE
+}
+# Forma corta, para marcas de eje y leyendas donde el nombre largo no cabe.
+# Se nombra la razon generacion/consumo y no «cobertura», que invitaba a
+# leerlo como autosuficiencia de la institucion.
+COBERTURA_CORTA = {
+    k: f"{k.upper()} · G/D = {COBERTURA_GD[k]}" for k in COBERTURA_NOMBRE
+}
+
+
+def titulo_cobertura(cob: str, dos_lineas: bool = False) -> str:
+    """Titulo de cobertura; en dos lineas cuando va como titulo de panel."""
+    c = cob.lower()
+    if dos_lineas:
+        return f"{COBERTURA_NOMBRE[c]}" + "\n" + f"(G/D = {COBERTURA_GD[c]})"
+    return TITULO_COBERTURA[c]
+
+
+def rotulo_cobertura(fig, cob: str, y: float = 1.0) -> None:
+    """
+    Declara la frontera de medicion de una figura de un solo panel.
+
+    Las figuras que se generan por separado para cada cobertura son casi
+    identicas entre si, de modo que sin este rotulo el lector no puede
+    saber cual esta mirando.
+    """
+    c = cob.lower()
+    fig.suptitle(TITULO_COBERTURA[c], color=COBERTURAS[c],
+                 fontweight="bold", fontsize=9, y=y)
 
 
 # ── rcParams ─────────────────────────────────────────────────────────────────
@@ -183,9 +220,23 @@ def fmt_cop(x, decimales: int = 0) -> str:
     return fmt_miles(x, decimales) + " COP"
 
 
-def fmt_millones(x, decimales: int = 2) -> str:
-    """53619160 -> '53,62 M'. Para ejes de ganancia neta."""
-    return fmt_miles(x / 1e6, decimales) + " M"
+def fmt_millones(x, decimales: int = 2, sufijo: bool = True) -> str:
+    """
+    53619160 -> '53,62 M'.
+
+    Con sufijo=False devuelve '53,62' a secas, que es lo que corresponde
+    cuando el rotulo del eje ya dice «(millones de COP)». Mezclar el
+    multiplicador con la unidad produce ejes que imprimen «53,62 M» bajo
+    un rotulo que dice «(COP)», y ademas gasta ancho en los ejes apretados.
+    """
+    s = fmt_miles(x / 1e6, decimales)
+    return s + " M" if sufijo else s
+
+
+# Rotulos de eje que acompanan a cada formato monetario. Se nombran aqui
+# para que ninguna figura invente el suyo.
+ROTULO_COP      = "Ganancia neta (COP)"
+ROTULO_MILLONES = "Ganancia neta (millones de COP)"
 
 
 def fmt_pct(x, decimales: int = 1) -> str:
@@ -221,11 +272,9 @@ def figura_m1_m3(alto: float = ALTO_ESTANDAR, compartir_y: bool = False,
     fig, axes = plt.subplots(1, 2, figsize=(ANCHO_COMPLETO, alto),
                              sharey=compartir_y)
     if titulos:
-        axes[0].set_title("M1 · circuito principal o de inyección\n"
-                          "(G/D = 19,1 %)",
-                          color=COBERTURAS["m1"], fontweight="bold", pad=8)
-        axes[1].set_title("M3 · circuito secundario\n(G/D = 91,2 %)",
-                          color=COBERTURAS["m3"], fontweight="bold", pad=8)
+        for ax, cob in zip(axes, ("m1", "m3")):
+            ax.set_title(titulo_cobertura(cob, dos_lineas=True),
+                         color=COBERTURAS[cob], fontweight="bold", pad=8)
     return fig, axes[0], axes[1]
 
 
@@ -248,6 +297,105 @@ def etiqueta_mecanismo(nombre: str) -> str:
 
 def color_institucion(nombre: str) -> str:
     return INSTITUCIONES.get(nombre, NEUTRO)
+
+
+def eje_instituciones(ax, orden=None, eje: str = "y"):
+    """
+    Fija marcas, rotulos y sentido del eje de instituciones de una vez.
+
+    Existe por un fallo mudo que ya reordeno tres figuras: cuando los dos
+    paneles comparten el eje vertical, llamar a invert_yaxis() dentro del
+    bucle lo invierte dos veces y la segunda deshace la primera, de modo
+    que las instituciones salen al reves del orden fijo sin que nada avise.
+    Aqui el sentido se fija con set_ylim, que es idempotente: da igual
+    cuantas veces se llame.
+    """
+    orden = list(orden or ORDEN_INSTITUCIONES)
+    pos = range(len(orden))
+    etiquetas = [etiqueta_institucion(i) for i in orden]
+    if eje == "y":
+        ax.set_yticks(list(pos))
+        ax.set_yticklabels(etiquetas)
+        ax.set_ylim(len(orden) - 0.5, -0.5)   # primera arriba, siempre
+    else:
+        ax.set_xticks(list(pos))
+        ax.set_xticklabels(etiquetas)
+        ax.set_xlim(-0.5, len(orden) - 0.5)
+    return ax
+
+
+def rotulo_x_comun(fig, texto: str, rect=(0, 0.03, 1, 1)):
+    """
+    Un solo rotulo de eje x para los dos paneles.
+
+    El rotulo centrado bajo el panel derecho se sale de la caja de 6,5 in y
+    el recorte ajustado del guardado lo corta en vez de ensanchar la
+    figura, de modo que sale truncado. Afecto a cinco figuras antes de
+    detectarse.
+    """
+    fig.supxlabel(texto)
+    fig.tight_layout(rect=rect)
+    return fig
+
+
+# ── Vocabulario en espanol ───────────────────────────────────────────────────
+# matplotlib no localiza los nombres de mes ni de dia, y cualquier eje
+# temporal del documento los necesita. Estaban duplicados en dos generadores.
+MESES_ES = ["ene", "feb", "mar", "abr", "may", "jun",
+            "jul", "ago", "sep", "oct", "nov", "dic"]
+MESES_LARGOS = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+                "julio", "agosto", "septiembre", "octubre", "noviembre",
+                "diciembre"]
+DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes",
+           "sábado", "domingo"]
+
+
+def fmt_fecha(ts, modo: str = "mes") -> str:
+    """
+    Fecha en espanol. modo: 'mes' -> 'jul 25' · 'mes_largo' -> 'julio' ·
+    'dia' -> 'miércoles 16 de julio de 2025'.
+    """
+    if modo == "mes":
+        return f"{MESES_ES[ts.month - 1]} {ts.year % 100:02d}"
+    if modo == "mes_largo":
+        return MESES_LARGOS[ts.month - 1]
+    return (f"{DIAS_ES[ts.weekday()]} {ts.day} de "
+            f"{MESES_LARGOS[ts.month - 1]} de {ts.year}")
+
+
+# Los tres tipos de medidor, en el vocabulario que usa el texto. El nombre
+# interno viene del canon y no se toca; lo que no puede es imprimirse.
+TIPO_MEDIDOR_ES = {"net": "neto", "net_partial": "neto parcial",
+                   "gross": "bruto"}
+
+
+# Forma corta de cada mecanismo, para marcas de eje. Acortar el rotulo largo
+# cortando por el separador colapsa las dos versiones del colectivo en un
+# mismo «C4», de modo que el eje imprimia dos categorias distintas con
+# identico rotulo y el lector no podia saber cual rige. C2 y C3 son el mismo
+# resultado por construccion y se presentan fusionados.
+ETIQUETA_CORTA = {
+    "P2P":        "P2P",
+    "C1":         "C1 individual",
+    "C2":         "C2 = C3",
+    "C3":         "C2 = C3",
+    "C4":         "C4 horario",
+    "C4_mensual": "C4 mensual",
+    "C5":         "C5 AGR",
+}
+
+
+def etiqueta_corta(nombre: str) -> str:
+    return ETIQUETA_CORTA.get(nombre, nombre)
+
+
+# Colores semanticos de papel, independientes de la identidad de los
+# mecanismos. Antes «vende» tomaba prestado el verde de C5 y «compra» el
+# violeta de C2, con lo que un mismo color significaba dos cosas.
+VENDE      = "#2C6E6B"   # verde azulado
+COMPRA     = "#8B3A62"   # vino
+GENERACION = "#5B8C5A"   # verde — la curva de generacion del capitulo 3
+DEMANDA    = "#3A3A3A"   # gris muy oscuro
 
 
 # ── Guardado con trazabilidad ────────────────────────────────────────────────

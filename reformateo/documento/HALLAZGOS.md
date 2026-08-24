@@ -349,3 +349,296 @@ autosuficiencia y el 0,9806 rotulado `SS` es autoconsumo.
 `datos.resumen()` los devuelve ya renombrados a `autosuficiencia` y
 `autoconsumo`, de modo que ninguna figura del documento pueda heredar el
 rótulo equivocado.
+
+---
+
+## H-9 · El precio de bolsa supera al de escasez en doce horas del horizonte
+
+**Estado: verificado. Obliga a replantear la figura del techo antes de
+dibujarla.**
+
+Al comprobar un rótulo de la figura de la serie de bolsa apareció que el
+máximo del horizonte, 2.224,01 COP/kWh el 15 de agosto de 2025 a las 19:00,
+no roza el precio de escasez de ese mes sino que lo multiplica por 2,48. El
+de agosto vale 898,02 COP/kWh.
+
+El barrido completo contra el precio de escasez mes a mes da **doce horas
+por encima**, el 0,19 % del horizonte, repartidas entre julio y noviembre de
+2025 y concentradas en agosto, que aporta cinco. El mayor exceso llega a
+1.326 COP/kWh sobre el valor del mes.
+
+**Consecuencia.** El plan preveía una figura que dibujara el precio de
+escasez como techo sobre la serie de bolsa. No puede presentarse así,
+porque la serie lo atraviesa. El precio de escasez es el que activa las
+obligaciones de energía firme, no un límite superior del precio de bolsa, y
+la figura tiene que decir eso o no dibujarse. Se resuelve cuando se
+construya, que todavía no ha ocurrido.
+
+**Qué no cambia.** Ninguna cifra publicada depende de esto. El horizonte
+promedia 182,69 COP/kWh y su mediana es 114,59, de modo que las doce horas
+no mueven el agregado. Es un asunto de cómo se rotula, no de cuánto vale.
+
+---
+
+## H-10 · El capítulo de robustez no parte de la cifra del capítulo de resultados
+
+**Estado: causa identificada y documentada en el código. Obliga a declarar
+la diferencia allí donde las dos cifras convivan.**
+
+Al auditar las figuras de sensibilidad apareció que el barrido del piso de
+precio no pasa por el resultado publicado. Con el valor nominal de 280
+COP/kWh el barrido da una ganancia del mercado entre pares de 54,41
+millones de pesos en la cobertura del circuito principal, frente a los
+53,62 del libro de comparación, y de 38,06 millones en la del circuito
+secundario, frente a 34,55. La desviación es del 1,5 % en la primera y del
+**10,2 %** en la segunda.
+
+**Lo que descarta que sea un problema de qué punto se mira.** En la
+cobertura del circuito principal, el valor del esquema colectivo mensual es
+*exactamente constante* a lo largo de todo el barrido, 52 952 520 pesos,
+y aun así difiere en un 1,5 % del publicado. Como esa magnitud no depende
+del parámetro barrido, el parámetro no puede explicar la diferencia. Se
+comprobó además que ningún punto del barrido reproduce el valor publicado.
+
+**Lo que descarta que sea un problema del juego.** El índice de equidad
+coincide hasta el sexto decimal en las dos coberturas, y las horas de
+mercado y la energía transada coinciden exactamente. La solución del
+mercado es el mismo objeto en los dos sitios. Lo que difiere es la
+contabilidad monetaria.
+
+**La causa, que está escrita en el código.** El comentario de los
+parámetros del caso base lo dice sin ambigüedad: el valor de 280 COP/kWh es
+un promedio conservador *para los barridos*, que trabajan con un precio de
+compra de la red constante, mientras que la corrida con datos reales emplea
+la serie horaria. No es un defecto sino una decisión de método, pero está
+enterrada en un comentario y ninguna de las dos capas del documento la
+declara.
+
+**Consecuencia para el documento.** Las cifras del capítulo de robustez no
+son comparables al peso con las del capítulo de resultados, y si aparecen
+juntas hay que decir por qué. Lo que el barrido sí sostiene son las
+pendientes y los cruces, es decir, el comportamiento frente al parámetro,
+que es para lo que está.
+
+**Un desprendimiento.** El mismo comentario cifra el promedio empírico de
+bolsa en unos 222 COP/kWh. No se reproduce: el horizonte promedia 182,69,
+los meses de abril a diciembre completos 190,76 y la serie entera 193,60.
+El valor nominal de 280 es, por tanto, 1,53 veces la media del horizonte.
+Que sea conservador es defendible y está declarado; que la referencia
+empírica citada no reproduzca es del mismo tipo que [[H-1]] y conviene
+corregirlo en el código.
+
+---
+
+## H-11 · El modelo no representa la energía reactiva, y la regulación sí la cobra
+
+**Estado: CIFRADO (2026-08-23). La tarifa que hacía falta sí estaba: el
+cargo va a uso de redes, de modo que el precio aplicable es el de
+transmisión más distribución, que el canon tarifario ya trae.**
+
+Al fundamentar por qué el modelo toma la potencia activa y no la reactiva
+ni la aparente apareció que la respuesta física, que solo la activa
+transfiere energía neta, no agota el asunto económico. La regulación
+colombiana factura el consumo reactivo inductivo que supera el cincuenta
+por ciento de la energía activa entregada en el mismo periodo horario, y
+cobra el exceso como si fuera energía activa dentro de los cargos por uso
+de las redes.
+
+**Medido sobre el horizonte, agregando a energía horaria como hace la
+regla y no contando instantes**, el exceso aparece en el 15,0 % de las
+horas con consumo de la cobertura del circuito principal y en el 65,7 %
+de las del circuito secundario. El reparto es muy desigual: el circuito
+secundario del Hospital lo presenta en el 99,8 % de sus horas y el de la
+Universidad CESMAG en el 80,8 %, mientras que el circuito principal del
+Hospital no lo presenta nunca y el de CESMAG en el 0,8 %.
+
+**Consecuencia.** La factura que sirve de referencia está subestimada. No
+se puede cifrar cuánto con lo que hay, porque la tarifa del reactivo no
+está entre las que se recuperaron de las facturas.
+
+**Lo que conviene no dar por supuesto.** El cargo recae sobre el uso de
+las redes, y en este modelo el mercado entre pares está exento de esos
+cargos mientras que los demás mecanismos los pagan. Eso hace pensar que
+incluirlo ensancharía el margen del mercado entre pares, pero no se ha
+comprobado y no debe afirmarse: la exención se aplica a la energía
+transada entre pares, no al consumo remanente de cada institución, que
+sigue viniendo de la red. Queda abierto.
+
+---
+
+## H-12 · La lectura del lado continuo del inversor no describe el arreglo completo
+
+**Estado: medido sobre los siete inversores. No afecta a ningún resultado,
+porque el modelo nunca usó esa lectura, pero cierra la pregunta de por qué
+no la usa.**
+
+Al catalogar las variables apareció que la potencia del lado de corriente
+alterna **supera a la del lado de corriente continua en el 100 % de las
+lecturas** de cinco de los siete equipos, con una razón mediana de 1,82.
+En el sexto y el séptimo, los dos primeros inversores de Udenar, no hay
+muestras que cumplan los filtros mínimos.
+
+**No es un error de escala del registro.** La potencia continua coincide
+exactamente con el producto de la tensión por la corriente continuas, con
+razón 1,000 en los cinco equipos, de modo que el trío del lado continuo es
+internamente coherente.
+
+**La explicación que queda.** Un inversor no puede entregar más de lo que
+recibe, así que la lectura continua no cubre el arreglo completo sino una
+de las entradas del equipo. Las tres variables del lado continuo sirven
+para diagnosticar una cadena de módulos y no para medir cuánto genera la
+institución. La razón se mantiene entre 1,78 y 1,83 en las cinco, lo que
+sugiere un reparto estable entre entradas y no un fallo intermitente.
+
+**Consecuencia.** Refuerza la elección de la potencia del lado alterno,
+que hasta ahora se sostenía solo en el argumento de que es lo que la
+institución puede vender. Cualquier trabajo que quiera usar el lado
+continuo tiene que resolver antes esta discrepancia.
+
+---
+
+## H-13 · Ocho de las cincuenta y cuatro variables del medidor no varían nunca
+
+**Estado: medido sobre los veinte medidores. Sin consecuencia para los
+resultados; importa para quien quiera extender el trabajo.**
+
+Cinco variables son constantes en los veinte equipos y en todo el
+horizonte: el estado de salida y los cuatro registros de energía reactiva,
+positiva y negativa, en sus palabras baja y alta. Otras tres son la palabra
+alta de registros de dos palabras que nunca llegan a desbordar, de modo que
+también valen siempre cero.
+
+**Lo que esto cierra.** El catálogo contiene registros que parecen permitir
+leer la energía acumulada sin integrar la potencia, que es lo primero que
+preguntaría un revisor. No sirven: los de energía reactiva están muertos, y
+la variable llamada acumulada recorre el mismo rango que la potencia
+instantánea, es decir, no se comporta como un contador. Integrar la
+potencia no es una elección de comodidad sino la única vía disponible.
+
+---
+
+## H-14 · Hay cinco estaciones meteorológicas, no cuatro
+
+**Estado: corregido en el documento.**
+
+El censo de fuentes recorría una ruta de cuatro niveles y la estación de
+Udenar cuelga un nivel más arriba, sin la carpeta intermedia de equipo que
+tienen las otras cuatro. El recuento la perdía. Son cinco, una por
+institución. Ninguna se emplea, de modo que no afecta a ningún resultado,
+pero la afirmación estaba mal.
+
+### Cierre de H-11 · el cargo, cifrado
+
+La objeción que dejaba abierto este hallazgo era que no se podía cifrar
+porque faltaba la tarifa del reactivo. Era un error de planteamiento: la
+norma no cobra el exceso a una tarifa propia, lo cobra **como si fuera
+energía activa dentro de los cargos por uso de las redes**, de modo que el
+precio aplicable es el de transmisión más distribución, que el canon
+tarifario trae mes a mes. Promedia 213 COP/kWh sobre el horizonte en el
+nivel de tensión que el trabajo supone.
+
+El exceso acumulado vale 8.851 kvarh en el circuito principal y 5.730 en
+el secundario, lo que da **1.877.304 y 1.215.258 pesos**.
+
+**La cifra que obliga a declararlo.** En el circuito principal ese cargo
+supera al margen que separa a los dos mecanismos mejor situados, que vale
+1.426.142 pesos. La razón es de 1,32.
+
+**Lo que no cambia.** El ordenamiento. Es un cargo por uso de redes que
+todos los mecanismos pagan sobre el mismo consumo, de modo que en primera
+aproximación desplaza a todos por igual.
+
+**Lo que queda abierto, y no debe darse por resuelto.** La norma compara el
+reactivo contra la energía activa *entregada al usuario*. Un mecanismo que
+cambie cuánta energía activa llega desde la red cambia esa razón y por
+tanto el cargo. Cuantificar ese segundo orden exige modelar el reactivo.
+
+**Un desprendimiento sobre el reparto.** El exceso no está repartido y no
+lo aporta la misma institución en las dos fronteras: en el principal lo
+concentra la Universidad Mariana con el 67 %, y en el secundario la
+Universidad CESMAG con el 62 %. Y no es episódico: el Hospital, en el
+circuito secundario, se mantiene por encima del umbral en el 99,8 % de sus
+horas, con una razón plana a cualquier hora y en cualquier mes.
+
+---
+
+## H-15 · El 40 % del reactivo facturable nace donde no hay consumo activo
+
+**Estado: medido. No cambia ninguna cifra publicada; cambia cómo se lee la
+tabla y refuerza el argumento.**
+
+La regulación cobra el reactivo inductivo cuando supera la mitad de la
+activa entregada en el periodo horario **y también cuando se registra en
+ausencia de consumo activo**. La segunda mitad de la regla pesa mucho más
+de lo que parece en esta comunidad.
+
+En el circuito principal, 3.495 de los 8.851 kvarh en exceso, es decir el
+40 %, se registran en horas que no tienen consumo activo apreciable. La
+mayoría son horas de Udenar exportando: su medidor lee negativo el 25,2 %
+del horizonte, hasta −33,6 kW, y en esas horas la instalación sigue
+tomando reactiva de la red aunque entregue activa.
+
+**Por qué importa.** Es un caso en que generar más empeora la posición
+frente a la norma. La generación fotovoltaica descuenta consumo activo sin
+descontar demanda de reactiva, de modo que empuja la razón hacia arriba y,
+cuando la activa llega a cero, deja el reactivo entero como facturable. La
+comunidad que este trabajo estudia es precisamente una que genera.
+
+**Lo que no se afirma.** Que el mercado entre pares agrave o alivie eso.
+Depende de cómo redistribuya la energía activa entre las fronteras, y
+cuantificarlo exige modelar el reactivo. Queda abierto, como en [[H-11]].
+
+**Cuidado al leer la tabla del capítulo 2.** La fracción de horas en
+exceso se calcula sobre las horas con consumo apreciable; la energía y el
+cargo, sobre todas. No son la misma población y la tabla lo declara.
+
+### Cierre parcial de H-15 · el precio de generar, cifrado
+
+La pregunta de si estas series son las crudas o las procesadas permitió
+medir lo que este hallazgo enunciaba. La reactiva no tiene versión
+procesada, porque el pipeline solo lee potencia activa. Pero la activa sí,
+y comparar contra una u otra responde a preguntas distintas.
+
+Contra la lectura del medidor, que es lo que factura el comercializador,
+las horas en exceso del circuito principal valen 6,3 % en Udenar, 62,7 %
+en Mariana y 4,9 % en la UCC. Contra la demanda reconstruida, es decir
+contra lo que el edificio consume de verdad, bajan a 3,0 %, 49,1 % y
+0,2 %. El Hospital y la Universidad CESMAG no se mueven, porque sus
+medidores no descuentan generación.
+
+**La diferencia es el precio de generar.** Las tres instituciones cuyo
+medidor resta la generación propia incumplen entre el doble y veinticinco
+veces más de lo que incumplirían por su consumo real. El fotovoltaico no
+aumenta la demanda de reactiva; reduce la activa contra la que se compara.
+
+**Lo que sigue abierto.** Cuánto de esto mueve cada mecanismo de mercado.
+El mercado entre pares redistribuye energía activa entre fronteras y por
+tanto altera esas razones, pero medirlo exige llevar el reactivo al
+modelo, cosa que este trabajo no hace.
+
+### Cierre definitivo del segundo orden de H-11 y H-15
+
+Lo que estos dos hallazgos dejaban abierto era si el mecanismo de mercado
+puede alterar el cargo por reactivo lo bastante para cambiar el
+ordenamiento. Ya está medido y la respuesta es que no.
+
+El mercado entre pares reduce la energía activa que cada comprador toma de
+la red. Como el umbral de la norma es la mitad de esa energía, el umbral
+baja y una parte mayor del reactivo pasa a facturarse. Calculado **por
+usuario**, que es como aplica la norma, el cargo sube de 1.877.304 a
+1.974.776 pesos en el circuito principal y de 1.215.258 a 1.275.040 en el
+secundario. La diferencia vale 97.471 y 59.782 pesos.
+
+Frente al margen que separa al mercado del colectivo mensual, eso es el
+6,8 % en el circuito principal y el 1,3 % de la brecha en el secundario.
+**Estrecha la ventaja y no la invierte.**
+
+**El nivel de agregación importa y por poco lo erro.** Calculado sobre el
+agregado de la comunidad en vez de por usuario, el cargo base sale de
+303.654 pesos en lugar de 1.877.304, porque el exceso de una institución
+se compensa con el consumo activo de otra. La norma se aplica por usuario,
+de modo que el agregado no vale.
+
+**Consecuencia para el documento.** La decisión de trabajar solo con
+energía activa queda sostenida por cuatro razones de principio y por esta
+medida de que la omisión no compromete la comparación. Ver C-34.

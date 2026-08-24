@@ -457,13 +457,655 @@ proyecto, y así se atribuye en el pie.
 
 ---
 
+## C-21 · Las unidades van entre paréntesis, no entre corchetes
+**2026-08-22 · tipo: `estilo` · aplicada · verificada contra la guía IEEE**
+
+El texto escribía «la potencia activa total, en kilovatios» y las figuras
+rotulaban los ejes con corchetes: «Potencia [kW]», «Ganancia neta [COP]».
+Verificado contra la guía editorial de IEEE, que es la que rige el formato
+de este documento:
+
+> «Write the quantity *Magnetization (A/m)*, not just *M*.»
+> «Do not label axes only with units.»
+> «The International System of Units (SI units) is advocated for use in
+> IEEE publications.»
+
+**Paréntesis**, por tanto, no corchetes ni barra de cociente. El corchete
+es un uso extendido en la literatura técnica en inglés, alemán y polaco,
+pero no es lo que pide IEEE; y la barra que recomienda la norma ISO
+—escribir la magnitud dividida por su unidad— está expresamente
+desaconsejada por la propia guía.
+
+Cambios: el párrafo pasa a «la potencia activa total (kW)» y «la potencia
+de corriente alterna entregada (W)», y se añade que la segunda se
+convierte a kilovatios para operar con la primera, que era información que
+faltaba. En las figuras se sustituyeron **35 rótulos** de corchete a
+paréntesis y se regeneraron las 39.
+
+---
+
+## C-22 · Auditoría y rehechura de la figura de cobertura temporal
+**2026-08-22 · tipo: `técnico` · aplicada**
+
+La figura arrastraba ocho defectos: instituciones en orden alfabético en
+vez del orden fijo del documento; inversores antes que medidores, porque
+«inversor» precede a «medidor» en el alfabeto; nombres crudos y truncados
+del tipo `Bloque Sur - Medidor 1 - electricM`; ninguna distinción visual
+entre medidor e inversor; veintisiete barras sin agrupación; la etiqueta
+del horizonte desplazada abajo por el eje invertido; ninguna señal de qué
+fuente fija el inicio; y el gris de las auxiliares confundible con las
+barras poco saturadas.
+
+**La decisión de orden, que es lo que el autor pidió argumentar.** Se
+agrupa por institución, y dentro de cada una van primero los medidores y
+después los inversores. La razón es que el modelo necesita de cada sitio
+un medidor **y** un inversor: sin generación no hay prosumidor y sin
+demanda no hay agente, de modo que la fecha que importa es cuándo quedó
+completa cada institución. Separando todos los medidores de todos los
+inversores, comprobar si un sitio está operativo obligaría a saltar entre
+dos bloques distantes.
+
+Hay además una prueba concreta de que la agrupación importa: el HUDN fija
+el inicio del horizonte, y dentro del HUDN **lo último en entrar es el
+inversor**, no el medidor. Que lo que faltaba fuera la generación y no la
+medida solo se ve si el inversor está junto a sus medidores.
+
+**Un error propio detectado al auditar.** La primera versión rehecha
+señalaba como fuente que fija el inicio al tercer inversor de Udenar, que
+entra en septiembre. Es falso: ese equipo solo interviene en la
+reconstrucción de la demanda y no condiciona el arranque. El cálculo pasa
+a hacerse sobre las fuentes **esenciales**, es decir, el medidor de cada
+cobertura y el inversor que define la generación.
+
+Etiquetas normalizadas a «Entidad - Medidor N» y «Entidad - Inversor N».
+Los inversores se numeran por orden dentro de cada institución, lo que
+deja al de Udenar que entró tarde en tercer lugar.
+
+---
+
+## C-23 · Auditoría de las treinta y ocho figuras restantes
+**2026-08-22 · tipo: `técnico` · aplicada**
+
+Se auditaron y corrigieron las treinta y ocho figuras que quedaban, en
+tres lotes paralelos con el mismo criterio que se usó en la del Gantt:
+por delante de la legibilidad, comprobar que la figura no afirme algo que
+sus datos no sostienen.
+
+**Nueve defectos de fondo, que son los que importan.**
+
+1. *Perfiles por cobertura.* El pie afirmaba que la curva de generación es
+   la misma en los dos paneles y los paneles tenían escalas verticales
+   independientes, de modo que la misma curva se veía cinco veces más
+   grande a un lado que al otro. La figura desmentía su propio pie.
+2. *Inicio del horizonte.* Señalaba como causante al inversor auxiliar de
+   Udenar, que entra en septiembre. Es el mismo defecto que ya se corrigió
+   en la del Gantt, en otra figura. El inicio lo fija el inversor del HUDN.
+3. *Banda de precios.* Sombreaba de un solo color desde la mediana de
+   bolsa hasta la tarifa comercial y lo rotulaba como el tramo donde vive
+   el precio de equilibrio. Eso es la unión de las bandas y no la banda:
+   en los 159 COP/kWh que separan la tarifa oficial de la comercial, los
+   compradores oficiales ya perderían.
+4. *Las tres versiones del esquema colectivo.* Barras con el eje
+   arrancando muy por encima de cero hacían leer como cinco a uno lo que
+   está en trece por ciento.
+5. *Cumplimiento del umbral.* Dibujaba la cuota de cobertura contra la
+   línea del diez por ciento y concluía que las cinco instituciones
+   cumplen, cuando la columna de veredicto del propio canon dice lo
+   contrario para las cinco y en las dos coberturas. Ver C-24.
+6. *Escalamiento.* Multiplicaba la cuota por dos y por tres contra esa
+   misma línea, que es precisamente la prueba que se retiró al pasar al
+   Caso 2: el reparto de excedentes es un cociente de capacidades y
+   escalar a todos por igual lo deja idéntico. Rehecha sobre la cota de
+   capacidad por usuario, que sí muerde al crecer.
+7. *Mercado horario.* Los dos paneles estaban desfasados una hora entre
+   sí, porque la columna de hora del canon empieza en uno y el otro panel
+   se indexa por posición.
+8. *Serie mensual.* El desplome de diciembre se leía como estacionalidad
+   siendo aritmética: el horizonte cierra el día 16 y ese mes aporta 360
+   horas frente a las 744 de uno completo.
+9. *Precio de escasez.* Un rótulo decía que dos horas rozan el techo. Ver
+   [[H-9]] en el registro de hallazgos: lo multiplican por 2,48.
+
+**Dos categorías con el mismo rótulo**, que es lo que la ronda 4 del
+artículo ya había señalado como motivo de rechazo. El eje de la figura de
+equidad imprimía dos veces «C4» porque el acortador corta por el
+separador, y el lector no podía saber cuál rige. También se fusionaron las
+columnas de los dos escenarios que son idénticos por construcción, que se
+leían como dos comprobaciones independientes.
+
+**Un fallo mudo de la infraestructura**, que reordenó instituciones en
+tres figuras sin dar error: cuando los dos paneles comparten el eje
+vertical, invertirlo dentro del bucle lo invierte dos veces y la segunda
+deshace la primera.
+
+**Lo demás fue legibilidad**, y era abundante: leyendas encima justo de
+los objetos que la figura quiere mostrar, rótulos de eje truncados por el
+borde derecho, cifras ilegibles sobre celdas oscuras, ejes que llegaban
+muy por delante del dato y meses en formato numérico donde el argumento
+necesitaba reconocer el receso de julio.
+
+Ninguna cifra del canon se alteró.
+
+---
+
+## C-24 · El umbral de reparto no se había propagado a las figuras
+**2026-08-22 · tipo: `contenido` · aplicada**
+
+C-17 corrigió en el texto que el diez por ciento del artículo 20 acota el
+porcentaje de distribución de excedentes, no la participación en energía,
+y que como el artículo 19 obliga a que ese reparto sume cien, con cinco
+usuarios el Caso 1 es inalcanzable. **La corrección se quedó en el texto.**
+Dos figuras seguían dibujando la cuota de cobertura contra la línea del
+diez por ciento.
+
+Comprobado contra el canon: el reparto proporcional a la capacidad da
+21,7, 20,6, 25,3, 21,2 y 11,1 por ciento, que suma cien y deja a las cinco
+por encima del umbral. Eso reproduce exactamente la columna de veredicto
+del canon, que vale falso para las cinco en las dos coberturas.
+
+**La lección, que no es sobre esta figura.** Una corrección anotada en el
+texto no está aplicada hasta que se busca en las figuras, en los scripts y
+en los artefactos derivados. Conviene que toda entrada futura de este
+registro diga a qué capas hay que llevarla.
+
+---
+
+## C-25 · Se decía qué unidad se usa, sin sustentar por qué
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+La subsección de las fuentes declaraba que el modelo toma la potencia
+activa total (kW) del medidor y la potencia de corriente alterna (W) del
+inversor, pero no sustentaba ninguna de las dos elecciones. El medidor
+ofrece además la potencia reactiva y la aparente, y el inversor ofrece
+también la lectura del lado de corriente continua, de modo que las tres
+decisiones eran afirmaciones sin argumento.
+
+Se añaden tres razones y una salvedad.
+
+**Por qué la activa.** El mercado intercambia energía y la energía es la
+integral de la potencia en el tiempo, así que la magnitud buscada es la
+que integra a los kilovatios hora que se facturan. De las tres potencias
+solo la activa lo cumple: por la relación entre ellas, la reactiva oscila
+entre la fuente y la carga y su transferencia a lo largo de un ciclo se
+anula.
+
+**Por qué el lado alterno del inversor.** Lo que la institución puede
+consumir o vender es lo que sale ya convertido, después de las pérdidas
+de conversión. La lectura del lado continuo describe lo que entrega el
+arreglo y sobrestimaría la generación disponible.
+
+**Por qué kilovatios.** Las dos unidades son de fábrica y la conversión
+entre ellas es exacta, un factor de mil, de modo que ninguna se pierde
+nada. Lo que fija la unidad de trabajo no es el equipo sino el precio: la
+tarifa colombiana se denomina en pesos por kilovatio hora y todo resultado
+del trabajo acaba siendo una cifra de dinero.
+
+**La salvedad, medida.** Que la reactiva no entregue trabajo no significa
+que no se pague. Ver [[H-11]]: el exceso que la norma cobra aparece en el
+15,0 % de las horas de una cobertura y en el 65,7 % de las de la otra.
+Queda declarado en una caja de trampa.
+
+---
+
+## C-26 · Catálogo completo de las variables de cada equipo
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+A raíz de C-25 se añaden dos tablas con el catálogo entero de lo que
+entrega cada clase de equipo, agrupado por familia y con la unidad de cada
+magnitud, para que la elección de la potencia activa pueda contrastarse
+contra las alternativas en lugar de creerse. Las variables que solo se
+repiten por fase ocupan una línea, con el número de columnas que llenan en
+el archivo.
+
+Del censo salieron cuatro correcciones de hecho:
+
+1. **Son cinco estaciones meteorológicas, no cuatro.** Ver [[H-14]].
+2. **El recuento de variables incluía la marca de tiempo.** El fichero trae
+   55 y 19 columnas, pero una de cada par es la fecha, que no es una
+   magnitud medida. La prosa pasa a 54 y 18, y el total de 74 a 72.
+3. **Ocho de las cincuenta y cuatro del medidor no varían nunca.** Ver
+   [[H-13]]. Se declaran en la propia tabla.
+4. **La lectura del lado continuo del inversor no cubre el arreglo
+   completo.** Ver [[H-12]]. Se incorpora al argumento como evidencia
+   empírica, además de la razón de principio.
+
+La tabla del medidor pasó a componerse como tabla larga porque no cabe en
+una página y se imprimía encima del pie.
+
+---
+
+## C-27 · Cifras o palabras: se fija la norma y se barre el documento
+**2026-08-23 · tipo: `estilo` · aplicada · norma permanente**
+
+Lo planteó él al notar que «se obtienen veintisiete dispositivos: veinte
+medidores y siete inversores» se lee peor que «27 dispositivos: 20
+medidores y 7 inversores», y pidió averiguar cuál es el criterio formal en
+lugar de decidirlo por gusto.
+
+**La autoridad es la RAE, no el manual de IEEE.** El formato del documento
+es IEEE, pero la prosa es española y la ortografía de las expresiones
+numéricas la fija la RAE. IEEE gobierna la bibliografía y la maquetación.
+
+**Lo que dice la RAE.** Distingue por tipo de texto. En obras literarias y
+textos no técnicos prefiere las palabras. En textos científicos y técnicos
+prefiere las cifras por concisión y claridad, y las da por obligadas cuando
+el manejo de números es constante y constituye parte fundamental de lo
+escrito, que es el caso de inventarios, cómputos estadísticos, tablas y
+gráficos. Este documento es exactamente eso. Añade dos normas más: las
+cifras son obligadas cuando sigue un símbolo de unidad, y no conviene
+mezclar cifras y palabras en un mismo enunciado.
+
+**Las cuatro reglas que quedan fijadas.**
+
+1. De cero a nueve, palabras, siempre que no siga un símbolo de unidad.
+2. De diez en adelante, cifras.
+3. Cifras siempre que siga un símbolo de unidad, sea cual sea el número.
+4. No mezclar dentro de un enunciado o serie. Si un miembro pasa a cifras,
+   pasan todos.
+
+**Dos excepciones.** Los títulos y subtítulos van en palabras, porque allí
+el número no es dato sino parte del enunciado, de modo que «Veintisiete
+fuentes, dos magnitudes» se queda como está. Y nunca se abre una oración
+con cifra.
+
+**Lo aplicado.** 44 sustituciones automáticas más 5 arreglos de serie que
+la máquina no podía juzgar. La regla 4 corrigió tres mezclas que ya
+estaban: «once participantes» convivía con «10 %» y «100 %» en la misma
+oración; «ocho participan y doce quedan»; y «Cinco de las 54», que además
+abría oración con la mezcla al revés. Esa última se reescribió entera para
+no abrir con cifra.
+
+Queda en memoria como norma permanente para la tesis, el artículo y sus
+derivados.
+
+---
+
+## C-28 · La columna de recuento de las tablas de variables sobraba
+**2026-08-23 · tipo: `estilo` · aplicada**
+
+Las dos tablas del catálogo llevaban una tercera columna con el número de
+columnas que cada magnitud ocupa en el archivo. Él la señaló como
+sobrante, y lo es: la propia entrada ya lo declara. «Corriente de fase (A,
+B, C)» dice que son tres y «palabras baja y alta» que son dos, de modo que
+la columna repetía lo que el lector acababa de leer.
+
+Retirada de las dos tablas, junto con la fila de total, que sin el
+recuento no tiene de qué sumar. El total sigue estando en el pie de cada
+tabla y en la prosa. La columna de la variable se ensancha de 8,1 a 9,6
+centímetros con el espacio liberado, con lo que dejan de partirse en dos
+líneas varias entradas largas.
+
+**Dos defectos que solo aparecieron al renderizar la página**, y que
+conviene recordar como método: revisar el archivo fuente no basta.
+
+1. Un encabezado de familia podía quedar solo al pie de una página con sus
+   filas en la siguiente. Se protege con la forma del terminador de fila
+   que impide la ruptura justo después.
+2. Al partir en dos la oración de las tres potencias, en C-25, quedó una
+   coma donde debía ir un punto. Llevaba dos compilaciones sin detectarse
+   porque el archivo fuente se lee sin reparar en ello.
+
+---
+
+## C-29 · El aviso sobre el reactivo pasa a subsección con figuras
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él señaló que la caja de trampa sobre la energía reactiva era demasiado
+importante para quedarse en un aviso, y pidió sostenerla con figuras que
+mostraran el peso sobre cada institución a lo largo del tiempo.
+
+Pasa a subsección propia con dos figuras nuevas y con el cargo cifrado.
+
+**Lo que las figuras muestran y el aviso no podía.**
+
+1. *El exceso no está repartido, y no lo aporta la misma institución en
+   cada frontera.* Lo concentra la Universidad Mariana en el circuito
+   principal y la Universidad CESMAG en el secundario. Un promedio de
+   comunidad ocultaba las dos cosas.
+2. *Frecuencia y magnitud no son la misma pregunta.* El Hospital no supera
+   el umbral ni una hora en el circuito principal pese a mantener una
+   razón alta, mientras que Udenar lo supera pocas veces y acumula más
+   energía en exceso, porque cuando lo supera lo hace por mucho.
+3. *No es episódico.* La razón se mantiene sobre el umbral a cualquier
+   hora y en cualquier mes en las instalaciones que incumplen, que es lo
+   que distingue un problema estructural de una punta.
+
+**El cargo, cifrado.** Ver [[H-11]]. Se cerró la objeción que lo dejaba
+abierto, que era un error de planteamiento: la norma no cobra el exceso a
+una tarifa propia sino como energía activa dentro de los cargos por uso de
+redes, y esa tarifa sí estaba recuperada.
+
+**Una cautela deliberada.** No se afirma que incluir el cargo favorezca al
+mercado entre pares. Invita a pensarlo, porque ese mecanismo está exento
+de cargos de red, pero la exención recae sobre la energía transada entre
+pares y no sobre el consumo remanente. Queda declarado como abierto en vez
+de resuelto de oído.
+
+Infraestructura nueva: `scripts/cache_reactiva.py`, que deja la serie
+horaria de potencia activa y reactiva de los diez medidores del modelo.
+
+---
+
+## C-30 · El párrafo del criterio de medida entraba sin antecedente, y era falso
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él señaló que el párrafo sobre cómo se mide el exceso de reactivo no decía
+gran cosa. Tenía dos defectos, y el segundo es mío y de fondo.
+
+**Entraba sin antecedente.** Empezaba por «la comparación se hace sobre la
+energía de cada hora», cuando el lector todavía no sabía que hubiera una
+medición en marcha. El sujeto no se refería a nada dicho antes.
+
+**Y afirmaba algo que no se sostiene.** Decía que contar las muestras de
+dos minutos «da un número más alto». Comprobado con el mismo filtro y la
+misma población, por muestras sale el 35,8 % y por horas el 36,4 %, de
+modo que ni es más alto ni difiere apreciablemente. La cifra del 38,96 %
+que yo tenía en la cabeza venía de una agregación defectuosa, un promedio
+de porcentajes por medidor ponderado por número de muestras, que no es lo
+mismo que el porcentaje del conjunto.
+
+Reescrito para abrir con el resultado, el \pct{15,0} y el \pct{65,7} de
+horas en exceso de cada frontera, y para declarar el criterio por lo que
+es: fidelidad a cómo la norma define la comparación, no una elección que
+mueva la cifra. Se dice explícitamente que medir por instantes deja el
+resultado a menos de un punto porcentual, lo que además desactiva la
+objeción antes de que se formule.
+
+**La lección.** Una afirmación comparativa escrita de memoria, sin volver
+a medir, es exactamente el tipo de cosa que este documento existe para
+evitar.
+
+---
+
+## C-31 · Los números a una tabla y la serie completa a una figura
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él propuso sustituir la figura de barras por una tabla con las cifras, y
+dibujar aparte la serie temporal entera de cada entidad con la línea del
+umbral, para poder ver todos los sistemas. Es mejor reparto: la barra
+codificaba dos números por institución que una tabla da con más precisión
+y sin escala que interpretar, y ninguna de las dos podía mostrar el
+recorrido.
+
+La tabla añade la razón mediana y el cargo en pesos, que en la figura no
+cabían. La serie es una retícula de diez paneles, uno por institución y
+frontera, con la mediana diaria sobre la mancha de las horas sueltas y el
+área sombreada donde la norma cobra.
+
+**Lo que la serie muestra y el resumen no podía.** El incumplimiento tiene
+formas distintas. Mariana se instala sobre el umbral desde el primer día;
+la UCC lo cruza en cada ciclo diario, de modo que su 44,1 % no es un
+periodo malo sino la mitad de todos los días; el Hospital dibuja una banda
+estrecha y constante justo encima, que es la forma de una carga
+permanente.
+
+**Tres afirmaciones mías que no resistieron la comprobación**, escritas
+mirando la figura en vez de midiendo:
+
+1. «Ninguna de las diez series presenta un tramo sin dato.» Falso. Las
+   diez tienen entre 103 y 126 horas ausentes de las 6.168, con rachas de
+   hasta 49 horas.
+2. «La razón de CESMAG se mantiene cerca de 1,0 hasta agosto y sube
+   entonces a 1,3.» El escalón existe, pero va de mayo a junio y de 0,78 a
+   1,0. Leí mal la figura.
+3. La atribución del pico de mediodía de Mariana a la generación propia se
+   enunciaba como hecho. Medido: la activa cae de 9,1 a 6,2 kilovatios
+   entre las nueve y las trece mientras la reactiva baja solo de 5,8 a 5,3
+   kilovar. Ahora se dan las cifras y la causa se enuncia como lo que cabe
+   esperar, no como comprobado.
+
+**El hallazgo que sobrevive a la corrección.** La instalación de la
+Universidad CESMAG en el circuito secundario empeora a mitad de horizonte
+y se queda así: las horas en exceso pasan del 68 % de mayo al 98 % de
+junio. No se puede determinar la causa desde aquí.
+
+---
+
+## C-32 · Por qué dos instituciones tienen tan pocas horas con consumo
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él preguntó por qué Udenar y Mariana tienen tan pocas horas con consumo en
+la tabla del reactivo. La columna invitaba a la pregunta y el texto no la
+respondía. Son tres causas distintas y solo una es un defecto del dato.
+
+1. **Udenar, circuito principal: no es poco consumo, es exportación.** El
+   25,2 % de sus horas registra potencia negativa, hasta −33,6 kW, porque
+   ese medidor descuenta la generación propia de la lectura. Es el mismo
+   fenómeno que el capítulo del preprocesamiento reconstruye.
+2. **Udenar, circuito secundario: es un ramal pequeño.** Ni una hora
+   negativa, pero el 61 % se queda entre cero y 0,5 kW, con mediana de
+   0,38 kW.
+3. **Mariana, circuito secundario: el medidor no sirve.** El 90,5 % de las
+   horas por debajo de 0,5 kW, mediana 0,02 kW y máximo 2,52 kW. Coincide
+   con que el inventario lo declare inexistente como segunda frontera.
+
+**Lo que la pregunta destapó.** Las dos primeras columnas de la tabla y
+las dos últimas no cuentan la misma población: la fracción de horas en
+exceso se calcula sobre las horas con consumo apreciable, mientras que la
+energía y el cargo recogen todas. Y así lo exige la norma, que cobra el
+reactivo cuando supera la mitad de la activa **y también cuando se
+registra sin consumo activo alguno**. En el circuito principal eso no es
+menor: 3.495 de los 8.851 kvarh, el 40 % del exceso facturable, nacen en
+horas que el recuento porcentual deja fuera, y son en su mayoría las de
+exportación de Udenar. Ver [[H-15]].
+
+Se comprobó que las cifras de coste ya publicadas no cambian: el cálculo
+del exceso recorría todas las horas desde el principio.
+
+---
+
+## C-33 · Se declara que las series del reactivo son las crudas
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él preguntó si estas series son las finales o si el preprocesamiento las
+cambia después. La subsección no lo decía y hacía falta, porque el
+capítulo siguiente somete el dato a diez transformaciones.
+
+**La respuesta tiene dos mitades.**
+
+1. **No existe una versión procesada de la reactiva.** El pipeline lee una
+   sola columna de cada medidor, la potencia activa total, de modo que la
+   reactiva nunca entra en él. La única serie disponible es la que el
+   equipo registró.
+2. **Para la pregunta regulatoria, la lectura cruda es la correcta.** La
+   norma compara el reactivo contra la energía activa entregada al
+   usuario, y lo entregado es lo que cruza el medidor, no lo que el
+   edificio consume por dentro. La reconstrucción recupera esto último,
+   que es lo que el mercado necesita, pero no es lo que factura el
+   comercializador.
+
+**Lo que la pregunta permitió cifrar.** Comparando contra la demanda
+reconstruida en vez de contra la lectura del medidor, las horas en exceso
+de Udenar bajan del 6,3 % al 3,0 %, las de Mariana del 62,7 % al 49,1 % y
+las de la UCC del 4,9 % al 0,2 %, todas en el circuito principal. El
+Hospital y la Universidad CESMAG no se mueven, porque sus medidores no
+descuentan generación.
+
+Esa distancia es el precio de generar, medido: las tres instituciones cuyo
+medidor resta la generación propia incumplen entre el doble y veinticinco
+veces más de lo que incumplirían por su consumo real. Es el segundo orden
+que [[H-15]] había dejado enunciado sin cuantificar.
+
+**Cautela.** La serie del segundo medidor de Mariana queda fuera de esa
+comparación: el modelo la aproxima escalando el primero, de modo que
+contrastar su reactivo contra esa demanda no significaría nada.
+
+---
+
+## C-34 · Por qué el trabajo entero se hace sobre energía activa
+**2026-08-23 · tipo: `contenido` · aplicada · decisión metodológica**
+
+Él preguntó si, a la vista de lo medido, el trabajo debería usar activa y
+reactiva o solo activa, y por qué razón. Es la pregunta que un jurado hace
+después de leer esta subsección, y no estaba respondida.
+
+**La decisión es solo activa, con cuatro razones.**
+
+1. **Solo la activa transfiere energía.** El mercado intercambia
+   kilovatios hora y el reactivo no mueve energía neta a lo largo de un
+   ciclo, de modo que no hay nada que vender.
+2. **Los regímenes que se comparan están escritos en energía activa.** La
+   autogeneración, los excedentes y su reparto se miden en kilovatios hora
+   en las tres resoluciones implementadas. Comparar sobre otra magnitud
+   sería comparar objetos distintos, que es el defecto que la ronda 4 del
+   artículo señaló como motivo de rechazo.
+3. **Repartir reactivo exigiría representar la red.** La compensación es
+   local; afirmar que fluye entre instituciones necesita impedancias y
+   flujos de potencia. El modelo no representa la red y ya declara que
+   tampoco afirma proximidad eléctrica.
+4. **El modelo base está formulado sobre potencia activa.** Incorporar el
+   reactivo no sería añadir una columna sino reescribir el juego y perder
+   la fidelidad al modelo que se valida.
+
+**Y se cierra con cifra el único camino por el que el reactivo podía
+alterar la comparación.** El mercado reduce la energía activa que cada
+comprador toma de la red, con lo que baja el umbral y crece la parte
+facturable del reactivo. Calculado por usuario, que es como aplica la
+norma, el mercado eleva el cargo en 97.471 pesos en el circuito principal
+y en 59.782 en el secundario: el 6,8 % del margen frente al colectivo
+mensual en el primero y el 1,3 % de la brecha en el segundo. **Estrecha la
+ventaja y no la invierte.**
+
+**Un error de cálculo detectado y corregido en el camino.** El primer
+intento cruzó la serie de reactivo con los flujos del mercado usando
+niveles de índice con nombres distintos, `institucion` y `comprador`.
+Pandas alineó solo por la hora y devolvió un producto cruzado que
+multiplicaba el cargo base por 2,17, de 1.877.304 a 4.081.213 pesos. Se
+detectó porque la cifra sin mercado dejó de reconciliar con la ya
+publicada. El generador lleva ahora una comprobación del número de filas
+que impide repetirlo.
+
+---
+
+## C-35 · Una duplicación silenciosa de casi cuatrocientas líneas
+**2026-08-23 · tipo: `técnico` · reparada**
+
+Al convertir el aviso del reactivo en subsección propia, el reemplazo
+localizó el cierre del aviso buscando desde el principio del fichero y
+encontró el de **otro aviso anterior**, el de las cinco instituciones. El
+punto de corte quedó por delante del de inicio, de modo que toda la región
+intermedia se escribió dos veces.
+
+Quedaron duplicadas dos subsecciones enteras y el cierre de una tercera,
+casi cuatrocientas líneas, con seis etiquetas repetidas.
+
+**Por qué no saltó antes.** El documento siguió compilando sin error, sin
+desbordes y con un número de páginas verosímil. La única señal era un aviso
+de etiquetas repetidas al final del registro de compilación, que no se
+estaba mirando. Se descubrió al leer la subsección para revisarla y ver el
+mismo párrafo dos veces.
+
+**Lo que casi se pierde.** La copia vieja contenía material que la nueva no
+tenía, la caja de las setenta y dos magnitudes y la subsección de qué mide
+cada equipo con la tabla del inventario de medidores, porque seguían al
+aviso original y se quedaron con él. Borrar la copia entera habría
+eliminado la tabla que sostiene [[H-7]].
+
+**Cómo se reparó.** Se conservó la versión nueva, se rescató de la vieja el
+bloque que solo estaba allí y se devolvió a su sitio dentro de las
+veintisiete fuentes, y se eliminó el resto. La reparación comprueba antes y
+después el número de apariciones de cada rótulo, y falla si alguno queda
+repetido.
+
+**Dos normas que se derivan.**
+
+1. Al cortar un tramo por sus extremos, el extremo final se busca **a
+   partir** del inicial, nunca desde el principio del fichero.
+2. La compuerta de compilación pasa a mirar también el aviso de etiquetas
+   repetidas, no solo los errores y los desbordes. Es la señal que hubo
+   durante tres compilaciones sin que nadie la leyera.
+
+---
+
+## C-36 · El material del reactivo pasa a un anexo
+**2026-08-23 · tipo: `estructura` · aplicada**
+
+Él preguntó si de verdad valía la pena incluir todo el detalle de la
+energía reactiva. Medido, ocupaba el **39 %** de las palabras del capítulo
+del dato crudo, 3 de sus 10 figuras y tablas, y cuatro cajas, para
+concluir que la comparación entre mecanismos no cambia.
+
+**El material se conserva; lo que estaba mal era el sitio.** Cuatro
+razones:
+
+1. Seis páginas que terminan en «no compromete la comparación» son un
+   retorno pobre para la atención que piden.
+2. El capítulo 2 responde qué se midió, con qué y durante cuánto. Esto es
+   un hallazgo sobre el lado de costos del marco regulatorio, no sobre el
+   inventario del dato.
+3. Desequilibra la columna del documento, que es dato, proceso y
+   resultado. Una digresión de ese tamaño en el capítulo de cimientos la
+   debilita.
+4. Abre una puerta que luego se cierra a mano: enseñar 1,88 millones y
+   «generar empeora tu posición» invita a pedir que se modele.
+
+**Lo aplicado.** En el capítulo 2 queda un párrafo de 162 palabras con las
+cifras que un lector necesita ahí mismo, justo donde se dice que de 54
+magnitudes el modelo usa una. La medición completa pasa al Anexo F, «Lo
+que el modelo no representa», dividido en cinco apartados: el cargo, la
+forma del incumplimiento, cuánto cuesta, por qué solo se usa activa y la
+trampa de agregación.
+
+El reactivo baja del 39 % al 5 % del capítulo. Se eligió un anexo y no el
+capítulo de precios porque ese trata de los precios que el modelo **usa**,
+y esto es un cargo que **no usa**. Además es donde un revisor va a
+buscarlo.
+
+**Nota sobre el proceso.** El material creció pregunta a pregunta, y cada
+una abrió algo real, pero nadie comprobó la proporción hasta que él la
+preguntó. Conviene medir el peso de una sección contra su capítulo antes
+de darla por cerrada, no después.
+
+---
+
+## C-37 · Revisión de forma del capítulo 2
+**2026-08-23 · tipo: `estilo` · aplicada**
+
+Pasada de ortografía, gramática y estilo sobre el capítulo ya depurado por
+el autor, sin añadir ni quitar contenido. Trece correcciones.
+
+**Ortografía**, todas en el mismo pasaje del alcance: «abarco» por
+«abarcó», «ningun» por «ningún» y «en escenario» por «el escenario».
+
+**Régimen preposicional y léxico.** «Supera al margen» pasa a «supera el
+margen», porque el complemento es inanimado y no lleva preposición; la
+misma corrección se aplicó en el anexo. «Matemáticamente no alcanzables»
+pasa a «inalcanzables», que es la forma que ya usaba la caja del umbral.
+«La base empírica queda delimitada en 27 fuentes» pasa a «la forman 27
+fuentes».
+
+**Norma de cifras (C-27), tres mezclas dentro de un mismo enunciado.**
+«Dos de las 72 magnitudes» pasa a «2 de las 72». «El modelo lee uno por
+institución» convivía con 20, 8 y 12 en la misma oración, y pasa a «lee un
+equipo por institución», que resuelve la mezcla con un artículo. Y la
+oración del inventario, que empezaba en 27, 20 y 7 y terminaba en «tres» y
+«uno», se parte en dos para que sean enunciados distintos.
+
+**Repeticiones y giros torpes.** «Cualquier conclusión más adelante» pasa
+a «posterior». «En consecuencia» seguido de «por lo tanto» en oraciones
+consecutivas pierde el segundo. «Se han nombrado como los nombra la
+plataforma» pasa a «se han citado con el nombre que les da la plataforma».
+
+**Coherencia.** «El medidor 4 de Udenar» pasa a «Medidor 4», que es como
+se nombra el resto de equipos, y la cabecera del fichero pierde su raya
+larga.
+
+**Comprobado y no corregido.** El documento mezcla dos formas de escribir
+el separador decimal dentro de las órdenes de número, punto en los
+capítulos antiguos y coma en los nuevos. Se verificó con un documento de
+prueba que ambas producen la misma salida, de modo que no es un defecto y
+unificarlo no cambiaría ni una página.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
 |---|---|---|
 | P-1 | Pasada de vocabulario: el texto usa 3 de los 21 giros característicos del autor. Faltan «asciende a», «se sitúa entre», «conforme a», «línea base», «por transparencia metodológica». | pendiente de decisión |
-| P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | pendiente |
+| P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | **cerrada 2026-08-23**: 1,26 tras C-25; el conjunto queda en 24,0 palabras por oración, 11,2 % largas y 74,4 por párrafo, contra 24,6 / 12,0 / 74,0 del perfil |
 | P-3 | Abreviaturas: el autor escribe UDENAR, UNIMAR, UCC, UNICESMAG, HUDN. El documento ya usa CESMAG (C-13); quedan por decidir UDENAR frente a Udenar y UNIMAR frente a Mariana. La infraestructura para cambiarlo ya existe: basta editar `ETIQUETA_INSTITUCION` en `estilo.py` y regenerar. | pendiente de decisión |
 | P-4 | Capítulo 4: reescribir la contraposición «campus completo frente a ramal fotovoltaico», que H-7 desmiente. Los rótulos ya están corregidos; falta el argumento del capítulo. | pendiente |
 | P-6 | Establecer si `MedicionesMTE_v3/` es anterior o posterior a la corrección de escala que describe el inventario. Es prioritario. | pendiente |
+| P-7 | Cifrar el cargo del reactivo. | **cerrada 2026-08-23**: no hacía falta una tarifa propia; la norma lo cobra como energía activa en los cargos por uso de redes. 1.877.304 y 1.215.258 pesos. Ver C-29 |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

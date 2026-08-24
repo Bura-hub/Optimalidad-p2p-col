@@ -534,6 +534,14 @@ cerrado.
    Tercero…») y punto y coma para separar miembros largos.
 8. **Coma decimal y punto de miles, un decimal por norma.** Usar
    `\num{}`, `\uni{}` y `\pct{}`.
+8b. **Las unidades van entre paréntesis, nunca entre corchetes ni tras
+    barra.** Es la norma editorial de IEEE, que rige el formato de este
+    documento: «Write the quantity *Magnetization (A/m)*, not just *M*»,
+    y advierte expresamente contra rotular un eje con la barra de
+    cociente. Vale igual para el texto y para los rótulos de figura:
+    «la potencia activa total (kW)», «Ganancia neta (COP)»; nunca
+    «[kW]» ni «Magnetization/K». Se usa el sistema internacional. En un
+    rótulo de eje se nombra siempre la magnitud, no solo la unidad.
 9. **Adjuntar la fuente a cada cifra** y **declarar las limitaciones en
    voz alta**: «tiene carácter ilustrativo…, no constituye…», «se trata
    de un análisis simplificado: … excede el alcance de… y se deja
@@ -562,3 +570,10 @@ Los capítulos 2 a 5 pasaron el ajuste de registro el 2026-08-22:
 `\notafig{}` añadidos, 9 referencias «La Figura N + verbo» y 3 cierres
 bisagra. Residuo conocido: «es decir» queda en 0,89 por mil frente a
 1,24 del objetivo; forzarlo más sonaría artificial.
+
+11. **Cifras o palabras (norma RAE, ver C-27).** El texto es técnico, de
+    modo que la base son las cifras. De cero a nueve, palabras, salvo que
+    siga un símbolo de unidad. De diez en adelante, cifras. Cifras siempre
+    con símbolo de unidad. No mezclar en un mismo enunciado ni en una
+    serie: si un miembro pasa a cifras, pasan todos. Los títulos van en
+    palabras y ninguna oración se abre con cifra.

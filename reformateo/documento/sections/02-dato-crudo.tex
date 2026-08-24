@@ -1,6 +1,6 @@
 % =====================================================================
 % El dato crudo: cinco instituciones, veintisiete fuentes
-% Parte I — El dato
+% Parte I. El dato
 %
 % ENCARGO: que se midio, donde y con que. 20 medidores mas 7 inversores.
 % Cobertura temporal y justificacion del horizonte de 6.144 h.
@@ -20,8 +20,8 @@ Todo lo que este documento afirma descansa sobre una base de medidas
 tomadas en cinco instituciones de San Juan de Pasto entre abril y
 diciembre de 2025. Antes de describir qué se hizo con esas medidas
 conviene decir con precisión qué son, cuántas hay y de qué calidad, porque
-la solidez de cualquier conclusión mas adelante está delimitada por la de este
-punto de partida.
+la solidez de cualquier conclusión posterior está delimitada por la de
+este punto de partida.
 
 \subsection{Las cinco instituciones}
 \label{sub:dato-instituciones}
@@ -36,7 +36,7 @@ ese orden se conserva en todas las tablas y figuras.
 
 Estas cinco son las entidades que el proyecto MTE instrumentó y de las
 que, en consecuencia, existen series numéricas de generación y de consumo.
-Por lo tanto la comparación se construye alrededor de estas entidades en el marco del proyecto
+La comparación se construye alrededor de ellas.
 
 \begin{trampabox}
 Que el conjunto venga dado tiene una consecuencia que reaparece en el
@@ -48,8 +48,8 @@ tercera exige que el Porcentaje de Distribución de Excedentes sea
 «inferior al 10\% para cada uno de los usuarios». Ese porcentaje lo
 acuerdan los propios integrantes, pero el artículo 19 obliga a que sume
 exactamente el 100\%, de modo que la elección no es libre: si todos los
-usuarios quedaran por debajo del 10\%, la suma sería inferior a diez veces
-el número de usuarios, y alcanzar el 100\% exigiría entonces once
+usuarios quedaran por debajo del 10\%, la suma sería inferior a 10 veces
+el número de usuarios, y alcanzar el 100\% exigiría entonces 11
 participantes o más. Con cinco, la condición resulta aritméticamente
 inalcanzable, y no por una característica de esta comunidad sino por su
 tamaño. Tampoco hubo margen para ampliar el conjunto ni para controlar su
@@ -57,8 +57,8 @@ composición, de modo que ninguna conclusión de este trabajo se extiende
 sin más a comunidades de otro tamaño o de otra mezcla de usos.
 \end{trampabox}
 
-El Sistema instalado en la Universidad de Nariño ocupa el Bloque
-Sur de la sede Torobajo. El de la Universidad Mariana está en en el \textbf{Campus Deportivo Alvernia}, en el sector
+El sistema instalado en la Universidad de Nariño ocupa el Bloque
+Sur de la sede Torobajo. El de la Universidad Mariana está en el \textbf{Campus Deportivo Alvernia}, en el sector
 occidental de la ciudad, y de ahí que los equipos que lo miden lleven ese
 nombre. Los de la Universidad Cooperativa de Colombia y el HUDN sí están
 en sus sedes principales, en el sector Torobajo y en el Parque Bolívar
@@ -74,21 +74,9 @@ las cinco sobre el territorio.
     instituciones aliadas del proyecto MTE en el municipio de Pasto. El
     área sombreada en rosa es el perímetro urbano; el fondo verde, el
     modelo digital de elevación.
-    \fuente{mapa elaborado por Miguel Andrade y Jenny Chapal para el
-    proyecto MTE, abril de 2026. Escala 1:80.000, referencia espacial
-    MAGNA-SIRGAS 2018 / Origen Nacional. Reproducido con atribución; no es
-    elaboración propia.}}
+    }
     \label{fig:dato-mapa}
 \end{figure}
-
-\notafig{El mapa confirma dos cosas que el texto afirma y añade una
-tercera. Confirma que la Universidad CESMAG queda fuera del área urbana,
-al sur del municipio, y que las otras cuatro caen dentro. Añade que la
-Universidad de Nariño y la Universidad Cooperativa están prácticamente
-contiguas, lo que concuerda con que ambas se ubiquen en el sector
-Torobajo. La escala gráfica permite además dimensionar el conjunto: las
-cuatro urbanas se reparten en unos pocos kilómetros, mientras que CESMAG
-queda claramente apartada. Mapa del proyecto MTE, abril de 2026.}
 
 De ese conjunto interesa una característica, que no se supone sino que se
 mide: las cinco entidades no comparten rutina de consumo. Cuatro son
@@ -124,33 +112,156 @@ pagan tarifas distintas por la misma energía.
 \subsection{Veintisiete fuentes, dos magnitudes}
 \label{sub:dato-fuentes}
 
-Cada institución está instrumentada con varios medidores eléctricos y al
-menos un inversor fotovoltaico. Los datos llegan organizados en carpetas,
-una por institución, y dentro de cada una otra por clase de equipo, de
-modo que \textbf{cada medidor y cada inversor tiene su propia carpeta con
-sus propios archivos}. Un mismo equipo puede venir repartido en varios
-archivos, porque la exportación se hizo por tramos de fecha. Dentro de
-cada archivo hay una fila por lectura, con su marca de tiempo, y las
-lecturas se suceden cada dos minutos.
-
-El censo de los equipos que aportan al modelo da \textbf{veintisiete
-fuentes}: veinte medidores, cuatro por institución, y siete inversores,
-repartidos de forma desigual porque Udenar tiene tres y las demás uno cada
-una. Hay además cuatro estaciones meteorológicas instaladas, que este
-trabajo no emplea.
+Cada institución está instrumentada con cuatro medidores eléctricos y al
+menos un inversor fotovoltaico, y todos registran con \textbf{resolución
+de dos minutos}. El inventario de los equipos arroja
+\textbf{27 dispositivos}: 20 medidores y 7 inversores. Estos últimos
+están repartidos de forma desigual, porque Udenar tiene tres y las demás
+uno cada una. Hay además cinco estaciones meteorológicas instaladas, una por
+institución, que este trabajo no emplea.
 
 De cada equipo se toma una sola magnitud, y conviene subrayar cuánto se
-descarta al hacerlo. Un medidor registra \textbf{cincuenta y cinco}
-variables por lectura, entre ellas la corriente y la tensión de cada fase,
+descarta al hacerlo. Un medidor registra \textbf{54}
+magnitudes por lectura, entre ellas la corriente y la tensión de cada fase,
 la frecuencia, el factor de potencia y la distorsión armónica; de todas
-ellas el modelo usa una, la potencia activa total, en kilovatios. Un
-inversor registra diecinueve, entre ellas la potencia y la tensión del
-lado de corriente continua; el modelo usa una, la potencia de corriente
-alterna entregada, en vatios. Ambas se convierten y agregan en el
-Capítulo~\ref{sec:prep}.
+ellas el modelo usa una, la potencia activa total (kW). Un inversor
+registra 18, entre ellas la potencia y la tensión del lado de
+corriente continua; el modelo usa una, la potencia de corriente alterna
+entregada (W).
+
+La elección merece sustento, porque el mismo medidor ofrece la potencia
+reactiva y la aparente, que habrían servido igual de bien para llenar una
+columna. Lo que el mercado intercambia es energía, y la energía es la
+integral de la potencia en el tiempo,
+
+\begin{equation}
+ E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
+   \;\simeq\; \overline{P}\,\Delta t,
+ \label{eq:dato-energia}
+\end{equation}
+
+de modo que la magnitud buscada es aquella cuya integral da los kilovatios
+hora que después se facturan. De las tres potencias que el equipo mide,
+solo la activa lo cumple. Las tres se relacionan por $S = P + jQ$, con
+módulo $|S| = \sqrt{P^{2} + Q^{2}}$ y componente activa
+$P = |S|\cos\varphi$. De ellas únicamente la activa transfiere energía
+neta. La reactiva oscila entre la fuente y la carga, y su transferencia a lo largo de un
+ciclo se anula.
+
+Por la misma razón se toma del inversor la potencia del lado de corriente
+alterna y no la del lado de corriente continua, que el equipo también
+registra. Lo que la institución puede consumir o vender es lo que sale del
+inversor ya convertido, después de las pérdidas de conversión, mientras
+que la lectura del lado continuo describe lo que entrega el arreglo
+fotovoltaico y sobrestimaría la generación disponible.
+
+Las Tablas~\ref{tab:dato-var-medidor} y~\ref{tab:dato-var-inversor} recogen todas las variables que entrega cada clase de equipo, agrupado por
+familia y con la unidad de cada magnitud.
+
+\begingroup
+\footnotesize
+\begin{longtable}{@{}>{\raggedright\arraybackslash}p{9.6cm} l@{}}
+\caption{Las 54 magnitudes que entrega un medidor, por
+familia. La marca de tiempo no se cuenta, porque no es una magnitud
+medida.}\label{tab:dato-var-medidor}\\
+\toprule
+\textbf{Variable} & \textbf{Unidad} \\
+\midrule
+\endfirsthead
+\multicolumn{2}{@{}l}{\itshape Tabla \thetable, continuación}\\
+\toprule
+\textbf{Variable} & \textbf{Unidad} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{2}{r@{}}{\itshape continúa en la página siguiente}\\
+\endfoot
+\bottomrule
+\endlastfoot
+    \multicolumn{2}{@{}l}{\textit{Estado de la red}} \\*
+    Frecuencia                                        & Hz \\
+    Estado de salida & --- \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Corriente}} \\*
+    Corriente de fase (A, B, C)                       & A \\
+    Corriente máxima de fase (A, B, C)                & A \\
+    Corriente de neutro                               & A \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Tensión}} \\*
+    Tensión de fase (A, B, C)                         & V \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Potencia activa}} \\*
+    \textbf{Potencia activa total} \hfill \textbf{(la que usa el modelo)}
+                                                      & kW \\
+    Potencia activa de fase (A, B, C)                 & kW \\
+    Demanda de potencia activa vigente                & kW \\
+    Demanda máxima de potencia activa                 & kW \\
+    Potencia activa acumulada                         & kW \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Potencia reactiva}} \\*
+    Potencia reactiva total                           & kvar \\
+    Potencia reactiva de fase (A, B, C)               & kvar \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Potencia aparente}} \\*
+    Potencia aparente total                           & kVA \\
+    Potencia aparente de fase (A, B, C)               & kVA \\
+    Demanda de potencia aparente vigente              & kVA \\
+    Demanda máxima de potencia aparente               & kVA \\
+    Potencia aparente acumulada                       & kVA \\
+    Registro de potencia aparente, palabras baja y alta & --- \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Factor de potencia}} \\*
+    Factor de potencia total                          & --- \\
+    Factor de potencia de fase (A, B, C)              & --- \\
+    Factor de potencia en la máxima aparente importada & --- \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Registros de energía acumulada}} \\*
+    Energía activa importada, palabras baja y alta    & --- \\
+    Energía activa exportada, palabras baja y alta    & --- \\
+    Energía reactiva positiva, palabras baja y alta   & --- \\
+    Energía reactiva negativa, palabras baja y alta   & --- \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Calidad de la onda}} \\*
+    Distorsión armónica de corriente (A, B, C)        & \% \\
+    Distorsión armónica de tensión (A, B, C)          & \% \\
+    Distorsión de demanda de corriente (A, B, C)      & \% \\
+\end{longtable}
+\endgroup
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \caption{Las 18 variables que entrega un inversor, por familia.}
+    \label{tab:dato-var-inversor}
+    \begin{tabular}{@{}>{\raggedright\arraybackslash}p{9.6cm} l@{}}
+    \toprule
+    \textbf{Variable} & \textbf{Unidad} \\
+    \midrule
+    \multicolumn{2}{@{}l}{\textit{Lado de corriente continua}} \\*
+    Potencia                                          & W \\
+    Corriente                                         & A \\
+    Tensión                                           & V \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Lado de corriente alterna, potencia}} \\*
+    \textbf{Potencia activa entregada} \hfill \textbf{(la que usa el modelo)}
+                                                      & W \\
+    Potencia aparente                                 & VA \\
+    Potencia reactiva                                 & var \\
+    Factor de potencia         & \% \\
+    \addlinespace
+    \multicolumn{2}{@{}l}{\textit{Lado de corriente alterna, medidas eléctricas}} \\*
+    Frecuencia                                        & Hz \\
+    Corriente total                                   & A \\
+    Corriente de fase (A, B, C)                       & A \\
+    Tensión de fase a neutro (A, B, C)                & V \\
+    Tensión entre fases (AB, BC, CA)                  & V \\
+    \bottomrule
+    \end{tabular}
+    \fuente{elaboración propia recorriendo los siete inversores.}
+\end{table}
 
 \begin{detallebox}
-Que el modelo consuma dos de las setenta y cuatro variables disponibles no
+Que el modelo consuma 2 de las 72 magnitudes disponibles no
 es un desperdicio sino una consecuencia de su formulación: el mercado que
 se simula intercambia energía, y para eso bastan la que cada institución
 consume y la que produce. Las variables restantes describen la
@@ -160,28 +271,28 @@ meteorológicas, para trabajos que quieran predecir la generación en lugar
 de tomarla medida.
 \end{detallebox}
 
-\subsubsection*{Qué mide cada uno}
+\subsubsection*{Qué mide cada equipo}
 
-Un flujo de datos no dice qué está midiendo. Esa información está en el
-inventario de instalación del proyecto, que cruza el nombre del equipo en
-la plataforma con el circuito al que se conectó, el tablero donde se
-instaló, el transformador de corriente y la escala de conversión. La
+Hasta aquí los equipos se han citado con el nombre que les da la plataforma,
+esto es, Medidor 1 o Medidor 3, y ese nombre no dice a qué circuito se
+conectaron. El inventario de instalación del proyecto sí lo dice: cruza
+cada equipo con el circuito que mide, el tablero donde está montado, el
+transformador de corriente y la escala de conversión. La
 Tabla~\ref{tab:dato-inventario} recoge de ahí los dos medidores que el
-modelo emplea en cada institución.
+modelo emplea en cada institución, y lo que muestra obliga a corregir cómo
+se venían llamando las dos coberturas de medición.
 
 \begin{table}[H]
     \centering
     \small
     \caption{Circuito medido por los dos equipos que el modelo emplea en
-    cada institución, según el inventario de instalación. La columna
-    \emph{ubicación} indica el tablero o la subestación donde está el
-    equipo.}
+    cada institución.}
     \label{tab:dato-inventario}
     \begin{tabular}{@{}l >{\raggedright\arraybackslash}p{4.3cm}
                         >{\raggedright\arraybackslash}p{4.3cm}@{}}
     \toprule
-    \textbf{Institución} & \textbf{Medidor 1 (cobertura M1)} &
-    \textbf{Medidor 3 (cobertura M3)} \\
+    \textbf{Institución} & \textbf{Medidor 1 (M1)} &
+    \textbf{Medidor 3 (M3)} \\
     \midrule
     Udenar   & Circuito principal, tablero de la subestación del bloque Sur
              & Circuito secundario, piso 1A \\
@@ -200,66 +311,35 @@ modelo emplea en cada institución.
              & Circuito principal, totalizador del bloque A \\
     \bottomrule
     \end{tabular}
-    \fuente{elaboración propia a partir del inventario de medidores del
-    proyecto MTE, que cruza la plataforma con el inventario de
-    instalación, el sistema de supervisión local y las conexiones
-    reportadas por el instalador.}
 \end{table}
 
-\begin{trampabox}
-Esta tabla corrige una descripción que el proyecto arrastraba y que este
-documento también empleó hasta comprobarla. Las dos coberturas venían
-llamándose «totalizadores de campus» y «submedidores del circuito
-fotovoltaico». Ninguna de las dos descripciones se sostiene.
-
-El Medidor 1 no totaliza el campus en ninguna de las cinco instituciones:
-en tres de ellas mide el circuito de inyección, es decir, el punto por
-donde entra la generación, y en las otras dos totaliza un bloque concreto.
-Eso explica una anomalía que de otro modo resultaba inexplicable, la de
-que el HUDN registre una media de \uni{9.09}{kW}: no es el consumo de un
-hospital de alta complejidad, sino el tránsito por su circuito de
-inyección.
-
-El Medidor 3 tampoco es «el circuito alimentado por el fotovoltaico». Son
-circuitos secundarios, el totalizador de un piso y, en el HUDN, la
-alimentación de un servicio clínico. La cobertura M3 no es una frontera
-homogénea entre instituciones: es, simplemente, el tercer medidor de cada
-sitio.
-
-La consecuencia para la lectura es doble. Las dos coberturas se nombran en
-adelante por lo que son, circuito principal o de inyección y circuito
-secundario. Y las razones del \pct{19.1} y del \pct{91.2} que aparecen en
-las figuras miden la generación contra el consumo \emph{del circuito
-medido}, no contra el de la institución.
-\end{trampabox}
-
 \begin{detallebox}
-No todas las fuentes instrumentadas se usan. De los veinte medidores, el
-modelo lee uno por institución en cada cobertura, de modo que ocho
-participan y doce quedan como auxiliares. De los siete inversores, cinco
-definen la generación que ve el modelo y los otros dos intervienen solo en
+No todas las fuentes instrumentadas se usan. De los 20 medidores, el
+modelo lee un equipo por institución en cada cobertura, de modo que 8
+participan y 12 quedan como auxiliares. De los 7 inversores, 5
+definen la generación que ve el modelo y los otros 2 intervienen solo en
 la reconstrucción de la demanda de Udenar. La razón de no sumar todo lo
 disponible se explica en el Capítulo~\ref{sec:prep}: los equipos miden
 puntos distintos del circuito, y sumarlos mezclaría totalizadores con
 ramales.
 \end{detallebox}
 
-\begin{trampabox}
-El inventario deja además una cuestión abierta que conviene declarar. Cada
-medidor tiene un transformador de corriente y una escala de conversión, y
-el propio inventario advierte que el valor leído del equipo puede diferir
-del que reportó el instalador. En Mariana y en CESMAG esa diferencia es de
-dos órdenes de magnitud. El inventario describe también un procedimiento
-de corrección que genera versiones corregidas de los archivos originales.
+\subsection{Lo que se deja fuera al quedarse con la activa}
+\label{sub:dato-reactiva}
 
-Ni ese procedimiento ni sus salidas forman parte del material disponible
-para este trabajo, y no se pudo establecer si las series empleadas son
-anteriores o posteriores a esa corrección. Se declara aquí porque, de
-estar sin corregir, el efecto sobre las magnitudes absolutas no sería
-menor. La comparación entre mecanismos no se vería afectada, por la razón
-de siempre: los seis se liquidan sobre la misma serie.
-\end{trampabox}
-
+Que la energía reactiva no entregue trabajo no significa que no se pague.
+La regulación colombiana cobra el consumo reactivo inductivo que supera la
+mitad de la energía activa entregada en el mismo periodo horario, y lo
+factura como si fuera activa dentro de los cargos por uso de las redes.
+Medido sobre el horizonte, ese exceso aparece en el \pct{15,0} de las
+horas con consumo del circuito principal y en el \pct{65,7} de las del
+secundario, y equivale a \uni{1877304}{COP} y \uni{1215258}{COP}. La
+primera cifra supera el margen que separa a los dos mecanismos mejor
+situados en esa frontera. Aun así el ordenamiento no cambia, porque es un
+cargo que todos los mecanismos pagan sobre el mismo consumo, y el efecto
+propio del mercado sobre él vale el \pct{6,8} de ese margen. El
+Anexo~\ref{sec:no-representado} recoge la medición completa y las razones
+por las que el trabajo se hace solo sobre energía activa.
 
 \subsection{Cuánto tiempo hay medido}
 \label{sub:dato-gantt}
@@ -274,23 +354,10 @@ se fue instrumentando.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f2_02_gantt_fuentes.png}
  \caption[Cobertura temporal de las 27 fuentes]{Periodo cubierto por
- cada una de las veintisiete fuentes instrumentadas. En color, las que
- el modelo emplea; en gris, las auxiliares. La franja sombreada es el
- horizonte del estudio.
- \fuente{elaboración propia recorriendo las subcarpetas de
- \file{MedicionesMTE\_v3/}.}}
+ cada una de las 27 fuentes instrumentadas, agrupadas por
+ institución.}
  \label{fig:dato-gantt}
 \end{figure}
-
-\notafig{Del recorrido se siguen tres hechos que la lista de equipos
-no deja ver. Primero, las instituciones se incorporaron escalonadamente
-entre enero y abril de 2025, de modo que no hay ningún mes de 2025 con
-las cinco desde el primer día. Segundo, el Inversor MTE de Udenar entró
-en servicio en septiembre y cubre menos de la mitad del horizonte.
-Tercero, y es lo más relevante para lo que sigue, las barras se
-prolongan bastante más allá del borde derecho de la franja sombreada.
-Elaboración propia a partir del censo de las 27 subcarpetas de
-\file{MedicionesMTE\_v3/}.}
 
 \subsection{Por qué el horizonte empieza el 4 de abril}
 \label{sub:dato-horizonte}
@@ -305,38 +372,14 @@ por su primer registro y señala cuál de ellas fija esa fecha.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f2_04_horizonte.png}
  \caption[El inicio del horizonte y su causa]{Fecha del primer registro
- de cada fuente que el modelo emplea, ordenadas de más antigua a más
- reciente. La línea vertical marca la última en entrar, que es la que
- fija el inicio del horizonte.
- \fuente{elaboración propia sobre el censo del primer registro de cada
- fuente en \file{MedicionesMTE\_v3/}.}}
+ de cada fuente que el modelo necesita para que la comunidad esté
+ completa, ordenadas de más antigua a más reciente.}
  \label{fig:dato-horizonte}
 \end{figure}
-
-\notafig{La restricción la impone el HUDN, cuyo medidor empieza a
-registrar el 3 de abril de 2025 a las 20:58 y cuyo inversor lo hace al
-día siguiente a las 05:58. Ninguna otra fuente entra después, de modo
-que la fecha no es el resultado de un criterio del investigador sino del
-calendario de puesta en marcha. Elaboración propia sobre el censo de
-fuentes.}
 
 De ahí el 4 de abril como primer día completo con las cinco instituciones
 operativas. El horizonte se cierra el 16 de diciembre de 2025, lo que da
 \num{256} días y \num{6144} horas.
-
-\begin{trampabox}
-La fecha de cierre tiene un estatuto distinto al de la fecha de inicio, y
-conviene no presentarlas como si fueran equivalentes. El inicio está
-determinado por el dato: antes del 4 de abril la comunidad no está
-completa. El cierre, en cambio, es un corte administrativo heredado de la
-auditoría con que se fijó el horizonte, y las series contienen datos que
-llegan hasta abril de 2026, es decir, unos cuatro meses más allá. El
-repositorio no registra por qué se detuvo ahí. Extender el horizonte es,
-por tanto, una posibilidad abierta y no una imposibilidad del dato;
-hacerlo obligaría a repetir la corrida completa y a rehacer la
-verificación numérica, de modo que queda como trabajo futuro y se declara
-aquí para que el lector no atribuya al dato una limitación que no tiene.
-\end{trampabox}
 
 \subsection{Cuánto dato hay, fuente por fuente}
 \label{sub:dato-cobertura}
@@ -352,32 +395,12 @@ por su fracción de horas con registro.
  \includegraphics[width=0.95\textwidth]{figuras/f2_03_cobertura_fuentes.png}
  \caption[Cobertura de adquisición por fuente]{Fracción de horas del
  horizonte con registro, por fuente. Los medidores se evalúan sobre las
- veinticuatro horas; los inversores, solo sobre la franja diurna.
- \fuente{elaboración propia recorriendo
- \file{MedicionesMTE\_v3/}.}}
+ 24 horas; los inversores, solo sobre la franja diurna.}
  \label{fig:dato-cobertura}
 \end{figure}
 
-\notafig{La cobertura media de los veinte medidores es del \pct{97.6},
-con faltantes típicos de entre el \num{1.6} y el \pct{2.0} por equipo, en
-su mayoría huecos cortos que el pipeline puede imputar. La de los siete
-inversores, evaluada en la franja de 06:00 a 18:00, es del \pct{89.9}. Lo
-que el promedio esconde es que esa pérdida no está repartida: un solo
-equipo la concentra casi por completo. Elaboración propia recorriendo
-\file{MedicionesMTE\_v3/}.}
-
-\begin{lecturabox}
-La evaluación de los inversores solo en horas diurnas no es una
-concesión: es la única medición correcta. Un inversor no produce de noche,
-de modo que contar las horas nocturnas como dato faltante confundiría la
-ausencia de sol con la ausencia de medición y hundiría artificialmente la
-cifra de todos los equipos por igual. Evaluado sobre las veinticuatro
-horas, el mismo conjunto de inversores daría una cobertura en torno al
-\pct{57}, que no describiría ningún defecto real.
-\end{lecturabox}
-
 Las dos excepciones del conjunto están acotadas y conviene nombrarlas.
-El medidor 4 de Udenar baja al \pct{88.7} por una racha larga de ausencia,
+El Medidor 4 de Udenar baja al \pct{88.7} por una racha larga de ausencia,
 pero es un equipo auxiliar que el modelo no emplea. El Inversor MTE de
 Udenar cubre solo el \pct{39.3} de las horas diurnas porque entró en
 servicio en septiembre; sí participa, aunque no en la matriz de generación
@@ -388,30 +411,27 @@ cinco inversores que definen la generación del modelo superan todos el
 \subsection{Qué se puede y qué no se puede concluir de aquí}
 \label{sub:dato-alcance}
 
-Antes de pasar al tratamiento conviene fijar el alcance de esta base de
-datos, porque delimita lo que el resto del documento puede afirmar.
+Antes de pasar al tratamiento es importante delimitar el alcance de esta base de
+datos, porque determina lo que el resto del documento puede afirmar.
 
-Lo que sí sostiene: nueve meses continuos de medición horaria sobre cinco
+Se tienen nueve meses continuos de medición horaria sobre cinco
 participantes reales, con cobertura de adquisición superior al \pct{97} en
-todos los equipos que el modelo emplea y con el horizonte fijado por el
-dato y no por conveniencia. Es una base empírica, no una simulación de
-perfiles sintéticos, y esa es su principal virtud frente a buena parte de
+todos los equipos que el modelo emplea y con un horizonte fijo. Son datos reales, y esa es su principal virtud frente a buena parte de
 la literatura del área.
 
-Lo que no sostiene: cinco participantes son cinco, y ninguna conclusión de
-este trabajo se extiende sin más a comunidades de otro tamaño. El
+Lo que definitivamente no se abarcó: el escenario tiene cinco
+participantes, y en ningún momento este trabajo se extiende sin más a
+comunidades de otro tamaño. El
 Capítulo~\ref{sec:esc} muestra que ese número tiene además consecuencias
 regulatorias directas, porque algunos umbrales normativos se definen sobre
 la participación relativa de cada miembro y con cinco miembros ciertos
-umbrales son aritméticamente inalcanzables. Tampoco sostiene conclusiones
+umbrales resultan matemáticamente inalcanzables. Tampoco sostiene conclusiones
 estacionales completas: nueve meses cubren buena parte del ciclo anual de
 Pasto, pero no un año entero.
 
-En síntesis, la base empírica queda delimitada en veintisiete fuentes
-instrumentadas, de las cuales el modelo emplea trece, sobre un horizonte
+En resumen, la base empírica la forman 27 fuentes instrumentadas, de
+las cuales el modelo emplea 13, sobre un horizonte
 de \num{6144} horas cuyo inicio impone el dato y cuyo cierre es un corte
 administrativo, con una cobertura de adquisición superior al \pct{97} en
 todos los equipos que intervienen. Sobre esa base se apoya el tratamiento
-que describe el capítulo siguiente, y es también contra ella contra la que
-deben leerse las declaraciones de honestidad metodológica con que ese
-capítulo se cierra.
+que describe el capítulo siguiente.

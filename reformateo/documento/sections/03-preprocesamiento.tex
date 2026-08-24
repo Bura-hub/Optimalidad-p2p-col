@@ -20,10 +20,10 @@ El capítulo anterior describió qué se midió y con qué instrumentos. Este
 describe qué hubo que hacerle a esa medición antes de que sirviera para
 algo. Es el capítulo más largo del documento y esa desproporción es
 deliberada: entre el archivo que escribe la plataforma de monitoreo y la
-matriz que consume el modelo hay diez transformaciones, y cada una de
+matriz que consume el modelo hay 10 transformaciones, y cada una de
 ellas encierra una decisión que puede cambiar el resultado final. Un
 lector que quiera juzgar la solidez de las cifras del Capítulo~\ref{sec:res}
-necesita haber visto antes estas diez.
+necesita haber visto antes estas 10.
 
 El recorrido se organiza en el orden en que el código las ejecuta, no
 en el orden en que resultan interesantes. Cada transformación ocupa su
@@ -39,7 +39,7 @@ entregada al modelo no sea negativa. El punto de entrada es la función
 \label{sub:prep-mapa}
 
 Antes del detalle conviene tener el mapa. La Figura~\ref{fig:prep-pipeline}
-resume las diez etapas y señala en cuál de ellas se bifurcan las dos
+resume las 10 etapas y señala en cuál de ellas se bifurcan las dos
 coberturas de medición que el Capítulo~\ref{sec:frontera} desarrolla: la
 bifurcación ocurre en la primera etapa y solo en la primera. Lo que
 cambia entre M1 y M3 es qué subcarpeta de medidor se lee; todo el
@@ -96,7 +96,7 @@ coberturas a la frontera de medición y no al procesamiento.
  node[midway, below=6pt, nota, text=infocolor]
  {las tres etapas que alteran el valor del dato};
  \end{tikzpicture}
- \caption[El pipeline de preprocesamiento en diez etapas]{Las diez
+ \caption[El pipeline de preprocesamiento en 10 etapas]{Las 10
  etapas del preprocesamiento, en el orden en que se ejecutan. Las tres
  resaltadas en azul son las únicas que modifican el valor numérico de
  la serie; las restantes reorganizan, convierten o verifican. La
@@ -106,7 +106,7 @@ coberturas a la frontera de medición y no al procesamiento.
  \label{fig:prep-pipeline}
 \end{figure}
 
-\notafig{Las diez etapas se agrupan en tres bloques de naturaleza
+\notafig{Las 10 etapas se agrupan en tres bloques de naturaleza
 distinta. Las cinco primeras localizan, decodifican y convierten, sin
 tocar el valor. Las tres resaltadas lo modifican, y son las únicas que
 pueden alterar un resultado. Las dos últimas ensamblan y verifican. Esa
@@ -159,7 +159,7 @@ tomando la \emph{media} de las muestras del intervalo, no la suma. La
 razón es física y no de conveniencia: la energía de una hora es la
 integral de la potencia en ese intervalo, $E = \int P\,dt$, y con
 $\Delta t = \uni{1}{h}$ la potencia media en kilovatios coincide
-numéricamente con la energía horaria en kilovatios-hora. Las hasta treinta
+numéricamente con la energía horaria en kilovatios-hora. Las hasta 30
 muestras de dos minutos de cada hora aproximan esa integral. La
 consecuencia práctica es que las matrices resultantes pueden leerse
 indistintamente como potencia media horaria o como energía horaria, y a
@@ -167,7 +167,7 @@ lo largo del documento se usan las dos lecturas según convenga.
 
 \begin{detallebox}
 Si en lugar de la media se hubiera tomado la suma, cada hora quedaría
-multiplicada por el número de muestras que contiene (hasta treinta) y las
+multiplicada por el número de muestras que contiene (hasta 30) y las
 horas con muestreo incompleto quedarían sistemáticamente subestimadas
 frente a las completas. El error no sería un factor constante que se
 cancela al comparar mecanismos, sino uno que varía con la calidad de la
@@ -418,7 +418,7 @@ misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
 \label{sub:prep-limpieza}
 
 La última etapa que altera el valor del dato es la limpieza, que aplica
-tres tratamientos en cascada sobre cada una de las diez series.
+tres tratamientos en cascada sobre cada una de las 10 series.
 
 Primero, los valores que superan el umbral
 $\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$
@@ -432,7 +432,7 @@ caso de la demanda de Cesmag, la primera cerca se vuelve demasiado
 estricta y recortaría consumo real.
 
 Segundo, los huecos de hasta tres horas se interpolan linealmente en el
-tiempo. Tercero, los huecos de hasta veinticuatro horas se completan con
+tiempo. Tercero, los huecos de hasta 24 horas se completan con
 relleno hacia adelante y hacia atrás, bajo la heurística de que el patrón
 del día operativo anterior es representativo. Lo que aún sobrevive como
 faltante se imputa con cero, lo que corresponde sobre todo a horas
@@ -464,7 +464,7 @@ Elaboración propia desde el caché de estados intermedios.}
 \begin{trampabox}
 En el proyecto conviven tres criterios de relleno distintos, y conviene
 declararlo antes de que el lector lo advierta al comparar módulos. El
-descrito aquí gobierna las diez series de medida. La serie horaria de
+descrito aquí gobierna las 10 series de medida. La serie horaria de
 precios de bolsa (\S\ref{sec:precios}) interpola huecos de hasta seis
 horas y completa el residuo con la mediana, sin marcado de atípicos: la
 diferencia en el residuo sí se sostiene (cero es una potencia legítima,
@@ -479,7 +479,7 @@ incremental del repositorio, y no como elecciones fundamentadas.
 \subsection{El resultado: lo que el modelo recibe}
 \label{sub:prep-matrices}
 
-Las diez series limpias se apilan en dos matrices de dimensión
+Las 10 series limpias se apilan en dos matrices de dimensión
 $5 \times \num{6144}$ y se someten a una verificación de contrato: si
 alguna celda de $D$ o de $G$ resulta negativa, la ejecución se detiene con
 un error explícito en lugar de continuar con datos inconsistentes. La
@@ -534,7 +534,7 @@ con el de la comunidad completa como sexto panel.
 \end{figure}
 
 \notafig{El HUDN, que es un hospital, mantiene una demanda casi plana
-las veinticuatro horas, como corresponde a una instalación que no cierra.
+las 24 horas, como corresponde a una instalación que no cierra.
 Udenar dibuja el doble pico característico de un campus universitario,
 con el valle del almuerzo entre ambos. La UCC opera al nivel más alto del
 conjunto en la cobertura M1 y concentra su consumo en la jornada diurna.
@@ -574,8 +574,8 @@ de estados intermedios.}
 \subsection{Las decisiones que sesgan en contra}
 \label{sub:prep-sesgo}
 
-Un capítulo que describe diez transformaciones sobre el dato debe
-responder a una objeción evidente: si el investigador tomó diez decisiones
+Un capítulo que describe 10 transformaciones sobre el dato debe
+responder a una objeción evidente: si el investigador tomó 10 decisiones
 y el resultado le favorece, ¿cuánto del resultado son las decisiones? La
 respuesta honesta no es que las decisiones sean neutrales, sino que
 conviene mirar hacia dónde apuntan.
@@ -627,7 +627,7 @@ como tales, sin atenuarlas.
  literatura que respalde el multiplicador cinco, ni análisis de
  sensibilidad sobre su valor.
 
- \item El relleno hacia adelante con límite de veinticuatro horas es una
+ \item El relleno hacia adelante con límite de 24 horas es una
  heurística de «día operativo», supone que el patrón del día anterior es
  representativo, cuyo impacto no se evaluó de forma aislada.
 

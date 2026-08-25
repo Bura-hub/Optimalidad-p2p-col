@@ -1,6 +1,6 @@
 % =====================================================================
 % La otra mitad del dato: los precios
-% Parte I — El dato
+% Parte I. El dato
 %
 % ENCARGO: bolsa XM, techo de escasez, tarifa CEDENAR y su desglose,
 % LCOE solar y la banda de precios que resulta.
@@ -18,7 +18,7 @@
 
 Los tres capítulos anteriores construyeron una pareja de matrices de
 energía. Con ellas todavía no se puede decir nada económico, porque un
-kilovatio-hora no tiene un valor único: vale una cosa si la institución lo
+kilovatio hora no tiene un valor único: vale una cosa si la institución lo
 compra a su comercializador, otra si lo inyecta a la red, y otra distinta
 si se lo compra a la institución vecina. Este capítulo reconstruye esa
 segunda mitad del dato desde las fuentes primarias, y termina delimitando
@@ -100,26 +100,26 @@ ordena sus componentes por peso.
 \end{figure}
 
 \notafig{El costo unitario medio del horizonte es de
-\uni{792.06}{COP/kWh} en categoría oficial, con un recorrido anual de
-\uni{50.18}{COP/kWh}, mínimo en enero de 2026 y máximo en agosto de 2025.
-La estabilidad de la barra apilada a lo largo de los 13 meses indica
+\uni{795.68}{COP/kWh} en categoría oficial, con un recorrido de
+\uni{43.46}{COP/kWh}, mínimo en diciembre y máximo en agosto de 2025.
+La estabilidad de la barra apilada a lo largo de los nueve meses indica
 que ninguna componente sufre saltos regulatorios dentro del horizonte.
 Elaboración propia desde \file{data/tarifas\_cedenar\_mensual.csv}.}
 
-Su reparto medio es:
-generación, \uni{305.6}{COP/kWh} (\pct{38.6}); comercialización,
-\uni{174.6}{} (\pct{22.0}); distribución, \uni{157.6}{} (\pct{19.9});
-transmisión, \uni{54.9}{} (\pct{6.9}); otros cargos, \uni{41.2}{}
-(\pct{5.2}); restricciones, \uni{36.8}{} (\pct{4.6}); y pérdidas,
-\uni{21.3}{} (\pct{2.7}).
+El reparto medio del costo unitario es:
+generación, \uni{304.7}{COP/kWh} (\pct{38.3}); comercialización,
+\uni{174.9}{} (\pct{22.0}); distribución, \uni{156.7}{} (\pct{19.7});
+transmisión, \uni{55.2}{} (\pct{6.9}); otros cargos, \uni{42.0}{}
+(\pct{5.3}); restricciones, \uni{41.5}{} (\pct{5.2}); y pérdidas,
+\uni{20.8}{} (\pct{2.6}).
 
 \begin{lecturabox}
 La cifra que conviene retener de esta figura es que \textbf{la generación
-apenas explica el \pct{38.6} de lo que se paga}. El resto, casi dos
-tercios, son cargos de red, comercialización y conceptos regulatorios. Ahí
+apenas explica el \pct{38.3} de lo que se paga}. El resto, más del
+\pct{60}, son cargos de red, comercialización y conceptos regulatorios. Ahí
 está la razón económica de fondo de todo el trabajo: un intercambio que
 ocurre dentro de la comunidad, sin usar la red de distribución, puede
-evitar una fracción de esos dos tercios, y esa fracción evitada es mayor
+evitar una fracción de ese resto, y esa fracción evitada es mayor
 que cualquier ganancia de eficiencia en la generación misma. El
 Capítulo~\ref{sec:disc} vuelve sobre este punto porque es también la
 objeción más seria que se le puede hacer al mecanismo.
@@ -129,7 +129,7 @@ objeción más seria que se le puede hacer al mecanismo.
 Las cifras de este capítulo, y con ellas todas las magnitudes económicas
 del documento, descansan sobre una decisión que conviene declarar antes de
 usarlas: \textbf{las cinco entidades se liquidan contra la tarifa publicada
-por CEDENAR, aunque no todas la tengan como comercializador}. La mayoría
+por CEDENAR, aunque no sea el comercializador de todas}. La mayoría
 contrata su suministro con un comercializador distinto del operador de
 red, cosa que la regulación colombiana permite.
 
@@ -154,7 +154,7 @@ cifras absolutas de este documento no deben leerse como la factura real de
 ninguna de las cinco entidades, sino como el valor que tendrían bajo la
 tarifa publicada. La segunda, y es la que sostiene el trabajo, es que la
 comparación entre mecanismos no se ve afectada: los seis se liquidan
-contra la misma tarifa, de modo que si esa tarifa se desvía de la real se
+contra la misma tarifa, de modo que si esa tarifa se desvía de la real, se
 desvía por igual para todos, y el ordenamiento no cambia. Contrastar las
 cifras contra las facturas efectivas de cada entidad se deja recomendado
 para una fase posterior, cuando esa información esté disponible.
@@ -165,7 +165,7 @@ para una fase posterior, cuando esa información esté disponible.
 
 Las cinco instituciones no pagan lo mismo. Dos de ellas, Udenar y el
 HUDN, son entidades públicas y pagan el costo unitario exacto; las otras
-tres (Mariana, la UCC y Cesmag) son privadas y pagan además la
+tres (Mariana, la UCC y CESMAG) son privadas y pagan además la
 contribución de solidaridad del \pct{20}. La
 Figura~\ref{fig:precios-categorias} pone las dos series sobre un mismo eje
 y sombrea la distancia entre ellas.
@@ -183,7 +183,7 @@ y sombrea la distancia entre ellas.
 
 \notafig{La diferencia media es de \uni{158.4}{COP/kWh}, exactamente el
 \pct{20.0} del costo oficial. La razón entre las dos series vale
-$1{,}2000$ en los 13 meses, sin una sola excepción, lo que confirma que
+$1{,}2000$ en los nueve meses, sin una sola excepción, lo que confirma que
 se trata de un factor regulatorio y no de una diferencia de condiciones de
 suministro. Elaboración propia desde
 \file{data/tarifas\_cedenar\_mensual.csv}.}
@@ -192,9 +192,10 @@ Esta heterogeneidad tiene una consecuencia de diseño que conviene dejar
 explícita, porque es una de las decisiones metodológicas menos evidentes
 del trabajo: en la liquidación de los escenarios regulatorios, el precio
 al que cada institución compra no es un número sino una matriz, con una
-fila por institución y una columna por hora, que asigna a cada hora el
-costo unitario vigente para esa institución en el mes que la contiene. Una
-comunidad de cinco miembros con dos categorías tarifarias y 13 meses de
+fila por institución y una columna por hora. Esa matriz asigna a cada hora
+el costo unitario vigente para esa institución en el mes que la
+contiene. Una
+comunidad de cinco miembros con dos categorías tarifarias y nueve meses de
 tarifas distintas no puede liquidarse con un escalar sin introducir un
 sesgo sistemático.
 
@@ -215,8 +216,8 @@ Capítulo~\ref{sec:modelo} desarrolla.
 Con las dos series construidas queda delimitado el espacio dentro del cual
 un intercambio entre pares tiene sentido económico. La condición es doble
 y elemental: el precio debe superar lo que el vendedor obtendría
-inyectando a la red, y quedar por debajo de lo que el comprador pagaría
-comprándola a su comercializador. Si se cumple, las dos partes ganan; si
+inyectando el excedente a la red, y quedar por debajo de lo que el
+comprador pagaría a su comercializador por esa misma energía. Si se cumple, las dos partes ganan; si
 no se cumple, al menos una prefiere la red. La
 Figura~\ref{fig:precios-banda} reúne los cuatro niveles construidos en
 este capítulo y delimita con ellos la banda resultante.
@@ -242,12 +243,10 @@ estrecharlo sin que cambie nada en las instalaciones. Elaboración propia
 desde las series de bolsa y de tarifa.}
 
 La amplitud de esa banda es lo que hace viable el ejercicio, y su origen
-es enteramente regulatorio: no procede de una diferencia de costos de
-producción sino de la distancia entre lo que la red paga por recibir
-energía y lo que cobra por entregarla. Entre la media de bolsa
+es enteramente regulatorio. Entre la media de bolsa
 (\uni{182.5}{COP/kWh}) y el costo unitario oficial, \uni{792.06}{}, hay un
 factor superior a cuatro. Cualquier precio intermedio deja a las dos
-partes mejor que la alternativa de operar contra la red.
+partes en mejor posición que operar contra la red.
 
 \begin{trampabox}
 A lo largo del documento aparecen varias cifras asociadas al «precio al
@@ -268,28 +267,28 @@ de barridos son tres papeles y no deben confundirse.
 \label{sub:precios-lcoe}
 
 Falta un tercer precio, que no se compra ni se vende: lo que le cuesta a
-la propia institución el kilovatio-hora que produce. Para un sistema
+la propia institución el kilovatio hora que produce. Para un sistema
 fotovoltaico ya instalado, el costo marginal de producir una unidad
 adicional es prácticamente nulo, de modo que el parámetro relevante es el
 costo nivelado, es decir, la inversión amortizada sobre la energía que el
 sistema entregará a lo largo de su vida.
 
 El valor adoptado es de \uni{225}{COP/kWh} para las cuatro instituciones
-con inversor de un fabricante y \uni{210}{} para Cesmag, que tiene otro.
+con inversor de un fabricante y \uni{210}{} para CESMAG, que tiene otro.
 Tras el ajuste por la irradiancia local de Pasto, los valores efectivos en
 el simulador quedan en torno a \uni{241}{COP/kWh} para las primeras y
-\uni{225}{} para Cesmag, lo que introduce una heterogeneidad del
+\uni{225}{} para CESMAG, lo que introduce una heterogeneidad del
 \pct{6.67} entre ambas.
 
-El rango se sustenta en tres referencias de distinto alcance: el costo
-nivelado ponderado global de la energía solar fotovoltaica que reporta la
-agencia internacional de energías renovables; los costos de referencia
-para generación solar en Colombia del plan indicativo de expansión, entre
-\num{300} y \uni{450}{COP/kWh} para escalas utilitaria y media; y el
-análisis de incentivos económicos a la energía solar en el país, que sitúa
-el costo nivelado efectivo de sistemas distribuidos en el rango de
-\num{200} a \uni{250}{COP/kWh} bajo condiciones de financiación
-favorables.
+El rango se sustenta en tres referencias de distinto alcance. Primero,
+el costo nivelado ponderado global de la energía solar fotovoltaica que
+reporta la agencia internacional de energías renovables. Segundo, los
+costos de referencia para generación solar en Colombia del plan indicativo
+de expansión, entre \num{300} y \uni{450}{COP/kWh} para escalas de gran
+tamaño y medias. Tercero, el análisis de incentivos económicos a la
+energía solar en el país, que sitúa el costo nivelado efectivo de sistemas
+distribuidos en el rango de \num{200} a \uni{250}{COP/kWh} bajo
+condiciones de financiación favorables.
 
 \begin{detallebox}
 El valor adoptado es conservador dentro de ese rango, y esa elección tiene

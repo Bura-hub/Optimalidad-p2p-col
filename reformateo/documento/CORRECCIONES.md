@@ -1098,6 +1098,132 @@ unificarlo no cambiaría ni una página.
 
 ---
 
+## C-38 · El caché del reactivo incluía un día que el modelo no ve
+**2026-08-23 · tipo: `dato` · aplicada**
+
+El análisis del anexo marcó que allí se hablaba de «las 6.168 horas del
+horizonte» mientras el resto del documento dice 6.144. Tenía razón, y el
+error era mío.
+
+El pipeline recorta el horizonte con **límite derecho exclusivo**, de modo
+que llega hasta el 15 de diciembre a las 23:00. El caché del reactivo
+recortaba hasta el 16 inclusive, veinticuatro horas que el modelo no ve.
+
+**Lo que se mueve y lo que no.** Las fracciones aguantan: 15,0 % y 65,7 %
+de horas en exceso, 67 % y 62 % de cuota de la institución dominante,
+0,7 % de horas por encima del tope gráfico. Las magnitudes absolutas
+bajan: 8.851 a 8.792 kvarh y 5.730 a 5.705, con lo que el cargo pasa de
+1.877.304 a 1.865.016 pesos y de 1.215.258 a 1.210.145. El efecto del
+mercado sobre el cargo no cambia en absoluto, 97.471 y 59.782 pesos,
+porque las horas con transacción caen todas dentro del horizonte.
+
+**La afirmación que sostenía el asunto sobrevive**: el cargo del circuito
+principal sigue superando el margen entre los dos mecanismos mejor
+situados, ahora por un factor de 1,31 en vez de 1,32.
+
+Actualizadas la tabla del anexo, sus cuatro párrafos con cifra, el párrafo
+del capítulo 2 y las dos figuras, que se regeneraron.
+
+---
+
+## C-39 · La prosa del capítulo 5 se quedó con trece meses de tarifa
+**2026-08-23 · tipo: `dato` · aplicada**
+
+Segunda cascada de la misma clase, y también propia. La auditoría de
+figuras (C-23) recortó la serie tarifaria al horizonte, de trece meses a
+nueve, porque promediar hasta abril de 2026 metía cuatro meses que el
+estudio no cubre. La figura pasó a nueve barras y **la prosa se quedó con
+los promedios de trece**.
+
+Lo detectó el análisis del capítulo 5 al ver que el texto hablaba de «13
+meses» y que la nota daba un mínimo «en enero de 2026», fuera del
+horizonte.
+
+Recalculado sobre los nueve meses: el costo unitario medio oficial pasa de
+792,06 a 795,68 pesos por kilovatio hora, el recorrido de 50,18 a 43,46,
+el mínimo se mueve de enero de 2026 a diciembre de 2025, y el reparto por
+componentes se corrige entero, con la generación en 38,3 % y no 38,6 %.
+
+**Dos comprobaciones que aguantan.** La razón entre la tarifa comercial y
+la oficial vale 1,2000 en los nueve meses, sin una sola excepción, igual
+que valía en los trece. Y la lectura de fondo se mantiene, aunque su cifra
+cambie: la generación explica el 38,3 % de lo que se paga, de modo que el
+resto es más del 60 %. Decía «casi dos tercios», que para un 61,7 % era
+generoso.
+
+---
+
+## C-40 · P-4 cerrado: la contraposición campus contra ramal
+**2026-08-23 · tipo: `contenido` · aplicada · cierra un pendiente**
+
+El capítulo 4 seguía explicando las dos fronteras de medición como
+«totalizador de campus» frente a «submedidor que aísla el circuito
+fotovoltaico». H-7 desmintió las dos cosas contra el inventario de
+instalación: en tres de las cinco instituciones el Medidor 1 es el
+circuito de inyección y no un totalizador, y el Medidor 3 del Hospital es
+la alimentación ininterrumpida de ginecología, no un ramal fotovoltaico.
+Los rótulos de las figuras se habían corregido en C-19; el argumento del
+capítulo, no.
+
+Corregidos cinco pasajes de prosa y el diagrama, que era el más visible
+porque rotulaba literalmente «Campus completo» y «Circuito fotovoltaico»,
+y afirmaba que M1 «mide todo el campus». Se redibuja con los nombres
+correctos y con la inyección sobre el circuito principal, que es donde
+ocurre en tres de las cinco, con la salvedad declarada en el pie: el
+esquema es una idealización y la posición del punto de inyección varía
+entre instituciones.
+
+**La reescritura más de fondo** es la de las dos preguntas. Decían que M1
+es «la pregunta del rector que firma la factura» y M3 «la del ingeniero
+que dimensionó la instalación». Ninguna de las dos identificaciones se
+sostiene: M1 no es la institución entera ni M3 el circuito electrificado
+con sol. Pasan a ser dos regímenes de recurso relativo, una carga grande
+frente a poca generación y una carga del orden de la propia generación,
+con la relación de cada circuito con el consumo institucional declarada
+como pendiente.
+
+---
+
+## C-41 · Revisión de forma de los capítulos 3, 4 y 5 y del anexo
+**2026-08-23 · tipo: `estilo` · aplicada**
+
+Análisis con un modelo distinto del que aplica, contra las normas ya
+registradas y no contra criterio nuevo. Ochenta y tres correcciones.
+
+**Tres contradicciones físicas en el capítulo 3**, que son lo más grave.
+La oración de referencia dice bien que el inversor «inyecta aguas abajo
+del punto de medición», pero las tres formulaciones hechas desde el
+medidor están invertidas: decían que el medidor está aguas abajo de la
+inyección cuando netea, y aguas arriba cuando no. Un medidor aguas abajo
+de la inyección no la descuenta. Afectaba al pie de una figura, a la
+explicación de Udenar y a la del Hospital y CESMAG.
+
+**Cuatro pasajes que reintroducían lo que H-7 desmintió**, hablando de «la
+demanda de la institución» y de «la carga del campus» donde corresponde el
+circuito medido.
+
+**Una referencia interna rota**: el texto remitía al «punto (iii)» de una
+lista que se imprime en números arábigos.
+
+**Dos menciones al autor en tercera persona**, «el investigador» y «el
+autor», contra la regla de impersonal puro.
+
+**Un artefacto de código en la prosa**, el nombre de una función, que sin
+él dejaba una frase que no decía nada.
+
+El resto son la norma de cifras (nueve mezclas dentro de un mismo
+enunciado), la sigla CESMAG en siete sitios, «kilovatio hora» sin guion,
+concordancias, régimen preposicional y repeticiones.
+
+**Lo único que añade texto** es el cierre bisagra del capítulo 4, que
+terminaba en seco sin recoger la cifra clave ni anunciar el siguiente,
+contra el rasgo medido del autor.
+
+**No se tocó** ninguna nota al pie de figura ni ninguna línea de fuente,
+por decisión suya.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -1105,7 +1231,13 @@ unificarlo no cambiaría ni una página.
 | P-1 | Pasada de vocabulario: el texto usa 3 de los 21 giros característicos del autor. Faltan «asciende a», «se sitúa entre», «conforme a», «línea base», «por transparencia metodológica». | pendiente de decisión |
 | P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | **cerrada 2026-08-23**: 1,26 tras C-25; el conjunto queda en 24,0 palabras por oración, 11,2 % largas y 74,4 por párrafo, contra 24,6 / 12,0 / 74,0 del perfil |
 | P-3 | Abreviaturas: el autor escribe UDENAR, UNIMAR, UCC, UNICESMAG, HUDN. El documento ya usa CESMAG (C-13); quedan por decidir UDENAR frente a Udenar y UNIMAR frente a Mariana. La infraestructura para cambiarlo ya existe: basta editar `ETIQUETA_INSTITUCION` en `estilo.py` y regenerar. | pendiente de decisión |
-| P-4 | Capítulo 4: reescribir la contraposición «campus completo frente a ramal fotovoltaico», que H-7 desmiente. Los rótulos ya están corregidos; falta el argumento del capítulo. | pendiente |
+| P-4 | Capítulo 4: reescribir la contraposición «campus completo frente a ramal fotovoltaico». | **cerrada 2026-08-23** por C-40: cinco pasajes y el diagrama |
 | P-6 | Establecer si `MedicionesMTE_v3/` es anterior o posterior a la corrección de escala que describe el inventario. Es prioritario. | pendiente |
 | P-7 | Cifrar el cargo del reactivo. | **cerrada 2026-08-23**: no hacía falta una tarifa propia; la norma lo cobra como energía activa en los cargos por uso de redes. 1.877.304 y 1.215.258 pesos. Ver C-29 |
+| P-8 | Capítulo 5: el texto asume nivel de tensión 2 y en la misma oración dice que «la revisión regulatoria del proyecto sitúa en el nivel 1». Si la revisión ya lo sitúa en 1, asumir el 2 es más que una verificación pendiente. Exige saber qué dice esa revisión. | pendiente de decisión |
+| P-9 | Capítulo 5: «la agencia internacional de energías renovables» y «el plan indicativo de expansión» no llevan nombre ni cita, de modo que las tres cifras del rango de costo nivelado no se pueden rastrear. Parecen IRENA y la UPME. | pendiente |
+| P-10 | Anexo F: una nota dice que el Hospital no rebasa el umbral «ni una sola hora» en el circuito principal, y la tabla le registra 1 hora y 2 pesos. O se redondea en la prosa o la fila está mal. Está dentro de una nota, de modo que la decisión es del autor. | pendiente de decisión |
+| P-11 | Capítulo 3: «la generación expuesta al mercado es menor que la instalada en el sitio» solo vale para Udenar, que tiene tres inversores y expone uno; en las otras cuatro el inversor designado es el único instalado. | pendiente |
+| P-12 | Capítulo 3: la explicación posicional del caso bruto para el Hospital no está probada. Cero horas negativas no demuestran posición: una carga hospitalaria siempre mayor que la generación tampoco invertiría el flujo aunque el medidor neteara. | pendiente |
+| P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

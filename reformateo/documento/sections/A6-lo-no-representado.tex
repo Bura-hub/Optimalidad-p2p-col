@@ -16,9 +16,9 @@
 \label{sec:no-representado}
 \justifying
 
-El modelo liquida energía activa. De las setenta y dos magnitudes que
-entregan los equipos toma dos, y el Capítulo~\ref{sec:dato} explica por
-qué esas dos bastan para simular un intercambio de energía. Queda por
+El modelo liquida energía activa. De las 72 magnitudes que entregan
+los equipos toma 2, y el Capítulo~\ref{sec:dato} explica por qué bastan
+para simular un intercambio de energía. Queda por
 responder algo distinto: cuánto pesa lo que se deja fuera, y si esa
 omisión compromete la comparación entre mecanismos.
 
@@ -29,8 +29,8 @@ cargo es apreciable y el ordenamiento sobrevive.
 \subsection{La energía reactiva y su cargo}
 \label{sub:anexo-reactiva}
 
-Que la energía reactiva no entregue trabajo no significa que no se pague.
-La regulación colombiana la factura cuando el consumo reactivo inductivo
+Aunque la energía reactiva no entrega trabajo, se paga. La regulación
+colombiana la factura cuando el consumo reactivo inductivo
 supera la mitad de la energía activa entregada en el mismo periodo
 horario, y cobra el exceso como si fuera energía activa dentro de los
 cargos por uso de las redes. El umbral equivale a
@@ -44,7 +44,8 @@ energía de cada hora y no los instantes sueltos. La distinción pesa menos
 de lo que parece, porque contar las muestras de dos minutos deja el
 resultado a menos de un punto porcentual, pero conviene declararla: son
 dos preguntas distintas, la de cuánta energía incumple y la de cuántos
-instantes lo hacen.
+instantes lo hacen. La Tabla~\ref{tab:dato-reactiva} recoge las dos, por
+institución y frontera de medición.
 
 \begin{table}[H]
     \centering
@@ -60,24 +61,24 @@ instantes lo hacen.
     \textbf{(kvarh)} & \textbf{(COP)} \\
     \midrule
     \multicolumn{6}{@{}l}{\textit{M1 · circuito principal o de inyección}} \\
-    Udenar  & \num{4499} & \num{285}  & \num{0,26} & \num{2234} & \num{473709} \\
-    Mariana & \num{5760} & \num{3611} & \num{0,53} & \num{5918} & \num{1255254} \\
-    UCC     & \num{5925} & \num{292}  & \num{0,27} & \num{662}  & \num{140401} \\
-    HUDN    & \num{6055} & \num{1}    & \num{0,32} & \num{0}    & \num{2} \\
-    CESMAG  & \num{6050} & \num{48}   & \num{0,05} & \num{37}   & \num{7938} \\
+    Udenar  & \num{4491} & \num{284}  & \num{0,26} & \num{2217} & \num{470155} \\
+    Mariana & \num{5737} & \num{3595} & \num{0,53} & \num{5876} & \num{1246650} \\
+    UCC     & \num{5901} & \num{291}  & \num{0,27} & \num{661}  & \num{140271} \\
+    HUDN    & \num{6031} & \num{1}    & \num{0,32} & \num{0}    & \num{2} \\
+    CESMAG  & \num{6026} & \num{48}   & \num{0,05} & \num{37}   & \num{7938} \\
     \addlinespace
-    \textbf{Total} & \num{28289} & \num{4237} & &
-    \textbf{\num{8851}} & \textbf{\num{1877304}} \\
+    \textbf{Total} & \num{28186} & \num{4219} & &
+    \textbf{\num{8792}} & \textbf{\num{1865016}} \\
     \addlinespace
     \multicolumn{6}{@{}l}{\textit{M3 · circuito secundario}} \\
-    Udenar  & \num{2366} & \num{0}    & \num{0,06} & \num{2}    & \num{526} \\
-    Mariana & \num{187}  & \num{9}    & \num{0,13} & \num{105}  & \num{22295} \\
-    UCC     & \num{6042} & \num{2667} & \num{0,41} & \num{462}  & \num{98030} \\
-    HUDN    & \num{6055} & \num{6041} & \num{0,64} & \num{1613} & \num{342429} \\
-    CESMAG  & \num{6048} & \num{4886} & \num{1,00} & \num{3547} & \num{751979} \\
+    Udenar  & \num{2354} & \num{0}    & \num{0,07} & \num{2}    & \num{526} \\
+    Mariana & \num{187}  & \num{9}    & \num{0,13} & \num{105}  & \num{22228} \\
+    UCC     & \num{6018} & \num{2662} & \num{0,41} & \num{461}  & \num{97858} \\
+    HUDN    & \num{6031} & \num{6017} & \num{0,64} & \num{1606} & \num{340940} \\
+    CESMAG  & \num{6024} & \num{4862} & \num{1,00} & \num{3531} & \num{748593} \\
     \addlinespace
-    \textbf{Total} & \num{20698} & \num{13603} & &
-    \textbf{\num{5730}} & \textbf{\num{1215258}} \\
+    \textbf{Total} & \num{20614} & \num{13550} & &
+    \textbf{\num{5705}} & \textbf{\num{1210145}} \\
     \bottomrule
     \end{tabular}
     \fuente{elaboración propia sobre \file{MedicionesMTE\_v3/}; cargo a la
@@ -94,31 +95,31 @@ fila no admite la misma lectura que las demás. Elaboración propia.}
 
 Que dos instituciones tengan tan pocas horas con consumo tiene tres causas
 distintas, y conviene separarlas porque solo una es un defecto del dato. En
-Udenar, sobre el circuito principal, el \pct{25,2} de las horas registra
+Udenar, sobre el circuito principal, el \pct{25,1} de las horas registra
 potencia \emph{negativa}, hasta \uni{-33,6}{kW}. Ahí no falta consumo: hay
 exportación, porque ese medidor es de los que descuentan la generación
 propia de la lectura, y el Capítulo~\ref{sec:prep} se ocupa de
 reconstruirlo. En su circuito secundario no hay ni una hora negativa, pero
-el \pct{61} se queda entre cero y \uni{0,5}{kW}, con una mediana de
+el \pct{61} se queda entre 0 y \uni{0,5}{kW}, con una mediana de
 \uni{0,38}{kW}: es sencillamente un ramal pequeño. El caso de Mariana en el
-circuito secundario es de otro orden, con el \pct{90,5} de las horas por
+circuito secundario es de otro orden, con el \pct{90,4} de las horas por
 debajo de \uni{0,5}{kW}, una mediana de \uni{0,02}{kW} y un máximo de
 \uni{2,52}{kW}, que es lo que cabe esperar del medidor que el inventario
 declara inexistente como segunda frontera.
 
-La distinción importa para leer la tabla, porque sus dos primeras columnas
+La distinción importa para leer la tabla, porque sus dos columnas de horas
 y las dos últimas no cuentan la misma población. La fracción de horas en
 exceso se calcula solo sobre las horas con consumo apreciable, mientras que
 la energía y el cargo recogen todas las horas. La norma lo exige así: cobra
 el reactivo cuando supera la mitad de la activa y también cuando se
 registra sin consumo activo alguno. En el circuito principal eso no es
-menor, porque \uni{3495}{kvarh} de los \uni{8851}{kvarh}, es decir el
-\pct{40} del exceso facturable, nacen en horas que el recuento porcentual
+menor, porque \uni{3473}{kvarh} de los \uni{8792}{kvarh}, es decir, el
+\pct{39,5} del exceso facturable, nacen en horas que el recuento porcentual
 deja fuera, y son en su mayoría las de exportación de Udenar.
 
 \begin{detallebox}
 Conviene precisar qué series son estas, porque el
-Capítulo~\ref{sec:prep} somete el dato a diez transformaciones antes de
+Capítulo~\ref{sec:prep} somete el dato a 10 transformaciones antes de
 entregarlo al modelo y cabe preguntar si lo que aquí se mide es
 provisional.
 
@@ -133,23 +134,25 @@ que cruza el medidor, no lo que el edificio consume por dentro. La
 reconstrucción del Capítulo~\ref{sec:prep} recupera esto último, que es lo
 que el mercado necesita, pero no es lo que factura el comercializador.
 
-La distancia entre las dos lecturas se puede medir, y resulta ser el
-tamaño de lo que cuesta generar. Contra la demanda reconstruida, las horas
+La distancia entre las dos lecturas se puede medir, y resulta ser la
+medida de lo que cuesta generar. Contra la demanda reconstruida, las horas
 en exceso de Udenar bajan del \pct{6,3} al \pct{3,0}, las de Mariana del
 \pct{62,7} al \pct{49,1} y las de la UCC del \pct{4,9} al \pct{0,2}, todas
 en el circuito principal. El Hospital y la Universidad CESMAG no se mueven,
 porque sus medidores no descuentan generación y no hay nada que
 reconstruir. Es decir, las tres instituciones cuyo medidor resta la
-generación propia incumplen entre el doble y veinticinco veces más de lo
-que incumplirían por su consumo real. El fotovoltaico no aumenta su demanda
+generación propia incumplen más de lo que incumplirían por su consumo
+real, desde un \pct{30} más en la Universidad Mariana hasta 22 veces más
+en la UCC. El fotovoltaico no aumenta su demanda
 de reactiva; reduce la activa contra la que se compara.
 \end{detallebox}
 
 \subsection{La forma del incumplimiento}
 \label{sub:anexo-forma}
 
-La Figura~\ref{fig:dato-reactiva-series} traza la serie completa de las
-diez fronteras, con la línea del umbral sobre cada una, de modo que el
+La Figura~\ref{fig:dato-reactiva-series} traza las 10 series
+completas, una por institución y frontera, con la línea del umbral sobre
+cada una, de modo que el
 recorrido pueda verse entero en lugar de resumido.
 
 \begin{figure}[H]
@@ -165,8 +168,8 @@ recorrido pueda verse entero en lugar de resumido.
 \end{figure}
 
 \notafig{La escala se recorta en \num{2,0}, lo que deja fuera el
-\pct{0,7} de las horas. Las diez series tienen huecos, entre 103 y 126
-horas de las \num{6168} del horizonte, con rachas de hasta dos días; el
+\pct{0,7} de las horas. Las diez series tienen huecos, entre 97 y 126
+horas de las \num{6144} del horizonte, con rachas de hasta dos días; el
 Capítulo~\ref{sec:prep} explica cómo se rellenan. Elaboración propia.}
 
 Lo que la serie muestra y una cifra de resumen no puede es la forma del
@@ -178,13 +181,14 @@ periodo malo sino la mitad de todos los días. El Hospital, en esa misma
 frontera, dibuja una banda estrecha y constante justo por encima de la
 línea, que es la forma que corresponde a una carga permanente.
 
-La Universidad CESMAG merece una lectura aparte. Su razón mediana diaria
-vale unos \num{0,78} en abril y mayo, sube a alrededor de \num{1,0} en
+La Universidad CESMAG merece una lectura aparte. En el circuito
+secundario, su razón mediana diaria
+vale \num{0,77} en abril y \num{0,80} en mayo, sube a alrededor de \num{1,0} en
 junio y ya no baja de ahí en lo que queda del horizonte. Las horas en
 exceso pasan del \pct{68} de mayo al \pct{98} de junio. Este trabajo no
 puede determinar qué cambió en la instalación, y lo deja anotado porque un
-sistema que empeora a mitad de horizonte y se queda así es un hecho que
-interesa a quien lo opere.
+sistema que empeora a mitad de horizonte y se queda así interesa a quien
+lo opere.
 
 \begin{figure}[H]
  \centering
@@ -200,9 +204,9 @@ interesa a quien lo opere.
 allí solo el \pct{3} de las horas registra consumo. Elaboración propia.}
 
 La Figura~\ref{fig:dato-reactiva-tiempo} añade el ciclo del día, que la
-serie completa no deja leer. Mariana alcanza su peor momento al mediodía,
-con \num{0,95}. Su potencia activa mediana cae de \uni{9,1}{kW} a las
-nueve a \uni{6,2}{kW} a las trece, mientras que la reactiva baja solo de
+serie completa no deja leer. Mariana, en el circuito principal, alcanza su peor momento al mediodía,
+con \num{0,95}. Su potencia activa mediana cae de \uni{9,1}{kW} a las 9
+hasta \uni{6,2}{kW} a las 13, mientras que la reactiva baja solo de
 \uni{5,8}{kvar} a \uni{5,3}{kvar}, de modo que la razón empeora sin que la
 instalación consuma más reactiva. Es lo que cabe esperar cuando la
 generación propia descuenta consumo activo y deja intacta la demanda de
@@ -214,25 +218,22 @@ forma continua.
 \label{sub:anexo-cargo}
 
 \begin{trampabox}
-Puesto en dinero, el exceso suma \uni{1877304}{COP} en el circuito
-principal y \uni{1215258}{COP} en el secundario, llevado a la tarifa de
+Puesto en dinero, el exceso suma \uni{1865016}{COP} en el circuito
+principal y \uni{1210145}{COP} en el secundario, llevado a la tarifa de
 transmisión y distribución, que promedia \uni{213}{COP/kWh} sobre el
 horizonte.
 
 La primera de esas dos cifras es la que obliga a declarar el asunto:
 \textbf{el cargo que el modelo no representa supera el margen que separa a
-los dos mecanismos mejor situados en esa frontera}, que es de
-\uni{1426142}{COP}. No por ello cambia el ordenamiento. Es un cargo por
+los dos mecanismos mejor situados en esa frontera}, un margen de \uni{1426142}{COP}. No por ello cambia el ordenamiento. Es un cargo por
 uso de redes que todos los mecanismos pagan sobre el mismo consumo, de
 modo que en primera aproximación desplaza a todos por igual y las
 diferencias sobreviven.
 
 Queda un segundo orden que sí puede medirse. La norma compara el reactivo
-contra la energía activa \emph{entregada al usuario}, de modo que un
-mecanismo que reduzca la energía que cada comprador toma de la red baja
+contra la energía activa \emph{entregada al usuario}, con lo que un mecanismo que reduzca la energía que cada comprador toma de la red baja
 también el umbral y convierte en facturable una parte mayor del reactivo.
-El cálculo se hace institución por institución, que es como aplica la
-norma, y bajo un supuesto que conviene declarar: cada kilovatio hora
+El cálculo se hace institución por institución, que es como se aplica la norma, y bajo un supuesto que conviene declarar: cada kilovatio hora
 comprado en el mercado desplaza uno de importación en el medidor del
 comprador. Con él, el mercado eleva el cargo en \uni{97471}{COP} en el
 circuito principal y en \uni{59782}{COP} en el secundario. Frente al
@@ -263,8 +264,9 @@ comparar objetos distintos, que es justo lo que este documento evita.
 La tercera es que \textbf{repartir reactivo exigiría representar la red}.
 La compensación de reactivo es local, y afirmar que fluye de una
 institución a otra necesita impedancias y un cálculo de flujos de
-potencia. Este modelo no representa la red, y ya se declaró que tampoco
-afirma proximidad eléctrica entre los participantes.
+potencia. Este modelo no representa la red, y el Capítulo~\ref{sec:dato} ya
+declaró que tampoco se afirma proximidad eléctrica entre los
+participantes.
 
 La cuarta es que \textbf{el modelo base está formulado sobre potencia
 activa}. Incorporar el reactivo no sería añadir una columna sino reescribir
@@ -284,7 +286,7 @@ Todas las cifras de este anexo están calculadas institución por
 institución, y no sobre la suma de la comunidad. La diferencia no es de
 matiz. Sumando primero la energía activa y la reactiva de las cinco, y
 comparándolas después contra el umbral, el cargo del circuito principal
-baja de \uni{1877304}{COP} a \uni{303654}{COP}, casi la sexta parte.
+baja de \uni{1865016}{COP} a \uni{302108}{COP}, casi la sexta parte.
 
 La razón es que la suma compensa lo que la norma no compensa. El exceso de
 reactivo de una institución queda tapado por el consumo activo de otra, y

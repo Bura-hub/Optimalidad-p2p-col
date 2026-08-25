@@ -37,7 +37,10 @@ SALIDA = Path(__file__).resolve().parents[1] / "figuras"
 
 AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 FRONTERA = {"Medidor 1": "m1", "Medidor 3": "m3"}
-T_INI, T_FIN = "2025-04-04", "2025-12-16 23:59"
+# El pipeline recorta con limite derecho EXCLUSIVO, de modo que el
+# horizonte llega hasta el 15 de diciembre a las 23:00: 6.144 horas.
+# Incluir el dia 16 anade 24 horas que el modelo no ve.
+T_INI, T_FIN = "2025-04-04", "2025-12-15 23:59"
 
 COLS = ["date", "totalActivePower", "totalReactivePower"]
 

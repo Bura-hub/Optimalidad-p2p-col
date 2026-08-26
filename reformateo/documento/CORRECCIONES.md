@@ -1373,6 +1373,42 @@ El párrafo queda en 24,5 palabras por oración, contra las 24,6 del perfil.
 
 ---
 
+## C-46 · Los nombres de fichero salen de la prosa del capítulo 3
+**2026-08-23 · tipo: `estilo` · aplicada**
+
+Él pidió el mismo tratamiento que se dio al capítulo 2: no nombrar
+archivos de código en el texto corrido, y decirlo de otra forma. Es la
+norma C-12, que este párrafo incumplía.
+
+**Sobraban, además, por una razón concreta.** El pie de la figura que
+viene cuatro líneas más abajo ya declara los dos módulos como procedencia,
+que es uno de los tres sitios donde la norma los admite. Quien quiera los
+nombres los tiene ahí; quien lea la prosa no tropieza con ellos.
+
+**Lo que se conserva es la sustancia**, que es el reparto de
+responsabilidades: una genérica, que no sabe de instituciones y se ocupa
+de localizar, leer y limpiar; y otra propia de esta comunidad, que decide
+qué punto físico se mide en cada institución y garantiza que la demanda no
+llegue negativa al modelo.
+
+**Y se añade el dato que hace útil la distinción**, que antes no estaba: de
+las tres etapas que alteran el valor del dato, dos pertenecen a la
+segunda. Sin eso, el reparto es una curiosidad de implementación; con eso,
+dice dónde se juega la fidelidad.
+
+También pierde su ruta la caja del docstring, que pasa a nombrar el papel
+del módulo y no su ubicación. Ahí la norma sí lo admitiría, porque el
+objeto de la caja es ese mismo texto, pero el papel se lee mejor.
+
+**Lo que queda y por qué.** En la prosa siguen los nombres de las cuatro
+codificaciones y el rango de bytes donde se corrompen las tildes. No son
+artefactos del programa sino estándares, como una resolución citada por su
+número, y el objeto de esa subsección es precisamente el orden en que se
+prueban. Igual ocurre con el nombre de la carpeta que llega con una
+errata, que es de lo que habla el párrafo.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

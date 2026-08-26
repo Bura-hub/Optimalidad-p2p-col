@@ -30,14 +30,12 @@ puede cambiar el resultado final. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
 
-El recorrido se organiza en el orden en que el código las ejecuta, no
-en el orden en que resultan interesantes. Cada transformación ocupa su
-propia subsección, y cada subsección muestra el dato antes y después de
-pasar por ella. Las dos rutinas que implementan el proceso son
-\file{data/xm\_data\_loader.py}, que se ocupa de la lectura y de la
-limpieza genérica de series, y \file{data/preprocessing.py}, que decide
-qué punto físico se mide en cada institución y garantiza que la demanda
-entregada al modelo no sea negativa.
+El proceso se reparte en dos responsabilidades que conviene no confundir.
+La primera es genérica y no sabe de instituciones: localiza los archivos,
+los lee y limpia las series. La segunda es propia de esta comunidad,
+porque decide qué punto físico se mide en cada institución y garantiza que
+la demanda que llega al modelo no sea negativa. De las tres etapas que
+alteran el valor del dato, dos pertenecen a la segunda.
 
 \subsection{El camino completo, de un vistazo}
 \label{sub:prep-mapa}
@@ -325,7 +323,7 @@ inyección no alimenta: ve la demanda sin descontarle generación alguna,
 de modo que nunca registra flujo inverso.
 
 \begin{trampabox}
-El docstring del módulo \file{data/preprocessing.py} cita \num{989} horas
+El docstring del módulo de preprocesamiento cita \num{989} horas
 para Udenar, \num{216} para Mariana y \num{112} para la UCC. Esas cifras
 no reproducen contra el código y los datos vigentes, y el propio docstring
 es internamente inconsistente: su primer párrafo habla de «\textasciitilde

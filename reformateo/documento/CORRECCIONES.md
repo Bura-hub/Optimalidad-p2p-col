@@ -1332,6 +1332,47 @@ documento no usa en ningún otro sitio.
 
 ---
 
+## C-45 · Adaptación del párrafo de apertura reescrito por el autor
+**2026-08-23 · tipo: `estilo` · aplicada**
+
+Él reescribió el párrafo de apertura del capítulo 3 y pidió comprobarlo
+contra la norma. Siete cosas.
+
+**Tres de gramática.** «Los archivos en los que escriben cada uno de los
+27 equipos» no concuerda, porque el sujeto es «cada uno» y va en
+singular. «Una lecturas cada dos minutos» tampoco. Y «Asi» iba sin tilde
+y sin la coma que pide un conector antepuesto.
+
+**Una unión de oraciones sin nexo.** «La distancia entre los dos extremos
+es bastante amplia, de un lado están los archivos» junta dos oraciones
+independientes con una coma. Se resuelve con dos puntos, que además es lo
+que la relación pide: lo segundo explica lo primero.
+
+**Un término nuevo para algo que el capítulo ya nombra.** «10 fases»
+introduce una tercera palabra para lo mismo, cuando la figura dice
+«etapas» y el párrafo siguiente «transformación». Se unifica en
+«transformaciones», que enlaza con lo que viene inmediatamente después.
+
+**Una atribución de causa que no consta.** «Huecos donde la transmisión de
+los datos falló» dice por qué faltan los datos, y eso no está establecido
+en ninguna parte. Vuelve a «la adquisición», que es el término neutro que
+usa la figura de cobertura del capítulo 2.
+
+**Dos giros que decían otra cosa.** «Cada una determina una decisión
+fundamental»: una transformación no determina una decisión, la encierra, y
+«fundamental» generaliza lo que no vale para las diez. Y «analizar con
+solidez las cifras» no es lo que se quiere decir, que es juzgar si las
+cifras son sólidas.
+
+**Lo que se conserva de su versión**, porque es suyo y funciona: el giro
+«Del otro lado», el cierre impersonal en lugar de la figura del lector, y
+la idea de que la distancia entre los extremos es amplia, que él prefirió
+a la formulación anterior.
+
+El párrafo queda en 24,5 palabras por oración, contra las 24,6 del perfil.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

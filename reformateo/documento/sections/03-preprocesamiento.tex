@@ -17,12 +17,18 @@
 \justifying
 
 El capítulo anterior describió qué se midió y con qué instrumentos. Este
-detalla el procesamiento aplicado a los datos antes de ingresarlos al
-modelo. Entre el archivo que escribe la plataforma de monitoreo y la
-matriz que consume el modelo hay 10 transformaciones, y cada una de
-ellas encierra una decisión que puede cambiar el resultado final. Un
-lector que quiera juzgar la solidez de las cifras del Capítulo~\ref{sec:res}
-necesita haber visto antes estas 10.
+detalla lo que le ocurre a esas lecturas antes de que el modelo las
+reciba.
+
+La distancia entre los dos extremos es mayor de lo que sugiere el
+enunciado. De un lado están los archivos que escribe cada uno de los 27
+equipos, con una lectura cada dos minutos y huecos allí donde la
+adquisición falló. Del otro está lo que el modelo necesita para operar,
+que es cuánto consumió y cuánto generó cada institución en cada una de
+las \num{6144} horas del horizonte. Entre lo uno y lo otro median 10
+transformaciones, y cada una encierra una decisión que puede cambiar el
+resultado final. Un lector que quiera juzgar la solidez de las cifras del
+Capítulo~\ref{sec:res} necesita haber visto antes estas 10.
 
 El recorrido se organiza en el orden en que el código las ejecuta, no
 en el orden en que resultan interesantes. Cada transformación ocupa su

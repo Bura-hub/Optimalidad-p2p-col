@@ -1259,6 +1259,34 @@ la frase dice ahora.
 
 ---
 
+## C-43 · La apertura del capítulo 3 nombraba dos cosas que el lector no tenía
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él señaló que el párrafo de apertura del capítulo 3 dejaba cosas al aire
+respecto del capítulo anterior, y preguntó qué es «la plataforma de
+monitoreo» y qué es «la matriz que consume el modelo».
+
+Comprobado: **ninguno de los dos términos está establecido**. «Plataforma»
+aparece una sola vez en el capítulo 2, de pasada y sin definirse, al decir
+que los equipos se citan con el nombre que ella les da. «Matriz» aparece
+otra vez, también de pasada, en una nota sobre un inversor. El párrafo
+nombraba los dos extremos del recorrido con dos términos opacos, de modo
+que no decía de dónde a dónde se va, que es justo lo que un capítulo de
+proceso debe decir en su primera línea.
+
+Reescrito con lo que hay de verdad en cada extremo, y que el capítulo 2 sí
+dejó establecido: de un lado, los archivos que escribe cada uno de los 27
+equipos, con una lectura cada dos minutos y huecos allí donde la
+adquisición falló; del otro, cuánto consumió y cuánto generó cada
+institución en cada una de las 6.144 horas del horizonte.
+
+**La palabra «matriz» se deja para donde corresponde**, que es la
+subsección del resultado del pipeline, donde el objeto se define. Y
+«adquisición» enlaza con la figura de cobertura del capítulo 2, que usa
+ese mismo término.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

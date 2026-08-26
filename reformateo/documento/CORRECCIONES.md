@@ -1598,6 +1598,37 @@ tocar los generadores sin cambiar una sola línea impresa. Queda anotado.
 
 ---
 
+## C-52 · El párrafo de la propiedad del mapa era denso y prematuro
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él lo señaló como ambiguo y denso. Medido: **141 palabras y seis
+oraciones**, cuando los párrafos del capítulo van por unas 70 y tres. Una
+sola de sus oraciones tenía 36 palabras y otra 30.
+
+**El defecto de fondo no era la longitud sino el orden de presentación.**
+El párrafo apoyaba su único dato concreto en dos términos que el capítulo
+define más adelante: «los cinco son brutos», y el tipo de medidor se
+define en la subsección siguiente; y «la reconstrucción de la etapa 7»,
+que se explica dos subsecciones después. El lector tenía que aceptar a
+crédito el vocabulario con que se le demostraba la afirmación.
+
+Partido en dos párrafos, uno por idea. El primero enuncia la propiedad y
+por qué se sostiene, que el tipo de medidor es una propiedad del punto
+donde está puesto y no una decisión de proceso. El segundo saca la
+conclusión y declara la excepción de Mariana.
+
+**El dato concreto no se pierde: se muda.** «En la frontera M3 los cinco
+medidores son brutos y ninguna institución requiere reconstrucción» pasa
+al final de la subsección de los tipos de medidor, que es donde «bruto»
+acaba de definirse y donde el lector se pregunta justamente qué ocurre en
+la otra frontera, porque esa subsección se declara explícitamente
+restringida a M1.
+
+También se retiró una remisión al Capítulo 4 que aparecía dos veces en el
+mismo párrafo.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

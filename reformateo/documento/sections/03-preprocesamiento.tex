@@ -136,17 +136,16 @@ separación es la que permite decir con precisión dónde se juega la
 fidelidad del dato.
 
 Del mapa importa retener una propiedad. Todo el trabajo se recorre dos
-veces, una por cada frontera de medición de las que trata el
-Capítulo~\ref{sec:frontera}, y lo que distingue a los dos recorridos es
-qué medidor se lee en la primera etapa. De ahí se sigue el resto, porque
-el tipo de medidor es una propiedad del punto de medida y no una decisión
-de proceso: en la frontera secundaria los cinco son brutos, de modo que la
-reconstrucción de la etapa 7 no llega a ejecutarse. Cualquier diferencia
-entre M1 y M3 en los resultados es, por tanto, atribuible a qué se mide,
-con una excepción que el Capítulo~\ref{sec:frontera} declara y que
-conviene no descubrir allí: la demanda de Mariana en la frontera
-secundaria se multiplica por un factor convenido, porque esa institución
-no tiene un segundo medidor que leer.
+veces, una por cada frontera de medición, y lo único que las distingue es
+qué medidor se lee en la primera etapa. Lo demás se sigue de esa elección,
+porque el tipo de medidor no es una decisión de proceso sino una propiedad
+del punto donde está puesto.
+
+Cualquier diferencia entre M1 y M3 en los resultados es, por tanto,
+atribuible a qué se mide y no a cómo se procesa. Hay una excepción, y
+conviene no descubrirla más adelante: Mariana no tiene un segundo medidor
+que leer, de modo que en la frontera secundaria se reutiliza el primero
+multiplicado por un factor que el Capítulo~\ref{sec:frontera} declara.
 
 \subsection{Del archivo a la serie horaria}
 \label{sub:prep-lectura}
@@ -356,6 +355,9 @@ inversión del flujo resulta ocasional. En el HUDN y en CESMAG el medidor
 está aguas abajo del punto de inyección, o cubre un circuito que la
 inyección no alimenta: ve la demanda sin descontarle generación alguna,
 de modo que nunca registra flujo inverso.
+
+En la frontera M3 la clasificación no hace falta, porque allí los cinco
+medidores son brutos y ninguna institución requiere reconstrucción.
 
 \begin{trampabox}
 El docstring del módulo de preprocesamiento cita \num{989} horas

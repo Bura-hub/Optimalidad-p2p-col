@@ -107,7 +107,7 @@ lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  \draw[retorno] (e5.south) -- ++(0,-0.42) -| (e6.north);
  \draw[retorno] (e8.south) -- ++(0,-0.42) -| (e9.north);
 
- % --- La bifurcación de las dos coberturas, en la etapa 1 -------------
+ % --- La bifurcación de las dos fronteras, en la etapa 1 --------------
  \node[chip, draw=sectioncolor, fill=sectioncolor!14, text=sectioncolor]
  (pm1) at (2.95, 1.34) {\textbf{M1}};
  \node[chip, draw=warningcolor, fill=warningcolor!16, text=warningcolor]
@@ -117,7 +117,7 @@ lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  \draw[flecha, draw=warningcolor, line width=0.7pt]
  (pm3.south) -- (e1.north);
  \node[nota, anchor=west, text width=8.4cm] at (5.70, 1.34)
- {aquí se separan las dos coberturas de medición:
+ {aquí se separan las dos fronteras de medición:
  cambia el medidor que se lee y, con él, su tipo};
 
  \node[nota, anchor=center, align=center, text=infocolor]
@@ -125,7 +125,7 @@ lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  \end{tikzpicture}
  \caption[El pipeline de preprocesamiento en 10 etapas]{Las 10
  etapas del preprocesamiento, en el orden en que se ejecutan. La
- bifurcación entre las dos coberturas de medición ocurre en la etapa~1.}
+ bifurcación entre las dos fronteras de medición ocurre en la etapa~1.}
  \label{fig:prep-pipeline}
 \end{figure}
 
@@ -225,7 +225,7 @@ del día y el número de horas que afecta a cada institución.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m1.png}
  \caption[Demanda negativa en la lectura cruda]{Perfil medio de la
- demanda tal como la entrega el medidor, en la cobertura M1
+ demanda tal como la entrega el medidor, en la frontera M1
  (izquierda), y alcance del fenómeno por institución (derecha). La
  franja sombreada marca la zona físicamente imposible. Las lecturas
  bajo cero no se reparten al azar a lo largo del día: se concentran
@@ -267,7 +267,7 @@ sentido y el medidor registra un valor negativo. La lectura no es un
 error: es la evidencia de un autoconsumo que el medidor no puede separar.
 
 Según dónde esté el punto de medición respecto de la inyección, los
-medidores de la cobertura M1 se clasifican en tres tipos, y esa
+medidores de la frontera M1 se clasifican en tres tipos, y esa
 clasificación gobierna todo lo que sigue.
 
 \begin{figure}[H]
@@ -323,7 +323,7 @@ clasificación gobierna todo lo que sigue.
 
 \begin{table}[H]
  \centering
- \caption{Clasificación de los medidores de demanda en la cobertura M1
+ \caption{Clasificación de los medidores de demanda en la frontera M1
  y huella del neteo sobre el horizonte de \num{6144} horas. Los conteos
  proceden de reproducir el pipeline sobre los datos vigentes.}
  \label{tab:prep-tipos}
@@ -538,7 +538,7 @@ visibles de una vez.
  \includegraphics[width=0.95\textwidth]{figuras/f3_07_matrices_m1.png}
  \caption[Las matrices que consume el modelo]{Las dos matrices
  resultantes, dibujadas como mapas de hora del día contra día del
- horizonte, en la cobertura M1. La generación traza una banda diurna
+ horizonte, en la frontera M1. La generación traza una banda diurna
  nítida que sigue el arco solar; la demanda muestra la semana laboral
  en franjas verticales regulares.
  \fuente{elaboración propia desde el caché de estados intermedios del
@@ -568,7 +568,7 @@ con el de la comunidad completa como sexto panel.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_08_perfiles_instituciones_m1.png}
  \caption[Perfil medio de cada institución]{Perfil medio de demanda y
- generación por institución en la cobertura M1; el porcentaje del
+ generación por institución en la frontera M1; el porcentaje del
  título es la razón entre generación y demanda de cada una. La curva
  verde sombreada es común en forma a las cinco (el sol es el mismo),
  mientras que las curvas de demanda difieren en nivel y en forma.
@@ -581,7 +581,7 @@ con el de la comunidad completa como sexto panel.
 las 24 horas, como corresponde a una instalación que no cierra.
 Udenar dibuja el doble pico característico de un campus universitario,
 con el valle del almuerzo entre ambos. La UCC opera al nivel más alto del
-conjunto en la cobertura M1 y concentra su consumo en la jornada diurna.
+conjunto en la frontera M1 y concentra su consumo en la jornada diurna.
 Elaboración propia desde el caché de estados intermedios.}
 
 Esa disparidad de formas es exactamente la condición que hace que unas

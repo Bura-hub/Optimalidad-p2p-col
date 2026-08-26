@@ -2,7 +2,7 @@
 % La frontera de medición: M1 y M3
 % Parte I. El dato
 %
-% ENCARGO: dos coberturas, dos preguntas. La bifurcacion es en si misma
+% ENCARGO: dos fronteras, dos preguntas. La bifurcacion es en si misma
 % un resultado: invierte los papeles de los agentes.
 %
 % Reglas del documento:
@@ -17,7 +17,7 @@
 \justifying
 
 El capítulo anterior terminó con dos matrices y una advertencia: la
-bifurcación entre las coberturas M1 y M3 ocurre en la primera etapa del
+bifurcación entre las fronteras M1 y M3 ocurre en la primera etapa del
 pipeline y en ninguna otra. Este capítulo desarrolla esa bifurcación, y lo
 hace en capítulo aparte por una razón que conviene anticipar: no se trata
 de dos versiones del mismo cálculo, ni de un análisis de sensibilidad
@@ -93,8 +93,8 @@ fronteras sobre el circuito de una institución.
  \label{fig:frontera-esquema}
 \end{figure}
 
-La cobertura \textbf{M1} pregunta: \emph{¿qué le aporta este mercado a
-una carga grande, frente a la cual la generación es escasa?} La cobertura
+La frontera \textbf{M1} pregunta: \emph{¿qué le aporta este mercado a
+una carga grande, frente a la cual la generación es escasa?} La frontera
 \textbf{M3} pregunta: \emph{¿qué le aporta a una carga del orden de la
 propia generación?} La primera describe un mercado con poco excedente que
 repartir; la segunda, uno donde el excedente abunda. Ninguna es más
@@ -104,7 +104,7 @@ institucional completo está por establecer.
 \subsection{Qué mide cada frontera}
 \label{sub:frontera-cobertura}
 
-La diferencia entre las dos coberturas se resume en un hecho que conviene
+La diferencia entre las dos fronteras se resume en un hecho que conviene
 subrayar porque desactiva de entrada una posible objeción: \textbf{la
 generación es idéntica en las dos}. El pipeline designa el mismo inversor
 por institución en un caso y en el otro, de modo que la matriz $G$ es la
@@ -115,7 +115,7 @@ agregado comunitario y en cada institución.
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f4_02_cobertura.png}
- \caption[Cobertura de generación en cada frontera]{Energía medida en
+ \caption[Generación y demanda en cada frontera]{Energía medida en
  el horizonte bajo cada frontera. A la izquierda, la comunidad
  completa: la barra de generación es la misma en los dos casos y solo
  cambia la de demanda. A la derecha, la razón entre generación y
@@ -129,7 +129,7 @@ agregado comunitario y en cada institución.
 \notafig{La demanda comunitaria medida es de \uni{318046}{kWh} bajo M1
 y de \uni{66734}{kWh} bajo M3, mientras que la generación es de
 \uni{60860}{kWh} en ambos casos, es decir, exactamente la misma cifra. De
-ahí las dos coberturas, \pct{19.1} y \pct{91.2}, que no reflejan dos
+ahí las dos razones, \pct{19.1} y \pct{91.2}, que no reflejan dos
 instalaciones distintas sino dos maneras de delimitar la carga.
 Elaboración propia desde el caché de estados intermedios.}
 
@@ -147,13 +147,13 @@ menor sin que se haya instalado un solo panel adicional.
 
 El mismo hecho visto en el eje del tiempo resulta más elocuente que en
 totales. La Figura~\ref{fig:frontera-perfiles} reúne el perfil diario de
-las dos coberturas en un mismo par de paneles.
+las dos fronteras en un mismo par de paneles.
 
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f4_03_perfiles_m1_m3.png}
  \caption[Perfil comunitario bajo cada frontera]{Perfil medio por hora
- del día de la comunidad en cada cobertura. La curva verde es la misma
+ del día de la comunidad en cada frontera. La curva verde es la misma
  en los dos paneles; la gris cae casi un factor cinco. En M3 las dos
  curvas llegan a cruzarse en las horas centrales, lo que en M1 no
  ocurre nunca.
@@ -178,7 +178,7 @@ Hasta aquí el efecto es de escala, y podría parecer que M3 es simplemente
 «M1 con más recurso relativo». No lo es. El cambio de denominador altera
 qué institución tiene excedente y cuál tiene déficit en cada hora, y el
 resultado es que los papeles se invierten. La
-Figura~\ref{fig:frontera-inversion} cruza las dos coberturas conservando
+Figura~\ref{fig:frontera-inversion} cruza las dos fronteras conservando
 el orden de las instituciones, de modo que el vuelco se lee de un panel a
 otro.
 
@@ -206,7 +206,7 @@ carpetas canónicas.}
 \begin{trampabox}
 Esta figura es el origen de la regla de redacción más estricta del
 documento. Ninguna frase con superlativo («el mayor vendedor», «solo dos
-instituciones», «ninguna») puede escribirse sin decir de qué cobertura
+instituciones», «ninguna») puede escribirse sin decir de qué frontera
 habla, porque la institución que domina la venta en una frontera apenas
 participa en la otra. Toda afirmación de ese tipo en los capítulos
 siguientes se comprobó releyendo el archivo de flujos de la frontera
@@ -235,7 +235,7 @@ escalones sucesivos.
  \label{fig:frontera-embudo}
 \end{figure}
 
-\notafig{El recorrido es el mismo en las dos coberturas hasta el
+\notafig{El recorrido es el mismo en las dos fronteras hasta el
 segundo escalón, porque hay generación en \num{3353} horas y esa cifra no
 depende de la frontera. La separación empieza en el tercero: bajo M1
 quedan \num{1047} horas con excedente y se transa en \num{1029}; bajo M3,
@@ -254,7 +254,7 @@ horas y se diluye sobre el total.
 \subsection{Una salvedad que hay que declarar}
 \label{sub:frontera-mariana}
 
-La cobertura M3 no es perfectamente homogénea, y conviene decirlo aquí y
+La frontera M3 no es perfectamente homogénea, y conviene decirlo aquí y
 no en una nota al pie. Cuatro de las cinco instituciones tienen un
 medidor de circuito secundario que el pipeline lee directamente. Mariana
 no lo tiene. Para representarla en M3, el pipeline
@@ -264,7 +264,7 @@ facultad.
 
 Ese factor es una convención, no una medición, y se declara como tal.
 Afecta a una de las cinco instituciones y solo en una de las dos
-coberturas. Su efecto sobre el resultado agregado se examina en el
+fronteras. Su efecto sobre el resultado agregado se examina en el
 Capítulo~\ref{sec:rob}, donde el barrido del nivel de demanda cubre
 holgadamente el rango en que ese factor podría equivocarse.
 
@@ -273,7 +273,7 @@ holgadamente el rango en que ese factor podría equivocarse.
 
 De todo lo anterior se sigue la decisión metodológica que gobierna el
 resto del documento: \textbf{cada resultado se reporta bajo las dos
-coberturas, siempre, y sin elegir una como principal.}
+fronteras, siempre, y sin elegir una como principal.}
 
 La tentación de elegir es real y conviene nombrarla. M1 es la frontera en
 la que el mercado entre pares obtiene su mejor resultado relativo, y una
@@ -288,7 +288,7 @@ mejor.
 
 La convención adoptada evita las dos: las figuras de los capítulos de
 resultados llevan siempre dos paneles, el izquierdo M1 y el derecho M3, y
-cuando las dos coberturas dan lecturas opuestas, se dicen las dos y se
+cuando las dos fronteras dan lecturas opuestas, se dicen las dos y se
 discute por qué difieren.
 
 En síntesis, la bifurcación deja dos preguntas con respuesta y una regla

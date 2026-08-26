@@ -1555,6 +1555,49 @@ sentido y calcaba el nombre de una función, y «Agregar a una hora» pasa a
 
 ---
 
+## C-51 · «Cobertura» significaba dos cosas; ahora frontera y cobertura
+**2026-08-23 · tipo: `estilo` · aplicada · norma permanente**
+
+Él preguntó si las coberturas M1 y M3 estaban definidas en el capítulo 2.
+La comprobación destapó dos problemas distintos.
+
+**Primero, la palabra tenía dos sentidos.** En el capítulo 2 domina el de
+fracción de horas con registro, con una subsección y una figura enteras
+dedicadas a la cobertura de adquisición. En los capítulos 3 y 4 significa
+la frontera de medición, es decir, qué circuito se lee. Y en una nota del
+capítulo 4 aparecía un tercer sentido, porque llamaba «las dos coberturas»
+a las razones 19,1 % y 91,2 %, que C-19 ya había establecido que son razón
+entre generación y demanda del circuito medido.
+
+**Decisión suya:** frontera para el circuito, cobertura solo para las
+horas. Aplicadas 28 sustituciones en los capítulos 2, 3 y 4, incluidas las
+de pies y notas, porque dejar allí el término viejo produciría justo la
+incoherencia que se quiere evitar. También en la nomenclatura, que definía
+las dos entradas como «cobertura de medición», y en un pie que llamaba
+«cobertura de generación» a la razón.
+
+Quedan tres usos de «cobertura», los tres en el sentido de fracción de
+horas con registro.
+
+**Segundo, y menos grave de lo que pareció.** M1 y M3 **sí** están
+definidos, en la tabla de nomenclatura, que precede a la introducción. Lo
+verifiqué mal en la primera lectura y hay que decirlo. Lo que faltaba es
+otra cosa: en el texto corrido del capítulo 2 aparecen solo en el
+encabezado de una tabla, y el capítulo 3 los usa diez veces dando por
+sabido algo que la narración nunca recoge. Una entrada de nomenclatura es
+una consulta, no una presentación.
+
+Se añade en el capítulo 2, junto a la tabla del inventario, el párrafo que
+faltaba: que el modelo lee uno de los dos medidores de cada institución,
+que el trabajo entero se recorre dos veces, y que a esos dos recorridos se
+los llama M1 y M3 por el número del medidor que emplean.
+
+**Lo que no se tocó.** Las etiquetas internas y los nombres de fichero de
+figura conservan la palabra vieja. No son prosa y renombrarlos obligaría a
+tocar los generadores sin cambiar una sola línea impresa. Queda anotado.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -1573,4 +1616,5 @@ sentido y calcaba el nombre de una función, y «Agregar a una hora» pasa a
 | P-11 | Capítulo 3: la generación expuesta frente a la instalada. | **cerrada 2026-08-23** por C-44: se distingue Udenar del resto y se enuncia sobre el agregado |
 | P-12 | Capítulo 3: la explicación posicional del caso bruto para el Hospital no está probada. Cero horas negativas no demuestran posición: una carga hospitalaria siempre mayor que la generación tampoco invertiría el flujo aunque el medidor neteara. | pendiente |
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
+| P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

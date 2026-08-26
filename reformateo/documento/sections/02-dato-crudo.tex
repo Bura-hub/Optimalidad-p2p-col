@@ -280,7 +280,7 @@ cada equipo con el circuito que mide, el tablero donde está montado, el
 transformador de corriente y la escala de conversión. La
 Tabla~\ref{tab:dato-inventario} recoge de ahí los dos medidores que el
 modelo emplea en cada institución, y lo que muestra obliga a corregir cómo
-se venían llamando las dos coberturas de medición.
+se venían llamando las dos fronteras de medición.
 
 \begin{table}[H]
     \centering
@@ -313,9 +313,15 @@ se venían llamando las dos coberturas de medición.
     \end{tabular}
 \end{table}
 
+De cada institución el modelo lee uno de esos dos medidores, y el trabajo
+entero se recorre dos veces, una con cada elección. Los dos recorridos se
+llaman en adelante M1 y M3, por el número del medidor que cada uno emplea,
+y el Capítulo~\ref{sec:frontera} desarrolla en qué se diferencian y por
+qué se reportan siempre los dos.
+
 \begin{detallebox}
 No todas las fuentes instrumentadas se usan. De los 20 medidores, el
-modelo lee un equipo por institución en cada cobertura, de modo que 8
+modelo lee un equipo por institución en cada frontera, de modo que 8
 participan y 12 quedan como auxiliares. De los 7 inversores, 5
 definen la generación que ve el modelo y los otros 2 intervienen solo en
 la reconstrucción de la demanda de Udenar. La razón de no sumar todo lo

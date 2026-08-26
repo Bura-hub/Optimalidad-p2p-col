@@ -1224,6 +1224,41 @@ por decisión suya.
 
 ---
 
+## C-42 · El nivel de tensión: se mantiene el 2 y se deja de minimizar la discrepancia
+**2026-08-23 · tipo: `contenido` · aplicada · cierra P-8**
+
+El capítulo declaraba el nivel de tensión 2 y, en la misma oración, decía
+que «la revisión regulatoria del proyecto» lo sitúa en el nivel 1,
+presentando la discrepancia como «únicamente la verificación».
+
+**Lo comprobado.** El nivel 2 es el que usa el trabajo, confirmado por el
+autor y por el módulo de tarifas, que lo declara como supuesto para las
+cinco instituciones y remite a la factura para verificarlo. El nivel 1 no
+es una hipótesis suelta: lo cita el asesor regulatorio del proyecto en su
+informe, y la auditoría de agosto lo registra como declarado y sin
+resolver.
+
+**Lo que la frase escondía.** Entre los dos niveles median 18,7 puntos
+porcentuales del costo unitario, 944,7 frente a 795,7 pesos por kilovatio
+hora, y la diferencia está entera en el cargo de distribución, que pasa de
+266,5 a 156,7. Llamar «únicamente una verificación» a una discrepancia que
+mueve casi una quinta parte de todas las cifras económicas la
+empequeñecía.
+
+Reescrito en tres párrafos: el nivel que se usa y qué lo respalda; la
+discrepancia con su magnitud y su origen; y por qué no altera el
+ordenamiento.
+
+**Una promesa que se acotó.** El párrafo final afirmaba que el capítulo de
+robustez «muestra que el ordenamiento sobrevive a variaciones de ese techo
+muy superiores a la diferencia entre los dos niveles». Ese capítulo aún no
+está escrito, de modo que la afirmación no se puede comprobar hoy. Lo que
+sí consta es el rango del barrido del techo en el análisis de sensibilidad
+global, más ancho que la distancia entre los dos niveles, y eso es lo que
+la frase dice ahora.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -1234,7 +1269,7 @@ por decisión suya.
 | P-4 | Capítulo 4: reescribir la contraposición «campus completo frente a ramal fotovoltaico». | **cerrada 2026-08-23** por C-40: cinco pasajes y el diagrama |
 | P-6 | Establecer si `MedicionesMTE_v3/` es anterior o posterior a la corrección de escala que describe el inventario. Es prioritario. | pendiente |
 | P-7 | Cifrar el cargo del reactivo. | **cerrada 2026-08-23**: no hacía falta una tarifa propia; la norma lo cobra como energía activa en los cargos por uso de redes. 1.877.304 y 1.215.258 pesos. Ver C-29 |
-| P-8 | Capítulo 5: el texto asume nivel de tensión 2 y en la misma oración dice que «la revisión regulatoria del proyecto sitúa en el nivel 1». Si la revisión ya lo sitúa en 1, asumir el 2 es más que una verificación pendiente. Exige saber qué dice esa revisión. | pendiente de decisión |
+| P-8 | Nivel de tensión del capítulo 5. | **cerrada 2026-08-23** por C-42: se mantiene el nivel 2 y se declara la discrepancia con su magnitud, 18,7 % del costo unitario. La verificación contra facturas sigue abierta |
 | P-9 | Capítulo 5: «la agencia internacional de energías renovables» y «el plan indicativo de expansión» no llevan nombre ni cita, de modo que las tres cifras del rango de costo nivelado no se pueden rastrear. Parecen IRENA y la UPME. | pendiente |
 | P-10 | Anexo F: una nota dice que el Hospital no rebasa el umbral «ni una sola hora» en el circuito principal, y la tabla le registra 1 hora y 2 pesos. O se redondea en la prosa o la fila está mal. Está dentro de una nota, de modo que la decisión es del autor. | pendiente de decisión |
 | P-11 | Capítulo 3: «la generación expuesta al mercado es menor que la instalada en el sitio» solo vale para Udenar, que tiene tres inversores y expone uno; en las otras cuatro el inversor designado es el único instalado. | pendiente |

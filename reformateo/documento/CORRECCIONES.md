@@ -1287,6 +1287,51 @@ ese mismo término.
 
 ---
 
+## C-44 · Revisión de claridad del capítulo 3 completo
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Aplicado a todo el capítulo el criterio con que él corrigió la apertura en
+C-43: buscar lo que llega sin que el lector lo tenga. Trece correcciones.
+
+**Cuatro términos que el lector no tenía.**
+
+1. «La plataforma de origen» seguía apareciendo en la subsección de
+   localización, con el mismo defecto que se corrigió en la apertura y sin
+   definirse en ninguna parte. El ejemplo que sigue ya dice de qué se
+   habla, de modo que basta con nombrar las carpetas.
+2. «Las matrices resultantes» aparecía al hablar de la agregación
+   horaria, veinte páginas antes de que las matrices se definan. Pasa a
+   «las series resultantes», que el lector sí tiene.
+3. «Las 10 series» se citaba tres veces sin decir nunca cuáles son.
+   Ahora se dice: la demanda y la generación de cada institución.
+4. «El integrador» y «la rigidez numérica» llegaban sin glosa, y el modelo
+   que los emplea es cosa de tres capítulos más adelante. Pasan a «el
+   método numérico que resuelve el equilibrio de una hora no converge».
+
+**Un antecedente que colgaba de una caja.** La subsección de los tipos de
+medidor abría con «La explicación es de topología eléctrica», y aquello
+que se explicaba solo estaba dicho en una caja de lectura, que un lector
+puede saltarse sin perder el hilo. Se antepone la frase que lo sostiene.
+
+**Una cuenta interna que no cuadraba.** El texto anunciaba «las
+principales elecciones del pipeline, y la única del modelo», y enumeraba
+dos del modelo, la ausencia de gestión de la demanda y el descarte de las
+horas difíciles.
+
+**Una desigualdad que solo valía para una institución.** «La generación
+expuesta al mercado es menor que la instalada en el sitio» solo es cierta
+en Udenar, que aporta tres inversores y expone uno; en las otras cuatro el
+equipo designado es el único, de modo que coinciden. Cierra P-11.
+
+**Lo demás.** Un pie de figura que no decía de qué institución era la
+serie que dibuja, y ahora nombra a la Universidad Mariana, que es la de
+más valores atípicos; «un piso del 20 % por encima del percentil», que se
+leía como un piso del 20 %; una aposición que se leía como un miembro más
+de la enumeración; y dos referencias con una notación de sección que el
+documento no usa en ningún otro sitio.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -1300,7 +1345,7 @@ ese mismo término.
 | P-8 | Nivel de tensión del capítulo 5. | **cerrada 2026-08-23** por C-42: se mantiene el nivel 2 y se declara la discrepancia con su magnitud, 18,7 % del costo unitario. La verificación contra facturas sigue abierta |
 | P-9 | Capítulo 5: «la agencia internacional de energías renovables» y «el plan indicativo de expansión» no llevan nombre ni cita, de modo que las tres cifras del rango de costo nivelado no se pueden rastrear. Parecen IRENA y la UPME. | pendiente |
 | P-10 | Anexo F: una nota dice que el Hospital no rebasa el umbral «ni una sola hora» en el circuito principal, y la tabla le registra 1 hora y 2 pesos. O se redondea en la prosa o la fila está mal. Está dentro de una nota, de modo que la decisión es del autor. | pendiente de decisión |
-| P-11 | Capítulo 3: «la generación expuesta al mercado es menor que la instalada en el sitio» solo vale para Udenar, que tiene tres inversores y expone uno; en las otras cuatro el inversor designado es el único instalado. | pendiente |
+| P-11 | Capítulo 3: la generación expuesta frente a la instalada. | **cerrada 2026-08-23** por C-44: se distingue Udenar del resto y se enuncia sobre el agregado |
 | P-12 | Capítulo 3: la explicación posicional del caso bruto para el Hospital no está probada. Cero horas negativas no demuestran posición: una carga hospitalaria siempre mayor que la generación tampoco invertiría el flujo aunque el medidor neteara. | pendiente |
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

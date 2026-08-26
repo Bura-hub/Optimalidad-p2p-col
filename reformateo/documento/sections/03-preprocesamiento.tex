@@ -127,7 +127,7 @@ decodifican, lo ordenan y lo expresan en las unidades del modelo.
 \textbf{Localización.} Los datos crudos se organizan en una carpeta por
 institución, con subcarpetas por medidor y por inversor. La búsqueda es
 deliberadamente tolerante a diferencias de mayúsculas y de escritura,
-porque los nombres de la plataforma de origen no son uniformes: la
+porque los nombres con que llegan las carpetas no son uniformes: la
 carpeta de medidores de CESMAG, por ejemplo, viene escrita
 \code{eletricMeter}, con la errata de origen, y se conserva así para
 reproducir exactamente la estructura de la fuente en vez de corregirla y
@@ -165,7 +165,7 @@ integral de la potencia en ese intervalo, $E = \int P\,dt$, y con
 $\Delta t = \uni{1}{h}$ la potencia media en kilovatios coincide
 numéricamente con la energía horaria en kilovatios hora. Las hasta 30
 muestras de 2 minutos de cada hora aproximan esa integral. La
-consecuencia práctica es que las matrices resultantes pueden leerse
+consecuencia práctica es que las series resultantes pueden leerse
 indistintamente como potencia media horaria o como energía horaria, y a
 lo largo del documento se usan las dos lecturas según convenga.
 
@@ -224,8 +224,10 @@ averiado, es un medidor que está restando la generación antes de reportar.
 \subsection{Tres tipos de medidor}
 \label{sub:prep-tipos}
 
-La explicación es de topología eléctrica. Cuando el inversor fotovoltaico
-inyecta \emph{aguas abajo} del punto de medición, el medidor no observa
+El patrón que la figura revela, concentrado en las horas de sol y
+ausente de noche, apunta a dónde está puesto el medidor y no a una
+avería. La explicación es de topología eléctrica. Cuando el inversor
+fotovoltaico inyecta \emph{aguas abajo} del punto de medición, el medidor no observa
 la demanda del circuito sino el flujo neto $D - G$. En las horas en
 que la generación supera la carga del circuito, ese flujo se invierte de
 sentido y el medidor registra un valor negativo. La lectura no es un
@@ -385,7 +387,7 @@ ecuación~\eqref{eq:prep-reconstruccion}.}
 
 \begin{detallebox}
 Conviene distinguir dos papeles del inversor dentro del pipeline, porque
-se confunden con facilidad. La matriz $G$ que consume el modelo proviene
+se confunden con facilidad. La generación $G$ que consume el modelo proviene
 de \emph{un} inversor designado por institución. La reconstrucción de la
 ecuación~\eqref{eq:prep-reconstruccion}, en cambio, suma \emph{todos} los
 inversores que inyectan detrás del medidor. Son conjuntos distintos: en
@@ -424,17 +426,18 @@ misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
 \label{sub:prep-limpieza}
 
 La última etapa que altera el valor del dato es la limpieza, que aplica
-3 tratamientos en cascada sobre cada una de las 10 series.
+3 tratamientos en cascada sobre cada una de las 10 series de medida,
+que son la demanda y la generación de cada institución.
 
 Primero, los valores que superan el umbral
 $\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$
 se marcan como faltantes. El primer término es una cerca robusta de tipo
 Tukey, con un multiplicador de 5 deliberadamente más permisivo que el
 1,5 clásico, de modo que solo elimine valores físicamente inverosímiles.
-El segundo impone un piso del \pct{20} por encima del percentil
+El segundo impone un piso situado un \pct{20} por encima del percentil
 99,5, y su función es proteger los picos operativos legítimos en series de
-carga base muy estable: cuando el rango intercuartílico es pequeño, el
-caso de la demanda de CESMAG, la primera cerca se vuelve demasiado
+carga base muy estable: cuando el rango intercuartílico es pequeño, como
+ocurre con la demanda de CESMAG, la primera cerca se vuelve demasiado
 estricta y recortaría consumo real.
 
 Segundo, los huecos de hasta 3 horas se interpolan linealmente en el
@@ -450,7 +453,8 @@ tuvo que rellenar.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_05_outliers_imputacion_m1.png}
  \caption[Criterio de atípicos e imputación por mes]{A la izquierda, la
- serie de demanda reconstruida de una institución con el umbral de
+ serie de demanda reconstruida de la institución con más valores
+ atípicos, que es la Universidad Mariana, con el umbral de
  atípicos dibujado y señalados los valores que este marca; la separación
  entre el umbral y la masa de la serie muestra que el criterio no
  recorta operación normal. A la derecha, cuántas horas quedaron
@@ -471,7 +475,8 @@ Elaboración propia desde el caché de estados intermedios.}
 En el proyecto conviven tres criterios de relleno distintos, y se declara
 aquí antes de que el lector lo advierta al comparar módulos. El
 descrito aquí gobierna las 10 series de medida. La serie horaria de
-precios de bolsa (\S\ref{sec:precios}) interpola huecos de hasta seis
+precios de bolsa, que construye el Capítulo~\ref{sec:precios},
+interpola huecos de hasta seis
 horas y completa el residuo con la mediana, sin marcado de atípicos: la
 diferencia en el residuo sí se sostiene (cero es una potencia legítima,
 pero un precio de cero no describe ninguna hora del mercado mayorista),
@@ -586,20 +591,23 @@ y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
 respuesta honesta no es que las decisiones sean neutrales, sino que
 conviene mirar hacia dónde apuntan.
 
-Las principales elecciones del pipeline, y la única del modelo que
+Las principales elecciones del pipeline, y las dos del modelo que
 corresponde mencionar aquí, apuntan todas en la misma dirección:
 
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
  \item \textbf{El recorte de la reconstrucción} elimina
  \uni{1013.3}{kWh} de la demanda de Udenar en horas
- solares (\S\ref{sub:prep-costo}). Menos demanda en horas de sol
+ solares, según la subsección~\ref{sub:prep-costo}. Menos demanda en
+ horas de sol
  significa menos déficit que cubrir y, por tanto, un mercado más
  pequeño.
 
  \item \textbf{Un solo medidor y un solo inversor por institución.} El
  pipeline no suma todos los equipos disponibles sino que designa uno de
- cada clase. La generación expuesta al mercado es, por tanto, menor que
- la instalada en el sitio.
+ cada clase. En Udenar, que aporta tres inversores y expone uno, la
+ generación que ve el mercado queda por debajo de la instalada; en las
+ otras cuatro el equipo designado es el único, de modo que coinciden.
+ En el agregado comunitario, por tanto, se expone menos de lo que hay.
 
  \item \textbf{La ausencia de gestión de la demanda.} El modelo del
  Capítulo~\ref{sec:modelo} corre con la demanda tal como se midió, sin
@@ -608,9 +616,9 @@ corresponde mencionar aquí, apuntan todas en la misma dirección:
  resultado.
 
  \item \textbf{El descarte conservador de las horas numéricamente
- difíciles.} Cuando el integrador encuentra rigidez numérica, la hora
- se descarta sin imputarle beneficio al mercado entre pares, en vez de
- estimarlo.
+ difíciles.} Cuando el método numérico que resuelve el equilibrio
+ de una hora no converge, esa hora se descarta sin imputarle beneficio
+ al mercado entre pares, en vez de estimarlo.
 \end{enumerate}
 
 Ninguna de las cuatro infla el resultado; las cuatro lo recortan. La

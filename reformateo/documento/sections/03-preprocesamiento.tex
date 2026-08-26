@@ -33,12 +33,12 @@ proceso completo.
 \subsection{El camino completo, de un vistazo}
 \label{sub:prep-mapa}
 
-Antes del detalle conviene tener el mapa, porque las 10 transformaciones
-no son todas de la misma clase: unas alteran el valor del dato y otras
-solo lo localizan, lo convierten o lo verifican. Saber cuáles son las
-primeras es lo que permite discutir después la fidelidad del resultado sin
-revisarlo todo. La Figura~\ref{fig:prep-pipeline} las ordena y las
-distingue.
+Antes de precisar con detalle cada etapa es importante ver el flujo
+completo de procesamiento, porque las 10 no son todas de la misma clase:
+solo 3 alteran el valor del dato y las otras 7 lo ubican, lo convierten o
+lo verifican. La distinción importa para lo que viene después, porque una
+objeción sobre la fidelidad de las cifras solo puede dirigirse a esas 3.
+La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
 
 \begin{figure}[H]
  \centering
@@ -153,7 +153,10 @@ promediándolas, lo que evita ambigüedades al concatenar los tramos.
 \textbf{Unidades.} La potencia de los medidores viene en kilovatios y se
 usa directamente; la de los inversores viene en vatios y se divide entre
 mil. La salida del inversor se recorta además a valores no negativos,
-porque la potencia de corriente alterna inyectada no puede ser negativa.
+porque la potencia de corriente alterna inyectada no puede ser negativa. El
+recorte es defensivo y no llega a actuar: ninguno de los siete inversores
+registra una sola lectura por debajo de cero, de modo que esta etapa deja
+el valor intacto.
 
 \textbf{Agregación a paso horario.} Las series se remuestrean a una hora
 tomando la \emph{media} de las muestras del intervalo, no la suma. La

@@ -1447,6 +1447,33 @@ hasta aquí se daba por sabido.
 
 ---
 
+## C-48 · Una frase vaga, y el hueco que apareció al concretarla
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él preguntó qué quería decir «saber cuáles son las primeras es lo que
+permite discutir después la fidelidad del resultado sin revisarlo todo».
+La pregunta estaba bien hecha: la frase no decía cuántas son ni qué se
+ahorra, de modo que enunciaba una ventaja sin cuantificarla.
+
+Concretado: de las 10 etapas, solo 3 alteran el valor del dato y las otras
+7 lo ubican, lo convierten o lo verifican, de manera que una objeción
+sobre la fidelidad de las cifras solo puede dirigirse a esas 3. También se
+unificó «fase» con «etapa», que convivían en la misma oración.
+
+**Y al concretarlo apareció que el capítulo se contradecía.** Sostiene que
+las cinco primeras etapas no tocan el valor, y la cuarta recorta la salida
+del inversor a valores no negativos, que es una alteración en toda regla.
+Si un revisor lo nota, la afirmación de que solo tres etapas mueven cifras
+se cae.
+
+Medido sobre los siete inversores y todos sus registros: **cero lecturas
+por debajo de cero**. El recorte es defensivo y no llega a actuar nunca,
+de modo que la afirmación se sostiene, pero solo porque el dato no la pone
+a prueba. Eso se dice ahora en el párrafo de las unidades, que era donde
+faltaba.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

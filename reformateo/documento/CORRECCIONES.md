@@ -1474,10 +1474,93 @@ faltaba.
 
 ---
 
+## C-49 · El diagrama del pipeline, rehecho
+**2026-08-25 · tipo: `técnico` · aplicada**
+
+La figura 3.1 decía casi lo que dice ahora, pero lo decía mal. Las diez
+etapas iban en tres filas de cajas iguales, de modo que los tres grupos de
+que habla el texto (las cinco que localizan, las tres que alteran el valor
+y las dos que ensamblan) no se distinguían: el corte entre grupos caía en
+mitad de una fila. La única marca era el color de tres cajas y una llave
+que hubo que trazar de este a oeste para que no cruzara las cajas que
+pretendía agrupar. Y la propiedad que sostiene todo el capítulo 4, es
+decir que las dos coberturas se separan en la etapa 1 y solo en ella, se
+enunciaba en una nota al margen: no se veía.
+
+Se sustituyó solo el bloque `tikzpicture`; el pie y el texto que rodean la
+figura quedaron intactos. El diagrama es ahora de tres carriles, uno por
+grupo, cada uno con su rótulo a la izquierda y su fondo propio, y el del
+medio resaltado. La bifurcación se dibuja: dos marcas, M1 y M3, con los
+mismos colores que el esquema de fronteras del capítulo 4, entran en la
+etapa 1 y no vuelven a aparecer. La salida se declara con su dimensión y
+con la propiedad que se verifica, que es la no negatividad.
+
+Dos rótulos cambiaron de palabra. La etapa 10 decía «Localizar zona
+horaria», que repetía el verbo de la etapa 1 con otro sentido y era un
+calco del nombre de la función; ahora dice «Fijar la zona horaria». La 5
+decía «Agregar a una hora» y dice «Agregar a paso horario», que es como la
+nombra el propio texto.
+
+Comprobado contra `data/xm_data_loader.py` y `data/preprocessing.py`: las
+diez etapas existen, están en ese orden salvo lo que recoge P-14, y las
+tres resaltadas son las que mueven cifras. Compila sin errores y sin
+desbordes, y la figura sigue cayendo en la página 15.
+
+---
+
+## C-50 · P-15 cerrada: la bifurcación no era solo la etapa 1
+**2026-08-23 · tipo: `dato` · aplicada · cierra un pendiente**
+
+El agente que rehízo el diagrama comprobó el pipeline contra el código y
+encontró que la afirmación del capítulo 3 es más fuerte de lo que el
+código sostiene. Verificado aparte antes de aceptarlo.
+
+**Lo que dice el código.** La configuración de medidores lleva tres
+campos, no uno: la subcarpeta que se lee, el tipo de medidor declarado y
+un factor de escala. En la frontera principal los tipos son neto, neto
+parcial, neto parcial, bruto y bruto; **en la secundaria los cinco son
+brutos**, de modo que la reconstrucción de la etapa 7 no llega a
+ejecutarse. Y la demanda de Mariana en la frontera secundaria **se
+multiplica por 0,3**, con el mismo medidor que en la principal, porque esa
+institución no tiene un segundo medidor que leer.
+
+**Por qué importaba.** El capítulo decía «lo único que cambia es de qué
+medidor se lee, y el tratamiento posterior es idéntico», y la anotación
+dentro de la figura repetía «aquí, y solo aquí». Ninguna de las dos se
+sostiene: el factor de escala no es una propiedad del medidor.
+
+**Lo que sí se sostiene, y se conserva**, es el argumento de fondo. El
+tipo de medidor sí es una propiedad del punto de medida, de manera que la
+diferencia de reconstrucción se sigue de qué se mide y no de cómo se
+procesa. Reescrito el párrafo con esa distinción y con la excepción de
+Mariana declarada, que el capítulo 4 ya recogía y el 3 contradecía sin
+saberlo. La anotación de la figura pierde el «y solo aquí».
+
+---
+
+## C-49bis · La figura del pipeline, revisada tras el rediseño
+**2026-08-23 · tipo: `técnico` · aplicada**
+
+El rediseño resolvió el defecto de fondo: el texto describe tres grupos de
+etapas, 5, 3 y 2, y la disposición anterior en filas de cuatro, cuatro y
+tres partía los grupos por la mitad, de modo que no se veían. Ahora son
+tres carriles con fondo propio y rótulo, y la bifurcación pasa de nota al
+margen a objeto gráfico, con las marcas M1 y M3 en los mismos colores que
+el esquema de fronteras del capítulo 4.
+
+Se conserva la corrección de dos rótulos: «Localizar zona horaria» pasa a
+«Fijar la zona horaria», porque repetía el verbo de la etapa 1 con otro
+sentido y calcaba el nombre de una función, y «Agregar a una hora» pasa a
+«Agregar a paso horario», que es como lo llama el texto.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
 |---|---|---|
+| P-14 | Capítulo 3: el texto y la figura presentan la conversión de unidades (etapa 4) antes de la agregación horaria (etapa 5). El código promedia primero y divide entre mil después. El resultado es idéntico, porque dividir entre una constante conmuta con la media, pero el orden que se expone no es el que se ejecuta. Se deja como está para no tocar el texto; queda decidir si se reordena o se declara. | pendiente de decisión |
+| P-15 | La bifurcación entre coberturas no es solo la etapa 1. | **cerrada 2026-08-23** por C-50: reescrito el párrafo y la anotación de la figura, con la excepción de Mariana declarada |
 | P-1 | Pasada de vocabulario: el texto usa 3 de los 21 giros característicos del autor. Faltan «asciende a», «se sitúa entre», «conforme a», «línea base», «por transparencia metodológica». | pendiente de decisión |
 | P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | **cerrada 2026-08-23**: 1,26 tras C-25; el conjunto queda en 24,0 palabras por oración, 11,2 % largas y 74,4 por párrafo, contra 24,6 / 12,0 / 74,0 del perfil |
 | P-3 | Abreviaturas: el autor escribe UDENAR, UNIMAR, UCC, UNICESMAG, HUDN. El documento ya usa CESMAG (C-13); quedan por decidir UDENAR frente a Udenar y UNIMAR frente a Mariana. La infraestructura para cambiarlo ya existe: basta editar `ETIQUETA_INSTITUCION` en `estilo.py` y regenerar. | pendiente de decisión |

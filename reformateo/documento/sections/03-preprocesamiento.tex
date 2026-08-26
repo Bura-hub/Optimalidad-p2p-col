@@ -3,7 +3,7 @@
 % Parte I. El dato
 %
 % ENCARGO: el pipeline etapa por etapa. Es el capitulo central del
-% documento: cada transformacion con su figura de antes y despues.
+% documento: cada etapa con su figura de antes y despues.
 %
 % Reglas del documento:
 % - Una idea = una subseccion = una figura.
@@ -25,95 +25,128 @@ archivos que escribe cada uno de los 27 equipos, con una lectura cada dos
 minutos y huecos allí donde la adquisición falló. Del otro lado está lo
 que el modelo necesita para operar, que es cuánto consumió y cuánto generó
 cada institución en cada una de las \num{6144} horas del horizonte. Entre
-ambos median 10 transformaciones, y cada una encierra una decisión que
-puede cambiar el resultado final. Juzgar la solidez de las cifras del
+ambos median 10 etapas, y cada una encierra una decisión que puede
+cambiar el resultado final. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
 
 \subsection{El camino completo, de un vistazo}
 \label{sub:prep-mapa}
 
-Antes de precisar con detalle cada etapa es importante ver el flujo
-completo de procesamiento, porque las 10 no son todas de la misma clase:
+Antes de precisar cada etapa conviene ver el flujo completo de
+procesamiento, porque las 10 no son todas de la misma clase:
 solo 3 alteran el valor del dato y las otras 7 lo ubican, lo convierten o
-lo verifican. La distinción importa para lo que viene después, porque una
-objeción sobre la fidelidad de las cifras solo puede dirigirse a esas 3.
-La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
+lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
 
 \begin{figure}[H]
  \centering
  \begin{tikzpicture}[
- font=\footnotesize,
- etapa/.style={draw=black!55, fill=black!3, rounded corners=2pt,
- minimum width=2.55cm, minimum height=0.78cm,
- align=center, inner sep=3pt},
- clave/.style={etapa, draw=infocolor, fill=infocolor!12,
- very thick},
- flecha/.style={-{Stealth[length=4pt]}, draw=black!55},
- nota/.style={font=\scriptsize\itshape, text=black!60, align=center},
+ x=1cm, y=1cm,
+ font=\linespread{1}\scriptsize\selectfont,
+ etapa/.style={anchor=west, draw=black!45, fill=white,
+ rounded corners=2pt, minimum width=2.30cm, minimum height=1.12cm,
+ align=center, inner sep=2pt},
+ clave/.style={etapa, draw=infocolor, fill=infocolor!14, thick},
+ salida/.style={etapa, draw=successcolor, fill=successcolor!12,
+ thick, minimum width=4.96cm},
+ chip/.style={anchor=west, rounded corners=2pt, thick,
+ minimum width=1.10cm, minimum height=0.42cm, inner sep=1pt},
+ flecha/.style={-{Stealth[length=4.5pt, width=3.5pt]}, draw=black!55,
+ line width=0.5pt},
+ retorno/.style={flecha, draw=black!40, rounded corners=3pt},
+ rotulo/.style={anchor=east, align=right, text=black!62,
+ font=\linespread{1}\scriptsize\selectfont\itshape},
+ nota/.style={align=left, text=black!62,
+ font=\linespread{1}\scriptsize\selectfont\itshape},
  ]
- \node[etapa] (e1) {1. Localizar\\archivos};
- \node[etapa, right=0.42cm of e1] (e2) {2. Leer\\y decodificar};
- \node[etapa, right=0.42cm of e2] (e3) {3. Marcas\\de tiempo};
- \node[etapa, right=0.42cm of e3] (e4) {4. Convertir\\unidades};
+ % Tres carriles. El del medio reúne las etapas que alteran el valor del
+ % dato; los otros dos, las que solo lo ubican, lo convierten o lo
+ % verifican. Se pintan al fondo para que las cajas queden encima.
+ \begin{scope}[on background layer]
+ \fill[black!4, rounded corners=3pt] (2.80,-0.72) rectangle (16.05,0.72);
+ \fill[infocolor!8, rounded corners=3pt] (2.80,-2.67) rectangle (16.05,-1.23);
+ \fill[black!4, rounded corners=3pt] (2.80,-4.62) rectangle (16.05,-3.18);
+ \end{scope}
 
- \node[etapa, below=0.85cm of e1] (e5) {5. Agregar\\a una hora};
- \node[clave, right=0.42cm of e5] (e6) {6. Clasificar\\el medidor};
- \node[clave, right=0.42cm of e6] (e7) {7. Reconstruir\\demanda bruta};
- \node[clave, right=0.42cm of e7] (e8) {8. Atípicos\\y huecos};
+ % --- Carril 1: localizar, decodificar y convertir --------------------
+ \node[etapa] (e1) at (2.9500, 0) {\textbf{1}\\Localizar los\\archivos};
+ \node[etapa] (e2) at (5.6125, 0) {\textbf{2}\\Leer y\\decodificar};
+ \node[etapa] (e3) at (8.2750, 0) {\textbf{3}\\Marcas\\de tiempo};
+ \node[etapa] (e4) at (10.9375,0) {\textbf{4}\\Convertir\\las unidades};
+ \node[etapa] (e5) at (13.6000,0) {\textbf{5}\\Agregar a\\paso horario};
 
- \node[etapa, below=0.85cm of e5] (e9) {9. Ensamblar\\y verificar};
- \node[etapa, right=0.42cm of e9] (e10) {10. Localizar\\zona horaria};
- \node[etapa, draw=successcolor, fill=successcolor!12, very thick,
- right=0.42cm of e10, minimum width=3.4cm] (out)
- {Matrices $D$ y $G$\\ $5 \times 6\,144$};
+ % --- Carril 2: las tres etapas que alteran el valor ------------------
+ \node[clave] (e6) at (2.9500, -1.95) {\textbf{6}\\Clasificar\\el medidor};
+ \node[clave] (e7) at (5.6125, -1.95) {\textbf{7}\\Reconstruir la\\demanda bruta};
+ \node[clave] (e8) at (8.2750, -1.95) {\textbf{8}\\Atípicos\\y huecos};
 
+ % --- Carril 3: ensamblar, verificar y entregar -----------------------
+ \node[etapa] (e9) at (2.9500, -3.90) {\textbf{9}\\Ensamblar\\y verificar};
+ \node[etapa] (e10) at (5.6125, -3.90) {\textbf{10}\\Fijar la\\zona horaria};
+ \node[salida] (out) at (10.9375,-3.90)
+ {\textbf{Matrices $D$ y $G$}\\$5 \times \num{6144}$, no negativas};
+
+ % --- Rótulos de carril ----------------------------------------------
+ \node[rotulo] at (2.62, 0) {localizan,\\decodifican\\y convierten};
+ \node[rotulo, text=infocolor,
+ font=\linespread{1}\scriptsize\selectfont\bfseries]
+ at (2.62,-1.95) {las tres etapas\\que alteran\\el valor del dato};
+ \node[rotulo] at (2.62,-3.90) {ensamblan\\y verifican};
+
+ % --- Avance dentro de cada carril ------------------------------------
  \draw[flecha] (e1) -- (e2);
  \draw[flecha] (e2) -- (e3);
  \draw[flecha] (e3) -- (e4);
- \draw[flecha] (e4.south) -- ++(0,-0.28) -| (e5.north);
- \draw[flecha] (e5) -- (e6);
+ \draw[flecha] (e4) -- (e5);
  \draw[flecha] (e6) -- (e7);
  \draw[flecha] (e7) -- (e8);
- \draw[flecha] (e8.south) -- ++(0,-0.28) -| (e9.north);
  \draw[flecha] (e9) -- (e10);
  \draw[flecha] (e10) -- (out);
 
- \node[nota, above=0.10cm of e1] {aquí, y solo aquí,\\se separan M1 y M3};
- % La llave se traza de este a oeste a propósito: la decoración
- % «brace» abomba hacia la izquierda del sentido de avance, de modo
- % que dibujarla de oeste a este la curvaría hacia arriba y cruzaría
- % las tres cajas que pretende agrupar.
- \draw[decorate, decoration={brace, amplitude=4pt}, draw=infocolor]
- ($(e8.south east)+(0,-0.14)$) -- ($(e6.south west)+(0,-0.14)$)
- node[midway, below=6pt, nota, text=infocolor]
- {las tres etapas que alteran el valor del dato};
+ % --- Paso de un carril al siguiente ----------------------------------
+ \draw[retorno] (e5.south) -- ++(0,-0.42) -| (e6.north);
+ \draw[retorno] (e8.south) -- ++(0,-0.42) -| (e9.north);
+
+ % --- La bifurcación de las dos coberturas, en la etapa 1 -------------
+ \node[chip, draw=sectioncolor, fill=sectioncolor!14, text=sectioncolor]
+ (pm1) at (2.95, 1.34) {\textbf{M1}};
+ \node[chip, draw=warningcolor, fill=warningcolor!16, text=warningcolor]
+ (pm3) at (4.15, 1.34) {\textbf{M3}};
+ \draw[flecha, draw=sectioncolor, line width=0.7pt]
+ (pm1.south) -- (e1.north);
+ \draw[flecha, draw=warningcolor, line width=0.7pt]
+ (pm3.south) -- (e1.north);
+ \node[nota, anchor=west, text width=8.4cm] at (5.70, 1.34)
+ {aquí se separan las dos coberturas de medición:
+ cambia el medidor que se lee y, con él, su tipo};
+
+ \node[nota, anchor=center, align=center, text=infocolor]
+ at (13.31,-1.95) {aquí se juega\\la fidelidad del dato};
  \end{tikzpicture}
  \caption[El pipeline de preprocesamiento en 10 etapas]{Las 10
- etapas del preprocesamiento, en el orden en que se ejecutan. Las tres
- resaltadas en azul son las únicas que modifican el valor numérico de
- la serie; las restantes reorganizan, convierten o verifican. La
- bifurcación entre las dos coberturas de medición ocurre en la etapa~1.
- \fuente{elaboración propia a partir de \file{data/preprocessing.py}
- y \file{data/xm\_data\_loader.py}.}}
+ etapas del preprocesamiento, en el orden en que se ejecutan. La
+ bifurcación entre las dos coberturas de medición ocurre en la etapa~1.}
  \label{fig:prep-pipeline}
 \end{figure}
 
-\notafig{Las 10 etapas se agrupan en tres bloques de naturaleza
-distinta. Las cinco primeras localizan, decodifican y convierten, sin
-tocar el valor. Las tres resaltadas lo modifican, y son las únicas que
-pueden alterar un resultado. Las dos últimas ensamblan y verifican. Esa
+Esas 7 se reparten a su vez en dos grupos: las 5 primeras localizan,
+decodifican y convierten, y las 2 últimas ensamblan y verifican. Las 3
+restantes, resaltadas en la figura, son las que modifican el valor. Esa
 separación es la que permite decir con precisión dónde se juega la
-fidelidad del dato. Elaboración propia a partir de
-\file{data/preprocessing.py}.}
+fidelidad del dato.
 
-De ese mapa conviene retener una propiedad. Todo el trabajo se recorre dos
+Del mapa importa retener una propiedad. Todo el trabajo se recorre dos
 veces, una por cada frontera de medición de las que trata el
-Capítulo~\ref{sec:frontera}, y los dos recorridos se separan en la primera
-etapa y solo en ella: lo único que cambia es de qué medidor se lee, y el
-tratamiento posterior es idéntico. Cualquier diferencia entre M1 y M3 en
-los resultados es, por tanto, atribuible a qué se mide y no a cómo se
-procesa.
+Capítulo~\ref{sec:frontera}, y lo que distingue a los dos recorridos es
+qué medidor se lee en la primera etapa. De ahí se sigue el resto, porque
+el tipo de medidor es una propiedad del punto de medida y no una decisión
+de proceso: en la frontera secundaria los cinco son brutos, de modo que la
+reconstrucción de la etapa 7 no llega a ejecutarse. Cualquier diferencia
+entre M1 y M3 en los resultados es, por tanto, atribuible a qué se mide,
+con una excepción que el Capítulo~\ref{sec:frontera} declara y que
+conviene no descubrir allí: la demanda de Mariana en la frontera
+secundaria se multiplica por un factor convenido, porque esa institución
+no tiene un segundo medidor que leer.
 
 \subsection{Del archivo a la serie horaria}
 \label{sub:prep-lectura}
@@ -585,7 +618,7 @@ de estados intermedios.}
 \subsection{Las decisiones que sesgan en contra}
 \label{sub:prep-sesgo}
 
-Un capítulo que describe 10 transformaciones sobre el dato debe
+Un capítulo que describe 10 etapas de tratamiento del dato debe
 responder a una objeción evidente: si se tomaron 10 decisiones
 y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
 respuesta honesta no es que las decisiones sean neutrales, sino que

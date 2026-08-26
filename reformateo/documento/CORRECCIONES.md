@@ -1409,6 +1409,44 @@ errata, que es de lo que habla el párrafo.
 
 ---
 
+## C-47 · El párrafo del mapa prometía una cosa y entregaba otra
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él lo describió como un caos y pidió compararlo contra el capítulo 2 y
+contra lo que le precede. El problema no estaba en las frases sino en el
+orden.
+
+**Anunciaba el mapa y no lo daba.** Abría con «antes del detalle conviene
+tener el mapa» y gastaba tres oraciones en una propiedad concreta, la
+bifurcación, antes de llegar a la figura. El anuncio y lo anunciado
+quedaban separados por todo el párrafo, cuando el resto del documento
+cierra con la figura el párrafo que la motiva.
+
+**Arrancaba en frío.** «La bifurcación» llegaba sin que nada anterior
+hubiera dicho que el proceso se separa en dos, y el capítulo 2 tampoco lo
+dice: nombra las dos coberturas, pero no que el trabajo entero se recorra
+dos veces.
+
+**Usaba vocabulario que aún no tocaba.** «Qué subcarpeta de medidor se
+lee» es lenguaje de sistema de archivos treinta líneas antes de que se
+explique la estructura de carpetas, y el lector no tiene con qué
+entenderlo.
+
+**Y duplicaba el pie de la figura**, que ya dice que la bifurcación ocurre
+en la etapa 1 y cuáles son las tres etapas resaltadas.
+
+Se separa en dos párrafos. El primero motiva la figura y termina en ella,
+diciendo lo que el pie no dice: que las diez no son de la misma clase y
+que saber cuáles alteran el valor es lo que permite discutir después la
+fidelidad sin revisarlo todo. El segundo, detrás de la figura, saca la
+consecuencia, que es lo único que quedaba sin decir en ninguna parte: como
+los dos recorridos se separan en la primera etapa y solo en ella,
+cualquier diferencia entre M1 y M3 es atribuible a qué se mide y no a cómo
+se procesa. Y se declara de paso que el trabajo se recorre dos veces, que
+hasta aquí se daba por sabido.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

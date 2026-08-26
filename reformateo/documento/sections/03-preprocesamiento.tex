@@ -30,24 +30,15 @@ puede cambiar el resultado final. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
 
-El proceso se reparte en dos responsabilidades que conviene no confundir.
-La primera es genérica y no sabe de instituciones: localiza los archivos,
-los lee y limpia las series. La segunda es propia de esta comunidad,
-porque decide qué punto físico se mide en cada institución y garantiza que
-la demanda que llega al modelo no sea negativa. De las tres etapas que
-alteran el valor del dato, dos pertenecen a la segunda.
-
 \subsection{El camino completo, de un vistazo}
 \label{sub:prep-mapa}
 
-Antes del detalle conviene tener el mapa. La bifurcación entre las dos
-coberturas de medición que el Capítulo~\ref{sec:frontera} desarrolla
-ocurre en la primera etapa y solo en la primera: lo que cambia entre M1 y
-M3 es qué subcarpeta de medidor se lee, y todo el tratamiento posterior es
-idéntico. Esa es una propiedad importante del diseño, porque permite
-atribuir cualquier diferencia entre las dos coberturas a la frontera de
-medición y no al procesamiento. La Figura~\ref{fig:prep-pipeline} resume
-las 10 etapas y señala en cuál de ellas ocurre esa bifurcación.
+Antes del detalle conviene tener el mapa, porque las 10 transformaciones
+no son todas de la misma clase: unas alteran el valor del dato y otras
+solo lo localizan, lo convierten o lo verifican. Saber cuáles son las
+primeras es lo que permite discutir después la fidelidad del resultado sin
+revisarlo todo. La Figura~\ref{fig:prep-pipeline} las ordena y las
+distingue.
 
 \begin{figure}[H]
  \centering
@@ -115,6 +106,14 @@ pueden alterar un resultado. Las dos últimas ensamblan y verifican. Esa
 separación es la que permite decir con precisión dónde se juega la
 fidelidad del dato. Elaboración propia a partir de
 \file{data/preprocessing.py}.}
+
+De ese mapa conviene retener una propiedad. Todo el trabajo se recorre dos
+veces, una por cada frontera de medición de las que trata el
+Capítulo~\ref{sec:frontera}, y los dos recorridos se separan en la primera
+etapa y solo en ella: lo único que cambia es de qué medidor se lee, y el
+tratamiento posterior es idéntico. Cualquier diferencia entre M1 y M3 en
+los resultados es, por tanto, atribuible a qué se mide y no a cómo se
+procesa.
 
 \subsection{Del archivo a la serie horaria}
 \label{sub:prep-lectura}

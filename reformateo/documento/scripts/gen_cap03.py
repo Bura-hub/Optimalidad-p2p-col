@@ -65,6 +65,51 @@ def _mes_es(periodo) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+def verificar_inversores():
+    """
+    Compuerta de las cifras que el capítulo cita sobre los inversores.
+
+    El párrafo de la unidad y el recorte no lleva figura, de modo que sus
+    cifras no quedan atadas a ningún generador. Esta comprobación cumple
+    ese papel: si el dato crudo cambia de versión, la corrida se detiene
+    en vez de dejar en el texto un número que ya no reproduce.
+
+    No dibuja nada.
+    """
+    import cache_crudo as CC
+
+    raiz = CC.raiz_mte()
+    T0, T1 = pd.Timestamp("2025-04-04"), pd.Timestamp("2025-12-16")
+    total = 0
+    peor = 0.0
+    for carpeta in sorted(raiz.glob("*/[Ii]nverter*/*/")):
+        partes = []
+        for p in sorted(carpeta.rglob("*.csv")):
+            d = pd.read_csv(p, usecols=["date", "acPower"], low_memory=False)
+            ts = pd.to_datetime(d["date"], errors="coerce")
+            v = pd.to_numeric(d["acPower"], errors="coerce")
+            partes.append(pd.Series(v[ts.notna()].values, index=ts[ts.notna()]))
+        if not partes:
+            continue
+        s = pd.concat(partes).sort_index()
+        h = s[(s.index >= T0) & (s.index < T1)]
+        assert float(h.min()) == 0.0, (carpeta.name, float(h.min()))
+        assert float(s.min()) == 0.0, (carpeta.name, float(s.min()))
+        assert int((h < 0).sum()) == 0, carpeta.name
+        # la división conmuta con la media; el recorte no, y por eso se mide
+        a = h.groupby(h.index).mean().resample("1h").mean() / 1000.0
+        b = (h / 1000.0).groupby(h.index).mean().resample("1h").mean()
+        peor = max(peor, float((a - b).abs().max()))
+        total += len(h)
+
+    assert total == 793981, total
+    assert peor < 1e-14, peor
+    print(f"  [inversores] {total:,d} lecturas, mínimo 0 W en los siete, "
+          f"conmutación {peor:.1e} kW — cifras del capítulo intactas")
+    return total, peor
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 def f31_archivo_a_serie():
     """
     El recorrido de una hora real, del archivo a la serie horaria.
@@ -901,6 +946,7 @@ def f39_ritmos(cobertura: str = "m1"):
 if __name__ == "__main__":
     D.verificar_canon()
     print("\nCapítulo 3 — la domesticación del dato")
+    verificar_inversores()
     f31_archivo_a_serie()
     for cob in ("m1", "m3"):
         f32_demanda_negativa(cob)

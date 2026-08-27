@@ -710,3 +710,25 @@ exige una comprobación en campo.
 leerla **en las marcas de hora en punto** (no del primer al último instante
 de la hora, que son 58 minutos y sesgan el resultado un 3 %), y comparar su
 diferencia con la media horaria de la potencia activa.
+
+---
+
+## H-17 · Los siete inversores comparten clase de potencia y trabajan pegados a su tope
+
+**Estado: medido. No se usa en el capítulo 3 y no cambia ninguna cifra. Se
+anota porque pertenece al asunto del recorte solar, no al de la unidad.**
+
+Los máximos de los siete inversores sobre el horizonte caen todos en la
+banda 15.144 a 15.180 (W): Udenar 15.155, 15.157 y 15.154; Mariana 15.180;
+UCC 15.166; HUDN 15.144; CESMAG 15.151. Una dispersión del 0,24 % entre
+siete equipos de cinco instituciones distintas no es casualidad: apunta a
+que las siete máquinas son de la misma clase y alcanzan su tope.
+
+**Lo que NO está verificado.** Que sean «de 15 kW» nominales. No se ha
+contrastado contra ficha técnica ni contra el inventario de instalación.
+Solo está medido el rango de los máximos observados.
+
+**Dónde importaría.** Si las siete trabajan contra su tope, parte de la
+generación disponible se estaría recortando en el propio inversor, antes de
+que ningún medidor la vea. Eso afectaría a la lectura de la generación como
+recurso, no a su medición. Es materia del capítulo del instrumento.

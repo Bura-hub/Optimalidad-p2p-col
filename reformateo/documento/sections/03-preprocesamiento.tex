@@ -220,15 +220,17 @@ El método no descansa entonces solo en el argumento físico: el propio
 equipo lo certifica.
 \end{detallebox}
 
-La unidad se convierte al final, sobre la serie ya horaria. La potencia de
-los medidores viene en kilovatios y se usa directamente; la de los
-inversores viene en vatios y se divide entre mil. El orden entre las dos
-operaciones es indiferente, porque dividir entre una constante conmuta con
-la media, pero se enuncia como se ejecuta. La salida del inversor se
-recorta además a valores no negativos, porque la potencia de corriente
-alterna inyectada no puede ser negativa, y ese recorte tampoco llega a
-actuar: ninguno de los siete inversores registra una sola lectura por
-debajo de cero.
+Los dos equipos no hablan en la misma unidad. El medidor entrega
+kilovatios y el inversor vatios, de modo que sus series no se pueden
+comparar ni sumar tal como llegan. La del inversor se divide entre mil y
+la del medidor se usa como viene.
+
+La potencia que un inversor inyecta tampoco puede ser negativa, porque
+entrega energía a la red y no la toma de ella. La etapa impone esa
+condición recortando a cero por si acaso, y el recorte nunca llega a
+actuar: la lectura más baja de cada uno de los siete inversores es
+exactamente \uni{0}{W}, sobre las \num{793981} del horizonte. Los siete
+tocan ese piso miles de veces y ninguno lo cruza ni una sola.
 
 La etapa contempla por último tres anomalías que este conjunto no
 presenta: un archivo que no se deja leer, una fecha que no se deja

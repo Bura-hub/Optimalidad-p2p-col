@@ -87,6 +87,28 @@ aporta el \pct{98.5} de los instantes repetidos, y su medidor secundario
 llega a volcar 73 lecturas idénticas en un mismo instante. Es un rasgo del
 equipo y no del método, y no altera ninguna cifra.
 
+\textbf{La unidad se convierte al final, y ahí el orden solo importa para
+el recorte.} El cargador promedia a paso horario y solo después divide
+entre mil la serie del inversor. Para la división el orden es indiferente,
+porque dividir entre una constante y promediar se pueden intercambiar sin
+que el resultado cambie; comprobado sobre los siete inversores, invertirlo
+produce diferencias a partir de la decimoquinta cifra decimal, que es ruido
+de redondeo. Con el recorte a valores no negativos no ocurre lo mismo:
+recortar y promediar no se pueden intercambiar, porque una lectura negativa
+dentro de una hora de media positiva sobreviviría al promedio y rebajaría
+el valor horario. El cargador recorta sobre la serie ya horaria, de modo
+que ese caso podría darse; sobre este conjunto no llega a existir, porque
+ninguna de las \num{793981} lecturas crudas de los siete inversores es
+negativa.
+
+\textbf{Los tres tipos de medidor llevan otro nombre en el canon.} El
+Capítulo~\ref{sec:prep} los llama neto, neto parcial y bruto, que es el
+vocabulario del texto y de las figuras. En la configuración del cargador y
+en las tablas de datos que acompañan a cada figura figuran como
+\code{net}, \code{net\_partial} y \code{gross}. Se anota la
+correspondencia aquí para que quien audite el código no la tenga que
+adivinar.
+
 \textbf{El orden exacto} en que se aplica todo lo anterior es el siguiente:
 localizar la carpeta del equipo, decodificar cada archivo, convertir la
 fecha y el valor, fundir los instantes repetidos, alinear los tramos del

@@ -1988,6 +1988,156 @@ planteado sin cuantificar.
 
 ---
 
+## C-60 · Se evaluó figura para la unidad y el recorte, y se descartó
+
+**2026-08-26 · tipo: `figura` · aplicada (como prosa, no como figura)**
+
+Él pidió para este párrafo el mismo tratamiento que para el anterior, es
+decir, una figura con dato real. El diseño lo exploró un agente aislado con
+el encargo explícito de decir que no si no había nada que enseñar. Dijo que
+no, y la medición lo sostiene.
+
+**Por qué no hay figura.** Las tres afirmaciones del párrafo son, medidas,
+sucesos sin varianza:
+
+| Afirmación | Lo medido | Por qué no se dibuja |
+|---|---|---|
+| La potencia del inversor se divide entre mil | 4.092 W a 4,092 kW | **Ya está dibujado** en la figura de la etapa, sobre una hora real |
+| Dividir y promediar conmutan | máx. diferencia 3,553·10⁻¹⁵ kW | Dos curvas idénticas y un panel de ruido en la decimoquinta cifra |
+| El recorte a no negativos no actúa | mínimo exacto 0 W en los siete | Siete marcas sobre la misma línea del cero |
+
+El capítulo ya tiene el precedente correcto para esta clase de hecho: las
+tres anomalías que nunca ocurren se resuelven en prosa con su cifra, sin
+figura. Este párrafo pertenece a esa clase.
+
+**Lo que sí faltaba, y es de fondo.** El párrafo decía que el recorte
+«tampoco llega a actuar» y callaba dónde actúa. En el código se aplica
+sobre la **serie ya horaria**, no sobre las muestras crudas, y a diferencia
+de la división **el recorte no conmuta con la media**: una lectura negativa
+dentro de una hora de media positiva no se recortaría y rebajaría el valor
+horario. Hoy la distinción es inocua, pero por un hecho más fuerte que el
+que la etapa necesita, no por la etapa misma. Ahora se dice.
+
+**Lo medido, verificado por mí contra el dato crudo** (no heredado del
+agente): 793.981 lecturas de los siete inversores en el horizonte, mínimo
+**exactamente 0 W** en los siete dentro y fuera del horizonte, cero
+lecturas negativas, y entre 3.575 y 91.971 ceros por equipo.
+
+**Una frase del agente que no sobrevivió a comprobarla.** Proponía que los
+siete tocan el cero «cada noche». Medido por días con dato, se cumple en
+255 de 255, 255 de 255, 103 de 103, 254 de 255, 254 de 254, 253 de 255 y
+254 de 255. Casi, pero no. La redacción pasa a «lo tocan miles de veces»,
+que es cierto para los siete.
+
+**Compuerta añadida.** El párrafo cita cifras y no tiene figura que las
+ate, de modo que el guion del capítulo gana una comprobación que no dibuja
+nada y se detiene si el conteo, los mínimos o la conmutación dejan de
+reproducir.
+
+**Un aviso para quien verifique.** El conteo de 793.981 son filas crudas.
+El medidor del inversor de la UCC trae 50 instantes duplicados en el
+horizonte, de modo que quien cuente sobre la serie ya fundida obtendrá
+793.931 y creerá ver un error.
+
+---
+
+## C-61 · El párrafo de la unidad pasa a lengua llana y su aparato baja al anexo
+
+**2026-08-26 · tipo: `redaccion` · aplicada**
+
+Él dijo, sobre la versión que C-60 acababa de dejar: «sigo sin entender
+nada de esto». Tenía razón, y el defecto era de destinatario.
+
+**El diagnóstico.** Los dos párrafos estaban escritos para un revisor de
+código y no para un lector. Los dos seguían la misma forma, «aquí hay una
+sutileza sobre el orden de las operaciones, pero medida da igual», de modo
+que el lector recibía dos avisos seguidos y ningún hecho. Tres defectos
+concretos:
+
+1. «El orden entre las dos operaciones» no decía cuáles, y una de ellas,
+   promediar, no aparecía en el párrafo: estaba dos párrafos más arriba.
+2. «Conmuta con la media» es jerga soltada sin traducir, y «se enuncia como
+   se ejecuta» no significa nada para quien no ha visto el código.
+3. «Un hecho más fuerte que el que la etapa necesita» era una manera
+   retorcida de decir que no hay ni una lectura negativa.
+
+**La causa de fondo.** Los párrafos contestaban una objeción que el lector
+no tiene. Nadie se pregunta si dividir entre mil antes o después de
+promediar cambia algo. Eso es contabilidad interna del cargador.
+
+**Lo aplicado.** Se quedan los dos hechos que el lector necesita, en lengua
+llana y en cinco líneas: que los dos equipos no hablan en la misma unidad y
+por eso la del inversor se divide entre mil, y que la potencia que un
+inversor inyecta no puede ser negativa, con el recorte que nunca actúa y su
+cifra medida. De 190 palabras a 95.
+
+**Lo que bajó al Anexo A**, junto al resto del procedimiento que no se
+ejerce: que el cargador promedia primero y divide después; que para la
+división el orden es indiferente porque dividir entre una constante y
+promediar se pueden intercambiar; y que **para el recorte no lo es**,
+porque una lectura negativa dentro de una hora de media positiva
+sobreviviría al promedio. El anexo lo dice en lengua llana también, sin la
+palabra conmutar.
+
+**La medición no cambia**, sigue siendo la de C-60: mínimo exactamente
+0 W en los siete inversores sobre 793.981 lecturas, y conmutación en la
+decimoquinta cifra decimal. Lo que cambia es dónde se cuenta y a quién.
+
+---
+
+## C-62 · Barrido de los capítulos 2 y 3 con la lente de C-61
+
+**2026-08-26 · tipo: `redaccion` · aplicada**
+
+Él pidió revisar los dos capítulos «bajo estos mismos ojos», es decir, con
+la lente que C-61 dejó fijada: destinatario equivocado, aparato que no hace
+trabajo, jerga sin traducir y nombres de código en la prosa. Siete
+hallazgos, todos aplicados.
+
+**1. El capítulo imprimía los nombres internos del código, y su propio
+código decía que no.** `net`, `net partial` y `gross` aparecían diez veces
+en el Capítulo 3: en el diagrama de los tres tipos, en su pie, en las cinco
+filas de la tabla y en la prosa de la reconstrucción, más dos como
+subíndice. Lo que lo convierte en hallazgo y no en preferencia es que el
+código lleva la tabla de traducción con el comentario explícito de que **no
+deben imprimirse** (`estilo.py:367`, `gen_cap03.py:36`). Comprobado:
+`TIPO_MEDIDOR_ES` no se usa en ninguna parte y `TIPO_ES` se usa una sola
+vez, de modo que una figura decía «medidor neto» y el texto de al lado
+«net». Ahora el documento dice neto, neto parcial y bruto en los diez
+sitios, y la correspondencia con el canon baja al Anexo A para que quien
+audite el código no la tenga que adivinar.
+
+**2. El texto nombraba a su lector, y no era el lector.** Decía «conviene
+cuantificarlo **antes de que lo haga un revisor**». Es el defecto de C-61
+dicho en voz alta. La cifra que sigue se queda; sobraba media frase.
+
+**3. Aparato matemático que no intervenía en el argumento.** El Capítulo 2
+soltaba `S = P + jQ`, `|S| = √(P²+Q²)` y `P = |S|cos φ` antes de concluir
+que solo la activa transfiere energía neta. Ninguna de las tres se usa en
+ese razonamiento ni vuelve a aparecer. Fuera las tres. De paso se corrigió
+que la reactiva y la aparente «habrían servido igual de bien», que es
+justo lo contrario de lo que el párrafo demuestra, y se añadió por qué la
+aparente tampoco sirve, que antes no se decía.
+
+**4 y 7. Dos pies de figura nombraban identificadores de código**, una
+constante de configuración y una función de limpieza. Nombrar el archivo es
+la convención y se queda; nombrar el identificador cruza la raya.
+
+**5. La norma de cifras, incumplida en seis sitios** del Capítulo 3, todos
+con dígitos de 0 a 9 sin un 10 o más en la misma serie que lo justificara.
+Los «27 dispositivos: 20 medidores y 7 inversores» se quedan como están,
+porque ahí la regla de no mezclar manda.
+
+**6. P-19 CERRADA.** La limpieza decía aplicar «3 tratamientos en cascada»
+y describía cuatro: el residuo a cero no llevaba ordinal. Ahora son cuatro
+y el cuarto lo lleva.
+
+**Comprobado tras aplicar**: ni un nombre interno en la prosa de los dos
+capítulos, ni una cifra suelta de las señaladas, 81 páginas, cero errores y
+cero desbordes.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -2009,5 +2159,5 @@ planteado sin cuantificar.
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
 | P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
-| P-19 | Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro, porque el residuo a cero no lleva ordinal. | pendiente |
+| P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

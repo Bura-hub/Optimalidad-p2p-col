@@ -15,4 +15,82 @@
 \label{anx:repro}
 \justifying
 
+\subsection{Cómo se localizan y se leen los archivos crudos}
+\label{sub:repro-lectura}
+
+El Capítulo~\ref{sec:prep} resume en una sola etapa lo que el cargador
+hace para llegar a la serie de cada equipo. El detalle queda aquí, porque
+describe el programa y no el dato. De las decisiones que siguen, casi
+ninguna llega a ejercerse sobre este conjunto, y la única que sí se
+ejerce no cambia ningún valor.
+
+\textbf{La búsqueda de carpetas tolera diferencias de escritura.} Los
+nombres con que llegan las carpetas no son uniformes, y el de los
+medidores de la Universidad CESMAG viene con una errata de origen, escrita
+\code{eletricMeter}. Se conserva tal cual, para reproducir la estructura de
+la fuente en vez de corregirla y perder la trazabilidad. La tolerancia, sin
+embargo, no llega a hacer falta: las diez carpetas que el modelo emplea
+coinciden exactamente con lo declarado en la configuración.
+
+\textbf{Cada archivo se decodifica probando cuatro codificaciones en
+orden}: \code{utf-8-sig}, \code{utf-8}, \code{cp1252} y \code{latin-1}. El
+orden importa porque \code{latin-1} acepta cualquier secuencia de bytes y
+nunca falla, de modo que probarla antes que \code{cp1252} la haría ganar
+siempre y corrompería los caracteres del rango \code{0x80}--\code{0x9F},
+que es donde viven las tildes.
+
+Tampoco esa cascada se ejerce. Los 73 archivos del árbol resuelven en el
+primer candidato, y ninguno contiene un solo byte por encima de 127. Se
+documenta porque el orden es una decisión deliberada del cargador y porque
+un conjunto de datos posterior sí podría ejercerla, no porque haya
+cambiado una cifra de este trabajo.
+
+\textbf{La fecha y el valor se convierten en modo tolerante.} Lo que no se
+deja interpretar queda nulo en vez de detener la carga, y las dos columnas
+no reciben el mismo trato: una lectura sin fecha válida se descarta entera,
+porque no tiene dónde colocarse, mientras que una con fecha válida y valor
+ilegible se conserva en blanco para que la limpieza la rellene más
+adelante. Ninguna de las dos conversiones llega a descartar nada, porque
+sobre los \num{2813305} registros de los diez medidores que el modelo
+emplea no hay una sola fecha ilegible ni un solo valor no numérico.
+
+\textbf{Los instantes repetidos se funden promediando.} La fusión ocurre
+dentro de cada archivo, antes de alinear los tramos de un mismo medidor, y
+su motivo es de forma y no de contenido: el índice ha de ser único para que
+los tramos se puedan superponer sobre un mismo eje de tiempo. La
+Tabla~\ref{tab:repro-dup} recoge dónde ocurre.
+
+\begin{table}[H]
+ \centering
+ \caption{Instantes con más de una lectura, por institución y frontera. Las
+ instituciones que no aparecen no tienen ninguno.}
+ \label{tab:repro-dup}
+ \begin{tabular}{@{}l l r r@{}}
+ \toprule
+ \textbf{Institución} & \textbf{Frontera} &
+ \textbf{Instantes repetidos} & \textbf{Máximo en un instante} \\
+ \midrule
+ UCC & M1 & \num{3071} & 11 \\
+ UCC & M3 & \num{3551} & 73 \\
+ \addlinespace
+ Mariana & M1 & \num{28} & 2 \\
+ Mariana & M3 & \num{71} & 4 \\
+ \bottomrule
+ \end{tabular}
+\end{table}
+
+Las tres reglas de fusión posibles, promediar, quedarse con la primera o
+quedarse con la última, dan el mismo resultado sobre este conjunto, porque
+las lecturas que comparten instante coinciden hasta el último dígito en la
+totalidad de los casos. Lo que sí informa es la concentración: la UCC
+aporta el \pct{98.5} de los instantes repetidos, y su medidor secundario
+llega a volcar 73 lecturas idénticas en un mismo instante. Es un rasgo del
+equipo y no del método, y no altera ninguna cifra.
+
+\textbf{El orden exacto} en que se aplica todo lo anterior es el siguiente:
+localizar la carpeta del equipo, decodificar cada archivo, convertir la
+fecha y el valor, fundir los instantes repetidos, alinear los tramos del
+medidor sobre un mismo eje de tiempo, recortar al horizonte, promediar a
+paso horario y, en último lugar, convertir la unidad.
+
 \placeholderfig{Anexo pendiente de redacción. Comandos exactos, entorno congelado, huellas de los artefactos y compuertas de verificación.}

@@ -65,6 +65,255 @@ def _mes_es(periodo) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+def f31_archivo_a_serie():
+    """
+    El recorrido de una hora real, del archivo a la serie horaria.
+
+    La etapa 1 del pipeline es la única que el capítulo describía sin
+    enseñar: transporta, ordena y convierte, y en prosa todo eso es
+    invisible. Esta figura la traza sobre un dato concreto.
+
+    El ejemplo es la UCC porque es la única institución donde la fusión
+    de instantes repetidos ocurre dentro del horizonte, y la hora es
+    solar para que el carril del inversor lleve vatios con sentido y la
+    división entre mil se vea sobre un número real.
+    """
+    import cache_crudo as CC
+
+    raiz = CC.raiz_mte()
+    dir_med = raiz / "UCC" / "electricMeter" / "Medidor 1 - UCC - electricMeter"
+    dir_inv = raiz / "UCC" / "inverter" / "Fronius - UCC - inverter"
+
+    H0 = pd.Timestamp("2025-11-06 13:00")
+    H1 = H0 + pd.Timedelta(hours=1)
+    DIA = pd.Timestamp("2025-11-06")
+    HOR0, HOR1 = pd.Timestamp("2025-04-04"), pd.Timestamp("2025-12-16")
+
+    def _tramos(carpeta, col):
+        out = []
+        for p in sorted(carpeta.rglob("*.csv")):
+            d = pd.read_csv(p, usecols=["date", col], low_memory=False)
+            ts = pd.to_datetime(d["date"], errors="coerce")
+            v = pd.to_numeric(d[col], errors="coerce")
+            ok = ts.notna()
+            out.append(pd.Series(v[ok].values, index=ts[ok]).sort_index())
+        return out
+
+    tramos_med = _tramos(dir_med, "totalActivePower")
+    tramos_inv = _tramos(dir_inv, "acPower")
+
+    # La hora en el medidor: filas crudas, instantes únicos y duplicados.
+    crudo = pd.concat(tramos_med)
+    crudo = crudo[(crudo.index >= H0) & (crudo.index < H1)].sort_index()
+    fundida = crudo.groupby(level=0).mean().sort_index()
+    conteo = crudo.index.value_counts()
+    inst_dup = sorted(conteo[conteo > 1].index)
+    media_med = float(fundida.mean())
+    media_cruda = float(crudo.mean())
+
+    # La hora en el inversor.
+    inv = pd.concat(tramos_inv)
+    inv = inv[(inv.index >= H0) & (inv.index < H1)].sort_index()
+    media_inv = float(inv.mean())
+
+    # El día completo, desde el caché de estados intermedios.
+    series, _ = D.preproceso("m1")
+    dia_d = series["UCC__D_raw"].loc[DIA:DIA + pd.Timedelta(hours=23)]
+    dia_g = series["UCC__G_ems"].loc[DIA:DIA + pd.Timedelta(hours=23)]
+
+    # Compuerta. Si el dato crudo cambia de versión, la figura se detiene
+    # en vez de dibujar un ejemplo que ya no es el que el texto describe.
+    assert (len(crudo), len(fundida), len(inst_dup)) == (38, 30, 8), \
+        (len(crudo), len(fundida), len(inst_dup))
+    assert len(inv) == 30, len(inv)
+    assert (inv >= 0).all(), "el recorte a cero sí actuaría"
+    assert all(crudo.loc[[i]].nunique() == 1 for i in inst_dup), \
+        "las lecturas repetidas no son idénticas"
+    assert abs(media_med - float(dia_d.loc[H0])) < 1e-9
+    assert abs(media_inv / 1000 - float(dia_g.loc[H0])) < 1e-9
+
+    # ── Lienzo ───────────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 5.45))
+    gs = fig.add_gridspec(3, 2, height_ratios=[0.92, 2.05, 1.05],
+                          hspace=0.80, wspace=0.30)
+    ax_a = fig.add_subplot(gs[0, :])
+    ax_b1 = fig.add_subplot(gs[1, 0])
+    ax_b2 = fig.add_subplot(gs[1, 1])
+    ax_c1 = fig.add_subplot(gs[2, 0])
+    ax_c2 = fig.add_subplot(gs[2, 1])
+
+    # ── Zona A: dónde viven los archivos ────────────────────────────────
+    def _carril(tramos, y):
+        piezas = []
+        for s in tramos:
+            a = mdates.date2num(s.index[0] + pd.Timedelta(days=5))
+            b = mdates.date2num(s.index[-1] - pd.Timedelta(days=5))
+            piezas.append((a, max(b - a, 1.0)))
+        ax_a.broken_barh(piezas, (y - 0.26, 0.52), facecolors=E.APOYO,
+                         edgecolors=E.NEUTRO, linewidth=0.6, zorder=3)
+
+    _carril(tramos_med, 1)
+    _carril(tramos_inv, 0)
+    ax_a.axvspan(HOR0, HOR1, color=E.DESPUES, alpha=0.08, zorder=1)
+    for x in (HOR0, HOR1):
+        ax_a.axvline(x, color=E.DESPUES, ls=(0, (3, 2)), lw=0.8, zorder=2)
+    ax_a.text(HOR0 + (HOR1 - HOR0) / 2, 2.22,
+              "horizonte de estudio (6.144 h)",
+              ha="center", va="center", fontsize=7.2, color=E.DESPUES)
+    for x in (pd.Timestamp("2025-03-05"), pd.Timestamp("2026-02-25")):
+        ax_a.text(x, -1.00, "se descarta", ha="center", va="center",
+                  fontsize=7, style="italic", color=E.NEUTRO)
+    ax_a.axvline(DIA, color=E.ANTES, lw=1.2, zorder=4)
+    ax_a.plot([mdates.date2num(DIA)], [1.62], marker="v", ms=5,
+              color=E.ANTES, zorder=5)
+    ax_a.text(DIA - pd.Timedelta(days=7), 1.62,
+              "el ejemplo: 6 de noviembre, 13 horas",
+              ha="right", va="center", fontsize=7.2, color=E.ANTES)
+    ax_a.set_xlim(pd.Timestamp("2025-02-01"), pd.Timestamp("2026-05-10"))
+    ax_a.set_ylim(-1.5, 2.55)
+    ax_a.set_yticks([0, 1])
+    ax_a.set_yticklabels(["inversor", "medidor"], fontsize=7.2)
+    ticks = [pd.Timestamp(x) for x in ("2025-03-01", "2025-06-01",
+                                       "2025-09-01", "2025-12-01",
+                                       "2026-03-01")]
+    ax_a.set_xticks(ticks)
+    ax_a.set_xticklabels([E.fmt_fecha(x, "mes") for x in ticks], fontsize=7.2)
+    ax_a.grid(False)
+    for lado in ("left", "right", "top"):
+        ax_a.spines[lado].set_visible(False)
+
+    # ── Zona B1: la hora en el medidor ──────────────────────────────────
+    minutos = [(t - H0).total_seconds() / 60 for t in fundida.index]
+    ax_b1.plot(minutos, fundida.values, color="#CCCCCC", lw=0.7, zorder=2)
+    ax_b1.scatter(minutos, fundida.values, s=14, color=E.NEUTRO, zorder=3)
+    mdup = [(t - H0).total_seconds() / 60 for t in inst_dup]
+    vdup = [float(fundida.loc[t]) for t in inst_dup]
+    ax_b1.scatter(mdup, vdup, s=52, facecolors="none", edgecolors=E.ANTES,
+                  lw=1.1, zorder=4)
+    ax_b1.annotate("8 instantes traen la lectura\npor duplicado: se funden en una",
+                   xy=(mdup[2], vdup[2]), xytext=(1.5, 44.8),
+                   fontsize=7.2, color=E.ANTES, linespacing=1.25,
+                   ha="left", va="top",
+                   arrowprops=dict(arrowstyle="-", color=E.ANTES, lw=0.8,
+                                   shrinkA=1, shrinkB=4,
+                                   connectionstyle="arc3,rad=-0.25"))
+    ax_b1.axhline(media_med, color=E.DESPUES, ls=(0, (4, 2)), lw=1.6, zorder=5)
+    ax_b1.text(59.5, media_med + 0.55,
+               f"media de las 30 muestras: {E.fmt_miles(media_med, 2)} kW",
+               ha="right", va="bottom", fontsize=7.2, color=E.DESPUES,
+               zorder=6, bbox=dict(facecolor="white", edgecolor="none",
+                                   alpha=0.88, pad=1.4))
+    ax_b1.text(1, 23.0, "las lecturas repetidas son idénticas al bit",
+               fontsize=6.9, style="italic", color="#555555",
+               ha="left", va="bottom")
+    ax_b1.set_ylim(22, 45.5)
+    ax_b1.set_yticks([25, 30, 35, 40])
+    ax_b1.set_ylabel("Potencia activa (kW)", fontsize=8)
+    ax_b1.set_title(f"Medidor: {len(crudo)} filas, {len(fundida)} instantes",
+                    fontsize=8.2, pad=6)
+
+    # ── Zona B2: la hora en el inversor ─────────────────────────────────
+    minutos_i = [(t - H0).total_seconds() / 60 for t in inv.index]
+    ax_b2.plot(minutos_i, inv.values, color="#CCCCCC", lw=0.7, zorder=2)
+    ax_b2.scatter(minutos_i, inv.values, s=14, color=E.NEUTRO, zorder=3)
+    ax_b2.axhline(media_inv, color=E.DESPUES, ls=(0, (4, 2)), lw=1.6, zorder=5)
+    ax_b2.text(59.5, media_inv + 55,
+               f"media: {E.fmt_miles(media_inv)} W\n"
+               f"entre mil: {E.fmt_miles(media_inv / 1000, 3)} kW",
+               ha="right", va="bottom", fontsize=7.2, color=E.DESPUES,
+               linespacing=1.25, zorder=6,
+               bbox=dict(facecolor="white", edgecolor="none",
+                         alpha=0.88, pad=1.4))
+    ax_b2.text(1, 3350, "ninguna lectura es negativa: el recorte no actúa",
+               fontsize=6.9, style="italic", color="#555555",
+               ha="left", va="bottom")
+    ax_b2.set_ylim(3300, 5500)
+    ax_b2.set_yticks([3500, 4000, 4500, 5000])
+    E.eje_espanol(ax_b2, "y", "miles")
+    ax_b2.set_ylabel("Potencia de corriente alterna (W)", fontsize=8)
+    ax_b2.set_title(f"Inversor: {len(inv)} lecturas (W)", fontsize=8.2, pad=6)
+
+    for ax in (ax_b1, ax_b2):
+        ax.set_xlim(-2, 62)
+        ax.set_xticks([0, 15, 30, 45, 60])
+        ax.set_xticklabels(["13:00", "13:15", "13:30", "13:45", "14:00"],
+                           fontsize=7.4)
+        ax.set_xlabel("Hora de la lectura", fontsize=8)
+        ax.tick_params(axis="y", labelsize=7.4)
+
+    # ── Zonas C: el aterrizaje en la serie del día ──────────────────────
+    for ax, serie, valor, tope, tks, titulo, dec in (
+            (ax_c1, dia_d, media_med, 46, [0, 20, 40],
+             "La serie horaria del medidor", 2),
+            (ax_c2, dia_g, media_inv / 1000, 13, [0, 5, 10],
+             "La serie horaria del inversor", 2)):
+        colores = [E.DESPUES if h == 13 else E.APOYO for h in range(24)]
+        ax.bar(range(24), serie.values, width=0.8, color=colores, zorder=3)
+        ax.text(13, valor + tope * 0.06, E.fmt_miles(valor, dec),
+                ha="center", va="bottom", fontsize=7, color=E.DESPUES,
+                zorder=6, bbox=dict(facecolor="white", edgecolor="none",
+                                    alpha=0.88, pad=1.2))
+        ax.set_ylim(0, tope)
+        ax.set_yticks(tks)
+        ax.set_xlim(-1, 24)
+        ax.set_xticks([0, 6, 12, 18, 23])
+        ax.set_xlabel("Hora del día", fontsize=8)
+        ax.set_ylabel("Potencia media (kW)", fontsize=8)
+        ax.set_title(titulo, fontsize=8.2, pad=5)
+        ax.tick_params(labelsize=7.4)
+
+    _rotulo_cobertura(fig, "m1", y=0.985)
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+
+    # El lazo entre la hora ampliada y su lugar en el día no se dibuja
+    # con flechas: cruzarían los rótulos de eje y los títulos de abajo.
+    # Lo cierra la barra resaltada, que lleva la misma cifra y el mismo
+    # color que la línea de la media del panel de encima.
+
+    # ── El rastro ────────────────────────────────────────────────────────
+    filas = []
+    for s in tramos_med:
+        filas.append(dict(zona="tramo_medidor", instante=s.index[0].isoformat(),
+                          fin=s.index[-1].isoformat(), valor="", unidad="kW",
+                          n_lecturas=len(s)))
+    for s in tramos_inv:
+        filas.append(dict(zona="archivo_inversor", instante=s.index[0].isoformat(),
+                          fin=s.index[-1].isoformat(), valor="", unidad="W",
+                          n_lecturas=len(s)))
+    for t, v in fundida.items():
+        filas.append(dict(zona="medidor_2min", instante=t.isoformat(), fin="",
+                          valor=round(float(v), 6), unidad="kW",
+                          n_lecturas=int(conteo.loc[t])))
+    for t, v in inv.items():
+        filas.append(dict(zona="inversor_2min", instante=t.isoformat(), fin="",
+                          valor=float(v), unidad="W", n_lecturas=1))
+    for t, v in dia_d.items():
+        filas.append(dict(zona="serie_horaria_medidor", instante=t.isoformat(),
+                          fin="", valor=round(float(v), 6), unidad="kW",
+                          n_lecturas=""))
+    for t, v in dia_g.items():
+        filas.append(dict(zona="serie_horaria_inversor", instante=t.isoformat(),
+                          fin="", valor=round(float(v), 6), unidad="kW",
+                          n_lecturas=""))
+
+    print(f"  [f3.1] hora {H0}: {len(crudo)} filas -> {len(fundida)} instantes "
+          f"-> {media_med:.6f} kW  |  inversor {media_inv:.1f} W -> "
+          f"{media_inv/1000:.3f} kW  |  sin fundir daría {media_cruda:.6f} kW")
+
+    return E.guardar(
+        fig, "f3_01_archivo_a_serie_m1", datos=pd.DataFrame(filas),
+        procedencia=[
+            "MedicionesMTE_v3/UCC/electricMeter/Medidor 1 - UCC - electricMeter/"
+            " (3 CSV, columna totalActivePower)",
+            "MedicionesMTE_v3/UCC/inverter/Fronius - UCC - inverter/"
+            " (columna acPower)",
+            "reformateo/documento/datos_cache/preproceso_m1.npz"
+            " (verificacion de los dos valores horarios)",
+            "pipeline: data/preprocessing.py + data/xm_data_loader.py",
+        ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 def f32_demanda_negativa(cobertura: str = "m1"):
     """
     F3.2 — La demanda que el medidor entrega en negativo.
@@ -652,6 +901,7 @@ def f39_ritmos(cobertura: str = "m1"):
 if __name__ == "__main__":
     D.verificar_canon()
     print("\nCapítulo 3 — la domesticación del dato")
+    f31_archivo_a_serie()
     for cob in ("m1", "m3"):
         f32_demanda_negativa(cob)
     f33_reconstruccion("m1", "Udenar")

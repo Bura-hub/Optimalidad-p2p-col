@@ -25,8 +25,8 @@ archivos que escribe cada uno de los 27 equipos, con una lectura cada dos
 minutos y huecos allí donde la adquisición falló. Del otro lado está lo
 que el modelo necesita para operar, que es cuánto consumió y cuánto generó
 cada institución en cada una de las \num{6144} horas del horizonte. Entre
-ambos median 10 etapas, y cada una encierra una decisión que puede
-cambiar el resultado final. Juzgar la solidez de las cifras del
+ambos median 6 etapas, y ninguna es automática: en todas se decidió
+algo. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
 
@@ -34,9 +34,9 @@ proceso completo.
 \label{sub:prep-mapa}
 
 Antes de precisar cada etapa conviene ver el flujo completo de
-procesamiento, porque las 10 no son todas de la misma clase:
-solo 3 alteran el valor del dato y las otras 7 lo ubican, lo convierten o
-lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
+procesamiento, porque las 6 no son todas de la misma clase: 3 alteran el
+valor del dato y las otras 3 lo preparan, lo ensamblan o lo verifican. La
+Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
 
 \begin{figure}[H]
  \centering
@@ -60,52 +60,45 @@ lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  font=\linespread{1}\scriptsize\selectfont\itshape},
  ]
  % Tres carriles. El del medio reúne las etapas que alteran el valor del
- % dato; los otros dos, las que solo lo ubican, lo convierten o lo
- % verifican. Se pintan al fondo para que las cajas queden encima.
+ % dato; los otros dos, la que lo prepara y las que lo verifican. Se
+ % pintan al fondo para que las cajas queden encima.
  \begin{scope}[on background layer]
- \fill[black!4, rounded corners=3pt] (2.80,-0.72) rectangle (16.05,0.72);
+ \fill[black!4, rounded corners=3pt] (2.80,-0.72) rectangle (6.55,0.72);
  \fill[infocolor!8, rounded corners=3pt] (2.80,-2.67) rectangle (16.05,-1.23);
  \fill[black!4, rounded corners=3pt] (2.80,-4.62) rectangle (16.05,-3.18);
  \end{scope}
 
- % --- Carril 1: localizar, decodificar y convertir --------------------
- \node[etapa] (e1) at (2.9500, 0) {\textbf{1}\\Localizar los\\archivos};
- \node[etapa] (e2) at (5.6125, 0) {\textbf{2}\\Leer y\\decodificar};
- \node[etapa] (e3) at (8.2750, 0) {\textbf{3}\\Marcas\\de tiempo};
- \node[etapa] (e4) at (10.9375,0) {\textbf{4}\\Convertir\\las unidades};
- \node[etapa] (e5) at (13.6000,0) {\textbf{5}\\Agregar a\\paso horario};
+ % --- Carril 1: del archivo a la serie horaria ------------------------
+ \node[etapa, minimum width=3.05cm] (e1) at (2.9500, 0)
+ {\textbf{1}\\Del archivo a\\la serie horaria};
 
  % --- Carril 2: las tres etapas que alteran el valor ------------------
- \node[clave] (e6) at (2.9500, -1.95) {\textbf{6}\\Clasificar\\el medidor};
- \node[clave] (e7) at (5.6125, -1.95) {\textbf{7}\\Reconstruir la\\demanda bruta};
- \node[clave] (e8) at (8.2750, -1.95) {\textbf{8}\\Atípicos\\y huecos};
+ \node[clave] (e2) at (2.9500, -1.95) {\textbf{2}\\Clasificar\\el medidor};
+ \node[clave] (e3) at (5.6125, -1.95) {\textbf{3}\\Reconstruir la\\demanda bruta};
+ \node[clave] (e4) at (8.2750, -1.95) {\textbf{4}\\Atípicos\\y huecos};
 
  % --- Carril 3: ensamblar, verificar y entregar -----------------------
- \node[etapa] (e9) at (2.9500, -3.90) {\textbf{9}\\Ensamblar\\y verificar};
- \node[etapa] (e10) at (5.6125, -3.90) {\textbf{10}\\Fijar la\\zona horaria};
+ \node[etapa] (e5) at (2.9500, -3.90) {\textbf{5}\\Ensamblar\\y verificar};
+ \node[etapa] (e6) at (5.6125, -3.90) {\textbf{6}\\Fijar la\\zona horaria};
  \node[salida] (out) at (10.9375,-3.90)
  {\textbf{Matrices $D$ y $G$}\\$5 \times \num{6144}$, no negativas};
 
  % --- Rótulos de carril ----------------------------------------------
- \node[rotulo] at (2.62, 0) {localizan,\\decodifican\\y convierten};
+ \node[rotulo] at (2.62, 0) {transporta,\\ordena\\y convierte};
  \node[rotulo, text=infocolor,
  font=\linespread{1}\scriptsize\selectfont\bfseries]
  at (2.62,-1.95) {las tres etapas\\que alteran\\el valor del dato};
  \node[rotulo] at (2.62,-3.90) {ensamblan\\y verifican};
 
  % --- Avance dentro de cada carril ------------------------------------
- \draw[flecha] (e1) -- (e2);
  \draw[flecha] (e2) -- (e3);
  \draw[flecha] (e3) -- (e4);
- \draw[flecha] (e4) -- (e5);
- \draw[flecha] (e6) -- (e7);
- \draw[flecha] (e7) -- (e8);
- \draw[flecha] (e9) -- (e10);
- \draw[flecha] (e10) -- (out);
+ \draw[flecha] (e5) -- (e6);
+ \draw[flecha] (e6) -- (out);
 
  % --- Paso de un carril al siguiente ----------------------------------
- \draw[retorno] (e5.south) -- ++(0,-0.42) -| (e6.north);
- \draw[retorno] (e8.south) -- ++(0,-0.42) -| (e9.north);
+ \draw[retorno] (e1.south) -- (e2.north);
+ \draw[retorno] (e4.south) -- ++(0,-0.42) -| (e5.north);
 
  % --- La bifurcación de las dos fronteras, en la etapa 1 --------------
  \node[chip, draw=sectioncolor, fill=sectioncolor!14, text=sectioncolor]
@@ -116,34 +109,33 @@ lo verifican. La Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  (pm1.south) -- (e1.north);
  \draw[flecha, draw=warningcolor, line width=0.7pt]
  (pm3.south) -- (e1.north);
- \node[nota, anchor=west, text width=8.4cm] at (5.70, 1.34)
+ \node[nota, anchor=west, text width=8.4cm] at (6.75, 1.34)
  {aquí se separan las dos fronteras de medición:
  cambia el medidor que se lee y, con él, su tipo};
 
  \node[nota, anchor=center, align=center, text=infocolor]
  at (13.31,-1.95) {aquí se juega\\la fidelidad del dato};
  \end{tikzpicture}
- \caption[El pipeline de preprocesamiento en 10 etapas]{Las 10
+ \caption[El pipeline de preprocesamiento en seis etapas]{Las 6
  etapas del preprocesamiento, en el orden en que se ejecutan. La
  bifurcación entre las dos fronteras de medición ocurre en la etapa~1.}
  \label{fig:prep-pipeline}
 \end{figure}
 
-Esas 7 se reparten a su vez en dos grupos: las 5 primeras localizan,
-decodifican y convierten, y las 2 últimas ensamblan y verifican. Las 3
-restantes, resaltadas en la figura, son las que modifican el valor. Esa
-separación es la que permite decir con precisión dónde se juega la
-fidelidad del dato.
+Esas 3 se reparten a su vez en dos grupos: la primera lleva el archivo
+hasta la serie horaria, y las 2 últimas la ensamblan y la verifican. Las 3
+resaltadas en la figura son las que modifican el valor. Esa separación es
+la que permite decir con precisión dónde se juega la fidelidad del dato.
 
 Del mapa importa retener una propiedad. Todo el trabajo se recorre dos
 veces, una por cada frontera de medición, y lo único que las distingue es
-qué medidor se lee en la primera etapa. Lo demás se sigue de esa elección,
-porque el tipo de medidor no es una decisión de proceso sino una propiedad
-del punto donde está puesto.
+qué medidor se lee en la primera etapa. De ahí en adelante el tratamiento es
+el mismo para las dos: si algo sale distinto es porque el medidor elegido
+lo provoca, no porque se le aplique una regla diferente.
 
 Cualquier diferencia entre M1 y M3 en los resultados es, por tanto,
 atribuible a qué se mide y no a cómo se procesa. Hay una excepción, y
-conviene no descubrirla más adelante: Mariana no tiene un segundo medidor
+es importante definirla ahora: Mariana no tiene un segundo medidor
 que leer, de modo que en la frontera secundaria se reutiliza el primero
 multiplicado por un factor que el Capítulo~\ref{sec:frontera} declara.
 
@@ -228,6 +220,24 @@ del día y el número de horas que afecta a cada institución.
  (izquierda), y alcance del fenómeno por institución (derecha). La
  franja sombreada marca la zona físicamente imposible. Las lecturas
  bajo cero no se reparten al azar a lo largo del día: se concentran
+La unidad se convierte al final, sobre la serie ya horaria. La potencia de
+los medidores viene en kilovatios y se usa directamente; la de los
+inversores viene en vatios y se divide entre mil. El orden entre las dos
+operaciones es indiferente, porque dividir entre una constante conmuta con
+la media, pero se enuncia como se ejecuta. La salida del inversor se
+recorta además a valores no negativos, porque la potencia de corriente
+alterna inyectada no puede ser negativa, y ese recorte tampoco llega a
+actuar: ninguno de los siete inversores registra una sola lectura por
+debajo de cero.
+
+La etapa contempla por último tres anomalías que este conjunto no
+presenta: un archivo que no se deja leer, una fecha que no se deja
+interpretar y un valor que no es numérico. Ninguna ocurre ni una sola vez
+en los \num{2813305} registros de los diez medidores que el modelo emplea,
+de modo que las ramas que las tratan nunca llegan a ejecutarse. El
+Anexo~\ref{anx:repro} recoge el procedimiento completo, con esas
+comprobaciones y el orden exacto en que se aplican.
+
  entre las 11 y las 15 horas.
  \fuente{elaboración propia desde \file{MedicionesMTE\_v3/},
  columna \code{totalActivePower}, procesada con el pipeline del
@@ -620,8 +630,8 @@ de estados intermedios.}
 \subsection{Las decisiones que sesgan en contra}
 \label{sub:prep-sesgo}
 
-Un capítulo que describe 10 etapas de tratamiento del dato debe
-responder a una objeción evidente: si se tomaron 10 decisiones
+Un capítulo que describe 6 etapas de tratamiento del dato debe
+responder a una objeción evidente: si en todas ellas se decidió algo
 y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
 respuesta honesta no es que las decisiones sean neutrales, sino que
 conviene mirar hacia dónde apuntan.

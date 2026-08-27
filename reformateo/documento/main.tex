@@ -25,6 +25,30 @@
 \usepackage{hyperref}
 \usepackage{enumitem}
 \usepackage{listings}
+
+% Pseudocodigo. Se usa algorithmicx (algpseudocode) y no algorithm2e,
+% que entra en conflicto con el paquete algorithm. Las palabras clave se
+% traducen porque el documento es en espanol.
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\floatname{algorithm}{Algoritmo}
+\renewcommand{\listalgorithmname}{Índice de algoritmos}
+\algrenewcommand\algorithmicrequire{\textbf{Entrada:}}
+\algrenewcommand\algorithmicensure{\textbf{Salida:}}
+\algrenewcommand\algorithmicif{\textbf{si}}
+\algrenewcommand\algorithmicthen{\textbf{entonces}}
+\algrenewcommand\algorithmicelse{\textbf{si no}}
+\algrenewcommand\algorithmicfor{\textbf{para}}
+\algrenewcommand\algorithmicforall{\textbf{para cada}}
+\algrenewcommand\algorithmicdo{\textbf{hacer}}
+\algrenewcommand\algorithmicwhile{\textbf{mientras}}
+\algrenewcommand\algorithmicreturn{\textbf{devolver}}
+% Los cierres de bloque se componen dentro del paquete, de modo que
+% se redefinen como texto de bloque y no como palabra clave suelta.
+\algrenewtext{EndIf}{\textbf{fin si}}
+\algrenewtext{EndFor}{\textbf{fin para}}
+\algrenewtext{EndWhile}{\textbf{fin mientras}}
+\algrenewcommand\algorithmiccomment[1]{\hfill\textit{\textcolor{black!55}{#1}}}
 \usepackage{titlesec}
 \usepackage{setspace}
 \usepackage{ragged2e}
@@ -35,6 +59,7 @@
 \usepackage{booktabs}
 \usepackage{multirow}
 \usepackage{array}
+\usepackage{needspace}
 \usepackage{float}
 \usepackage{fancyvrb}
 \usepackage{xurl}
@@ -72,6 +97,7 @@
 \graphicspath{{./}}
 % Figuras en la posición exacta del texto (no flotantes)
 \floatplacement{figure}{H}
+\floatplacement{algorithm}{H}
 \usepackage{tcolorbox}
 % Marcador de figura pendiente: permite redactar antes de generarla.
 \newcommand{\placeholderfig}[2][0.85\linewidth]{%

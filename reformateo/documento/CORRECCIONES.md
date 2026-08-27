@@ -1629,11 +1629,370 @@ mismo párrafo.
 
 ---
 
+## C-53 · «Lo demás se sigue de esa elección» no decía qué ni por qué
+**2026-08-23 · tipo: `contenido` · aplicada**
+
+Él preguntó qué significaba. La frase decía «lo demás se sigue de esa
+elección, porque el tipo de medidor no es una decisión de proceso sino una
+propiedad del punto donde está puesto», y falla por dos sitios.
+
+**«Lo demás» no tenía referente.** Podía ser el resto del proceso o el
+resto de las diferencias entre las dos fronteras, que no es lo mismo.
+
+**Y la justificación se apoyaba en vocabulario prematuro.** «Tipo de
+medidor» se define dos subsecciones más adelante. Es el mismo defecto que
+C-52 acababa de corregir en ese párrafo: al sacar el dato concreto quedó
+una justificación abstracta que se apoyaba en el mismo término que aún no
+existe.
+
+Reescrito sin ese apoyo y diciendo lo que se quería decir: «de ahí en
+adelante el tratamiento es el mismo para las dos: si algo sale distinto es
+porque el medidor elegido lo provoca, no porque se le aplique una regla
+diferente». Eso es exactamente lo que sostiene la conclusión del párrafo
+siguiente, y se entiende sin haber leído nada posterior.
+
+**La lección, que ya va por la tercera vez.** Al quitar de un pasaje un
+término que llega demasiado pronto, hay que comprobar que la frase que
+queda no se apoye también en él.
+
+---
+
+## C-54 · Las etapas del pipeline pasan de diez a nueve
+**2026-08-23 · tipo: `estructura` · aplicada**
+
+Él señaló que las etapas de localización y lectura le parecían
+irrelevantes para este documento. Un agente aislado juzgó las diez contra
+tres criterios, con acceso al código, y midió sobre el dato crudo antes de
+opinar. Le dio la razón, y con más motivo del que él suponía, pero la
+recomendación no fue borrar dos sino **fundirlas en una**.
+
+**Lo medido, que es lo que decide.**
+
+| Lo que el capítulo argumentaba | Lo que ocurre |
+|---|---|
+| Cuatro codificaciones en orden, y por qué una antes que otra | Los 73 archivos resuelven en la primera; ni un byte por encima de 127 |
+| Búsqueda tolerante a diferencias de escritura | Las diez carpetas coinciden exactas con lo configurado |
+
+Es decir, las seis líneas que argumentaban el orden de decodificación
+describen un camino de código que **no se ejecuta ni una vez**, y sobre
+dos columnas que además son ASCII. Una decodificación equivocada no habría
+movido una cifra.
+
+**Por qué fundir y no borrar.** Las dos etapas cargaban dos cosas que sí
+valen y que no están dichas en ningún otro sitio: el aviso incondicional
+cuando un archivo es ilegible, que contesta a «¿cómo sabe que no perdió
+una institución entera sin enterarse?», y la declaración de que el
+registro de un equipo llega partido en varios archivos. La etapa fusionada
+se queda con las dos, en 78 palabras contra las 221 de antes.
+
+**El argumento del capítulo mejora.** De «3 de 10» pasa a **3 de 9**, que
+se dice «una de cada tres». Los tres carriles siguen valiendo y el rótulo
+del primero sigue siendo literal, porque la etapa fusionada localiza y
+decodifica.
+
+**Un defecto de hecho corregido de paso.** El texto decía que los tramos
+de un mismo medidor «se leen y concatenan». El código no concatena: alinea
+sobre el eje del tiempo y **suma**. Comprobado sobre el medidor principal
+de Udenar, los tres tramos se solapan en dos instantes exactos, uno de
+ellos dentro del horizonte, de modo que esa hora se cuenta dos veces. El
+texto pasa a decir «se alinean sobre el eje del tiempo».
+
+**Y una contradicción interna.** El capítulo decía a la vez que las diez
+etapas encierran «cada una una decisión que puede cambiar el resultado» y
+que solo tres alteran el valor, a nueve líneas de distancia. La primera
+pasa a «ninguna es automática: en todas se decidió algo», que no
+contradice a la segunda. También se afinó «las cinco primeras etapas no
+cambian ningún valor», que era falso porque la quinta calcula una media:
+ahora dice que no intervienen sobre el valor medido.
+
+**Lo que bajó al anexo.** La cascada de codificaciones y la errata de la
+carpeta van al Anexo~A, cada una con la medida que la hace prescindible.
+Se documentan porque el orden es una decisión deliberada del cargador y
+porque otro conjunto de datos sí podría ejercerla.
+
+**Coste pagado.** Seis sitios de prosa, cinco cajas renumeradas y dos
+flechas en la figura, la ficha de la guía y este registro. La única
+remisión externa, la del capítulo 4 al decir que la bifurcación ocurre en
+la primera etapa, sobrevive intacta porque la fusión respeta que la etapa
+1 siga siendo la 1.
+
+---
+
+## C-56 · La etapa de las marcas de tiempo pasa a tabla de casos
+
+**2026-08-26 · tipo: `estructura` · aplicada**
+
+Él pidió que cada etapa recibiera un tratamiento formal, código, pseudocódigo
+o diagrama, empezando por esta. Se probó el pseudocódigo en dos vueltas y la
+segunda la descartó él: «es claro pero no me parece la estructura adecuada
+para explicar esta etapa». Tenía razón, y el motivo es de fondo.
+
+**Por qué el pseudocódigo no servía aquí.** La etapa no es un procedimiento:
+es una secuencia recta con tres guardas, sin bucles ni anidamiento. Escrita
+como algoritmo degenera en una lista numerada con ceremonia alrededor. Lo que
+la etapa realmente tiene son **tres casos con tres tratamientos**, y eso es
+una tabla.
+
+**Dos vueltas fallidas que conviene no repetir.** La primera versión estaba
+escrita en notación de conjuntos, con cuatro letras sueltas y dos nombres de
+función inventados, y encima usaba la misma letra como columna en una línea y
+como función en la siguiente. La segunda ya se entendía, pero mezclaba dos
+formas de condicional sin motivo. La lección es que **la ceremonia formal no
+añade precisión cuando lo formalizado no tiene estructura**; solo añade una
+capa que el lector debe decodificar.
+
+**Lo que la tabla gana sobre la prosa anterior.** Absorbe las cifras que
+estaban sueltas en el párrafo de cierre, y un conteo por frontera se lee en
+una columna mucho mejor que en una frase. Queda así:
+
+| Lo que puede venir mal | Qué se hace con ello | M1 | M3 |
+|---|---|---|---|
+| La fecha no se deja interpretar | La lectura se descarta entera | 0 | 0 |
+| El valor no se deja interpretar | El valor queda en blanco y la lectura se conserva | 0 | 0 |
+| Dos lecturas comparten el mismo instante | Se sustituyen por una sola, con el promedio | 3.099 | 3.622 |
+
+**Un defecto de hecho corregido de paso.** El texto anterior describía dos
+operaciones y el cargador hace cuatro: omitía que **la columna de valor
+también se convierte en modo tolerante**, no solo la de fecha. Y omitía la
+asimetría, que es lo único que un lector podría entender al revés: la fecha
+ausente descarta la lectura entera, el valor ausente no, porque se conserva
+en blanco hasta la limpieza.
+
+**Lo medido**, sobre los 2.813.305 registros crudos de los diez medidores que
+el modelo emplea: ni una sola fecha ilegible, ni un solo valor no numérico.
+Las dos primeras ramas nunca se ejecutan. La tercera sí, concentrada en la
+UCC, que aporta 3.071 de los instantes repetidos de M1 y 3.551 de los de M3;
+el resto son decenas en Mariana. La dispersión entre lecturas que comparten
+instante es de 0,000 kW en los diez casos, de modo que promediar equivale a
+quedarse con una.
+
+**Infraestructura añadida.** El preámbulo carga el aparato de pseudocódigo
+(paquetes de algoritmo con las palabras clave en español y colocación
+forzada) y el paquete que impide separar un párrafo de su tabla. El primero
+queda cargado pero **sin uso por ahora**: se reserva para las etapas que sí
+tienen ramificación, que son clasificar el medidor, reconstruir la demanda
+bruta, y atípicos y huecos.
+
+**Criterio que queda fijado.** El vehículo se elige por la forma de la etapa,
+no por uniformidad: tabla cuando son casos, algoritmo cuando hay
+ramificación, prosa cuando es una sola operación con su justificación.
+
+> **Superada por C-57.** La tabla que aquí se construye desaparece: al pedir
+> él la justificación de la regla de fusión se comprobó que la etapa entera
+> no mueve ninguna cifra, y las tres primeras etapas se fundieron en una. Lo
+> que sobrevive de esta entrada es el criterio de elección del vehículo y la
+> medida de las tres anomalías.
+
+---
+
+## C-57 · Las tres primeras etapas se funden en una, y el pipeline queda en seis
+
+**2026-08-26 · tipo: `estructura` · aplicada**
+
+Él pidió dos cosas sobre la etapa de marcas de tiempo: que se justificara
+sobre los casos reales **por qué el promedio y no una de las dos lecturas**,
+y que se evaluara fundirla con la siguiente y bajar el procedimiento
+completo al anexo. El principio que enunció gobierna la decisión: «no vale
+de nada reportar en este documento algo que no se aplica realmente».
+
+**La justificación pedida no existe, y comprobarlo es el hallazgo.** Medido
+sobre el dato crudo con el orden real del cargador, que funde duplicados
+dentro de cada archivo antes de alinear los tramos:
+
+| | M1 | M3 |
+|---|---|---|
+| Instantes con más de una lectura | 3.099 | 3.622 |
+| De ellos, con lecturas idénticas al bit | 3.099 (100 %) | 3.622 (100 %) |
+| Diferencia entre promediar y quedarse con la primera | 0,000000 kW | 0,000000 kW |
+| Máximo de lecturas en un mismo instante | 11 | 73 |
+
+Es decir, **las tres reglas de fusión posibles dan el mismo número**, y la
+pregunta «por qué el promedio» no tiene respuesta analítica. El motivo que
+el propio cargador anota es de forma: el índice ha de ser único para poder
+superponer los tramos de un mismo medidor.
+
+**Consecuencia sobre la tabla de C-56.** De sus tres filas, dos no
+ocurrían nunca y la tercera describía una decisión sin consecuencia. La
+etapa completa no movía una sola cifra del documento, de modo que no
+merecía ni etapa propia ni tabla.
+
+**Lo aplicado.** Se funden las tres primeras etapas —marcas de tiempo,
+unidades y agregación horaria— en una sola, que es como la subsección ya se
+llamaba: *Del archivo a la serie horaria*. Es una única idea, convertir
+muestras de dos minutos en una serie horaria en las unidades del modelo. El
+pipeline pasa de 9 etapas a **6**, y el argumento del capítulo mejora al
+concentrarse: de «3 de 9 alteran el valor» a **«3 de 6»**, la mitad.
+
+**Cierra P-14.** El cargador convierte la unidad *después* de promediar a la
+hora, y el documento lo exponía al revés. Dentro de una etapa única el orden
+se enuncia como se ejecuta, y se dice además por qué da igual: dividir entre
+una constante conmuta con la media.
+
+**Lo que bajó al Anexo A**, con su medida: la conversión tolerante de fecha
+y valor, con la asimetría entre las dos columnas y sus cero casos sobre
+2.813.305 registros; la fusión de instantes repetidos, con la tabla por
+institución y frontera y la equivalencia de las tres reglas; y el orden
+exacto de las ocho operaciones del cargador.
+
+**Un dato lateral que se anota y no se explota.** El medidor secundario de
+la UCC llega a volcar 73 lecturas idénticas en un mismo instante, y el
+principal 11. Es un rasgo del equipo y no del método. Queda en el anexo
+porque no altera ninguna cifra; si alguna vez se quiere en el Capítulo 2,
+es material de calidad del dato crudo.
+
+**Coste pagado.** La figura del pipeline rehecha a 6 cajas en tres carriles,
+el recuento reconciliado en los 4 sitios donde se enuncia, la subsección 3.2
+reescrita entera, el anexo ampliado, la ficha de la guía y este registro.
+La remisión del Capítulo 4 sobrevive intacta, porque la bifurcación entre
+fronteras sigue ocurriendo en la etapa 1.
+
+---
+
+## C-58 · La etapa 1 se enseña sobre una hora real
+
+**2026-08-26 · tipo: `figura` · aplicada**
+
+Él señaló que la subsección de la primera etapa seguía sin entenderse y
+pidió trazar el flujo con datos reales de un día o una hora de alguna
+institución. El diseño lo exploró un agente aislado con acceso al dato
+crudo; la implementación y la comprobación son de esta sesión.
+
+**El ejemplo elegido: la UCC, medidor principal, jueves 6 de noviembre de
+2025, 13 horas.** No es una elección de conveniencia, y el motivo es
+severo:
+
+- **Es la única hora del conjunto donde la fusión de instantes se puede
+  ver dentro del horizonte.** Udenar, el HUDN y Cesmag no tienen ni un
+  duplicado dentro de archivo. La UCC concentra 3.071 de los 3.099 de M1,
+  pero casi todos viven en el tramo de 2026, que el recorte descarta:
+  dentro del horizonte solo quedan unas decenas, y **ocho caen en esta
+  misma hora**.
+- **Es hora solar**, de modo que el inversor lleva vatios con sentido
+  (3.577 a 5.221 W) y la división entre mil se ve sobre un número real.
+- **La media del inversor es 4.092 W exactos**, que entre mil da
+  4,092 kW: el mismo número con el separador corrido tres lugares. Es la
+  demostración más intuitiva posible de esa conversión.
+- **El medidor de la UCC está partido en tres archivos**, uno que empieza
+  antes del horizonte y otro que cae entero después, de modo que el
+  recorte y la alineación de tramos, que en otras instituciones son un no
+  evento, aquí actúan y se pueden dibujar.
+
+**La figura, en tres bandas.** Arriba, el calendario de los archivos con el
+horizonte sombreado y lo que queda fuera rotulado. En el centro, la hora
+ampliada en cada equipo, con los ocho instantes duplicados anillados y la
+media trazada. Abajo, esa media ocupando su lugar entre las 24 horas del
+día. Se lee como un embudo: meses, una hora, un valor.
+
+**M1 solo, y con motivo.** El tratamiento de esta etapa es idéntico en las
+dos fronteras y lo único que cambia es qué medidor se lee, cosa que ya dice
+la figura del pipeline. Un panel M3 gemelo repetiría la mecánica con otros
+números sin enseñar una idea nueva y robaría la mitad del ancho. La
+frontera se declara con el rótulo de cobertura.
+
+**El generador se detiene antes que mentir.** Comprueba cinco cosas: que la
+hora trae 38 filas, 30 instantes y 8 duplicados; que el inversor trae 30
+lecturas; que ninguna es negativa; que las repetidas son idénticas; y que
+las dos medias reproducen al bit lo que el caché del preprocesamiento
+guarda para esa hora. Si el dato crudo cambia de versión, cosa que P-6
+deja abierta, la figura no se genera.
+
+**Una precisión que la figura permite y la prosa no daba.** Cuál de las
+tres reglas de fusión se use da igual, y eso ya lo decía C-57. Fundir o no
+fundir no da igual: si las repetidas contaran cada una por su lado, esa
+hora pesaría 30,10 kW en vez de 30,49 kW, porque los duplicados arrastran
+la media hacia su propio valor. La nota al pie lo separa explícitamente
+para que no se lea como una contradicción.
+
+**Lo que la figura NO dice, deliberadamente.** El valor de 30,49 kW no es
+la celda final de la matriz de demanda: la UCC es medidor neto parcial y
+la reconstrucción lo lleva más arriba. Ni el pie ni ningún rótulo dicen
+«matriz» ni «celda»; siempre «la serie horaria», que es lo que la etapa 1
+entrega. Tampoco se anota que los tramos primero y segundo comparten el
+instante del 1 de junio y el cargador los suma, que es P-17 y sigue
+pendiente de su decisión; si la toma, esta línea de tiempo es el lugar
+natural para declararlo.
+
+**Coste pagado.** Generador nuevo en el guion del capítulo 3, con su tabla
+hermana de 112 filas y su archivo de procedencia; el párrafo de apertura de
+la subsección remite a la figura; ficha en la guía y este registro. Dos
+tiraje s de corrección de composición: rótulos que se pisaban en el
+calendario, tramos que se veían pegados, cifras que caían sobre los puntos
+y flechas entre bandas que cruzaban los rótulos de eje, estas últimas
+retiradas.
+
+---
+
+## C-59 · La integral de la potencia se introduce como es, y el capítulo 2 se corrige
+
+**2026-08-26 · tipo: `metodo` · aplicada**
+
+Él preguntó si promediar las 30 muestras es de verdad lo correcto para
+determinar el consumo de una hora, qué significa cada lectura de potencia
+activa, y por qué sabemos que responde bien el promedio y no la suma.
+Luego pidió contrastar lo medido contra lo que dice el capítulo 2 e
+introducir correctamente la integral.
+
+**Qué es cada lectura, comprobado.** Es potencia en kilovatios, una
+magnitud absoluta e instantánea. No es energía, no es un acumulado y no se
+mide contra ningún valor pasado. La serie sube y baja, mientras que los
+contadores acumulados que el mismo archivo trae solo crecen y dan la vuelta
+en diez mil; y si cada lectura fuese la energía de sus dos minutos, la
+potencia implícita sería treinta veces mayor.
+
+**El promedio, verificado contra el propio equipo.** Sobre las 5.810 horas
+completas del circuito principal de la UCC:
+
+| | |
+|---|---|
+| Sesgo medio (contador − promedio) | +0,008 kWh sobre horas de 19,20 kWh |
+| Acumulado, contador | 111.608 kWh |
+| Acumulado, suma de las medias | 111.562 kWh (−0,04 %) |
+| Si se sumara en vez de promediar | 30,0 veces el contador |
+
+El factor es exactamente el número de muestras. Se confirma igual en
+Udenar M1, HUDN M1 y UCC M3, todos con razón 1,00.
+
+**Un sesgo propio, detectado y corregido.** La primera medición leía el
+contador del primer al último instante de la hora, que son 58 minutos, y
+daba −0,63 kWh de sesgo sistemático. Leído en las marcas de hora en punto,
+el sesgo cae a +0,008 kWh. La cifra publicada es la segunda.
+
+**Lo que el capítulo 2 decía y ahora se corrige.**
+
+1. La tabla de las 54 variables daba la unidad de los ocho registros de
+   energía acumulada como desconocida. Los cuatro de energía activa son
+   **kilovatios hora**, medido; los cuatro de reactiva llevan la unidad que
+   les corresponde, aunque lleguen vacíos.
+2. La subsección de la reactiva no decía de dónde sale su medición, y no
+   puede salir del contador porque está muerto. Ahora dice que procede de
+   integrar la potencia reactiva hora a hora.
+3. H-13 concluía que integrar la potencia era «la única vía disponible».
+   Corregido allí: vale para la reactiva, no para la activa.
+
+**La integral, bien introducida.** El capítulo 3 enunciaba la ecuación
+desde cero, repitiendo la del capítulo 2 sin remitirse a ella, y dejaba sin
+escribir el paso donde de verdad vive la confusión, que es el discreto.
+Ahora remite a la ecuación del capítulo 2 y añade la suya: con $N$ muestras
+uniformes de ancho $\delta = \Delta t / N$, la regla de rectángulos da
+$\sum P_k \delta = \overline{P}\,\Delta t$. **La media sale del ancho del
+rectángulo, no de una convención de agregación**, y sumar equivale a fijar
+$\delta$ en una hora, es decir, a conceder una hora entera a cada lectura
+de dos minutos. Se conserva además el matiz de que el error de la suma no
+sería constante, porque una hora con muestreo incompleto se multiplicaría
+por un $N$ menor.
+
+**Y un hallazgo mayor de propina**, en H-16: el contraste destapó que cinco
+medidores tienen la potencia y el contador a escalas distintas, por un
+factor que el inventario predice en nueve de diez casos. Es P-6, hasta hoy
+planteado sin cuantificar.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
 |---|---|---|
-| P-14 | Capítulo 3: el texto y la figura presentan la conversión de unidades (etapa 4) antes de la agregación horaria (etapa 5). El código promedia primero y divide entre mil después. El resultado es idéntico, porque dividir entre una constante conmuta con la media, pero el orden que se expone no es el que se ejecuta. Se deja como está para no tocar el texto; queda decidir si se reordena o se declara. | pendiente de decisión |
+| P-14 | ~~Capítulo 3: el texto y la figura presentaban la conversión de unidades antes de la agregación horaria, y el código promedia primero.~~ **CERRADA por C-57**: las tres etapas se funden en una y el orden se enuncia como se ejecuta. | cerrada |
 | P-15 | La bifurcación entre coberturas no es solo la etapa 1. | **cerrada 2026-08-23** por C-50: reescrito el párrafo y la anotación de la figura, con la excepción de Mariana declarada |
 | P-1 | Pasada de vocabulario: el texto usa 3 de los 21 giros característicos del autor. Faltan «asciende a», «se sitúa entre», «conforme a», «línea base», «por transparencia metodológica». | pendiente de decisión |
 | P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | **cerrada 2026-08-23**: 1,26 tras C-25; el conjunto queda en 24,0 palabras por oración, 11,2 % largas y 74,4 por párrafo, contra 24,6 / 12,0 / 74,0 del perfil |
@@ -1648,4 +2007,7 @@ mismo párrafo.
 | P-12 | Capítulo 3: la explicación posicional del caso bruto para el Hospital no está probada. Cero horas negativas no demuestran posición: una carga hospitalaria siempre mayor que la generación tampoco invertiría el flujo aunque el medidor neteara. | pendiente |
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
+| P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
+| P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
+| P-19 | Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro, porque el residuo a cero no lleva ordinal. | pendiente |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

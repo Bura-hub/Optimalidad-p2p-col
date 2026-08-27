@@ -142,65 +142,101 @@ multiplicado por un factor que el Capítulo~\ref{sec:frontera} declara.
 \subsection{Del archivo a la serie horaria}
 \label{sub:prep-lectura}
 
-Las cinco primeras etapas no cambian ningún valor: lo encuentran, lo
-decodifican, lo ordenan y lo expresan en las unidades del modelo.
+La primera etapa no interviene sobre el valor medido: lo transporta, lo
+ordena y lo expresa en el paso y las unidades con que el modelo trabaja.
+Recibe los archivos de un equipo, con una lectura cada dos minutos, y
+entrega una serie de una hora. La Figura~\ref{fig:prep-archivo-serie}
+recorre ese camino sobre una hora real de la UCC, es decir, sigue las
+lecturas del medidor y las del inversor desde el archivo en que llegaron
+hasta el valor horario que cada una deja en la serie.
 
-\textbf{Localización.} Los datos crudos se organizan en una carpeta por
-institución, con subcarpetas por medidor y por inversor. La búsqueda es
-deliberadamente tolerante a diferencias de mayúsculas y de escritura,
-porque los nombres con que llegan las carpetas no son uniformes: la
-carpeta de medidores de CESMAG, por ejemplo, viene escrita
-\code{eletricMeter}, con la errata de origen, y se conserva así para
-reproducir exactamente la estructura de la fuente en vez de corregirla y
-perder la trazabilidad. Los registros de un mismo medidor pueden venir
-partidos en varios archivos por tramos de fecha, que se leen y concatenan.
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_01_archivo_a_serie_m1.png}
+ \caption[Del archivo a la serie horaria, sobre una hora real]{El
+ recorrido de una hora real, la de las 13 horas del jueves 6 de noviembre
+ de 2025 en la UCC, frontera M1. Arriba, los archivos del medidor y del
+ inversor sobre el calendario, con el horizonte de estudio sombreado. En el centro, las lecturas a paso de 2
+ minutos de esa hora: el medidor vuelca 38 filas que se funden en 30
+ instantes y el inversor entrega 30 lecturas en vatios. Abajo, la media
+ de cada panel ocupa su lugar entre las 24 horas del día.}
+ \label{fig:prep-archivo-serie}
+\end{figure}
 
-\textbf{Lectura.} Cada archivo se decodifica probando cuatro
-codificaciones en orden: \code{utf-8-sig}, \code{utf-8}, \code{cp1252} y
-\code{latin-1}. El orden no es arbitrario y conviene explicarlo, porque
-es el tipo de detalle que pasa inadvertido hasta que corrompe una serie
-entera. La codificación \code{latin-1} acepta cualquier secuencia de
-bytes y por tanto nunca falla; si se probara antes que \code{cp1252},
-ganaría siempre, y los archivos exportados por herramientas de Windows en
-configuración regional colombiana se decodificarían con caracteres
-corruptos en el rango \code{0x80}--\code{0x9F}, justamente donde viven
-las tildes. Por eso \code{cp1252} va antes y \code{latin-1} queda como
-último recurso. Un archivo ilegible no se descarta en silencio: el
-cargador emite un aviso incondicional, porque un archivo caído puede
-significar una institución entera ausente aguas abajo.
+Antes de promediar hay que resolver una ambigüedad del dato crudo. Algunas
+lecturas comparten instante con otra, \num{3099} veces en la frontera
+principal y \num{3622} en la secundaria, y el registro de un equipo no
+puede llevar dos valores en el mismo instante. Se resuelve en uno solo
+tomando su promedio.
 
-\textbf{Marcas de tiempo.} La columna de fecha se convierte en modo
-tolerante: las marcas ilegibles se vuelven nulas y se descartan. Las
-marcas duplicadas, dos lecturas con el mismo instante, se consolidan
-promediándolas, lo que evita ambigüedades al concatenar los tramos.
+La regla de fusión no tiene consecuencia, y conviene decirlo con
+precisión. En los \num{6721} instantes repetidos de las dos fronteras las
+lecturas que lo comparten coinciden hasta el último dígito, de modo que
+promediarlas, quedarse con la primera o quedarse con la última dan
+exactamente el mismo número. Se toma el promedio porque el instante ha de ser único para poder alinear los tramos
+de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
 
-\textbf{Unidades.} La potencia de los medidores viene en kilovatios y se
-usa directamente; la de los inversores viene en vatios y se divide entre
-mil. La salida del inversor se recorta además a valores no negativos,
-porque la potencia de corriente alterna inyectada no puede ser negativa. El
-recorte es defensivo y no llega a actuar: ninguno de los siete inversores
-registra una sola lectura por debajo de cero, de modo que esta etapa deja
-el valor intacto.
+La serie se remuestrea entonces a una hora tomando la \emph{media} de las
+muestras del intervalo, no la suma, y la razón está en la
+ecuación~\eqref{eq:dato-energia}. La energía de la hora es la integral de
+la potencia sobre ella, pero de esa integral solo se conocen $N$ valores
+espaciados de manera uniforme, de modo que se aproxima por rectángulos en
+los que cada muestra vale por el intervalo $\delta$ que representa:
 
-\textbf{Agregación a paso horario.} Las series se remuestrean a una hora
-tomando la \emph{media} de las muestras del intervalo, no la suma. La
-razón es física y no de conveniencia: la energía de una hora es la
-integral de la potencia en ese intervalo, $E = \int P\,dt$, y con
-$\Delta t = \uni{1}{h}$ la potencia media en kilovatios coincide
-numéricamente con la energía horaria en kilovatios hora. Las hasta 30
-muestras de 2 minutos de cada hora aproximan esa integral. La
-consecuencia práctica es que las series resultantes pueden leerse
-indistintamente como potencia media horaria o como energía horaria, y a
-lo largo del documento se usan las dos lecturas según convenga.
+\begin{equation}
+ E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
+   \;\simeq\; \sum_{k=1}^{N} P_{k}\,\delta
+   \;=\; \frac{\Delta t}{N}\sum_{k=1}^{N} P_{k}
+   \;=\; \overline{P}\,\Delta t ,
+ \qquad \delta = \frac{\Delta t}{N} .
+ \label{eq:prep-media}
+\end{equation}
+
+La media no es entonces una convención de agregación, sino que sale del
+ancho del rectángulo: es el factor $\delta$ el que convierte kilovatios en
+kilovatios hora. Con $\Delta t = \uni{1}{h}$ y $N = 30$ ese ancho vale dos
+minutos, y la energía horaria en kilovatios hora resulta numéricamente
+igual a la potencia media en kilovatios, de modo que la misma serie puede
+leerse de las dos maneras y a lo largo del documento se usan ambas según
+convenga.
+
+Sumar las muestras equivale a fijar $\delta = \uni{1}{h}$, es decir, a
+conceder una hora entera a cada lectura de dos minutos, y devuelve un
+valor $N$ veces mayor. Devuelve además un error que no es constante: una
+hora con muestreo incompleto quedaría multiplicada por un $N$ menor, de
+modo que el sesgo variaría con la calidad de la adquisición en vez de
+cancelarse al comparar mecanismos.
 
 \begin{detallebox}
-Si en lugar de la media se hubiera tomado la suma, cada hora quedaría
-multiplicada por el número de muestras que contiene (hasta 30) y las
-horas con muestreo incompleto quedarían sistemáticamente subestimadas
-frente a las completas. El error no sería un factor constante que se
-cancela al comparar mecanismos, sino uno que varía con la calidad de la
-adquisición de cada hora.
+La aproximación se puede contrastar, porque el medidor lleva junto a la
+potencia sus propios contadores de energía importada y exportada, en
+kilovatios hora, que avanzan por su cuenta y no intervienen en el
+preprocesamiento. Sobre las \num{5810} horas completas del circuito
+principal de la UCC, la media horaria y lo que esos contadores avanzan
+difieren en \uni{0.008}{kWh} sobre horas de \uni{19.20}{kWh}, y acumuladas
+sobre el horizonte la diferencia es del \pct{0.04}. La suma de las
+muestras, en cambio, arroja \num{30.0} veces lo que el contador registra.
+El método no descansa entonces solo en el argumento físico: el propio
+equipo lo certifica.
 \end{detallebox}
+
+La unidad se convierte al final, sobre la serie ya horaria. La potencia de
+los medidores viene en kilovatios y se usa directamente; la de los
+inversores viene en vatios y se divide entre mil. El orden entre las dos
+operaciones es indiferente, porque dividir entre una constante conmuta con
+la media, pero se enuncia como se ejecuta. La salida del inversor se
+recorta además a valores no negativos, porque la potencia de corriente
+alterna inyectada no puede ser negativa, y ese recorte tampoco llega a
+actuar: ninguno de los siete inversores registra una sola lectura por
+debajo de cero.
+
+La etapa contempla por último tres anomalías que este conjunto no
+presenta: un archivo que no se deja leer, una fecha que no se deja
+interpretar y un valor que no es numérico. Ninguna ocurre ni una sola vez
+en los \num{2813305} registros de los diez medidores que el modelo emplea,
+de modo que las ramas que las tratan nunca llegan a ejecutarse. El
+Anexo~\ref{anx:repro} recoge el procedimiento completo, con esas
+comprobaciones y el orden exacto en que se aplican.
 
 \subsection{La lectura que no puede ser}
 \label{sub:prep-negativa}
@@ -220,24 +256,6 @@ del día y el número de horas que afecta a cada institución.
  (izquierda), y alcance del fenómeno por institución (derecha). La
  franja sombreada marca la zona físicamente imposible. Las lecturas
  bajo cero no se reparten al azar a lo largo del día: se concentran
-La unidad se convierte al final, sobre la serie ya horaria. La potencia de
-los medidores viene en kilovatios y se usa directamente; la de los
-inversores viene en vatios y se divide entre mil. El orden entre las dos
-operaciones es indiferente, porque dividir entre una constante conmuta con
-la media, pero se enuncia como se ejecuta. La salida del inversor se
-recorta además a valores no negativos, porque la potencia de corriente
-alterna inyectada no puede ser negativa, y ese recorte tampoco llega a
-actuar: ninguno de los siete inversores registra una sola lectura por
-debajo de cero.
-
-La etapa contempla por último tres anomalías que este conjunto no
-presenta: un archivo que no se deja leer, una fecha que no se deja
-interpretar y un valor que no es numérico. Ninguna ocurre ni una sola vez
-en los \num{2813305} registros de los diez medidores que el modelo emplea,
-de modo que las ramas que las tratan nunca llegan a ejecutarse. El
-Anexo~\ref{anx:repro} recoge el procedimiento completo, con esas
-comprobaciones y el orden exacto en que se aplican.
-
  entre las 11 y las 15 horas.
  \fuente{elaboración propia desde \file{MedicionesMTE\_v3/},
  columna \code{totalActivePower}, procesada con el pipeline del

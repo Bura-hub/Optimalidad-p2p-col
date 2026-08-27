@@ -510,10 +510,22 @@ también valen siempre cero.
 
 **Lo que esto cierra.** El catálogo contiene registros que parecen permitir
 leer la energía acumulada sin integrar la potencia, que es lo primero que
-preguntaría un revisor. No sirven: los de energía reactiva están muertos, y
-la variable llamada acumulada recorre el mismo rango que la potencia
-instantánea, es decir, no se comporta como un contador. Integrar la
-potencia no es una elección de comodidad sino la única vía disponible.
+preguntaría un revisor. Los de energía reactiva están muertos, y la
+variable llamada acumulada recorre el mismo rango que la potencia
+instantánea, es decir, no se comporta como un contador.
+
+> **Corregido el 2026-08-26.** La última frase de esta entrada decía que
+> integrar la potencia era «la única vía disponible». Eso vale para la
+> reactiva y **no** para la activa. Los registros de energía activa
+> importada y exportada **sí están vivos**: la palabra baja varía en los
+> diez medidores que el modelo emplea, la alta desborda en cuatro de ellos
+> y en uno la de exportación también, y componen como alta por diez mil más
+> baja, en kilovatios hora. Se comportan como un contador de verdad. Se
+> usan en el Capítulo~3 como referencia independiente para contrastar el
+> promedio horario, y el contraste sale limpio. Integrar la potencia sigue
+> siendo lo correcto, pero por otras dos razones: el contador es entero, con
+> lo que su resolución de 1 kWh es peor que la de la potencia sobre una hora
+> de unos 19 kWh, y en cinco medidores está mal escalado (ver H-16).
 
 ---
 
@@ -642,3 +654,59 @@ de modo que el agregado no vale.
 **Consecuencia para el documento.** La decisión de trabajar solo con
 energía activa queda sostenida por cuatro razones de principio y por esta
 medida de que la omisión no compromete la comparación. Ver C-34.
+
+---
+
+## H-16 · Cinco medidores tienen la potencia y el contador de energía a escalas distintas, y el inventario predice cuál
+
+**Estado: medido y corroborado por dos fuentes independientes. Afecta a
+P-6, que hasta hoy estaba planteado sin cuantificar. No cambia ninguna
+cifra publicada, pero acota la duda que P-6 dejaba abierta.**
+
+Al contrastar el promedio horario contra el contador de energía del propio
+medidor (ver H-13 corregido), cuatro medidores cuadran al 0,05 % y cinco no
+cuadran en absoluto. La discrepancia no es ruido: **es un factor de escala
+limpio, y el inventario de instalación lo predice**.
+
+El inventario trae dos columnas que hasta ahora no se habían usado, el
+transformador de corriente instalado y el verificado. Su cociente predice
+el desajuste medido:
+
+| Institución | Medidor | Instalado (A) | Verificado (A) | Razón predicha | Razón medida |
+|---|---|---:|---:|---:|---:|
+| Udenar | M1 | 400 | 400 | 1,0 | **1,00** |
+| UCC | M1 | 400 | 400 | 1,0 | **1,00** |
+| UCC | M3 | 100 | 100 | 1,0 | **1,00** |
+| HUDN | M1 | 200 | 200 | 1,0 | **1,00** |
+| Mariana | M1 | 400 | 10 | 40,0 | **39,51** |
+| HUDN | M3 | 400 | 10 | 40,0 | **38,61** |
+| Cesmag | M1 | 800 | 10 | 80,0 | **78,45** |
+| Cesmag | M3 | 800 | 10 | 80,0 | **78,48** |
+
+Nueve de diez medidores. (Udenar M3 mide 1,49 frente a 1,0 predicho, pero
+su contador solo acumula 4.167 kWh y la cuantización entera domina;
+Mariana M3 acumula 51 kWh y no es interpretable.) Donde el transformador
+instalado coincide con el verificado, los dos canales cuadran; donde no
+coincide, **se separan justo por ese cociente**, y en Cesmag el valor es
+idéntico en sus dos medidores, que es lo que cabe esperar de una misma
+instalación.
+
+**La dirección.** La columna de potencia lleva la corrección del
+transformador y el contador interno no. Lo respalda la magnitud: el
+contador de Cesmag daría 332 kWh en ocho meses para el circuito principal
+de un campus, es decir 1,4 kWh al día, que es imposible; la potencia da
+unos 107 kWh al día, que es plausible. El canal que el pipeline usa es, por
+tanto, el bueno.
+
+**Lo que esto NO cierra.** Que la potencia sea el canal correcto en
+términos relativos no prueba que su escala absoluta lo sea. Si el
+transformador instalado no fuera el que el inventario declara, la potencia
+arrastraría ese error y el contraste seguiría cuadrando igual, porque las
+dos fuentes de este hallazgo son la misma instalación. Cerrar P-6 del todo
+exige una comprobación en campo.
+
+**Cómo reproducirlo.** Componer la energía neta como
+`(importada_alta - exportada_alta) * 10000 + (importada_baja - exportada_baja)`,
+leerla **en las marcas de hora en punto** (no del primer al último instante
+de la hora, que son 58 minutos y sesgan el resultado un 3 %), y comparar su
+diferencia con la media horaria de la potencia activa.

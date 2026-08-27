@@ -216,10 +216,10 @@ medida.}\label{tab:dato-var-medidor}\\
     Factor de potencia en la máxima aparente importada & --- \\
     \addlinespace
     \multicolumn{2}{@{}l}{\textit{Registros de energía acumulada}} \\*
-    Energía activa importada, palabras baja y alta    & --- \\
-    Energía activa exportada, palabras baja y alta    & --- \\
-    Energía reactiva positiva, palabras baja y alta   & --- \\
-    Energía reactiva negativa, palabras baja y alta   & --- \\
+    Energía activa importada, palabras baja y alta    & kWh \\
+    Energía activa exportada, palabras baja y alta    & kWh \\
+    Energía reactiva positiva, palabras baja y alta   & kvarh \\
+    Energía reactiva negativa, palabras baja y alta   & kvarh \\
     \addlinespace
     \multicolumn{2}{@{}l}{\textit{Calidad de la onda}} \\*
     Distorsión armónica de corriente (A, B, C)        & \% \\
@@ -340,6 +340,9 @@ factura como si fuera activa dentro de los cargos por uso de las redes.
 Medido sobre el horizonte, ese exceso aparece en el \pct{15,0} de las
 horas con consumo del circuito principal y en el \pct{65,7} de las del
 secundario, y equivale a \uni{1865016}{COP} y \uni{1210145}{COP}. La
+medición no procede de los contadores de energía reactiva del equipo, que
+llegan en cero durante todo el horizonte, sino de integrar hora a hora la
+potencia reactiva, del mismo modo que se hace con la activa. La
 primera cifra supera el margen que separa a los dos mecanismos mejor
 situados en esa frontera. Aun así el ordenamiento no cambia, porque es un
 cargo que todos los mecanismos pagan sobre el mismo consumo, y el efecto

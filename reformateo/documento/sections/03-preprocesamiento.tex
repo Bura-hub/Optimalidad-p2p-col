@@ -25,7 +25,7 @@ archivos que escribe cada uno de los 27 equipos, con una lectura cada dos
 minutos y huecos allí donde la adquisición falló. Del otro lado está lo
 que el modelo necesita para operar, que es cuánto consumió y cuánto generó
 cada institución en cada una de las \num{6144} horas del horizonte. Entre
-ambos median 6 etapas, y ninguna es automática: en todas se decidió
+ambos median seis etapas, y ninguna es automática: en todas se decidió
 algo. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
@@ -34,8 +34,9 @@ proceso completo.
 \label{sub:prep-mapa}
 
 Antes de precisar cada etapa conviene ver el flujo completo de
-procesamiento, porque las 6 no son todas de la misma clase: 3 alteran el
-valor del dato y las otras 3 lo preparan, lo ensamblan o lo verifican. La
+procesamiento, porque las seis no son todas de la misma clase: tres
+alteran el valor del dato y las otras tres lo preparan, lo ensamblan o lo
+verifican. La
 Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
 
 \begin{figure}[H]
@@ -122,9 +123,9 @@ Figura~\ref{fig:prep-pipeline} las ordena y las distingue.
  \label{fig:prep-pipeline}
 \end{figure}
 
-Esas 3 se reparten a su vez en dos grupos: la primera lleva el archivo
-hasta la serie horaria, y las 2 últimas la ensamblan y la verifican. Las 3
-resaltadas en la figura son las que modifican el valor. Esa separación es
+Esas tres se reparten a su vez en dos grupos: la primera lleva el archivo
+hasta la serie horaria, y las dos últimas la ensamblan y la verifican. Las
+tres resaltadas en la figura son las que modifican el valor. Esa separación es
 la que permite decir con precisión dónde se juega la fidelidad del dato.
 
 Del mapa importa retener una propiedad. Todo el trabajo se recorre dos
@@ -314,7 +315,7 @@ clasificación gobierna todo lo que sigue.
  et/.style={font=\scriptsize\itshape, text=black!65},
  ]
  % --- net ---
- \node[et] at (-2.35,0.62) {\textbf{net}};
+ \node[et] at (-2.35,0.62) {\textbf{neto}};
  \node[eq] (r1) at (-1.0,0) {Red};
  \node[med] (m1) at (0.55,0) {M};
  \node[eq] (c1) at (2.35,0) {Carga};
@@ -326,7 +327,7 @@ clasificación gobierna todo lo que sigue.
  {el medidor queda \emph{antes}\\de la inyección: ve $D-G$};
 
  % --- gross ---
- \node[et] at (-2.35,-2.38) {\textbf{gross}};
+ \node[et] at (-2.35,-2.38) {\textbf{bruto}};
  \node[eq] (r2) at (-1.0,-3.0) {Red};
  \node[inv] (i2) at (0.55,-4.0) {Inversor};
  \node[med] (m2) at (2.05,-3.0) {M};
@@ -342,11 +343,11 @@ clasificación gobierna todo lo que sigue.
  de medición está aguas arriba de la inyección y el medidor observa el
  flujo neto, que se invierte en horas de alta irradiancia. Abajo, el
  punto de medición no ve la inyección y registra la demanda bruta. El
- caso intermedio, \emph{net partial}, corresponde a un medidor que
+ caso intermedio, el neto parcial, corresponde a un medidor que
  netea un solo inversor de peso menor frente a la carga del circuito
  medido.
- \fuente{elaboración propia a partir de la configuración de
- \code{DEMAND\_METER\_CONFIG} en \file{data/preprocessing.py}.}}
+ \fuente{elaboración propia a partir de la configuración de medidores
+ declarada en \file{data/preprocessing.py}.}}
  \label{fig:prep-tipos}
 \end{figure}
 
@@ -361,15 +362,15 @@ clasificación gobierna todo lo que sigue.
  \textbf{Institución} & \textbf{Tipo} & \textbf{Horas $D<0$} &
  \textbf{Mínimo} & \textbf{Inversores que se restituyen} \\
  \midrule
- Udenar & \emph{net} & \num{1517} & \uni{-33.57}{kW} & tres \\
+ Udenar & neto & \num{1517} & \uni{-33.57}{kW} & tres \\
  \addlinespace
- Mariana & \emph{net partial} & \num{213} & \uni{-2.41}{kW} & uno \\
+ Mariana & neto parcial & \num{213} & \uni{-2.41}{kW} & uno \\
  \addlinespace
- UCC & \emph{net partial} & \num{94} & \uni{-5.91}{kW} & uno \\
+ UCC & neto parcial & \num{94} & \uni{-5.91}{kW} & uno \\
  \addlinespace
- HUDN & \emph{gross} & \num{0} & --- & ninguno \\
+ HUDN & bruto & \num{0} & --- & ninguno \\
  \addlinespace
- CESMAG & \emph{gross} & \num{0} & --- & ninguno \\
+ CESMAG & bruto & \num{0} & --- & ninguno \\
  \bottomrule
  \end{tabular}
 \end{table}
@@ -409,12 +410,12 @@ modo que no se atribuye.
 Identificada la causa, la corrección es sencilla de enunciar: si el medidor
 restó la generación, se le devuelve. El modelo necesita la demanda bruta
 $D$ (lo que el circuito medido consume) y la generación $G$ por separado, de
-modo que para los medidores \emph{net} y \emph{net partial} la demanda se
+modo que para los medidores netos y los netos parciales la demanda se
 reconstruye como
 
 \begin{equation}
  D_{\text{recon}}
- = \Bigl(D_{\text{net}} + \sum_{\text{inversores}} G \Bigr)^{+},
+ = \Bigl(D_{\text{neto}} + \sum_{\text{inversores}} G \Bigr)^{+},
  \label{eq:prep-reconstruccion}
 \end{equation}
 
@@ -463,11 +464,11 @@ Udenar el primero tiene un elemento y el segundo, tres.
 \label{sub:prep-costo}
 
 El recorte a cero de la ecuación~\eqref{eq:prep-reconstruccion} no es
-gratuito, y conviene cuantificarlo antes de que lo haga un revisor. En
+gratuito, y conviene medir cuánto cuesta. En
 algunas horas solares la suma de inversores sobrestima la generación que
 el medidor realmente descontó (por diferencias de muestreo, por pérdidas,
 y porque las porciones de circuito no coinciden exactamente con el punto
-de medición), de modo que $D_{\text{net}} + \sum G$ resulta negativo y el
+de medición), de modo que $D_{\text{neto}} + \sum G$ resulta negativo y el
 recorte lo lleva a cero, eliminando energía de la serie de demanda.
 
 El fenómeno afecta a \num{353} de las \num{6144} horas del horizonte
@@ -491,7 +492,7 @@ misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
 \label{sub:prep-limpieza}
 
 La última etapa que altera el valor del dato es la limpieza, que aplica
-3 tratamientos en cascada sobre cada una de las 10 series de medida,
+cuatro tratamientos en cascada sobre cada una de las 10 series de medida,
 que son la demanda y la generación de cada institución.
 
 Primero, los valores que superan el umbral
@@ -505,12 +506,12 @@ carga base muy estable: cuando el rango intercuartílico es pequeño, como
 ocurre con la demanda de CESMAG, la primera cerca se vuelve demasiado
 estricta y recortaría consumo real.
 
-Segundo, los huecos de hasta 3 horas se interpolan linealmente en el
+Segundo, los huecos de hasta tres horas se interpolan linealmente en el
 tiempo. Tercero, los huecos de hasta 24 horas se completan con
 relleno hacia adelante y hacia atrás, bajo la heurística de que el patrón
-del día operativo anterior es representativo. Lo que aún sobrevive como
-faltante se imputa con cero, lo que corresponde sobre todo a horas
-nocturnas de las series de generación. La Figura~\ref{fig:prep-limpieza}
+del día operativo anterior es representativo. Y cuarto, lo que aún
+sobrevive como faltante se imputa con cero, que corresponde sobre todo a
+horas nocturnas de las series de generación. La Figura~\ref{fig:prep-limpieza}
 sitúa el umbral sobre la serie y reparte por mes las horas que la limpieza
 tuvo que rellenar.
 
@@ -524,8 +525,8 @@ tuvo que rellenar.
  entre el umbral y la masa de la serie muestra que el criterio no
  recorta operación normal. A la derecha, cuántas horas quedaron
  imputadas cada mes en cada institución.
- \fuente{elaboración propia; criterio de
- \code{\_clean} en \file{data/xm\_data\_loader.py}.}}
+ \fuente{elaboración propia; criterio de limpieza declarado en
+ \file{data/xm\_data\_loader.py}.}}
  \label{fig:prep-limpieza}
 \end{figure}
 
@@ -555,7 +556,7 @@ incremental del repositorio, y no como elecciones fundamentadas.
 \subsection{El resultado: lo que el modelo recibe}
 \label{sub:prep-matrices}
 
-Las 10 series limpias se apilan en 2 matrices de dimensión
+Las 10 series limpias se apilan en dos matrices de dimensión
 $5 \times \num{6144}$ y se someten a una verificación de contrato: si
 alguna celda de $D$ o de $G$ resulta negativa, la ejecución se detiene con
 un error explícito en lugar de continuar con datos inconsistentes. La
@@ -650,7 +651,7 @@ de estados intermedios.}
 \subsection{Las decisiones que sesgan en contra}
 \label{sub:prep-sesgo}
 
-Un capítulo que describe 6 etapas de tratamiento del dato debe
+Un capítulo que describe seis etapas de tratamiento del dato debe
 responder a una objeción evidente: si en todas ellas se decidió algo
 y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
 respuesta honesta no es que las decisiones sean neutrales, sino que
@@ -726,7 +727,7 @@ del recorte de la reconstrucción, que representa el \pct{0.32} de
 la demanda comunitaria). Es una estimación declarada y no un valor
 calculado, y así debe leerse.
 
-Con todo lo anterior, el dato queda listo para el modelo: 2 matrices de
+Con todo lo anterior, el dato queda listo para el modelo: dos matrices de
 \num{6144} horas, no negativas por construcción, con la energía que cada
 institución consume y la que produce separadas de forma explícita, y con
 el costo de cada intervención cuantificado. Queda, sin embargo, una decisión

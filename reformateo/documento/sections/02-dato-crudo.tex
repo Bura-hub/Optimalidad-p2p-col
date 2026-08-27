@@ -129,10 +129,9 @@ registra 18, entre ellas la potencia y la tensión del lado de
 corriente continua; el modelo usa una, la potencia de corriente alterna
 entregada (W).
 
-La elección merece sustento, porque el mismo medidor ofrece la potencia
-reactiva y la aparente, que habrían servido igual de bien para llenar una
-columna. Lo que el mercado intercambia es energía, y la energía es la
-integral de la potencia en el tiempo,
+La elección merece sustento, porque el mismo medidor ofrece otras dos
+potencias, la reactiva y la aparente. Lo que el mercado intercambia es
+energía, y la energía es la integral de la potencia en el tiempo,
 
 \begin{equation}
  E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
@@ -142,11 +141,12 @@ integral de la potencia en el tiempo,
 
 de modo que la magnitud buscada es aquella cuya integral da los kilovatios
 hora que después se facturan. De las tres potencias que el equipo mide,
-solo la activa lo cumple. Las tres se relacionan por $S = P + jQ$, con
-módulo $|S| = \sqrt{P^{2} + Q^{2}}$ y componente activa
-$P = |S|\cos\varphi$. De ellas únicamente la activa transfiere energía
-neta. La reactiva oscila entre la fuente y la carga, y su transferencia a lo largo de un
-ciclo se anula.
+solo la activa lo cumple, porque es la única que transfiere energía neta a
+la carga. La reactiva oscila entre la fuente y la carga, y su
+transferencia a lo largo de un ciclo se anula, de modo que su integral
+sobre la hora no es energía consumida. La aparente combina las dos en una
+sola magnitud y por eso tampoco sirve: no permite separar la parte que sí
+se consume.
 
 Por la misma razón se toma del inversor la potencia del lado de corriente
 alterna y no la del lado de corriente continua, que el equipo también
@@ -425,8 +425,9 @@ datos, porque determina lo que el resto del documento puede afirmar.
 
 Se tienen nueve meses continuos de medición horaria sobre cinco
 participantes reales, con cobertura de adquisición superior al \pct{97} en
-todos los equipos que el modelo emplea y con un horizonte fijo. Son datos reales, y esa es su principal virtud frente a buena parte de
-la literatura del área.
+todos los equipos que el modelo emplea y con un horizonte fijo. Son
+medidas tomadas en instalaciones en operación, no series sintéticas ni
+perfiles tipo.
 
 Lo que definitivamente no se abarcó: el escenario tiene cinco
 participantes, y en ningún momento este trabajo se extiende sin más a

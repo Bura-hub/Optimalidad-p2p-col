@@ -2629,6 +2629,93 @@ la deja abierta a la vista.
 
 ---
 
+## C-73 · Siete marcadores estaban tapados por los rótulos de la figura
+
+**2026-08-31 · tipo: `figura` · aplicada · revisada por revisor de gráficos**
+
+Él señaló que el rótulo de la media tapaba el gráfico, que los duplicados
+deberían ir en otro color, que todo eso debería ir a una leyenda, y que la
+rejilla y las marcas del eje vertical necesitaban más granularidad. Se pasó
+por un revisor profesional antes de implementar, y el dictamen aprobó dos,
+recortó uno y **rechazó dos con argumento**.
+
+**El defecto era peor de lo que se veía, y está medido.** Proyectando los
+valores del CSV hermano sobre el PNG y contando píxeles del gris de
+marcador: **siete puntos ocluidos, seis borrados del todo**. Tres en el
+panel del medidor (minutos 34, 48 y 58) y **cuatro en el del inversor**
+(44, 46, 48 y 50), que es el panel donde nadie estaba mirando. Verificado
+de forma independiente antes de aceptar el dictamen, y comprobado en cero
+después de corregir. La opacidad del 88 % de las cajas era justo lo que
+hacía el defecto indetectable.
+
+**Rechazado: los duplicados en rojo relleno.** Dos razones independientes.
+Un instante duplicado **no tiene un valor distinto**, de modo que
+rellenarlo de otro color lo convierte en una segunda serie categórica y
+dice algo falso; el anillo hueco es la convención de «este punto,
+señalado». Y en escala de grises el relleno rojo y el gris quedan separados
+por 29 niveles de 255, indistinguibles en un marcador de 3,7 puntos,
+mientras que el anillo sobrevive porque es una diferencia de **geometría**.
+Lo que la petición quería de verdad, saber qué significa el anillo, lo da
+la leyenda.
+
+**Rechazado: más rejilla.** El trazo conector estaba en un gris a **veinte
+niveles** de la rejilla, de modo que añadir rejilla habría enterrado el
+dato. El arreglo es el inverso y es el aplicado: oscurecer el conector para
+que la rejilla retroceda sola. La jerarquía queda en marcadores 140,
+conector 192 y rejilla 224.
+
+**Aprobado con alcance recortado: la leyenda.** Dos entradas y no tres,
+solo en el panel del medidor. No se rotula el punto gris a propósito:
+rotularlo daría al contexto el mismo peso que al asunto y aplanaría la
+figura en dos categorías simétricas, que es el fallo que C-65 nombra. Va
+dibujada a mano en el hueco vacío para que el símbolo del duplicado lo
+produzca la misma llamada que lo produce en el gráfico.
+
+**Aprobado con alcance recortado: las marcas.** Menores **sin rótulo**,
+cada 2,5 kW, 250 W, 5 kW y 2 kW según el panel, y el de la serie del
+medidor pasa de tres rótulos a cinco. Leer valores exactos sobre el papel
+no es tarea de la figura: para eso está el CSV hermano con seis decimales,
+que es justamente para lo que se escribe.
+
+**Y un defecto que nadie había visto.** La flecha de llamada era una curva
+roja de 0,8 puntos subiendo dentro de un panel cuyo asunto es una serie
+temporal: en blanco y negro **se lee como una serie de datos que no
+existe**. Además apuntaba a uno solo de los ocho duplicados. Se borra, y la
+leyenda la sustituye sin contradicción.
+
+**De paso.** La línea de la media adelgaza a 1,1 puntos y pasa **por detrás
+del dato** al que se refiere; desaparecen las dos notas en cursiva que
+repetían lo que el cuerpo ya dice, por C-64 regla 3; y la función queda sin
+un solo literal de color, que era una infracción de la norma del proyecto.
+
+**El pie.** Él lo dejó en la frase de identificación y mandó la descripción
+banda por banda al Anexo~A. Queda anotado que, así, **nada lleva al lector
+desde la figura hasta esa guía**: el anexo cumple función de registro y no
+de lectura, salvo que se añada una remisión al pie.
+
+---
+
+## C-74 · Bloques que se conservan en la fuente y no se imprimen
+
+**2026-08-31 · tipo: `tecnico` · aplicada**
+
+Él pidió poder apartar bloques sin que salgan en el compilado. Se instala
+el paquete `comment` con dos entornos gemelos, `guardado` para lo que puede
+volver y `descartado` para lo que se conserva por trazabilidad, más un
+interruptor en el preámbulo que hace visible de una vez todo lo apartado.
+Comprobado en las dos direcciones: 82 páginas con el material dentro, 81
+sin él.
+
+Es mejor que comentar con el signo de porcentaje: el material queda legible
+con su sangrado y este registro puede remitir a él. Primer bloque apartado:
+la caja del Capítulo 2 sobre la imposibilidad aritmética del umbral del
+10 % con cinco participantes. **Aviso anotado**: ese argumento sostiene
+CAL-41/42 y la corrección de una cifra ya firmada en julio, de modo que si
+sale del Capítulo 2 conviene comprobar que siga vivo en el capítulo de
+escenarios, que es a donde el propio bloque remitía.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

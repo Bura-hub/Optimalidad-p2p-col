@@ -60,6 +60,20 @@
 \usepackage{multirow}
 \usepackage{array}
 \usepackage{needspace}
+
+% Bloques que se conservan en la fuente y no se imprimen. Sirven para
+% apartar material sin perderlo: queda en el .tex, recuperable, y las
+% correcciones pueden remitir a el.
+%
+%   \begin{guardado}   ... \end{guardado}     apartado, puede volver
+%   \begin{descartado} ... \end{descartado}   descartado, se conserva por
+%                                             trazabilidad
+%
+% Para revisar de una vez todo lo apartado, cambiar excludecomment por
+% includecomment en la linea que corresponda y recompilar.
+\usepackage{comment}
+\excludecomment{guardado}
+\excludecomment{descartado}
 \usepackage{float}
 \usepackage{fancyvrb}
 \usepackage{xurl}

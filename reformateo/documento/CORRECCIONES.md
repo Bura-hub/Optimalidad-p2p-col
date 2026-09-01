@@ -2716,6 +2716,186 @@ escenarios, que es a donde el propio bloque remitía.
 
 ---
 
+## C-75 · La figura del horizonte se retira: el Gantt ya la contenía
+
+**2026-09-01 · tipo: `figura` · aplicada · pasó por revisor de gráficos y
+por corrector de estilo, y el desenlace no fue de ninguno de los dos**
+
+Él dijo que la figura no le gustaba, que probablemente fuera por la
+cantidad de colores en los rótulos del eje vertical, que no se explicaba
+sola y que no le parecía hecha bajo un estándar. Se pasó por dos revisores
+en paralelo y **los dos dictámenes chocaron**: el de gráficos mandó
+sustituirla por una escalera acumulada que contara instituciones, el de
+estilo corrigió los textos dando por buena la forma.
+
+**Se probaron cuatro formas y la buena era no tener figura.**
+
+| Forma | Quién la propuso | Por qué cayó |
+|---|---|---|
+| Catorce filas, una por fuente, rótulos en color de institución | la que había | El eje vertical no llevaba variable |
+| Escalera acumulada de instituciones | revisor de gráficos | Él pidió el subcampeón |
+| Cinco filas, una por institución | subcampeón del dictamen | «Se entiende aún menos» |
+| El Gantt ampliado a la ventana de entrada | yo, siguiendo su encargo de copiar el estilo del capítulo | La ampliación no aportaba al argumento |
+| **Ninguna: el argumento va al Gantt** | **él** | **Es la que quedó** |
+
+**Su pregunta era la correcta y desmonta las cuatro anteriores.** La
+Figura 2.2 ya llevaba el argumento entero dibujado: la banda del
+horizonte, el anillo sobre el inversor del HUDN y la llamada «fija el
+inicio». Lo único que la segunda figura añadía era resolver el orden de
+las tres entradas de febrero, **y ese orden no interviene en el
+argumento**, que depende solo de la última. Era una página entera por una
+curiosidad.
+
+El revisor de gráficos había llegado a rozar esta conclusión en su punto
+sobre si la figura era necesaria, y se quedó en «sí, pero por poco»
+porque valoró la ampliación como un servicio real. Lo era, pero a una
+pregunta que nadie hace.
+
+**Qué se hizo para que el Gantt lo sostenga solo.** Su llamada pasa de
+«fija el inicio» a «fija el inicio del horizonte», y su pie deja de
+describir solo el periodo cubierto para nombrar la banda y el anillo. La
+prosa del apartado recoge lo que el anillo decía sin palabras: que la
+última en registrar es **un inversor y no un medidor**, porque dentro del
+HUDN los dos medidores empiezan la víspera, de modo que lo que faltaba
+para completar la comunidad era la generación.
+
+**Lección, y es la segunda vez que aparece en esta sesión.** Antes de
+rediseñar una figura hay que mirar a sus hermanas del mismo capítulo. Los
+dos revisores trabajaron sobre la figura aislada y los dos vieron defectos
+reales, pero ninguno se preguntó si el capítulo ya la contenía. Primero se
+perdió una vuelta por no copiar el estilo del capítulo, y luego otra por
+no comprobar que la figura vecina ya hacía el trabajo.
+
+**Lo que sobrevive del trabajo, porque eran defectos y no forma:**
+
+1. **«Primer registro» y nunca «entrada en servicio».** El censo da la
+   marca de tiempo más antigua hallada en los archivos, que no es la fecha
+   de instalación: las fuentes de Udenar empiezan el 1 de enero a las
+   00:00:00, que es el borde de la exportación, mientras que Mariana y el
+   HUDN traen el escalonamiento de minutos de una instalación real.
+2. **Los dos formateadores de fecha crudos** del capítulo, que eran los
+   últimos que quedaban, corregidos al pasar por el Gantt.
+3. **El gris de las bandas alternas**, que vivía como literal dentro del
+   Gantt y pasa a `FONDO_BANDA` en la fuente única.
+4. **Dos modos nuevos en la fuente única**, `mes_anio` y `dia_corto`, que
+   quedan disponibles aunque la figura que los pidió ya no exista.
+5. **El recuento de fuentes**, que es H-19 y es lo más valioso que salió
+   de todo esto: el capítulo publicaba 13 cuando 13 es el complemento.
+6. **El desfase de seis horas** entre el arranque del horizonte y el
+   primer registro del inversor del HUDN, que es H-20 y ahora está dicho
+   en la prosa.
+
+**Un fallo mío al implementar**, anotado porque es reincidente:
+`ax.grid(axis="x", which="major")` sin `visible` **alterna** el estado, de
+modo que apagó la rejilla en vez de encenderla. Se ve solo mirando el
+render, no leyendo el código.
+
+**Queda una figura menos en el capítulo 2**, que pasa de cuatro a tres. No
+hay renumeración que arrastrar: las dos figuras siguientes del generador
+viven en el Anexo~A6 y se numeran por él.
+---
+
+## C-76 · La figura de cobertura era una tabla disfrazada de gráfico
+
+**2026-09-01 · tipo: `figura` · aplicada**
+
+Él dijo que tampoco se entendía. El defecto era de codificación y está
+medido: **19 de los 20 medidores caben en 1,7 puntos porcentuales**, que
+sobre una barra que arranca en cero son 0,07 pulgadas, es decir, cinco
+puntos tipográficos. Las barras no podían mostrar esa diferencia, de modo
+que toda la información acababa en una columna de cifras al margen y el
+gráfico solo servía de soporte.
+
+El propio código lo confesaba sin decirlo: `xlim` hasta 118 y hasta 145
+para hacer sitio al texto, y un comentario que explicaba que las cifras
+iban alineadas aparte porque «con veinte barras contiguas no hay ningún
+hueco donde poner una caja de texto».
+
+**La magnitud pasa a ser el complemento**, las horas que faltan, que van
+de 31 a 204. Un factor de siete, que la barra sí dibuja. Y es además la
+cantidad que importa, porque es la que alimenta la imputación del
+Capítulo~3.
+
+**Y al medirlo apareció algo peor, que es H-21.** La cobertura se
+calculaba sobre las 6.144 horas del horizonte completo, de modo que las
+dos «excepciones» que el capítulo nombraba no eran fallos de adquisición
+sino arranques tardíos. Medidas sobre el periodo en servicio, las 27
+fuentes caen entre el 96,7 % y el 98,8 % y no queda excepción alguna. El
+texto decía que el Medidor 4 de Udenar bajaba «por una racha larga de
+ausencia», y lo que hubo fue una instalación el 29 de abril.
+
+**Dos arreglos de composición.** Los siete inversores se repartían el alto
+de los veinte medidores, con lo que sus barras salían tres veces más
+gruesas y los dos paneles parecían dos clases de gráfico distintas; ahora
+comparten paso y el hueco que queda aloja la nota. Y los avisos de
+arranque tardío no caben en línea: medido sobre el render, el área de
+datos mide 1,2 pulgadas y 0,8, de modo que un aviso de treinta caracteres
+se sale del panel. Se marcan las dos barras con un asterisco.
+
+**De paso**, el gris de lo auxiliar vivía como literal en dos figuras y
+con **dos valores distintos**, `#CFCFCF` en una y `#D5D5D5` en la otra.
+Pasa a `APAGADO` en la fuente única.
+
+---
+
+## C-77 · Los cierres de capítulo recitaban cifras ya publicadas
+
+**2026-09-01 · tipo: `redaccion` · aplicada · cuatro casos de seis, él eligió**
+
+Él señaló que los dos párrafos del cierre del apartado de cobertura
+repetían información y podían compactarse, y pidió que antes se revisara
+todo el documento por si el defecto estaba en más sitios, para decidir él
+cuáles atacar.
+
+**Se buscó mecánicamente**, con tres sondas: la misma cifra publicada más
+de una vez dentro de un mismo apartado, dos oraciones del mismo apartado
+con solape léxico por encima del 42 %, y pie de figura cuyas palabras ya
+estuvieran en el párrafo anterior. Aparecieron seis candidatos y **un
+patrón**: los párrafos de cierre de capítulo, los que empiezan por «En
+resumen» o «En síntesis», vuelven a recitar cifras que la tabla, la figura
+o un párrafo anterior ya habían publicado.
+
+| Caso | Qué repetía | Decisión |
+|---|---|---|
+| Cierre del Capítulo 2 | El «superior al 97 %», literal, 20 líneas más arriba | **aplicado**, de 87 a 47 palabras |
+| Cierre del Capítulo 4 | El 19,1 % y el 91,2 %, 13 líneas antes | **aplicado**, de 57 a 23 palabras |
+| «Tres tipos de medidor», Capítulo 3 | La columna de la tabla: 73,8 %, 21,3 % y 11,7 %, en el mismo orden | **aplicado** |
+| Pie de la figura de cobertura | El 57 % de sus palabras estaban en el párrafo anterior | **aplicado**, de 50 a 35 palabras |
+| «El precio al que la red vende», Capítulo 5 | El 38,3 % y el 22,0 %, dos veces | no, decisión suya |
+| Cierre del Capítulo 5 | La banda de \uni{182.5}{} a \uni{792.06}{COP/kWh} | no, decisión suya |
+
+**El caso del Capítulo 3 no se compacta, se sustituye.** La prosa recitaba
+tres cifras que la tabla ya daba, y en su lugar dice ahora la relación
+entre ellas, que la tabla no da: Udenar encabeza la columna, y en Mariana
+la fracción es más de tres veces menor y en la UCC más de seis. El
+argumento del apartado es que la diferencia es de grado, y una relación lo
+sostiene mejor que tres valores absolutos.
+
+**El cierre del Capítulo 4 desaparece entero.** Enunciaba una regla que el
+párrafo inmediatamente anterior ya enuncia con más detalle, de modo que
+solo queda la bisagra hacia el capítulo de precios.
+
+**Uno de los seis era mío y de esta misma sesión**, el pie de la figura de
+cobertura: al hacer explícito el denominador a petición suya, quedó dicho
+tres veces, en el párrafo, en el pie y en la nota de dentro de la figura.
+El pie se queda solo con lo que el cuerpo no dice, que las dos clases de
+equipo se miden sobre bases distintas.
+
+**Dos falsos positivos que conviene no volver a perseguir.** Los solapes
+del 100 % entre líneas de `\fuente{}` son la convención de atribución, no
+un defecto. Y el \num{6031} del Anexo~A6 aparece en dos tablas donde
+significa cosas distintas.
+
+**Los dos párrafos que originaron la revisión** pasan de 186 a 132
+palabras. Se les quitó la contraposición entre periodo en servicio y
+horizonte completo, que ya estaba en el párrafo de entrada y en el pie; el
+98,7 % y el 97,7 %, que quedan subsumidos en el rango que viene dos líneas
+después; los «25 días», que el lector calcula con el 4 de abril que acaba
+de leer; y la frase sobre el papel del Inversor MTE, que ya está en el
+apartado del horizonte y además la rotula la propia figura.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

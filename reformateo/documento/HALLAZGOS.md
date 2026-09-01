@@ -903,3 +903,100 @@ dispara una alarma de validación, el mercado australiano y la guía ASHRAE
 eventos y la Clase A exige medición sin huecos, de modo que no debe
 citarse. Ninguna norma eléctrica fija umbral de completitud; si se quiere
 uno, se declara como decisión propia. Ver P-20.
+
+---
+
+## H-19 · El capítulo publicaba el complemento como si fuera lo que el modelo emplea
+
+**2026-09-01 · destapado al replantear la figura del horizonte · corregido**
+
+El resumen del Capítulo 2 decía «la base empírica la forman 27 fuentes
+instrumentadas, de las cuales el modelo emplea 13». Contado sobre el
+censo, **13 es exactamente el complemento de lo que la frase quiere
+decir**:
+
+| | Medidores | Inversores | Total |
+|---|---|---|---|
+| Instrumentadas | 20 | 7 | **27** |
+| Esenciales, es decir, sin las cuales la comunidad no está completa | 9 | 5 | **14** |
+| Que el modelo lee, contando la reconstrucción | 9 | 7 | **16** |
+| Sin uso alguno | 11 | 0 | **11** |
+
+Los nueve medidores son uno por institución en cada frontera salvo en
+Mariana, donde un solo equipo sirve a las dos, que es lo que hace que sean
+nueve y no diez. El complemento de los 14 esenciales son 13, once
+medidores auxiliares y los dos inversores que Udenar aporta solo a la
+reconstrucción, y esa es la cifra que se había publicado.
+
+Se corrige a **16**, que es la que corresponde al verbo «emplea», porque
+los dos inversores de reconstrucción sí se leen aunque no entren en la
+matriz de generación. El aviso apartado del mismo capítulo arrastraba el
+mismo error en su forma parcial, «8 participan y 12 quedan como
+auxiliares», y se corrige a 9 y 11 aunque hoy no se imprima: está dentro
+de un entorno `guardado`, que es «lo que puede volver», y volvería con el
+error dentro.
+
+**Por qué no se vio antes.** La cifra era coherente consigo misma y con
+nada más. La figura de cobertura ya imprimía nueve barras en color y once
+en gris, de modo que la figura contradecía al texto desde el principio.
+
+---
+
+## H-20 · El horizonte empieza seis horas antes que su última fuente
+
+**2026-09-01 · abierto · señalado por los dos revisores de forma independiente**
+
+La constante de inicio del horizonte es el 4 de abril de 2025 a las 00:00
+y el primer registro del inversor del HUDN es ese mismo día a las
+**05:58:04**. Las primeras cinco horas y cincuenta y ocho minutos del
+horizonte no tienen registro de generación de esa institución.
+
+**El efecto sobre las cifras es previsiblemente inmaterial**, porque son
+horas de noche y el equipo mide generación fotovoltaica, que a esa hora es
+nula. Lo que no resistía es la redacción: el capítulo decía «el 4 de abril
+como primer día completo con las cinco instituciones operativas», y la
+figura del horizonte, diez centímetros más arriba, imprimía la hora que lo
+desmentía. Se reescribió a «primer día del horizonte, el primero en que
+las cinco instituciones tienen registro en sus medidores y en su
+inversor», que es lo que hay, y la hora pasó al cuerpo del texto cuando
+esa figura se retiró por C-75.
+
+Queda abierto lo que la reescritura no resuelve: **si esas seis horas se
+imputan o se dejan como hueco**, y si la etapa de limpieza las trata como
+tales. Se cruza con P-21, porque cualquier decisión aquí toca el mismo
+punto del cargador.
+
+---
+
+## H-21 · Las dos «excepciones» de cobertura no eran fallos, eran arranques tardíos
+
+**2026-09-01 · destapado al replantear la figura de cobertura · corregido**
+
+El censo calcula la cobertura sobre las \num{6144} horas del horizonte
+completo (`cache_fuentes.py`, el índice se construye entre `T_START` y
+`T_END`). En consecuencia, **cualquier equipo que entra en servicio
+después del inicio del horizonte acumula como dato faltante las horas en
+que todavía no existía**, y la figura lo presentaba como un defecto de
+adquisición.
+
+| Fuente | Sobre el horizonte | Horas previas | Sobre su servicio |
+|---|---|---|---|
+| Udenar · Medidor 4 | 88,7 % | 623 h | **98,7 %** |
+| Udenar · Inversor MTE | 39,3 % de sol | 1.989 h de sol | **97,7 %** |
+
+Medidas sobre el periodo en servicio, **las 27 fuentes caen entre el
+96,7 % y el 98,8 % y no queda ninguna excepción que acotar**. Lo que el
+capítulo llamaba «una racha larga de ausencia» en el Medidor 4 de Udenar
+era la instalación del equipo el 29 de abril, 25 días después de que
+empezara el horizonte.
+
+**Consecuencia para el Capítulo 3.** La magnitud que importa para la
+imputación son las horas que de verdad faltan, y son pocas: de 31 a 204
+según la fuente, y como mucho 126 en los equipos que el modelo emplea. Las
+\num{1989} horas del Inversor MTE **no se imputan**, porque no son huecos;
+esa fuente sencillamente no participa antes de septiembre.
+
+**Por qué no se vio antes.** La cifra del 88,7 % era correcta como
+cobertura sobre el horizonte; lo que estaba mal era la causa que se le
+atribuía. Es el mismo patrón de H-19: un número bien calculado y mal
+interpretado.

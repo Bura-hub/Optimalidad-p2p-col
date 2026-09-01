@@ -2587,6 +2587,46 @@ vale 0,01 kWh, de modo que decir que no mejora era impreciso.
 
 ---
 
+## C-72 · P-20 aplicada: el umbral de cobertura, como prueba y no como regla
+
+**2026-08-31 · tipo: `metodo` · aplicada · P-20 CERRADA**
+
+El revisor normativo propuso declarar un umbral de completitud, es decir,
+considerar válida solo la hora que traiga al menos el \pct{75} de sus
+muestras, y sustituir las que no lleguen en vez de estimarlas. Medido, el
+umbral **es prácticamente inerte**, y eso decide cómo aplicarlo.
+
+**Lo medido.** Incumplen el umbral **147 horas** del horizonte, el 0,49 %
+de las 30.153 horas-institución con dato, repartidas entre 24 y 36 por
+institución. De ellas, 61 traen entre 17 y 22 muestras y solo 2 traen una
+sola. Tratarlas como huecos y rellenarlas con las reglas de la etapa de
+limpieza, en vez de estimarlas con la media de lo observado, mueve la
+demanda comunitaria en **65,6 kWh sobre 254.949, es decir el 0,026 %**. Por
+institución: Udenar −0,417 %, CESMAG −0,035 %, UCC −0,008 %, Mariana
+−0,004 % y el HUDN −0,000 %.
+
+**Por qué NO se cambia el pipeline.** Aplicar el umbral dentro de
+`data/preprocessing.py` alteraría el valor de esas 147 horas y, con él, la
+serie que consume el modelo. Eso invalidaría el canon congelado, las
+figuras publicadas, la tesis, el artículo y los informes mensuales ya
+firmados, y obligaría a rehacer la corrida completa y el análisis de
+sensibilidad global. **A cambio de mover el agregado un 0,026 %.** La
+proporción entre coste y efecto no lo justifica, y el canon es el contrato
+con todo lo que hay aguas abajo.
+
+**Cómo se aplica entonces, y por qué es mejor así.** El umbral entra como
+**prueba de fragilidad declarada**, no como regla de filtrado. La pregunta
+que un revisor haría es si la estimación descansa sobre las horas peor
+cubiertas; la respuesta medida es que no, y se publica con su cifra. Una
+sensibilidad con número es más informativa que una regla que no llega a
+ejercerse, y de paso deja constancia de que la cuestión se examinó.
+
+Queda anotado que, si alguna vez se rehace la corrida canónica por otro
+motivo, **conviene incorporar el umbral en esa misma corrida**, porque
+entonces el coste marginal es nulo.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -2608,6 +2648,6 @@ vale 0,01 kWh, de modo que decir que no mejora era impreciso.
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
 | P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
-| P-20 | Declarar un umbral de cobertura para la hora incompleta, por ejemplo 75 % de muestras y al menos una por cuarto de hora, con marca por hora y tratamiento explícito por debajo. Con una media de 28 de 30 no mordería casi nada, pero obliga a instrumentar la marca. Propuesto por el revisor normativo en C-71. | pendiente de decisión |
+| P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

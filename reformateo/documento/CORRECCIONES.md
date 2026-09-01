@@ -2614,16 +2614,18 @@ sensibilidad global. **A cambio de mover el agregado un 0,026 %.** La
 proporción entre coste y efecto no lo justifica, y el canon es el contrato
 con todo lo que hay aguas abajo.
 
-**Cómo se aplica entonces, y por qué es mejor así.** El umbral entra como
-**prueba de fragilidad declarada**, no como regla de filtrado. La pregunta
-que un revisor haría es si la estimación descansa sobre las horas peor
-cubiertas; la respuesta medida es que no, y se publica con su cifra. Una
-sensibilidad con número es más informativa que una regla que no llega a
-ejercerse, y de paso deja constancia de que la cuestión se examinó.
+**Cómo se aplica en esta corrida.** El umbral entra como **prueba de
+fragilidad declarada**, con su cifra publicada, porque la corrida canónica
+es anterior a la adopción del criterio y rehacerla solo por esto no se
+justifica.
 
-Queda anotado que, si alguna vez se rehace la corrida canónica por otro
-motivo, **conviene incorporar el umbral en esa misma corrida**, porque
-entonces el coste marginal es nulo.
+**Pero se adopta, y su aplicación queda como deuda, no como descarte.**
+Decisión suya del 2026-08-31: el criterio es correcto y debe aplicarse. En
+consecuencia deja de ser una sensibilidad y pasa a ser una **declaración de
+honestidad metodológica** en el capítulo, que ahora enumera cuatro
+elecciones y no tres, y a **P-21** como tarea con su alcance. La diferencia
+importa: una sensibilidad medida cierra una pregunta, una deuda declarada
+la deja abierta a la vista.
 
 ---
 
@@ -2649,5 +2651,6 @@ entonces el coste marginal es nulo.
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
 | P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
 | P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
+| P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. | pendiente, acordada |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

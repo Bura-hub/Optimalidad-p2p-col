@@ -768,8 +768,9 @@ sostener el resultado ante una lectura hostil.
 \subsection{Declaración de honestidad metodológica}
 \label{sub:prep-honestidad}
 
-Tres elecciones de este capítulo carecen de respaldo formal y se declaran
-como tales, sin atenuarlas.
+Cuatro elecciones de este capítulo se declaran sin atenuarlas. Las tres
+primeras carecen de respaldo formal; la cuarta está adoptada pero todavía
+no aplicada.
 
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
  \item El umbral de valores atípicos
@@ -785,6 +786,14 @@ como tales, sin atenuarlas.
  \item No se construyó una matriz de sensibilidad del pipeline completo,
  es decir, variar el umbral y los límites de interpolación y relleno y
  medir el efecto sobre los resultados. Queda como trabajo futuro.
+ \item Se adopta como criterio de validez que una hora traiga al menos el
+ \pct{75} de sus muestras, y la corrida que este documento reporta es
+ anterior a esa adopción, de modo que no lo aplica: las \num{147} horas
+ que no lo cumplen entraron estimadas como las demás. El efecto está
+ medido y vale el \pct{0.026} de la demanda comunitaria, según la
+ subsección~\ref{sub:prep-lectura}. Incorporarlo exige rehacer la corrida
+ canónica completa, de modo que queda pendiente para la próxima, y hasta
+ entonces la cifra de arriba es la cota de lo que cambiaría.
 \end{enumerate}
 
 Como cota global, el impacto neto de estas elecciones sobre el volumen de

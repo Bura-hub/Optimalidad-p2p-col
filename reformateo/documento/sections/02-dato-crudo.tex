@@ -60,13 +60,13 @@ sin más a comunidades de otro tamaño o de otra mezcla de usos.
 \end{guardado}
 
 El sistema instalado en la Universidad de Nariño ocupa el Bloque
-Sur de la sede Torobajo. El de la Universidad Mariana está en el \textbf{Campus Deportivo Alvernia}, en el sector
+Sur de la sede Torobajo. El de la Universidad Mariana está en el Campus Deportivo Alvernia, en el sector
 occidental de la ciudad, y de ahí que los equipos que lo miden lleven ese
 nombre. Los de la Universidad Cooperativa de Colombia y el HUDN sí están
 en sus sedes principales, en el sector Torobajo y en el Parque Bolívar
 respectivamente. El de la Universidad CESMAG es el único fuera del casco
-urbano: está en el \textbf{Campus Universitario San Damián}, en el
-corregimiento de \textbf{Catambuco}. La Figura~\ref{fig:dato-mapa} sitúa
+urbano: está en el Campus Universitario San Damián, en el
+corregimiento de Catambuco. La Figura~\ref{fig:dato-mapa} sitúa
 las cinco sobre el territorio.
 
 \begin{figure}[H]
@@ -88,6 +88,7 @@ es la que hace que en una misma hora unas tengan excedente y otras
 déficit, que es la premisa material de cualquier intercambio. El
 Capítulo~\ref{sec:prep} la muestra medida, institución por institución.
 
+\begin{guardado}
 \begin{detallebox}
 Conviene no confundir dos proximidades distintas. La
 Figura~\ref{fig:dato-mapa} acredita la \emph{geográfica}, y es
@@ -105,6 +106,7 @@ trabajo liquida las cinco contra la tarifa publicada por CEDENAR. Es una
 decisión tomada por disponibilidad de la fuente, y el
 Capítulo~\ref{sec:precios} la declara junto con su alcance.
 \end{detallebox}
+\end{guardado}
 
 Sí interviene, en cambio, una asimetría regulatoria que el
 Capítulo~\ref{sec:precios} desarrolla: dos de las cinco, Udenar y el HUDN,
@@ -115,15 +117,15 @@ pagan tarifas distintas por la misma energía.
 \label{sub:dato-fuentes}
 
 Cada institución está instrumentada con cuatro medidores eléctricos y al
-menos un inversor fotovoltaico, y todos registran con \textbf{resolución
-de dos minutos}. El inventario de los equipos arroja
-\textbf{27 dispositivos}: 20 medidores y 7 inversores. Estos últimos
+menos un inversor fotovoltaico, y todos registran con resolución
+de dos minutos. El inventario de los equipos arroja
+27 dispositivos: 20 medidores y 7 inversores. Estos últimos
 están repartidos de forma desigual, porque Udenar tiene tres y las demás
 uno cada una. Hay además cinco estaciones meteorológicas instaladas, una por
 institución, que este trabajo no emplea.
 
 De cada equipo se toma una sola magnitud, y conviene subrayar cuánto se
-descarta al hacerlo. Un medidor registra \textbf{54}
+descarta al hacerlo. Un medidor registra 54
 magnitudes por lectura, entre ellas la corriente y la tensión de cada fase,
 la frecuencia, el factor de potencia y la distorsión armónica; de todas
 ellas el modelo usa una, la potencia activa total (kW). Un inversor
@@ -148,7 +150,9 @@ la carga. La reactiva oscila entre la fuente y la carga, y su
 transferencia a lo largo de un ciclo se anula, de modo que su integral
 sobre la hora no es energía consumida. La aparente combina las dos en una
 sola magnitud y por eso tampoco sirve: no permite separar la parte que sí
-se consume.
+se consume. Quedarse con la activa no sale gratis, porque la reactiva
+también se factura, y el Anexo~\ref{sec:no-representado} mide ese cargo y
+muestra que no altera el ordenamiento.
 
 Por la misma razón se toma del inversor la potencia del lado de corriente
 alterna y no la del lado de corriente continua, que el equipo también
@@ -262,6 +266,7 @@ medida.}\label{tab:dato-var-medidor}\\
     \fuente{elaboración propia recorriendo los siete inversores.}
 \end{table}
 
+\begin{guardado}
 \begin{detallebox}
 Que el modelo consuma 2 de las 72 magnitudes disponibles no
 es un desperdicio sino una consecuencia de su formulación: el mercado que
@@ -272,6 +277,7 @@ disponibles para extensiones que sí la consideren, y las estaciones
 meteorológicas, para trabajos que quieran predecir la generación en lugar
 de tomarla medida.
 \end{detallebox}
+\end{guardado}
 
 \subsubsection*{Qué mide cada equipo}
 
@@ -281,8 +287,9 @@ conectaron. El inventario de instalación del proyecto sí lo dice: cruza
 cada equipo con el circuito que mide, el tablero donde está montado, el
 transformador de corriente y la escala de conversión. La
 Tabla~\ref{tab:dato-inventario} recoge de ahí los dos medidores que el
-modelo emplea en cada institución, y lo que muestra obliga a corregir cómo
-se venían llamando las dos fronteras de medición.
+modelo emplea en cada institución. De ese cruce sale el nombre de las dos
+fronteras de medición: las nombra el circuito que miden, no el número del
+equipo.
 
 \begin{table}[H]
     \centering
@@ -321,10 +328,11 @@ llaman en adelante M1 y M3, por el número del medidor que cada uno emplea,
 y el Capítulo~\ref{sec:frontera} desarrolla en qué se diferencian y por
 qué se reportan siempre los dos.
 
+\begin{guardado}
 \begin{detallebox}
 No todas las fuentes instrumentadas se usan. De los 20 medidores, el
-modelo lee un equipo por institución en cada frontera, de modo que 8
-participan y 12 quedan como auxiliares. De los 7 inversores, 5
+modelo lee un equipo por institución en cada frontera, de modo que 9
+participan y 11 quedan como auxiliares. De los 7 inversores, 5
 definen la generación que ve el modelo y los otros 2 intervienen solo en
 la reconstrucción de la demanda de Udenar. La razón de no sumar todo lo
 disponible se explica en el Capítulo~\ref{sec:prep}: los equipos miden
@@ -351,6 +359,7 @@ cargo que todos los mecanismos pagan sobre el mismo consumo, y el efecto
 propio del mercado sobre él vale el \pct{6,8} de ese margen. El
 Anexo~\ref{sec:no-representado} recoge la medición completa y las razones
 por las que el trabajo se hace solo sobre energía activa.
+\end{guardado}
 
 \subsection{Cuánto tiempo hay medido}
 \label{sub:dato-gantt}
@@ -365,8 +374,9 @@ se fue instrumentando.
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f2_02_gantt_fuentes.png}
  \caption[Cobertura temporal de las 27 fuentes]{Periodo cubierto por
- cada una de las 27 fuentes instrumentadas, agrupadas por
- institución.}
+ cada una de las 27 fuentes instrumentadas, agrupadas por institución. La
+ banda vertical es el horizonte del estudio y el anillo señala la fuente
+ cuyo primer registro fija su inicio.}
  \label{fig:dato-gantt}
 \end{figure}
 
@@ -375,49 +385,59 @@ se fue instrumentando.
 
 El inicio del horizonte no se eligió: viene impuesto. Un mercado entre
 cinco participantes no puede simularse mientras falte uno, de modo que la
-primera fecha utilizable es aquella en que la última fuente necesaria
-entra en servicio. La Figura~\ref{fig:dato-horizonte} ordena las fuentes
-por su primer registro y señala cuál de ellas fija esa fecha.
+primera fecha utilizable es aquella en que empieza a registrar la última de
+las fuentes esenciales. Son esenciales 14 de las 27 fuentes instrumentadas:
+el medidor de cada frontera en cada institución, nueve en total, porque el
+de Mariana sirve a las dos, y el inversor que define la generación de cada
+una. En la Figura~\ref{fig:dato-gantt} son las barras en color, y el anillo
+señala la última en registrar.
 
-\begin{figure}[H]
- \centering
- \includegraphics[width=0.95\textwidth]{figuras/f2_04_horizonte.png}
- \caption[El inicio del horizonte y su causa]{Fecha del primer registro
- de cada fuente que el modelo necesita para que la comunidad esté
- completa, ordenadas de más antigua a más reciente.}
- \label{fig:dato-horizonte}
-\end{figure}
+Esa última es el inversor del HUDN, que empieza a registrar el 4 de abril
+de 2025 a las 05:58. Que sea un inversor y no un medidor no es un detalle
+menor: dentro del HUDN los dos medidores empiezan la víspera, de modo que
+lo que faltaba para completar la comunidad era la generación. Quedan fuera
+de la cuenta los dos inversores que Udenar aporta solo a la reconstrucción
+de su demanda, porque uno de ellos empieza a registrar en septiembre y
+contarlo señalaría como causa del arranque a un equipo que no lo causa.
 
-De ahí el 4 de abril como primer día completo con las cinco instituciones
-operativas. El horizonte se cierra el 16 de diciembre de 2025, lo que da
-\num{256} días y \num{6144} horas.
+De ahí esa fecha como primer día del horizonte, el primero en que las cinco
+instituciones tienen registro en sus medidores y en su inversor. Se cierra
+el 16 de diciembre del mismo año, lo que da \num{256} días y \num{6144}
+horas.
 
 \subsection{Cuánto dato hay, fuente por fuente}
 \label{sub:dato-cobertura}
 
-Queda la tercera pregunta: dentro de ese horizonte, ¿cuántas horas tienen
-efectivamente registro? La respuesta debe darse por separado para cada
-clase de equipo, porque medirlas igual sería un error de método. La
-Figura~\ref{fig:dato-cobertura} separa las dos clases y ordena cada una
-por su fracción de horas con registro.
+Queda la tercera pregunta: dentro de ese horizonte, ¿cuántas horas faltan?
+La respuesta debe darse por separado para cada clase de equipo, porque
+medirlas igual sería un error de método: contar la noche como dato faltante
+en un inversor confundiría la ausencia de sol con la ausencia de medición.
+La Figura~\ref{fig:dato-cobertura} separa las dos clases y cuenta, en cada
+fuente, las horas sin registro. El denominador es el horizonte y no la
+serie completa del equipo, que llega hasta 2026: se cuentan solo las horas
+del horizonte en que la fuente ya estaba registrando.
 
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f2_03_cobertura_fuentes.png}
- \caption[Cobertura de adquisición por fuente]{Fracción de horas del
- horizonte con registro, por fuente. Los medidores se evalúan sobre las
- 24 horas; los inversores, solo sobre la franja diurna.}
+ \caption[Horas sin registro por fuente]{Horas sin registro de cada
+ fuente. Los medidores se evalúan sobre las 24 horas del día; los
+ inversores, solo sobre la franja diurna, que va de las 06:00 a las 19:00.}
  \label{fig:dato-cobertura}
 \end{figure}
 
-Las dos excepciones del conjunto están acotadas y conviene nombrarlas.
-El Medidor 4 de Udenar baja al \pct{88.7} por una racha larga de ausencia,
-pero es un equipo auxiliar que el modelo no emplea. El Inversor MTE de
-Udenar cubre solo el \pct{39.3} de las horas diurnas porque entró en
-servicio en septiembre; sí participa, aunque no en la matriz de generación
-sino en la reconstrucción de la demanda del Capítulo~\ref{sec:prep}. Los
-cinco inversores que definen la generación del modelo superan todos el
-\pct{97} en horas de sol.
+Medidos contra las \num{6144} horas del horizonte, dos equipos de Udenar
+parecerían defectuosos: el Medidor 4 marcaría el \pct{88.7} y el Inversor
+MTE, el \pct{39.3} de las horas de sol. Ninguno de los dos falla. El
+primero se instaló el 29 de abril y el segundo entró en septiembre, de modo
+que a los dos se les contaban como huecos horas en que el equipo todavía no
+existía.
+
+Descontadas esas horas, las 27 fuentes caen entre el \pct{96.7} y el
+\pct{98.8} y no queda excepción que acotar. El peor caso son las \num{204}
+horas que le faltan al Medidor 4 de Cesmag, que es auxiliar; de los equipos
+que el modelo emplea, a ninguno le faltan más de \num{126}. Son pocas, y
+son exactamente las que el capítulo siguiente tiene que rellenar.
 
 \subsection{Qué se puede y qué no se puede concluir de aquí}
 \label{sub:dato-alcance}
@@ -441,9 +461,7 @@ umbrales resultan matemáticamente inalcanzables. Tampoco sostiene conclusiones
 estacionales completas: nueve meses cubren buena parte del ciclo anual de
 Pasto, pero no un año entero.
 
-En resumen, la base empírica la forman 27 fuentes instrumentadas, de
-las cuales el modelo emplea 13, sobre un horizonte
-de \num{6144} horas cuyo inicio impone el dato y cuyo cierre es un corte
-administrativo, con una cobertura de adquisición superior al \pct{97} en
-todos los equipos que intervienen. Sobre esa base se apoya el tratamiento
-que describe el capítulo siguiente.
+En resumen, de las 27 fuentes instrumentadas el modelo emplea 16: los
+nueve medidores de frontera, los cinco inversores que definen la generación
+y los dos que Udenar aporta a la reconstrucción de su demanda. Sobre esa
+base se apoya el tratamiento que describe el capítulo siguiente.

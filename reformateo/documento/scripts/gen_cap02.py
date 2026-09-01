@@ -20,7 +20,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import estilo as E
@@ -29,7 +29,7 @@ import datos as D
 CACHE = Path(__file__).resolve().parent.parent / "datos_cache"
 
 # Papeles que hacen falta para que la comunidad esté completa: el medidor
-# de cada cobertura y el inversor que define la generación. Los dos
+# de cada frontera y el inversor que define la generación. Los dos
 # inversores de reconstrucción de Udenar NO entran. Uno de ellos arranca
 # el 3 de septiembre de 2025 y, si se contara, tanto F2.2 como F2.4
 # señalarían a Udenar como la fuente que fija el inicio del horizonte,
@@ -117,7 +117,8 @@ def f22_gantt():
     for k, inst in enumerate(D.AGENTES):
         n = int((d["institucion"] == inst).sum())
         if k % 2 == 0:
-            ax.axhspan(y0 - 0.5, y0 + n - 0.5, color="#F4F4F4", zorder=0)
+            ax.axhspan(y0 - 0.5, y0 + n - 0.5, color=E.FONDO_BANDA,
+                       zorder=0)
         y0 += n
 
     ini, fin = pd.Timestamp(D.T_START), pd.Timestamp(D.T_END)
@@ -138,7 +139,8 @@ def f22_gantt():
     etiquetas, colores_y = [], []
     for i, (j, f) in enumerate(d.iterrows()):
         usado = f["papel"] != "no usado"
-        color = E.color_institucion(f["institucion"]) if usado else "#D5D5D5"
+        color = (E.color_institucion(f["institucion"]) if usado
+                 else E.APAGADO)
         # El inversor se dibuja hachurado: distingue la clase de equipo sin
         # gastar un segundo color, que ya está tomado por la institución.
         ax.barh(i, (f["fin"] - f["inicio"]).days, left=f["inicio"],
@@ -164,15 +166,21 @@ def f22_gantt():
     ax.set_ylim(len(d) - 0.5, -0.5)
 
     ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%y"))
+    # El rotulo sale del formateador del documento y no de un formato
+    # numerico crudo, que imprimia 02/25 en vez del mes en espanol.
+    ax.xaxis.set_major_formatter(FuncFormatter(
+        lambda v, _: E.fmt_fecha(mdates.num2date(v), "mes_anio")))
+    ax.xaxis.set_minor_locator(mdates.MonthLocator())
     ax.tick_params(axis="x", labelsize=7)
+    ax.tick_params(axis="x", which="minor", length=2, width=0.6)
     ax.set_xlabel("Fecha")
     ax.grid(axis="y", visible=False)
 
     ax.text(ini, -1.15, " horizonte del estudio ",
             color=E.MECANISMOS["P2P"], fontsize=8, fontweight="bold",
             va="bottom")
-    ax.annotate("fija el inicio", xy=(d.loc[idx_tope, "inicio"], idx_tope),
+    ax.annotate("fija el inicio del horizonte",
+                xy=(d.loc[idx_tope, "inicio"], idx_tope),
                 xytext=(18, -26), textcoords="offset points",
                 fontsize=7.2, color=E.ALERTA, fontweight="bold",
                 arrowprops=dict(arrowstyle="->", color=E.ALERTA, lw=1.0))
@@ -182,7 +190,7 @@ def f22_gantt():
         Patch(facecolor=E.NEUTRO, label="Medidor"),
         Patch(facecolor=E.NEUTRO, hatch="///", edgecolor="white",
               label="Inversor"),
-        Patch(facecolor="#D5D5D5", label="No empleado por el modelo"),
+        Patch(facecolor=E.APAGADO, label="No empleado por el modelo"),
     ], loc="upper center", bbox_to_anchor=(0.5, -0.075), fontsize=7,
         ncol=3, frameon=False)
 
@@ -233,200 +241,150 @@ def _sufijo_papel(papel: str, fuente: str = "") -> str:
 
 def f23_cobertura_fuentes():
     """
-    F2.3 — Cuánto dato hay en cada fuente.
+    F2.3 — Cuántas horas faltan en cada fuente.
 
-    Cobertura horaria sobre el horizonte, por fuente. Los inversores se
-    evalúan solo en la franja diurna: contar la noche como dato faltante
-    confundiría la ausencia de sol con la ausencia de medición.
+    Horas sin registro de cada equipo, contadas sobre las horas del
+    horizonte en que ya estaba en servicio. Los inversores se evalúan solo
+    en la franja diurna: contar la noche como dato faltante confundiría la
+    ausencia de sol con la ausencia de medición.
 
-    La figura sirve para localizar las excepciones, que son dos y están
-    acotadas: el Medidor 4 de Udenar, que es auxiliar, y el tercer
-    inversor de Udenar, que entró en servicio en septiembre. Las dos se
-    señalan sobre su propia barra, porque el promedio las esconde.
+    **Cuál es el denominador, exactamente.** El horizonte, recortado por
+    la izquierda en el primer registro de cada fuente. No es la serie
+    completa del equipo, que llega hasta 2026 y queda fuera igual que
+    antes, y no es tampoco el horizonte entero para todos. La ventana solo
+    se recorta por un lado, y eso se comprueba: la fuente que antes deja
+    de registrar lo hace en febrero de 2026, dos meses después de que el
+    horizonte cierre.
+
+    **Por qué horas que faltan y no cobertura.** La cobertura de estas
+    fuentes va del 96,7 % al 98,8 %, es decir, 2,1 puntos porcentuales
+    entre la mejor y la peor. Sobre una barra que arranca en cero esos
+    2,1 puntos son cinco puntos tipográficos, de modo que las veintisiete
+    barras salían iguales y la figura tenía que apoyarse en una columna
+    de cifras al margen. El complemento sí se dibuja: las horas que
+    faltan van de 31 a 204 y se distinguen a simple vista.
+
+    **Por qué dentro del periodo en servicio y no sobre el horizonte.**
+    Medida sobre las 6.144 horas completas, cualquier equipo que entra
+    tarde acumula como dato faltante las horas en que todavía no existía.
+    Eso producía dos falsas excepciones: el Medidor 4 de Udenar, que
+    marcaba 88,7 % porque se instaló el 29 de abril, veinticinco días
+    después del inicio del horizonte, y el Inversor MTE de Udenar, que
+    marcaba 39,3 % porque entró en septiembre. Descontadas las horas
+    previas quedan en 98,7 % y 97,7 %, dentro del conjunto. Ninguna de
+    las dos era una racha de ausencia.
 
     Los equipos se rotulan por institución y número, no por el nombre que
-    les da la plataforma. Ese nombre trae el sitio en lugar de la entidad
-    —«Bloque Sur» por Udenar, «Alvernia» por Mariana— y obligaría al
+    les da la plataforma. Ese nombre trae el sitio en lugar de la entidad,
+    «Bloque Sur» por Udenar y «Alvernia» por Mariana, y obligaría al
     lector a saberse la correspondencia para poder leer la figura.
     """
     d = _etiquetar(_censo())
+
+    idx = pd.date_range(D.T_START, D.T_END, freq="1h", inclusive="left")
+    dia = idx[(idx.hour >= 6) & (idx.hour <= 18)]
+
+    # La ventana solo se recorta por la izquierda, y hay que asegurarlo:
+    # si alguna fuente dejara de registrar antes del cierre del horizonte,
+    # el denominador de abajo la contaria como si hubiera seguido.
+    assert (pd.to_datetime(d["fin"]) >= pd.Timestamp(D.T_END)).all(), (
+        "hay fuentes que acaban antes del cierre del horizonte")
+
+    def _faltan(sub, base, columna):
+        """
+        Horas sin registro, y horas previas a la entrada en servicio.
+
+        El denominador es ``base``, que son las horas del horizonte de la
+        clase que toque, recortadas en el primer registro de la fuente.
+        """
+        n = len(base)
+        serv = np.array([int((base >= t).sum()) for t in sub["inicio"]])
+        con = np.rint(sub[columna].to_numpy() / 100.0 * n).astype(int)
+        return np.maximum(serv - con, 0), n - serv
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 4.6),
-                                   gridspec_kw={"width_ratios": [1.55, 1]})
+                                   gridspec_kw={"width_ratios": [1.5, 1]})
 
-    # ── Los veinte medidores ────────────────────────────────────────────
     med = d[d["clase"] == "medidor"].reset_index(drop=True)
-    y = np.arange(len(med))
-    usado = med["papel"] != "no usado"
-    colores = [E.color_institucion(i) if u else "#CFCFCF"
-               for i, u in zip(med["institucion"], usado)]
-    ax1.barh(y, med["cobertura_pct"], 0.64, color=colores, zorder=3)
-    ax1.set_yticks(y)
-    ax1.set_yticklabels([e + _sufijo_papel(p, f) for e, p, f in
-                         zip(med["etiqueta"], med["papel"], med["fuente"])],
-                        fontsize=6.0)
-    for tick, u in zip(ax1.get_yticklabels(), usado):
-        tick.set_color("#333333" if u else "#9A9A9A")
-    ax1.invert_yaxis()
-    # Un renglón y medio de aire arriba, para la línea de la media.
-    ax1.set_ylim(len(med) - 0.4, -2.0)
-    ax1.set_xlim(0, 118)
-
-    m = med["cobertura_pct"].mean()
-    ax1.axvline(m, color=E.ALERTA, linestyle="--", linewidth=1.2, zorder=4)
-    ax1.text(m - 1.5, -1.85, f"media de los 20: {E.fmt_miles(m, 1)} %",
-             color=E.ALERTA, fontsize=7, ha="right", va="top")
-    ax1.set_xlabel("Cobertura horaria sobre el horizonte (%)")
-    ax1.set_title("Los 20 medidores  ·  las 24 h", pad=8)
-
-    # El valor va al final de cada barra, no en una anotación con flecha:
-    # con veinte barras contiguas no hay ningún hueco donde poner una caja
-    # de texto sin tapar la etiqueta de otro equipo. El único que baja del
-    # 95 % —auxiliar— queda destacado en color.
-    for k, v in enumerate(med["cobertura_pct"]):
-        bajo = v < 95
-        # Alineadas en columna, a la derecha de la linea de la media: si
-        # cada una siguiera a su barra, la del medidor corto cruzaria esa
-        # linea y quedaria ilegible.
-        ax1.text(101, k, E.fmt_miles(v, 1) + " %", va="center", ha="left",
-                 fontsize=5.8, color=E.ALERTA if bajo else "#555555",
-                 fontweight="bold" if bajo else "normal")
-
-    # ── Los siete inversores ────────────────────────────────────────────
     inv = d[d["clase"] == "inversor"].reset_index(drop=True)
-    y2 = np.arange(len(inv))
-    ax2.barh(y2, inv["cobertura_diurna_pct"], 0.6, zorder=3,
-             color=[E.color_institucion(i) for i in inv["institucion"]])
-    ax2.set_yticks(y2)
-    ax2.set_yticklabels([e + _sufijo_papel(p, f) for e, p, f in
-                         zip(inv["etiqueta"], inv["papel"], inv["fuente"])],
-                        fontsize=5.6)
-    ax2.invert_yaxis()
-    ax2.set_ylim(len(inv) - 0.4, -2.0)
-    ax2.set_xlim(0, 145)
-    for k, v in enumerate(inv["cobertura_diurna_pct"]):
-        # En columna, salvo la barra corta: ahi el valor va pegado a su
-        # barra para dejar libre la columna a la explicacion de por que
-        # esa barra es corta.
-        ax2.text(103 if v > 60 else v + 3, k, E.fmt_miles(v, 1) + " %",
-                 va="center", ha="left", fontsize=6.5, color="#333333")
+    med["faltan"], med["previas"] = _faltan(med, idx, "cobertura_pct")
+    inv["faltan"], inv["previas"] = _faltan(inv, dia, "cobertura_diurna_pct")
 
-    m2 = inv["cobertura_diurna_pct"].mean()
-    ems = inv[inv["papel"] == "EMS"]["cobertura_diurna_pct"]
-    ax2.axvline(m2, color=E.ALERTA, linestyle="--", linewidth=1.2, zorder=4)
-    ax2.text(m2 - 3, -1.85, f"media de los 7: {E.fmt_miles(m2, 1)} %",
-             color=E.ALERTA, fontsize=7, ha="right", va="top")
-    ax2.set_xlabel("Cobertura diurna, 06:00–18:00 (%)")
-    ax2.set_title("Los 7 inversores  ·  solo horas de sol", pad=8)
+    # Las dos escalas verticales comparten paso: antes los siete
+    # inversores se repartian el alto de los veinte medidores, con lo que
+    # sus barras salian tres veces mas gruesas y los dos paneles parecian
+    # dos clases de grafico distintas.
+    alto_comun = len(med)
 
-    # La aclaración va a la derecha del valor, en la misma fila: el hueco
-    # que deja la barra corta es el único sitio donde no tapa nada.
-    k = int(inv["cobertura_diurna_pct"].idxmin())
-    ax2.text(103, k, "entró en servicio\nen septiembre", fontsize=6.6,
-             color=E.ALERTA, ha="left", va="center", linespacing=1.35)
+    for ax, sub, tope in ((ax1, med, alto_comun), (ax2, inv, alto_comun)):
+        y0 = 0
+        for k, inst in enumerate(D.AGENTES):
+            n = int((sub["institucion"] == inst).sum())
+            if k % 2 == 0 and n:
+                ax.axhspan(y0 - 0.5, y0 + n - 0.5, color=E.FONDO_BANDA,
+                           zorder=0)
+            y0 += n
+        usado = sub["papel"] != "no usado"
+        ax.barh(np.arange(len(sub)), sub["faltan"], 0.64, zorder=3,
+                color=[E.color_institucion(i) if u else E.APAGADO
+                       for i, u in zip(sub["institucion"], usado)])
+        ax.set_yticks(np.arange(len(sub)))
+        ax.set_yticklabels([e + _sufijo_papel(p, f) for e, p, f in
+                            zip(sub["etiqueta"], sub["papel"], sub["fuente"])],
+                           fontsize=6.0)
+        for tick, u in zip(ax.get_yticklabels(), usado):
+            tick.set_color("#333333" if u else "#9A9A9A")
+        ax.set_ylim(tope - 0.5, -1.6)
+        ax.grid(axis="y", visible=False)
+        ax.set_xlabel("Horas sin registro (h)")
+
+        # Los arranques tardios se marcan y se explican juntos abajo: el
+        # area de datos mide poco mas de una pulgada, de modo que un aviso
+        # en linea se sale del panel.
+        for k, r in sub.iterrows():
+            if r["previas"] > 0:
+                ax.text(r["faltan"] + 0.03 * sub["faltan"].max(), k, "*",
+                        fontsize=9, color="#777777", va="center", ha="left")
+
+    ax1.set_title("Los veinte medidores  ·  las 24 horas del día", pad=8)
+    ax2.set_title("Los siete inversores  ·  solo horas de sol", pad=8)
+    ax1.set_xlim(0, med["faltan"].max() * 1.18)
+    ax2.set_xlim(0, inv["faltan"].max() * 1.18)
+    ax1.xaxis.set_major_locator(MultipleLocator(50))
+    ax2.xaxis.set_major_locator(MultipleLocator(25))
+
+    # En el hueco de las trece filas que el panel de inversores no usa van
+    # las dos cosas que la figura no puede dibujar: el suelo del conjunto,
+    # que es el resultado de descontar las horas previas, y qué son los
+    # asteriscos.
+    # El renglon se corta a cuarenta caracteres: mas largo cruza el eje
+    # del panel de inversores, que arranca al 74 % del ancho.
+    fig.text(0.425, 0.55,
+             "En ninguna fuente falta más del 3,3 % de\n"
+             "las horas del horizonte en que ya estaba\n"
+             "en servicio.\n\n"
+             "*  El Medidor 4 y el Inversor 3 de Udenar\n"
+             "entraron el 29 de abril y el 3 de\n"
+             "septiembre, después de que el horizonte\n"
+             "empezara. Sus horas previas no son huecos.",
+             fontsize=7, color="#555555", va="top", ha="left",
+             linespacing=1.5)
 
     from matplotlib.patches import Patch
     fig.legend(handles=[
         Patch(facecolor=E.color_institucion("Udenar"),
-              label="Empleado por el modelo (color de la institución)"),
-        Patch(facecolor="#CFCFCF", label="Auxiliar, no empleado"),
+              label="Empleado por el modelo, en el color de su institución"),
+        Patch(facecolor=E.APAGADO, label="Auxiliar, no empleado"),
     ], loc="lower center", bbox_to_anchor=(0.5, -0.035), ncol=2,
         fontsize=7, frameon=False)
-    # La media de los siete la arrastra un solo equipo; la cifra que
-    # importa para el modelo es la de los cinco que definen la generación.
-    fig.text(0.5, -0.075,
-             f"Los cinco inversores que definen la generación del modelo "
-             f"cubren entre el {E.fmt_miles(ems.min(), 1)} % y el "
-             f"{E.fmt_miles(ems.max(), 1)} % de las horas de sol.",
-             ha="center", fontsize=7, color="#555555", style="italic")
 
     fig.tight_layout()
     return E.guardar(fig, "f2_03_cobertura_fuentes",
-                     datos=d.drop(columns=["n"], errors="ignore"),
-                     procedencia=[
-        "censo generado por scripts/cache_fuentes.py sobre MedicionesMTE_v3/"])
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-def f24_horizonte():
-    """
-    F2.4 — Por qué el horizonte empieza cuando empieza.
-
-    Fecha del primer registro de cada fuente **esencial**. El inicio del
-    horizonte no se eligió: lo fija la última de ellas en entrar en
-    servicio, porque antes de esa fecha la comunidad no está completa.
-
-    **Qué cuenta como esencial y por qué importa.** Solo las fuentes que
-    el modelo lee: el medidor de cada cobertura en cada institución y el
-    inversor que define su generación. Los dos inversores que Udenar
-    aporta únicamente a la reconstrucción de su demanda quedan fuera, y
-    no por comodidad: uno de ellos entra en servicio el 3 de septiembre
-    de 2025, cinco meses después del inicio del horizonte, de modo que
-    contarlo haría que la figura señalara como causa del arranque a un
-    equipo que no lo causa. La causa es el inversor del HUDN, que empieza
-    a registrar el 4 de abril a las 05:58, y esa es exactamente la fecha
-    de inicio del horizonte.
-    """
-    d = _etiquetar(_censo())
-    esn = (d[d["papel"].isin(ESENCIALES)]
-           .sort_values("inicio").reset_index(drop=True))
-
-    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 3.6))
-    y = np.arange(len(esn))
-    limite = esn["inicio"].max()
-    for j, ini in enumerate(esn["inicio"]):
-        ax.plot([ini, limite], [j, j], color="#DDDDDD", linewidth=1.0,
-                zorder=1)
-    ax.scatter(esn["inicio"], y, s=42, zorder=4,
-               color=[E.color_institucion(i) for i in esn["institucion"]],
-               edgecolors="white", linewidths=0.6)
-
-    ax.axvline(limite, color=E.ALERTA, linewidth=1.6, zorder=5)
-    ultima = esn.iloc[-1]
-
-    ax.set_yticks(y)
-    ax.set_yticklabels([e + _sufijo_papel(p, f) for e, p, f in
-                        zip(esn["etiqueta"], esn["papel"], esn["fuente"])],
-                       fontsize=6.0)
-    for tick, inst in zip(ax.get_yticklabels(), esn["institucion"]):
-        tick.set_color(E.color_institucion(inst))
-    ax.invert_yaxis()
-    ax.set_ylim(len(esn) - 0.4, -1.0)
-
-    # El eje se recorta a los datos: si llegara hasta septiembre —que es
-    # cuando entra el tercer inversor de Udenar, que no es esencial— la
-    # mitad derecha de la figura quedaría vacía.
-    ax.set_xlim(esn["inicio"].min() - pd.Timedelta(days=6),
-                limite + pd.Timedelta(days=12))
-    ax.xaxis.set_major_locator(mdates.MonthLocator())
-    ax.xaxis.set_minor_locator(mdates.DayLocator(bymonthday=[15]))
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%d/%m"))
-    ax.tick_params(axis="x", labelsize=7)
-    ax.set_xlabel("Fecha del primer registro (2025)")
-
-    # La anotación se ancla abajo a la izquierda, que es la única zona
-    # del eje sin nada dibujado: las tres últimas fuentes entran ya al
-    # final, de modo que sus líneas de espera son cortas y dejan libre
-    # todo lo anterior a marzo.
-    ax.annotate(f"{ultima['etiqueta']}\n"
-                f"{limite.strftime('%d/%m a las %H:%M')} — fija el inicio\n"
-                f"del horizonte: 4 de abril de 2025",
-                xy=(limite, len(esn) - 1),
-                xytext=(0.015, 0.035), textcoords="axes fraction",
-                fontsize=7.2, color=E.ALERTA, fontweight="bold",
-                ha="left", va="bottom", linespacing=1.45,
-                arrowprops=dict(arrowstyle="->", color=E.ALERTA, lw=1.0,
-                                connectionstyle="arc3,rad=-0.18"))
-
-    ax.set_title("Las fuentes que el modelo necesita, por entrada en servicio",
-                 pad=8)
-    ax.grid(axis="y", visible=False)
-    fig.tight_layout()
-    return E.guardar(fig, "f2_04_horizonte",
-                     datos=esn.drop(columns=["n"], errors="ignore"),
+                     datos=pd.concat([med, inv], ignore_index=True)
+                     .drop(columns=["n"], errors="ignore"),
                      procedencia=[
         "censo generado por scripts/cache_fuentes.py sobre MedicionesMTE_v3/",
         "constantes T_START y T_END en data/xm_data_loader.py"])
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 CACHE_REACTIVA = (Path(__file__).resolve().parent.parent / "figuras"
@@ -741,7 +699,6 @@ if __name__ == "__main__":
     print("\nCapítulo 2 — el dato crudo")
     f22_gantt()
     f23_cobertura_fuentes()
-    f24_horizonte()
     f25_reactiva_series()
     f26_reactiva_estructura()
     reactiva_resumen()

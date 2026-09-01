@@ -115,4 +115,20 @@ fecha y el valor, fundir los instantes repetidos, alinear los tramos del
 medidor sobre un mismo eje de tiempo, recortar al horizonte, promediar a
 paso horario y, en último lugar, convertir la unidad.
 
+\textbf{Cómo se lee la figura del recorrido.} El
+Capítulo~\ref{sec:prep} traza una hora real desde el archivo hasta la serie
+horaria, y conviene decir qué hay en cada banda de la
+Figura~\ref{fig:prep-archivo-serie}. Arriba, los archivos del medidor y del
+inversor sobre el calendario, con el horizonte de estudio sombreado. En el
+centro, las lecturas a paso de dos minutos de esa hora: el medidor entrega
+38 filas que al depurar quedan en 30 instantes, ocho de los cuales traen la
+lectura duplicada, y el inversor entrega 30 lecturas en vatios, ninguna
+negativa, de modo que el recorte a cero no llega a actuar. Abajo, la media
+de cada panel ocupa su lugar entre las 24 horas del día.
+
+Fundir los duplicados quita una copia y no rellena nada. Los instantes que
+quedan caen en los treinta tramos de dos minutos de la hora sin faltar
+ninguno, de modo que el ejemplo ilustra el caso en que la medida cubre el
+intervalo entero y no hay tramo que suponer.
+
 \placeholderfig{Anexo pendiente de redacción. Comandos exactos, entorno congelado, huellas de los artefactos y compuertas de verificación.}

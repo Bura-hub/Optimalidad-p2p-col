@@ -21,7 +21,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from matplotlib.ticker import FuncFormatter
+from matplotlib.ticker import FuncFormatter, MultipleLocator
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
 
@@ -229,51 +229,58 @@ def f31_archivo_a_serie():
 
     # ── Zona B1: la hora en el medidor ──────────────────────────────────
     minutos = [(t - H0).total_seconds() / 60 for t in fundida.index]
-    ax_b1.plot(minutos, fundida.values, color="#CCCCCC", lw=0.7, zorder=2)
+    # El conector va mas oscuro que la rejilla, que si no compiten. Antes
+    # estaba a veinte niveles de gris de ella y el dato se perdia.
+    ax_b1.plot(minutos, fundida.values, color=E.NEUTRO, alpha=0.55, lw=0.8,
+               zorder=2)
     ax_b1.scatter(minutos, fundida.values, s=14, color=E.NEUTRO, zorder=3)
     mdup = [(t - H0).total_seconds() / 60 for t in inst_dup]
     vdup = [float(fundida.loc[t]) for t in inst_dup]
     ax_b1.scatter(mdup, vdup, s=52, facecolors="none", edgecolors=E.ANTES,
                   lw=1.1, zorder=4)
-    ax_b1.annotate("8 instantes traen la lectura\npor duplicado: se funden en una",
-                   xy=(mdup[2], vdup[2]), xytext=(1.5, 44.8),
-                   fontsize=7.2, color=E.ANTES, linespacing=1.25,
-                   ha="left", va="top",
-                   arrowprops=dict(arrowstyle="-", color=E.ANTES, lw=0.8,
-                                   shrinkA=1, shrinkB=4,
-                                   connectionstyle="arc3,rad=-0.25"))
-    ax_b1.axhline(media_med, color=E.DESPUES, ls=(0, (4, 2)), lw=1.6, zorder=5)
-    ax_b1.text(59.5, media_med + 0.55,
-               f"media de las 30 muestras: {E.fmt_miles(media_med, 2)} kW",
-               ha="right", va="bottom", fontsize=7.2, color=E.DESPUES,
-               zorder=6, bbox=dict(facecolor="white", edgecolor="none",
-                                   alpha=0.88, pad=1.4))
-    ax_b1.text(1, 23.0, "las lecturas repetidas son idénticas al bit",
-               fontsize=6.9, style="italic", color="#555555",
-               ha="left", va="bottom")
-    ax_b1.set_ylim(22, 45.5)
+    # La linea de referencia pasa POR DETRAS del dato al que se refiere.
+    ax_b1.axhline(media_med, color=E.DESPUES, ls=(0, (4, 2)), lw=1.1,
+                  zorder=2.6)
+
+    # Clave de dos entradas, dibujada a mano para que el simbolo del
+    # duplicado lo produzca la misma llamada que lo produce en el grafico.
+    # No se rotula el punto gris: es el contexto, no el asunto.
+    ax_b1.scatter([2], [45.0], s=14, color=E.NEUTRO, zorder=6)
+    ax_b1.scatter([2], [45.0], s=52, facecolors="none", edgecolors=E.ANTES,
+                  lw=1.1, zorder=6)
+    ax_b1.text(5.5, 45.0,
+               f"instante duplicado ({len(inst_dup)} de los {len(fundida)})",
+               ha="left", va="center", fontsize=7.2, color=E.ANTES, zorder=6)
+    ax_b1.plot([0.5, 4.5], [42.6, 42.6], color=E.DESPUES, ls=(0, (4, 2)),
+               lw=1.1, zorder=6)
+    ax_b1.text(5.5, 42.6,
+               f"media de las {len(fundida)} muestras: "
+               f"{E.fmt_miles(media_med, 2)} kW",
+               ha="left", va="center", fontsize=7.2, color=E.DESPUES, zorder=6)
+
+    ax_b1.set_ylim(24, 46.5)
     ax_b1.set_yticks([25, 30, 35, 40])
+    ax_b1.yaxis.set_minor_locator(MultipleLocator(2.5))
     ax_b1.set_ylabel("Potencia activa (kW)", fontsize=8)
     ax_b1.set_title(f"Medidor: {len(crudo)} filas, {len(fundida)} instantes",
                     fontsize=8.2, pad=6)
 
     # ── Zona B2: la hora en el inversor ─────────────────────────────────
     minutos_i = [(t - H0).total_seconds() / 60 for t in inv.index]
-    ax_b2.plot(minutos_i, inv.values, color="#CCCCCC", lw=0.7, zorder=2)
+    ax_b2.plot(minutos_i, inv.values, color=E.NEUTRO, alpha=0.55, lw=0.8,
+               zorder=2)
     ax_b2.scatter(minutos_i, inv.values, s=14, color=E.NEUTRO, zorder=3)
-    ax_b2.axhline(media_inv, color=E.DESPUES, ls=(0, (4, 2)), lw=1.6, zorder=5)
-    ax_b2.text(59.5, media_inv + 55,
+    ax_b2.axhline(media_inv, color=E.DESPUES, ls=(0, (4, 2)), lw=1.1,
+                  zorder=2.6)
+    # Sin caja blanca: el rotulo sube al cuadrante que el dato deja libre.
+    ax_b2.text(59.5, 5150,
                f"media: {E.fmt_miles(media_inv)} W\n"
-               f"entre mil: {E.fmt_miles(media_inv / 1000, 3)} kW",
-               ha="right", va="bottom", fontsize=7.2, color=E.DESPUES,
-               linespacing=1.25, zorder=6,
-               bbox=dict(facecolor="white", edgecolor="none",
-                         alpha=0.88, pad=1.4))
-    ax_b2.text(1, 3350, "ninguna lectura es negativa: el recorte no actúa",
-               fontsize=6.9, style="italic", color="#555555",
-               ha="left", va="bottom")
+               f"es decir, {E.fmt_miles(media_inv / 1000, 3)} kW",
+               ha="right", va="center", fontsize=7.2, color=E.DESPUES,
+               linespacing=1.25, zorder=6)
     ax_b2.set_ylim(3300, 5500)
     ax_b2.set_yticks([3500, 4000, 4500, 5000])
+    ax_b2.yaxis.set_minor_locator(MultipleLocator(250))
     E.eje_espanol(ax_b2, "y", "miles")
     ax_b2.set_ylabel("Potencia de corriente alterna (W)", fontsize=8)
     ax_b2.set_title(f"Inversor: {len(inv)} lecturas (W)", fontsize=8.2, pad=6)
@@ -285,19 +292,20 @@ def f31_archivo_a_serie():
                            fontsize=7.4)
         ax.set_xlabel("Hora de la lectura", fontsize=8)
         ax.tick_params(axis="y", labelsize=7.4)
+        ax.xaxis.set_minor_locator(MultipleLocator(5))
+        ax.tick_params(which="minor", length=2, width=0.6)
 
     # ── Zonas C: el aterrizaje en la serie del día ──────────────────────
-    for ax, serie, valor, tope, tks, titulo, dec in (
-            (ax_c1, dia_d, media_med, 46, [0, 20, 40],
+    for ax, serie, valor, tope, tks, menor, titulo, dec in (
+            (ax_c1, dia_d, media_med, 46, [0, 10, 20, 30, 40], 5,
              "La serie horaria del medidor", 2),
-            (ax_c2, dia_g, media_inv / 1000, 13, [0, 5, 10],
+            (ax_c2, dia_g, media_inv / 1000, 13, [0, 4, 8, 12], 2,
              "La serie horaria del inversor", 2)):
         colores = [E.DESPUES if h == 13 else E.APOYO for h in range(24)]
         ax.bar(range(24), serie.values, width=0.8, color=colores, zorder=3)
-        ax.text(13, valor + tope * 0.06, E.fmt_miles(valor, dec),
+        ax.text(13, valor + tope * 0.10, E.fmt_miles(valor, dec),
                 ha="center", va="bottom", fontsize=7, color=E.DESPUES,
-                zorder=6, bbox=dict(facecolor="white", edgecolor="none",
-                                    alpha=0.88, pad=1.2))
+                zorder=6)
         ax.set_ylim(0, tope)
         ax.set_yticks(tks)
         ax.set_xlim(-1, 24)
@@ -306,6 +314,8 @@ def f31_archivo_a_serie():
         ax.set_ylabel("Potencia media (kW)", fontsize=8)
         ax.set_title(titulo, fontsize=8.2, pad=5)
         ax.tick_params(labelsize=7.4)
+        ax.yaxis.set_minor_locator(MultipleLocator(menor))
+        ax.tick_params(which="minor", length=2, width=0.6)
 
     _rotulo_cobertura(fig, "m1", y=0.985)
     fig.tight_layout(rect=(0, 0, 1, 0.95))

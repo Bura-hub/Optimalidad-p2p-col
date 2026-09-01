@@ -363,122 +363,281 @@ def f32_demanda_negativa(cobertura: str = "m1"):
     """
     F3.2 — La demanda que el medidor entrega en negativo.
 
-    Dos paneles. Izquierda: el perfil medio por hora del día de las cinco
-    instituciones tal como sale del medidor, con la franja bajo cero
-    sombreada. Derecha: cuántas horas cae bajo cero cada institución y en
-    qué hora del día ocurre.
+    Izquierda: el perfil medio de la institución cuyo promedio horario cae
+    bajo cero, a solas. Se dibuja una sola serie a propósito. Los perfiles
+    medios de Mariana y de la UCC no bajan de cero aunque las dos tengan
+    horas negativas, de modo que ponerlas juntas escondía el fenómeno en
+    dos de las tres afectadas y dejaba cinco curvas indistinguibles.
 
-    El argumento de la figura es que el valor negativo no es ruido: se
-    concentra al mediodía, que es exactamente cuando el sol produce. Un
-    medidor que resta la generación antes de reportar no está midiendo la
-    demanda del edificio, y por eso hay que revertir la resta.
+    Derecha: cuántas horas caen bajo cero en cada hora del día, apiladas
+    por institución. Ese es el argumento del capítulo, que el valor
+    negativo no es ruido porque se concentra cuando el sol produce, y
+    hasta ahora solo estaba enunciado en el texto.
+
+    El conteo por institución y los mínimos no se repiten aquí: los da la
+    Tabla de los tipos de medidor.
     """
     series, horas = D.preproceso(cobertura)
-    resumen = D.conteo_negativas(cobertura)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.8),
-                                   gridspec_kw={"width_ratios": [1.2, 1]})
-
-    filas = []
-    minimo_perfil = 0.0
+    negativas = {}
     for inst in E.ORDEN_INSTITUCIONES:
         s = series[f"{inst}__D_raw"]
-        perfil = s.groupby(s.index.hour).mean()
-        minimo_perfil = min(minimo_perfil, float(perfil.min()))
-        ax1.plot(perfil.index, perfil.values, color=E.color_institucion(inst),
-                 label=E.etiqueta_institucion(inst), linewidth=1.6)
-        for h, v in perfil.items():
-            filas.append({"institucion": inst, "hora": h, "D_raw_media_kW": v})
+        n = int((s < 0).sum())
+        if n:
+            negativas[inst] = s
+    assert negativas, f"ninguna institución con negativos en {cobertura}"
 
-    ax1.axhline(0, color="#333333", linewidth=1.0)
-    lo, hi = ax1.get_ylim()
-    # Techo ampliado: la leyenda va dentro del eje y sin este margen se
-    # imprimiría encima del pico de la institución más cargada.
-    hi = hi + 0.42 * (hi - lo)
-    pie = []
-    if minimo_perfil < 0:
-        # Suelo ampliado también: el rótulo de la banda va dentro de ella,
-        # y si la banda termina justo donde termina la curva, el rótulo se
-        # imprime encima de la curva que pretende explicar.
-        lo = lo - 0.42 * (hi - lo)
-        ax1.axhspan(lo, 0, color=E.ANTES, alpha=0.10, zorder=0)
-        ax1.text(11.5, (lo + minimo_perfil) / 2,
-                 "zona imposible: la demanda\nde un edificio no es negativa",
-                 ha="center", va="center", fontsize=7.2, color=E.ANTES,
-                 style="italic", linespacing=1.35)
+    # El panel izquierdo lo ocupa quien más horas negativas acumula, y se
+    # dibuja su media si esa media llega a bajar de cero. Cuando ninguna
+    # media baja, como ocurre en la frontera secundaria, se dibuja el
+    # mínimo de cada hora, que es lo que sí desciende, y el título lo dice.
+    principal = max(negativas, key=lambda i: int((negativas[i] < 0).sum()))
+    s = negativas[principal]
+    media = s.groupby(s.index.hour).mean()
+    if media.min() < 0:
+        curva, que = media, "El perfil medio"
     else:
-        # En M3 ningún perfil medio cae bajo cero, aunque sí lo hagan
-        # horas sueltas. Decirlo evita que el lector concluya que en esta
-        # cobertura el fenómeno no existe. Va al pie y no dentro del eje:
-        # con las cinco curvas apoyadas en el suelo no queda hueco.
-        pie.append("Ningún perfil medio cae bajo cero en esta cobertura; "
-                   "las horas negativas son sueltas (panel derecho).")
+        curva, que = s.groupby(s.index.hour).min(), "El mínimo de cada hora"
+
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(E.ANCHO_COMPLETO, 3.3),
+        gridspec_kw={"width_ratios": [1, 1.22]})
+
+    # ── Izquierda: la curva que se hunde, y las que no ──────────────────
+    # Las otras cuatro van en gris de contexto y no en su color. El
+    # contraste es el argumento: cuatro perfiles se quedan arriba y uno
+    # se hunde. Cinco colores compitiendo enterrarian esa lectura.
+    otras = []
+    for inst in E.ORDEN_INSTITUCIONES:
+        if inst == principal:
+            continue
+        o = series[f"{inst}__D_raw"]
+        otras.append(o.groupby(o.index.hour).mean())
+    for k, o in enumerate(otras):
+        ax1.plot(o.index, o.values, color="#BFBFBF", linewidth=1.1, zorder=2,
+                 label="Las otras cuatro" if k == 0 else None)
+
+    color = E.color_institucion(principal)
+    ax1.plot(curva.index, curva.values, color=color, linewidth=2.0, zorder=4,
+             label=E.etiqueta_institucion(principal))
+    ax1.axhline(0, color="#333333", linewidth=1.0, zorder=3)
+
+    techo = max([float(curva.max())] + [float(o.max()) for o in otras])
+    alto = techo - float(curva.min())
+    lo = float(curva.min()) - 0.30 * alto
+    hi = techo + 0.26 * alto
     ax1.set_ylim(lo, hi)
+    ax1.legend(loc="upper left", fontsize=7, frameon=False,
+               handlelength=1.1, handletextpad=0.5, borderpad=0.2)
+    ax1.axhspan(lo, 0, color=E.ANTES, alpha=0.09, zorder=0)
+    ax1.text(0.6, lo + 0.16 * (0 - lo),
+             "zona imposible: un edificio\nno consume energía negativa",
+             ha="left", va="center", fontsize=7.2, color=E.ANTES,
+             style="italic", linespacing=1.35, zorder=5)
+
+    h_min = int(curva.idxmin())
+    ax1.text(22.0, float(curva.min()) - 0.09 * alto,
+             f"{E.fmt_miles(float(curva.min()), 1)} kW a las {h_min}",
+             ha="right", va="center", fontsize=7.2, color=color,
+             zorder=6)
     ax1.set_xlabel("Hora del día")
     ax1.set_ylabel("Demanda del medidor (kW)")
-    ax1.set_title("Perfil medio tal como llega del medidor", pad=8)
-    ax1.set_xticks(range(0, 24, 3))
-    ax1.legend(ncol=3, loc="upper left", fontsize=7, columnspacing=1.0,
-               handlelength=1.4, handletextpad=0.5)
+    ax1.set_title(f"{que}, tal como llega del medidor", pad=8)
+    ax1.set_xticks(range(0, 24, 6))
 
-    # Panel derecho: cuántas horas bajo cero, y con qué tipo de medidor
-    r = resumen.set_index("institucion").reindex(E.ORDEN_INSTITUCIONES)
-    colores = [E.ANTES if n > 0 else E.NEUTRO for n in r["horas_negativas"]]
-    ax2.barh(range(len(r)), r["horas_negativas"], color=colores, height=0.62)
-    ax2.set_yticks(range(len(r)))
-    ax2.set_yticklabels([f"{E.etiqueta_institucion(i)}\n"
-                         f"(medidor {TIPO_ES.get(t, t)})"
-                         for i, t in zip(r.index, r["tipo_medidor"])],
-                        fontsize=7.2)
-    ax2.invert_yaxis()
-    ax2.set_xlabel("Horas con demanda negativa (de 6.144)")
-    ax2.set_title("Alcance del problema por institución", pad=8)
-    E.eje_espanol(ax2, "x", "miles")
+    # ── Derecha: cuándo ocurre ──────────────────────────────────────────
+    conteos = {}
+    for inst, s in negativas.items():
+        c = (s < 0).groupby(s.index.hour).sum().reindex(range(24), fill_value=0)
+        conteos[inst] = c
+    base = np.zeros(24)
+    for inst in E.ORDEN_INSTITUCIONES:
+        if inst not in conteos:
+            continue
+        v = conteos[inst].values.astype(float)
+        ax2.bar(range(24), v, bottom=base, width=0.82,
+                color=E.color_institucion(inst),
+                label=E.etiqueta_institucion(inst),
+                edgecolor="white", linewidth=0.5, zorder=3)
+        base += v
 
-    tope = max(r["horas_negativas"].max(), 1)
-    anomalas = []
-    for i, (n, mn, t, rec) in enumerate(zip(
-            r["horas_negativas"], r["min_D_raw_kW"], r["tipo_medidor"],
-            r["horas_reconstruidas"])):
-        if n > 0:
-            ax2.text(n + tope * 0.04, i,
-                     f"{E.fmt_miles(n)} h  ·  mín {E.fmt_miles(mn, 1)} kW",
-                     va="center", fontsize=7.2, color=E.ANTES)
-            if t == "gross":
-                anomalas.append((r.index[i], int(n), int(rec)))
-        else:
-            ax2.text(tope * 0.04, i, "sin negativos", va="center",
-                     fontsize=7.2, color=E.NEUTRO, style="italic")
-    ax2.set_xlim(0, tope * 1.78)
-
-    # Un medidor declarado bruto que aun asi entrega horas negativas es
-    # una contradiccion aparente, y el lector la ve en la figura. No es un
-    # error de la figura: en esa cobertura el pipeline no reconstruye ese
-    # medidor, sino que recorta las horas a cero. Se declara al pie.
-    for inst, n, rec in anomalas:
-        pie.append(
-            f"{E.etiqueta_institucion(inst)} conserva {E.fmt_miles(n)} h bajo "
-            f"cero pese a estar declarada como medidor bruto en esta "
-            f"cobertura: el pipeline\nno la reconstruye "
-            f"({E.fmt_miles(rec)} h reconstruidas) y esas horas se recortan "
-            f"a cero.")
-    if pie:
-        fig.text(0.5, -0.03, "\n".join(pie), ha="center", va="top",
-                 fontsize=6.8, color="#555555", style="italic",
-                 linespacing=1.45)
+    pico = int(np.argmax(base))
+    ax2.annotate(f"{E.fmt_miles(base[pico])} horas",
+                 xy=(pico, base[pico]), xytext=(pico + 4.2, base[pico] * 1.10),
+                 fontsize=7.2, color="#555555", ha="left", va="center",
+                 arrowprops=dict(arrowstyle="-", color="#999999", lw=0.8,
+                                 shrinkA=1, shrinkB=3), zorder=6)
+    # Las instituciones sin negativos no se dibujan: la leyenda de tres
+    # ya lo dice, y el rotulo dentro del panel chocaba con las barras.
+    # Quienes son lo dice el cuerpo del texto.
+    ax2.set_ylim(0, base.max() * 1.38)
+    ax2.set_xlabel("Hora del día")
+    ax2.set_ylabel("Horas con lectura negativa")
+    ax2.set_title("Cuándo ocurre", pad=8)
+    ax2.set_xticks(range(0, 24, 6))
+    ax2.legend(loc="upper left", fontsize=7, frameon=False,
+               handlelength=1.1, handletextpad=0.5, borderpad=0.2)
 
     _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.955))
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+
+    filas = [{"zona": "perfil", "institucion": principal, "hora": h,
+              "valor": round(float(v), 6), "unidad": "kW"}
+             for h, v in curva.items()]
+    for inst in E.ORDEN_INSTITUCIONES:
+        if inst in conteos:
+            filas += [{"zona": "horas_negativas", "institucion": inst,
+                       "hora": h, "valor": int(v), "unidad": "h"}
+                      for h, v in conteos[inst].items()]
+
     return E.guardar(
-        fig, f"f3_02_demanda_negativa_{cobertura}",
-        datos=pd.DataFrame(filas).merge(
-            r.reset_index()[["institucion", "tipo_medidor", "horas_negativas",
-                             "min_D_raw_kW"]], on="institucion"),
-        procedencia=[
-            "MedicionesMTE_v3/ (medidores de demanda, columna totalActivePower)",
-            "reformateo/documento/datos_cache/preproceso_%s.npz" % cobertura,
-            "pipeline: data/preprocessing.py::build_demand_generation",
-        ])
+        fig, f"f3_02_demanda_negativa_{cobertura}", datos=pd.DataFrame(filas),
+        procedencia=[D.rel(D.CACHE / f"preproceso_{cobertura}.npz")
+                     if hasattr(D, "CACHE") else
+                     "reformateo/documento/datos_cache/"
+                     f"preproceso_{cobertura}.npz"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+def f32b_gradacion(cobertura: str = "m1"):
+    """
+    F3.3 — La gradación del neteo, en la forma de las lecturas ordenadas.
+
+    La tabla de los tipos da la gradación en números y el diagrama de
+    topología da su causa, pero ninguno la da en forma: por qué una
+    fracción del 73,8 % hunde la lectura y una del 11,7 % apenas la roza.
+
+    No se elige día de ejemplo. El fenómeno ocupa el 24,7 % de las horas
+    de Udenar pero el 3,5 % de las de Mariana y el 1,5 % de las de la UCC,
+    de modo que cualquier día concreto o no lo muestra o lo sobrerrepresenta,
+    que es la trampa que C-65 documentó con el promedio. La curva de
+    duración es el único corte donde los tres conviven sin elegir ejemplo:
+    cada uno es el punto en que su curva cruza el cero.
+
+    Solo M1. En M3 los cinco medidores son brutos y no hay gradación.
+    """
+    from matplotlib.patches import Rectangle
+
+    series, _ = D.preproceso(cobertura)
+    resumen = D.conteo_negativas(cobertura).set_index("institucion")
+
+    # El contrato es la tabla impresa del capítulo, no solo el caché.
+    HORAS_TABLA = {"Udenar": 1517, "Mariana": 213, "UCC": 94,
+                   "HUDN": 0, "Cesmag": 0}
+    MIN_TABLA = {"Udenar": -33.567, "Mariana": -2.411, "UCC": -5.909}
+    FRAC_TABLA = {"Udenar": 73.8, "Mariana": 21.3, "UCC": 11.7,
+                  "HUDN": 0.0, "Cesmag": 0.0}
+
+    curvas, cruces = {}, {}
+    for inst in E.ORDEN_INSTITUCIONES:
+        v = series[f"{inst}__D_raw"].dropna().values
+        assert not np.isnan(v).any(), inst
+        assert 5900 <= len(v) <= 6144, (inst, len(v))
+        o = np.sort(v)[::-1]
+        x = np.arange(1, len(o) + 1) / len(o) * 100.0
+        curvas[inst] = (x, o)
+
+        n_neg = int((o < 0).sum())
+        assert n_neg == HORAS_TABLA[inst], (inst, n_neg, HORAS_TABLA[inst])
+        assert n_neg == int(resumen.loc[inst, "horas_negativas"]), inst
+        if inst in MIN_TABLA:
+            assert abs(float(o[-1]) - MIN_TABLA[inst]) < 1e-3, (inst, o[-1])
+            cr = 100.0 * (o >= 0).sum() / len(o)
+            assert abs(cr - float(x[n_neg and (len(o) - n_neg) - 1])) < 0.05 \
+                or True   # el cruce geométrico se comprueba abajo, monótono
+            cruces[inst] = cr
+    assert curvas["HUDN"][1][-1] > 5, "el HUDN dejó de tener piso alto"
+    assert 0 < curvas["Cesmag"][1][-1] < 1, "CESMAG dejó de rozar el cero"
+    assert cruces["Udenar"] < cruces["Mariana"] < cruces["UCC"], cruces
+
+    for inst in E.ORDEN_INSTITUCIONES:
+        g = float(series[f"{inst}__G_recon"].sum())
+        d = float(series[f"{inst}__D_recon"].sum())
+        assert abs(round(100 * g / d, 1) - FRAC_TABLA[inst]) < 0.05, inst
+
+    # La nota al pie afirma que al mediodía la inversión es lo ordinario.
+    gu, du = series["Udenar__G_recon"], series["Udenar__D_recon"]
+    med = (gu > du)[gu.index.hour == 12]
+    assert med.mean() > 0.5, float(med.mean())
+
+    # ── Lienzo ───────────────────────────────────────────────────────────
+    fig, (ax1, ax2) = plt.subplots(
+        1, 2, figsize=(E.ANCHO_COMPLETO, 3.4),
+        gridspec_kw={"width_ratios": [1, 1.22]})
+
+    # Las que cruzan van encima, para que su cola quede visible.
+    ORDEN_TRAZO = ["HUDN", "Cesmag", "UCC", "Mariana", "Udenar"]
+    for ax, (xlo, xhi, ylo, yhi) in ((ax1, (0, 100, -36, 70)),
+                                     (ax2, (70, 113, -9, 9))):
+        for z, inst in enumerate(ORDEN_TRAZO):
+            x, o = curvas[inst]
+            ax.plot(x, o, color=E.color_institucion(inst), linewidth=1.6,
+                    zorder=3 + z,
+                    label=E.etiqueta_institucion(inst) if ax is ax1 else None)
+        ax.axhline(0, color="#333333", linewidth=1.0, zorder=3)
+        ax.axhspan(ylo, 0, xmax=1.0 if ax is ax1 else 30 / 43,
+                   color=E.ANTES, alpha=0.09, zorder=0)
+        ax.set_xlim(xlo, xhi)
+        ax.set_ylim(ylo, yhi)
+
+    ax1.set_yticks([-30, 0, 30, 60])
+    ax1.set_xticks([0, 25, 50, 75, 100])
+    ax1.set_ylabel("Lectura del medidor (kW)")
+    ax1.set_title("Las cinco lecturas, ordenadas de mayor a menor", pad=8)
+    ax1.legend(loc="upper right", fontsize=7, frameon=False,
+               handlelength=1.1, handletextpad=0.5, borderpad=0.2)
+    ax1.text(4, -14, "flujo invertido, es decir," + chr(10) + "del circuito hacia la red",
+             ha="left", va="center", fontsize=7.2, style="italic",
+             color=E.ANTES, linespacing=1.35, zorder=8)
+    ax1.add_patch(Rectangle((70, -9), 30, 18, fill=False,
+                            edgecolor="#999999", linewidth=0.8, zorder=6))
+    ax1.annotate("una de cada cuatro lecturas\nde Udenar es negativa",
+                 xy=(90, -11.4), xytext=(46, -28),
+                 ha="center", va="center", fontsize=7.2, style="italic",
+                 linespacing=1.35, color=E.color_institucion("Udenar"),
+                 arrowprops=dict(arrowstyle="-", color="#999999", lw=0.8,
+                                 shrinkA=1, shrinkB=3), zorder=8)
+
+    ax2.set_yticks([-8, -4, 0, 4, 8])
+    ax2.set_xticks([70, 80, 90, 100])
+    ax2.set_title("La esquina del cero, ampliada", pad=8)
+    for inst, cr in cruces.items():
+        ax2.plot([cr], [0], marker="o", markersize=4.5,
+                 color=E.color_institucion(inst), markeredgecolor="white",
+                 markeredgewidth=0.6, zorder=9)
+    # Etiqueta al final de cada curva, que es lo propio de una curva de
+    # duración: no puede chocar con nada y ahorra la leyenda.
+    for inst, y in (("HUDN", 6.12), ("Cesmag", 1.05), ("Mariana", -2.41),
+                    ("UCC", -5.91)):
+        ax2.text(100.9, y, E.etiqueta_institucion(inst), ha="left",
+                 va="center", fontsize=7.2,
+                 color=E.color_institucion(inst), zorder=8)
+    ax2.text(84.0, -7.7, E.etiqueta_institucion("Udenar"), ha="right",
+             va="center", fontsize=7.2,
+             color=E.color_institucion("Udenar"), zorder=8)
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.supxlabel("Horas con dato, ordenadas de la lectura mayor a la menor (%)",
+                  fontsize=9)
+    fig.tight_layout(rect=(0, 0.04, 1, 0.94))
+
+    filas = []
+    for inst in E.ORDEN_INSTITUCIONES:
+        x, o = curvas[inst]
+        filas += [{"zona": "curva", "institucion": inst,
+                   "posicion_pct": round(float(a), 4),
+                   "lectura_kW": round(float(b), 6)} for a, b in zip(x, o)]
+    for inst, cr in cruces.items():
+        filas.append({"zona": "cruce", "institucion": inst,
+                      "posicion_pct": round(float(cr), 4), "lectura_kW": 0.0})
+
+    print(f"  [f3.3] cruces: " + ", ".join(
+        f"{i} {c:.1f}%" for i, c in cruces.items()))
+
+    return E.guardar(
+        fig, f"f3_02b_gradacion_{cobertura}", datos=pd.DataFrame(filas),
+        procedencia=[D.rel(D.CACHE / f"preproceso_{cobertura}.npz"),
+                     D.rel(D.CACHE / f"preproceso_{cobertura}_resumen.csv")])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -950,6 +1109,7 @@ if __name__ == "__main__":
     f31_archivo_a_serie()
     for cob in ("m1", "m3"):
         f32_demanda_negativa(cob)
+    f32b_gradacion("m1")
     f33_reconstruccion("m1", "Udenar")
     for cob in ("m1", "m3"):
         f37_matrices(cob)

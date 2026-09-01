@@ -178,11 +178,11 @@ exactamente el mismo número. Se toma el promedio porque el instante ha de ser �
 de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
 
 La serie se remuestrea entonces a una hora tomando la \emph{media} de las
-muestras del intervalo, no la suma, y la razón está en la
-ecuación~\eqref{eq:dato-energia}. La energía de la hora es la integral de
-la potencia sobre ella, pero de esa integral solo se conocen $N$ valores
-espaciados de manera uniforme, de modo que se aproxima por rectángulos en
-los que cada muestra vale por el intervalo $\delta$ que representa:
+muestras del intervalo, y conviene separar los dos pasos que esa media
+encierra. La energía de la hora es la integral de la potencia sobre ella,
+según la ecuación~\eqref{eq:dato-energia}, y de esa integral solo se
+conocen valores separados por un paso fijo de dos minutos, de modo que el
+tramo observado se aproxima por rectángulos de ese ancho:
 
 \begin{equation}
  E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
@@ -209,7 +209,7 @@ modo que el sesgo variaría con la calidad de la adquisición en vez de
 cancelarse al comparar mecanismos.
 
 \begin{detallebox}
-La aproximación se puede contrastar, porque el medidor lleva junto a la
+Las dos decisiones se pueden contrastar, porque el medidor lleva junto a la
 potencia sus propios contadores de energía importada y exportada, en
 kilovatios hora, que avanzan por su cuenta y no intervienen en el
 preprocesamiento. Sobre las \num{5810} horas completas del circuito
@@ -221,25 +221,24 @@ El método no descansa entonces solo en el argumento físico: el propio
 equipo lo certifica.
 \end{detallebox}
 
-Los dos equipos no hablan en la misma unidad. El medidor entrega
-kilovatios y el inversor vatios, de modo que sus series no se pueden
+Los dos equipos no hablan en la misma unidad. El medidor registra en
+kilovatios y el inversor en vatios, de modo que sus series no se pueden
 comparar ni sumar tal como llegan. La del inversor se divide entre mil y
 la del medidor se usa como viene.
 
-La potencia que un inversor inyecta tampoco puede ser negativa, porque
-entrega energía a la red y no la toma de ella. La etapa impone esa
-condición recortando a cero por si acaso, y el recorte nunca llega a
-actuar: la lectura más baja de cada uno de los siete inversores es
-exactamente \uni{0}{W}, sobre las \num{793981} del horizonte. Los siete
-tocan ese piso miles de veces y ninguno lo cruza ni una sola.
+La etapa lleva por último cuatro salvaguardas contra cosas que este
+conjunto no contiene, y de ellas lo que importa es cuántas veces actúan:
+ninguna. Entre los 73 archivos del árbol no hay uno que no se deje leer;
+entre los \num{2813305} registros de los diez medidores no hay una fecha
+ilegible ni un valor no numérico; y entre las \num{793981} lecturas de los
+siete inversores no hay una sola negativa, que es lo que cabe esperar de un
+equipo que entrega energía a la red y no la toma de ella. Los siete
+registran el cero miles de veces, de modo que la ausencia de valores
+negativos no es que el equipo no alcance esa zona, sino que la zona no
+existe.
 
-La etapa contempla por último tres anomalías que este conjunto no
-presenta: un archivo que no se deja leer, una fecha que no se deja
-interpretar y un valor que no es numérico. Ninguna ocurre ni una sola vez
-en los \num{2813305} registros de los diez medidores que el modelo emplea,
-de modo que las ramas que las tratan nunca llegan a ejecutarse. El
-Anexo~\ref{anx:repro} recoge el procedimiento completo, con esas
-comprobaciones y el orden exacto en que se aplican.
+El Anexo~\ref{anx:repro} recoge el procedimiento completo de la etapa, con
+esas cuatro comprobaciones y el orden exacto en que se aplican.
 
 \subsection{La lectura que no puede ser}
 \label{sub:prep-negativa}
@@ -248,57 +247,61 @@ Aquí empieza la parte interesante. Al graficar la demanda tal como llega
 del medidor aparece algo que no puede ser cierto: durante varias horas al
 día, la demanda de tres de las cinco instituciones es negativa. Un
 edificio no consume energía negativa. La Figura~\ref{fig:prep-negativa}
-recoge el fenómeno en sus dos dimensiones: la forma que toma a lo largo
-del día y el número de horas que afecta a cada institución.
+recoge el fenómeno en sus dos dimensiones: la forma que toma en la
+institución más afectada y la hora del día en que aparece.
 
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m1.png}
- \caption[Demanda negativa en la lectura cruda]{Perfil medio de la
- demanda tal como la entrega el medidor, en la frontera M1
- (izquierda), y alcance del fenómeno por institución (derecha). La
- franja sombreada marca la zona físicamente imposible. Las lecturas
- bajo cero no se reparten al azar a lo largo del día: se concentran
- entre las 11 y las 15 horas.
- \fuente{elaboración propia desde \file{MedicionesMTE\_v3/},
- columna \code{totalActivePower}, procesada con el pipeline del
- proyecto.}}
+ \caption[Demanda negativa en la lectura cruda]{A la izquierda, el perfil
+ medio de la demanda de las cinco instituciones tal como la entrega el
+ medidor, en la frontera M1, con Udenar destacada y las otras cuatro en
+ gris de contexto. Solo la suya entra en la franja sombreada, que marca la
+ zona físicamente imposible, y baja a \uni{-11.0}{kW} a las 13. A la
+ derecha, en qué hora del día ocurren las lecturas
+ negativas de las tres instituciones que las registran.}
  \label{fig:prep-negativa}
 \end{figure}
 
-\notafig{Sobre las \num{6144} horas del horizonte, la demanda de Udenar
-cae bajo cero en \num{1517} horas (el \pct{24.7} del total, y el
-\pct{25.1} de las horas con dato) y llega a
-\uni{-33.57}{kW}. Mariana registra \num{213} horas bajo cero y la
-UCC \num{94}; el HUDN y Cesmag, ninguna. El reparto es, pues, muy
-desigual: una sola institución concentra el \pct{83} de todas las horas
-afectadas. Elaboración propia desde \file{MedicionesMTE\_v3/}.}
+El reparto es muy desigual. En Udenar la demanda cae bajo cero en cerca de
+una cuarta parte del horizonte, es decir, el \pct{24.7} de las \num{6144}
+horas y el \pct{25.1} de las que traen dato. En Mariana y en la UCC el
+fenómeno es ocasional, y en el HUDN y en CESMAG no aparece ni una hora, de
+modo que una sola institución concentra el \pct{83} de todas las horas
+afectadas. La Tabla~\ref{tab:prep-tipos} reúne el conteo y el mínimo de
+cada una.
 
-\begin{lecturabox}
-Lo decisivo de esta figura no es el número de horas sino \emph{a qué hora
-del día} ocurren. Si las lecturas negativas fueran ruido del sensor, se
-repartirían de manera aproximadamente uniforme. Se concentran en cambio
-en la franja de mayor producción solar (\num{223} casos a las 13 horas,
-\num{218} a las 12) y desaparecen por completo de noche. Ese patrón
-identifica la causa sin necesidad de abrir el equipo: no es un sensor
-averiado, es un medidor que está restando la generación antes de reportar.
-\end{lecturabox}
+Lo decisivo, sin embargo, no es cuántas horas son sino \emph{a qué hora del
+día} ocurren. Si las lecturas negativas fueran ruido del sensor se
+repartirían de manera aproximadamente uniforme a lo largo del día. Lo que
+se cuenta hora a hora es lo contrario: las negativas dibujan la campana de
+la producción solar, con su máximo de \num{288} horas a las 12 y \num{282}
+a las 13, y no hay ni una sola entre las 18 y las 6.
+
+Ese patrón identifica la causa sin necesidad de abrir el equipo. No es un
+sensor averiado, es un medidor que está restando la generación antes de
+reportar, y dónde esté puesto respecto de la inyección es lo que decide si
+lo hace.
 
 \subsection{Tres tipos de medidor}
 \label{sub:prep-tipos}
 
-El patrón que la figura revela, concentrado en las horas de sol y
-ausente de noche, apunta a dónde está puesto el medidor y no a una
-avería. La explicación es de topología eléctrica. Cuando el inversor
-fotovoltaico inyecta \emph{aguas abajo} del punto de medición, el medidor no observa
-la demanda del circuito sino el flujo neto $D - G$. En las horas en
-que la generación supera la carga del circuito, ese flujo se invierte de
-sentido y el medidor registra un valor negativo. La lectura no es un
+La explicación de ese patrón es de topología eléctrica, o dicho de otro
+modo, de en qué punto del circuito se conecta cada inversor. Cuando el
+inversor entra \emph{entre el medidor y la carga}, la energía que produce
+no llega a pasar por el medidor, de manera que este no registra la demanda
+del circuito sino lo que queda de ella al descontarle la generación, es
+decir, el flujo neto $D - G$. En las horas en que la generación supera la
+carga del circuito, ese flujo se invierte de sentido y el medidor registra
+un valor negativo. La lectura no es un
 error: es la evidencia de un autoconsumo que el medidor no puede separar.
 
-Según dónde esté el punto de medición respecto de la inyección, los
-medidores de la frontera M1 se clasifican en tres tipos, y esa
-clasificación gobierna todo lo que sigue.
+Según dónde entre el inversor, el tratamiento se bifurca en dos: a unos
+medidores hay que devolverles la generación que descontaron y a otros no
+hay nada que devolverles. El documento nombra además un caso intermedio,
+el neto parcial, pero no porque reciba un tratamiento propio, que es el
+mismo del neto, sino porque el neteo apenas llega a invertir el flujo. Lo
+que separa a esos dos es de grado y no de regla.
 
 \begin{figure}[H]
  \centering
@@ -323,8 +326,8 @@ clasificación gobierna todo lo que sigue.
  \draw[lin] (r1) -- (m1);
  \draw[lin] (m1) -- (c1);
  \draw[lin] (i1) -- (c1);
- \node[et, text width=3.5cm, right=0.30cm of c1, align=left]
- {el medidor queda \emph{antes}\\de la inyección: ve $D-G$};
+ \node[et, text width=3.4cm, right=0.30cm of c1, align=left]
+ {el inversor entra entre\\el medidor y la carga:\\el medidor ve $D-G$};
 
  % --- gross ---
  \node[et] at (-2.35,-2.38) {\textbf{bruto}};
@@ -335,74 +338,106 @@ clasificación gobierna todo lo que sigue.
  \draw[lin] (r2) -- (m2);
  \draw[lin] (m2) -- (c2);
  \draw[lin] (i2) -- (r2);
- \node[et, text width=3.5cm, right=0.30cm of c2, align=left]
- {el medidor queda \emph{después}:\\ve $D$ sin descontar nada};
+ \node[et, text width=3.4cm, right=0.30cm of c2, align=left]
+ {el inversor entra antes\\del medidor, que ve $D$\\sin descontar nada};
  \end{tikzpicture}
  \caption[Por qué unos medidores netean y otros no]{Posición relativa
- del medidor y del inversor en los dos casos extremos. Arriba, el punto
- de medición está aguas arriba de la inyección y el medidor observa el
- flujo neto, que se invierte en horas de alta irradiancia. Abajo, el
- punto de medición no ve la inyección y registra la demanda bruta. El
- caso intermedio, el neto parcial, corresponde a un medidor que
- netea un solo inversor de peso menor frente a la carga del circuito
- medido.
- \fuente{elaboración propia a partir de la configuración de medidores
- declarada en \file{data/preprocessing.py}.}}
+ del medidor y del inversor en los dos casos extremos. Arriba, el inversor
+ entra entre el medidor y la carga, de modo que el medidor observa el
+ flujo neto, que se invierte en horas de alta irradiancia. Abajo, entra
+ del lado de la red y el medidor registra la demanda bruta. El
+ caso intermedio, el neto parcial, recibe el mismo tratamiento que el
+ neto y se distingue solo por el grado, porque la generación que queda
+ detrás del medidor pesa poco frente a la carga del circuito.}
  \label{fig:prep-tipos}
 \end{figure}
 
 \begin{table}[H]
  \centering
- \caption{Clasificación de los medidores de demanda en la frontera M1
- y huella del neteo sobre el horizonte de \num{6144} horas. Los conteos
- proceden de reproducir el pipeline sobre los datos vigentes.}
+ \caption{Clasificación de los medidores de demanda en la frontera M1 y
+ huella del neteo sobre el horizonte de \num{6144} horas. La columna
+ central es la generación que queda detrás del medidor frente a la
+ demanda del circuito que ese medidor cubre, y es la cantidad que ordena
+ la tabla. Los conteos proceden de reproducir el pipeline sobre los datos
+ vigentes.}
  \label{tab:prep-tipos}
- \begin{tabular}{@{}l l r r l@{}}
+ \small
+ \begin{tabular}{@{}l l r r r r@{}}
  \toprule
- \textbf{Institución} & \textbf{Tipo} & \textbf{Horas $D<0$} &
- \textbf{Mínimo} & \textbf{Inversores que se restituyen} \\
+ \textbf{Institución} & \textbf{Tipo} &
+ \textbf{Generación} & \textbf{Horas $D<0$} &
+ \textbf{Mínimo} & \textbf{Inversores} \\
+ & & \textbf{detrás} & & & \\
  \midrule
- Udenar & neto & \num{1517} & \uni{-33.57}{kW} & tres \\
+ Udenar & neto & \pct{73.8} & \num{1517} & \uni{-33.57}{kW} & 3 \\
  \addlinespace
- Mariana & neto parcial & \num{213} & \uni{-2.41}{kW} & uno \\
+ Mariana & neto parcial & \pct{21.3} & \num{213} & \uni{-2.41}{kW} & 1 \\
  \addlinespace
- UCC & neto parcial & \num{94} & \uni{-5.91}{kW} & uno \\
+ UCC & neto parcial & \pct{11.7} & \num{94} & \uni{-5.91}{kW} & 1 \\
  \addlinespace
- HUDN & bruto & \num{0} & --- & ninguno \\
+ HUDN & bruto & \pct{0} & \num{0} & --- & 0 \\
  \addlinespace
- CESMAG & bruto & \num{0} & --- & ninguno \\
+ CESMAG & bruto & \pct{0} & \num{0} & --- & 0 \\
  \bottomrule
  \end{tabular}
 \end{table}
 
-La huella desigual tiene una explicación instrumental que responde
+La diferencia entre unas y otras tiene una explicación instrumental que responde
 directamente a por qué el fenómeno aparece en tres instituciones y no en
-las cinco. En Udenar el medidor del circuito principal está aguas arriba de la
-totalidad de la inyección solar y netea los tres inversores del sitio, de
-ahí la magnitud de su huella. En Mariana y en la UCC el medidor netea
-un solo inversor, de peso menor frente a la carga del circuito medido,
-y la
-inversión del flujo resulta ocasional. En el HUDN y en CESMAG el medidor
-está aguas abajo del punto de inyección, o cubre un circuito que la
-inyección no alimenta: ve la demanda sin descontarle generación alguna,
-de modo que nunca registra flujo inverso.
+las cinco. No es de regla sino de grado, y la gobierna una sola cantidad,
+que es cuánta generación queda detrás del medidor frente a lo que ese
+circuito consume. En Udenar esa fracción llega al \pct{73.8}, de modo que
+el flujo se invierte una cuarta parte del horizonte. En Mariana vale el
+\pct{21.3} y en la UCC el \pct{11.7}, y la inversión resulta ocasional. En
+el HUDN y en CESMAG el inversor entra fuera del tramo que el medidor
+vigila, o alimenta un circuito distinto del medido, de manera que la
+fracción es nula y el flujo nunca se invierte. La
+Figura~\ref{fig:prep-gradacion} deja ver esa gradación de una sola vez, es
+decir, ordena las lecturas de cada medidor de la mayor a la menor y muestra
+en qué punto cada curva cruza el cero.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02b_gradacion_m1.png}
+ \caption[La gradación del neteo en las lecturas ordenadas]{Las lecturas de
+ demanda de los cinco medidores de la frontera M1 sobre sus horas con dato,
+ ordenadas de la mayor a la menor, de modo que la altura de cada curva en un
+ punto del eje horizontal es la lectura que ese medidor supera esa fracción
+ del tiempo. A la izquierda, las cinco curvas completas, con el recuadro que
+ marca la esquina del cero. A la derecha, esa esquina ampliada: la curva de
+ Udenar cruza el cero a tres cuartas partes de su recorrido y se hunde, las
+ de Mariana y la UCC lo cruzan casi al final y apenas se sumergen, y las del
+ HUDN y CESMAG terminan sin cruzarlo.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento.}}
+ \label{fig:prep-gradacion}
+\end{figure}
+
+\notafig{La forma de cada curva es la gradación misma. La de Udenar corre
+baja y cruza temprano porque al mediodía la generación que queda detrás de
+su medidor supera de ordinario a la carga del circuito, es decir, la
+inversión es allí el estado normal de las horas de sol. Las de Mariana y la
+UCC corren altas frente a su único inversor y solo cruzan en las horas en
+que la producción culmina y la carga afloja. La de CESMAG llega a rozar el
+cero en sus horas de carga mínima y aun así no lo cruza, porque detrás de
+ese medidor no genera nada. Elaboración propia desde el caché de estados
+intermedios del preprocesamiento.}
+
+El número de inversores que la reconstrucción suma no explica esa
+gradación. En Udenar son tres porque tres son los que inyectan detrás de
+ese medidor, y el tercero solo desde septiembre, de modo que hacen falta
+los tres para devolver lo que el medidor descontó en cada tramo del
+horizonte. Mariana y la UCC tienen uno cada una, y ese único equipo es
+todo su parque solar, de manera que su neteo es completo en alcance
+aunque menor en efecto.
 
 En la frontera M3 la clasificación no hace falta, porque allí los cinco
-medidores son brutos y ninguna institución requiere reconstrucción.
-
-\begin{trampabox}
-El docstring del módulo de preprocesamiento cita \num{989} horas
-para Udenar, \num{216} para Mariana y \num{112} para la UCC. Esas cifras
-no reproducen contra el código y los datos vigentes, y el propio docstring
-es internamente inconsistente: su primer párrafo habla de «\textasciitilde
-\pct{20} de las horas» para Udenar, que no cuadra con
-\num{989}/\num{6144} $=$ \pct{16.1}. Las cifras de la
-Tabla~\ref{tab:prep-tipos} proceden de reproducir el pipeline sobre la
-versión vigente de los datos, con verificación de que las series
-resultantes coinciden con las del modelo hasta el último dígito
-representable. El repositorio no registra la causa de la diferencia, de
-modo que no se atribuye.
-\end{trampabox}
+medidores son brutos y ninguna institución requiere reconstrucción. La
+única huella del fenómeno es heredada: la serie de Mariana se construye
+escalando la de su primer medidor, conforme declara el
+Capítulo~\ref{sec:frontera}, de modo que arrastra sus mismas \num{213}
+horas negativas ya reducidas, y el recorte defensivo las lleva a cero con
+un costo de \uni{46.7}{kWh}, el \pct{0.33} de su demanda en esa frontera.
 
 \subsection{La reconstrucción de la demanda bruta}
 \label{sub:prep-reconstruccion}

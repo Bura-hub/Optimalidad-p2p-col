@@ -245,6 +245,7 @@ antes y su después.
 | 3.1 | El pipeline en seis etapas | T | `data/preprocessing.py` |
 | 3.1b | **Una hora real, del archivo a la serie** | ✓ | `MedicionesMTE_v3/UCC/` + caché |
 | 3.2 | La demanda que llega en negativo | ✓ | `f3_02_demanda_negativa_{m1,m3}` |
+| 3.2b | **La gradación del neteo, en lecturas ordenadas** | ✓ | caché de estados intermedios |
 | 3.3 | **Reconstrucción net→bruta: antes y después** | ✓ | `f3_03_reconstruccion_m1` |
 | 3.4 | Los tres tipos de medidor | T | `DEMAND_METER_CONFIG` |
 | 3.5 | Atípicos e imputación | ✓ | `f3_05_outliers_imputacion_{m1,m3}` |

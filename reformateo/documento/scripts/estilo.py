@@ -352,11 +352,21 @@ DIAS_ES = ["lunes", "martes", "miércoles", "jueves", "viernes",
 
 def fmt_fecha(ts, modo: str = "mes") -> str:
     """
-    Fecha en espanol. modo: 'mes' -> 'jul 25' · 'mes_largo' -> 'julio' ·
+    Fecha en espanol. modo: 'mes' -> 'jul 25' · 'mes_anio' -> 'jul 2025' ·
+    'mes_largo' -> 'julio' · 'dia_corto' -> '16 de julio de 2025' ·
     'dia' -> 'miércoles 16 de julio de 2025'.
+
+    El modo 'mes' es para ejes estrechos, donde el ano de dos cifras ahorra
+    el sitio que no hay; 'mes_anio' para ejes anchos, donde el ano completo
+    se lee sin ambiguedad. 'dia_corto' es 'dia' sin el dia de la semana,
+    que en un titulo es ruido.
     """
+    if modo == "dia_corto":
+        return f"{ts.day} de {MESES_LARGOS[ts.month - 1]} de {ts.year}"
     if modo == "mes":
         return f"{MESES_ES[ts.month - 1]} {ts.year % 100:02d}"
+    if modo == "mes_anio":
+        return f"{MESES_ES[ts.month - 1]} {ts.year}"
     if modo == "mes_largo":
         return MESES_LARGOS[ts.month - 1]
     return (f"{DIAS_ES[ts.weekday()]} {ts.day} de "
@@ -395,7 +405,17 @@ def etiqueta_corta(nombre: str) -> str:
 VENDE      = "#2C6E6B"   # verde azulado
 COMPRA     = "#8B3A62"   # vino
 GENERACION = "#5B8C5A"   # verde — la curva de generacion del capitulo 3
-DEMANDA    = "#3A3A3A"   # gris muy oscuro
+
+# Tinta: el gris muy oscuro de la serie principal cuando la serie no es una
+# magnitud del mercado. La curva de demanda del capitulo 3 es este mismo
+# tono, de modo que DEMANDA queda como alias y ninguna figura se repinta.
+TINTA      = "#3A3A3A"
+# Gris de las bandas alternas que separan los bloques de una figura
+# agrupada, y gris del rotulo de lo que la figura no emplea.
+FONDO_BANDA = "#F4F4F4"
+# Relleno de lo que la figura muestra pero el modelo no emplea.
+APAGADO     = "#D5D5D5"
+DEMANDA    = TINTA
 
 
 # ── Guardado con trazabilidad ────────────────────────────────────────────────

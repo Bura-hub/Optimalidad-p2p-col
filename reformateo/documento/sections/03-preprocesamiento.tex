@@ -186,39 +186,51 @@ tramo observado se aproxima por rectángulos de ese ancho:
 
 \begin{equation}
  E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
-   \;\simeq\; \sum_{k=1}^{N} P_{k}\,\delta
-   \;=\; \frac{\Delta t}{N}\sum_{k=1}^{N} P_{k}
-   \;=\; \overline{P}\,\Delta t ,
- \qquad \delta = \frac{\Delta t}{N} .
+   \;\simeq\; \delta \sum_{k=1}^{n} P_{k}
+   \;=\; \overline{P}\,(n\,\delta) ,
+ \qquad \delta = \uni{2}{min},
  \label{eq:prep-media}
 \end{equation}
 
-La media no es entonces una convención de agregación, sino que sale del
-ancho del rectángulo: es el factor $\delta$ el que convierte kilovatios en
-kilovatios hora. Con $\Delta t = \uni{1}{h}$ y $N = 30$ ese ancho vale dos
-minutos, y la energía horaria en kilovatios hora resulta numéricamente
-igual a la potencia media en kilovatios, de modo que la misma serie puede
-leerse de las dos maneras y a lo largo del documento se usan ambas según
-convenga.
+donde $n$ es el número de muestras que la hora trae y $\overline{P}$ su
+media. Con la hora completa $n$ vale 30, el producto $n\,\delta$ vale una
+hora, y la energía en kilovatios hora resulta numéricamente igual a la
+potencia media en kilovatios, de modo que la misma serie puede leerse de
+las dos maneras y a lo largo del documento se usan ambas según convenga.
 
-Sumar las muestras equivale a fijar $\delta = \uni{1}{h}$, es decir, a
-conceder una hora entera a cada lectura de dos minutos, y devuelve un
-valor $N$ veces mayor. Devuelve además un error que no es constante: una
-hora con muestreo incompleto quedaría multiplicada por un $N$ menor, de
-modo que el sesgo variaría con la calidad de la adquisición en vez de
-cancelarse al comparar mecanismos.
+Cuando la hora llega incompleta, en cambio, los rectángulos no cubren el
+intervalo y el tramo sin muestrear no queda determinado por el dato. Hay
+que decidir qué se supone de él, y aquí se le atribuye la potencia media de
+las muestras presentes, es decir, se toma $E \simeq \overline{P}\,\Delta t$
+con $\Delta t = \uni{1}{h}$. Es un supuesto y no una identidad, de modo que
+se declara como tal y se acota en la subsección~\ref{sub:prep-sesgo}.
+
+Las dos alternativas quedan descartadas por razones distintas. Conceder una
+hora entera a cada lectura de dos minutos devuelve un valor treinta veces
+mayor. Y detenerse en los rectángulos observados no es abstenerse de
+suponer nada, como podría parecer, sino suponer que en el tramo sin
+muestrear no hubo energía, cosa que no se sostiene en instalaciones con
+carga de base permanente. El criterio del regulador apunta en la misma
+dirección, aunque su ámbito sea otro: para las fronteras comerciales cuyo
+sistema de medición está en falla, el artículo 38 de la Resolución CREG 038
+de 2014 ordena estimar las lecturas integrando la potencia activa o
+recurriendo a curvas típicas, y no contempla asignarles cero.
 
 \begin{detallebox}
 Las dos decisiones se pueden contrastar, porque el medidor lleva junto a la
 potencia sus propios contadores de energía importada y exportada, en
 kilovatios hora, que avanzan por su cuenta y no intervienen en el
 preprocesamiento. Sobre las \num{5810} horas completas del circuito
-principal de la UCC, la media horaria y lo que esos contadores avanzan
-difieren en \uni{0.008}{kWh} sobre horas de \uni{19.20}{kWh}, y acumuladas
-sobre el horizonte la diferencia es del \pct{0.04}. La suma de las
-muestras, en cambio, arroja \num{30.0} veces lo que el contador registra.
-El método no descansa entonces solo en el argumento físico: el propio
-equipo lo certifica.
+principal de la UCC en las que el contador tiene lectura en los dos bordes,
+lo que avanza y la media horaria difieren en el \pct{0.04} acumulado.
+
+El supuesto sobre el tramo no observado admite una prueba más directa, y es
+la que decide. En los \num{718} cortes de telemetría de los tres medidores
+cuyo contador está bien escalado, el contador avanza \uni{809}{kWh};
+suponer que el equipo siguió consumiendo predice \uni{812}{kWh} y suponer
+que no hubo energía predice \uni{288}{kWh}. El equipo sigue integrando
+durante los cortes, de modo que atribuirles energía nula falla por física y
+no por estadística, y falla cada vez peor cuanto más largo es el corte.
 \end{detallebox}
 
 Los dos equipos no hablan en la misma unidad. El medidor registra en
@@ -722,7 +734,23 @@ corresponde mencionar aquí, apuntan todas en la misma dirección:
  al mercado entre pares, en vez de estimarlo.
 \end{enumerate}
 
-Ninguna de las cuatro infla el resultado; las cuatro lo recortan. La
+Hay una quinta que apunta al revés, y conviene nombrarla aquí y no
+esconderla. Al estimar la hora incompleta con la media de sus muestras
+presentes se le atribuye al tramo no observado el comportamiento del
+observado, lo que da entre \pct{0.26} y \pct{0.55} más energía que
+truncarlo. Afecta a \num{835} horas del horizonte, es decir, al \pct{2.8}
+de las horas con dato, en las que se observa de media el \pct{85.9} de la
+hora. No se elige por su signo: truncar está descartado por el Código de
+Medida y desmentido por el contador del propio equipo, según la
+subsección~\ref{sub:prep-lectura}. Y el supuesto se comprobó aplicando la
+ventana observada de cada hora incompleta a horas completas comparables de
+la misma institución, la misma hora del día y el mismo mes: el sesgo
+resulta indistinguible de cero en las cinco, y suma el \pct{0.0007} de la
+demanda del horizonte.
+
+Cuatro de las cinco recortan el resultado y la quinta lo amplía en una
+proporción tres órdenes de magnitud menor que el margen que separa a los
+mecanismos. La
 consecuencia metodológica es que las cifras del Capítulo~\ref{sec:res}
 deben leerse como una \textbf{cota inferior} de lo que este mercado podría
 rendir, y no como una estimación centrada. Es una posición

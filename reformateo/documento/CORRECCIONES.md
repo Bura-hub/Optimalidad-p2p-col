@@ -2138,6 +2138,455 @@ cero desbordes.
 
 ---
 
+## C-63 · Un medidor no entrega kilovatios, los registra
+
+**2026-08-26 · tipo: `redaccion` · aplicada**
+
+Él preguntó si el párrafo de las unidades cumplía la norma de C-21, la de
+los paréntesis. **No le aplica**, y conviene dejar por qué: C-21 gobierna
+el patrón *Magnitud (símbolo)*, que es lo que pide la guía IEEE al escribir
+«Magnetization (A/m)». Ese párrafo no anota una magnitud con su símbolo,
+sino que nombra las unidades como sustantivos comunes. La forma con
+paréntesis sería además incorrecta ahí por la norma de cifras, porque un
+símbolo de unidad exige ir con cifra y en esa frase no hay ningún número.
+
+Al comprobarlo apareció un defecto distinto, en el verbo: decía «el
+medidor **entrega** kilovatios». Un medidor no entrega potencia, la mide;
+el verbo valía para el inversor, que sí inyecta, y era falso aplicado al
+medidor. Pasa a «el medidor **registra en** kilovatios y el inversor **en**
+vatios», que es además el verbo que el Capítulo 2 ya usa para los
+medidores.
+
+---
+
+## C-64 · Las cuatro comprobaciones que dan cero, juntas y una sola vez
+
+**2026-08-26 · tipo: `metodo` · aplicada · norma investigada, no supuesta**
+
+Él planteó una duda de fondo: si una etapa del preprocesamiento no tiene
+ningún efecto sobre el dato, ¿debe reportarse? La duda venía cargada,
+porque ya había borrado etapas del diagrama y del texto justamente por eso,
+y pidió que no se contestara de memoria.
+
+**La norma, investigada.** El estándar más directo es REFORMS, para ciencia
+basada en datos. Su Módulo 4 lleva un ítem que es literalmente este caso:
+
+> **4b. How impossible or corrupt samples are dealt with.** «A dataset may
+> contain erroneous or undesirable data points. Data may be impossible
+> (e.g., a person whose height is recorded as 10 feet)… our checklist asks
+> authors to report such steps.»
+
+Una potencia de inyección negativa es un dato imposible, de modo que **la
+regla que lo trata es de declaración obligatoria**, haya actuado o no. Pero
+el mismo estándar añade que los autores deben indicar «the section or page
+number where the item is reported», es decir, **lo exigible es que exista y
+se encuentre, no que esté en la narración**. Un anexo cumple.
+
+A eso se suma la convención de los diagramas de flujo de CONSORT y STROBE,
+que reportan los conteos de cada etapa **incluidos los ceros**. La razón es
+la que decide: si el cero no se reporta, el lector no puede distinguir «se
+comprobó y no había» de «no se comprobó».
+
+**Lo que se borró estuvo bien.** Contrastadas las supresiones anteriores
+contra esa norma, todas separaron igual: se fue el procedimiento, se quedó
+la cifra. La cascada de codificaciones y la tolerancia de nombres al anexo,
+pero «ni una fecha ilegible en 2.813.305 registros» en el capítulo. No se
+borró información sino descripción de programa.
+
+**Dónde sí había un problema.** Las cuatro comprobaciones que dan cero
+estaban repartidas en dos párrafos consecutivos con la misma forma, «una
+salvaguarda que nunca actúa, y su cero». No sobraba contenido: sobraba la
+repetición de la forma, que es lo que las hacía sonar a justificación.
+Ahora se dicen juntas y una sola vez, con el «ninguna» delante de la
+enumeración.
+
+**Y la frase del piso por fin dice para qué está.** «Los siete registran el
+cero miles de veces» quedaba en el aire; ahora cierra el argumento: la
+ausencia de valores negativos no es que el equipo no alcance esa zona, sino
+que la zona no existe. Descarta el artefacto de instrumento.
+
+**La regla que queda fijada, en tres partes:**
+
+1. El procedimiento va al anexo, siempre.
+2. La cifra medida se queda en el capítulo **solo si sostiene una
+   afirmación que el documento haga**. Aquí la sostiene: el capítulo afirma
+   que las matrices son no negativas por construcción, y estos ceros son su
+   prueba.
+3. **Todas las cifras de esa clase van juntas, una sola vez, no
+   repartidas.** Es la parte nueva y la que resuelve la incomodidad.
+
+Fuentes: REFORMS (arXiv 2308.07832); STROBE Explanation and Elaboration
+(PLOS Medicine); «Seven steps toward more transparency in statistical
+practice» (Nature Human Behaviour).
+
+---
+
+## C-65 · La figura de la demanda negativa enseñaba lo contrario de lo que el texto afirma
+
+**2026-08-26 · tipo: `figura` · aplicada · evaluada contra estándar de visualización**
+
+Él dijo que la sección le gustaba pero que en la figura no se distinguían
+las instituciones. Al evaluarla apareció un defecto mayor que el de
+legibilidad.
+
+**El defecto de fondo.** El panel izquierdo dibujaba el perfil medio de las
+cinco instituciones. Medido:
+
+| Institución | Horas negativas | Mínimo del perfil medio | ¿El promedio cruza el cero? |
+|---|---:|---:|---|
+| Udenar | 1.517 | −10,95 kW | **sí** |
+| Mariana | 213 | **+5,51 kW** | no |
+| UCC | 94 | **+8,73 kW** | no |
+
+Es decir, **la media escondía el fenómeno en dos de las tres instituciones
+afectadas**. La figura decía «esto es cosa de Udenar» mientras el texto
+decía «tres de las cinco». Promediar 256 jornadas ahoga un suceso que
+ocurre en el 3,5 % de las horas de Mariana.
+
+**El defecto que él señaló, y su nombre.** Cinco series categóricas con
+cuatro apiladas en una banda estrecha. El estándar de visualización lo
+llama por su nombre y da la cura: cuando una serie es el asunto y el resto
+es contexto, la forma correcta es **emphasis**, una sola serie destacada, no
+cinco colores compitiendo. La guía es explícita en que lo categórico
+«puede enterrar el único dato que importa».
+
+**Un tercer defecto, de redundancia.** El panel derecho daba horas y
+mínimos por institución, que es exactamente lo que la Tabla de los tipos de
+medidor repite dos páginas después. Era una tabla dibujada como barras.
+
+**Lo aplicado.** Izquierda: los cinco perfiles, con Udenar en su color de
+institución y las otras cuatro en gris de contexto, más la zona imposible y
+el mínimo anotado. La primera versión dejaba a Udenar sola y él lo objetó
+con razón: quitar las otras resolvía el amontonamiento pero perdía el
+contraste, que es el argumento del párrafo, y además es la mitad de la
+forma que el estándar llama emphasis, una serie destacada y el resto en
+gris, no el resto fuera. Derecha: **el
+conteo de horas negativas por hora del día, apilado por las tres
+instituciones afectadas**. Ese segundo panel es el argumento del capítulo
+—que el valor negativo no es ruido porque sigue al sol— y hasta ahora
+solo existía enunciado en el texto. Dibuja una campana que empieza a las 7,
+culmina en 288 horas a las 12 y se apaga a las 17.
+
+**Dos cifras corregidas de paso.** La caja de lectura daba «223 casos a las
+13 y 218 a las 12» como si fueran totales; son los de Udenar sola. Los
+totales son **288 a las 12 y 282 a las 13**, de modo que el máximo estaba
+además en la hora equivocada.
+
+**Sobre la paleta.** Las tres instituciones se validaron con el comprobador
+del estándar: separación para daltonismo ΔE 16,1 frente a un objetivo de 8,
+y suelo de visión normal 18,2. Pasa con holgura. El único reparo es que el
+azul de Udenar queda por debajo del piso de croma y tira a gris; **no se
+cambia**, porque repintar la paleta de instituciones tocaría las 39 figuras
+y es una decisión de documento, no de esta figura.
+
+**Adaptación a la otra frontera.** En M3 ningún promedio cruza el cero y
+solo Mariana registra negativos, de modo que el panel izquierdo pasa a
+dibujar el mínimo de cada hora y el título lo declara.
+
+---
+
+## C-66 · La nota al pie y la caja de lectura pasan a cuerpo del texto
+
+**2026-08-26 · tipo: `redaccion` · aplicada · verificada por agente aislado**
+
+Él pidió integrar como contenido los dos bloques que rodeaban a la figura de
+la demanda negativa, la nota al pie con el alcance y la caja de lectura con
+el argumento del reloj. La integración la verificó punto por punto un agente
+aislado, con acceso al caché y a las normas del proyecto.
+
+**La progresión que se buscaba**, y que ahora existe: cuántas horas son,
+cuándo ocurren, y por qué eso identifica la causa. Tres párrafos que suben
+una escalera, con el «sin embargo» y el «ese patrón» de costura, y un cierre
+en bisagra que entrega la subsección siguiente.
+
+**Lo que la caja escondía y la integración destapó.** Su última frase y la
+apertura de «Tres tipos de medidor» decían lo mismo, que el patrón apunta al
+medidor y no a una avería. En un aparte el lector no lo notaba; en cuerpo de
+texto, dos párrafos seguidos con la misma conclusión no se sostienen. La
+subsección siguiente entra ahora directa en la topología.
+
+**El hallazgo de fondo del verificador.** El párrafo del alcance, al
+ascender de nota a cuerpo, pasó a **duplicar entera la Tabla de los tipos de
+medidor**, que tres páginas después da fila por fila institución, horas bajo
+cero y mínimo. Choca con C-64 regla 3, con C-65, que unas horas antes retiró
+de la figura ese mismo contenido por ese mismo motivo, y con el propio
+docstring del generador. Comprobado y cierto. El párrafo se queda con lo que
+la tabla no dice, que son las dos participaciones y la concentración, y
+remite a ella para el detalle. Se resuelve de paso una ambigüedad: el pie
+daba −11,0 kW y el cuerpo −33,57 kW, dos mínimos distintos de la misma
+institución a diez líneas, sin decir que uno es la media horaria y el otro la
+peor hora.
+
+**Una construcción prohibida que se había colado.** «El panel derecho de la
+figura muestra» es exactamente lo que la guía prohíbe y lo que el medidor de
+estilo vigila con un contador que vale cero en los cuatro capítulos. Pasa a
+«Lo que se cuenta hora a hora es lo contrario», que además arregla una
+discordancia que arrastraba, singular en el verbo y plural dos cláusulas
+después.
+
+**Dos costuras menores.** La subsección siguiente tomaba su sujeto del
+encabezado, «La explicación es de topología eléctrica», y ahora lo lleva
+dentro. Y dos párrafos abrían con la misma palabra a tres páginas de
+distancia.
+
+**Once cifras verificadas contra el caché, sin una sola desviación**, incluida
+la comprobación de que las 288 horas de las 12 y las 282 de las 13 son
+totales de las tres instituciones y no de una sola, y de que la suma de las
+horas entre las 18 y las 6 es exactamente cero.
+
+**Lo que NO se aplicó del informe.** Pedía devolver el `uente{}` al pie de
+la figura, por la regla 4 de la guía. **No se toca**: él quitó a mano la
+fuente y la nota de esa figura, y las notas y fuentes son decisión suya
+declarada. Queda para que él decida.
+
+**Un aviso que sube de rango.** P-18 sigue abierta, y ahora pesa más: el
+argumento de que las negativas se concentran a las 12 descansa en que las
+marcas de tiempo vienen en hora local, y eso no se declara en ninguna parte.
+Mientras vivía en una caja era un aparte; en el cuerpo es la prueba central
+de la subsección.
+
+---
+
+## C-67 · Fuera «aguas arriba» y «aguas abajo»
+
+**2026-08-26 · tipo: `redaccion` · aplicada**
+
+Él pidió no usar el término porque así no se entiende. Aparecía **cuatro
+veces** en el Capítulo 3, y el reparo es de fondo: el término pide que el
+lector ya sepa por dónde circula la energía, que es exactamente lo que el
+párrafo está tratando de explicarle. Explicar la causa con un término que
+presupone la causa no funciona.
+
+**Lo llamativo es que el vocabulario llano ya estaba en el documento**, y
+en el sitio más visible: los rótulos del diagrama de los tres tipos decían
+«el medidor queda antes de la inyección» y «queda después». Es decir, la
+figura hablaba llano y el texto de al lado hablaba en jerga.
+
+**Comprobada la topología antes de reescribir**, en el propio diagrama: en
+el medidor neto el inversor llega al nudo de la carga, o sea que entra
+entre el medidor y ella; en el bruto llega al nudo de la red, o sea que
+entra antes del medidor. Las cuatro apariciones eran además coherentes
+entre sí, de modo que no había ningún error de lógica escondido, solo de
+vocabulario.
+
+**Lo aplicado**, con la misma formulación en los cuatro sitios y en los dos
+rótulos del diagrama: *el inversor entra entre el medidor y la carga*
+frente a *el inversor entra antes del medidor*. El párrafo de la causa gana
+además la glosa que le faltaba, «o dicho de otro modo, de en qué punto del
+circuito se conecta cada inversor», y explica por qué eso hace que el
+medidor vea la diferencia: la energía del inversor no llega a pasar por él.
+
+**Los rótulos del diagrama se cortaron a mano** porque el justificado
+partía «medi-dor».
+
+---
+
+## C-68 · No son tres tipos de medidor, son dos tratamientos y una gradación
+
+**2026-08-26 · tipo: `metodo` · aplicada**
+
+Él preguntó por qué tres tipos y qué hace tan diferente al neto del neto
+parcial. La respuesta salió del código, no de la prosa, y obligó a corregir
+una afirmación estructural del capítulo.
+
+**El pipeline se bifurca en dos, no en tres.** En `data/preprocessing.py`
+la rama es literalmente `if kind in ("net", "net_partial")`, de modo que
+los dos primeros tipos recorren el mismo camino y salen con la misma
+fórmula. Lo único que `net_partial` cambia en toda la corrida es **el
+rótulo que se imprime en el registro**. Y la reconstrucción no consulta el
+tipo para saber qué inversores sumar: los toma de una lista aparte.
+
+**Lo que de verdad los separa es una magnitud**, medida sobre el canon: la
+generación que queda detrás del medidor frente a lo que ese circuito
+consume.
+
+| Institución | Generación detrás | Horas con flujo invertido | Mínimo |
+|---|---:|---:|---:|
+| Udenar | **73,8 %** | 1.517 (24,7 %) | −33,57 kW |
+| Mariana | **21,3 %** | 213 (3,5 %) | −2,41 kW |
+| UCC | **11,7 %** | 94 (1,5 %) | −5,91 kW |
+| HUDN y CESMAG | 0 % | 0 | — |
+
+La escalera es monótona y explica sola el fenómeno del capítulo: a 73,8 %
+el flujo se invierte una cuarta parte del tiempo, a 21,3 % y 11,7 %
+ocasionalmente, a cero nunca.
+
+**Una explicación que engañaba.** El pie del diagrama decía que el neto
+parcial «netea un solo inversor de peso menor frente a la carga». La
+primera mitad es cierta pero desorienta: Mariana y la UCC **solo tienen un
+inversor cada una**, de modo que no es un neteo parcial de su parque sino
+un neteo completo de un parque pequeño. Lo parcial no es el alcance sino
+el efecto.
+
+**Y una afirmación que sobraba.** El capítulo decía que los medidores «se
+clasifican en tres tipos, y esa clasificación gobierna todo lo que sigue».
+Lo que gobierna es binario.
+
+**Su precisión, que cambió la redacción.** Advirtió que en Udenar hay tres
+inversores porque hacen falta para reconstruir a lo largo del horizonte, y
+no porque tener tres lo haga distinto. Es exacto, y el tercero entra solo
+desde septiembre. El número de inversores queda por tanto como dato de
+reproducibilidad y **se dice explícitamente que no explica la gradación**.
+
+**Lo aplicado.** La afirmación de los tres tipos pasa a decir que el
+tratamiento se bifurca en dos y que el caso intermedio se distingue por el
+grado. El pie del diagrama se corrige. La Tabla de los tipos **gana la
+columna de la fracción**, que es la cantidad que la ordena y que no estaba
+en ninguna parte del documento, y su pie lo declara. El párrafo del reparto
+se reescribe alrededor de esa fracción en vez de alrededor del recuento de
+inversores, y gana un párrafo que desactiva la lectura causal del recuento.
+
+**Nota de forma.** La columna de inversores pasa de palabras a cifras, que
+es lo que corresponde en una columna numérica alineada a la derecha; la
+norma RAE de escribir de 0 a 9 en palabras rige la prosa, no las tablas. La
+cabecera va a dos líneas y el cuerpo a cuerpo menor porque la sexta columna
+desbordaba la caja por 8,8 puntos.
+
+---
+
+## C-69 · La gradación del neteo, dibujada como forma
+
+**2026-08-27 · tipo: `figura` · aplicada**
+
+Él pidió una figura para el pasaje de la gradación. El diseño lo exploró un
+agente aislado con el aviso de que en esa misma subsección ya viven un
+diagrama de topología y una tabla, y de que la subsección siguiente ya
+dibuja el mecanismo para Udenar.
+
+**El hueco que sí existía.** La tabla da la gradación en números y el
+diagrama da su causa en topología, pero **ninguno la da en forma**: por qué
+una fracción del 73,8 % hunde la lectura y una del 11,7 % apenas la roza.
+
+**El corte elegido, y por qué no hay día de ejemplo.** Curvas de duración,
+es decir, las lecturas de cada medidor ordenadas de la mayor a la menor.
+El motivo es severo: el fenómeno ocupa el 24,7 % de las horas de Udenar
+pero el 3,5 % de las de Mariana y el 1,5 % de las de la UCC, de modo que
+cualquier día concreto o no lo muestra o lo sobrerrepresenta, que es
+exactamente la trampa que C-65 documentó con el promedio. La curva de
+duración es el único corte donde un suceso del 25 %, uno del 3,5 % y uno
+del 1,5 % conviven sin elegir ejemplo.
+
+**Lo que la figura enseña**, y está verificado: los tres cruces por cero
+llegan en el orden que la fracción predice, al 74,9 %, al 96,5 % y al
+98,4 % del recorrido, y las dos instituciones sin generación detrás no
+cruzan nunca. El HUDN ni se acerca, con un piso de 6,12 kW, y CESMAG llega
+a rozar el cero en su hora de carga mínima, 0,195 kW, **sin cruzarlo
+jamás**. Ese último es el control del experimento: ni la carga más baja
+invierte un flujo que no tiene generación detrás.
+
+**Dos diseños descartados con medición, no con gusto.** Uno enfrentaba la
+campana solar a la carga en tres paneles, pero el promedio de generación
+solo cruza al de demanda en Udenar, de manera que habría enseñado «aquí no
+se invierte» en dos casos donde sí se invierte. Otro pintaba un mapa de
+días contra horas, cuyo mensaje ya lo da el panel de la campana de la
+figura anterior y que además no muestra la profundidad.
+
+**La figura no imprime ni un numeral** de las clases que ya viven en la
+tabla y en la prosa. La geometría los lleva y el pie los dice en palabras,
+«a tres cuartas partes de su recorrido», «casi al final», con lo que C-64
+queda respetada y **ninguna cifra del texto sobra**.
+
+**Siete compuertas** detienen la corrida antes que dibujar un ejemplo
+falso, y una de ellas amarra los conteos **a la tabla impresa del
+capítulo** y no solo al caché, de modo que un caché regenerado no puede
+producir una figura incoherente con la página de al lado.
+
+**Composición.** Dos tirajes de corrección: los rótulos flotantes del panel
+ampliado cruzaban las curvas de la UCC y de Mariana, y pasaron a etiqueta
+al final de cada curva, que es lo propio de una curva de duración y no
+puede chocar con nada.
+
+---
+
+## C-70 · En M3 el fenómeno sí deja huella, heredada
+
+**2026-08-27 · tipo: `dato` · aplicada · hallazgo colateral del diseño**
+
+El capítulo cerraba diciendo que en la frontera M3 la clasificación no hace
+falta «porque allí los cinco medidores son brutos y ninguna institución
+requiere reconstrucción». Cierto, pero daba a entender que allí el fenómeno
+no deja huella, y eso es falso.
+
+**Medido**: la serie de Mariana en M3 se construye escalando la de su
+primer medidor, y la razón entre las dos es **exactamente 0,3000 en toda la
+serie**, comprobado punto a punto. Hereda por tanto sus mismas **213 horas
+negativas**, ya reducidas, con un mínimo de −0,723 kW que es exactamente
+0,3 × −2,41. Como en esa frontera está clasificada como bruta y no se
+reconstruye nada, el recorte defensivo se las lleva a cero y elimina
+**46,72 kWh**, el 0,33 % de su demanda en esa frontera.
+
+Es el mismo recorte que en M1 cuesta 1.013,3 kWh en Udenar, y su signo es
+el mismo: subestima la demanda, de modo que apunta en la dirección
+restrictiva que la subsección del sesgo reúne.
+
+---
+
+## C-71 · La ecuación hacía pasar por identidad física un supuesto de imputación
+
+**2026-08-31 · tipo: `metodo` · aplicada · dictamen de tres revisores**
+
+Nace de contrastar el capítulo contra una reunión con el asesor. Él
+distingue dos maneras de pasar de las muestras de dos minutos a la energía
+horaria y llama exacta a la segunda; medido, **en horas completas son la
+misma expresión**. Pero su inquietud apuntaba a un sitio real que el
+capítulo no cubría: las horas incompletas. La medición está en H-18.
+
+**El defecto de fondo.** La ecuación definía el ancho del rectángulo como
+el cociente entre la hora y el número de muestras, y lo glosaba como «el
+intervalo que cada muestra representa». Esas dos cosas coinciden solo si
+las muestras teselan la hora. En las 835 horas incompletas ese cociente
+sale mayor que dos minutos y la muestra sigue representando dos, de modo
+que la glosa era literal justo donde la decisión no importa y falsa donde
+sí. Peor: la ecuación **aparentaba resolver** la cuestión de la hora
+incompleta mientras introducía calladamente una imputación que no
+declaraba.
+
+**Y refutaba a un adversario que nadie propone.** El párrafo atacaba fijar
+el ancho en una hora, error de factor treinta ya desmentido, y **nunca
+nombraba la alternativa real**, que es sumar los rectángulos observados sin
+extenderlos. Un revisor que conozca el problema veía que lo esquivábamos.
+
+**Lo aplicado.** La ecuación separa ahora los dos pasos: el ancho queda
+fijo en dos minutos, el número de muestras es el que la hora trae, y el
+supuesto sobre el tramo no observado se enuncia aparte y se declara como
+supuesto. Las dos alternativas se descartan por razones distintas.
+
+**Una cita que hubo que acotar antes de dejarla.** La primera redacción
+decía que el relleno con ceros es algo «que el Código de Medida tampoco
+admite», como si la norma nos obligara. Comprobado el texto literal, **no
+nos obliga**: el artículo 38 se activa «mientras se reparan o reponen los
+elementos de los sistemas de medición que se encuentran en falla o hayan
+sido hurtados» y sus métodos rigen «para el caso de las fronteras con
+reporte al ASIC». Nuestros equipos no son fronteras comerciales y lo que
+hay no es un sistema en falla sino un corte de telemetría. Queda citado
+como criterio del regulador que apunta en la misma dirección, con su ámbito
+declarado. La fuente oficial de la CREG se trunca antes del artículo, de
+modo que el texto se tomó del Acuerdo CNO 700 de 2014, que lo transcribe, y
+se contrastó contra una segunda fuente independiente.
+
+**El recuadro cambia de prueba.** Antes se apoyaba en que sumar da treinta
+veces el contador, que es el adversario fácil. Ahora carga la prueba que
+decide: sobre 718 cortes de telemetría el contador avanza 809 kWh, suponer
+que el equipo siguió consumiendo predice 812 y suponer energía nula predice
+288.
+
+**La decisión se declara donde toca, y es la incómoda.** La subsección de
+los sesgos enumeraba cuatro decisiones y cerraba diciendo que ninguna infla
+el resultado. **Esta sí lo infla**, entre 0,26 % y 0,55 %. Entra como quinta
+y se dice que apunta al revés, con su cota y con la razón por la que no se
+elige por su signo. Una sección de conservadurismo que solo enumera
+decisiones favorables es menos creíble que una que nombra la única que va
+en contra y la acota.
+
+**Tres cifras corregidas.** Las horas incompletas son 835 y no 840, porque
+el corte inclusivo del cargador deja entrar una muestra suelta del 16 de
+diciembre que el reindexado descarta después. Las 5.810 horas del contraste
+son las que tienen lectura de contador en los dos bordes, no las horas
+completas del medidor, que son 5.821. Y la mejora del trapecio existe pero
+vale 0,01 kWh, de modo que decir que no mejora era impreciso.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -2159,5 +2608,6 @@ cero desbordes.
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
 | P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
+| P-20 | Declarar un umbral de cobertura para la hora incompleta, por ejemplo 75 % de muestras y al menos una por cuarto de hora, con marca por hora y tratamiento explícito por debajo. Con una media de 28 de 30 no mordería casi nada, pero obliga a instrumentar la marca. Propuesto por el revisor normativo en C-71. | pendiente de decisión |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

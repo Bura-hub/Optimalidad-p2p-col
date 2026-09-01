@@ -732,3 +732,174 @@ Solo está medido el rango de los máximos observados.
 generación disponible se estaría recortando en el propio inversor, antes de
 que ningún medidor la vea. Eso afectaría a la lectura de la generación como
 recurso, no a su medición. Es materia del capítulo del instrumento.
+
+---
+
+## H-18 · Qué se hace con las horas parcialmente muestreadas, y por qué
+
+**Estado: medido. La decisión que el pipeline toma es la correcta, y hasta
+hoy no estaba declarada en ninguna parte. Tres revisores independientes
+tienen el dictamen pendiente.**
+
+Nace de una reunión con el asesor (transcripción del 28 de agosto de 2026,
+`Modulo Blockchain Transaccion/Whisper/`). Al describir cómo pasar de las
+muestras de dos minutos a la energía horaria, él distingue dos métodos y
+llama exacto al segundo:
+
+> «tenemos la media de la hora... **esa es la forma simple** de hacerlo»
+> ... «**que es aproximado, pero no es exacto**»
+>
+> «cada dato de potencia **multiplicarlo por el delta t**... es una
+> sumatoria de la potencia por lo que valen dos minutos en horas... y eso
+> te da **ahí sí** la integral»
+
+**Los dos métodos son el mismo número, y la distinción no existe.** En una
+hora completa, `suma(P) por 2/60` y `(1/30) por suma(P)` son la misma
+expresión. Medida sobre las 5.810 horas completas del medidor principal de
+la UCC, la diferencia máxima es **1,4e-14 kWh**, que es el último bit de la
+coma flotante.
+
+**Pero su inquietud apuntaba a algo real, situado en otro sitio.** Los dos
+métodos sí divergen en las **horas incompletas**, que él no mencionó. Su
+fórmula fija el ancho en dos minutos y suma solo las muestras que hay, de
+modo que una hora con veinte muestras aporta cuarenta minutos de energía.
+La media reparte lo observado sobre la hora entera.
+
+| Institución | Horas con dato | Incompletas | Media (A) | Suma fija (B) | B menos A |
+|---|---:|---:|---:|---:|---:|
+| Udenar | 6.048 | 164 | 10.611,1 | 10.557,6 | −0,504 % |
+| Mariana | 6.031 | 125 | 46.299,2 | 46.179,7 | −0,258 % |
+| UCC | 6.019 | 198 | 116.248,4 | 115.685,7 | −0,484 % |
+| HUDN | 6.032 | 163 | 54.744,1 | 54.544,1 | −0,365 % |
+| CESMAG | 6.028 | 190 | 27.077,6 | 26.928,7 | −0,550 % |
+
+Son **840 horas** en total, entre el 2 % y el 3 % del horizonte de cada
+medidor.
+
+**El contador del propio equipo arbitra, y le da la razón a la media.**
+Restringido a horas parciales y a los tres medidores cuyo contador está
+bien escalado (ver H-16):
+
+| | Horas parciales | Sesgo de la media | Sesgo de la suma fija |
+|---|---:|---:|---:|
+| UCC | 148 | **+0,065 kWh** | −1,738 kWh |
+| Udenar | 69 | **−0,117 kWh** | −0,454 kWh |
+| HUDN | 122 | **−0,009 kWh** | −0,490 kWh |
+
+En la UCC el contador registra 3.241 kWh en esas horas, la media da 3.251 y
+la suma fija 2.984: el método del asesor **subestimaría esas horas en un
+8 % de su energía**, y en las tres instituciones su error medio es del
+orden del triple.
+
+**Una cuadratura mejor existe y tampoco ayuda.** Se midió la regla del
+trapecio, que cierra cada hora con la primera muestra de la siguiente en
+vez de ignorarla. Frente al contador: gana en la UCC por 0,002 puntos
+porcentuales (−0,0392 % contra −0,0415 %), **pierde en Udenar** (−0,2009 %
+contra −0,1972 %) y empata en el HUDN. No hay mejora sistemática. El
+residuo que queda lo pone **la resolución entera del contador**, de 1 kWh
+sobre horas de unos 19, no la regla de cuadratura.
+
+**Una arruga en la ecuación del Capítulo 3.** El documento escribe la
+aproximación con `delta = dt/N` y la glosa diciendo que cada muestra vale
+por el intervalo que representa. En hora completa `delta` vale dos minutos
+y la glosa es literal. En hora incompleta `delta` sale mayor que dos
+minutos y la muestra sigue representando dos, de modo que la glosa se
+estira. La ecuación sigue siendo el estimador correcto; lo que no es
+literal es su lectura física cuando la hora no está llena.
+
+**DICTAMEN DE TRES REVISORES INDEPENDIENTES (2026-08-31).** Cerrado. La
+decisión es correcta, pero cuatro cosas de arriba estaban mal dichas.
+
+**1. Son 835 horas, no 840.** La hora sobrante es la misma en las cinco: el
+cargador recorta con un corte inclusivo por los dos extremos, de modo que
+la única muestra de las 00:00 del 16 de diciembre crea un contenedor con
+una sola muestra. El reindexado posterior lo descarta y **nunca llega al
+modelo**. Verificado.
+
+**2. La primera conclusión es álgebra, no medición.** Que la media y la
+suma ponderada coincidan no es un resultado empírico: media = suma entre
+30, y suma por 2/60 = suma entre 30, son la misma expresión. El 1,4e-14 es
+ruido de coma flotante y no debe presentarse como si midiera algo.
+
+**3. La columna de sesgo de la media era ruido con tres decimales.** Con el
+error típico del contador, el +0,065 kWh de la UCC no se distingue de cero
+(p = 0,238) y el −0,009 del HUDN tampoco (p = 0,839). Lo que sí resiste es
+la **comparación**, porque el error del contador se cancela al restar: la
+diferencia entre los dos métodos da t = 7,4 / 8,4 / 11,4 y la media gana en
+el 71 al 73 % de las horas, con Wilcoxon por debajo de 4e-5. Publíquese la
+tasa de acierto o el error cuadrático, nunca el sesgo.
+
+**4. El contraste del contador solo juzgaba el tercio fácil.** Cubre entre
+el 31 % y el 48 % de la diferencia entre los dos métodos, y justo donde
+apenas difieren: las horas juzgadas tienen 28 muestras de 30, las no
+juzgadas 19 a 22.
+
+**LA PRUEBA QUE SÍ CARGA EL PESO**, verificada por mí después de que la
+propusiera el revisor hostil. Para cada corte de telemetría se compara
+cuánto avanzó el contador interno contra dos hipótesis:
+
+| | Cortes | Contador | Siguió consumiendo | No hubo energía |
+|---|---:|---:|---:|---:|
+| UCC | 262 | 580 kWh | 603 (0,96×) | 205 (**2,82×**) |
+| Udenar | 362 | 108 kWh | 93 (1,17×) | 36 (**2,97×**) |
+| HUDN | 152 | 121 kWh | 117 (1,03×) | 47 (**2,60×**) |
+| **Total** | **718** | **809 kWh** | **812 (1,00×)** | **288 (2,81×)** |
+
+Y empeora monótonamente con la duración del corte: la razón contra el
+relleno con ceros va de 1,99 con una muestra ausente a 25,7 con dieciséis o
+más. **El equipo sigue integrando durante los cortes**, de modo que
+atribuirles energía nula falla por física, no por estadística. Esta prueba
+no depende de marcas de reloj ni de filtros, y cubre el régimen que el
+contraste horario no veía.
+
+**LAS HORAS INCOMPLETAS SÍ ESTÁN SESGADAS, PERO EL ESTIMADOR NO.** Es la
+distinción que salva la decisión:
+
+- *Sesgada la cobertura*: la tasa de horas incompletas es 3,78 % entre las
+  8 y las 17 contra 1,74 % de madrugada, razón 2,17 con p = 5e-16; en
+  diciembre sube al 7,44 %; y hay **18 horas con las cinco instituciones
+  incompletas a la vez contra 0,00 esperadas** bajo independencia, lo que
+  apunta a la plataforma de adquisición y no al equipo.
+- *No sesgado el estimador*: aplicando la ventana observada de cada hora
+  incompleta a horas completas comparables de la misma institución, hora
+  del día y mes, el sesgo es indistinguible de cero en las cinco y suma
+  **+0,0007 %** de la demanda del horizonte. El desnivel es una propiedad
+  de **qué horas fallan**, no de **cómo se estiman**.
+
+Decir «los faltantes son aleatorios» sería falso y un revisor lo
+desmontaría en una tarde.
+
+**LA LIMPIEZA NO CORRIGE NINGUNA.** De las 835, cero marcadas como atípicas
+y cero imputadas. No hay red de seguridad aguas abajo: lo que decide esta
+etapa es lo que ve el modelo.
+
+**EL MARGEN DEL MERCADO AGUANTA.** La elasticidad del volumen transado a la
+demanda es de −0,6, de modo que medio punto de demanda mueve el margen unos
+3.600 COP sobre 1.154.118. Aun aplicando 5 % solo a las 835 horas, el
+movimiento es de unos 1.600 COP. Tres órdenes de magnitud de holgura.
+
+**EL TRAPECIO, BIEN ENCUADRADO.** Decir que «no mejora» era impreciso: sí
+reduce el error horario de forma estadísticamente sólida (2,3 % en la UCC
+con p = 1e-9), pero la magnitud es de 0,01 kWh sobre horas de 9 a 19, es
+decir, irrelevante. Y hay un error de encuadre propio: tal como estaba
+codificado, el trapecio en horas parciales **es el método del asesor con
+una corrección de borde**, hereda el relleno con ceros y por tanto nunca
+fue candidato a resolver la cuestión.
+
+**LA NORMA, Y SU LÍMITE.** El artículo 38 de la Resolución CREG 038 de 2014
+se titula «Estimación de lecturas» y ordena estimarlas «integrando la
+medida de potencia activa» o por curvas típicas; **el cero no figura entre
+los métodos admisibles**. Pero **no nos obliga, y conviene no citarlo como
+si lo hiciera**: su texto lo activa «mientras se reparan o reponen los
+elementos de los sistemas de medición que se encuentran en falla o hayan
+sido hurtados», y sus métodos se aplican «para el caso de las fronteras con
+reporte al ASIC». Nuestros equipos no son fronteras comerciales sino
+instrumentación de investigación, y lo que hay no es un sistema en falla
+sino un corte de telemetría en un equipo que siguió integrando, cosa que la
+tabla de arriba prueba. Vale como **criterio del regulador por analogía**,
+que es como lo cita el capítulo. Coinciden el operador de Ontario, donde un intervalo en cero
+dispara una alarma de validación, el mercado australiano y la guía ASHRAE
+14. En cambio **IEC 61000-4-30 no cubre el caso**: su marcado es para
+eventos y la Clase A exige medición sin huecos, de modo que no debe
+citarse. Ninguna norma eléctrica fija umbral de completitud; si se quiere
+uno, se declara como decisión propia. Ver P-20.

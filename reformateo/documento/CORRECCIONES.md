@@ -2896,12 +2896,100 @@ apartado del horizonte y además la rotula la propia figura.
 
 ---
 
+## C-78 · El apartado de la energía horaria estaba escrito al revés
+
+**2026-09-01 · tipo: `contenido` · aplicada · tres agentes en paralelo**
+
+Él dijo que el apartado no se entiende, que tampoco queda claro lo que su
+asesor propuso, y planteó su propia objeción: **que calcular la energía con
+los tramos de dos minutos es más preciso que promediar las treinta
+muestras**. Se despacharon tres frentes: la transcripción de la reunión, el
+código y el dato, y la referencia normativa.
+
+**El defecto de fondo es el orden.** El apartado presentaba la media como
+el método y la integral como justificación, cuando es al revés. La energía
+**es** la integral; lo que autoriza a calcularla como una media es que el
+paso de muestreo sea uniforme. Escrito en ese orden, la objeción se
+disuelve sola, y por eso el apartado no se entendía: pedía aceptar como
+decisión lo que es una identidad.
+
+**Su objeción es correcta en la formulación y no cambia el número.**
+Medido: el paso vale exactamente 2,0000 minutos en el 99,69 % al 99,91 %
+de los intervalos, sobre 1.117.638 registros de cuatro medidores. Con paso
+uniforme, la suma de los tramos y la media por la duración son la misma
+expresión. Contrastadas contra el contador del propio equipo sobre 8.380
+horas completas, las dos dan **el mismo error absoluto medio hasta la
+cuarta cifra**. Y sobre la hora del ejemplo coinciden hasta el último
+dígito: 30,493333 kWh las dos.
+
+**El asesor propuso exactamente eso, y lo dijo en 108 segundos.** Cita
+literal: «cada dato de potencia / multiplicarlo por el delta t»; «es una
+sumatoria / de la potencia / por lo que valen dos minutos en horas»;
+«sumas todos esos / **y eso te da ahí sí la integral**». Y calificó al
+método que se le mostró: «sacamos la media de toda la hora y ya tenemos el
+kilovatio / que es aproximado / **pero no es exacto**». Tres cosas que
+**no** dijo, y que por tanto no se le pueden atribuir: nada sobre la hora
+incompleta, nada sobre los contadores de energía del medidor, y ninguna
+cifra.
+
+**Dos figuras nuevas.** La primera dibuja las treinta lecturas como
+rectángulos de dos minutos y encima el rectángulo único de la hora a la
+altura de la media: la misma área, el mismo número. La segunda lleva el
+asunto al único punto donde sí hay que decidir, con una hora real de 18
+muestras cuya media da 8,98 kWh contra los 9,00 kWh que marcó el contador,
+mientras que truncar daría 5,39; y con el agregado sobre las 384 horas
+incompletas de los tres medidores con contador fiable, donde la media
+queda al −0,2 % del contador y truncar al −7,1 %.
+
+**Un error mío, y es el mismo que el texto inducía.** Al medir el
+contraste del contador obtuve −0,367 % donde el documento publica 0,04 %, y
+llegué a reportarlo como discrepancia. La causa: comparé una serie de
+potencia **neta con signo** contra un contador de **importada sola**. Los
+371 kWh que la UCC exporta explican la diferencia entera. La cifra
+publicada es correcta. El texto lo inducía porque decía «sus propios
+contadores de energía importada y exportada» y nunca decía que el contraste
+usa **la diferencia**; ahora lo dice, en una nota de figura.
+
+**Y por el mismo error dije que el contador de Udenar estaba mal
+escalado.** Su ×0,393 era exportación: 16.084 kWh en 1.461 horas de media
+negativa. Compuesto en neto vale 0,998. Los tres genuinamente mal escalados
+son Mariana M1, HUDN M3 y Cesmag, y los tres coinciden con su razón de
+transformadores.
+
+**La cita normativa: verificada, y mejorada.** El artículo 38 se comprobó
+por dos vías independientes que coinciden palabra por palabra, porque la
+fuente oficial de la CREG se trunca en el artículo 28. Tres arreglos. El
+ámbito pasa de «fronteras comerciales» a **las que reportan al ASIC**, que
+es a quienes rigen esos dos medios. El «no contempla asignarles cero», que
+era un argumento de silencio presentado como hecho, pasa a «**ninguno de
+los medios que enumera consiste en asignar cero**», que dice lo mismo y se
+comprueba leyendo la lista. Y se incorpora la segunda rama del artículo,
+que para las fronteras sin reporte al ASIC remite al artículo 31 de la
+Resolución CREG 108 de 1997 y ordena estimar **por consumos promedios del
+mismo usuario**: es literalmente nuestro método, y era mejor analogía que
+la que se estaba usando.
+
+**C-71 no se había propagado.** La subsección de sesgos seguía diciendo que
+truncar «está descartado por el Código de Medida», es decir, en forma de
+obligación, ciento treinta líneas después de que el capítulo dijera que la
+norma no rige aquí. Corregido.
+
+**Dos cantidades que se confundían.** Las 835 horas incompletas
+**contienen** 8.100 kWh, el 3,2 % de la demanda, pero lo que el supuesto
+**imputa** es solo el tramo que falta: 1.054 kWh, el 0,41 %. Un factor de
+ocho. Se añade la razón: el 55,6 % de esas horas pierde una sola muestra de
+las treinta y el 77 % pierde cuatro o menos.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
 |---|---|---|
 | P-14 | ~~Capítulo 3: el texto y la figura presentaban la conversión de unidades antes de la agregación horaria, y el código promedia primero.~~ **CERRADA por C-57**: las tres etapas se funden en una y el orden se enuncia como se ejecuta. | cerrada |
 | P-15 | La bifurcación entre coberturas no es solo la etapa 1. | **cerrada 2026-08-23** por C-50: reescrito el párrafo y la anotación de la figura, con la excepción de Mariana declarada |
+| P-22 | No pude reproducir la prueba de los 718 cortes de telemetría. Con la definición registrada en H-18, rachas maximales de ranuras sin muestra en los tres medidores con contador fiable, obtengo 800 cortes y 3.201 kWh frente a los 718 y 809 publicados. Los recuentos de rachas se parecen, de modo que la definición es esa y lo que difiere es el filtrado. La prueba se verificó de forma independiente en su día y la cifra sigue publicada; **pero no es regenerable hoy desde el repositorio**, y por eso la figura nueva usa la evidencia equivalente sobre horas incompletas, que sí lo es. | pendiente |
+| P-23 | El documento **no tiene ni una cita**, cero `\cite` en los 22 ficheros, y aun así `main.tex` emite la bibliografía: imprime un encabezado «Referencias» sin nada debajo y lo lista en el índice. O se cita de verdad, empezando por las normas, o se retiran esas dos líneas. Si se elige citar, antes hay que depurar `referencias.bib`, que tiene 17 fuentes duplicadas bajo dos convenciones de clave y ninguna entrada para la CREG 038 de 2014. | pendiente de decisión |
 | P-1 | Pasada de vocabulario: el texto usa 3 de los 21 giros característicos del autor. Faltan «asciende a», «se sitúa entre», «conforme a», «línea base», «por transparencia metodológica». | pendiente de decisión |
 | P-2 | «es decir» está en 0,89 por mil frente al 1,24 del objetivo. | **cerrada 2026-08-23**: 1,26 tras C-25; el conjunto queda en 24,0 palabras por oración, 11,2 % largas y 74,4 por párrafo, contra 24,6 / 12,0 / 74,0 del perfil |
 | P-3 | Abreviaturas: el autor escribe UDENAR, UNIMAR, UCC, UNICESMAG, HUDN. El documento ya usa CESMAG (C-13); quedan por decidir UDENAR frente a Udenar y UNIMAR frente a Mariana. La infraestructura para cambiarlo ya existe: basta editar `ETIQUETA_INSTITUCION` en `estilo.py` y regenerar. | pendiente de decisión |
@@ -2918,6 +3006,6 @@ apartado del horizonte y además la rotula la propia figura.
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
 | P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
 | P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
-| P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. | pendiente, acordada |
+| P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |

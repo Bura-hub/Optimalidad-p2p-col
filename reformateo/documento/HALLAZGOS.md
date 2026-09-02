@@ -1000,3 +1000,44 @@ esa fuente sencillamente no participa antes de septiembre.
 cobertura sobre el horizonte; lo que estaba mal era la causa que se le
 atribuía. Es el mismo patrón de H-19: un número bien calculado y mal
 interpretado.
+
+---
+
+## H-22 · El umbral de cobertura reintroduciría el cero que el capítulo rechaza
+
+**2026-09-01 · abierto · destapado al explicar P-21**
+
+P-21 propone marcar como ausente la hora que trae menos de 23 de sus 30
+muestras, para que la etapa de limpieza la impute como hueco en vez de
+estimarla con la media de lo observado. La idea es buena y el cambio de
+estimador es defendible: la limpieza estima desde las horas vecinas, y eso
+encaja mejor con el artículo 31 de la Resolución CREG 108 de 1997, que
+habla de consumos promedios de **otros períodos** del mismo usuario, que la
+media dentro de la propia hora.
+
+**Lo que no se había visto es dónde caen esas horas.** Anularlas las pega a
+los huecos que ya existen y alarga la racha. Medido sobre los cinco
+medidores de la frontera principal, de las 147 horas afectadas:
+
+| Cómo las recogería la limpieza | Horas |
+|---|---:|
+| Interpolación, racha de hasta 3 h | 77 |
+| Arrastre del valor vecino, hasta 24 h | 63 |
+| **Relleno con cero, racha de más de 24 h** | **7** |
+
+La racha mayor llega a 52 h en la UCC y a 43 h en las otras cuatro.
+
+**Siete horas acabarían en cero**, que es exactamente lo que la subsección
+del archivo a la serie horaria argumenta que no debe hacerse, con la prueba
+del contador detrás, y lo que el criterio del regulador excluye. El umbral,
+tal como está escrito, se contradiría a sí mismo.
+
+**La corrección.** El umbral debe entregar la hora a un estimador mejor y
+nunca a uno peor. La condición para anularla no es solo que tenga menos de
+23 muestras, sino además que la etapa de limpieza vaya a estimarla de
+verdad, es decir, que no quede dentro de una racha que supere el alcance
+del arrastre. En las horas que sí lo superen se conserva la media, que es
+la decisión que el capítulo ya sostiene.
+
+**No urge.** P-21 sigue esperando a la próxima corrida canónica, y esto
+solo cambia la línea que habrá que escribir cuando llegue.

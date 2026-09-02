@@ -161,81 +161,25 @@ hasta el valor horario que cada una deja en la serie.
 \end{figure}
 
 Antes de promediar hay que resolver una ambigüedad del dato crudo. Algunas
-lecturas comparten instante con otra, \num{3099} veces en la frontera
-principal y \num{3622} en la secundaria, y el registro de un equipo no
+lecturas comparten instante con otra, \num{3108} veces en la frontera
+principal y \num{3588} en la secundaria, y el registro de un equipo no
 puede llevar dos valores en el mismo instante. Se resuelve en uno solo
-tomando su promedio.
+tomando su promedio. Las dos cifras son sobre el archivo completo y no
+sobre el horizonte, porque la fusión ocurre antes del recorte; dentro del
+horizonte quedan 27 y 29.
 
-La regla de fusión no tiene consecuencia, y conviene decirlo con
-precisión. En los \num{6721} instantes repetidos de las dos fronteras las
+El fenómeno es de un equipo y no del conjunto: \num{3073} de los
+\num{3108} instantes de la frontera principal son del medidor de la UCC, y
+en las otras cuatro instituciones no pasan de 30 apariciones en todo el
+archivo. Por eso el ejemplo de la Figura~\ref{fig:prep-archivo-serie} es de
+la UCC, que es la única institución donde la fusión llega a ocurrir dentro
+del horizonte.
+
+La regla para determinar que instante de los datos duplicados usar no tiene consecuencia. En los \num{6696} instantes repetidos de las dos fronteras las
 lecturas que lo comparten coinciden hasta el último dígito, de modo que
 promediarlas, quedarse con la primera o quedarse con la última dan
 exactamente el mismo número. Se toma el promedio porque el instante ha de ser único para poder alinear los tramos
 de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
-
-La serie se remuestrea entonces a una hora tomando la \emph{media} de las
-muestras del intervalo, y conviene separar los dos pasos que esa media
-encierra. La energía de la hora es la integral de la potencia sobre ella,
-según la ecuación~\eqref{eq:dato-energia}, y de esa integral solo se
-conocen valores separados por un paso fijo de dos minutos, de modo que el
-tramo observado se aproxima por rectángulos de ese ancho:
-
-\begin{equation}
- E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
-   \;\simeq\; \delta \sum_{k=1}^{n} P_{k}
-   \;=\; \overline{P}\,(n\,\delta) ,
- \qquad \delta = \uni{2}{min},
- \label{eq:prep-media}
-\end{equation}
-
-donde $n$ es el número de muestras que la hora trae y $\overline{P}$ su
-media. Con la hora completa $n$ vale 30, el producto $n\,\delta$ vale una
-hora, y la energía en kilovatios hora resulta numéricamente igual a la
-potencia media en kilovatios, de modo que la misma serie puede leerse de
-las dos maneras y a lo largo del documento se usan ambas según convenga.
-
-Cuando la hora llega incompleta, en cambio, los rectángulos no cubren el
-intervalo y el tramo sin muestrear no queda determinado por el dato. Hay
-que decidir qué se supone de él, y aquí se le atribuye la potencia media de
-las muestras presentes, es decir, se toma $E \simeq \overline{P}\,\Delta t$
-con $\Delta t = \uni{1}{h}$. Es un supuesto y no una identidad, de modo que
-se declara como tal y se acota en la subsección~\ref{sub:prep-sesgo}.
-
-Las dos alternativas quedan descartadas por razones distintas. Conceder una
-hora entera a cada lectura de dos minutos devuelve un valor treinta veces
-mayor. Y detenerse en los rectángulos observados no es abstenerse de
-suponer nada, como podría parecer, sino suponer que en el tramo sin
-muestrear no hubo energía, cosa que no se sostiene en instalaciones con
-carga de base permanente. El criterio del regulador apunta en la misma
-dirección, aunque su ámbito sea otro: para las fronteras comerciales cuyo
-sistema de medición está en falla, el artículo 38 de la Resolución CREG 038
-de 2014 ordena estimar las lecturas integrando la potencia activa o
-recurriendo a curvas típicas, y no contempla asignarles cero.
-
-\begin{detallebox}
-Las dos decisiones se pueden contrastar, porque el medidor lleva junto a la
-potencia sus propios contadores de energía importada y exportada, en
-kilovatios hora, que avanzan por su cuenta y no intervienen en el
-preprocesamiento. Sobre las \num{5810} horas completas del circuito
-principal de la UCC en las que el contador tiene lectura en los dos bordes,
-lo que avanza y la media horaria difieren en el \pct{0.04} acumulado.
-
-El supuesto sobre el tramo no observado admite una prueba más directa, y es
-la que decide. En los \num{718} cortes de telemetría de los tres medidores
-cuyo contador está bien escalado, el contador avanza \uni{809}{kWh};
-suponer que el equipo siguió consumiendo predice \uni{812}{kWh} y suponer
-que no hubo energía predice \uni{288}{kWh}. El equipo sigue integrando
-durante los cortes, de modo que atribuirles energía nula falla por física y
-no por estadística, y falla cada vez peor cuanto más largo es el corte.
-
-Queda por saber si la estimación descansa sobre las horas peor cubiertas, y
-no lo hace. Tomando como válida solo la hora que trae al menos el \pct{75}
-de sus muestras, \num{147} horas del horizonte quedarían fuera, es decir el
-\pct{0.49} de las que tienen dato, y tratarlas como huecos en vez de
-estimarlas mueve la demanda de la comunidad en \uni{65.6}{kWh}, el
-\pct{0.026}. Ninguna institución se mueve más del \pct{0.42}, y esa es
-Udenar.
-\end{detallebox}
 
 Los dos equipos no hablan en la misma unidad. El medidor registra en
 kilovatios y el inversor en vatios, de modo que sus series no se pueden
@@ -252,6 +196,152 @@ equipo que entrega energía a la red y no la toma de ella. Los siete
 registran el cero miles de veces, de modo que la ausencia de valores
 negativos no es que el equipo no alcance esa zona, sino que la zona no
 existe.
+
+\subsection{La energía de la hora}
+\label{sub:prep-energia}
+
+La serie se remuestrea entonces a una hora tomando la media de sus
+muestras, y esa media no es una elección de método: sale de la definición
+de energía. La energía de la hora es la integral de la potencia sobre ella,
+según la ecuación~\eqref{eq:dato-energia}, y de esa integral solo se
+conocen valores separados por un paso fijo, de modo que el tramo observado
+se suma por rectángulos de ese ancho:
+
+\begin{equation}
+ E \;=\; \int_{t}^{t+\Delta t} p(\tau)\,\mathrm{d}\tau
+   \;\simeq\; \delta \sum_{k=1}^{n} P_{k}
+   \;=\; \overline{P}\,(n\,\delta) ,
+ \qquad \delta = \uni{2}{min},
+ \label{eq:prep-media}
+\end{equation}
+
+donde $n$ es el número de muestras que la hora trae, $\delta$ el paso de
+muestreo y $\overline{P}$ la media. Que el paso sea fijo no es un supuesto
+sino un hecho medido: sobre \num{1117638} registros de cuatro medidores
+vale exactamente dos minutos en más del
+\pct{99.6} de los intervalos. De ahí que sumar los tramos y promediar las
+muestras no sean dos métodos entre los que haya que elegir, sino la misma
+operación escrita de dos maneras.
+
+Con la hora completa $n$ vale 30, el producto $n\,\delta$ vale una hora, y
+la energía en kilovatios hora resulta numéricamente igual a la potencia
+media en kilovatios, de modo que la misma serie puede leerse de las dos
+maneras y a lo largo del documento se usan ambas según convenga. La
+Figura~\ref{fig:prep-energia} lo enseña sobre la hora del ejemplo.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_01b_energia_hora.png}
+ \caption[La energía de una hora, contada de dos maneras]{Las treinta
+ lecturas de la hora del ejemplo dibujadas como rectángulos de dos minutos,
+ y encima el rectángulo único de la hora entera a la altura de la media. Las
+ dos áreas son la misma área y los dos números coinciden hasta el último
+ dígito, porque el paso de muestreo es constante.
+ \fuente{elaboración propia desde los archivos crudos del Medidor 1 de la
+ UCC.}}
+ \label{fig:prep-energia}
+\end{figure}
+
+\subsection{La hora incompleta}
+\label{sub:prep-incompleta}
+
+Cuando la hora llega incompleta, en cambio, los rectángulos no cubren el
+intervalo y el tramo sin muestrear no queda determinado por el dato. Ese es
+el único punto de la etapa en el que hay que suponer algo, y aquí se le
+atribuye al tramo la potencia media de las muestras presentes, es decir, se
+toma $E \simeq \overline{P}\,\Delta t$ con $\Delta t = \uni{1}{h}$. Es un
+supuesto y no una identidad, de modo que se declara como tal y se acota en
+la subsección~\ref{sub:prep-sesgo}.
+
+Una hora puede llegar de tres maneras, y el tratamiento cambia en cada una.
+
+\begin{enumerate}[leftmargin=*, itemsep=0.35em]
+ \item \textbf{Completa}, con sus 30 muestras. La energía queda
+ determinada por el dato y no hay nada que decidir.
+
+ \item \textbf{Incompleta}, con entre 1 y 29 muestras. Se estima con la
+ media de las presentes, que es el supuesto que se acaba de declarar. Son
+ \num{835} horas del horizonte.
+
+ \item \textbf{Vacía}, sin ninguna muestra. No se estima aquí: pasa a la
+ etapa de limpieza, que la rellena desde las horas vecinas, o con cero si
+ el hueco supera el día, según describe la
+ subsección~\ref{sub:prep-limpieza}. Son \num{567} horas.
+\end{enumerate}
+
+Solo la segunda supone algo, y ese supuesto no está escrito en ninguna
+parte del cargador. La media horaria ignora las muestras que faltan, de
+modo que la estimación es lo que la agregación hace por defecto y no un
+paso que alguien programara. Se declara aquí porque de otro modo nadie lo
+revisaría.
+
+La otra opción es contar solo los minutos medidos y no añadir nada por los
+que faltan. Parece la opción prudente, la que no supone nada, pero supone
+tanto como la anterior: da por hecho que en los minutos sin registro no se
+consumió energía, y en instalaciones con carga de base permanente eso es
+falso. La Figura~\ref{fig:prep-incompleta} pone las dos suposiciones frente
+al contador de energía del propio medidor, que es el único dato capaz de
+arbitrar entre ellas.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_01c_hora_incompleta.png}
+ \caption[La hora incompleta y sus dos suposiciones]{A la izquierda, una
+ hora que trae 18 de sus 30 muestras: suponer la media para el tramo que
+ falta deja la hora en \uni{8.98}{kWh} y el contador del equipo marcó
+ \uni{9.00}{kWh}, mientras que quedarse con lo observado la dejaría en
+ \uni{5.39}{kWh}. A la derecha, la misma comparación sobre todas las horas
+ incompletas de los tres medidores cuyo contador está bien escalado.}
+ \label{fig:prep-incompleta}
+\end{figure}
+
+El regulador, ante el mismo problema, tampoco asigna cero. La Resolución
+CREG 038 de 2014 ordena estimar la lectura mientras el sistema de medición
+está en falla, y en las fronteras que no reportan al administrador del
+mercado se estima por consumos promedios del mismo usuario, que es el
+criterio que aquí se aplica. Rige sobre fronteras comerciales y no sobre
+instrumentación de investigación como esta, de modo que se toma como
+criterio y no como parte de la alineación con la normativa. El articulado y su alcance exacto quedan en
+el Anexo~\ref{anx:repro}.
+
+\begin{guardado}
+\begin{detallebox}
+
+Las dos decisiones se pueden contrastar, porque el medidor lleva junto a la
+potencia sus propios contadores de energía importada y exportada, en
+kilovatios hora, que avanzan por su cuenta y no intervienen en el
+preprocesamiento. El contraste usa la diferencia entre los dos y no la
+importada sola, por la razón que da la nota de la
+Figura~\ref{fig:prep-incompleta}. Sobre las \num{5810} horas completas del
+circuito principal de la UCC en las que el contador tiene lectura en los dos
+bordes, lo que avanza y la media horaria difieren en el \pct{0.04}
+acumulado.
+
+El supuesto sobre el tramo no observado admite una prueba más directa, y es
+la que decide. En los \num{718} cortes de telemetría de los tres medidores
+cuyo contador está bien escalado, el contador avanza \uni{809}{kWh};
+suponer que el equipo siguió consumiendo predice \uni{812}{kWh} y suponer
+que no hubo energía predice \uni{288}{kWh}. El equipo sigue integrando
+durante los cortes, de modo que atribuirles energía nula falla por física y
+no por estadística, y falla cada vez peor cuanto más largo es el corte.
+
+Conviene además no confundir dos cantidades que se parecen y difieren por un
+factor de ocho. Las \num{835} horas incompletas del horizonte
+\emph{contienen} \uni{8100}{kWh}, el \pct{3.2} de la demanda, pero de esa
+energía casi toda está observada: lo que el supuesto \emph{imputa} es solo
+el tramo que falta, y son \uni{1054}{kWh}, el \pct{0.41}. La razón es que
+esas horas pierden muy poco. El \pct{55.6} pierde una sola muestra de las
+treinta y el \pct{77} pierde cuatro o menos.
+
+Queda por saber si la estimación descansa sobre las horas peor cubiertas, y
+no lo hace. Tomando como válida solo la hora que trae al menos el \pct{75}
+de sus muestras, \num{147} horas del horizonte quedarían fuera, es decir el
+\pct{0.49} de las que tienen dato, y tratarlas como huecos en vez de
+estimarlas mueve la demanda de la comunidad en \uni{65.6}{kWh}, el
+\pct{0.026}. Ninguna institución se mueve más del \pct{0.42}, y esa es
+Udenar.
+\end{detallebox}
+\end{guardado}
 
 El Anexo~\ref{anx:repro} recoge el procedimiento completo de la etapa, con
 esas cuatro comprobaciones y el orden exacto en que se aplican.
@@ -745,9 +835,9 @@ presentes se le atribuye al tramo no observado el comportamiento del
 observado, lo que da entre \pct{0.26} y \pct{0.55} más energía que
 truncarlo. Afecta a \num{835} horas del horizonte, es decir, al \pct{2.8}
 de las horas con dato, en las que se observa de media el \pct{85.9} de la
-hora. No se elige por su signo: truncar está descartado por el Código de
-Medida y desmentido por el contador del propio equipo, según la
-subsección~\ref{sub:prep-lectura}. Y el supuesto se comprobó aplicando la
+hora. No se elige por su signo: truncar queda desmentido por el contador del
+propio equipo y va en contra del criterio del regulador, según la
+subsección~\ref{sub:prep-incompleta}. Y el supuesto se comprobó aplicando la
 ventana observada de cada hora incompleta a horas completas comparables de
 la misma institución, la misma hora del día y el mismo mes: el sesgo
 resulta indistinguible de cero en las cinco, y suma el \pct{0.0007} de la
@@ -788,7 +878,7 @@ no aplicada.
  anterior a esa adopción, de modo que no lo aplica: las \num{147} horas
  que no lo cumplen entraron estimadas como las demás. El efecto está
  medido y vale el \pct{0.026} de la demanda comunitaria, según la
- subsección~\ref{sub:prep-lectura}. Incorporarlo exige rehacer la corrida
+ subsección~\ref{sub:prep-incompleta}. Incorporarlo exige rehacer la corrida
  canónica completa, de modo que queda pendiente para la próxima, y hasta
  entonces la cifra de arriba es la cota de lo que cambiaría.
 \end{enumerate}

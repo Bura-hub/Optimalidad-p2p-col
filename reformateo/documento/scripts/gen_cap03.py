@@ -22,7 +22,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter, MultipleLocator
-from matplotlib.patches import Patch
+from matplotlib.patches import Patch, Rectangle
 from matplotlib.lines import Line2D
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -366,6 +366,270 @@ def f31_archivo_a_serie():
             " (verificacion de los dos valores horarios)",
             "pipeline: data/preprocessing.py + data/xm_data_loader.py",
         ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+COLS_CONT = ["date", "totalActivePower",
+             "importedActivePowerLow", "importedActivePowerHigh",
+             "exportedActivePowerLow", "exportedActivePowerHigh"]
+
+# Los tres medidores cuyo contador interno esta bien escalado, uno por
+# institucion. El de Udenar lo parece solo si se compone en neto: su
+# contador de importada sola da 0,39 porque el equipo exporta 16 084 kWh
+# en 1 461 horas de media negativa.
+TRES_CONTADORES = [("UCC", "Medidor 1 - UCC - electricMeter"),
+                   ("Udenar", "Bloque Sur - Medidor 1 - electricMeter"),
+                   ("HUDN", "Medidor 1 - HUDN - electricMeter")]
+
+
+def _con_contador(inst: str, sub: str) -> pd.DataFrame:
+    """Potencia y contador neto de un medidor, dentro del horizonte."""
+    import cache_crudo as CC
+    carpeta = CC.raiz_mte() / inst / "electricMeter" / sub
+    partes = [pd.read_csv(p, usecols=COLS_CONT, low_memory=False)
+              for p in sorted(carpeta.rglob("*.csv"))]
+    d = pd.concat(partes, ignore_index=True)
+    d["date"] = pd.to_datetime(d["date"], errors="coerce")
+    d = d.dropna(subset=["date"]).sort_values("date")
+    d = d.groupby("date", as_index=False).mean(numeric_only=True)
+    d = d.set_index("date").loc[D.T_START:D.T_END]
+    # El contador NETO. Compararlo con la importada sola sobreestima la
+    # discrepancia por toda la energia que el equipo exporta.
+    d["neto"] = ((d["importedActivePowerHigh"] - d["exportedActivePowerHigh"])
+                 * 1e4
+                 + (d["importedActivePowerLow"] - d["exportedActivePowerLow"]))
+    return d
+
+
+def _horas(d: pd.DataFrame) -> pd.DataFrame:
+    """Por hora: muestras, media y avance del contador entre marcas."""
+    b = pd.date_range(D.T_START, D.T_END, freq="1h")
+    c = d["neto"].reindex(b)
+    P = d["totalActivePower"]
+    g = P.groupby(d.index.floor("1h"))
+    return pd.DataFrame({
+        "n": g.size().reindex(b[:-1]).fillna(0).astype(int),
+        "media": g.mean().reindex(b[:-1]),
+        "contador": (c.shift(-1) - c).iloc[:-1],
+    })
+
+
+def f31b_energia_hora():
+    """
+    De la potencia a la energía, en una hora completa.
+
+    El apartado se leía al revés: presentaba la media como el método y la
+    integral como justificación. Es al contrario. La energía **es** la
+    integral; lo que autoriza a calcularla como una media es que el paso
+    de muestreo sea uniforme, y eso es un hecho medido y no un supuesto.
+
+    La figura enseña las dos cuentas sobre la misma hora, la del ejemplo
+    de la Figura~3.1, y deja ver que encierran **la misma área**. Es la
+    respuesta a la objeción de que sumar los tramos de dos minutos sería
+    más preciso que promediar las treinta muestras: con la hora completa
+    no es más preciso, es la misma operación.
+    """
+    import cache_crudo as CC
+
+    raiz = CC.raiz_mte()
+    dir_med = raiz / "UCC" / "electricMeter" / "Medidor 1 - UCC - electricMeter"
+    H0 = pd.Timestamp("2025-11-06 13:00")
+    H1 = H0 + pd.Timedelta(hours=1)
+
+    partes = []
+    for p in sorted(dir_med.rglob("*.csv")):
+        x = pd.read_csv(p, usecols=["date", "totalActivePower"],
+                        low_memory=False)
+        ts = pd.to_datetime(x["date"], errors="coerce")
+        v = pd.to_numeric(x["totalActivePower"], errors="coerce")
+        ok = ts.notna()
+        partes.append(pd.Series(v[ok].values, index=ts[ok]))
+    s = pd.concat(partes).sort_index()
+    s = s[(s.index >= H0) & (s.index < H1)].groupby(level=0).mean().sort_index()
+
+    delta = 2.0 / 60.0                       # h
+    minuto = (s.index - H0).total_seconds() / 60.0
+    P = s.to_numpy()
+    e_suma = float((P * delta).sum())        # la fórmula del asesor
+    e_media = float(P.mean()) * 1.0          # la del pipeline
+
+    assert len(s) == 30, len(s)
+    assert abs(e_suma - e_media) < 1e-12, (e_suma, e_media)
+
+    # El paso de muestreo, medido sobre el medidor entero: es lo que
+    # autoriza el rectángulo de ancho constante.
+    todo = pd.concat(partes).sort_index()
+    paso = todo.index.to_series().diff().dt.total_seconds() / 60.0
+    paso = paso[(paso > 0) & (paso < 10)]
+    pct_exacto = 100.0 * float((paso == 2.0).mean())
+
+    fig, ax = E.figura(alto=3.2)
+    ax.bar(minuto, P, width=2.0, align="edge", color=E.APOYO,
+           edgecolor="white", linewidth=0.4, zorder=2)
+    # El rectángulo único de la hora entera, a la altura de la media. No
+    # se rellena: si se rellenara taparía los treinta y el lector no
+    # podría comprobar que las dos áreas son la misma.
+    ax.add_patch(Rectangle((0, 0), 60, e_media, fill=False,
+                           edgecolor=E.DESPUES, linewidth=1.6, zorder=4))
+    ax.plot([0, 60], [e_media, e_media], color=E.DESPUES, linewidth=1.6,
+            zorder=4)
+
+    ax.set_xlim(-1.5, 76)
+    ax.set_ylim(0, max(P.max(), e_media) * 1.24)
+    ax.set_xticks(range(0, 61, 10))
+    ax.set_xlabel("Minuto de la hora")
+    ax.set_ylabel("Potencia activa (kW)")
+    ax.grid(axis="x", visible=False)
+
+    ax.text(61.5, e_media, f"  media\n  {E.fmt_miles(e_media, 2)} kW",
+            color=E.DESPUES, fontsize=7, va="center", ha="left")
+    ax.annotate("treinta rectángulos de dos minutos",
+                xy=(14, P[7] * 0.55), xytext=(2, e_media * 1.42),
+                fontsize=7, color="#555555", ha="left",
+                arrowprops=dict(arrowstyle="->", color="#999999", lw=0.9))
+    ax.text(30, e_media * 1.13,
+            f"$\\sum P_k\\,\\delta$ = {E.fmt_miles(e_suma, 2)} kWh"
+            f"          $\\overline{{P}}\\,(30\\,\\delta)$ = "
+            f"{E.fmt_miles(e_media, 2)} kWh",
+            fontsize=8.5, color=E.DESPUES, ha="center", va="bottom",
+            fontweight="bold")
+    ax.set_title(f"La misma energía, contada de las dos maneras  ·  "
+                 f"{E.fmt_fecha(H0, 'dia_corto')}, 13 h", pad=8)
+    fig.text(0.5, -0.02,
+             f"El paso de muestreo de este medidor vale exactamente dos "
+             f"minutos en el {E.fmt_miles(pct_exacto, 2)} % de los "
+             f"intervalos, y eso es lo que hace iguales las dos cuentas.",
+             ha="center", fontsize=7, color="#555555")
+    fig.tight_layout()
+
+    print(f"    F3.1b · suma {e_suma:.6f} kWh | media {e_media:.6f} kWh | "
+          f"paso exacto {pct_exacto:.2f} %")
+    return E.guardar(fig, "f3_01b_energia_hora",
+                     datos=pd.DataFrame({"minuto": minuto, "kW": P,
+                                         "kWh_del_tramo": P * delta}),
+                     procedencia=[
+        "MedicionesMTE_v3/UCC/electricMeter/Medidor 1 - UCC - electricMeter/",
+        "hora de ejemplo 2025-11-06 13:00, la misma de la Figura 3.1"])
+
+
+def f31c_hora_incompleta():
+    """
+    Dónde sí hay que decidir: la hora incompleta.
+
+    Con la hora completa las dos cuentas coinciden y no hay nada que
+    elegir. Cuando faltan muestras, los rectángulos observados no cubren
+    la hora y el tramo que falta no lo determina el dato. La figura pone
+    las dos suposiciones al lado del único árbitro disponible, que es el
+    contador de energía del propio equipo.
+
+    El panel izquierdo es una hora real; el derecho, todas las horas
+    incompletas de los tres medidores cuyo contador está bien escalado.
+    """
+    EJ_INST, EJ_SUB = "UCC", "Medidor 1 - UCC - electricMeter"
+    H0 = pd.Timestamp("2025-11-18 02:00")
+
+    d = _con_contador(EJ_INST, EJ_SUB)
+    h = _horas(d)
+
+    s = d["totalActivePower"]
+    s = s[(s.index >= H0) & (s.index < H0 + pd.Timedelta(hours=1))]
+    minuto = (s.index - H0).total_seconds() / 60.0
+    P = s.to_numpy()
+    delta = 2.0 / 60.0
+    n = len(P)
+    e_media = float(P.mean())                 # la hora entera a la media
+    e_trunc = float((P * delta).sum())        # solo lo observado
+    e_real = float(h.loc[H0, "contador"])
+
+    assert n == 18, n
+    assert abs(h.loc[H0, "media"] - e_media) < 1e-9
+
+    # El agregado sobre los tres medidores con contador fiable.
+    filas = []
+    for inst, sub in TRES_CONTADORES:
+        hh = _horas(_con_contador(inst, sub))
+        v = hh[(hh["n"] > 0) & (hh["n"] < 30) & hh["contador"].notna()
+               & hh["media"].notna()]
+        v = v[(v["contador"] > -1e3) & (v["contador"] < 1e3)]
+        filas.append({"medidor": f"{inst} · {sub.split(' - ')[0]}",
+                      "horas": len(v),
+                      "contador": v["contador"].sum(),
+                      "media": v["media"].sum(),
+                      "truncar": (v["media"] * v["n"] / 30.0).sum()})
+    agg = pd.DataFrame(filas)
+    tot = agg[["horas", "contador", "media", "truncar"]].sum()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.3),
+                                   gridspec_kw={"width_ratios": [1.75, 1]})
+
+    # ── Izquierda: una hora real ─────────────────────────────────────────
+    ax1.bar(minuto, P, width=2.0, align="edge", color=E.APOYO,
+            edgecolor="white", linewidth=0.4, zorder=2)
+    falta = sorted(set(range(0, 60, 2)) - set(int(m) for m in minuto))
+    for m in falta:
+        ax1.add_patch(Rectangle((m, 0), 2, e_media, fill=False, hatch="///",
+                                edgecolor="#D9D9D9", linewidth=0.0, zorder=1))
+    ax1.axhline(e_media, color=E.DESPUES, linewidth=1.6, zorder=4)
+    ax1.axhline(e_trunc, color=E.ANTES, linewidth=1.4, dashes=(4, 2),
+                zorder=4)
+    ax1.plot([61.5], [e_real], marker="o", markersize=8,
+             markerfacecolor="none", markeredgecolor=E.TINTA,
+             markeredgewidth=1.6, clip_on=False, zorder=5)
+
+    ax1.set_xlim(-1.5, 61.5)
+    ax1.set_ylim(0, max(P.max(), e_media) * 1.30)
+    ax1.set_xticks(range(0, 61, 10))
+    ax1.set_xlabel("Minuto de la hora")
+    ax1.set_ylabel("Potencia activa (kW)")
+    ax1.grid(axis="x", visible=False)
+    ax1.text(1, e_media * 1.06,
+             f"se supone la media: {E.fmt_miles(e_media, 2)} kWh",
+             color=E.DESPUES, fontsize=7, va="bottom", ha="left")
+    ax1.text(1, e_trunc * 0.90,
+             f"truncar daría {E.fmt_miles(e_trunc, 2)} kWh",
+             color=E.ANTES, fontsize=7, va="top", ha="left")
+    ax1.text(59, e_real * 1.13,
+             f"el contador marcó\n{E.fmt_miles(e_real, 2)} kWh",
+             color=E.TINTA, fontsize=7, va="bottom", ha="right",
+             linespacing=1.4)
+    ax1.text(30, max(P.max(), e_media) * 1.235,
+             f"{60 - 2 * n} minutos sin muestra",
+             color="#8A8A8A", fontsize=7, ha="center", va="center")
+    ax1.set_title(f"Una hora real: {n} muestras de 30", pad=8)
+
+    # ── Derecha: el veredicto sobre todas ────────────────────────────────
+    vals = [tot["contador"], tot["media"], tot["truncar"]]
+    ax2.bar(range(3), vals, 0.62, zorder=3,
+            color=[E.TINTA, E.DESPUES, E.ANTES])
+    ax2.set_xticks(range(3))
+    ax2.set_xticklabels(["contador", "media", "truncar"], fontsize=7.5)
+    ax2.set_ylabel("Energía de esas horas (kWh)")
+    E.eje_espanol(ax2, eje="y", modo="miles", decimales=0)
+    ax2.grid(axis="x", visible=False)
+    ax2.set_ylim(0, max(vals) * 1.26)
+    for k, v in enumerate(vals):
+        if k:
+            dif = 100.0 * (v - vals[0]) / vals[0]
+            ax2.text(k, v * 1.03, f"{dif:+.1f} %".replace(".", ","),
+                     ha="center", va="bottom", fontsize=7.5,
+                     color=E.DESPUES if k == 1 else E.ANTES,
+                     fontweight="bold")
+    ax2.set_title(f"Las {int(tot['horas'])} horas incompletas de los tres\n"
+                  f"medidores con contador fiable", pad=8, fontsize=9)
+
+    fig.tight_layout()
+    print(f"    F3.1c · ejemplo {n} muestras: media {e_media:.3f} | "
+          f"truncar {e_trunc:.3f} | contador {e_real:.3f}")
+    print(f"    F3.1c · agregado {int(tot['horas'])} h: "
+          f"contador {tot['contador']:.0f} | media {tot['media']:.0f} "
+          f"({100*(tot['media']-tot['contador'])/tot['contador']:+.2f} %) | "
+          f"truncar {tot['truncar']:.0f} "
+          f"({100*(tot['truncar']-tot['contador'])/tot['contador']:+.2f} %)")
+    return E.guardar(fig, "f3_01c_hora_incompleta", datos=agg,
+                     procedencia=[
+        "MedicionesMTE_v3/, medidores de UCC, Udenar y HUDN",
+        "contador neto = importada menos exportada, leído en las marcas de hora",
+        "hora de ejemplo 2025-11-18 02:00"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1117,6 +1381,8 @@ if __name__ == "__main__":
     print("\nCapítulo 3 — la domesticación del dato")
     verificar_inversores()
     f31_archivo_a_serie()
+    f31b_energia_hora()
+    f31c_hora_incompleta()
     for cob in ("m1", "m3"):
         f32_demanda_negativa(cob)
     f32b_gradacion("m1")

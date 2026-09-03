@@ -25,8 +25,8 @@ segunda mitad del dato desde las fuentes primarias, y termina delimitando
 la banda dentro de la cual puede existir un intercambio que convenga a las
 dos partes.
 
-Conviene anticipar por qué el capítulo es más largo de lo que parecería
-necesario. Todas las cifras del Capítulo~\ref{sec:res} son productos de
+Este capítulo es más largo de lo que parecería necesario, y la razón está
+en la aritmética. Todas las cifras del Capítulo~\ref{sec:res} son productos de
 una energía por un precio. La energía se midió; el precio se construyó. Un
 error del \pct{10} en la construcción del precio es un error del
 \pct{10} en el resultado, y por eso cada componente del precio
@@ -114,8 +114,8 @@ transmisión, \uni{55.2}{} (\pct{6.9}); otros cargos, \uni{42.0}{}
 \uni{20.8}{} (\pct{2.6}).
 
 \begin{lecturabox}
-La cifra que conviene retener de esta figura es que \textbf{la generación
-apenas explica el \pct{38.3} de lo que se paga}. El resto, más del
+La cifra que esta figura deja es que \textbf{la generación apenas explica
+el \pct{38.3} de lo que se paga}. El resto, más del
 \pct{60}, son cargos de red, comercialización y conceptos regulatorios. Ahí
 está la razón económica de fondo de todo el trabajo: un intercambio que
 ocurre dentro de la comunidad, sin usar la red de distribución, puede
@@ -127,7 +127,7 @@ objeción más seria que se le puede hacer al mecanismo.
 
 \begin{trampabox}
 Las cifras de este capítulo, y con ellas todas las magnitudes económicas
-del documento, descansan sobre una decisión que conviene declarar antes de
+del documento, descansan sobre una decisión que se declara antes de
 usarlas: \textbf{las cinco entidades se liquidan contra la tarifa publicada
 por CEDENAR, aunque no sea el comercializador de todas}. La mayoría
 contrata su suministro con un comercializador distinto del operador de
@@ -142,8 +142,8 @@ su comercializador no son públicas y no se dispuso de ellas. Entre una
 tarifa auditable que no es exactamente la que se factura y una tarifa
 exacta que nadie puede comprobar, se optó por la primera.
 
-Conviene precisar el alcance de la aproximación, porque no afecta por
-igual a todas las componentes del costo unitario. Las de red, es decir,
+El alcance de la aproximación no es uniforme, porque no afecta por igual a
+todas las componentes del costo unitario. Las de red, es decir,
 transmisión, distribución, pérdidas y restricciones, las fija el operador
 y no dependen de quién comercialice. Las de generación y comercialización
 sí dependen del contrato, y son justamente las dos de mayor peso, con el
@@ -188,9 +188,8 @@ se trata de un factor regulatorio y no de una diferencia de condiciones de
 suministro. Elaboración propia desde
 \file{data/tarifas\_cedenar\_mensual.csv}.}
 
-Esta heterogeneidad tiene una consecuencia de diseño que conviene dejar
-explícita, porque es una de las decisiones metodológicas menos evidentes
-del trabajo: en la liquidación de los escenarios regulatorios, el precio
+Esta heterogeneidad tiene una consecuencia de diseño, y es una de las
+decisiones metodológicas menos evidentes del trabajo: en la liquidación de los escenarios regulatorios, el precio
 al que cada institución compra no es un número sino una matriz, con una
 fila por institución y una columna por hora. Esa matriz asigna a cada hora
 el costo unitario vigente para esa institución en el mes que la
@@ -201,7 +200,7 @@ sesgo sistemático.
 
 \begin{detallebox}
 El juego del Capítulo~\ref{sec:modelo}, en cambio, sí usa un escalar
-comunitario. La asimetría es deliberada y conviene entenderla: la
+comunitario. La asimetría es deliberada: la
 dinámica que busca el precio de equilibrio necesita un único techo común
 (si cada agente tuviera el suyo, no habría un precio de mercado sino
 cinco), mientras que la liquidación posterior sí puede y debe respetar la
@@ -250,7 +249,7 @@ partes en mejor posición que operar contra la red.
 
 \begin{trampabox}
 A lo largo del documento aparecen varias cifras asociadas al «precio al
-que la red compra» y conviene deshacer la confusión de una vez, porque
+que la red compra», y la confusión se deshace de una vez, porque
 corresponden a papeles distintos de un mismo referente económico. El
 \emph{piso de la dinámica} del juego es una constante de
 \uni{280}{COP/kWh}, heredada de la calibración inicial, que acota

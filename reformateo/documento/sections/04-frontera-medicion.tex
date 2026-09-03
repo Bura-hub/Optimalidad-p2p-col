@@ -19,8 +19,8 @@
 El capítulo anterior terminó con dos matrices y una advertencia: la
 bifurcación entre las fronteras M1 y M3 ocurre en la primera etapa del
 pipeline y en ninguna otra. Este capítulo desarrolla esa bifurcación, y lo
-hace en capítulo aparte por una razón que conviene anticipar: no se trata
-de dos versiones del mismo cálculo, ni de un análisis de sensibilidad
+hace en capítulo aparte por una razón sencilla: no se trata de dos
+versiones del mismo cálculo, ni de un análisis de sensibilidad
 sobre un parámetro. Se trata de dos preguntas distintas, y las dos tienen
 respuesta. Elegir una sola y presentarla como \emph{el} resultado sería la
 decisión más discutible que este trabajo podría tomar.
@@ -104,9 +104,9 @@ institucional completo está por establecer.
 \subsection{Qué mide cada frontera}
 \label{sub:frontera-cobertura}
 
-La diferencia entre las dos fronteras se resume en un hecho que conviene
-subrayar porque desactiva de entrada una posible objeción: \textbf{la
-generación es idéntica en las dos}. El pipeline designa el mismo inversor
+La diferencia entre las dos fronteras se resume en un hecho que desactiva
+de entrada una posible objeción: \textbf{la generación es idéntica en las
+dos}. El pipeline designa el mismo inversor
 por institución en un caso y en el otro, de modo que la matriz $G$ es la
 misma matriz. Lo único que cambia es el denominador. La
 Figura~\ref{fig:frontera-cobertura} confronta las dos energías en el
@@ -134,8 +134,7 @@ instalaciones distintas sino dos maneras de delimitar la carga.
 Elaboración propia desde el caché de estados intermedios.}
 
 \begin{lecturabox}
-Conviene resistir la lectura de que M3 «tiene más generación». No la
-tiene: tiene la misma. Lo que M3 hace es comparar esa generación contra
+M3 no «tiene más generación», aunque lo parezca: tiene la misma. Lo que M3 hace es comparar esa generación contra
 una carga cinco veces menor, porque solo mira un circuito secundario de
 cada institución. Una generación que equivale al \pct{19} del consumo del
 circuito principal puede equivaler al \pct{91} del consumo de un circuito
@@ -216,9 +215,8 @@ correspondiente.
 \subsection{El embudo de horas de mercado}
 \label{sub:frontera-embudo}
 
-Queda una magnitud que ninguna de las figuras anteriores muestra y que
-conviene fijar antes de llegar a los resultados: de las \num{6144} horas
-del horizonte, en muy pocas llega a haber mercado. La
+Queda una magnitud que ninguna de las figuras anteriores muestra: de las
+\num{6144} horas del horizonte, en muy pocas llega a haber mercado. La
 Figura~\ref{fig:frontera-embudo} presenta esa reducción en cuatro
 escalones sucesivos.
 
@@ -254,8 +252,8 @@ horas y se diluye sobre el total.
 \subsection{Una salvedad que hay que declarar}
 \label{sub:frontera-mariana}
 
-La frontera M3 no es perfectamente homogénea, y conviene decirlo aquí y
-no en una nota al pie. Cuatro de las cinco instituciones tienen un
+La frontera M3 no es perfectamente homogénea, y la excepción se dice aquí
+y no al pie. Cuatro de las cinco instituciones tienen un
 medidor de circuito secundario que el pipeline lee directamente. Mariana
 no lo tiene. Para representarla en M3, el pipeline
 reutiliza su medidor de circuito principal escalado por un factor de $0{,}3$, bajo
@@ -275,7 +273,7 @@ De todo lo anterior se sigue la decisión metodológica que gobierna el
 resto del documento: \textbf{cada resultado se reporta bajo las dos
 fronteras, siempre, y sin elegir una como principal.}
 
-La tentación de elegir es real y conviene nombrarla. M1 es la frontera en
+La tentación de elegir una sola es real. M1 es la frontera en
 la que el mercado entre pares obtiene su mejor resultado relativo, y una
 presentación que se quedara solo con M1 mostraría un trabajo más
 concluyente. M3 es la frontera en la que la generación pesa más sobre

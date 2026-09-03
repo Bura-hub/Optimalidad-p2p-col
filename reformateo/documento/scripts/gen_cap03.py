@@ -633,6 +633,346 @@ def f31c_hora_incompleta():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+def _censo_duplicados():
+    """
+    Censo de instantes repetidos de los diez medidores que lee el modelo.
+
+    Un instante está repetido si aparece más de una vez en la
+    concatenación de los archivos del equipo, ordenada por fecha. Se
+    cuentan **instantes afectados** y, aparte, **lecturas de más**: son
+    magnitudes distintas y confundirlas es lo que produce dos cifras
+    incompatibles para el mismo hecho.
+
+    La lista de medidores no se escribe a mano: se lee de la misma
+    configuración que consume el pipeline, de modo que si el modelo
+    cambia de medidor la figura cambia con él.
+    """
+    import cache_crudo as CC
+    from data.preprocessing import (DEMAND_METER_CONFIG,
+                                    PAPER_METER_DEMAND_CONFIG)
+
+    raiz = CC.raiz_mte()
+    T0, T1 = pd.Timestamp(D.T_START), pd.Timestamp(D.T_END)
+
+    def _carpeta(inst: str, sub: str) -> Path:
+        # La carpeta de CESMAG llega con una errata de origen en el nombre.
+        for nombre in ("electricMeter", "eletricMeter"):
+            p = raiz / inst / nombre / sub
+            if p.exists():
+                return p
+        raise FileNotFoundError(f"{inst} / {sub}")
+
+    def _serie(inst: str, sub: str) -> pd.Series:
+        partes = []
+        for p in sorted(_carpeta(inst, sub).rglob("*.csv")):
+            d = pd.read_csv(p, usecols=["date", "totalActivePower"],
+                            low_memory=False)
+            ts = pd.to_datetime(d["date"], errors="coerce")
+            v = pd.to_numeric(d["totalActivePower"], errors="coerce")
+            ok = ts.notna()
+            partes.append(pd.Series(v[ok].values, index=ts[ok]))
+        return pd.concat(partes).sort_index()
+
+    censo = {}
+    for frontera, cfg in (("m1", DEMAND_METER_CONFIG),
+                          ("m3", PAPER_METER_DEMAND_CONFIG)):
+        por_inst, eventos = {}, []
+        for inst, c in cfg.items():
+            s = _serie(inst, c["subfolder"])
+            veces = s.index.value_counts()
+            rep = veces[veces > 1].sort_index()
+            # ¿Discrepan las lecturas que comparten instante?
+            discrepantes = 0
+            if len(rep):
+                comparten = s[s.index.isin(rep.index)]
+                distintos = comparten.groupby(level=0).nunique(dropna=False)
+                discrepantes = int((distintos > 1).sum())
+            dentro = rep[(rep.index >= T0) & (rep.index < T1)]
+            por_inst[inst] = {
+                "instantes": len(rep),
+                "lecturas_extra": int((rep - 1).sum()),
+                "instantes_dentro": len(dentro),
+                "lecturas_extra_dentro": int((dentro - 1).sum()),
+                "discrepantes": discrepantes,
+            }
+            for t, n in rep.items():
+                eventos.append((inst, t, int(n)))
+        ev = pd.DataFrame(eventos, columns=["institucion", "instante", "veces"])
+        ev["dentro"] = (ev["instante"] >= T0) & (ev["instante"] < T1)
+        censo[frontera] = {"por_institucion": por_inst, "eventos": ev}
+    return censo
+
+
+def f31d_duplicados():
+    """
+    El censo de los instantes que llegan repetidos.
+
+    La fusión de instantes repetidos es la única decisión que la primera
+    etapa toma sobre qué lectura sobrevive, y hasta ahora el capítulo la
+    sostenía solo con cifras sueltas en el párrafo. La figura responde
+    las tres preguntas que esas cifras dejaban abiertas: cuándo ocurren,
+    de qué equipo son y si hay algo que arbitrar.
+
+    Tres decisiones de forma, y sus motivos:
+
+    * **Cuándo, por participación acumulada y no por recuento.** Los
+      recuentos mensuales van de 4 a 2.856, de modo que en una barra
+      lineal los meses del horizonte miden menos de un punto tipográfico.
+      La curva acumulada no tiene ese problema: es el mismo dato
+      normalizado, y deja leer de un vistazo que al cerrarse el horizonte
+      apenas ha ocurrido el 0,9 %.
+    * **Los días afectados, aparte y a resolución de día.** La curva dice
+      cuánto y no cuándo: los 27 instantes de dentro del horizonte son
+      escalones invisibles. El carril de marcas los devuelve como sucesos
+      y enseña que viven en ocho días sueltos.
+    * **De qué equipo, en escala logarítmica y con puntos.** El reparto
+      abarca tres órdenes de magnitud, de 1 a 3.553. Una barra lineal
+      aplasta a cuatro de las cinco instituciones y una barra logarítmica
+      miente sobre la razón entre dos valores, porque su longitud depende
+      de dónde se ponga el origen. El punto solo codifica posición, que
+      es lo que la escala logarítmica sí lee bien.
+    """
+    T0, T1 = pd.Timestamp(D.T_START), pd.Timestamp(D.T_END)
+    censo = _censo_duplicados()
+
+    tot = {f: {k: sum(v[k] for v in censo[f]["por_institucion"].values())
+               for k in ("instantes", "lecturas_extra", "instantes_dentro",
+                         "lecturas_extra_dentro", "discrepantes")}
+           for f in ("m1", "m3")}
+
+    # ── Compuertas ───────────────────────────────────────────────────────
+    # Si el censo cambia, la corrida se detiene en vez de publicar una
+    # figura que ya no es la que el texto describe.
+    assert tot["m1"]["instantes"] == 3108, tot["m1"]["instantes"]
+    assert tot["m3"]["instantes"] == 3588, tot["m3"]["instantes"]
+    assert (tot["m1"]["instantes"] + tot["m3"]["instantes"]) == 6696
+    assert {i: v["instantes"] for i, v in censo["m1"]["por_institucion"].items()} \
+        == {"Udenar": 2, "Mariana": 30, "UCC": 3073, "HUDN": 1, "Cesmag": 2}
+    assert censo["m3"]["por_institucion"]["UCC"]["instantes"] == 3553
+    assert tot["m1"]["discrepantes"] == 0 and tot["m3"]["discrepantes"] == 0
+    # Las dos cuentas de dentro del horizonte, las dos aseguradas. Los
+    # instantes son 27 en las dos fronteras; las lecturas de más son 27 y
+    # 29, porque en M3 dos de esos instantes traen tres lecturas y no dos.
+    # La cifra publicada de 29 es la segunda cuenta, no la primera.
+    assert tot["m1"]["instantes_dentro"] == 27, tot["m1"]["instantes_dentro"]
+    assert tot["m3"]["instantes_dentro"] == 27, tot["m3"]["instantes_dentro"]
+    assert tot["m1"]["lecturas_extra_dentro"] == 27
+    assert tot["m3"]["lecturas_extra_dentro"] == 29
+
+    # ── Series que se dibujan ────────────────────────────────────────────
+    dias, acum = {}, {}
+    for f in ("m1", "m3"):
+        ev = censo[f]["eventos"]
+        d = ev.groupby(ev["instante"].dt.normalize()).size().sort_index()
+        dias[f] = d
+        acum[f] = 100.0 * d.cumsum() / tot[f]["instantes"]
+
+    X0, X1 = pd.Timestamp("2025-01-01"), pd.Timestamp("2026-05-01")
+    marcas = {"o": "m1", "D": "m3"}
+
+    # ── Lienzo ───────────────────────────────────────────────────────────
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 4.75))
+    gs = fig.add_gridspec(2, 1, height_ratios=[2.40, 1.75], hspace=0.34)
+    gs_sup = gs[0].subgridspec(2, 1, height_ratios=[2.05, 0.44], hspace=0.10)
+    gs_inf = gs[1].subgridspec(1, 2, width_ratios=[2.30, 1.00], wspace=0.28)
+    ax_a = fig.add_subplot(gs_sup[0])
+    ax_r = fig.add_subplot(gs_sup[1], sharex=ax_a)
+    ax_b = fig.add_subplot(gs_inf[0])
+    ax_c = fig.add_subplot(gs_inf[1])
+
+    # ── Panel A · cuándo ocurren ─────────────────────────────────────────
+    ax_a.axvspan(T0, T1, color=E.DESPUES, alpha=0.08, zorder=1)
+    for x in (T0, T1):
+        ax_a.axvline(x, color=E.DESPUES, ls=(0, (3, 2)), lw=0.8, zorder=2)
+    t_banda = ax_a.text(T0 + (T1 - T0) / 2, 92, "horizonte de estudio",
+                        ha="center", va="center", fontsize=7.2,
+                        color=E.DESPUES, zorder=6)
+
+    estilos = {"m1": (0, ()), "m3": (0, (4, 2))}
+    for f in ("m1", "m3"):
+        ax_a.plot(acum[f].index, acum[f].values, drawstyle="steps-post",
+                  color=E.COBERTURAS[f], lw=1.4, ls=estilos[f], zorder=4,
+                  solid_capstyle="round")
+        # La curva se prolonga hasta el borde para que no parezca cortada.
+        ax_a.plot([acum[f].index[-1], X1], [100, 100], color=E.COBERTURAS[f],
+                  lw=1.4, ls=estilos[f], zorder=4)
+
+    # El anillo hueco marca el punto señalado: dónde está la curva cuando
+    # el horizonte se cierra.
+    y_cierre = float(acum["m1"].loc[:T1].iloc[-1])
+    ax_a.scatter([T1], [y_cierre], s=95, facecolors="none",
+                 edgecolors=E.ANTES, lw=1.2, zorder=6)
+    t_anillo = ax_a.text(
+        T1 - pd.Timedelta(days=10), 17,
+        "27 instantes dentro del horizonte,\nlos mismos en las dos fronteras",
+        ha="right", va="center", fontsize=7.2, color=E.ANTES,
+        linespacing=1.35, zorder=6)
+
+    # Clave dibujada a mano, en el cuadrante que el dato deja libre.
+    textos_clave = []
+    for k, (f, y) in enumerate((("m1", 78), ("m3", 64))):
+        ax_a.plot([mdates.date2num(X0 + pd.Timedelta(days=12)),
+                   mdates.date2num(X0 + pd.Timedelta(days=52))], [y, y],
+                  color=E.COBERTURAS[f], lw=1.4, ls=estilos[f], zorder=6)
+        textos_clave.append(ax_a.text(
+            X0 + pd.Timedelta(days=60), y,
+            f"{E.COBERTURA_NOMBRE[f]}: {E.fmt_miles(tot[f]['instantes'])} "
+            f"instantes repetidos",
+            ha="left", va="center", fontsize=7.2, color=E.COBERTURAS[f],
+            zorder=6))
+
+    ax_a.set_ylim(-4, 104)
+    ax_a.set_yticks([0, 25, 50, 75, 100])
+    E.eje_espanol(ax_a, eje="y", modo="pct", decimales=0)
+    ax_a.set_ylabel("Instantes repetidos\nacumulados (%)", fontsize=8,
+                    linespacing=1.3)
+    ax_a.set_title("Cuándo ocurren", fontsize=8.4, pad=6)
+    ax_a.grid(axis="x", visible=False)
+    ax_a.tick_params(axis="y", labelsize=7.4)
+    plt.setp(ax_a.get_xticklabels(), visible=False)
+
+    # ── Carril de días ───────────────────────────────────────────────────
+    ax_r.axvspan(T0, T1, color=E.DESPUES, alpha=0.08, zorder=1)
+    puntos_rug = []
+    for k, f in enumerate(("m1", "m3")):
+        y = 1 - k
+        d = dias[f]
+        for dia, _ in d.items():
+            dentro = T0 <= dia < T1
+            # La distincion no puede descansar en el color: en gris el
+            # acento y el contexto quedan a 29 niveles de 255, que C-73
+            # midio como indistinguibles. La sostiene la geometria.
+            alto = 0.38 if dentro else 0.19
+            ax_r.plot([dia, dia], [y - alto, y + alto],
+                      color=E.ANTES if dentro else E.APAGADO,
+                      lw=1.4 if dentro else 1.3,
+                      zorder=4 if dentro else 3)
+            puntos_rug.append((ax_r, mdates.date2num(dia), y))
+    ax_r.set_ylim(-0.62, 1.62)
+    ax_r.set_yticks([1, 0])
+    ax_r.set_yticklabels(["M1", "M3"], fontsize=7.2)
+    ax_r.set_xlim(X0, X1)
+    ticks = pd.date_range("2025-01-01", "2026-05-01", freq="2MS")
+    ax_r.set_xticks(ticks)
+    ax_r.set_xticklabels([E.fmt_fecha(x, "mes") for x in ticks], fontsize=7.2)
+    ax_r.grid(False)
+    for lado in ("left", "right", "top"):
+        ax_r.spines[lado].set_visible(False)
+    ax_r.tick_params(axis="y", length=0)
+
+    # ── Panel B · de qué equipo son ──────────────────────────────────────
+    orden = E.ORDEN_INSTITUCIONES
+    for k, inst in enumerate(orden):
+        ax_b.plot([0.45, 2.4e4], [k, k], color=E.APAGADO, lw=0.7,
+                  ls=(0, (1, 2.4)), zorder=1)
+    for marca, f in marcas.items():
+        xs = [censo[f]["por_institucion"][i]["instantes"] for i in orden]
+        ys = [k + (0.19 if f == "m3" else -0.19) for k in range(len(orden))]
+        ax_b.scatter(xs, ys, s=30, marker=marca, color=E.COBERTURAS[f],
+                     zorder=4)
+    k_ucc = orden.index("UCC")
+    for marca, f in marcas.items():
+        v = censo[f]["por_institucion"]["UCC"]["instantes"]
+        y = k_ucc + (0.19 if f == "m3" else -0.19)
+        ax_b.scatter([v], [y], s=118, facecolors="none", edgecolors=E.ANTES,
+                     lw=1.1, zorder=5)
+    t_ucc = [ax_b.text(censo[f]["por_institucion"]["UCC"]["instantes"] * 1.55,
+                       k_ucc + (0.19 if f == "m3" else -0.19),
+                       E.fmt_miles(censo[f]["por_institucion"]["UCC"]["instantes"]),
+                       ha="left", va="center", fontsize=7.2,
+                       color=E.COBERTURAS[f], zorder=6)
+             for f in ("m1", "m3")]
+    t_resto = ax_b.text(190, 3.52, "entre 1 y 30 en las otras cuatro",
+                        ha="left", va="center", fontsize=7.2, color=E.NEUTRO,
+                        zorder=6)
+
+    ax_b.set_xscale("log")
+    ax_b.set_xlim(0.45, 2.4e4)
+    ax_b.set_xticks([1, 10, 100, 1000, 10000])
+    ax_b.set_xticklabels(["1", "10", "100", "1.000", "10.000"], fontsize=7.4)
+    E.eje_instituciones(ax_b, orden, eje="y")
+    ax_b.tick_params(axis="y", labelsize=7.4, length=0)
+    ax_b.set_xlabel("Instantes repetidos en todo el archivo\n"
+                    "(escala logarítmica)", fontsize=8, linespacing=1.3)
+    ax_b.set_title("De qué equipo son", fontsize=8.4, pad=6)
+    ax_b.grid(axis="y", visible=False)
+    ax_b.grid(axis="x", visible=True)
+
+    # ── Panel C · nada que arbitrar ──────────────────────────────────────
+    ax_c.set_axis_off()
+    ax_c.add_patch(Rectangle((0.02, 0.03), 0.96, 0.90, transform=ax_c.transAxes,
+                             facecolor=E.FONDO_BANDA, edgecolor="none",
+                             zorder=1))
+    ax_c.text(0.5, 0.60, "0", transform=ax_c.transAxes, ha="center",
+              va="center", fontsize=30, color=E.TINTA, zorder=3)
+    ax_c.text(0.5, 0.34, "instantes con lecturas\ndiscrepantes",
+              transform=ax_c.transAxes, ha="center", va="center",
+              fontsize=7.6, color=E.TINTA, linespacing=1.35, zorder=3)
+    ax_c.text(0.5, 0.14,
+              f"de los {E.fmt_miles(tot['m1']['instantes'] + tot['m3']['instantes'])} "
+              f"comprobados\nen las dos fronteras",
+              transform=ax_c.transAxes, ha="center", va="center",
+              fontsize=7.2, color=E.NEUTRO, linespacing=1.35, zorder=3)
+    ax_c.set_title("Nada que arbitrar", fontsize=8.4, pad=6)
+
+    fig.subplots_adjust(left=0.115, right=0.985, top=0.945, bottom=0.085)
+
+    # ── Comprobación de oclusión ─────────────────────────────────────────
+    # Ningún rótulo puede tapar un elemento de dato. Se proyectan los
+    # puntos dibujados sobre el lienzo y se comprueba contra la caja de
+    # cada texto, que es la forma en que C-73 detectó siete marcadores
+    # ocultos que no se veían leyendo el código.
+    fig.canvas.draw()
+    ren = fig.canvas.get_renderer()
+    puntos = list(puntos_rug)
+    for f in ("m1", "m3"):
+        for x, y in zip(acum[f].index, acum[f].values):
+            puntos.append((ax_a, mdates.date2num(x), float(y)))
+        for k, inst in enumerate(orden):
+            puntos.append((ax_b, censo[f]["por_institucion"][inst]["instantes"],
+                           k + (0.19 if f == "m3" else -0.19)))
+    disp = [ax.transData.transform((x, y)) for ax, x, y in puntos]
+    for t in [t_banda, t_anillo, t_resto, *textos_clave, *t_ucc]:
+        caja = t.get_window_extent(renderer=ren)
+        for (px, py) in disp:
+            assert not (caja.x0 - 1.0 <= px <= caja.x1 + 1.0
+                        and caja.y0 - 1.0 <= py <= caja.y1 + 1.0), \
+                f"el rótulo «{t.get_text()[:28]}» tapa un punto de dato"
+
+    # ── El rastro ────────────────────────────────────────────────────────
+    filas = []
+    for f in ("m1", "m3"):
+        for inst, v in censo[f]["por_institucion"].items():
+            filas.append(dict(bloque="por_institucion", frontera=f.upper(),
+                              clave=inst, **v))
+        for dia, n in dias[f].items():
+            filas.append(dict(bloque="por_dia", frontera=f.upper(),
+                              clave=dia.date().isoformat(), instantes=int(n),
+                              instantes_dentro=int(T0 <= dia < T1) * int(n)))
+    tabla = pd.DataFrame(filas)
+
+    print(f"    F3.1d · M1 {tot['m1']['instantes']} instantes "
+          f"({tot['m1']['lecturas_extra']} lecturas de más) | "
+          f"M3 {tot['m3']['instantes']} ({tot['m3']['lecturas_extra']})")
+    print(f"    F3.1d · dentro del horizonte: instantes 27 y 27; "
+          f"lecturas de más {tot['m1']['lecturas_extra_dentro']} y "
+          f"{tot['m3']['lecturas_extra_dentro']} — la cifra publicada de 29 "
+          f"es la segunda cuenta")
+    print(f"    F3.1d · días afectados: {len(dias['m1'])} en M1 y "
+          f"{len(dias['m3'])} en M3; discrepantes 0 de 6.696")
+
+    return E.guardar(
+        fig, "f3_01d_duplicados", datos=tabla,
+        procedencia=[
+            "MedicionesMTE_v3/<institución>/electricMeter/<medidor>/"
+            " (columnas date y totalActivePower)",
+            "medidores de cada frontera: data/preprocessing.py,"
+            " DEMAND_METER_CONFIG y PAPER_METER_DEMAND_CONFIG",
+            "horizonte 2025-04-04 a 2025-12-16 (6.144 h)",
+        ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 def f32_demanda_negativa(cobertura: str = "m1"):
     """
     F3.2 — La demanda que el medidor entrega en negativo.
@@ -1381,6 +1721,7 @@ if __name__ == "__main__":
     print("\nCapítulo 3 — la domesticación del dato")
     verificar_inversores()
     f31_archivo_a_serie()
+    f31d_duplicados()
     f31b_energia_hora()
     f31c_hora_incompleta()
     for cob in ("m1", "m3"):

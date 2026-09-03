@@ -2982,6 +2982,247 @@ las treinta y el 77 % pierde cuatro o menos.
 
 ---
 
+## C-79 · Cuatro pasajes que no se entendían, y el apartado partido en tres
+
+**2026-09-01 · tipo: `redaccion` · aplicada · él señaló los cuatro**
+
+Después de C-78 él fue señalando, uno a uno, los pasajes del apartado que
+seguían sin entenderse. Los cuatro tenían defectos distintos y ninguno era
+de contenido, de modo que quedan aquí como catálogo de lo que hay que
+evitar.
+
+**1. El texto hablando de sí mismo.** «Es importante derivarlo en el orden
+correcto, porque el inverso hace parecer una decisión lo que es una
+identidad» era una nota mía sobre cómo está escrito el párrafo, colada en
+el párrafo. Le pedía al lector que se fijara en el orden de la exposición
+cuando lo que quiere saber es cómo se calcula la energía, y encima era
+elíptica dos veces: «derivarlo» no decía qué y «el inverso» obligaba a
+reconstruir cuál. Pasa a decir la afirmación de frente: **la media no es
+una elección de método, sale de la definición de energía**.
+
+**2. El acertijo.** «La alternativa es detenerse en los rectángulos
+observados, y no consiste en abstenerse de suponer nada, como podría
+parecer, sino en suponer que...» decía en forma de doble negación con
+concesión dentro algo sencillo. Y remataba con «el único árbitro
+disponible», que nombra un objeto que el lector todavía no sabe cuál es.
+Pasa a: **contar solo los minutos medidos y no añadir nada por los que
+faltan**, y el árbitro se nombra donde se le pide que arbitre.
+
+**3. El hombre de paja.** «Conceder una hora entera a cada lectura de dos
+minutos devuelve un valor treinta veces mayor» presentaba como alternativa
+descartada lo que es un error de implementación que nadie plantea. Fuera, y
+con él el «las dos alternativas quedan descartadas por razones distintas»
+que lo sostenía. Alternativa de verdad solo hay una.
+
+**4. El sujeto colgando.** «No obliga a este trabajo, porque estos equipos
+son instrumentación de investigación...» venía detrás de una frase que
+termina en «el criterio que aquí se aplica», de modo que se leía como si
+fuera el criterio el que no obliga; el tono se volvía defensivo de golpe; y
+«pero apunta en la misma dirección» repetía lo que la primera frase ya
+decía. Pasa a **«Rige sobre fronteras comerciales y no sobre
+instrumentación de investigación como esta, de modo que se invoca como
+criterio y no como obligación»**, con el sujeto expreso y la consecuencia
+ligada por una causa.
+
+**5. Tres casos en prosa corrida.** Los tres casos que una hora puede traer
+iban en un párrafo con las cifras intercaladas, y se abrían con un «conviene
+enunciar» que es el defecto 1 otra vez. Pasan a lista con el formato que el
+capítulo ya usa dos veces, y «el segundo caso», que obligaba a volver a
+contar, pasa a «la segunda» justo debajo de la lista.
+
+**El apartado se parte en tres.** Sostenía tres figuras y cuatro temas,
+contra la regla del documento de una idea, una subsección, una figura.
+Queda en «Del archivo a la serie horaria», que se lleva los duplicados, las
+unidades y las salvaguardas; «La energía de la hora»; y «La hora
+incompleta». Las unidades y las salvaguardas suben desde el final porque
+hablan de leer el archivo y no de integrar, y el remite al anexo baja al
+cierre porque el anexo cubre la etapa entera.
+
+**Y el aparato normativo baja al anexo.** El párrafo de la CREG cargaba
+tres artículos de dos resoluciones y dos ramas en una sola oración de 116
+palabras. El cuerpo se queda con la afirmación, en 86 palabras, y el
+articulado, su alcance y la nota de que la publicación oficial se trunca en
+el artículo 28 quedan en `sub:repro-norma`.
+
+---
+
+## C-80 · Auditoría del apartado contra el código
+
+**2026-09-01 · tipo: `dato` · aplicada · a petición suya**
+
+Él pidió que todo lo que el capítulo afirma se corresponda con lo que el
+código hace. Se comprobó frase por frase contra `data/preprocessing.py` y
+`data/xm_data_loader.py`. Salieron tres cosas.
+
+**Las cifras de duplicados eran sobre el archivo completo, no sobre el
+horizonte, y el texto no lo decía.** Dentro del horizonte son 27 y 29, no
+3.099 y 3.622. La cifra del archivo completo es la correcta para describir
+la operación, porque el cargador funde antes de recortar, pero el lector
+asume el horizonte, que es sobre lo que va todo lo demás del capítulo.
+Ahora se dice cuál es cuál.
+
+**Las cifras publicadas no eran las que mide el dato de hoy.** Medidas
+sobre los diez medidores que el modelo lee, son \num{3108} en la frontera
+principal y \num{3588} en la secundaria, con \num{6696} en total, contra
+3.099, 3.622 y 6.721.
+
+**Casi todos los duplicados son de un solo equipo**, y eso no se decía:
+\num{3073} de los \num{3108} de la frontera principal son del medidor de
+la UCC, y en las otras cuatro instituciones no pasan de 30 apariciones en
+todo el archivo. Es la razón de que el ejemplo de la figura sea de la UCC.
+
+**Lo verificado y confirmado**: que las lecturas duplicadas coinciden hasta
+el último dígito, cero discrepantes de \num{6696}; el remuestreo por media;
+las 835 horas incompletas y las 567 vacías; el relleno de la etapa de
+limpieza; la división entre mil solo para el inversor; y que ninguna línea
+del cargador consulta el número de muestras de la hora.
+
+**Una discrepancia viva, que es decisión suya.** El apartado abre diciendo
+que «la primera etapa no interviene sobre el valor medido», y cuando dos
+archivos del mismo medidor comparten un instante el código los **suma**.
+Son 5 instantes por frontera. Está registrado como P-17 pero no se dice en
+este apartado: o se declara aquí o se corrige el cargador.
+
+---
+
+## C-81 · El instante repetido gana figura, y una cifra se cae al medirla
+
+**2026-09-03 · tipo: `figura` y `dato` · aplicada · figura encargada a un
+agente con todo el material de estilo cargado**
+
+Él pidió una figura detallada para ver mejor las estadísticas de los
+instantes repetidos. Se despachó con las reglas de figuras y de claridad,
+las cuatro reglas permanentes, la norma de cifras, el perfil de escritura,
+`estilo.py` y las siete entradas de este registro que son jurisprudencia
+sobre figuras. Las cifras publicadas se le dieron **como compuerta**, con
+orden de detenerse si su código no las reproducía.
+
+**Y una no reprodujo.** El texto decía que dentro del horizonte «solo
+quedan 27 en la frontera principal y **29** en la secundaria». Los 29 no
+son instantes sino **lecturas de más**: dos instantes de dentro del
+horizonte traen tres lecturas y no dos, de modo que 27 instantes producen
+29 sobrantes. La frase habla de instantes, luego son **27 en las dos
+fronteras**. En la principal las dos cuentas coinciden en 27, que es la
+razón de que el defecto pasara desapercibido.
+
+**El error es mío y estaba en mi propia medición.** La salida que produje al
+auditar el apartado imprimía las dos columnas, «lecturas de más 29» e
+«instantes con copia 27», y reporté la primera como si fuera la segunda.
+Sobre el archivo completo las dos cuentas se separan mucho más, 6.796 y
+11.609 lecturas de más contra 3.108 y 3.588 instantes, de modo que esas dos
+cifras sí eran instantes y el enunciado mezclaba dos unidades en la misma
+frase.
+
+**Tres hechos, tres formas.** La figura los enseña a la vez y cada uno pide
+una codificación distinta.
+
+1. **Cuándo ocurren**, con una curva acumulada por frontera. Es lo más
+   revelador y no estaba en ninguna parte: la curva va plana durante todo
+   el horizonte y **salta a 100 % en marzo de 2026**, tres meses después de
+   que el horizonte cierre. Se descartó la barra mensual lineal porque los
+   meses del horizonte medirían menos de un punto tipográfico, que es el
+   defecto que C-76 documentó.
+2. **Un carril de días** debajo, porque la curva dice cuánto y no cuándo, y
+   los 27 de dentro son escalones invisibles. La distinción dentro y fuera
+   **no la lleva el color sino la geometría**, marca del doble de alto,
+   porque en escala de grises el acento y el gris quedan a 29 niveles.
+3. **De qué equipo son**, con puntos en escala logarítmica y **no barras**:
+   la longitud de una barra logarítmica depende de dónde se ponga el
+   origen, de modo que miente sobre la razón entre dos valores. La frontera
+   se distingue además por forma de marca, para que sobreviva impresa.
+
+El cero discrepante de 6.696 va como cifra y no como gráfico, porque una
+barra de altura cero no dice nada.
+
+**Dos hallazgos que la figura destapó.** Cinco de los 27 no son de ningún
+medidor en particular: son **la costura entre archivos**. El instante del 1
+de junio a las 00:00 está repetido en las cinco instituciones y en las dos
+fronteras, que es exactamente el suceso que P-17 describe. Los otros 22 son
+de la UCC. Y los 27 **viven en ocho días sueltos**, con multiplicidad de
+hasta 73 lecturas en un mismo instante en el Medidor 3 de la UCC.
+
+**Subsección propia.** Los tres párrafos pasan a «El instante que llega
+repetido», porque la subsección anterior ya sostenía la Figura~3.1 y tres
+asuntos, y colgarle una segunda figura repetía el defecto que C-79 acababa
+de corregir partiéndola en tres.
+
+---
+
+## C-82 · Pasada de claridad sobre los cuatro capítulos redactados
+
+**2026-09-03 · tipo: `redaccion` · aplicada · él fijó el criterio**
+
+Él pidió aplicar el criterio de C-79 a los capítulos 2 y 3 y después a los
+4 y 5, y nombró el hábito que quería fuera: **«lo de conviene»**. Se
+construyó un detector de los cinco defectos que él había ido señalando y se
+pasó sobre los cuatro capítulos.
+
+**Fuera los 24 «conviene»** de los cuatro capítulos. Casi todos eran
+anuncios de propósito o el texto hablando de sí mismo: «conviene decir con
+precisión qué son», «conviene subrayar cuánto se descarta», «conviene
+distinguir dos papeles del inversor», «conviene nombrarla aquí y no
+esconderla». Cada uno pasa a decir su afirmación de frente. Cayó también el
+último «es importante delimitar el alcance», que era el mismo movimiento
+con otras palabras, y el «Aquí empieza la parte interesante» que abría la
+subsección de la lectura negativa.
+
+**Dos cuentas anunciadas que iban en prosa pasan a lista.** Los cuatro
+tratamientos de la limpieza, que se narraban «Primero… Segundo… Tercero… Y
+cuarto…», y las cuatro salvaguardas, que iban juntas con puntos y coma y
+obligaban al lector a hacer la aritmética para encontrar cuatro. Las
+salvaguardas quedan además separadas de verdad, porque fechas ilegibles y
+valores no numéricos eran dos y se contaban como una.
+
+**Una ambigüedad que él detectó.** «La demanda tal como llega del medidor»
+admitía dos lecturas, las muestras crudas de dos minutos o la serie horaria
+que sale de la primera etapa. Comprobado en el generador: la figura dibuja
+la salida de la primera etapa. Ahora lo dice.
+
+**Y otra.** «La rellena desde las horas vecinas» comprimía dos operaciones
+que no hacen lo mismo, interpolar entre las horas de los dos lados y copiar
+el valor de la más próxima. Se nombran las dos. De paso se corrigió una
+mezcla de «tres horas» en palabras con «24 horas» en cifras dentro de la
+misma serie.
+
+**Los cuatro capítulos quedan sin un solo META, LISTA ni PAJA** en el
+detector. Los cuatro «no es X sino Y» que sobreviven son contrastes cortos
+y legítimos, que sí están en su registro.
+
+---
+
+## C-83 · El capítulo 3 se puede seguir contra el mapa del pipeline
+
+**2026-09-03 · tipo: `estructura` · aplicada**
+
+Él dijo que la figura del pipeline define seis etapas, que al principio el
+capítulo las va tratando y que más adelante se pierde, sin saber en qué
+punto va ni si ya terminaron. Tenía razón, y por tres causas.
+
+**Los títulos dejaban de sonar a la figura.** Al principio coinciden
+palabra por palabra y a partir de la etapa 2 se despegan: la figura dice
+«Clasificar el medidor» y el título decía «Tres tipos de medidor»; la
+figura dice «Ensamblar y verificar» y el título decía «El resultado».
+Los dos vuelven a nombrar su etapa.
+
+**Faltaba el mapa.** Un párrafo al cierre de la subsección del pipeline
+dice ahora cómo se reparten las seis etapas en lo que sigue y avisa de
+dónde el capítulo deja de describir etapas y pasa a leer el resultado. Ese
+aviso importa: después de la última etapa quedan cuatro subsecciones que ya
+no son etapas, y quien siga contando se desorienta.
+
+**Y la etapa 6 no se trataba nunca**, de modo que quien contara no llegaba
+a seis. Es P-18, ahora cerrada. Antes de escribirla se comprobó la
+suposición que encierra, porque de ella dependen dos argumentos del
+capítulo: **el máximo de generación cae entre las 11 y las 12 en las cinco
+instituciones**, que es el mediodía solar de Pasto, y no entre las 16 y las
+17 como aparecería si las marcas vinieran en tiempo universal. En el código
+es `tz_localize` y no `tz_convert`, es decir, da por hecho que las marcas ya
+vienen en hora local en vez de convertirlas. La subsección deja dicho de
+qué depende eso y que las dos salvaguardas de horario de verano nunca
+actúan, porque Colombia no lo aplica.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -3004,7 +3245,7 @@ las treinta y el 77 % pierde cuatro o menos.
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
-| P-18 | La etapa que fija la zona horaria no tiene una sola palabra de prosa, y la suposición que encierra, que las marcas de tiempo vienen en hora local, no se declara en ninguna parte. De ella depende el argumento de que las lecturas negativas se concentran al mediodía. | pendiente |
+| P-18 | ~~La etapa que fija la zona horaria no tiene una sola palabra de prosa.~~ **CERRADA por C-83**: subsección propia, con la suposición declarada y comprobada sobre el dato (el máximo de generación cae entre las 11 y las 12 en las cinco instituciones). | cerrada |
 | P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
 | P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |

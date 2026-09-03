@@ -140,6 +140,14 @@ es importante definirla ahora: Mariana no tiene un segundo medidor
 que leer, de modo que en la frontera secundaria se reutiliza el primero
 multiplicado por un factor que el Capítulo~\ref{sec:frontera} declara.
 
+Las seis etapas no se reparten por igual en lo que sigue. La primera ocupa
+tres subsecciones, porque es donde el dato cambia de paso y de forma. La
+segunda y la tercera ocupan dos cada una, y en los dos casos la primera de
+ellas está dedicada al fenómeno que las motiva. Las tres últimas ocupan una
+cada una. A partir de ahí el capítulo deja de describir etapas: las
+subsecciones finales leen el resultado y declaran qué le hacen a la cifra
+las decisiones tomadas por el camino.
+
 \subsection{Del archivo a la serie horaria}
 \label{sub:prep-lectura}
 
@@ -160,13 +168,42 @@ hasta el valor horario que cada una deja en la serie.
  \label{fig:prep-archivo-serie}
 \end{figure}
 
-Antes de promediar hay que resolver una ambigüedad del dato crudo. Algunas
+Los dos equipos no hablan en la misma unidad. El medidor registra en
+kilovatios y el inversor en vatios, de modo que sus series no se pueden
+comparar ni sumar tal como llegan. La del inversor se divide entre mil y
+la del medidor se usa como viene.
+
+La etapa lleva por último cuatro salvaguardas contra cosas que este
+conjunto no contiene, y de ellas lo que importa es cuántas veces actúan:
+ninguna.
+
+\begin{enumerate}[leftmargin=*, itemsep=0.35em]
+ \item \textbf{Archivos que no se dejan leer.} No hay ninguno entre los 73
+ del árbol.
+
+ \item \textbf{Fechas ilegibles.} No hay ninguna entre los \num{2813305}
+ registros de los diez medidores.
+
+ \item \textbf{Valores no numéricos.} Tampoco hay ninguno entre esos mismos
+ registros.
+
+ \item \textbf{Lecturas negativas del inversor.} No hay ninguna entre las
+ \num{793981} de los siete equipos.
+\end{enumerate}
+
+La última no actúa porque un inversor entrega energía a la red y no la toma
+de ella. Los siete registran el cero miles de veces, de modo que la
+ausencia de valores negativos no se debe a que el equipo no llegue hasta
+ahí, sino a que por debajo del cero no hay nada que medir.
+
+\subsection{El instante que llega repetido}
+\label{sub:prep-duplicados}
+
+Antes de promediar hay que resolver una ambigüedad del dato crudo. En la totalidad de la base de datos algunas
 lecturas comparten instante con otra, \num{3108} veces en la frontera
-principal y \num{3588} en la secundaria, y el registro de un equipo no
-puede llevar dos valores en el mismo instante. Se resuelve en uno solo
-tomando su promedio. Las dos cifras son sobre el archivo completo y no
-sobre el horizonte, porque la fusión ocurre antes del recorte; dentro del
-horizonte quedan 27 y 29.
+principal y \num{3588} en la secundaria, pero el registro de un equipo no
+puede llevar dos valores en el mismo instante. Esto se resuelve dejando uno solo,
+tomando el promedio entre si de los datos duplicados. En el horizonte de estudio solo quedan 27 en cada frontera.
 
 El fenómeno es de un equipo y no del conjunto: \num{3073} de los
 \num{3108} instantes de la frontera principal son del medidor de la UCC, y
@@ -181,21 +218,25 @@ promediarlas, quedarse con la primera o quedarse con la última dan
 exactamente el mismo número. Se toma el promedio porque el instante ha de ser único para poder alinear los tramos
 de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
 
-Los dos equipos no hablan en la misma unidad. El medidor registra en
-kilovatios y el inversor en vatios, de modo que sus series no se pueden
-comparar ni sumar tal como llegan. La del inversor se divide entre mil y
-la del medidor se usa como viene.
-
-La etapa lleva por último cuatro salvaguardas contra cosas que este
-conjunto no contiene, y de ellas lo que importa es cuántas veces actúan:
-ninguna. Entre los 73 archivos del árbol no hay uno que no se deje leer;
-entre los \num{2813305} registros de los diez medidores no hay una fecha
-ilegible ni un valor no numérico; y entre las \num{793981} lecturas de los
-siete inversores no hay una sola negativa, que es lo que cabe esperar de un
-equipo que entrega energía a la red y no la toma de ella. Los siete
-registran el cero miles de veces, de modo que la ausencia de valores
-negativos no es que el equipo no alcance esa zona, sino que la zona no
-existe.
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_01d_duplicados.png}
+ \caption[El censo de los instantes repetidos]{El censo de los instantes
+ repetidos en las dos fronteras de medición. Arriba, la fracción que
+ llevaba ocurrida cada frontera a lo largo del archivo, con la banda del
+ horizonte sombreada y el anillo sobre el punto en que se cierra; bajo
+ ella, un carril por frontera en el que cada marca es un día con algún
+ instante repetido, y las altas son las de dentro del horizonte. Abajo a la
+ izquierda, el reparto por institución en escala logarítmica, que es la que
+ admite los tres órdenes de magnitud que separan a la UCC del resto. La
+ masa se acumula en marzo de 2026, es decir, tres meses después de que el
+ horizonte se cierre, y los 27 que caen dentro se reparten en solo ocho
+ días, uno de ellos común a las cinco instituciones.
+ \fuente{elaboración propia desde \file{MedicionesMTE\_v3/}, columnas de
+ fecha y de potencia activa total de los diez medidores que el modelo lee;
+ horizonte de \num{6144} horas.}}
+ \label{fig:prep-duplicados}
+\end{figure}
 
 \subsection{La energía de la hora}
 \label{sub:prep-energia}
@@ -236,9 +277,7 @@ Figura~\ref{fig:prep-energia} lo enseña sobre la hora del ejemplo.
  lecturas de la hora del ejemplo dibujadas como rectángulos de dos minutos,
  y encima el rectángulo único de la hora entera a la altura de la media. Las
  dos áreas son la misma área y los dos números coinciden hasta el último
- dígito, porque el paso de muestreo es constante.
- \fuente{elaboración propia desde los archivos crudos del Medidor 1 de la
- UCC.}}
+ dígito, porque el paso de muestreo es constante.}
  \label{fig:prep-energia}
 \end{figure}
 
@@ -264,8 +303,9 @@ Una hora puede llegar de tres maneras, y el tratamiento cambia en cada una.
  \num{835} horas del horizonte.
 
  \item \textbf{Vacía}, sin ninguna muestra. No se estima aquí: pasa a la
- etapa de limpieza, que la rellena desde las horas vecinas, o con cero si
- el hueco supera el día, según describe la
+ etapa de limpieza, que la interpola entre las horas de los dos lados si el
+ hueco es corto, le copia el valor de la más próxima si llega a durar un
+ día, y le pone cero más allá, según describe la
  subsección~\ref{sub:prep-limpieza}. Son \num{567} horas.
 \end{enumerate}
 
@@ -325,8 +365,7 @@ que no hubo energía predice \uni{288}{kWh}. El equipo sigue integrando
 durante los cortes, de modo que atribuirles energía nula falla por física y
 no por estadística, y falla cada vez peor cuanto más largo es el corte.
 
-Conviene además no confundir dos cantidades que se parecen y difieren por un
-factor de ocho. Las \num{835} horas incompletas del horizonte
+Hay además dos cantidades que se parecen y difieren por un factor de ocho. Las \num{835} horas incompletas del horizonte
 \emph{contienen} \uni{8100}{kWh}, el \pct{3.2} de la demanda, pero de esa
 energía casi toda está observada: lo que el supuesto \emph{imputa} es solo
 el tramo que falta, y son \uni{1054}{kWh}, el \pct{0.41}. La razón es que
@@ -349,10 +388,11 @@ esas cuatro comprobaciones y el orden exacto en que se aplican.
 \subsection{La lectura que no puede ser}
 \label{sub:prep-negativa}
 
-Aquí empieza la parte interesante. Al graficar la demanda tal como llega
-del medidor aparece algo que no puede ser cierto: durante varias horas al
-día, la demanda de tres de las cinco instituciones es negativa. Un
-edificio no consume energía negativa. La Figura~\ref{fig:prep-negativa}
+La serie horaria que sale de la primera etapa trae algo que no puede ser
+cierto. Es la demanda ya transportada, ordenada y expresada en horas y en
+kilovatios, pero con el valor sin tocar, y en ella la de tres de las cinco
+instituciones baja de cero durante varias horas al día. Un edificio no
+consume energía negativa. La Figura~\ref{fig:prep-negativa}
 recoge el fenómeno en sus dos dimensiones: la forma que toma en la
 institución más afectada y la hora del día en que aparece.
 
@@ -389,7 +429,7 @@ sensor averiado, es un medidor que está restando la generación antes de
 reportar, y dónde esté puesto respecto de la inyección es lo que decide si
 lo hace.
 
-\subsection{Tres tipos de medidor}
+\subsection{Clasificar el medidor: tres tipos}
 \label{sub:prep-tipos}
 
 La explicación de ese patrón es de topología eléctrica, o dicho de otro
@@ -492,7 +532,9 @@ La diferencia entre unas y otras tiene una explicación instrumental, y
 responde a por qué el fenómeno aparece en tres instituciones y no en las
 cinco. No es de regla sino de grado, y la gobierna una sola cantidad, que
 es cuánta generación queda detrás del medidor frente a lo que ese circuito
-consume. Udenar encabeza esa columna de la Tabla~\ref{tab:prep-tipos}, y el
+consume.
+
+Udenar encabeza esa columna de la Tabla~\ref{tab:prep-tipos}, y el
 flujo se le invierte una cuarta parte del horizonte; en Mariana esa
 fracción es más de tres veces menor y en la UCC, más de seis, y la
 inversión resulta ocasional. En
@@ -594,8 +636,8 @@ la serie de demanda de Udenar. Elaboración propia aplicando la
 ecuación~\eqref{eq:prep-reconstruccion}.}
 
 \begin{detallebox}
-Conviene distinguir dos papeles del inversor dentro del pipeline, porque
-se confunden con facilidad. La generación $G$ que consume el modelo proviene
+El inversor cumple dos papeles dentro del pipeline y se confunden con
+facilidad. La generación $G$ que consume el modelo proviene
 de \emph{un} inversor designado por institución. La reconstrucción de la
 ecuación~\eqref{eq:prep-reconstruccion}, en cambio, suma \emph{todos} los
 inversores que inyectan detrás del medidor. Son conjuntos distintos: en
@@ -606,7 +648,7 @@ Udenar el primero tiene un elemento y el segundo, tres.
 \label{sub:prep-costo}
 
 El recorte a cero de la ecuación~\eqref{eq:prep-reconstruccion} no es
-gratuito, y conviene medir cuánto cuesta. En
+gratuito, y lo que cuesta se puede medir. En
 algunas horas solares la suma de inversores sobrestima la generación que
 el medidor realmente descontó (por diferencias de muestreo, por pérdidas,
 y porque las porciones de circuito no coinciden exactamente con el punto
@@ -637,23 +679,31 @@ La última etapa que altera el valor del dato es la limpieza, que aplica
 cuatro tratamientos en cascada sobre cada una de las 10 series de medida,
 que son la demanda y la generación de cada institución.
 
-Primero, los valores que superan el umbral
-$\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$
-se marcan como faltantes. El primer término es una cerca robusta de tipo
-Tukey, con un multiplicador de 5 deliberadamente más permisivo que el
-1,5 clásico, de modo que solo elimine valores físicamente inverosímiles.
-El segundo impone un piso situado un \pct{20} por encima del percentil
-99,5, y su función es proteger los picos operativos legítimos en series de
-carga base muy estable: cuando el rango intercuartílico es pequeño, como
-ocurre con la demanda de CESMAG, la primera cerca se vuelve demasiado
-estricta y recortaría consumo real.
+\begin{enumerate}[leftmargin=*, itemsep=0.35em]
+ \item \textbf{Los valores atípicos se marcan como faltantes.} El umbral es
+ $\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$. El
+ primer término es una cerca robusta de tipo Tukey, con un multiplicador de
+ 5 deliberadamente más permisivo que el 1,5 clásico, de modo que solo
+ elimine valores físicamente inverosímiles. El segundo impone un piso
+ situado un \pct{20} por encima del percentil 99,5 y protege los picos
+ operativos legítimos en series de carga base muy estable: cuando el rango
+ intercuartílico es pequeño, como ocurre con la demanda de CESMAG, la
+ primera cerca se vuelve demasiado estricta y recortaría consumo real.
 
-Segundo, los huecos de hasta tres horas se interpolan linealmente en el
-tiempo. Tercero, los huecos de hasta 24 horas se completan con
-relleno hacia adelante y hacia atrás, bajo la heurística de que el patrón
-del día operativo anterior es representativo. Y cuarto, lo que aún
-sobrevive como faltante se imputa con cero, que corresponde sobre todo a
-horas nocturnas de las series de generación. La Figura~\ref{fig:prep-limpieza}
+ \item \textbf{Los huecos de hasta 3 horas se interpolan} linealmente en el
+ tiempo, es decir, trazando la recta entre el valor de la hora anterior al
+ hueco y el de la posterior.
+
+ \item \textbf{Los huecos de hasta 24 horas se rellenan copiando el valor
+ de la hora vecina más próxima}, primero la anterior y después la
+ posterior, bajo la heurística de que el patrón del día operativo anterior
+ es representativo.
+
+ \item \textbf{Lo que aún sobrevive como faltante se imputa con cero}, que
+ corresponde sobre todo a horas nocturnas de las series de generación.
+\end{enumerate}
+
+La Figura~\ref{fig:prep-limpieza}
 sitúa el umbral sobre la serie y reparte por mes las horas que la limpieza
 tuvo que rellenar.
 
@@ -695,7 +745,7 @@ divergencias se declaran como heterogeneidad heredada de la construcción
 incremental del repositorio, y no como elecciones fundamentadas.
 \end{trampabox}
 
-\subsection{El resultado: lo que el modelo recibe}
+\subsection{Ensamblar y verificar: lo que el modelo recibe}
 \label{sub:prep-matrices}
 
 Las 10 series limpias se apilan en dos matrices de dimensión
@@ -729,6 +779,36 @@ la banda se difuminaría; si la agregación horaria estuviera mal, las
 franjas de la semana laboral no se distinguirían. Que las tres estructuras
 aparezcan donde deben es lo que autoriza a seguir adelante.
 \end{lecturabox}
+
+\subsection{Fijar la zona horaria}
+\label{sub:prep-zona}
+
+La última etapa no altera ningún valor: le pone zona horaria al índice. Es
+la más corta de las seis y la que más fácilmente pasa inadvertida, y sin
+embargo encierra una suposición de la que dependen dos argumentos
+anteriores.
+
+Las marcas de tiempo llegan sin zona, de modo que hay que decidir cuál es
+la suya. El pipeline las declara hora local de Colombia, es decir, las
+interpreta como ya escritas en ese huso en vez de convertirlas desde otro.
+La suposición es que cada equipo escribe la hora del sitio donde está
+instalado, y se comprueba sin salir del dato: el máximo de generación de
+las cinco instituciones cae entre las 11 y las 12, que es el mediodía solar
+de Pasto. Si las marcas vinieran en tiempo universal, con Colombia cinco
+horas por detrás, ese máximo aparecería entre las 16 y las 17. La
+subsección anterior ya usa esa alineación como comprobación final del
+capítulo.
+
+Los dos argumentos que dependen de esto son el de la
+subsección~\ref{sub:prep-negativa}, que sitúa las lecturas negativas en las
+horas de sol, y el de la subsección~\ref{sub:prep-limpieza}, que distingue
+el cero nocturno de la generación del hueco de medida. Los dos se caerían
+si la serie estuviera desplazada cinco horas.
+
+Colombia no aplica horario de verano, de modo que en este conjunto no hay
+horas que no existan ni horas que ocurran dos veces. Las dos salvaguardas
+que el pipeline lleva para esos casos, una que adelanta la hora inexistente
+y otra que resuelve la ambigua, nunca llegan a actuar.
 
 \subsection{Cinco ritmos distintos}
 \label{sub:prep-perfiles}
@@ -796,8 +876,8 @@ de estados intermedios.}
 Un capítulo que describe seis etapas de tratamiento del dato debe
 responder a una objeción evidente: si en todas ellas se decidió algo
 y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
-respuesta honesta no es que las decisiones sean neutrales, sino que
-conviene mirar hacia dónde apuntan.
+respuesta honesta no es que las decisiones sean neutrales: lo que decide
+es hacia dónde apuntan.
 
 Las principales elecciones del pipeline, y las dos del modelo que
 corresponde mencionar aquí, apuntan todas en la misma dirección:
@@ -829,7 +909,7 @@ corresponde mencionar aquí, apuntan todas en la misma dirección:
  al mercado entre pares, en vez de estimarlo.
 \end{enumerate}
 
-Hay una quinta que apunta al revés, y conviene nombrarla aquí y no
+Hay una quinta que apunta al revés, y se nombra aquí en vez de
 esconderla. Al estimar la hora incompleta con la media de sus muestras
 presentes se le atribuye al tramo no observado el comportamiento del
 observado, lo que da entre \pct{0.26} y \pct{0.55} más energía que
@@ -884,9 +964,9 @@ no aplicada.
 \end{enumerate}
 
 Como cota global, el impacto neto de estas elecciones sobre el volumen de
-energía transada se estima en $\pm$\,\pct{0.3}. Conviene
-precisar el estatuto de esa cifra, porque es fácil leerla como un
-resultado y no lo es: no procede de la matriz de sensibilidad que el
+energía transada se estima en $\pm$\,\pct{0.3}. El estatuto de esa cifra
+necesita una precisión, porque es fácil leerla como un resultado y no lo
+es: no procede de la matriz de sensibilidad que el
 punto~3 declara no construida, sino de un juicio apoyado en
 dos evidencias indirectas (la cobertura de adquisición por equipo, que
 supera el \pct{97} en los inversores principales, y la magnitud

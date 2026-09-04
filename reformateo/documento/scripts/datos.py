@@ -75,13 +75,12 @@ T_START, T_END, N_HORAS = "2025-04-04", "2025-12-16", 6144
 # Tipo de medidor de demanda por institución (data/preprocessing.py).
 #
 # El conteo de horas con demanda negativa NO se fija aquí a propósito. El
-# docstring de data/preprocessing.py cita 989 h para Udenar, 216 para
-# Mariana y 112 para UCC, pero medidas sobre el horizonte canónico
-# (2025-04-04..2025-12-16, 6.144 h) las cifras reales son otras. El mismo
-# docstring es internamente inconsistente: su primer párrafo habla de
-# «~20 % de las horas» para Udenar, que no cuadra con 989/6144 = 16,1 %.
-# Para que el documento no herede una cifra vieja, el conteo se lee
-# siempre del caché medido: ver `conteo_negativas()`.
+# docstring de data/preprocessing.py llegó a citar 989 h para Udenar, 216
+# para Mariana y 112 para UCC, cifras que no correspondían al horizonte
+# canónico (2025-04-04..2025-12-16, 6.144 h); se corrigieron a 1.517, 213 y
+# 94 con CAL-44. La regla se mantiene aunque la fuente ya esté al día: el
+# conteo se lee siempre del caché medido, no de una constante que pueda
+# volver a quedarse atrás. Ver `conteo_negativas()`.
 TIPO_MEDIDOR = {
     "Udenar":  "net",
     "Mariana": "net_partial",
@@ -146,7 +145,7 @@ def resumen(cobertura: str) -> pd.DataFrame:
 
     El artefacto trae intercambiadas las dos columnas respecto a su
     semántica en ``core/settlement.py``. Se comprueba por física: en M1,
-    con 19,1 % de cobertura, la fracción de demanda cubierta con
+    con 20,0 % de cobertura, la fracción de demanda cubierta con
     generación propia no puede ser 0,98. Aquí se devuelven con nombre
     explícito para que el texto no pueda equivocarse.
     """

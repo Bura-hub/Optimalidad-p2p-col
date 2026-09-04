@@ -30,8 +30,9 @@ from data.xm_data_loader import (                      # noqa: E402
     INVERTER_FOLDER, METER_FOLDER, T_END, T_START,
 )
 from data.preprocessing import (                       # noqa: E402
-    DEMAND_METER_CONFIG, EMS_INVERTER_CONFIG,
-    PAPER_METER_DEMAND_CONFIG, _find_subdir,
+    DEMAND_METER_CONFIG, EMS_INVERTER_BACKFILL_CONFIG, EMS_INVERTER_CONFIG,
+    PAPER_METER_DEMAND_CONFIG, RECONSTRUCTION_INVERTERS_CONFIG,
+    _find_subdir,
 )
 
 CACHE = Path(__file__).resolve().parent.parent / "datos_cache"
@@ -116,8 +117,19 @@ def construir() -> Path:
                 r = _resumir(sub, COL_GEN, idx)
                 if not r:
                     continue
-                papel = "EMS" if sub.name == EMS_INVERTER_CONFIG[agente] \
-                    else "reconstrucción"
+                # CAL-44: tres papeles, no dos. Los Fronius de Udenar
+                # son referencia para extender el inversor designado y
+                # sumandos de la reconstrucción net->bruta; ninguno de los
+                # dos los mete en un cálculo por sí mismos.
+                if sub.name == EMS_INVERTER_CONFIG[agente]:
+                    papel = "EMS"
+                else:
+                    papeles = []
+                    if sub.name == EMS_INVERTER_BACKFILL_CONFIG.get(agente):
+                        papeles.append("referencia")
+                    if sub.name in RECONSTRUCTION_INVERTERS_CONFIG.get(agente, []):
+                        papeles.append("reconstrucción")
+                    papel = "+".join(papeles) or "no usado"
                 filas.append({"institucion": agente, "clase": "inversor",
                               "fuente": sub.name, "papel": papel, **r})
         print(f"  {agente}: {sum(1 for f in filas if f['institucion'] == agente)} fuentes")

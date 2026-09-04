@@ -29,12 +29,42 @@ import datos as D
 CACHE = Path(__file__).resolve().parent.parent / "datos_cache"
 
 # Papeles que hacen falta para que la comunidad esté completa: el medidor
-# de cada frontera y el inversor que define la generación. Los dos
-# inversores de reconstrucción de Udenar NO entran. Uno de ellos arranca
-# el 3 de septiembre de 2025 y, si se contara, tanto F2.2 como F2.4
-# señalarían a Udenar como la fuente que fija el inicio del horizonte,
-# que es falso: lo fija el inversor del HUDN el 4 de abril.
+# de cada frontera y la fuente que provee la generación desde el primer
+# día. Si se contaran los papeles auxiliares, F2.2 señalaría a Udenar como
+# la fuente que fija el inicio del horizonte, que es falso: lo fija el
+# inversor del HUDN el 4 de abril.
+#
+# CAL-44: en Udenar esa fuente no es el inversor designado —el del
+# proyecto, que entra el 3 de septiembre y se reconstruye hacia atrás—
+# sino el de referencia con el que se lo extiende, que registra desde el
+# principio. De ahí que «referencia» cuente como esencial y que el
+# designado reconstruido no lo haga.
 ESENCIALES = {"M1", "M3", "M1+M3", "EMS"}
+
+
+def _designados_reconstruidos() -> set:
+    """Inversores designados cuya serie se extiende desde una referencia.
+
+    No condicionan el arranque del horizonte: la referencia los cubre
+    hacia atrás, de modo que su institución tiene generación desde el
+    primer día aunque el equipo entrara meses después.
+    """
+    try:
+        raiz = Path(__file__).resolve().parents[3]
+        if str(raiz) not in sys.path:
+            sys.path.insert(0, str(raiz))
+        from data.preprocessing import (EMS_INVERTER_BACKFILL_CONFIG,
+                                        EMS_INVERTER_CONFIG)
+        return {EMS_INVERTER_CONFIG[i] for i in EMS_INVERTER_BACKFILL_CONFIG
+                if i in EMS_INVERTER_CONFIG}
+    except Exception:                                   # pragma: no cover
+        return set()
+
+
+def _mascara_esencial(d):
+    """Fuentes que condicionan el inicio del horizonte."""
+    m = d["papel"].isin(ESENCIALES) | d["papel"].str.startswith("referencia")
+    return m & ~d["fuente"].isin(_designados_reconstruidos())
 
 
 def _censo() -> pd.DataFrame:
@@ -127,13 +157,10 @@ def f22_gantt():
         ax.axvline(v, color=E.MECANISMOS["P2P"], linewidth=1.3, zorder=5)
 
     # El inicio del horizonte lo fija la última fuente ESENCIAL en entrar
-    # en servicio, es decir, la que hace falta para que las cinco
-    # instituciones esten operativas: el medidor de cada cobertura y el
-    # inversor que define la generacion. Los dos inversores de
-    # reconstruccion de Udenar quedan fuera del calculo, porque uno de
-    # ellos entra en septiembre y no condiciona el arranque.
-    ESENCIALES = {"M1", "M3", "M1+M3", "EMS"}
-    esenciales = d[d["papel"].isin(ESENCIALES)]
+    # en servicio: el medidor de cada cobertura y la fuente que provee la
+    # generación de cada institución desde el primer día. Ver el criterio
+    # y su razón en la cabecera del módulo.
+    esenciales = d[_mascara_esencial(d)]
     idx_tope = esenciales["inicio"].idxmax()
 
     etiquetas, colores_y = [], []
@@ -236,6 +263,8 @@ def _sufijo_papel(papel: str, fuente: str = "") -> str:
         return (" · generación y reconstrucción"
                 if fuente in RECONSTRUCTORES else " · generación")
     return {"M1": " · M1", "M3": " · M3", "M1+M3": " · M1 y M3",
+            "referencia+reconstrucción": " · referencia y reconstrucción",
+            "referencia": " · referencia",
             "reconstrucción": " · reconstrucción", "no usado": ""}.get(papel, "")
 
 

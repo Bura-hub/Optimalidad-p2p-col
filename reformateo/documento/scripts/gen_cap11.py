@@ -315,7 +315,8 @@ def f118_lado_corto():
     ax1.bar([0, 1], vals, 0.5, color=[E.COBERTURAS["m1"], E.COBERTURAS["m3"]],
             yerr=errs, error_kw=dict(ecolor="#555555", lw=0.9, capsize=3))
     ax1.set_xticks([0, 1])
-    ax1.set_xticklabels(["M1\nG/D = 19,1 %", "M3\nG/D = 91,2 %"], fontsize=7.5)
+    ax1.set_xticklabels([f"M1\nG/D = {E.COBERTURA_GD['m1']}",
+                         f"M3\nG/D = {E.COBERTURA_GD['m3']}"], fontsize=7.5)
     ax1.set_ylabel("$S_T$ del nivel de demanda\nsobre la ganancia")
     ax1.set_title("La demanda pasa a importar", pad=8)
     factor = vals[1] / vals[0] if vals[0] > 0 else np.nan
@@ -350,8 +351,8 @@ def f118_lado_corto():
     for k, cob in enumerate(("m1", "m3")):
         dem, gen = energia[cob]
         # En las dos coberturas la generación es el lado corto; lo que
-        # cambia es *cuánto*. Con el 19,1 % la demanda queda tan lejos de
-        # ser restrictiva que moverla no altera el volumen; con el 91,2 %
+        # cambia es *cuánto*. Con el 20,0 % la demanda queda tan lejos de
+        # ser restrictiva que moverla no altera el volumen; con el 95,3 %
         # las dos magnitudes son comparables y la demanda empieza a
         # limitar en las horas de mayor producción. Decir «lo escaso es el
         # recurso» en ambos casos sería cierto pero vaciaría el argumento.

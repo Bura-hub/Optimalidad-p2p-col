@@ -46,7 +46,7 @@ def f42_cobertura():
 
     La generación es idéntica en las dos coberturas (mismo inversor por
     institución); lo único que cambia es la demanda contra la que se
-    compara. De ahí que la cobertura pase del 19,1 % al 91,2 % sin que se
+    compara. De ahí que la cobertura pase del 20,0 % al 95,3 % sin que se
     haya instalado un solo panel más.
 
     Las cifras se miden del caché, no se fijan en el código.

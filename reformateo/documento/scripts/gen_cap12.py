@@ -80,8 +80,8 @@ def f121_cumplimiento():
     A la derecha, la cuota de cobertura de cada institución sobre la
     demanda del conjunto. Es un diagnóstico útil y es lo que el artefacto
     llama participación, pero **no es el criterio de la norma**: las
-    cinco cuotas suman la cobertura total de cada frontera, 19,1 % en M1 y
-    91,2 % en M3, no el cien por ciento. Por eso ese panel no lleva la
+    cinco cuotas suman la cobertura total de cada frontera, 20,0 % en M1 y
+    95,3 % en M3, no el cien por ciento. Por eso ese panel no lleva la
     línea del diez por ciento.
     """
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.6),

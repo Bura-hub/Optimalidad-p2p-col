@@ -130,7 +130,35 @@ COBERTURA_NOMBRE = {
     "m1": "M1 · circuito principal o de inyección",
     "m3": "M3 · circuito secundario",
 }
-COBERTURA_GD = {"m1": "19,1 %", "m3": "91,2 %"}
+_GD_RESPALDO = {"m1": "20,0 %", "m3": "95,3 %"}
+
+
+def _razon_gd() -> dict:
+    """Razón entre generación y demanda de cada frontera, desde la caché.
+
+    Estuvo escrita a mano y se quedó atrás cuando cambió la generación de
+    Udenar: el texto decía una cosa y los títulos de las figuras otra. Se
+    calcula del mismo sitio del que salen las series, de modo que no puede
+    volver a divergir.
+    """
+    import numpy as np
+    salida = {}
+    for c in ("m1", "m3"):
+        p = (Path(__file__).resolve().parent.parent
+             / "datos_cache" / f"preproceso_{c}.npz")
+        if not p.exists():
+            print(f"  AVISO estilo: falta {p.name}; la razón G/D de {c.upper()} "
+                  "sale del respaldo. Correr scripts/cache_crudo.py")
+            salida[c] = _GD_RESPALDO[c]
+            continue
+        z = np.load(p, allow_pickle=True)
+        g = sum(z[k].sum() for k in z.files if k.endswith("__G_limpia"))
+        d = sum(z[k].sum() for k in z.files if k.endswith("__D_limpia"))
+        salida[c] = f"{100 * g / d:.1f} %".replace(".", ",")
+    return salida
+
+
+COBERTURA_GD = _razon_gd()
 
 TITULO_COBERTURA = {
     k: f"{COBERTURA_NOMBRE[k]} (G/D = {COBERTURA_GD[k]})"

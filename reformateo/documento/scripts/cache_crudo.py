@@ -10,7 +10,7 @@ medidor, la generación que se le sumó para revertir el neteo, los
 valores que la limpieza marcó como atípicos y los huecos que rellenó.
 
 Este script vuelve a recorrer el pipeline **usando las mismas funciones
-del proyecto** (``_read_single_meter``, ``_read_single_inverter``,
+del proyecto** (``_read_single_meter``, ``_read_ems_generation``,
 ``_sum_inverter_reconstruction``, ``_clean``), pero conservando cada
 estado intermedio. Al reusar las funciones originales en lugar de
 reimplementarlas, el caché es fiel por construcción: si el pipeline
@@ -48,11 +48,12 @@ sys.path.insert(0, str(RAIZ))
 
 from data.preprocessing import (                       # noqa: E402
     DEMAND_METER_CONFIG,
+    EMS_INVERTER_BACKFILL_CONFIG,
     EMS_INVERTER_CONFIG,
     PAPER_METER_DEMAND_CONFIG,
     RECONSTRUCTION_INVERTERS_CONFIG,
     _find_subdir,
-    _read_single_inverter,
+    _read_ems_generation,
     _read_single_meter,
     _sum_inverter_reconstruction,
 )
@@ -147,11 +148,15 @@ def construir(cobertura: str, verbose: bool = True) -> Path:
             D_raw = D_raw * float(cfg["scale"])
 
         # ── 2. Inversor EMS (la generación que ve el modelo) ─────────
+        # CAL-44: se llama al mismo lector del pipeline en vez de repetir
+        # su lógica aquí, para que la caché no vuelva a desviarse. Incluye
+        # la extensión del inversor designado desde el de referencia.
         inv_root = _find_subdir(adir, INVERTER_FOLDER[agente])
-        ems_dir = (_find_subdir(inv_root, EMS_INVERTER_CONFIG[agente])
-                   if inv_root is not None else None)
-        G_ems = (_read_single_inverter(ems_dir, idx).fillna(0.0)
-                 if ems_dir is not None else pd.Series(0.0, index=idx))
+        G_ems = (_read_ems_generation(
+                     inv_root, EMS_INVERTER_CONFIG[agente],
+                     EMS_INVERTER_BACKFILL_CONFIG.get(agente), idx,
+                     etiqueta=agente, verbose=False)
+                 if inv_root is not None else pd.Series(0.0, index=idx))
 
         # ── 3. Reconstrucción net->bruta, solo donde aplica ──────────
         if tipo in ("net", "net_partial"):

@@ -21,6 +21,11 @@ PERFIL = {
 def prosa(texto: str) -> str:
     """Deja solo el cuerpo argumentativo."""
     t = re.sub(r"(?m)^%.*$", "", texto)                     # comentarios
+    # Lo apartado no se imprime, de modo que tampoco cuenta para el
+    # estilo: medirlo falseaba el perfil con texto que nadie lee.
+    for env in ("guardado", "descartado"):
+        t = re.sub(r"\\begin\{" + env + r"\}.*?\\end\{" + env + r"\}",
+                   " ", t, flags=re.S)
     t = re.sub(r"\\begin\{tikzpicture\}.*?\\end\{tikzpicture\}", " ", t,
                flags=re.S)
     t = re.sub(r"\\begin\{figure\}.*?\\end\{figure\}", " ", t, flags=re.S)

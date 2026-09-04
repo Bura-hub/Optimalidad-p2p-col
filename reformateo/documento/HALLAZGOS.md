@@ -1134,3 +1134,39 @@ Fronius escalado antes, un solo inversor en todo instante. Aplicado en
 `data/preprocessing.py` como CAL-44 y verificado end to end. La
 reconstrucción de la demanda se mantiene con los tres, por lo medido arriba.
 Queda pendiente únicamente la corrida canónica, que va con P-17, P-21 y H-20.
+
+---
+
+## H-24 · El recorte no «elimina» energia de la serie: la anade
+
+**2026-09-04 · abierto · decision suya, afecta al argumento del sesgo**
+
+Al separar la cuenta de la figura aparece una imprecision de signo que el
+capitulo repite en tres sitios.
+
+**La aritmetica.** Sin recorte, la serie sumaria
+`D_raw + G_recon` = 10.605,83 + 32.691,41 = **43.297,24 kWh**. Con recorte
+suma **44.310,54**. El recorte, por tanto, **anade 1.013,30 kWh** al total;
+no los quita.
+
+**Lo que el capitulo dice.** «El recorte lleva a cero la diferencia,
+eliminando energia de la serie de demanda»; «lo que eso elimina de la serie
+de demanda queda acotado»; y en la lista del sesgo, «el recorte de la
+reconstruccion elimina 1.013,3 kWh de la demanda de Udenar».
+
+**Que es realmente 1.013,3 kWh.** La magnitud total de las excursiones
+negativas, es decir, cuanto se quedo corta la generacion devuelta frente a
+lo que el medidor habia restado. No es la demanda que se pierde: la demanda
+verdadera de esas 353 horas es positiva y desconocida, y lo que se registra
+en su lugar es cero.
+
+**La direccion del sesgo NO cambia.** Registrar cero donde hubo consumo
+subestima la demanda de Udenar en horas solares, de modo que el argumento
+de que el sesgo es restrictivo se sostiene. Lo que no se sostiene es
+atribuir a esa subestimacion la cifra de 1.013,3 kWh, que mide otra cosa.
+
+**Por que no se corrige de oficio.** Toca el primer punto de la lista de
+decisiones que sesgan en contra, que es un argumento central del capitulo,
+y la redaccion correcta depende de que se quiera afirmar. Pendiente de su
+palabra.
+

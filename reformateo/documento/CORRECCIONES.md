@@ -3788,6 +3788,222 @@ profundidad, y `f2_05_reactiva_instituciones.png`, sustituida por la de
 series. **Se dejan en su sitio a la espera de su palabra**, porque
 borrarlos no es reversible y no estorban a la compilación.
 
+
+---
+
+## C-94 · Auditoria numerica del Capitulo 2
+
+**2026-09-04 · tipo: `verificacion` · sin desfases**
+
+El pidio verificar cada cifra del capitulo. Son 71 lineas con afirmacion
+numerica; 21 son comprobables contra una fuente y **las 21 verifican**.
+
+| Bloque | Comprobado |
+|---|---|
+| Censo | 20 medidores, 7 inversores, 27 fuentes |
+| Magnitudes | 54 por medidor, 18 por inversor, 72 en total |
+| Uso en el modelo | 9 medidores de frontera, 11 auxiliares, 5 inversores de generacion, 2 auxiliares, 16 empleadas, 14 esenciales |
+| Fechas | Medidor 4 de Udenar el 29 de abril, Inversor MTE el 3 de septiembre, inversor del HUDN el 4 de abril a las 05:58 |
+| Cobertura | 88,7 % y 39,3 % sobre el horizonte; 98,7 % y 97,7 % descontadas las previas; el conjunto entre 96,7 % y 98,8 %; 204 horas el peor, que es auxiliar; 126 el peor en uso; todas las usadas por encima del 97 %; horas que faltan de 31 a 204 |
+
+**Tres falsos positivos, todos mios.** Conte las carpetas de medidor con
+una comparacion literal y la de Cesmag lleva una errata de la plataforma
+(`eletricMeter`), de modo que perdi cuatro medidores y salieron 16 en vez
+de 20. Y medi la cobertura sobre el horizonte cuando el capitulo la mide
+sobre el periodo en servicio de cada equipo. **El documento tenia razon en
+las tres.** La leccion: contrastar contra el CSV hermano que la figura
+escribe, no contra un recalculo propio que puede repetir el error.
+
+**Hallazgo colateral.** La subseccion de la energia reactiva del Capitulo 2
+esta dentro de un bloque `guardado`, de modo que **no se imprime**. Sus
+cinco cifras (15,0 %, 65,7 %, 1.865.016 COP, 1.210.145 COP y 6,8 %) estan
+guardadas, no publicadas. La medicion completa vive en el Anexo A6, que si
+se imprime y queda pendiente de auditar.
+
+
+---
+
+## C-95 · Pasada sobre el Capitulo 3 desde la reconstruccion hasta el cierre
+
+**2026-09-04 · tipo: `estructura` + `contenido` · aplicada**
+
+El pidio continuar la revision desde la linea 645 con todos los criterios
+acumulados. Nueve arreglos.
+
+**El grave: una cuenta rota.** «Las decisiones que sesgan en contra»
+anunciaba una lista de elecciones, ponia **cuatro**, y despues un parrafo
+suelto decia «hay una **sexta** que el capitulo no habia declarado». El
+cierre, en cambio, afirmaba «cinco de las seis recortan el resultado». El
+lector contaba cuatro y le hablaban de una sexta. La quinta —la generacion
+que se pone a cero antes de la limpieza— baja a la lista, donde le
+tocaba, y el arranque dice la cuenta: cinco apuntan a recortar, tres del
+pipeline y dos del modelo, y la sexta apunta al reves.
+
+**Enumeraciones que eran prosa.** Los tres criterios de relleno del
+proyecto se soltaban en un parrafo corrido dentro de una caja de trampa.
+Pasan a lista de tres, y la valoracion queda aparte: de las dos
+diferencias solo una se sostiene.
+
+**Repeticion con la tabla nueva.** «Lo que cuesta reconstruir» volvia a
+dar el reparto por institucion que la Tabla~
+ef{tab:prep-reconstruccion}
+ya muestra. Se queda con lo que la tabla no dice: el mecanismo, la
+magnitud y el signo.
+
+**El texto hablando de si mismo, cuatro veces.** «Se declara aqui antes de
+que el lector lo advierta», «es la mas corta de las seis y la que mas
+facilmente pasa inadvertida», «la subseccion anterior ya usa esa
+alineacion», y el arranque «un capitulo que describe seis etapas debe
+responder a una objecion». Retiradas.
+
+**Parentesis de glosa**, que no son la forma del autor: dos en el cierre
+de la honestidad metodologica, pasadas a coma y a dos puntos.
+
+**Un intento retirado.** Se quitaron un «conviene» del mapa del canal y un
+«es importante definirla ahora» de la excepcion de Mariana, los dos en la
+zona que el daba por depurada. **El aviso de que algunos estan puestos a
+proposito porque funcionan donde estan, y se restauraron.** La regla vale
+para el texto nuevo, no para revisar hacia atras lo que el ya dio por
+bueno.
+
+**Estado**: 24,2 palabras por oracion frente a 24,6 del perfil, 69,7 por
+parrafo frente a 74, ninguna raya larga; compila en 87 paginas sin
+desbordes; auditoria numerica en cero desfases.
+
+---
+
+## C-97 · La nota de la figura se aparta, y el medidor de estilo deja de medir lo apartado
+
+**2026-09-04 · tipo: `contenido` + `herramienta` · aplicada**
+
+El aviso: la nota de la figura de la reconstruccion es demasiado para algo
+que la figura rediseñada ya dice, y ademas parte de su contenido ya estaba
+puesto.
+
+**Lo que se aparta.** La forma del perfil se lee en la curva azul y el
+desglose en energia esta en la franja inferior de la figura. Las dos frases
+bajan a un bloque `guardado`, de modo que el texto sigue en el fichero y
+fuera del PDF.
+
+**Lo que sobrevive.** Una sola frase, la del argumento, que no es
+descripcion sino razonamiento y no se lee sola en el dibujo: la lectura se
+hunde exactamente cuando la banda se ensancha, y ninguna averia de sensor
+produciria eso. Sube al parrafo que presenta la figura, que es su sitio.
+
+**La caja de las dos capas se queda, corregida.** Es el unico lugar del
+documento donde se dice que la generacion que el modelo negocia y la que
+se devuelve al medidor son conjuntos distintos, que es precisamente la
+confusion de la que salio CAL-44. Estaba ademas incompleta: no decia cual
+es el inversor designado de Udenar, que desde CAL-44 es el del proyecto.
+
+**Hallazgo en la herramienta.** `medir_estilo.py` **no excluia los bloques
+`guardado` ni `descartado`**, de modo que el perfil de estilo se calculaba
+sobre texto que el lector no ve. Corregido. El efecto no era menor: se
+median 1.114 palabras de mas, el 9 % del total, y el Capitulo 2 pasa de
+2.799 a 2.081 palabras publicadas, es decir, mas de una cuarta parte estaba
+apartada.
+
+**Estilo real, ya sin lo apartado**: 24,1 palabras por oracion frente a
+24,6 del perfil, 67,5 por parrafo frente a 74, ninguna raya larga.
+
+---
+
+## C-96 · La reconstrucción se dibuja como la operación, y cambia de día
+
+**2026-09-04 · tipo: `figura` · aplicada, con el pie pendiente de aplicar**
+
+La figura de la reconstrucción dibujaba tres series pero no la operación
+que las une. La generación iba en beige desde el eje cero, como una serie
+independiente, y para comprobar que la lectura más la generación
+daban la demanda reconstruida había que sumar de cabeza, hora por hora.
+
+**La generación pasa a ser la banda entre las dos curvas.** Se dibuja
+entre la lectura del medidor y la demanda reconstruida, no desde cero, de
+modo que la curva azul es literalmente la roja levantada por la banda y la
+igualdad se lee sin aritmética. Una cota vertical mide la banda en la hora
+de lectura más baja y dice cuánto mide, 35,1 kW.
+
+**El día cambia: del 16 de julio al viernes 7 de noviembre de 2025.** Él
+lo detectó solo, «se ve muy poca demanda al mediodía, es raro», y tenía
+razón. El 16 de julio cae **antes del 3 de septiembre**, cuando el
+inversor del proyecto todavía no registraba: la suma iba incompleta, la
+reconstrucción se quedaba corta y ese día la demanda reconstruida bajaba a
+0,0 kW a las 13 y a 1,3 kW a las 15, con la hora de las 13 recortada a
+cero. La figura ilustraba el método con un día en que el método falla a la
+vista, y el lector concluía que la reconstrucción está rota. El 7 de
+noviembre pertenece al tramo con los tres inversores registrando, no tiene
+ninguna hora recortada y el medidor pasa 10 horas bajo cero, con lo que
+el fenómeno se ve mejor y la demanda reconstruida da un perfil de campus
+creíble: base nocturna de 5,2 kW, ascenso hasta 20,1 a las 11, valle de
+almuerzo de 11,8 a las 12 y tarde estable en torno a 10 u 11 kW.
+
+**El día se fija en el generador y no se busca por código.** Dos asertos
+lo comprueban antes de dibujar, que sea posterior al 3 de septiembre y que
+ninguna de sus horas llegue al recorte; si dejaran de cumplirse, la
+corrida se detiene en vez de publicar una figura que afirma una igualdad
+que no se cumple. Hay 70 días hábiles que cumplen las dos condiciones.
+
+**Los dos paneles comparten escala vertical.** Antes tenían escalas
+distintas y no se comparaban. El panel del promedio queda con la mitad
+superior vacía, que es el precio de poder comparar, y a cambio se ve que
+el día escogido repite la forma del promedio con mayor amplitud.
+
+**La caja de estadísticas se retira y en su lugar entra la cuenta en
+energía.** Aquella caja citaba hechos de todo el horizonte, 1.517 horas
+bajo cero y un mínimo de -33,6 kW, sobre un panel que muestra un perfil
+medio, y la correspondencia no era evidente. Las dos cifras siguen
+publicadas en la tabla de la subsección de la demanda negativa, y no
+se pierde nada. La franja nueva cierra la igualdad sobre las 6.144
+horas: 10.606 kWh de lectura del medidor más 32.691 kWh de generación
+devuelta más 1.013 kWh de recorte a cero dan los 44.311 kWh de demanda
+reconstruida.
+
+**Un hallazgo de la franja.** La nota al pie de la figura dice que la
+reconstrucción devuelve 33.705 kWh, y es cierto, pero **esa cifra no es
+generación**: son los 32.691 kWh que entregaron los tres inversores más
+los 1.013 kWh que añade el recorte a cero. La franja lo separa; la nota
+conviene que lo diga.
+
+**Anotaciones retiradas del área de dibujo.** La llamada de cuatro líneas
+«el medidor reporta menos energía de la que el edificio gastó» invadía el
+panel y su contenido es cosa del pie. El panel izquierdo llegaba a -20 en
+el eje con un dato que no baja de -14; ahora el margen se calcula del
+dato.
+
+**Cifras nuevas que la figura publica**, todas regenerables desde
+`datos_cache/preproceso_m1.npz` y volcadas al `.csv` hermano: 35,1 kW,
+10.606 kWh, 32.691 kWh y 44.311 kWh. El recorte de 1.013 kWh ya estaba en
+la tabla de la reconstrucción.
+
+**Pendiente**: aplicar el pie nuevo y revisar la nota al pie, que sigue
+diciendo «el área beige alcanza su máximo» cuando la generación ya no se
+dibuja desde cero.
+
+
+
+### Pie y nota aplicados (coordinador, 2026-09-04)
+
+Verificadas contra la cache las cinco cifras que la figura publica, y
+cierran: 10.605,83 + 32.691,41 + 1.013,30 = 44.310,54. La altura de la
+banda a las 12 del 7 de noviembre es 35,07 kW y ese dia no tiene ninguna
+hora recortada.
+
+**El dia lo detecto el autor mirando la figura**: «se ve muy poca demanda
+al mediodia, es raro». Tenia razon, y el fallo no era del dibujo. El dia
+anterior (2025-07-16) caia en el tramo sin el inversor del proyecto, donde
+la suma va incompleta: la demanda reconstruida daba 0,00 kW a las 13 y
+1,25 kW a las 15. **La figura ilustraba el metodo con un dia en que el
+metodo falla**, y el lector concluia que la reconstruccion estaba rota.
+
+El pie nuevo dice de donde sale el dia, que es lo que evita esa lectura.
+
+**Correccion de la nota.** Decia que la reconstruccion «devuelve 33.705
+kWh a la serie de demanda». Es cierto que la levanta en esa cantidad, pero
+no todo es generacion: son 32.691 kWh de generacion devuelta mas 1.013 que
+proceden del recorte a cero. La franja inferior de la figura los separa y
+la nota ahora tambien. Y «el area beige alcanza su maximo» dejo de
+describir el dibujo, porque la generacion ya no se traza desde cero.
+
 ---
 
 ## Pendientes

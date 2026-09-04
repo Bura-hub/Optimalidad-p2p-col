@@ -221,6 +221,10 @@ promediarlas, quedarse con la primera o quedarse con la última dan
 exactamente el mismo número. Se toma el promedio porque el instante ha de ser único para poder alinear los tramos
 de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
 
+La regla vale igual dentro de un archivo y entre archivos. Los tramos de un
+mismo medidor comparten un instante en su costura, una vez por institución
+y por frontera, y también ahí la lectura repetida se funde en una sola.
+
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_01d_duplicados.png}
@@ -601,16 +605,34 @@ reconstruye como
 
 donde la suma recorre \emph{todos} los inversores físicos que inyectan
 entre ese medidor y su carga, y el exponente $+$ significa que, si el
-resultado sale negativo, se toma cero. Ese recorte hace falta porque la
-devolución puede pasarse de largo, y la
-subsección~\ref{sub:prep-costo} mide cuánto y por qué. En Udenar la suma incluye tres inversores; en Mariana y la UCC,
-su único equipo; el HUDN y CESMAG no requieren reconstrucción y reciben
-solo un recorte defensivo a cero. Cuando la hora no trae lectura de medidor
-pero sí de inversor, la demanda de partida se toma como nula y el resultado
-queda igual a la generación devuelta; ocurre en \num{7} horas del horizonte,
-todas de Udenar, y suma \uni{34.1}{kWh}. La Figura~\ref{fig:prep-reconstruccion}
-confronta las tres series sobre un mismo eje y muestra el resultado de
-aplicar esa devolución.
+resultado sale negativo, se toma cero.
+
+La expresión no se aplica por igual a las cinco instituciones. En Udenar la
+suma recorre tres inversores, y en Mariana y la UCC, su único equipo. El
+HUDN y CESMAG entregan lectura bruta, de modo que no hay nada que
+devolverles y reciben solo el recorte a cero, que en ellos no llega a
+actuar ninguna vez porque sus lecturas nunca bajan de cero.
+
+En Udenar los tres equipos no cumplen el mismo papel. El inversor del
+proyecto entró en servicio el 3 de septiembre de 2025 y cubre \pct{22.9}
+del horizonte; los otros dos registran desde el primer día y son, por
+tanto, la única noticia que hay de la generación anterior a esa fecha. Que
+sumar los tres sea lo correcto lo dice el propio medidor: desde que el
+inversor del proyecto registra, devolverlos deja \emph{exactamente} cero
+horas negativas.
+
+El recorte, por tanto, no es una precaución teórica. Actúa en \num{353}
+horas de Udenar y en \num{6} de Mariana, y todas ellas caen antes del 3 de
+septiembre, es decir, en el tramo que el inversor del proyecto no alcanza.
+La subsección~\ref{sub:prep-costo} mide cuánto cuesta.
+
+Cuando la hora no trae lectura de medidor pero sí de inversor, la demanda
+de partida se toma como nula y el resultado queda igual a la generación
+devuelta. Ocurre en \num{7} horas del horizonte, todas de Udenar, y suma
+\uni{34.1}{kWh}.
+
+La Figura~\ref{fig:prep-reconstruccion} confronta las tres series sobre un
+mismo eje y muestra el resultado de aplicar esa devolución.
 
 \begin{figure}[H]
  \centering
@@ -649,16 +671,22 @@ Udenar el primero tiene un elemento y el segundo, tres.
 \label{sub:prep-costo}
 
 El recorte a cero de la ecuación~\eqref{eq:prep-reconstruccion} no es
-gratuito, y lo que cuesta se puede medir. En
-algunas horas solares la suma de inversores sobrestima la generación que
-el medidor realmente descontó (por diferencias de muestreo, por pérdidas,
-y porque las porciones de circuito no coinciden exactamente con el punto
-de medición), de modo que $D_{\text{neto}} + \sum G$ resulta negativo y el
-recorte lo lleva a cero, eliminando energía de la serie de demanda.
+gratuito, y lo que cuesta se puede medir. El recorte
+actúa cuando la suma de inversores se queda \emph{corta} frente a la
+generación que el medidor descontó, porque solo entonces
+$D_{\text{neto}} + \sum G$ sigue siendo negativo; si la suma sobrara, el
+resultado saldría más positivo, no menos. La causa está identificada y es
+de cobertura: las \num{353} horas caen todas antes del 3 de septiembre de
+\num{2025}, cuando el inversor del proyecto todavía no registraba, de modo
+que la suma devuelve al medidor menos de lo que este había restado y el
+recorte lleva a cero la diferencia, eliminando energía de la serie de
+demanda.
 
-El fenómeno afecta a \num{353} de las \num{6144} horas del horizonte
-(el \pct{5.7}), ocurre exclusivamente en la ventana solar, con
-máximo a las 13 horas, y elimina en total \uni{1013.3}{kWh}.
+El fenómeno afecta a \num{353} de las \num{6144} horas del horizonte de
+Udenar (el \pct{5.7}), ocurre exclusivamente en la ventana solar, con
+máximo a las 13 horas, y elimina en total \uni{1013.3}{kWh}. En Mariana el
+mismo recorte actúa en \num{6} horas y elimina \uni{0.6}{kWh}, y en la UCC
+no actúa ninguna vez, de modo que el asunto es de Udenar.
 Eso equivale al \pct{2.29} de la demanda de Udenar y al
 \pct{0.32} de la demanda comunitaria. La distorsión es, por
 tanto, acotada y de signo conocido: subestima levemente la demanda de
@@ -919,19 +947,20 @@ lo que hubo fue una avería de registro. Menos generación es menos
 excedente que ofrecer, de modo que la decisión empuja el mercado hacia
 abajo.
 
-Hay una que apunta al revés, y se nombra aquí en vez de
-esconderla. Al estimar la hora incompleta con la media de sus muestras
-presentes se le atribuye al tramo no observado el comportamiento del
-observado, lo que da entre \pct{0.26} y \pct{0.55} más energía que
-truncarlo. Afecta a \num{835} horas del horizonte, es decir, al \pct{2.8}
-de las horas con dato, en las que se observa de media el \pct{85.9} de la
-hora. No se elige por su signo: truncar queda desmentido por el contador del
+Hay una que apunta al revés. Al estimar la hora incompleta con la media de
+sus muestras presentes se le atribuye al tramo no observado el
+comportamiento del observado, lo que da entre \pct{0.26} y \pct{0.55} más
+energía que truncarlo. Afecta a \num{835} horas del horizonte, es decir, al
+\pct{2.8} de las horas con dato, en las que se observa de media el
+\pct{85.9} de la hora.
+
+No se elige por su signo: truncar queda desmentido por el contador del
 propio equipo y va en contra del criterio del regulador, según la
-subsección~\ref{sub:prep-incompleta}. Y el supuesto se comprobó aplicando la
-ventana observada de cada hora incompleta a horas completas comparables de
-la misma institución, la misma hora del día y el mismo mes: el sesgo
-resulta indistinguible de cero en las cinco, y suma el \pct{0.0007} de la
-demanda del horizonte.
+subsección~\ref{sub:prep-incompleta}. El supuesto se comprobó además
+aplicando la ventana observada de cada hora incompleta a horas completas
+comparables de la misma institución, la misma hora del día y el mismo mes:
+el sesgo resulta indistinguible de cero en las cinco, y suma el
+\pct{0.0007} de la demanda del horizonte.
 
 Cinco de las seis recortan el resultado y la restante lo amplía en una
 proporción tres órdenes de magnitud menor que el margen que separa a los

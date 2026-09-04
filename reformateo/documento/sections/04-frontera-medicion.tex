@@ -75,12 +75,12 @@ fronteras sobre el circuito de una institución.
  text width=3.9cm]
  {\textbf{M1} mide el circuito principal\\
  o de inyección: la generación\\
- equivale al 19,1 \% de su consumo};
+ equivale al 20,0 \% de su consumo};
  \node[et, text=warningcolor, right=0.5cm of circ, anchor=west,
  text width=3.9cm]
  {\textbf{M3} mide un circuito\\
  secundario: la generación\\
- equivale al 91,2 \% de su consumo};
+ equivale al 95,3 \% de su consumo};
  \end{tikzpicture}
  \caption[Las dos fronteras de medición]{Posición de las dos fronteras
  de medición en el circuito de una institución. El mismo inversor
@@ -126,18 +126,18 @@ agregado comunitario y en cada institución.
  \label{fig:frontera-cobertura}
 \end{figure}
 
-\notafig{La demanda comunitaria medida es de \uni{318046}{kWh} bajo M1
+\notafig{La demanda comunitaria medida es de \uni{318045}{kWh} bajo M1
 y de \uni{66734}{kWh} bajo M3, mientras que la generación es de
-\uni{60860}{kWh} en ambos casos, es decir, exactamente la misma cifra. De
-ahí las dos razones, \pct{19.1} y \pct{91.2}, que no reflejan dos
+\uni{63574}{kWh} en ambos casos, es decir, exactamente la misma cifra. De
+ahí las dos razones, \pct{20.0} y \pct{95.3}, que no reflejan dos
 instalaciones distintas sino dos maneras de delimitar la carga.
 Elaboración propia desde el caché de estados intermedios.}
 
 \begin{lecturabox}
 M3 no «tiene más generación», aunque lo parezca: tiene la misma. Lo que M3 hace es comparar esa generación contra
 una carga cinco veces menor, porque solo mira un circuito secundario de
-cada institución. Una generación que equivale al \pct{19} del consumo del
-circuito principal puede equivaler al \pct{91} del consumo de un circuito
+cada institución. Una generación que equivale al \pct{20} del consumo del
+circuito principal puede equivaler al \pct{95} del consumo de un circuito
 menor sin que se haya instalado un solo panel adicional.
 \end{lecturabox}
 
@@ -234,11 +234,13 @@ escalones sucesivos.
 \end{figure}
 
 \notafig{El recorrido es el mismo en las dos fronteras hasta el
-segundo escalón, porque hay generación en \num{3353} horas y esa cifra no
+segundo escalón, porque hay generación en \num{3354} horas y esa cifra no
 depende de la frontera. La separación empieza en el tercero: bajo M1
-quedan \num{1047} horas con excedente y se transa en \num{1029}; bajo M3,
-\num{2512} y \num{1752}. Elaboración propia desde el caché del
-preprocesamiento y los archivos de flujos.}
+quedan \num{1131} horas con excedente y se transa en \num{1029}; bajo M3,
+\num{2567} y \num{1752}. El último escalón procede de la corrida
+canónica, anterior a las correcciones de este capítulo, de modo que
+crecerá con ella. Elaboración propia desde el caché del preprocesamiento y
+los archivos de flujos.}
 
 \begin{lecturabox}
 Que el mercado opere en el \pct{16.7} de las horas bajo M1 y en el
@@ -278,7 +280,7 @@ la que el mercado entre pares obtiene su mejor resultado relativo, y una
 presentación que se quedara solo con M1 mostraría un trabajo más
 concluyente. M3 es la frontera en la que la generación pesa más sobre
 la carga medida, con una razón entre generación y demanda del
-\pct{91.2}; y es también la frontera en la que, como se verá, el
+\pct{95.3}; y es también la frontera en la que, como se verá, el
 mecanismo colectivo supera el mercado entre pares. Presentar solo una
 de las dos sería, en el primer caso, seleccionar el resultado favorable, y
 en el segundo, ocultar el caso en que el mecanismo propuesto funciona

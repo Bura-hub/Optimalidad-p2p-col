@@ -333,8 +333,10 @@ qué se reportan siempre los dos.
 No todas las fuentes instrumentadas se usan. De los 20 medidores, el
 modelo lee un equipo por institución en cada frontera, de modo que 9
 participan y 11 quedan como auxiliares. De los 7 inversores, 5
-definen la generación que ve el modelo y los otros 2 intervienen solo en
-la reconstrucción de la demanda de Udenar. La razón de no sumar todo lo
+definen la generación que ve el modelo, uno por institución, y los otros 2
+son de Udenar: intervienen en la reconstrucción de su demanda, y uno de
+ellos sirve además de referencia para extender hacia atrás la serie del
+inversor del proyecto, que no entró en servicio hasta septiembre. La razón de no sumar todo lo
 disponible se explica en el Capítulo~\ref{sec:prep}: los equipos miden
 puntos distintos del circuito, y sumarlos mezclaría totalizadores con
 ramales.
@@ -388,17 +390,24 @@ cinco participantes no puede simularse mientras falte uno, de modo que la
 primera fecha utilizable es aquella en que empieza a registrar la última de
 las fuentes esenciales. Son esenciales 14 de las 27 fuentes instrumentadas:
 el medidor de cada frontera en cada institución, nueve en total, porque el
-de Mariana sirve a las dos, y el inversor que define la generación de cada
-una. En la Figura~\ref{fig:dato-gantt} son las barras en color, y el anillo
-señala la última en registrar.
+de Mariana sirve a las dos, y la fuente que provee la generación de cada
+una desde el primer día.
+
+En cuatro instituciones esa fuente es su único inversor. En Udenar es el
+inversor de referencia con el que se extiende la serie del inversor del
+proyecto, que no registra hasta septiembre. En la
+Figura~\ref{fig:dato-gantt} las esenciales son las barras en color, y el
+anillo señala la última en registrar.
 
 Esa última es el inversor del HUDN, que empieza a registrar el 4 de abril
 de 2025 a las 05:58. Que sea un inversor y no un medidor no es un detalle
 menor: dentro del HUDN los dos medidores empiezan la víspera, de modo que
 lo que faltaba para completar la comunidad era la generación. Quedan fuera
-de la cuenta los dos inversores que Udenar aporta solo a la reconstrucción
-de su demanda, porque uno de ellos empieza a registrar en septiembre y
-contarlo señalaría como causa del arranque a un equipo que no lo causa.
+de la cuenta los otros dos equipos de Udenar: el inversor del proyecto,
+cuya serie se reconstruye hacia atrás y por tanto no condiciona el
+arranque, y el segundo Fronius, que solo interviene en la reconstrucción
+de la demanda. Contar el primero señalaría como causa del arranque a un
+equipo que empieza en septiembre y que no lo causa.
 
 De ahí esa fecha como primer día del horizonte, el primero en que las cinco
 instituciones tienen registro en sus medidores y en su inversor. Se cierra

@@ -3223,10 +3223,190 @@ actúan, porque Colombia no lo aplica.
 
 ---
 
+## C-84 · La curva de duración se retira; la gradación pasa a la profundidad de la lectura
+
+**2026-09-03 · tipo: `figura` · aplicada · medida sobre el render anterior**
+
+Él dijo de la figura de la gradación que «no se entiende nada». El defecto
+tenía tres causas y las tres están medidas sobre el PNG que había.
+
+**1. El eje horizontal no era una magnitud sino un orden.** Dibujaba las
+lecturas de cada medidor ordenadas de la mayor a la menor y ponía debajo el
+percentil de horas, es decir, la posición dentro de esa ordenación. El
+lector llega a esa página desde la figura de la demanda negativa, cuyo eje
+horizontal es la hora del día, y nada anunciaba el cambio de marco. Las dos
+figuras se parecen en forma, curvas de kilovatios sobre un eje que corre de
+izquierda a derecha, y significan cosas distintas.
+
+**2. La codificación no podía dibujar lo que la figura afirmaba.** Medido
+sobre el render: el 80 % de las lecturas de las cinco instituciones, de
+2,73 a 15,08 kW, cabía en 0,22 pulgadas del panel izquierdo, que son 15
+puntos tipográficos de sus 1,85 pulgadas de alto, es decir el 12 % del
+panel, y ahí se repartían cinco curvas de 1,6 puntos de grosor. El
+recorrido entero del HUDN entre sus percentiles 5 y 95 medía 0,06
+pulgadas, cuatro puntos. En el panel ampliado, los cruces del cero de
+Mariana y de la UCC quedaban a 1,97 puntos porcentuales, que son 9,6
+puntos tipográficos, con un marcador de 4,5: los dos casos intermedios,
+que son justamente los que la subsección llama neto parcial, no se podían
+separar. Es el defecto que C-65 nombró con cinco series apiladas en una
+banda estrecha y que C-76 midió con las barras de cobertura, reaparecido.
+
+**3. Un borde del marco se leía como dato.** El panel ampliado llegaba
+hasta 113 con los datos acabados en 100, de modo que el 30 % de su ancho
+era sitio para rótulos, y la banda de la zona imposible estaba recortada
+justo en 100. Esa arista vertical caía encima de la caída final de la UCC y
+de CESMAG, y no había manera de saber cuál de las dos verticales era la
+lectura.
+
+**Se consideró retirarla, que es lo que hizo C-75 con la figura del
+horizonte, y no procede.** La tabla de los tipos publica el conteo de horas
+bajo cero y el mínimo, y el mínimo es un extremo. No dice a qué profundidad
+se invierte el flujo de ordinario, y la diferencia es grande: la mitad
+central de las lecturas negativas de Udenar cae entre −15,1 y −3,9 kW, con
+mediana de −8,7 kW, mientras que el mínimo publicado, −33,6 kW, es 3,9
+veces esa mediana. En Mariana la mediana de las negativas es −0,59 kW y en
+la UCC −1,94 kW. Eso no está en ninguna otra parte del documento.
+
+**Lo aplicado.** Un solo panel, una fila por institución en el orden fijo,
+y una sola magnitud en el eje horizontal, los kilovatios, que es la misma
+del eje vertical de las dos figuras vecinas: el marco no cambia, solo gira.
+Cada fila lleva tres marcas, la lectura mediana del medidor, el recorrido
+desde esa mediana hasta su lectura más baja, y la mitad central de sus
+lecturas negativas cuando las tiene. La comparación entre las dos
+longitudes de un mismo renglón, lo que el medidor marca de ordinario frente
+a hasta dónde desciende, es la gradación. El tipo que la subsección asigna
+a cada medidor va en una segunda columna de rótulos a la derecha, fuera del
+área de dato, para que quede al lado de la geometría que lo justifica.
+
+**La identidad de cada fila la llevan su rótulo y su posición, no el
+color.** Comprobado convirtiendo el PNG a escala de grises: no se pierde
+ninguna distinción.
+
+**Lo que la figura no dice, y por qué.** Los conteos de horas. Los da la
+tabla, y C-65 los retiró de la figura vecina por ese mismo motivo. El pie
+remite a ella, porque una profundidad sin su frecuencia se lee mal.
+
+**Dos rótulos rechazados en el propio render.** El que daba la mediana de
+las lecturas negativas de Udenar dentro del panel: la prueba de oclusión lo
+cazó tapando su caja, y arriba de la primera fila no cabe una línea de
+texto. Va al pie y al CSV hermano, que es donde C-73 dejó dicho que van los
+valores exactos. Y el que decía «roza el cero» sobre la fila de CESMAG:
+quedaba en el mismo renglón que la columna de tipos y las dos cosas se
+leían como una sola línea. La marca del mínimo puesta sobre la línea del
+cero lo dice sin palabras.
+
+**Dos defectos del código que se retira.** Una comprobación anulada,
+`assert ... or True`, que no comprobaba nada desde que se escribió. Y el
+CSV hermano, que pesaba 885 kB con las cinco curvas enteras, unas 30.000
+filas; el nuevo tiene cinco filas, una por institución.
+
+**Un fallo mío al implementar, anotado porque es de la misma familia que el
+de C-75.** La prueba de oclusión tomaba la caja en pantalla de cada artista
+con `get_window_extent`, y la de una colección de líneas no es fiable:
+devolvía una caja que no correspondía a la marca, de modo que la prueba
+fallaba sobre un objeto equivocado. Ahora las marcas se registran en
+coordenadas de dato y se llevan a pantalla con la transformación del eje.
+
+**Queda por aplicar en la fuente del capítulo**, que no se toca aquí: el
+nombre de archivo pasa de `f3_02b_gradacion_m1` a `f3_02b_profundidad_m1`,
+y el pie, la nota y la frase que presenta la figura cambian con él. Ver
+P-24.
+
+---
+
+## C-85 · La tabla de los tipos deja de comparar peras con manzanas
+
+**2026-09-03 · tipo: `dato` · aplicada · él planteó la objeción**
+
+Él señaló que la razón del \pct{73.8} suma **tres inversores para Udenar y
+uno para las demás**, dentro de una columna cuyo propósito es comparar
+instituciones, y que la columna de inversores induce a leer que Udenar
+aporta tres al modelo. Lo segundo es falso: el modelo usa uno por
+institución, y los tres son los que inyectan entre ese medidor y su carga.
+
+**Cambiar la razón a un inversor por entidad no era la salida, y está
+medido.** Con ese criterio el HUDN sale al \pct{23.6} y CESMAG al
+\pct{25.1}, **por encima de Mariana y de la UCC, y ninguno de los dos tiene
+una sola hora negativa**. La columna dejaría de explicar nada, porque sus
+inversores existen pero inyectan fuera del tramo que ese medidor vigila.
+
+**La salida es que la tabla no lleve razón ninguna.** Todo lo que necesita
+se lee directamente sobre la serie que el medidor entrega, sin reconstruir
+nada: horas bajo cero, la fracción que representan sobre sus horas con
+dato, la lectura mínima y la energía que salió del circuito hacia la red.
+
+| | Horas bajo cero | Sobre sus horas | Lectura mínima | Energía hacia la red |
+|---|---:|---:|---:|---:|
+| Udenar | 1.517 | 25,1 % | −33,57 kW | **15.348 kWh** |
+| Mariana | 213 | 3,5 % | −2,41 kW | 156 kWh |
+| UCC | 94 | 1,6 % | −5,91 kW | 200 kWh |
+| HUDN | 0 | 0 % | +6,12 kW | 0 |
+| CESMAG | 0 | 0 % | +0,20 kW | 0 |
+
+La última columna zanja el asunto sin cocientes: **un factor de cien entre
+Udenar y las otras dos**. Y el mínimo del HUDN y de CESMAG entra en la
+tabla en vez de una raya, de modo que el **+0,20 kW de CESMAG dice por sí
+solo que su circuito roza el cero sin cruzarlo**, que era lo que la figura
+de la gradación intentaba enseñar.
+
+La explicación deja de ser una cantidad y pasa a ser la posición: si la
+generación entra entre el medidor y la carga, el medidor no la ve llegar;
+si entra del lado de la red, la ve pasar. Eso lo dibuja la figura de los dos
+casos y no necesita ningún número.
+
+**Se retira el párrafo de los tres inversores**, que defendía contra una
+lectura que la columna retirada inducía y cuyos hechos están dichos en la
+subsección de la reconstrucción y en el Capítulo~2.
+
+---
+
+## C-86 · Tres pasos del cargador que el capítulo no contaba
+
+**2026-09-03 · tipo: `contenido` · dos aplicados, uno pendiente de decisión**
+
+Él pidió comprobar que el documento describa a detalle el proceso que el
+código ejecuta. Se recorrió el camino entero, de la fila del CSV a la
+matriz que el modelo recibe. **El capítulo lo describe bien salvo en tres
+puntos, y los tres son del lado del documento: ninguno exige tocar el
+código canónico.**
+
+**1. La generación que falta se pone a cero antes de la limpieza.** El
+cargador aplica `fillna(0)` sobre la generación antes de llamar a la etapa
+de limpieza, de modo que **los pasos de interpolación y de arrastre no
+llegan a actuar nunca sobre ella**, aunque el capítulo describa la cascada
+como si se aplicara igual a la demanda y a la generación. Medido: de las
+horas vacías de generación, unas \num{12700} son de noche y ponerlas a cero
+es correcto, pero **\num{285} son de sol**, y ahí lo que hubo fue una avería
+de registro y la serie dice que no se generó nada. Como recorta generación,
+recorta mercado: entra como **sexta decisión que sesga en contra**, y el
+recuento de esa subsección pasa de cinco a seis.
+
+**2. La demanda que falta se pone a cero antes de devolverle la
+generación.** Una hora sin lectura de medidor pero con lectura de inversor
+sale con demanda igual a la generación devuelta. Ocurre en **7 horas del
+horizonte, todas de Udenar, y suma \uni{34.1}{kWh}**. Inmaterial, pero es
+un valor construido y ahora se declara en la subsección de la
+reconstrucción.
+
+**3. El solape entre archivos se suma, y sigue sin declararse.** Es P-17,
+registrado desde hace tiempo: cuando dos tramos del mismo medidor comparten
+un instante, el cargador los suma en vez de fundirlos. Son 5 instantes por
+frontera y contradice la frase que abre la etapa 1, «no interviene sobre el
+valor medido». **Queda pendiente de su decisión**: declararlo en el
+capítulo o corregir el cargador.
+
+**De paso.** El exponente $+$ de la ecuación de la reconstrucción estaba
+definido, pero como símbolo y sin decir para qué hace falta. Ahora se nombra
+en palabras y remite a la subsección que mide el exceso que obliga a
+recortar.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
 |---|---|---|
+| P-24 | ~~La figura de la gradación cambió de forma y de nombre por C-84.~~ **CERRADA el mismo día**: aplicados el archivo, el pie, la nota y la frase de presentación. | cerrada |
 | P-14 | ~~Capítulo 3: el texto y la figura presentaban la conversión de unidades antes de la agregación horaria, y el código promedia primero.~~ **CERRADA por C-57**: las tres etapas se funden en una y el orden se enuncia como se ejecuta. | cerrada |
 | P-15 | La bifurcación entre coberturas no es solo la etapa 1. | **cerrada 2026-08-23** por C-50: reescrito el párrafo y la anotación de la figura, con la excepción de Mariana declarada |
 | P-22 | No pude reproducir la prueba de los 718 cortes de telemetría. Con la definición registrada en H-18, rachas maximales de ranuras sin muestra en los tres medidores con contador fiable, obtengo 800 cortes y 3.201 kWh frente a los 718 y 809 publicados. Los recuentos de rachas se parecen, de modo que la definición es esa y lo que difiere es el filtrado. La prueba se verificó de forma independiente en su día y la cifra sigue publicada; **pero no es regenerable hoy desde el repositorio**, y por eso la figura nueva usa la evidencia equivalente sobre horas incompletas, que sí lo es. | pendiente |

@@ -1041,3 +1041,96 @@ la decisión que el capítulo ya sostiene.
 
 **No urge.** P-21 sigue esperando a la próxima corrida canónica, y esto
 solo cambia la línea que habrá que escribir cuando llegue.
+
+
+---
+
+## H-23 · La generación que el modelo negocia para Udenar es un Fronius, no el inversor del proyecto
+
+**2026-09-03 · CERRADO el mismo día por C-90 (CAL-44) · pendiente solo de la corrida**
+
+`EMS_INVERTER_CONFIG` designa para Udenar `Fronius Inverter 1`. Es decir, la
+serie $G$ que el modelo compra y vende para Udenar sobre las 6.144 horas
+(13,2 MWh) es la de un Fronius, no la del inversor del MTE (6,5 MWh en sus
+1.409 horas). Él ha dicho que los Fronius **no deben usarse para ningún
+cálculo**, solo como referencia para reconstruir el del MTE.
+
+**Dos huecos, no uno.**
+
+1. El inversor que el modelo negocia es el equivocado según ese criterio.
+2. **La reconstrucción del inversor del MTE a partir de los Fronius no
+   existe en el código.** No hay tal función; el pipeline solo suma
+   (`_sum_inverter_reconstruction`) y designa (`EMS_INVERTER_CONFIG`).
+   Cubrir el 77,1 % del horizonte que le falta exige escribirla.
+
+**Alcance.** Cambiar $G$ de Udenar mueve toda la cifra publicada: Udenar es
+el mayor vendedor en M1. Invalida el canon y exige corrida nueva. No se
+toca nada hasta que él decida.
+
+**Lo que arrastra el documento.** Dos pasajes describen fielmente el código
+y quedarían al revés si se cambia la designación:
+
+- Capítulo 2, el censo de fuentes: «de los 7 inversores, 5 definen la
+  generación que ve el modelo y los otros 2 intervienen solo en la
+  reconstrucción de la demanda de Udenar».
+- Capítulo 2, el arranque del horizonte: «quedan fuera de la cuenta los dos
+  inversores que Udenar aporta solo a la reconstrucción de su demanda,
+  porque uno de ellos empieza a registrar en septiembre». Ese es justamente
+  el del proyecto.
+
+Ninguno se toca todavía: hoy dicen la verdad sobre el código. Si él decide
+el cambio, ambos se reescriben y el arranque del horizonte hay que
+recalcularlo, porque el inversor del proyecto pasaría a ser fuente esencial
+y su primera fecha es el 3 de septiembre, no el 4 de abril.
+
+### Ampliación 2026-09-03 · auditoría completa del pipeline, punta a punta
+
+Él describió lo que creía que hacía el código: inversor del MTE donde
+está disponible, y antes de esa fecha un Fronius de curva parecida que lo
+extienda hacia atrás; nunca los tres a la vez. **No es lo que hace.** Se
+recorrió `build_demand_generation` entero y `xm_data_loader`, que es
+pasarela pura sin escalamiento.
+
+**Lo que hace hoy, en dos lugares distintos:**
+
+1. **La generación que el modelo negocia.** `G = _clean(G_ems)`, y `G_ems`
+   es un solo inversor: para Udenar, el Fronius 1, sobre las 6.144 horas,
+   13,2 MWh. El inversor del proyecto **no entra en ningún cálculo**.
+2. **La reconstrucción de la demanda.** `_sum_inverter_reconstruction` suma
+   los tres en todo instante, rellenando con cero fuera de la ventana de
+   cada uno. Desde el 3 de septiembre suma 3,82 + 3,78 + 4,60 = 12,2 kW de
+   media donde él quiere 4,60.
+
+**El empalme que él describe no existe en ninguna parte del repositorio.**
+
+**La reconstrucción que pide está bien fundada.** En las 1.409 horas de
+solape, el inversor del proyecto correlaciona r = 0,997 con cualquiera de
+los dos Fronius, con perfil diario de idéntica forma y razón de energía
+1,205 frente al Fronius 1. Reconstruido así, el inversor del proyecto da
+15,9 MWh sobre el horizonte completo, frente a los 13,2 MWh que el modelo
+usa hoy.
+
+**Pero son dos preguntas distintas y solo una tiene esa respuesta.**
+
+| | h con demanda < 0 | kWh recortados | Demanda bruta de Udenar |
+|---|---:|---:|---:|
+| Los tres a la vez (hoy) | 353 | 1.013,3 | 44,3 MWh |
+| Un solo inversor reconstruido | **957** | **5.517,6** | **32,1 MWh** |
+
+Deshacer el neteo exige devolver **lo que el medidor restó**, sea de quien
+sea el panel. Con un solo inversor quedan 957 horas en que el medidor
+exportó más de lo que ese inversor generó, lo que no es posible si no hay
+más generación detrás. La demanda bruta de Udenar cambiaría un 27,5 %.
+
+**Conclusión operativa.** El punto 1 es suyo sin discusión: la generación
+negociada debe ser el inversor del proyecto reconstruido, no un Fronius. El
+punto 2 es una pregunta física sobre qué hay detrás del Medidor 1 (circuito
+principal, subestación), y el dato dice que hay más de un inversor. Pendiente
+de su palabra antes de tocar nada.
+
+
+**CIERRE.** Él decidió el 2026-09-03: inversor del proyecto donde registra,
+Fronius escalado antes, un solo inversor en todo instante. Aplicado en
+`data/preprocessing.py` como CAL-44 y verificado end to end. La
+reconstrucción de la demanda se mantiene con los tres, por lo medido arriba.
+Queda pendiente únicamente la corrida canónica, que va con P-17, P-21 y H-20.

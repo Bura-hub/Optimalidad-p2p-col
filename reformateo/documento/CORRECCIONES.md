@@ -3400,6 +3400,394 @@ definido, pero como símbolo y sin decir para qué hace falta. Ahora se nombra
 en palabras y remite a la subsección que mide el exceso que obliga a
 recortar.
 
+
+---
+
+## C-87 · Los tramos solapados se funden, no se suman
+
+**2026-09-03 · tipo: `código` · aplicada**
+
+Cierra P-17. En `data/preprocessing.py` la composición de los tramos de un
+mismo medidor pasa de `pd.concat(parts, axis=1).sum(axis=1, min_count=1)` a
+`.mean(axis=1)`.
+
+**Por qué es un fallo y no una decisión de método.** Dentro de un archivo
+los duplicados ya se fundían promediando. No hay razón para tratar distinto
+el solape entre dos archivos del mismo medidor: en los dos casos es el
+mismo instante leído dos veces, no dos lecturas que sumar.
+
+**Comprobado equivalente en todo lo demás.** Para un instante presente en un
+solo tramo la suma y la media dan idéntico valor, y una fila entera vacía
+sigue dando `NaN` con las dos. Solo difieren en la costura, que es el caso
+que estaba mal.
+
+**Efecto medido.** La demanda comunitaria pasa de 254.949,9 a 254.948,7 kWh:
+1,2 kWh, el 0,0005 %. **Ninguna cifra publicada cambia**, porque las dos
+redondean a 254.949.
+
+**Estado del canon.** El código queda por delante del canon hasta la próxima
+corrida. La caché de preproceso NO se regeneró a propósito, para que el
+canon vigente siga siendo reproducible mientras tanto.
+
+---
+
+## C-88 · Los tres inversores de Udenar, justificados por el dato
+
+**2026-09-03 · tipo: `contenido` · aplicada**
+
+Él preguntó dos cosas sobre la ecuación de reconstrucción: si el recorte a
+cero del exponente `+` llega a actuar alguna vez, y por qué en Udenar la
+suma incluye tres inversores, que el capítulo afirmaba sin justificar.
+
+**El recorte actúa.** Medido con el cargador ya corregido: 353 horas y
+1.013,3 kWh en Udenar, 6 horas y 0,6 kWh en Mariana, ninguna en la UCC. En
+el HUDN y CESMAG, que son brutos, el recorte defensivo no actúa nunca
+porque sus lecturas no bajan de cero. El capítulo publicaba las 353 horas
+tres subsecciones más adelante, sin decir en la ecuación que el recorte
+ocurre y sin mencionar a Mariana. Ahora lo dice en los dos sitios.
+
+**Los tres inversores tienen justificación física y medible.** Un medidor no
+puede devolver a la red más energía de la que se genera detrás de él, de
+modo que el criterio es cuántas horas siguen saliendo negativas al devolver
+los inversores de uno en uno:
+
+| Se devuelve | Horas aún negativas | kWh sin explicar |
+|---|---:|---:|
+| Fronius 1 | 1.056 | 6.875,1 |
+| + Fronius 2 | 527 | 1.472,7 |
+| + Inversor MTE | 353 | 1.013,3 |
+
+Con un solo inversor hay 1.056 horas en las que el medidor reporta una
+exportación que ningún equipo produjo, lo que es físicamente imposible: la
+energía devuelta tuvo que generarse en alguna parte. Cada equipo añadido da
+cuenta de una porción de esa devolución, y el residuo con los tres es
+exactamente el que la subsección del costo ya analizaba. La carpeta de
+Udenar contiene tres inversores instrumentados, de modo que no hay un
+cuarto que añadir.
+
+**El inventario no sirve para esto.** `Inventario_Medidores_MTE.xlsx`
+cataloga los 20 medidores, no los inversores, así que la justificación
+tiene que ser del dato y no documental.
+
+
+---
+
+## C-89 · Los tres inversores de Udenar: papeles distintos, y el residuo al derecho
+
+**2026-09-03 · tipo: `contenido` · aplicada · sustituye la justificación de C-88**
+
+Él corrigió el supuesto de fondo: los dos Fronius no alimentan los medidores
+del proyecto. Están instalados en Udenar y sirven **solo** como referencia
+para reconstruir la curva del inversor del MTE hacia atrás, porque ese
+equipo entró tarde. **No deben entrar en ningún cálculo por sí mismos.**
+
+**Lo medido, que sostiene su relato.**
+
+| Inversor | Horas con dato | % del horizonte | Primera |
+|---|---:|---:|---|
+| Fronius 1 | 6.066 | 98,7 % | 2025-04-04 |
+| Fronius 2 | 6.066 | 98,7 % | 2025-04-04 |
+| Inversor MTE | 1.409 | 22,9 % | **2025-09-03** |
+
+**Y el hallazgo que lo cierra.** Desde que el inversor del proyecto
+registra, devolver los tres deja **cero** horas negativas. Las 353 horas
+del residuo caen **todas** antes del 3 de septiembre, es decir, en el tramo
+que ese inversor no cubre.
+
+**Se retira la justificación de C-88.** Argumentaba que los tres están
+físicamente detrás del medidor porque el descenso de horas negativas
+(1.056 → 527 → 353) lo exigía. El descenso es real, pero no prueba lo que
+se le hacía decir: los dos Fronius pueden estar reduciendo el negativo
+sin ser lo que el medidor descontó.
+
+**Corrección de signo, independiente de lo anterior.** El capítulo explicaba
+el residuo diciendo que la suma «sobrestima la generación que el medidor
+realmente descontó». Es al revés. Como
+$D_{\text{recon}} = D_{\text{bruta}} - G_{\text{real}} + \sum G$, el
+resultado solo sale negativo si $\sum G < G_{\text{real}}$, es decir, si la
+suma **se queda corta**. Si sobrara, el resultado sería más positivo. La
+causa correcta es de cobertura, y coincide con lo anterior: antes de
+septiembre falta el inversor del proyecto en la suma.
+
+
+---
+
+## C-90 · La generación que Udenar negocia pasa al inversor del proyecto
+
+**2026-09-03 · tipo: `código` · aplicada · CAL-44 · EXIGE CORRIDA NUEVA**
+
+Cierra H-23. Hasta hoy el modelo negociaba para Udenar la serie del
+**Fronius 1**, un equipo ajeno al proyecto, sobre las 6.144 horas. El
+inversor del MTE no entraba en ningún cálculo.
+
+**El cambio.** El inversor designado de Udenar pasa a ser el del proyecto.
+Como entra en servicio el 3 de septiembre de 2025 y cubre el 22,9 % del
+horizonte, las horas que le faltan se extienden desde un inversor de
+referencia declarado en `EMS_INVERTER_BACKFILL_CONFIG`, escalado por la
+razón de energías del solape. Sobre las 1.409 horas comunes las dos curvas
+correlacionan **r = 0,997**, con perfil diario de idéntica forma, y la
+razón de energías es **1,2053**.
+
+**Efecto medido.**
+
+| | Antes | Después | |
+|---|---:|---:|---|
+| Generación de Udenar | 13,2 MWh | 15,9 MWh | +20,5 % |
+| Cobertura G/D en M1 | 19,14 % | **19,99 %** | +0,85 pt |
+| Cobertura G/D en M3 | 91,20 % | **95,26 %** | +4,07 pt |
+| Cobertura propia de Udenar (M1) | 29,8 % | 36,0 % | +6,2 pt |
+| Excedente vendible comunitario (M1) | 4,8 MWh | 6,0 MWh | +25 % |
+| Excedente vendible comunitario (M3) | 31,9 MWh | 34,4 MWh | +7,8 % |
+
+**Lo que no cambia, comprobado:** la demanda de las dos fronteras
+(318.044,8 y 66.733,7 kWh), la generación de las otras cuatro
+instituciones (47,6 MWh), la igualdad de $G$ entre fronteras, y la
+reconstrucción net→bruta, que sigue devolviendo los tres inversores porque
+es lo que el medidor restó.
+
+**Por qué no se tocan los dos usos de los Fronius.** Son preguntas
+distintas. Cuál generación negocia la comunidad es una elección, y debe ser
+la del proyecto. Cuánto restó el medidor no es una elección: se comprobó
+que con un solo inversor quedan 957 horas en que el Medidor 1 exportó más
+de lo que ese inversor generó, y que la demanda resultante deja a Udenar en
+**cero exacto durante 1.047 horas**, 837 de ellas entre las 9 y las 15, en
+199 días de 256. Un campus no consume nada al mediodía en 137 días.
+
+**Contrapartida que hay que declarar.** El 77,1 % del horizonte de la
+generación de Udenar pasa a ser reconstruido, no medido: solo 1.409 de
+6.144 horas vienen del inversor del proyecto. Se cambia medición del equipo
+equivocado por reconstrucción del equipo correcto. Va a la declaración de
+honestidad metodológica del Capítulo 3.
+
+**Lo que la corrida debe recalcular en el documento.** Las dos razones de
+cobertura, publicadas en la nomenclatura, en las etiquetas de la figura de
+cobertura del Capítulo 4, en su nota y en dos pasajes más; la generación
+comunitaria (60.860 kWh); el censo de fuentes del Capítulo 2 («5 definen la
+generación… los otros 2 solo reconstrucción»), que se invierte; y el
+párrafo del arranque del horizonte, que excluía del cómputo el inversor del
+proyecto por empezar en septiembre. **Ninguno se toca hasta la corrida:
+hoy las cifras publicadas siguen siendo las del canon vigente.**
+
+**Trampa operativa.** Las figuras del documento leen de `datos_cache/preproceso_m{1,3}.npz`, del 21 de agosto, de modo que hoy siguen mostrando el canon. Quien vuelva a correr `cache_crudo.py` arrastrara CAL-44 a las figuras mientras el texto sigue citando cifras viejas. Esa cache se regenera **con** la corrida canonica, no antes.
+
+**De paso.** Tres cifras del encabezado del módulo estaban desfasadas
+(Udenar 989 h con demanda negativa, Mariana 216, UCC 112). Medidas hoy:
+1.517, 213 y 94. Corregidas.
+
+### Escalado al resto del código (mismo día, a petición suya)
+
+Se revisaron **uno a uno** los nueve puntos del repositorio que tocan la
+designación del inversor. Tres exigían adecuación y se aplicaron:
+
+| Archivo | Qué pasaba | Qué se hizo |
+|---|---|---|
+| `data/xm_data_loader.py` | No exponía la configuración de referencia, de modo que un llamador que sobreescribiera el inversor designado se comía el backfill de Udenar sin poder desactivarlo | Se añade `ems_inverter_backfill_config` y se pasa al pipeline; `None` deja el default, `{}` lo desactiva |
+| `scripts/cache_crudo.py` | **Duplicaba** la lógica del pipeline en vez de llamarla, y leía el inversor designado en crudo. Tras CAL-44 habría dado 1.409 horas y ceros en el resto: la caché del documento mostraría una generación que el modelo no usa | Pasa a llamar `_read_ems_generation`, el mismo lector del pipeline, para que no vuelva a desviarse |
+| `scripts/cache_fuentes.py` | Etiquetaba cada inversor como EMS o reconstrucción. Faltaba el tercer papel, el de referencia, que es justo el que los Fronius de Udenar pasan a cumplir | Tres papeles: EMS, referencia, reconstrucción, combinables con `+` como ya se hacía con los medidores |
+
+**Dos defectos hallados al verificar el escalado**, ninguno de ellos de
+CAL-44 sino destapado por ella: `cache_fuentes.py` usaba
+`RECONSTRUCTION_INVERTERS_CONFIG` sin importarlo, y `cache_crudo.py` quedaba
+con un import sin uso. Corregidos.
+
+**Los seis restantes no necesitan tocarse**, y se comprobó por qué:
+
+- `scripts/plot_coverage_gantt.py` y `scripts/plot_perfiles_DG_actualizados.py`
+  leen la configuración por defecto: recogen CAL-44 solos y correctamente. En
+  el Gantt el asterisco del inversor designado se mueve del Fronius 1 al del
+  proyecto, que es lo que debe pasar.
+- `Presentacion/tesis_p2p/scripts/make_profile_figures.py` y
+  `make_scaling_figures.py` también, aunque esas figuras ya venían del canon
+  de junio y estaban marcadas como desfasadas por otra razón.
+- `tests/test_preprocessing.py` **pasa sin cambios (8 de 8)**, y su docstring
+  ya afirmaba que «EMS solo expone Inversor MTE»: era falso hasta hoy y CAL-44
+  lo vuelve cierto. La razón G_recon/G_ems pasa de 2,48 a 2,06, dentro de la
+  banda [1,5; 6,0] que el test exige.
+- `tests/test_fast_mode_equivalence.py` usa las series reales para comparar
+  dos rutas de código, sin afirmar valores de generación.
+
+**Verificación estática de los cuatro archivos tocados**: todos los nombres
+globales resuelven y la sintaxis compila. Ninguna de las dos cachés se
+regeneró, de modo que el documento sigue mostrando el canon.
+
+
+
+---
+
+## C-91 · CAL-44 y P-17, propagadas al documento
+
+**2026-09-03 · tipo: `contenido` + `figuras` · aplicada**
+
+Regeneradas las dos cachés y **las 47 figuras**, y actualizado el texto. La
+caché era del 21 de agosto, anterior a P-17, de modo que al regenerarla
+entran las dos correcciones a la vez.
+
+**La caché se verifica contra el pipeline: `max|dif| = 0` en D y en G, en
+las dos fronteras.** Esa comprobación es justo la que habría fallado si no
+se hubiera adaptado `cache_crudo.py` (ver C-90).
+
+**Un defecto que CAL-44 introdujo en una figura y hubo que arreglar.** El
+Gantt marca con un anillo la última fuente esencial en entrar en servicio,
+y tomaba como esencial el inversor designado de cada institución. Al pasar
+el de Udenar a ser el del proyecto, que entra el 3 de septiembre, **el
+anillo se movió a él y la figura decía que el horizonte empieza en
+septiembre**. Corregido en `gen_cap02.py`: lo que hace falta para que
+Udenar tenga generación desde el primer día no es su inversor designado
+—que se reconstruye hacia atrás— sino el de referencia. Con el criterio
+nuevo siguen siendo 14 las fuentes esenciales y la última en entrar vuelve
+a ser el inversor del HUDN, el 4 de abril a las 05:58. La figura resultante
+es **byte a byte idéntica** a la anterior.
+
+**Cifras actualizadas** (recalculadas desde la caché nueva):
+
+| | Antes | Ahora | Causa |
+|---|---:|---:|---|
+| Generación comunitaria | 60.860 kWh | 63.574 kWh | CAL-44 |
+| Cobertura M1 | 19,1 % | 20,0 % | CAL-44 |
+| Cobertura M3 | 91,2 % | 95,3 % | CAL-44 |
+| Demanda comunitaria M1 | 318.046 kWh | 318.045 kWh | P-17 |
+| Horas con generación | 3.353 | 3.354 | P-17 |
+| Horas con excedente M1 | 1.047 | 1.131 | CAL-44 |
+| Horas con excedente M3 | 2.512 | 2.567 | CAL-44 |
+
+Tocadas en la nomenclatura, en las dos etiquetas del esquema de fronteras,
+en la nota de la figura de cobertura, en la caja de lectura, en la nota del
+embudo y en el cierre del capítulo 4.
+
+**Una cifra que parecía desfasada y no lo estaba.** Los \uni{33705}{kWh}
+que la reconstrucción devuelve a Udenar no salen de la suma de inversores
+(32.691) sino de la diferencia sobre la serie **con signo**, que sigue
+dando 33.704,7. Se comprobó antes de cambiarla.
+
+**Prosa del capítulo 2, reescrita.** El censo de fuentes y el pasaje del
+arranque del horizonte describían los papeles al revés. Ahora dicen que la
+fuente esencial de Udenar es el inversor de referencia, y que el del
+proyecto queda fuera del cómputo porque su serie se reconstruye hacia
+atrás.
+
+**Balance de figuras: 17 cambian, 30 quedan idénticas.** Que las 30
+canónicas —capítulos 9 a 13— salgan byte a byte iguales confirma de paso
+que son reproducibles.
+
+**Dos figuras mezclan el preproceso nuevo con el canon viejo y quedan
+señaladas:**
+
+- `f4_05_embudo_horas`: sus dos escalones intermedios ya llevan CAL-44 y el
+  último sale de los flujos liquidados de la corrida anterior. La cadena
+  sigue siendo coherente, porque 1.131 horas con excedente siguen siendo
+  más que las 1.029 transadas, pero el último escalón crecerá con la
+  corrida. **Declarado en la nota de la figura.**
+- `f11_08_lado_corto`: mismo cruce, con los índices de Sobol. Su capítulo
+  es todavía una plantilla, de modo que no se publica; se revisará cuando
+  se redacte.
+
+**Estado**: el documento compila limpio en 87 páginas, sin desbordes, y el
+estilo se mantiene en 24,7 palabras por oración frente a las 24,6 del
+perfil, sin una sola raya larga.
+
+
+---
+
+## C-92 · La razón G/D deja de estar escrita a mano
+
+**2026-09-03 · tipo: `figuras` · aplicada**
+
+Él avisó de que **varias figuras seguían diciendo 19,1 % y 91,2 %** aunque
+el texto ya dijera 20,0 % y 95,3 %. La causa estaba en `estilo.py`:
+
+```python
+COBERTURA_GD = {"m1": "19,1 %", "m3": "91,2 %"}     # escrito a mano
+```
+
+De esa constante salen `TITULO_COBERTURA`, la forma corta de los ejes y el
+título de dos líneas, es decir, **el rótulo de todas las figuras de dos
+paneles**. El texto se actualizó y las figuras no, porque la cifra vivía en
+dos sitios.
+
+**La corrección no es cambiar el número, es quitar el número.** Ahora se
+calcula del mismo `npz` del que salen las series, con respaldo y aviso si
+la caché falta. No puede volver a divergir.
+
+Además llevaban la cifra escrita a mano el rótulo del eje de
+`f11_08_lado_corto` —que es texto dibujado, no comentario— y cuatro
+docstrings (`datos.py`, `gen_cap04.py`, `gen_cap11.py`, `gen_cap12.py`).
+Corregidos.
+
+**Regeneradas las 47 figuras otra vez.** Ahora cambian 31 de 47 frente al
+punto de partida, y no 17: el título con la razón nueva alcanza también a
+las de los capítulos canónicos.
+
+**Salvedad anotada.** Las figuras de los capítulos 9 a 13 dibujan
+resultados de la corrida anterior y ahora llevan en el título la razón
+nueva. Sus capítulos son todavía plantillas, de modo que no se publica esa
+mezcla, y la corrida las regenera enteras.
+
+**Auditoría numérica completa tras la corrección**: se recalcularon desde
+la caché los 25 valores publicados que dependen del preprocesamiento —
+agregados de frontera, embudo de horas, reconstrucción y recorte, tabla de
+tipos de medidor y generación por institución— y se contrastaron contra el
+texto. **Cero desfases, y ningún valor recalculado ausente.** El guion de
+auditoría comprueba las dos cosas: que aparezca el valor nuevo y que no
+sobreviva el viejo.
+
+
+---
+
+## C-93 · Auditoría de estructura y reorganización de la reconstrucción
+
+**2026-09-03 · tipo: `estructura` · aplicada**
+
+Él señaló que los párrafos de la reconstrucción no se entienden y que no
+parecen seguir ninguna estructura, y pidió auditar el documento entero
+hasta ese punto.
+
+**La estructura mayor está sana.** El Capítulo 3 sigue las seis etapas del
+canal en orden, con su mapa de reparto («la primera ocupa cuatro
+subsecciones…»), y el Capítulo 2 va de la extensión temporal al corte y de
+ahí a la completitud dentro del corte. El fallo era local.
+
+**Qué le pasaba a esa subsección.** Se había ido formando por parches
+sucesivos y mezclaba cuatro asuntos sin orden: la glosa de la fórmula,
+a quién se le aplica, por qué en Udenar son tres y el caso de borde. El
+segundo párrafo **empezaba dos veces** («En Udenar la suma incluye tres
+inversores» e inmediatamente «Los tres equipos de Udenar no cumplen el
+mismo papel»), y los medidores brutos quedaban en el tercero, lejos del
+párrafo que reparte los casos.
+
+**Estructura nueva, un asunto por párrafo**: qué dice la fórmula · a quién
+se le aplica · el caso difícil, que es Udenar · cuándo actúa el recorte ·
+el caso de borde · la figura.
+
+**Barrido de párrafos acumulados en los cuatro capítulos escritos.** El
+criterio: más de 120 palabras o más de 6 oraciones sobre un perfil medido
+de 74 palabras y 3,2 oraciones. Salieron cinco; dos eran reales y se
+partieron:
+
+- Capítulo 2, el arranque del horizonte. Lo había hecho crecer ese mismo
+  día a 130 palabras al reescribirlo para CAL-44: juntaba el principio, la
+  cuenta de fuentes esenciales, el caso de Udenar y el remite a la figura.
+- Capítulo 3, el sesgo que apunta al revés. 151 palabras y cuatro asuntos,
+  y además decía «se nombra aquí en vez de esconderla», que es **el texto
+  hablando de sí mismo**, contra la primera regla de claridad. Se retiró la
+  cláusula.
+
+Quedan tres marcados y se dejan: uno está justo en el umbral y los otros
+dos son listas separadas por punto y coma, que el contador de oraciones lee
+mal.
+
+**Estilo tras la reorganización**: 24,4 palabras por oración frente a 24,6
+del perfil, 70,7 por párrafo frente a 74, y ninguna raya larga.
+
+**Comprobación de figuras, a petición suya.** Las 45 figuras que el
+documento usa se regeneraron **después** del arreglo de `estilo.py`
+(23:21:17), y ninguna figura referenciada por el texto falta. Dos archivos
+de la carpeta no se regeneraron porque son huérfanos: ningún `.tex` los
+cita y ningún generador los produce ya. Son
+`f3_02b_gradacion_m1.png`, retirada por C-84 y sustituida por la de
+profundidad, y `f2_05_reactiva_instituciones.png`, sustituida por la de
+series. **Se dejan en su sitio a la espera de su palabra**, porque
+borrarlos no es reversible y no estorban a la compilación.
+
 ---
 
 ## Pendientes
@@ -3424,7 +3812,7 @@ recortar.
 | P-12 | Capítulo 3: la explicación posicional del caso bruto para el Hospital no está probada. Cero horas negativas no demuestran posición: una carga hospitalaria siempre mayor que la generación tampoco invertiría el flujo aunque el medidor neteara. | pendiente |
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
-| P-17 | Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma, de modo que 1 hora de las 6.144 queda contada dos veces en cada institución y en cada frontera. Medido en Udenar: 0,156 kW de error en esa hora. Inmaterial en la cifra; decidir si se declara o se corrige el cargador. | pendiente de decisión |
+| P-17 | ~~Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma.~~ **CERRADA el 2026-09-03 por C-87**: `pd.concat(parts, axis=1).sum(axis=1, min_count=1)` pasa a `.mean(axis=1)` en `data/preprocessing.py`. Equivalencia comprobada en todo lo demás. Efecto medido: la demanda comunitaria pasa de 254.949,9 a 254.948,7 kWh, 1,2 kWh, el 0,0005 %, y **ninguna cifra publicada cambia porque las dos redondean a 254.949**. El código queda por delante del canon hasta la próxima corrida. | cerrada |
 | P-18 | ~~La etapa que fija la zona horaria no tiene una sola palabra de prosa.~~ **CERRADA por C-83**: subsección propia, con la suposición declarada y comprobada sobre el dato (el máximo de generación cae entre las 11 y las 12 en las cinco instituciones). | cerrada |
 | P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
 | P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |

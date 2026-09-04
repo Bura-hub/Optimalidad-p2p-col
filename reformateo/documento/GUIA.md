@@ -153,6 +153,28 @@ Van en `\begin{trampabox}` cuando aparecen en el texto.
 
 ---
 
+### Ninguna cifra derivada se escribe a mano
+
+Toda magnitud que salga del preprocesamiento o del canon **se calcula donde
+se usa**, nunca se copia a una constante. La razón G/D de cada frontera
+vivió escrita a mano en `estilo.py` y, cuando cambió la generación de
+Udenar, el texto quedó al día y los títulos de todas las figuras de dos
+paneles siguieron mostrando la cifra vieja durante toda una revisión
+(C-92). Si hace falta un respaldo por si falta la caché, que **avise por
+pantalla**: una cifra que caduca en silencio es peor que un fallo.
+
+El mismo criterio vale para la prosa de los generadores. Un docstring con
+una cifra dentro también caduca, y nadie lo mira.
+
+### Un cambio en el pipeline se escala revisando los archivos uno a uno
+
+Cambiar la designación de un inversor tocó nueve puntos del repositorio y
+cuatro de ellos necesitaban adecuación, incluida una caché que **duplicaba
+la lógica del pipeline en vez de llamarla** y un criterio de «fuente
+esencial» que movía el anillo del Gantt al equipo equivocado. Ninguno se
+habría visto sin recorrer los archivos uno por uno. La compuerta que lo
+destapa es la verificación de la caché contra el pipeline: `max|dif| = 0`.
+
 ## 4. Estado de la infraestructura
 
 Listo y verificado:

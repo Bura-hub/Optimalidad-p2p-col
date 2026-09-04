@@ -141,7 +141,7 @@ que leer, de modo que en la frontera secundaria se reutiliza el primero
 multiplicado por un factor que el Capítulo~\ref{sec:frontera} declara.
 
 Las seis etapas no se reparten por igual en lo que sigue. La primera ocupa
-tres subsecciones, porque es donde el dato cambia de paso y de forma. La
+cuatro subsecciones, porque es donde el dato cambia de paso y de forma. La
 segunda y la tercera ocupan dos cada una, y en los dos casos la primera de
 ellas está dedicada al fenómeno que las motiva. Las tres últimas ocupan una
 cada una. A partir de ahí el capítulo deja de describir etapas: las
@@ -173,7 +173,7 @@ kilovatios y el inversor en vatios, de modo que sus series no se pueden
 comparar ni sumar tal como llegan. La del inversor se divide entre mil y
 la del medidor se usa como viene.
 
-La etapa lleva por último cuatro salvaguardas contra cosas que este
+La etapa lleva además cuatro salvaguardas contra cosas que este
 conjunto no contiene, y de ellas lo que importa es cuántas veces actúan:
 ninguna.
 
@@ -196,6 +196,9 @@ de ella. Los siete registran el cero miles de veces, de modo que la
 ausencia de valores negativos no se debe a que el equipo no llegue hasta
 ahí, sino a que por debajo del cero no hay nada que medir.
 
+Queda una sola ambigüedad que la etapa sí tiene que resolver, y es la del
+instante que llega dos veces.
+
 \subsection{El instante que llega repetido}
 \label{sub:prep-duplicados}
 
@@ -203,7 +206,7 @@ Antes de promediar hay que resolver una ambigüedad del dato crudo. En la totali
 lecturas comparten instante con otra, \num{3108} veces en la frontera
 principal y \num{3588} en la secundaria, pero el registro de un equipo no
 puede llevar dos valores en el mismo instante. Esto se resuelve dejando uno solo,
-tomando el promedio entre si de los datos duplicados. En el horizonte de estudio solo quedan 27 en cada frontera.
+tomando el promedio entre sí de los datos duplicados. En el horizonte de estudio solo quedan 27 en cada frontera.
 
 El fenómeno es de un equipo y no del conjunto: \num{3073} de los
 \num{3108} instantes de la frontera principal son del medidor de la UCC, y
@@ -212,7 +215,7 @@ archivo. Por eso el ejemplo de la Figura~\ref{fig:prep-archivo-serie} es de
 la UCC, que es la única institución donde la fusión llega a ocurrir dentro
 del horizonte.
 
-La regla para determinar que instante de los datos duplicados usar no tiene consecuencia. En los \num{6696} instantes repetidos de las dos fronteras las
+La regla para determinar qué instante de los datos duplicados usar no tiene consecuencia. En los \num{6696} instantes repetidos de las dos fronteras las
 lecturas que lo comparten coinciden hasta el último dígito, de modo que
 promediarlas, quedarse con la primera o quedarse con la última dan
 exactamente el mismo número. Se toma el promedio porque el instante ha de ser único para poder alinear los tramos
@@ -221,20 +224,9 @@ de un mismo medidor, no porque haya dos valores en disputa que arbitrar.
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_01d_duplicados.png}
- \caption[El censo de los instantes repetidos]{El censo de los instantes
- repetidos en las dos fronteras de medición. Arriba, la fracción que
- llevaba ocurrida cada frontera a lo largo del archivo, con la banda del
- horizonte sombreada y el anillo sobre el punto en que se cierra; bajo
- ella, un carril por frontera en el que cada marca es un día con algún
- instante repetido, y las altas son las de dentro del horizonte. Abajo a la
- izquierda, el reparto por institución en escala logarítmica, que es la que
- admite los tres órdenes de magnitud que separan a la UCC del resto. La
- masa se acumula en marzo de 2026, es decir, tres meses después de que el
- horizonte se cierre, y los 27 que caen dentro se reparten en solo ocho
- días, uno de ellos común a las cinco instituciones.
- \fuente{elaboración propia desde \file{MedicionesMTE\_v3/}, columnas de
- fecha y de potencia activa total de los diez medidores que el modelo lee;
- horizonte de \num{6144} horas.}}
+ \caption[Cuándo y en qué equipo se repiten los instantes]{Los instantes
+ repetidos de las dos fronteras de medición, en el tiempo y por
+ institución.}
  \label{fig:prep-duplicados}
 \end{figure}
 
@@ -309,13 +301,8 @@ Una hora puede llegar de tres maneras, y el tratamiento cambia en cada una.
  subsección~\ref{sub:prep-limpieza}. Son \num{567} horas.
 \end{enumerate}
 
-Solo la segunda supone algo, y ese supuesto no está escrito en ninguna
-parte del cargador. La media horaria ignora las muestras que faltan, de
-modo que la estimación es lo que la agregación hace por defecto y no un
-paso que alguien programara. Se declara aquí porque de otro modo nadie lo
-revisaría.
-
-La otra opción es contar solo los minutos medidos y no añadir nada por los
+La media horaria ignora las muestras que faltan, de modo que la
+estimación es lo que la agregación hace por defecto. La otra opción es contar solo los minutos medidos y no añadir nada por los
 que faltan. Parece la opción prudente, la que no supone nada, pero supone
 tanto como la anterior: da por hecho que en los minutos sin registro no se
 consumió energía, y en instalaciones con carga de base permanente eso es
@@ -341,8 +328,7 @@ está en falla, y en las fronteras que no reportan al administrador del
 mercado se estima por consumos promedios del mismo usuario, que es el
 criterio que aquí se aplica. Rige sobre fronteras comerciales y no sobre
 instrumentación de investigación como esta, de modo que se toma como
-criterio y no como parte de la alineación con la normativa. El articulado y su alcance exacto quedan en
-el Anexo~\ref{anx:repro}.
+criterio y no como parte de la alineación con la normativa. El articulado y su alcance exacto quedan en el Anexo~\ref{anx:repro}.que recoge el procedimiento completo de la etapa, con esas cuatro comprobaciones y el orden exacto en que se aplican.
 
 \begin{guardado}
 \begin{detallebox}
@@ -382,17 +368,17 @@ Udenar.
 \end{detallebox}
 \end{guardado}
 
-El Anexo~\ref{anx:repro} recoge el procedimiento completo de la etapa, con
-esas cuatro comprobaciones y el orden exacto en que se aplican.
 
-\subsection{La lectura que no puede ser}
+
+\subsection{La demanda negativa}
 \label{sub:prep-negativa}
 
-La serie horaria que sale de la primera etapa trae algo que no puede ser
-cierto. Es la demanda ya transportada, ordenada y expresada en horas y en
-kilovatios, pero con el valor sin tocar, y en ella la de tres de las cinco
-instituciones baja de cero durante varias horas al día. Un edificio no
-consume energía negativa. La Figura~\ref{fig:prep-negativa}
+La primera etapa, la que lleva del archivo a la serie horaria, entrega
+datos que no concuerdan: la demanda de tres de las cinco instituciones baja
+de cero durante varias horas al día. Un edificio no consume energía
+negativa. Y el tratamiento no lo causó, porque esa etapa no corrige, no
+sustituye ni descarta ninguna medida, de modo que lo que la serie trae es
+lo que el medidor entregó. La Figura~\ref{fig:prep-negativa}
 recoge el fenómeno en sus dos dimensiones: la forma que toma en la
 institución más afectada y la hora del día en que aparece.
 
@@ -429,6 +415,22 @@ sensor averiado, es un medidor que está restando la generación antes de
 reportar, y dónde esté puesto respecto de la inyección es lo que decide si
 lo hace.
 
+Y decide también en qué frontera aparece. En la secundaria el fenómeno casi
+desaparece: de las cinco instituciones solo Mariana registra lecturas
+negativas, y son las mismas \num{213} horas de la principal, porque en M3
+se lee su mismo medidor multiplicado por un factor. Los otros cuatro
+circuitos secundarios no bajan de cero ni una hora, de modo que la lectura
+imposible es un asunto de la frontera principal.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m3.png}
+ \caption[Demanda negativa en la frontera secundaria]{A la izquierda, el mínimo de cada hora y no el perfil medio,
+ porque en esta frontera ninguna media llega a ser negativa. A la derecha,
+ las horas afectadas, todas de Mariana.}
+ \label{fig:prep-negativa-m3}
+\end{figure}
+
 \subsection{Clasificar el medidor: tres tipos}
 \label{sub:prep-tipos}
 
@@ -447,7 +449,7 @@ medidores hay que devolverles la generación que descontaron y a otros no
 hay nada que devolverles. El documento nombra además un caso intermedio,
 el neto parcial, pero no porque reciba un tratamiento propio, que es el
 mismo del neto, sino porque el neteo apenas llega a invertir el flujo. Lo
-que separa a esos dos es de grado y no de regla.
+que separa a esos dos es el impacto.
 
 \begin{figure}[H]
  \centering
@@ -501,92 +503,86 @@ que separa a esos dos es de grado y no de regla.
 \begin{table}[H]
  \centering
  \caption{Clasificación de los medidores de demanda en la frontera M1 y
- huella del neteo sobre el horizonte de \num{6144} horas. La columna
- central es la generación que queda detrás del medidor frente a la
- demanda del circuito que ese medidor cubre, y es la cantidad que ordena
- la tabla. Los conteos proceden de reproducir el pipeline sobre los datos
- vigentes.}
+ huella del neteo. Las cuatro columnas de la derecha se leen directamente
+ sobre la serie que cada medidor entrega, sin reconstruir nada: son horas
+ en que su lectura fue negativa, la fracción que representan sobre las
+ horas con dato de ese equipo, su lectura más baja del horizonte y la
+ energía que en esas horas salió del circuito hacia la red.}
  \label{tab:prep-tipos}
  \small
  \begin{tabular}{@{}l l r r r r@{}}
  \toprule
- \textbf{Institución} & \textbf{Tipo} &
- \textbf{Generación} & \textbf{Horas $D<0$} &
- \textbf{Mínimo} & \textbf{Inversores} \\
- & & \textbf{detrás} & & & \\
+ \textbf{Institución} & \textbf{Tipo} & \textbf{Horas} &
+ \textbf{Sobre sus} & \textbf{Lectura} & \textbf{Energía hacia} \\
+ & & \textbf{bajo cero} & \textbf{horas} & \textbf{mínima (kW)} &
+ \textbf{la red (kWh)} \\
  \midrule
- Udenar & neto & \pct{73.8} & \num{1517} & \uni{-33.57}{kW} & 3 \\
+ Udenar & neto & \num{1517} & \pct{25.1} & \num{-33,57} & \num{15348} \\
  \addlinespace
- Mariana & neto parcial & \pct{21.3} & \num{213} & \uni{-2.41}{kW} & 1 \\
+ Mariana & neto parcial & \num{213} & \pct{3.5} & \num{-2,41} & \num{156} \\
  \addlinespace
- UCC & neto parcial & \pct{11.7} & \num{94} & \uni{-5.91}{kW} & 1 \\
+ UCC & neto parcial & \num{94} & \pct{1.6} & \num{-5,91} & \num{200} \\
  \addlinespace
- HUDN & bruto & \pct{0} & \num{0} & --- & 0 \\
+ HUDN & bruto & \num{0} & \pct{0} & \num{6,12} & \num{0} \\
  \addlinespace
- CESMAG & bruto & \pct{0} & \num{0} & --- & 0 \\
+ CESMAG & bruto & \num{0} & \pct{0} & \num{0,20} & \num{0} \\
  \bottomrule
  \end{tabular}
 \end{table}
 
-La diferencia entre unas y otras tiene una explicación instrumental, y
-responde a por qué el fenómeno aparece en tres instituciones y no en las
-cinco. No es de regla sino de grado, y la gobierna una sola cantidad, que
-es cuánta generación queda detrás del medidor frente a lo que ese circuito
-consume.
+Los tres tipos no nombran tres aparatos distintos sino tres situaciones
+del mismo, y lo que las separa es dónde se conecta la generación. Si entra
+entre el medidor y la carga, el medidor no la ve llegar y registra solo la
+demanda que queda después de restarla, de modo que su lectura puede caer
+bajo cero. Si entra del lado de la red, el medidor la ve pasar y su lectura
+nunca se invierte. La Figura~\ref{fig:prep-tipos} dibuja los dos casos.
 
-Udenar encabeza esa columna de la Tabla~\ref{tab:prep-tipos}, y el
-flujo se le invierte una cuarta parte del horizonte; en Mariana esa
-fracción es más de tres veces menor y en la UCC, más de seis, y la
-inversión resulta ocasional. En
-el HUDN y en CESMAG el inversor entra fuera del tramo que el medidor
-vigila, o alimenta un circuito distinto del medido, de manera que la
-fracción es nula y el flujo nunca se invierte. La
-Figura~\ref{fig:prep-gradacion} deja ver esa gradación de una sola vez, es
-decir, ordena las lecturas de cada medidor de la mayor a la menor y muestra
-en qué punto cada curva cruza el cero.
+La tabla ordena las cinco instituciones por lo que esa posición produce, y
+la gradación se lee sin más. En Udenar el flujo se invierte una de cada
+cuatro horas y llega a \uni{-33.57}{kW}. En Mariana y en la UCC ocurre en
+el \pct{3.5} y el \pct{1.6} de sus horas, con mínimos veinte veces menos
+profundos, de modo que la inversión es allí ocasional. En el HUDN y en
+CESMAG no ocurre nunca, y la lectura más baja de CESMAG, \uni{0.20}{kW},
+dice que su circuito llega a rozar el cero sin cruzarlo.
+
+La columna de la derecha es la que mide el fenómeno sin ambigüedad, porque
+no depende de ninguna reconstrucción: en el horizonte, del circuito de
+Udenar salieron hacia la red \uni{15348}{kWh}, contra los \uni{156}{} de
+Mariana y los \uni{200}{kWh} de la UCC.
+
+En el HUDN y en CESMAG el inversor entra fuera del tramo que el medidor
+vigila, o alimenta un circuito distinto del medido, y por eso el flujo
+nunca se invierte allí aunque las dos instituciones tengan su equipo. La
+Figura~\ref{fig:prep-gradacion} pone esa gradación en una sola escala, es
+decir, sitúa a cada medidor entre la lectura que entrega de ordinario y la
+más baja que llegó a entregar.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_02b_gradacion_m1.png}
- \caption[La gradación del neteo en las lecturas ordenadas]{Las lecturas de
- demanda de los cinco medidores de la frontera M1 sobre sus horas con dato,
- ordenadas de la mayor a la menor, de modo que la altura de cada curva en un
- punto del eje horizontal es la lectura que ese medidor supera esa fracción
- del tiempo. A la izquierda, las cinco curvas completas, con el recuadro que
- marca la esquina del cero. A la derecha, esa esquina ampliada: la curva de
- Udenar cruza el cero a tres cuartas partes de su recorrido y se hunde, las
- de Mariana y la UCC lo cruzan casi al final y apenas se sumergen, y las del
- HUDN y CESMAG terminan sin cruzarlo.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02b_profundidad_m1.png}
+ \caption[Hasta dónde baja la lectura de cada medidor]{Los cinco medidores
+ de demanda de la frontera M1, cada uno resumido por tres marcas: la lectura
+ mediana que entrega, el recorrido que va de esa mediana a su lectura más
+ baja, y la mitad central de sus lecturas negativas. La franja sombreada
+ marca la zona físicamente imposible.} 
  \label{fig:prep-gradacion}
 \end{figure}
 
-\notafig{La forma de cada curva es la gradación misma. La de Udenar corre
-baja y cruza temprano porque al mediodía la generación que queda detrás de
-su medidor supera de ordinario a la carga del circuito, es decir, la
-inversión es allí el estado normal de las horas de sol. Las de Mariana y la
-UCC corren altas frente a su único inversor y solo cruzan en las horas en
-que la producción culmina y la carga afloja. La de CESMAG llega a rozar el
-cero en sus horas de carga mínima y aun así no lo cruza, porque detrás de
-ese medidor no genera nada. Elaboración propia desde el caché de estados
-intermedios del preprocesamiento.}
-
-El número de inversores que la reconstrucción suma no explica esa
-gradación. En Udenar son tres porque tres son los que inyectan detrás de
-ese medidor, y el tercero solo desde septiembre, de modo que hacen falta
-los tres para devolver lo que el medidor descontó en cada tramo del
-horizonte. Mariana y la UCC tienen uno cada una, y ese único equipo es
-todo su parque solar, de manera que su neteo es completo en alcance
-aunque menor en efecto.
+En Udenar esa mitad central cae entre
+\uni{-15.1}{} y \uni{-3.9}{kW}, con mediana de \uni{-8.7}{kW}, de modo que
+el mínimo de \uni{-33.57}{kW} casi cuadruplica la inversión ordinaria; en
+Mariana la mediana de las negativas es \uni{-0.59}{kW} y en la UCC,
+\uni{-1.94}{kW}. Cuántas horas resume cada fila lo da la
+Tabla~\ref{tab:prep-tipos}.
 
 En la frontera M3 la clasificación no hace falta, porque allí los cinco
 medidores son brutos y ninguna institución requiere reconstrucción. La
-única huella del fenómeno es heredada: la serie de Mariana se construye
-escalando la de su primer medidor, conforme declara el
-Capítulo~\ref{sec:frontera}, de modo que arrastra sus mismas \num{213}
-horas negativas ya reducidas, y el recorte defensivo las lleva a cero con
-un costo de \uni{46.7}{kWh}, el \pct{0.33} de su demanda en esa frontera.
+excepción es Mariana, y no porque su circuito secundario netee: es que no
+tiene un segundo medidor, de modo que su serie de M3 se construye
+multiplicando la del primero por un factor, conforme declara el
+Capítulo~\ref{sec:frontera}. Con la serie viajan sus \num{213} horas
+negativas, reducidas por ese mismo factor, y llevarlas a cero cuesta
+\uni{46.7}{kWh}, el \pct{0.33} de su demanda en esa frontera.
 
 \subsection{La reconstrucción de la demanda bruta}
 \label{sub:prep-reconstruccion}
@@ -604,10 +600,15 @@ reconstruye como
 \end{equation}
 
 donde la suma recorre \emph{todos} los inversores físicos que inyectan
-detrás de ese medidor y $(\cdot)^{+}$ denota el recorte a valores no
-negativos. En Udenar la suma incluye tres inversores; en Mariana y la UCC,
+entre ese medidor y su carga, y el exponente $+$ significa que, si el
+resultado sale negativo, se toma cero. Ese recorte hace falta porque la
+devolución puede pasarse de largo, y la
+subsección~\ref{sub:prep-costo} mide cuánto y por qué. En Udenar la suma incluye tres inversores; en Mariana y la UCC,
 su único equipo; el HUDN y CESMAG no requieren reconstrucción y reciben
-solo un recorte defensivo a cero. La Figura~\ref{fig:prep-reconstruccion}
+solo un recorte defensivo a cero. Cuando la hora no trae lectura de medidor
+pero sí de inversor, la demanda de partida se toma como nula y el resultado
+queda igual a la generación devuelta; ocurre en \num{7} horas del horizonte,
+todas de Udenar, y suma \uni{34.1}{kWh}. La Figura~\ref{fig:prep-reconstruccion}
 confronta las tres series sobre un mismo eje y muestra el resultado de
 aplicar esa devolución.
 
@@ -909,7 +910,16 @@ corresponde mencionar aquí, apuntan todas en la misma dirección:
  al mercado entre pares, en vez de estimarlo.
 \end{enumerate}
 
-Hay una quinta que apunta al revés, y se nombra aquí en vez de
+Hay una sexta que el capítulo no había declarado y que también recorta. La
+generación que falta se pone a cero antes de que la etapa de limpieza la
+vea, de modo que sus huecos no se interpolan ni se arrastran como los de la
+demanda. En la noche eso es correcto, porque el equipo no produce, pero
+\num{285} horas de sol del horizonte quedan así con generación nula cuando
+lo que hubo fue una avería de registro. Menos generación es menos
+excedente que ofrecer, de modo que la decisión empuja el mercado hacia
+abajo.
+
+Hay una que apunta al revés, y se nombra aquí en vez de
 esconderla. Al estimar la hora incompleta con la media de sus muestras
 presentes se le atribuye al tramo no observado el comportamiento del
 observado, lo que da entre \pct{0.26} y \pct{0.55} más energía que
@@ -923,7 +933,7 @@ la misma institución, la misma hora del día y el mismo mes: el sesgo
 resulta indistinguible de cero en las cinco, y suma el \pct{0.0007} de la
 demanda del horizonte.
 
-Cuatro de las cinco recortan el resultado y la quinta lo amplía en una
+Cinco de las seis recortan el resultado y la restante lo amplía en una
 proporción tres órdenes de magnitud menor que el margen que separa a los
 mecanismos. La
 consecuencia metodológica es que las cifras del Capítulo~\ref{sec:res}

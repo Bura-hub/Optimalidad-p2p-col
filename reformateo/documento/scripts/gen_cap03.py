@@ -1367,121 +1367,240 @@ def f32b_profundidad(cobertura: str = "m1"):
 
 # ─────────────────────────────────────────────────────────────────────────────
 def f33_reconstruccion(cobertura: str = "m1", institucion: str = "Udenar",
-                       dia: str = "2025-07-16"):
+                       dia: str = "2025-11-07"):
     """
-    F3.3 — La reconstrucción net→bruta: antes y después.
+    F3.3 — La reconstrucción net→bruta, dibujada como la operación que es.
 
-    La figura estrella del documento. Muestra sobre un día concreto qué
-    entrega el medidor (que baja a valores negativos al mediodía), qué
-    generaron los inversores que ese medidor había descontado, y qué
-    demanda resulta al devolverle esa generación.
+    La figura estrella del documento. La versión anterior dibujaba tres
+    series sueltas: la lectura del medidor, la generación desde el eje
+    cero y la demanda reconstruida. El lector tenía que sumar de cabeza,
+    hora por hora, para comprobar que la primera más la segunda daban la
+    tercera. Aquí la generación se dibuja como la banda vertical entre la
+    lectura y la demanda reconstruida, que es lo que dice la ecuación: la
+    reconstruida es la lectura levantada por la generación. La suma se ve
+    sin aritmética.
 
-    El panel derecho generaliza a las 6.144 h con el perfil medio, para
-    que no quede la duda de si el día elegido es representativo.
+    El día no se busca por código ni se elige por favorable. Es el viernes
+    7 de noviembre de 2025, y se fija aquí por dos razones. Primera, cae
+    en el tramo posterior al 3 de septiembre de 2025, cuando los tres
+    inversores de Udenar registran a la vez; antes de esa fecha el del
+    proyecto no medía, la suma iba incompleta y la reconstrucción se
+    quedaba corta, de modo que un día de ese tramo enseñaría el método con
+    el sesgo de cobertura encima, que es asunto de la subsección del costo
+    y no de esta. Segunda, ninguna de sus 24 horas llega al recorte a
+    cero, de modo que la banda entre las dos curvas es la generación y no
+    una mezcla de generación y recorte. Las dos condiciones se comprueban
+    con asertos antes de dibujar: si el día dejara de cumplirlas, la
+    corrida se detiene en vez de publicar una figura que afirma una
+    igualdad que no se cumple.
+
+    El panel derecho generaliza a las 6.144 horas con el perfil medio, en
+    la misma escala vertical, para que se vea que el día no es
+    excepcional. La franja de abajo cierra con la misma cuenta en energía
+    sobre el horizonte completo, que es donde el recorte a cero deja de
+    ser un hilo invisible y se puede medir.
     """
     series, horas = D.preproceso(cobertura)
-    resumen = D.conteo_negativas(cobertura).set_index("institucion")
 
     D_raw = series[f"{institucion}__D_raw"]
     G_rec = series[f"{institucion}__G_recon"]
     D_rec = series[f"{institucion}__D_recon"]
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.7))
+    # El pipeline reconstruye con la lectura ausente tratada como nula, de
+    # modo que aquí se rellena igual. Con la media saltando los huecos, la
+    # identidad D_recon = D_neto + G + recorte dejaría de cerrar en el
+    # perfil medio por las horas sin lectura, y la figura afirmaría una
+    # igualdad que sus propias curvas no cumplen.
+    D_neto = D_raw.fillna(0.0)
+    recorte = (-(D_neto + G_rec)).clip(lower=0.0)
+    assert float((D_rec - (D_neto + G_rec + recorte)).abs().max()) < 1e-9
 
-    # ── Panel izquierdo: un día, hora a hora ────────────────────────────
-    d0, d1 = pd.Timestamp(dia), pd.Timestamp(dia) + pd.Timedelta(days=1)
-    sl = slice(d0, d1 - pd.Timedelta(hours=1))
+    # ── El día: 24 horas, con la operación a la vista ───────────────────
+    d0 = pd.Timestamp(dia)
+    sl = slice(d0, d0 + pd.Timedelta(hours=23))
     x = np.arange(24)
-    dr, gr, dd = D_raw[sl].values, G_rec[sl].values, D_rec[sl].values
+    dr = D_neto[sl].to_numpy(dtype=float)
+    gr = G_rec[sl].to_numpy(dtype=float)
+    dd = D_rec[sl].to_numpy(dtype=float)
 
-    ax1.axhline(0, color="#333333", linewidth=1.0, zorder=3)
-    ax1.fill_between(x, 0, gr, color=E.APOYO, alpha=0.85, zorder=1,
-                     label="Generación que el medidor había restado")
-    ax1.plot(x, dr, color=E.ANTES, linewidth=1.9, zorder=4,
-             label="Antes: lectura del medidor")
-    ax1.plot(x, dd, color=E.DESPUES, linewidth=1.9, zorder=5,
-             label="Después: demanda reconstruida")
+    assert len(dr) == 24, (dia, len(dr))
+    assert not D_raw[sl].isna().any(), f"{dia}: hay horas sin lectura de medidor"
+    assert d0 >= pd.Timestamp("2025-09-03"), (
+        f"{dia} es anterior al 3 de septiembre de 2025: la suma de "
+        "inversores va incompleta y la reconstrucción se queda corta")
+    assert float(recorte[sl].sum()) < 1e-9, (
+        f"{dia} tiene horas con recorte a cero: la banda entre las dos "
+        "curvas ya no sería la generación")
+    assert np.allclose(dd, dr + gr, atol=1e-9)
 
-    bajo = dr < 0
-    if bajo.any():
-        ax1.fill_between(x, dr, 0, where=bajo, color=E.ANTES, alpha=0.22,
-                         zorder=2, interpolate=True)
-        # La flecha apunta al mínimo real del día, que es donde el
-        # argumento se ve con más claridad. El texto va abajo a la
-        # derecha: a partir de la caída de la tarde la lectura vuelve a
-        # ser positiva y ese cuadrante queda libre, mientras que abajo a
-        # la izquierda el texto se imprimía encima de la propia curva.
-        h_min = int(np.nanargmin(dr))
-        lo1, hi1 = ax1.get_ylim()
-        ax1.set_ylim(lo1 - 0.16 * (hi1 - lo1), hi1)
-        ax1.annotate("el medidor reporta\nmenos energía\nde la que el\n"
-                     "edificio gastó",
-                     xy=(h_min, dr[h_min]),
-                     xytext=(0.99, 0.02), textcoords="axes fraction",
-                     fontsize=7.2, color=E.ANTES, ha="right", va="bottom",
-                     linespacing=1.35,
-                     arrowprops=dict(arrowstyle="->", color=E.ANTES, lw=0.9,
-                                     connectionstyle="arc3,rad=0.2"))
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 5.0))
+    gs = fig.add_gridspec(2, 2, width_ratios=(1.42, 1.0),
+                          height_ratios=(1.0, 0.34))
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1], sharey=ax1)
+    axb = fig.add_subplot(gs[1, :])
+    ax2.tick_params(labelleft=False)
 
-    dia_ts = pd.Timestamp(dia)
+    ax1.axhline(0, color="#333333", linewidth=0.9, zorder=3)
+    ax1.fill_between(x, dr, dd, color=E.APOYO, zorder=1)
+    ax1.plot(x, dd, color=E.DESPUES, linewidth=2.2, zorder=4)
+    ax1.plot(x, dr, color=E.ANTES, linewidth=1.4, zorder=5)
+
+    lo, hi = float(min(dr.min(), dd.min())), float(max(dr.max(), dd.max()))
+    alto = hi - lo
+    ax1.set_ylim(lo - 0.09 * alto, hi + 0.13 * alto)
+
+    # La cota se planta en la hora de lectura más baja, que es donde la
+    # banda es más elocuente. La flecha mide la banda y el rótulo dice
+    # cuánto mide: ahí queda la operación, hecha una vez y a la vista.
+    h = int(np.argmin(dr))
+    ax1.annotate("", xy=(h, dd[h]), xytext=(h, dr[h]), zorder=6,
+                 arrowprops=dict(arrowstyle="<->", color=E.TINTA, lw=0.9,
+                                 shrinkA=0, shrinkB=0))
+    for extremo in (dr[h], dd[h]):
+        ax1.plot([h - 0.22, h + 0.22], [extremo, extremo], color=E.TINTA,
+                 lw=0.9, solid_capstyle="butt", zorder=6)
+    ax1.text(h + 0.42, (dr[h] + dd[h]) / 2 + 0.055 * alto,
+             f"{E.fmt_miles(gr[h], 1)} kW de generación",
+             rotation=90, ha="left", va="center", fontsize=7.2,
+             color=E.TINTA, zorder=6)
+
     ax1.set_xlabel("Hora del día")
     ax1.set_ylabel("Potencia (kW)")
-    ax1.set_title(f"Un día: {E.etiqueta_institucion(institucion)}, "
-                  f"{DIAS_ES[dia_ts.weekday()]} "
-                  f"{dia_ts.day} de {MESES_LARGOS[dia_ts.month - 1]} "
-                  f"de {dia_ts.year}", pad=8)
+    ax1.set_title(f"{E.etiqueta_institucion(institucion)}, "
+                  f"{E.fmt_fecha(d0, 'dia')}", pad=8)
     ax1.set_xticks(range(0, 24, 3))
+    ax1.set_xlim(-0.6, 23.6)
 
-    # ── Panel derecho: el horizonte completo ────────────────────────────
-    p_raw = D_raw.groupby(D_raw.index.hour).mean()
-    p_rec = D_rec.groupby(D_rec.index.hour).mean()
-    p_gen = G_rec.groupby(G_rec.index.hour).mean()
+    # ── El horizonte: el mismo dibujo sobre el perfil medio ─────────────
+    idx = np.arange(24)
+    p_neto = D_neto.groupby(D_neto.index.hour).mean().to_numpy(dtype=float)
+    p_gen = G_rec.groupby(G_rec.index.hour).mean().to_numpy(dtype=float)
+    p_rec = D_rec.groupby(D_rec.index.hour).mean().to_numpy(dtype=float)
+    p_cor = recorte.groupby(recorte.index.hour).mean().to_numpy(dtype=float)
+    assert np.allclose(p_rec, p_neto + p_gen + p_cor, atol=1e-9)
 
-    ax2.axhline(0, color="#333333", linewidth=1.0, zorder=3)
-    ax2.fill_between(p_gen.index, 0, p_gen.values, color=E.APOYO, alpha=0.85,
-                     zorder=1)
-    ax2.plot(p_raw.index, p_raw.values, color=E.ANTES, linewidth=1.9, zorder=4)
-    ax2.plot(p_rec.index, p_rec.values, color=E.DESPUES, linewidth=1.9, zorder=5)
+    ax2.axhline(0, color="#333333", linewidth=0.9, zorder=3)
+    ax2.fill_between(idx, p_neto, p_neto + p_gen, color=E.APOYO, zorder=1)
+    # El recorte a cero queda como un hilo bajo la curva azul. No se
+    # rotula aquí: en potencia media son seis décimas de kW, y una llamada
+    # a un trazo de esa altura pesa más que el trazo. Lo nombra la franja
+    # de energía, que usa este mismo gris y donde ya se puede medir.
+    ax2.fill_between(idx, p_neto + p_gen, p_rec, color=E.NEUTRO, alpha=0.65,
+                     zorder=2)
+    ax2.plot(idx, p_rec, color=E.DESPUES, linewidth=2.2, zorder=4)
+    ax2.plot(idx, p_neto, color=E.ANTES, linewidth=1.4, zorder=5)
     ax2.set_xlabel("Hora del día")
-    ax2.set_ylabel("Potencia media (kW)")
-    ax2.set_title("Las 6.144 h: perfil medio por hora", pad=8)
-    ax2.set_xticks(range(0, 24, 3))
+    ax2.set_title(f"El promedio de las {E.fmt_miles(len(horas))} horas", pad=8)
+    ax2.set_xticks(range(0, 24, 6))
+    ax2.set_xlim(-0.6, 23.6)
 
-    n_neg = int(resumen.loc[institucion, "horas_negativas"])
-    mn = float(resumen.loc[institucion, "min_D_raw_kW"])
-    dif = (D_rec.sum() - D_raw.fillna(0).sum())
-    # Se ancla abajo a la izquierda: es la única zona del panel que las
-    # tres series dejan libre (la caída de la lectura ocupa el centro).
-    ax2.text(0.02, 0.04,
-             f"{E.fmt_miles(n_neg)} h bajo cero\n"
-             f"mínimo {E.fmt_miles(mn, 1)} kW\n"
-             f"devueltos {E.fmt_miles(dif)} kWh",
-             transform=ax2.transAxes, ha="left", va="bottom", fontsize=7.2,
-             linespacing=1.35,
-             bbox=dict(boxstyle="round,pad=0.35", facecolor="white",
-                       edgecolor=E.NEUTRO, linewidth=0.6, alpha=0.95))
+    # ── La franja de energía: la misma cuenta sobre el horizonte ────────
+    e_neto = float(D_neto.sum())
+    e_gen = float(G_rec.sum())
+    e_cor = float(recorte.sum())
+    e_rec = float(D_rec.sum())
+    assert abs(e_neto + e_gen + e_cor - e_rec) < 1e-6
 
-    # La leyenda es común a los dos paneles y va fuera de los ejes: dentro
-    # del panel izquierdo tapaba el máximo del área de generación, que es
-    # justo la magnitud cuyo tamaño explica la caída de la lectura.
-    fig.legend(*ax1.get_legend_handles_labels(), loc="lower center",
-               bbox_to_anchor=(0.5, -0.05), ncol=3, fontsize=7.2,
-               frameon=False, columnspacing=1.6, handlelength=1.8)
+    hueco = 0.0025 * e_rec          # el blanco que separa un tramo del otro
+    tramos = [
+        ("lectura del medidor", e_neto, E.ANTES, 0.80),
+        ("generación devuelta", e_gen, E.APOYO, 1.00),
+        ("recorte a cero", e_cor, E.NEUTRO, 0.65),
+    ]
+    izq = 0.0
+    for k, (nombre, valor, color, opac) in enumerate(tramos):
+        # El ultimo tramo llega hasta el total: descontarle el hueco lo
+        # dejaba corto frente a la cota azul que mide justo ese total.
+        ancho = valor - (hueco if k < len(tramos) - 1 else 0.0)
+        axb.barh(0, ancho, left=izq, height=0.46, color=color,
+                 alpha=opac, zorder=3)
+        izq += valor
+
+    axb.plot([0, e_rec], [-0.52, -0.52], color=E.DESPUES, lw=2.0,
+             solid_capstyle="butt", zorder=3)
+    for xx in (0.0, e_rec):
+        axb.plot([xx, xx], [-0.66, -0.38], color=E.DESPUES, lw=2.0, zorder=3)
+    axb.text(e_rec / 2, -0.80,
+             f"demanda reconstruida: {E.fmt_miles(e_rec)} kWh",
+             ha="center", va="top", fontsize=7.6, color=E.DESPUES)
+
+    # Los dos tramos anchos se rotulan encima y centrados; el recorte no
+    # admite rótulo dentro ni encima sin pisar al vecino, de modo que sube
+    # una línea y baja a buscarlo con un hilo.
+    izq = 0.0
+    for k, (nombre, valor, _color, _opac) in enumerate(tramos):
+        centro = izq + valor / 2
+        if k < 2:
+            axb.text(centro, 0.36, f"{nombre}\n{E.fmt_miles(valor)} kWh",
+                     ha="center", va="bottom", fontsize=7.6, color=E.TINTA,
+                     linespacing=1.3)
+        else:
+            axb.annotate(f"{nombre}\n{E.fmt_miles(valor)} kWh",
+                         xy=(centro, 0.25), xytext=(e_rec, 1.30),
+                         ha="right", va="top", fontsize=7.6, color=E.TINTA,
+                         linespacing=1.3,
+                         arrowprops=dict(arrowstyle="-", color=E.NEUTRO,
+                                         lw=0.7, shrinkA=2, shrinkB=1,
+                                         connectionstyle="arc3,rad=-0.25"))
+        izq += valor
+
+    axb.set_xlim(-0.012 * e_rec, 1.012 * e_rec)
+    axb.set_ylim(-1.15, 1.45)
+    axb.set_title("La misma cuenta en energía, sobre el horizonte completo",
+                  pad=6, loc="left")
+    axb.set_axis_off()
+
+    # La leyenda es común a los dos paneles de potencia y va al pie: dentro
+    # del panel del día taparía la banda, que es la magnitud que la figura
+    # existe para enseñar.
+    fig.legend(handles=[
+        Line2D([], [], color=E.ANTES, lw=1.6,
+               label="Antes: lectura del medidor"),
+        Patch(facecolor=E.APOYO, label="Generación devuelta"),
+        Line2D([], [], color=E.DESPUES, lw=2.2,
+               label="Después: demanda reconstruida"),
+    ], loc="lower center", bbox_to_anchor=(0.5, -0.035), ncol=3, fontsize=7.4,
+        frameon=False, columnspacing=1.6, handlelength=1.8)
 
     _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.955))
+    # El rect no recorta por arriba: tight_layout ya reserva el sitio del
+    # rotulo de cobertura, y descontarlo dos veces dejaba media pulgada
+    # de blanco entre ese rotulo y los titulos de los paneles.
+    fig.tight_layout(rect=(0, 0.02, 1, 1.0))
 
-    tabla = pd.DataFrame({
-        "hora": p_raw.index,
-        "D_medidor_kW": p_raw.values,
-        "G_restada_kW": p_gen.values,
-        "D_reconstruida_kW": p_rec.values,
-    })
+    filas = []
+    for k in range(24):
+        filas += [
+            {"bloque": "dia", "clave": k, "serie": "lectura_medidor",
+             "valor": float(dr[k]), "unidad": "kW"},
+            {"bloque": "dia", "clave": k, "serie": "generacion_devuelta",
+             "valor": float(gr[k]), "unidad": "kW"},
+            {"bloque": "dia", "clave": k, "serie": "demanda_reconstruida",
+             "valor": float(dd[k]), "unidad": "kW"},
+            {"bloque": "promedio", "clave": k, "serie": "lectura_medidor",
+             "valor": float(p_neto[k]), "unidad": "kW"},
+            {"bloque": "promedio", "clave": k, "serie": "generacion_devuelta",
+             "valor": float(p_gen[k]), "unidad": "kW"},
+            {"bloque": "promedio", "clave": k, "serie": "recorte_a_cero",
+             "valor": float(p_cor[k]), "unidad": "kW"},
+            {"bloque": "promedio", "clave": k, "serie": "demanda_reconstruida",
+             "valor": float(p_rec[k]), "unidad": "kW"},
+        ]
+    for nombre, valor in (("lectura_medidor", e_neto),
+                          ("generacion_devuelta", e_gen),
+                          ("recorte_a_cero", e_cor),
+                          ("demanda_reconstruida", e_rec)):
+        filas.append({"bloque": "energia", "clave": "horizonte",
+                      "serie": nombre, "valor": valor, "unidad": "kWh"})
+
     return E.guardar(
-        fig, f"f3_03_reconstruccion_{cobertura}", datos=tabla,
+        fig, f"f3_03_reconstruccion_{cobertura}", datos=pd.DataFrame(filas),
         procedencia=[
             f"MedicionesMTE_v3/{institucion}/ (medidor de demanda e inversores)",
             f"reformateo/documento/datos_cache/preproceso_{cobertura}.npz",
+            f"día del panel izquierdo: {dia} (tramo con los tres inversores "
+            "registrando, sin horas recortadas)",
             "regla: D = max(0, D_net + suma de inversores) — data/preprocessing.py",
         ])
 

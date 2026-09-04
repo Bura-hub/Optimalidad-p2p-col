@@ -607,90 +607,116 @@ donde la suma recorre \emph{todos} los inversores físicos que inyectan
 entre ese medidor y su carga, y el exponente $+$ significa que, si el
 resultado sale negativo, se toma cero.
 
-La expresión no se aplica por igual a las cinco instituciones. En Udenar la
-suma recorre tres inversores, y en Mariana y la UCC, su único equipo. El
-HUDN y CESMAG entregan lectura bruta, de modo que no hay nada que
-devolverles y reciben solo el recorte a cero, que en ellos no llega a
-actuar ninguna vez porque sus lecturas nunca bajan de cero.
+La expresión no se aplica por igual a las cinco instituciones. La
+Tabla~\ref{tab:prep-reconstruccion} reparte los cinco casos: a quién se le
+devuelve generación, con cuántos inversores y si el recorte a cero llega a
+actuar.
 
-En Udenar los tres equipos no cumplen el mismo papel. El inversor del
-proyecto entró en servicio el 3 de septiembre de 2025 y cubre \pct{22.9}
-del horizonte; los otros dos registran desde el primer día y son, por
-tanto, la única noticia que hay de la generación anterior a esa fecha. Que
-sumar los tres sea lo correcto lo dice el propio medidor: desde que el
-inversor del proyecto registra, devolverlos deja \emph{exactamente} cero
-horas negativas.
+\begin{table}[H]
+ \centering
+ \caption{Cómo se aplica la reconstrucción en cada institución. El HUDN y
+ CESMAG entregan lectura bruta, de modo que no hay generación que
+ devolverles y el recorte queda solo como resguardo. Cuando una hora no
+ trae lectura de medidor pero sí de inversor, la demanda de partida se
+ toma como nula y el resultado queda igual a la generación devuelta; pasa
+ en \num{7} horas del horizonte, todas de Udenar, y suma \uni{34.1}{kWh}.}
+ \label{tab:prep-reconstruccion}
+ \small
+ \begin{tabular}{@{}l l r r r@{}}
+ \toprule
+ \textbf{Institución} & \textbf{Tipo} & \textbf{Inversores} &
+ \textbf{Horas con} & \textbf{Energía} \\
+ & & \textbf{devueltos} & \textbf{recorte} &
+ \textbf{recortada (kWh)} \\
+ \midrule
+ Udenar & neto & \num{3} & \num{353} & \num{1013,3} \\
+ \addlinespace
+ Mariana & neto parcial & \num{1} & \num{6} & \num{0,6} \\
+ \addlinespace
+ UCC & neto parcial & \num{1} & \num{0} & \num{0} \\
+ \addlinespace
+ HUDN & bruto & --- & \num{0} & \num{0} \\
+ \addlinespace
+ CESMAG & bruto & --- & \num{0} & \num{0} \\
+ \bottomrule
+ \end{tabular}
+\end{table}
 
-El recorte, por tanto, no es una precaución teórica. Actúa en \num{353}
-horas de Udenar y en \num{6} de Mariana, y todas ellas caen antes del 3 de
-septiembre, es decir, en el tramo que el inversor del proyecto no alcanza.
-La subsección~\ref{sub:prep-costo} mide cuánto cuesta.
+La única fila que pide explicación es la primera, porque los tres equipos
+de Udenar no cumplen el mismo papel. El inversor del proyecto entró en
+servicio el 3 de septiembre de 2025 y cubre \pct{22.9} del horizonte; los
+otros dos registran desde el primer día. Antes de esa fecha, entonces, la
+suma solo puede devolver lo que midieron esos dos, y queda incompleta.
 
-Cuando la hora no trae lectura de medidor pero sí de inversor, la demanda
-de partida se toma como nula y el resultado queda igual a la generación
-devuelta. Ocurre en \num{7} horas del horizonte, todas de Udenar, y suma
-\uni{34.1}{kWh}.
+Que sumar los tres sea lo correcto lo dice el propio medidor. Desde el 3
+de septiembre, devolverle la generación de los tres deja
+\emph{exactamente} cero horas con demanda negativa. Las \num{353} de la
+tabla caen todas antes, que es donde la suma va incompleta, y la
+subsección~\ref{sub:prep-costo} mide cuánto cuesta.
 
 La Figura~\ref{fig:prep-reconstruccion} confronta las tres series sobre un
-mismo eje y muestra el resultado de aplicar esa devolución.
+mismo eje y muestra el resultado de aplicar esa devolución. La coincidencia
+temporal es el argumento: la lectura se hunde exactamente cuando la banda
+de generación se ensancha, y ninguna avería de sensor produciría eso.
 
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_03_reconstruccion_m1.png}
- \caption[La reconstrucción de la demanda bruta, antes y después]{La
- reconstrucción sobre Udenar. A la izquierda, un día concreto hora a
- hora: en rojo la lectura del medidor, que se hunde al mediodía; en
- beige, la generación que ese medidor había restado; en azul, la
- demanda que resulta al devolvérsela. A la derecha, el perfil medio
- sobre las \num{6144} horas, que confirma que el día elegido no es
- excepcional.
- \fuente{elaboración propia desde \file{MedicionesMTE\_v3/Udenar/},
- aplicando la ecuación~\eqref{eq:prep-reconstruccion}.}}
+ \caption[La reconstrucción de la demanda bruta de Udenar]{La
+ reconstrucción sobre Udenar. A la izquierda, un viernes hora a hora: en
+ rojo la lectura del medidor y en azul la demanda que resulta al
+ devolverle la generación.}
  \label{fig:prep-reconstruccion}
 \end{figure}
 
-\notafig{La coincidencia temporal es el argumento: la curva roja se
-hunde exactamente cuando el área beige alcanza su máximo, lo que ninguna
-avería de sensor produciría. La curva azul resultante recupera la forma
-que cabe esperar de un campus universitario, es decir, base nocturna
-estable, ascenso matinal, valle de almuerzo y segundo pico vespertino.
-Sobre el horizonte completo la reconstrucción devuelve \uni{33705}{kWh} a
-la serie de demanda de Udenar. Elaboración propia aplicando la
-ecuación~\eqref{eq:prep-reconstruccion}.}
+La banda beige entre las dos curvas es esa
+generación, de modo que la curva azul es la roja levantada por la banda,
+y la cota vertical la mide en la hora de lectura más baja, cuando los
+tres inversores entregaron \uni{35.1}{kW}. El día pertenece al tramo
+posterior al 3 de septiembre de \num{2025}, cuando los tres registran a
+la vez, y ninguna de sus horas llega al recorte. A la derecha, el
+promedio de las \num{6144} horas en la misma escala vertical. Abajo, la
+misma igualdad en energía sobre el horizonte completo.
+
+\begin{guardado}
+\notafig{La curva azul resultante recupera la forma que cabe esperar de un
+campus universitario, es decir, base nocturna estable, ascenso matinal,
+valle de almuerzo y tarde sostenida. La franja inferior separa las dos
+partes de la cuenta: de los \uni{33705}{kWh} en que la reconstrucción
+levanta la serie de Udenar, \uni{32691}{kWh} son generación devuelta y
+\uni{1013}{kWh} proceden del recorte a cero. Elaboración propia aplicando
+la ecuación~\eqref{eq:prep-reconstruccion}.}
+\end{guardado}
 
 \begin{detallebox}
-El inversor cumple dos papeles dentro del pipeline y se confunden con
-facilidad. La generación $G$ que consume el modelo proviene
-de \emph{un} inversor designado por institución. La reconstrucción de la
-ecuación~\eqref{eq:prep-reconstruccion}, en cambio, suma \emph{todos} los
-inversores que inyectan detrás del medidor. Son conjuntos distintos: en
-Udenar el primero tiene un elemento y el segundo, tres.
+Los inversores intervienen en dos capas distintas. La generación $G$ que
+el modelo negocia proviene de \emph{un} inversor designado por
+institución, que en Udenar es el del proyecto. La reconstrucción de la
+ecuación~\eqref{eq:prep-reconstruccion} suma, en cambio, \emph{todos} los
+que inyectan detrás del medidor, que en Udenar son tres. Las dos capas
+responden a preguntas distintas: cuál generación se negocia, y cuánta
+restó el medidor.
 \end{detallebox}
 
 \subsection{Lo que cuesta reconstruir}
 \label{sub:prep-costo}
 
 El recorte a cero de la ecuación~\eqref{eq:prep-reconstruccion} no es
-gratuito, y lo que cuesta se puede medir. El recorte
-actúa cuando la suma de inversores se queda \emph{corta} frente a la
-generación que el medidor descontó, porque solo entonces
-$D_{\text{neto}} + \sum G$ sigue siendo negativo; si la suma sobrara, el
-resultado saldría más positivo, no menos. La causa está identificada y es
-de cobertura: las \num{353} horas caen todas antes del 3 de septiembre de
-\num{2025}, cuando el inversor del proyecto todavía no registraba, de modo
-que la suma devuelve al medidor menos de lo que este había restado y el
-recorte lleva a cero la diferencia, eliminando energía de la serie de
-demanda.
+gratuito, y lo que cuesta se puede medir. Actúa cuando la suma de
+inversores se queda \emph{corta} frente a la generación que el medidor
+descontó, porque solo entonces $D_{\text{neto}} + \sum G$ sigue siendo
+negativo; si la suma sobrara, el resultado saldría más positivo, no menos.
+La causa es de cobertura: antes del 3 de septiembre de \num{2025} el
+inversor del proyecto no registraba, y la suma devuelve al medidor menos
+de lo que este había restado.
 
-El fenómeno afecta a \num{353} de las \num{6144} horas del horizonte de
-Udenar (el \pct{5.7}), ocurre exclusivamente en la ventana solar, con
-máximo a las 13 horas, y elimina en total \uni{1013.3}{kWh}. En Mariana el
-mismo recorte actúa en \num{6} horas y elimina \uni{0.6}{kWh}, y en la UCC
-no actúa ninguna vez, de modo que el asunto es de Udenar.
-Eso equivale al \pct{2.29} de la demanda de Udenar y al
-\pct{0.32} de la demanda comunitaria. La distorsión es, por
-tanto, acotada y de signo conocido: subestima levemente la demanda de
-Udenar en horas solares.
+Lo que eso elimina de la serie de demanda queda acotado. Son las
+\num{353} horas de Udenar de la tabla anterior, el \pct{5.7} del
+horizonte, todas en la ventana solar y con máximo a las 13 horas, que
+suman \uni{1013.3}{kWh}, es decir, el \pct{2.29} de la demanda de Udenar y
+el \pct{0.32} de la comunitaria. La distorsión tiene además signo
+conocido, porque subestima la demanda de Udenar justo en las horas de
+sol.
 
 \begin{lecturabox}
 Que el signo sea conocido importa más que la magnitud. Subestimar la
@@ -759,19 +785,23 @@ apunta a interrupciones de adquisición y no a un defecto sistemático.
 Elaboración propia desde el caché de estados intermedios.}
 
 \begin{trampabox}
-En el proyecto conviven tres criterios de relleno distintos, y se declara
-aquí antes de que el lector lo advierta al comparar módulos. El
-descrito aquí gobierna las 10 series de medida. La serie horaria de
-precios de bolsa, que construye el Capítulo~\ref{sec:precios},
-interpola huecos de hasta seis
-horas y completa el residuo con la mediana, sin marcado de atípicos: la
-diferencia en el residuo sí se sostiene (cero es una potencia legítima,
-pero un precio de cero no describe ninguna hora del mercado mayorista),
-mientras que la diferencia en el límite de interpolación no tiene
-justificación registrada. El tercer criterio, el del caso de estudio
-prospectivo, mezcla el límite de seis horas con el residuo en cero. Las
-divergencias se declaran como heterogeneidad heredada de la construcción
-incremental del repositorio, y no como elecciones fundamentadas.
+En el proyecto conviven tres criterios de relleno distintos:
+
+\begin{enumerate}[leftmargin=*, itemsep=0.2em, topsep=0.3em]
+ \item Las 10 series de medida siguen el criterio descrito arriba.
+ \item La serie horaria de precios de bolsa, que construye el
+ Capítulo~\ref{sec:precios}, interpola huecos de hasta seis horas y
+ completa el residuo con la mediana, sin marcado de atípicos.
+ \item El caso de estudio prospectivo mezcla el límite de seis horas con
+ el residuo en cero.
+\end{enumerate}
+
+De las dos diferencias, solo una se sostiene. Que el residuo de los
+precios sea la mediana y no cero está justificado, porque cero es una
+potencia legítima pero no describe ninguna hora del mercado mayorista. El
+límite de interpolación, en cambio, no tiene justificación registrada: es
+heterogeneidad heredada de la construcción incremental del repositorio, y
+no una elección fundamentada.
 \end{trampabox}
 
 \subsection{Ensamblar y verificar: lo que el modelo recibe}
@@ -812,9 +842,8 @@ aparezcan donde deben es lo que autoriza a seguir adelante.
 \subsection{Fijar la zona horaria}
 \label{sub:prep-zona}
 
-La última etapa no altera ningún valor: le pone zona horaria al índice. Es
-la más corta de las seis y la que más fácilmente pasa inadvertida, y sin
-embargo encierra una suposición de la que dependen dos argumentos
+La última etapa no altera ningún valor: le pone zona horaria al índice.
+Aun así encierra una suposición de la que dependen dos argumentos
 anteriores.
 
 Las marcas de tiempo llegan sin zona, de modo que hay que decidir cuál es
@@ -824,9 +853,7 @@ La suposición es que cada equipo escribe la hora del sitio donde está
 instalado, y se comprueba sin salir del dato: el máximo de generación de
 las cinco instituciones cae entre las 11 y las 12, que es el mediodía solar
 de Pasto. Si las marcas vinieran en tiempo universal, con Colombia cinco
-horas por detrás, ese máximo aparecería entre las 16 y las 17. La
-subsección anterior ya usa esa alineación como comprobación final del
-capítulo.
+horas por detrás, ese máximo aparecería entre las 16 y las 17.
 
 Los dos argumentos que dependen de esto son el de la
 subsección~\ref{sub:prep-negativa}, que sitúa las lecturas negativas en las
@@ -902,14 +929,13 @@ de estados intermedios.}
 \subsection{Las decisiones que sesgan en contra}
 \label{sub:prep-sesgo}
 
-Un capítulo que describe seis etapas de tratamiento del dato debe
-responder a una objeción evidente: si en todas ellas se decidió algo
-y el resultado sale favorable, ¿cuánto del resultado son las decisiones? La
-respuesta honesta no es que las decisiones sean neutrales: lo que decide
-es hacia dónde apuntan.
+En las seis etapas se decidió algo y el resultado sale favorable, de modo
+que la objeción es inmediata: cuánto del resultado son las decisiones. La
+respuesta honesta no es que las decisiones sean neutrales, sino que lo que
+importa es hacia dónde apuntan.
 
-Las principales elecciones del pipeline, y las dos del modelo que
-corresponde mencionar aquí, apuntan todas en la misma dirección:
+Cinco apuntan en la misma dirección, la de recortar el resultado. Tres son
+del pipeline y dos del modelo:
 
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
  \item \textbf{El recorte de la reconstrucción} elimina
@@ -936,18 +962,16 @@ corresponde mencionar aquí, apuntan todas en la misma dirección:
  difíciles.} Cuando el método numérico que resuelve el equilibrio
  de una hora no converge, esa hora se descarta sin imputarle beneficio
  al mercado entre pares, en vez de estimarlo.
+
+ \item \textbf{La generación que falta se pone a cero antes de la
+ limpieza}, de modo que sus huecos no se interpolan ni se arrastran como
+ los de la demanda. En la noche eso es correcto, porque el equipo no
+ produce, pero \num{285} horas de sol del horizonte quedan con generación
+ nula cuando lo que hubo fue una avería de registro. Menos generación es
+ menos excedente que ofrecer.
 \end{enumerate}
 
-Hay una sexta que el capítulo no había declarado y que también recorta. La
-generación que falta se pone a cero antes de que la etapa de limpieza la
-vea, de modo que sus huecos no se interpolan ni se arrastran como los de la
-demanda. En la noche eso es correcto, porque el equipo no produce, pero
-\num{285} horas de sol del horizonte quedan así con generación nula cuando
-lo que hubo fue una avería de registro. Menos generación es menos
-excedente que ofrecer, de modo que la decisión empuja el mercado hacia
-abajo.
-
-Hay una que apunta al revés. Al estimar la hora incompleta con la media de
+La sexta apunta al revés. Al estimar la hora incompleta con la media de
 sus muestras presentes se le atribuye al tramo no observado el
 comportamiento del observado, lo que da entre \pct{0.26} y \pct{0.55} más
 energía que truncarlo. Afecta a \num{835} horas del horizonte, es decir, al
@@ -967,9 +991,9 @@ proporción tres órdenes de magnitud menor que el margen que separa a los
 mecanismos. La
 consecuencia metodológica es que las cifras del Capítulo~\ref{sec:res}
 deben leerse como una \textbf{cota inferior} de lo que este mercado podría
-rendir, y no como una estimación centrada. Es una posición
-deliberadamente incómoda (renuncia a parte del margen) y es la que permite
-sostener el resultado ante una lectura hostil.
+rendir, y no como una estimación centrada. Es una posición deliberadamente incómoda, porque renuncia a parte del
+margen, y es la que permite sostener el resultado ante una lectura
+hostil.
 
 \subsection{Declaración de honestidad metodológica}
 \label{sub:prep-honestidad}
@@ -1006,12 +1030,11 @@ Como cota global, el impacto neto de estas elecciones sobre el volumen de
 energía transada se estima en $\pm$\,\pct{0.3}. El estatuto de esa cifra
 necesita una precisión, porque es fácil leerla como un resultado y no lo
 es: no procede de la matriz de sensibilidad que el
-punto~3 declara no construida, sino de un juicio apoyado en
-dos evidencias indirectas (la cobertura de adquisición por equipo, que
-supera el \pct{97} en los inversores principales, y la magnitud
-del recorte de la reconstrucción, que representa el \pct{0.32} de
-la demanda comunitaria). Es una estimación declarada y no un valor
-calculado, y así debe leerse.
+punto~3 declara no construida, sino de un juicio apoyado en dos evidencias indirectas: la cobertura de
+adquisición por equipo, que supera el \pct{97} en los inversores
+principales, y la magnitud del recorte de la reconstrucción, que
+representa el \pct{0.32} de la demanda comunitaria. Es una estimación
+declarada y no un valor calculado, y así debe leerse.
 
 Con todo lo anterior, el dato queda listo para el modelo: dos matrices de
 \num{6144} horas, no negativas por construcción, con la energía que cada

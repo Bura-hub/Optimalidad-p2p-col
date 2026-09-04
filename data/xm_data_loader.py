@@ -194,12 +194,16 @@ class MTEDataLoader:
     def __init__(self, root_path: str,
                  demand_config: Optional[dict] = None,
                  ems_inverter_config: Optional[dict] = None,
+                 ems_inverter_backfill_config: Optional[dict] = None,
                  reconstruction_inverters_config: Optional[dict] = None):
         self.root = Path(root_path)
         if not self.root.exists():
             raise FileNotFoundError(f"Carpeta no encontrada: {self.root}")
         self._demand_cfg = demand_config
         self._ems_inv_cfg = ems_inverter_config
+        # CAL-44: inversor de referencia con el que se extiende el designado
+        # donde no registra. None deja el default del modulo; {} lo desactiva.
+        self._ems_backfill_cfg = ems_inverter_backfill_config
         self._recon_inv_cfg = reconstruction_inverters_config
 
     def load(self, verbose: bool = True
@@ -211,6 +215,7 @@ class MTEDataLoader:
             self.root,
             demand_config=self._demand_cfg,
             ems_inverter_config=self._ems_inv_cfg,
+            ems_inverter_backfill_config=self._ems_backfill_cfg,
             reconstruction_inverters_config=self._recon_inv_cfg,
             verbose=verbose,
         )

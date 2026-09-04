@@ -54,18 +54,25 @@ Configuración elegida
 =========  ==========================================  ============  ======================  =======================
 Inst.      Medidor demanda (subcarpeta)                Tipo          Inversor EMS            Inversores reconstrucción
 =========  ==========================================  ============  ======================  =======================
-Udenar     Bloque Sur - Medidor 1 - electricMeter      net           Fronius Inverter 1      Fronius 1+2 + Inversor MTE
+Udenar     Bloque Sur - Medidor 1 - electricMeter      net           Inversor MTE (*)        Fronius 1+2 + Inversor MTE
 Mariana    Medidor 1 - Alvernia - electricMeter        net_partial   Fronius - Alvernia      Fronius - Alvernia
 UCC        Medidor 1 - UCC - electricMeter             net_partial   Fronius - UCC           Fronius - UCC
 HUDN       Medidor 1 - HUDN - electricMeter            gross         Inversor 1 - HUDN       —
 Cesmag     Medidor 1 - Cesmag - electricMeter          gross         Inverter 1 - Cesmag     —
 =========  ==========================================  ============  ======================  =======================
 
+(*) CAL-44: el inversor del proyecto entra en servicio el 2025-09-03 y
+cubre el 22,9 % del horizonte. Las horas que le faltan se reconstruyen
+desde el inversor de referencia de ``EMS_INVERTER_BACKFILL_CONFIG``,
+escalado por la razón de energías del solape. Los Fronius de Udenar NO
+entran en ningún cálculo por sí mismos: son referencia de esa
+reconstrucción y sumandos del bookkeeping net→bruta, nada más.
+
 Tipos:
-  - "net"         : neteo agresivo (Udenar, 989 h con D<0 sobre el
+  - "net"         : neteo agresivo (Udenar, 1517 h con D<0 sobre el
                     horizonte v3). Reconstrucción obligatoria con la
                     suma de los 3 inversores físicos.
-  - "net_partial" : neteo leve (Mariana 216 h, UCC 112 h con D<0).
+  - "net_partial" : neteo leve (Mariana 213 h, UCC 94 h con D<0).
                     Reconstrucción a través del inversor único.
   - "gross"       : medidor limpio (HUDN, Cesmag). Solo clip(0)
                     defensivo.
@@ -129,12 +136,24 @@ DEMAND_METER_CONFIG: dict[str, dict] = {
     "Cesmag":  {"subfolder": "Medidor 1 - Cesmag - electricMeter",     "kind": "gross"},
 }
 
+# CAL-44 (2026-09-03): el inversor designado de Udenar es el del proyecto
+# MTE. Antes se designaba el "Fronius Inverter 1", que es un equipo ajeno:
+# la generación que la comunidad negociaba era la de otro inversor.
 EMS_INVERTER_CONFIG: dict[str, str] = {
-    "Udenar":  "Fronius Inverter 1 - inverter",
+    "Udenar":  "Inversor MTE - Udenar - inverter",
     "Mariana": "Fronius - Alvernia - inverter",
     "UCC":     "Fronius - UCC - inverter",
     "HUDN":    "Inversor 1 - HUDN - inverter",
     "Cesmag":  "Inverter 1 - Cesmag - inverter",
+}
+
+# CAL-44: inversor de referencia con el que se extiende el designado allí
+# donde no registra. El de Udenar cubre solo el 22,9 % del horizonte; sobre
+# las 1409 horas de solape las dos curvas correlacionan r = 0,997 con perfil
+# diario de idéntica forma, y la razón de energías (~1,205) fija el nivel.
+# Una institución sin entrada aquí usa su inversor designado tal cual.
+EMS_INVERTER_BACKFILL_CONFIG: dict[str, str] = {
+    "Udenar": "Fronius Inverter 1 - inverter",
 }
 
 RECONSTRUCTION_INVERTERS_CONFIG: dict[str, list[str]] = {
@@ -201,7 +220,12 @@ def _read_single_meter(folder: Path, col: str, idx: pd.DatetimeIndex,
     if not parts:
         return pd.Series(np.nan, index=idx)
 
-    combined = pd.concat(parts, axis=1).sum(axis=1, min_count=1)
+    # P-17: los tramos de un mismo medidor pueden compartir un
+    # instante en su costura, y sumarlos hacia que esa lectura contara
+    # doble. Se funden promediando, igual que los duplicados dentro de
+    # un mismo archivo. Para un instante presente en un solo tramo el
+    # resultado es identico, y una fila entera vacia sigue dando NaN.
+    combined = pd.concat(parts, axis=1).mean(axis=1)
     # Filtra al horizonte indicado por idx (no al T_START/T_END global)
     t_start, t_end = idx[0], idx[-1] + (idx[1] - idx[0])
     combined = combined.loc[t_start:t_end]
@@ -217,6 +241,53 @@ def _read_single_inverter(folder: Path, idx: pd.DatetimeIndex) -> pd.Series:
     """
     s = _read_single_meter(folder, COL_GEN, idx, divide_by=1000.0)
     return s.clip(lower=0)
+
+
+def _read_ems_generation(inverter_root: Path, designado: str,
+                         referencia: Optional[str], idx: pd.DatetimeIndex,
+                         etiqueta: str = "", verbose: bool = True) -> pd.Series:
+    """
+    Lee la generación que el modelo negocia: la del inversor designado,
+    extendida con la del de referencia allí donde el designado no registra.
+
+    El factor de escala es la razón de energías sobre las horas en que los
+    dos registran, de modo que la curva reconstruida toma la forma del de
+    referencia y el nivel del designado. Sin referencia declarada, o sin
+    solape utilizable, devuelve el designado tal cual.
+    """
+    dir_d = _find_subdir(inverter_root, designado)
+    if dir_d is None:
+        if verbose:
+            print(f"  AVISO {etiqueta}: subcarpeta de inversor EMS no "
+                  f"encontrada ({designado}); generacion queda en cero")
+        return pd.Series(0.0, index=idx)
+
+    g = _read_single_inverter(dir_d, idx)
+    falta = g.isna()
+    if referencia is None or not falta.any():
+        return g.fillna(0.0)
+
+    dir_r = _find_subdir(inverter_root, referencia)
+    if dir_r is None:
+        print(f"  AVISO {etiqueta}: inversor de referencia no encontrado "
+              f"({referencia}); {int(falta.sum())} horas quedan en cero")
+        return g.fillna(0.0)
+
+    ref = _read_single_inverter(dir_r, idx)
+    solape = g.notna() & ref.notna()
+    e_ref = float(ref[solape].sum())
+    if int(solape.sum()) < 24 or e_ref <= 0.0:
+        print(f"  AVISO {etiqueta}: solape insuficiente con {referencia} "
+              f"({int(solape.sum())} h); no se reconstruye")
+        return g.fillna(0.0)
+
+    k = float(g[solape].sum()) / e_ref
+    out = g.copy()
+    out[falta] = k * ref[falta]
+    if verbose:
+        print(f"    [CAL-44] {int(falta.sum())} h reconstruidas desde "
+              f"{referencia.split(' - ')[0]} (factor {k:.4f})")
+    return out.fillna(0.0)
 
 
 def _sum_inverter_reconstruction(agent_dir: Path, subfolders: list[str],
@@ -249,6 +320,7 @@ def build_demand_generation(
     *,
     demand_config: dict | None = None,
     ems_inverter_config: dict | None = None,
+    ems_inverter_backfill_config: dict | None = None,
     reconstruction_inverters_config: dict | None = None,
     t_start: str | None = None,
     t_end: str | None = None,
@@ -278,6 +350,8 @@ def build_demand_generation(
 
     d_cfg = demand_config or DEMAND_METER_CONFIG
     e_cfg = ems_inverter_config or EMS_INVERTER_CONFIG
+    b_cfg = (EMS_INVERTER_BACKFILL_CONFIG if ems_inverter_backfill_config is None
+             else ems_inverter_backfill_config)
     r_cfg = reconstruction_inverters_config or RECONSTRUCTION_INVERTERS_CONFIG
 
     ts = t_start or T_START
@@ -333,12 +407,10 @@ def build_demand_generation(
         ems_sub = e_cfg.get(agent)
         G_ems = pd.Series(0.0, index=idx)
         if inv_root is not None and ems_sub is not None:
-            ems_dir = _find_subdir(inv_root, ems_sub)
-            if ems_dir is not None:
-                G_ems = _read_single_inverter(ems_dir, idx).fillna(0.0)
-            elif verbose:
-                print(f"  A{n} {agent}: subcarpeta de inversor EMS no encontrada "
-                      f"({ems_sub})")
+            G_ems = _read_ems_generation(
+                inv_root, ems_sub, b_cfg.get(agent), idx,
+                etiqueta=f"A{n} {agent}", verbose=verbose,
+            )
         elif verbose:
             print(f"  A{n} {agent}: sin carpeta de inversores")
 

@@ -2171,37 +2171,72 @@ def f34_anatomia_umbral():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f35_umbral_atipicos(cobertura: str = "m1"):
+def _series_derivadas() -> set:
     """
-    F3.5 — El umbral: que retira y por que esta donde esta.
+    Pares (institución, frontera) cuya serie no es una medición propia.
 
-    Panel izquierdo, el caso: la hora que el criterio retira y el valor con
-    que quedo, sobre una ventana de tres dias, que es la escala a la que un
-    pico se distingue de la operacion normal. Sobre las 6.144 horas del
-    horizonte esa hora es un marcador sobre una maraña.
-
-    Paneles derechos, la regla: una fila por serie con su mitad central, su
-    cola hasta el maximo observado y los dos candidatos del umbral, en
-    multiplos del percentil 99,5 de la propia serie. La normalizacion no es
-    cosmetica: los diez umbrales de la frontera principal van de 10,2 a
-    154,8 kW, mas de un orden de magnitud, de modo que en kilovatios las
-    filas pequeñas no podrian dibujar ninguna diferencia. Normalizados, el
-    segundo criterio es una sola vertical en 1,2 comun a las diez filas, y
-    basta mirar a que lado de esa vertical cae el corte del primero para
-    saber cual de los dos manda.
+    Una institución sin medidor en una frontera se representa escalando el
+    de la otra. Eso no se declara aquí a mano: se comprueba sobre el dato,
+    exigiendo que el cociente entre las dos series sea constante en todo
+    el horizonte, y se atribuye a la frontera cuya serie es la fracción,
+    que es la que se obtuvo multiplicando. La única que cumple hoy es la
+    Universidad Mariana bajo M3, con un cociente de 0,3 y desviación
+    5,9e-18, mientras que en las otras cuatro el cociente varía entre
+    0,08 y 2,5.
     """
-    censo, detalle, series = _censo_limpieza(cobertura)
+    s = {c: D.preproceso(c)[0] for c in ("m1", "m3")}
+    fuera = set()
+    for inst in E.ORDEN_INSTITUCIONES:
+        # Las series que se comparan son las que ve el umbral: la lectura
+        # del medidor para la demanda y la generación tal como entra al
+        # filtro. La generación devuelta no sirve, porque en la frontera
+        # secundaria vale cero en las cinco y un cociente nulo es
+        # constante sin que haya ninguna serie escalada.
+        for magnitud, sufijo in (("demanda", "D_raw"), ("generación", "G_ems")):
+            a = s["m1"][f"{inst}__{sufijo}"]
+            b = s["m3"][f"{inst}__{sufijo}"]
+            ok = a.notna() & b.notna() & (a.abs() > 1e-9)
+            if not ok.any():
+                continue
+            razon = (b[ok] / a[ok])
+            if float(razon.std()) >= 1e-9:
+                continue
+            factor = float(razon.mean())
+            if abs(factor) < 1e-12:
+                continue
+            if abs(factor) < 1:
+                fuera.add(("m3", inst, magnitud))
+            elif abs(factor) > 1:
+                fuera.add(("m1", inst, magnitud))
+    return fuera
 
-    # ── el caso del panel izquierdo ──────────────────────────────────────
-    # Regla: entre todas las horas retiradas, las aisladas (ni la anterior
-    # ni la posterior lo estan) y de esas la que mas sobresale del umbral en
-    # terminos relativos. La aislada es imprescindible: en un tramo de horas
-    # seguidas no se ve que la interpolacion cierre el hueco, y el tramo del
-    # 24 de abril, tres horas de la rampa de mañana, sobresale un 1,3 %, de
-    # modo que enseñaria un criterio que apenas discrimina.
+
+def _caso_atipico(cobertura: str, censo, detalle, series, derivadas):
+    """
+    La hora retirada que la figura dibuja, elegida por regla.
+
+    Entre todas las horas que el umbral retira se toman las aisladas, es
+    decir, aquellas cuya hora anterior y posterior no lo están, y de esas
+    la que más sobresale del umbral en términos relativos. La aislación es
+    imprescindible por dos razones: en un tramo de horas seguidas no se ve
+    que la interpolación cierre el hueco, y el tramo de tres horas del 24
+    de abril es una rampa de mañana cuya primera hora sobresale un 1,3 %,
+    de modo que enseñaría un criterio que apenas discrimina.
+
+    Quedan fuera las series que no son una medición propia de esa
+    frontera sino la de la otra escalada: dibujarlas repetiría en la
+    segunda fila el mismo aparato y la misma hora de la primera, con otro
+    eje, y la fila dejaría de comprobar nada.
+
+    Devuelve ``None`` cuando la frontera no tiene ninguna hora retirada
+    aislada. No es una hipótesis: si el multiplicador del primer criterio
+    pasara de 5 a 7, la frontera principal se quedaría sin ninguna.
+    """
     mejor = None
     for inst in E.ORDEN_INSTITUCIONES:
         for magnitud in ("demanda", "generación"):
+            if (cobertura, inst, magnitud) in derivadas:
+                continue
             r = detalle[(inst, magnitud)]
             m = r["out"]
             if not m.any():
@@ -2220,173 +2255,195 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
                 if mejor is None or exceso > mejor["exceso"]:
                     mejor = {"inst": inst, "magnitud": magnitud, "hora": t,
                              "exceso": exceso, "entra": float(entrada[t]),
-                             "umbral": r["umbral"], "sale": float(r["limpia"][t]),
+                             "umbral": r["umbral"],
+                             "sale": float(r["limpia"][t]),
                              "entrada": entrada, "limpia": r["limpia"]}
-    assert mejor is not None, (f"{cobertura}: ninguna hora retirada por el "
-                               "umbral queda aislada; el panel del caso se "
-                               "queda sin objeto")
+    return mejor
 
-    t = mejor["hora"]
-    ventana = slice(t - pd.Timedelta("36h"), t + pd.Timedelta("36h"))
-    obs = mejor["entrada"][ventana]
-    fin = mejor["limpia"][ventana]
-    ancla_previa = float(mejor["entrada"][t - pd.Timedelta("1h")])
-    ancla_post = float(mejor["entrada"][t + pd.Timedelta("1h")])
 
-    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 3.9))
-    malla = fig.add_gridspec(2, 2, width_ratios=(1.0, 1.18),
-                             height_ratios=(1.0, 1.0), wspace=0.30, hspace=0.24)
-    ax_caso = fig.add_subplot(malla[:, 0])
-    ax_dem = fig.add_subplot(malla[0, 1])
-    ax_gen = fig.add_subplot(malla[1, 1], sharex=ax_dem)
+def f35_umbral_caso():
+    """
+    F3.5 — La hora que el umbral retira, y con qué se queda la serie.
 
-    # ── panel del caso ───────────────────────────────────────────────────
-    ax_caso.plot(fin.index, fin.values, color=E.TINTA, linewidth=1.0,
-                 label="Serie ya limpia")
-    ax_caso.axhline(mejor["umbral"], color=E.ALERTA, linewidth=1.1,
-                    linestyle="--",
-                    label=f"Umbral: {E.fmt_miles(mejor['umbral'], 1)} kW")
-    lo = float(min(fin.min(), obs.min()))
-    hi = float(max(obs.max(), mejor["entra"]))
-    margen = 0.16 * (hi - lo)
-    ax_caso.axhspan(mejor["umbral"], hi + 3 * margen, color=E.ALERTA,
-                    alpha=0.07, linewidth=0, zorder=0)
-    ax_caso.plot([t], [mejor["entra"]], marker="o", markersize=7,
-                 markerfacecolor="white", markeredgecolor=E.ANTES,
-                 markeredgewidth=1.6, linestyle="none",
-                 label="Lectura retirada", zorder=6)
-    ax_caso.plot([t], [mejor["sale"]], marker="s", markersize=6,
-                 color=E.DESPUES, linestyle="none",
-                 label="Valor con que quedó", zorder=6)
-    ax_caso.annotate("", xy=(t, mejor["sale"]), xytext=(t, mejor["entra"]),
-                     arrowprops=dict(arrowstyle="->", color=E.NEUTRO,
-                                     linewidth=0.9, shrinkA=4, shrinkB=4))
-    ax_caso.plot([t - pd.Timedelta("1h"), t + pd.Timedelta("1h")],
-                 [ancla_previa, ancla_post], color=E.DESPUES, linewidth=0.9,
-                 linestyle=":", zorder=4)
-    ax_caso.set_ylim(lo - margen, hi + 1.75 * margen)
-    ax_caso.set_ylabel("Demanda (kW)" if mejor["magnitud"] == "demanda"
-                       else "Generación (kW)")
-    ax_caso.set_xlabel("Día y mes de 2025")
-    ax_caso.set_title(f"El caso: {E.etiqueta_institucion(mejor['inst'])}, "
-                      f"{E.fmt_fecha(t, 'dia_corto')}", pad=7)
-    # Una marca por dia: con marcas cada doce horas las siete etiquetas se
-    # imprimian una encima de otra.
-    ax_caso.xaxis.set_major_locator(mdates.DayLocator())
-    ax_caso.xaxis.set_minor_locator(mdates.HourLocator(byhour=(12,)))
-    ax_caso.xaxis.set_major_formatter(FuncFormatter(
-        lambda v, _: mdates.num2date(v).strftime("%d/%m")))
-    ax_caso.tick_params(axis="x", labelsize=7)
-    # La leyenda cae dentro de la banda que marca la zona que el umbral
-    # retira; sin fondo propio, sus rotulos se leerian como parte de ella.
-    ax_caso.legend(loc="upper left", fontsize=6.8, handlelength=1.6,
-                   borderpad=0.25, labelspacing=0.3, frameon=True,
-                   facecolor="white", edgecolor="none", framealpha=0.92)
+    Una fila por frontera, y en cada una la hora retirada con su antes y su
+    después sobre una ventana de tres días, que es la escala a la que un
+    pico se distingue de la operación normal. Sobre las 6.144 horas del
+    horizonte esa hora es un marcador sobre una maraña.
 
-    # ── paneles de la regla ──────────────────────────────────────────────
-    # La columna de umbrales en kilovatios va a la derecha del dato y no
-    # sobre el: el candidato mas alejado, el de la UCC, cae en 2,49 y la
-    # cifra se imprimia encima de su rombo.
-    X_ROTULO = 3.02
-    filas_csv = []
-    for ax, magnitud in ((ax_dem, "demanda"), (ax_gen, "generación")):
-        sub = censo[censo.magnitud == magnitud].set_index("institucion")
-        for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
-            f = sub.loc[inst]
-            p = f["p995_kW"]
-            q25, q75 = f["q25_kW"] / p, f["q75_kW"] / p
-            cola, tukey = f["max_kW"] / p, f["cand_tukey_kW"] / p
-            umbral = f["umbral_kW"] / p
-            ax.plot([q75, cola], [k, k], color=E.NEUTRO, linewidth=0.9,
-                    solid_capstyle="butt", zorder=2)
-            ax.plot([cola, cola], [k - 0.17, k + 0.17], color=E.NEUTRO,
-                    linewidth=0.9, zorder=2)
-            ax.barh(k, q75 - q25, left=q25, height=0.36, color=E.APAGADO,
-                    edgecolor="white", linewidth=0.6, zorder=3)
-            ax.plot([tukey], [k], marker="o", markersize=6.2,
-                    markerfacecolor="white", markeredgecolor=E.NEUTRO,
-                    markeredgewidth=1.1, linestyle="none", zorder=4)
-            ax.plot([umbral], [k], marker="D", markersize=5.0, color=E.ALERTA,
-                    linestyle="none", zorder=5)
-            ax.text(X_ROTULO, k, E.fmt_miles(f["umbral_kW"], 1), fontsize=6.4,
-                    color=E.NEUTRO, ha="right", va="center")
-            if f["atipicos"]:
-                # En la ultima fila el rotulo iria contra el eje inferior;
-                # ahi se pone encima del renglon y no debajo.
-                ultima = k == len(E.ORDEN_INSTITUCIONES) - 1
-                ax.text(umbral + 0.05, k - 0.28 if ultima else k + 0.28,
-                        f"{int(f['atipicos'])} h retiradas",
-                        fontsize=6.2, color=E.ANTES, ha="left",
-                        va="bottom" if ultima else "top")
-            filas_csv.append({
-                "bloque": "criterio", "institucion": inst, "magnitud": magnitud,
-                "q25_kW": f["q25_kW"], "q75_kW": f["q75_kW"], "p995_kW": p,
-                "max_kW": f["max_kW"], "cand_tukey_kW": f["cand_tukey_kW"],
-                "cand_piso_kW": f["cand_piso_kW"], "umbral_kW": f["umbral_kW"],
-                "manda": f["manda"], "horas_retiradas": int(f["atipicos"])})
-        ax.axvline(1.2, color=E.ALERTA, linewidth=1.0, linestyle="--",
-                   alpha=0.85, zorder=1)
-        E.eje_instituciones(ax, eje="y")
-        ax.tick_params(axis="y", labelsize=7)
-        ax.set_xlim(0, 3.06)
-        ax.set_xticks([0, 0.5, 1.0, 1.5, 2.0, 2.5])
-        ax.set_title(magnitud.capitalize(), pad=5, fontsize=8.5)
-        ax.grid(axis="y", visible=False)
-    ax_dem.tick_params(axis="x", labelbottom=False)
-    # El nombre del segundo criterio vive en la leyenda y no junto a su
-    # vertical: con el vocabulario nuevo el rotulo mide 1,13 pulgadas, que
-    # es justo lo que hay entre la vertical y la columna de kilovatios, y
-    # se imprimia sobre la cifra de la primera fila.
-    # La cabecera de la columna va sobre el borde superior y no dentro:
-    # dentro se imprimia contra la cifra de la primera fila.
-    ax_dem.text(X_ROTULO, -0.60, "umbral (kW)", fontsize=6.3, color=E.NEUTRO,
-                ha="right", va="bottom")
-    ax_gen.set_xlabel("Múltiplos del percentil 99,5 de la propia serie",
-                      fontsize=7.6)
-    ax_gen.xaxis.set_major_formatter(FuncFormatter(lambda v, _: E.fmt_miles(v, 1)))
+    **Qué dejó de hacer esta figura.** Tenía un segundo panel con el
+    criterio de las diez series en múltiplos del percentil 99,5 de cada
+    una. Se retiró por cinco razones, y las tres primeras son de lectura:
+    el eje era compartido pero cada fila usaba su propia normalización, de
+    modo que invitaba a comparar magnitudes que no lo son; el círculo del
+    corte del primer criterio solo asomaba en dos de las diez filas y en
+    las otras ocho quedaba oculto bajo el rombo, sin que nada lo advirtiera;
+    y el rombo se llamaba umbral aplicado pero su posición era el umbral
+    dividido por el percentil, de manera que el mismo objeto aparecía dos
+    veces, dibujado y en la columna del margen, con dos valores distintos.
+    La quinta razón es la decisiva: la anatomía del umbral construye los
+    dos candidatos en kilovatios reales, para las diez series y las dos
+    fronteras, y la tabla del umbral publica los valores. Aquel panel era
+    una versión comprimida y normalizada de lo mismo.
 
+    Queda el caso, que es lo único que no hace ninguna otra pieza.
+    """
+    derivadas = _series_derivadas()
+    fig, ejes = plt.subplots(2, 1, figsize=(E.ANCHO_COMPLETO, 4.4))
+    filas, hallados = [], 0
+
+    for fila, cob in enumerate(("m1", "m3")):
+        ax = ejes[fila]
+        censo, detalle, series = _censo_limpieza(cob)
+        mejor = _caso_atipico(cob, censo, detalle, series, derivadas)
+
+        if mejor is None:
+            # Que una frontera se quede sin caso es un resultado posible, no
+            # un fallo: con el multiplicador del primer criterio en 7 la
+            # principal no retiraría ninguna hora. El panel lo dice.
+            ax.set_xticks([])
+            ax.set_yticks([])
+            for lado in ("top", "right", "bottom", "left"):
+                ax.spines[lado].set_visible(False)
+            ax.add_patch(Rectangle((0.02, 0.06), 0.96, 0.88,
+                                   transform=ax.transAxes,
+                                   facecolor=E.FONDO_BANDA, edgecolor="none"))
+            ax.text(0.5, 0.5, "ninguna hora retirada en esta frontera",
+                    transform=ax.transAxes, ha="center", va="center",
+                    fontsize=8.0, color=E.NEUTRO, style="italic")
+            filas.append({"frontera": cob.upper(), "caso": "ninguno"})
+            continue
+
+        hallados += 1
+        t = mejor["hora"]
+        ventana = slice(t - pd.Timedelta("36h"), t + pd.Timedelta("36h"))
+        obs = mejor["entrada"][ventana]
+        fin = mejor["limpia"][ventana]
+        ancla_previa = float(mejor["entrada"][t - pd.Timedelta("1h")])
+        ancla_post = float(mejor["entrada"][t + pd.Timedelta("1h")])
+
+        # El contrato de lo que se dibuja: la hora sobresale del umbral,
+        # queda aislada, y por eso la interpolación la deja justo en el
+        # punto medio de sus dos vecinas.
+        assert mejor["entra"] > mejor["umbral"], (cob, mejor["entra"])
+        assert abs(mejor["sale"] - (ancla_previa + ancla_post) / 2) < 1e-6, \
+            (cob, mejor["sale"], ancla_previa, ancla_post)
+
+        # La serie que entra al umbral, por debajo y con trazo propio: sin
+        # ella el «antes» eran dos marcadores sueltos y la figura entregaba
+        # solo la salida. Las dos curvas coinciden en toda la ventana menos
+        # donde la limpieza intervino, que es lo que prueba que el
+        # tratamiento es puntual y no un alisado de la serie entera.
+        tocadas = int((~np.isclose(obs.values, fin.values, equal_nan=True)).sum())
+        ax.plot(obs.index, obs.values, color=E.ANTES, linewidth=0.9,
+                linestyle=(0, (2, 1.5)), zorder=3,
+                label="Serie que entra al umbral")
+        ax.plot(fin.index, fin.values, color=E.TINTA, linewidth=1.4, zorder=5,
+                label="Serie ya limpia")
+        ax.axhline(mejor["umbral"], color=E.ALERTA, linewidth=1.1,
+                   linestyle="--",
+                   label=f"Umbral: {E.fmt_miles(mejor['umbral'], 1)} kW")
+        lo = float(min(fin.min(), obs.min()))
+        hi = float(max(obs.max(), mejor["entra"]))
+        margen = 0.16 * (hi - lo)
+        ax.axhspan(mejor["umbral"], hi + 3 * margen, color=E.ALERTA,
+                   alpha=0.07, linewidth=0, zorder=0)
+        ax.plot([t], [mejor["entra"]], marker="o", markersize=7,
+                markerfacecolor="white", markeredgecolor=E.ANTES,
+                markeredgewidth=1.6, linestyle="none",
+                label="Lectura retirada", zorder=6)
+        ax.plot([t], [mejor["sale"]], marker="s", markersize=6,
+                color=E.DESPUES, linestyle="none",
+                label="Valor con que quedó", zorder=6)
+        ax.annotate("", xy=(t, mejor["sale"]), xytext=(t, mejor["entra"]),
+                    arrowprops=dict(arrowstyle="->", color=E.NEUTRO,
+                                    linewidth=0.9, shrinkA=4, shrinkB=4))
+        ax.plot([t - pd.Timedelta("1h"), t + pd.Timedelta("1h")],
+                [ancla_previa, ancla_post], color=E.DESPUES, linewidth=0.9,
+                linestyle=":", zorder=4)
+        ax.set_ylim(lo - margen, hi + 1.9 * margen)
+        # Cuántas horas de la ventana difieren entre entrada y salida. En
+        # la frontera secundaria esa institución arrastra 119 horas
+        # tratadas frente a las 4 de la principal, de modo que la cifra
+        # cambia de una fila a otra y conviene que se lea.
+        ax.text(0.995, 0.035, f"{tocadas} de {len(obs)} horas de la ventana "
+                f"difieren entre las dos curvas", transform=ax.transAxes,
+                fontsize=6.2, color=E.NEUTRO, ha="right", va="bottom")
+        ax.set_ylabel("Demanda (kW)" if mejor["magnitud"] == "demanda"
+                      else "Generación (kW)", fontsize=7.6)
+        ax.set_title(f"{E.etiqueta_institucion(mejor['inst'])}, "
+                     f"{E.fmt_fecha(t, 'dia_corto')}: entra con "
+                     f"{E.fmt_miles(mejor['entra'], 1)} kW y sale con "
+                     f"{E.fmt_miles(mejor['sale'], 1)} kW", fontsize=8.2,
+                     pad=6)
+        # Una marca por día: con marcas cada doce horas las siete etiquetas
+        # se imprimían una encima de otra.
+        ax.xaxis.set_major_locator(mdates.DayLocator())
+        ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=(12,)))
+        ax.xaxis.set_major_formatter(FuncFormatter(
+            lambda v, _: mdates.num2date(v).strftime("%d/%m")))
+        ax.tick_params(labelsize=7)
+        if fila == 1:
+            ax.set_xlabel("Día y mes de 2025", fontsize=7.6)
+
+        filas.append({
+            "frontera": cob.upper(), "caso": "dibujado",
+            "institucion": mejor["inst"], "magnitud": mejor["magnitud"],
+            "hora": str(t), "horas_ventana": len(obs),
+            "horas_que_difieren": tocadas, "entra_kW": mejor["entra"],
+            "umbral_kW": mejor["umbral"],
+            "exceso_pct": 100 * mejor["exceso"], "sale_kW": mejor["sale"],
+            "ancla_previa_kW": ancla_previa, "ancla_posterior_kW": ancla_post})
+
+    assert hallados, "ninguna frontera tiene una hora retirada aislada"
+    fig.tight_layout(rect=(0, 0.075, 1, 0.995), h_pad=2.2)
+
+    # La frontera rotula la fila entera, fuera del área de dato. Su sitio
+    # se mide sobre el render y no se fija en fracción del eje: los dos
+    # paneles tienen marcas de distinto ancho, de modo que a una fracción
+    # fija el rótulo caía sobre el del eje en uno de los dos.
+    fig.canvas.draw()
+    render = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    for ax, cob in zip(ejes, ("m1", "m3")):
+        bb = Bbox(inv.transform(ax.get_tightbbox(render)))
+        # El desplazamiento cuenta el ancho del propio rótulo girado, que
+        # son dos líneas de 7 puntos: con 0,012 el rótulo se montaba sobre
+        # el del eje y la prueba de oclusión lo cazó en las dos filas.
+        fig.text(bb.x0 - 0.030, (bb.y0 + bb.y1) / 2,
+                 E.titulo_cobertura(cob, dos_lineas=True), rotation=90,
+                 fontsize=7.0, fontweight="bold", color=E.COBERTURAS[cob],
+                 ha="center", va="center")
+    # La leyenda es común a las dos filas y se coloca midiendo, por debajo
+    # del rótulo de eje más bajo.
     marcas = [
-        Patch(facecolor=E.APAGADO, edgecolor="white",
-              label="Mitad central de las lecturas"),
-        Line2D([], [], color=E.NEUTRO, linewidth=0.9,
-               label="Hasta el máximo observado"),
+        Line2D([], [], color=E.ANTES, linewidth=0.9, linestyle=(0, (2, 1.5)),
+               label="Serie que entra al umbral"),
+        Line2D([], [], color=E.TINTA, linewidth=1.4, label="Serie ya limpia"),
+        Line2D([], [], color=E.ALERTA, linewidth=1.1, linestyle="--",
+               label="Umbral de atípicos"),
         Line2D([], [], marker="o", markerfacecolor="white", linestyle="none",
-               markeredgecolor=E.NEUTRO, markersize=6.2,
-               label="Corte del primer criterio"),
-        Line2D([], [], marker="D", color=E.ALERTA, linestyle="none",
-               markersize=5.0, label="Umbral aplicado"),
-        Line2D([], [], color=E.ALERTA, linewidth=1.0, linestyle="--",
-               label="Segundo criterio: 1,2 × P99,5"),
+               markeredgecolor=E.ANTES, markeredgewidth=1.6, markersize=7,
+               label="Lectura retirada"),
+        Line2D([], [], marker="s", color=E.DESPUES, linestyle="none",
+               markersize=6, label="Valor con que quedó"),
     ]
-    filas_csv.append({
-        "bloque": "caso", "institucion": mejor["inst"],
-        "magnitud": mejor["magnitud"], "hora": str(t),
-        "entra_kW": mejor["entra"], "umbral_kW": mejor["umbral"],
-        "exceso_pct": 100 * mejor["exceso"], "sale_kW": mejor["sale"],
-        "ancla_previa_kW": ancla_previa, "ancla_posterior_kW": ancla_post})
-
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0.10, 1, 0.945))
-    # La leyenda se coloca despues de componer y por debajo del rotulo de
-    # eje mas bajo, medido sobre el render: fijarla a una altura elegida a
-    # ojo la imprimia encima de los dos rotulos de eje.
     fig.legend(handles=marcas, loc="upper center",
-               bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, (ax_caso, ax_gen))),
-               ncol=5, fontsize=6.5, frameon=False, handlelength=1.6,
-               columnspacing=1.1, labelspacing=0.25)
+               bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes, 0.008)),
+               ncol=5, fontsize=6.5, frameon=False, handlelength=1.8,
+               columnspacing=1.2)
+
     return E.guardar(
-        fig, f"f3_05_umbral_atipicos_{cobertura}",
-        datos=pd.DataFrame(filas_csv),
+        fig, "f3_05_umbral_caso", datos=pd.DataFrame(filas),
         procedencia=[
-            f"reformateo/documento/datos_cache/preproceso_{cobertura}.npz",
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
             "criterio: max(Q75 + 5*IQR, P99,5 * 1,2) — "
             "data/xm_data_loader.py::_clean",
-            f"caso: {mejor['inst']}, {t}, hora retirada aislada de mayor "
-            "exceso relativo sobre el umbral",
+            "caso: hora retirada aislada de mayor exceso relativo sobre el "
+            "umbral, elegida por regla y no fijada a mano",
         ])
 
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Los tres huecos de la escalera van fijados en el generador y no buscados
 # por codigo, igual que el dia de la reconstruccion: los asertos comprueban
 # que cada uno mantiene la longitud y el reparto que la figura afirma, y
@@ -2697,245 +2754,575 @@ def f36_escalera_huecos():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f37_matrices(cobertura: str = "m1"):
+# Longitud de Pasto, en grados, y meridiano del huso. Entran en una sola
+# cuenta, el mediodia solar del sitio, y por eso viven aqui y no en un
+# modulo de datos: no son una medicion del proyecto sino la posicion de la
+# ciudad y el convenio horario del pais.
+LON_PASTO = -77.28
+MERIDIANO_UTC5 = -75.0
+# La vara de la banda del mediodia. Un huso mal puesto vale una hora
+# entera, de modo que es la magnitud del fallo que esa banda descarta.
+VARA_MINUTOS = 60
+
+
+def _matriz_hora_dia(serie: pd.Series) -> pd.DataFrame:
+    """Pivote hora del dia (24 filas) contra dia del horizonte."""
+    base = serie.index.normalize()
+    m = pd.DataFrame({"v": serie.values, "h": serie.index.hour, "d": base})
+    return m.pivot_table(index="h", columns="d", values="v", aggfunc="mean")
+
+
+def _mediodia_solar(dias) -> pd.Series:
     """
-    F3.7 — Lo que el modelo recibe finalmente.
+    Mediodia solar de Pasto, en hora local, dia a dia.
 
-    Las dos matrices que salen del pipeline, dibujadas como mapas de hora
-    del día contra día del horizonte. La generación traza una banda diurna
-    nítida que sigue el arco solar; la demanda muestra la semana laboral
-    en franjas verticales.
-
-    Es la comprobación visual de que el resultado del preprocesamiento
-    tiene la estructura que debe tener: si la banda solar apareciera de
-    noche, o la semana no se distinguiera, habría un error de zona horaria
-    o de alineación temporal.
+    Es el instante en que el sol cruza el meridiano del sitio. Se separa
+    del mediodia del reloj por dos terminos: la distancia en longitud al
+    meridiano del huso, que para Pasto son algo mas de nueve minutos, y la
+    ecuacion del tiempo, que a lo largo del año vale hasta un cuarto de
+    hora. Ninguno de los dos sale del dato medido, y por eso la curva
+    sirve de patron externo contra el cual medirlo.
     """
-    series, horas = D.preproceso(cobertura)
-    dem = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
-    gen = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
+    doy = np.array([d.dayofyear for d in dias])
+    b = 2 * np.pi * (doy - 1) / 365.0
+    ecuacion = 229.18 * (0.000075 + 0.001868 * np.cos(b) - 0.032077 * np.sin(b)
+                         - 0.014615 * np.cos(2 * b) - 0.040849 * np.sin(2 * b))
+    return pd.Series(12 + (MERIDIANO_UTC5 - LON_PASTO) * 4 / 60 - ecuacion / 60,
+                     index=dias)
 
-    fig, axes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.6))
-    filas = []
-    for ax, (serie, nom, cmap) in zip(axes, ((dem, "Demanda", "Greys"),
-                                             (gen, "Generación", "YlOrBr"))):
-        base = serie.index.normalize()
-        m = pd.DataFrame({"v": serie.values, "h": serie.index.hour,
-                          "d": (base - base[0]).days})
-        piv = m.pivot_table(index="h", columns="d", values="v", aggfunc="mean")
-        # vmin=0 fija el origen de la escala de color. Sin él, el cero de
-        # la generación nocturna y la carga base nocturna de la demanda
-        # —que no es cero, sino decenas de kilovatios— se pintaban del
-        # mismo tono claro, y el mapa sugería que de noche no hay consumo.
-        im = ax.imshow(piv.values, aspect="auto", origin="lower", cmap=cmap,
-                       vmin=0, extent=[0, piv.shape[1], 0, 24])
 
-        # Marcas mensuales: «día 137 del horizonte» no le dice nada a
-        # nadie, y sin calendario no se puede leer el receso de julio ni
-        # el cierre de diciembre que la propia figura enseña.
-        inicio = base[0]
-        meses = list(pd.date_range(inicio.normalize(), base[-1], freq="MS"))
-        # El horizonte arranca el día 4, de modo que abril no tiene marca
-        # de primero de mes: sin este tick el eje parecería empezar en mayo.
-        ticks = [0] + [(f - inicio).days for f in meses]
-        etiquetas = [MESES_ES[inicio.month - 1]] + [MESES_ES[f.month - 1]
-                                                    for f in meses]
-        ax.set_xticks(ticks)
-        ax.set_xticklabels(etiquetas, fontsize=7)
-        ax.set_xlim(0, piv.shape[1])
-        ax.set_xlabel("Mes de 2025")
-        ax.set_ylabel("Hora del día")
-        ax.set_yticks(range(0, 25, 6))
-        ax.set_title(f"{nom} de la comunidad  ·  máx "
-                     f"{E.fmt_miles(np.nanmax(piv.values))} kW", pad=8)
-        ax.grid(False)
-        cb = fig.colorbar(im, ax=ax, fraction=0.045, pad=0.03)
-        cb.set_label("Potencia media horaria (kW)", fontsize=7)
-        cb.ax.tick_params(labelsize=7)
-        for h in piv.index:
-            filas.append({"magnitud": nom, "hora": int(h),
-                          "media_kW": float(piv.loc[h].mean())})
+def _hora_media_generacion(piv: pd.DataFrame) -> pd.Series:
+    """
+    Hora media de la generacion de cada dia, ponderada por la energia.
 
-    # Las dos escalas de color son independientes, y hay que decirlo: el
-    # mismo tono oscuro vale 150 kW en un panel y 57 en el otro, de modo
-    # que comparar la intensidad de un panel con la del otro no significa
-    # nada. Lo comparable es la estructura, que es a lo que va la figura.
-    fig.text(0.5, -0.035,
-             "Cada panel lleva su propia escala de color, indicada en su "
-             "barra: los tonos no son comparables entre paneles.",
-             ha="center", va="top", fontsize=7, color="#555555",
-             style="italic")
+    La hora h integra el intervalo [h, h+1), de modo que su centro en el
+    reloj es h + 0,5: sin ese medio la cuenta sale media hora temprana.
+    """
+    centro = np.arange(24) + 0.5
+    peso = piv.values.sum(axis=0)
+    media = (centro[:, None] * piv.values).sum(axis=0) / np.where(peso > 0, peso, 1)
+    return pd.Series(np.where(peso > 1, media, np.nan), index=piv.columns)
 
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.955))
-    return E.guardar(fig, f"f3_07_matrices_{cobertura}",
-                     datos=pd.DataFrame(filas),
-                     procedencia=[f"reformateo/documento/datos_cache/"
-                                  f"preproceso_{cobertura}.npz"])
+
+def f37_matrices():
+    """
+    F3.7 — Las tres comprobaciones con las que cierra el capítulo.
+
+    Sustituye a los dos mapas de calor de hora contra día. Aquellos daban
+    0,21 mm de papel por día, de modo que el eje de días no era legible
+    sino una trama, y las tres comprobaciones que se les atribuían no se
+    podían hacer sobre ellos con una vara: la zona horaria se juzgaba a
+    ojo entre dos marcas separadas 17,7 mm; el difuminado de la banda
+    solar no tenía unidad y además un desfase sistemático la desplaza en
+    vez de difuminarla, de modo que la imagen no separaba las dos
+    hipótesis; y la semana laboral es una estructura diaria que sobrevive
+    a cualquier error de agregación horaria, que es lo que la figura decía
+    estar comprobando. Barajar los 256 días al azar daba una imagen
+    indistinguible de la real.
+
+    Ahora son tres bandas que comparten el eje de días, de manera que una
+    anomalía se lee verticalmente en las tres a la vez, y cada una lleva
+    su vara dibujada:
+
+      * el mediodía medido contra el solar de Pasto, con las dos reglas a
+        una hora, que es lo que valdría el fallo que descarta;
+      * la razón entre generación y demanda del día, adimensional y por
+        eso comparable entre fronteras, con la regla en 1;
+      * las horas que la limpieza tuvo que reponer, en mariposa.
+
+    La generación es la MISMA serie en las dos fronteras, porque M1 y M3
+    se separan en el circuito de consumo y no en el fotovoltaico. Un
+    aserto lo comprueba antes de dibujar: es la premisa de la primera
+    banda y del rótulo que la acompaña.
+    """
+    dem, rep, gen = {}, {}, None
+    for cob in ("m1", "m3"):
+        series, _ = D.preproceso(cob)
+        dem[cob] = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
+        g = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
+        if gen is None:
+            gen = g
+        else:
+            assert np.abs(gen.values - g.values).max() == 0, (
+                "la generación difiere entre M1 y M3: la primera banda dejó "
+                "de tener premisa y hay que investigarlo antes de publicar")
+        # Horas que la limpieza tuvo que reponer, sumadas sobre las cinco
+        # instituciones. Las retiradas por el umbral ya están dentro de las
+        # imputadas, pero la unión se escribe entera para que la cuenta no
+        # dependa de esa contención.
+        m = None
+        for i in D.AGENTES:
+            u = (series[f"{i}__mask_imp_D"].astype(bool)
+                 | series[f"{i}__mask_out_D"].astype(bool)
+                 | series[f"{i}__mask_imp_G"].astype(bool)
+                 | series[f"{i}__mask_out_G"].astype(bool))
+            m = u.astype(int) if m is None else m + u.astype(int)
+        rep[cob] = m.resample("D").sum()
+
+    piv = _matriz_hora_dia(gen)
+    dias = piv.columns
+    x = np.arange(len(dias))
+    medio = _hora_media_generacion(piv)
+    solar = _mediodia_solar(dias)
+    desfase = 60 * (medio - solar)
+    e_gen = gen.resample("D").sum().reindex(dias)
+    razon = {c: (e_gen / dem[c].resample("D").sum().reindex(dias))
+             for c in ("m1", "m3")}
+    movil = {c: razon[c].rolling(15, center=True, min_periods=5).median()
+             for c in ("m1", "m3")}
+
+    inicio = dias[0]
+    meses = list(pd.date_range(inicio.normalize(), dias[-1], freq="MS"))
+    marcas = [0] + [(f - inicio).days for f in meses]
+    rotulos = [MESES_ES[inicio.month - 1]] + [MESES_ES[f.month - 1] for f in meses]
+
+    fig, (ax1, ax2, ax3) = plt.subplots(
+        3, 1, figsize=(E.ANCHO_COMPLETO, 5.3), sharex=True,
+        gridspec_kw={"height_ratios": [1.0, 1.0, 0.85]})
+
+    # ── Banda 1: el mediodía medido contra el solar ──────────────────────
+    # El eje se acota a la vara y media, no al recorrido del dato: con el
+    # dato entero dentro, la banda de una hora quedaría en un hilo y la
+    # comprobación dejaría de poder hacerse. Los días que se salen no se
+    # ocultan, se fijan al borde con otra marca.
+    alto = 1.25 * VARA_MINUTOS / 60
+    ax1.plot(x, solar.values, color=E.TINTA, linewidth=1.2, zorder=4)
+    for signo in (1, -1):
+        ax1.plot(x, solar.values + signo * VARA_MINUTOS / 60, color=E.ALERTA,
+                 linewidth=0.9, linestyle=(0, (4, 2)), zorder=3)
+    dentro = desfase.abs() <= alto * 60
+    ax1.plot(x[dentro.fillna(False)], medio.values[dentro.fillna(False)],
+             marker="o", linestyle="none", markersize=1.8, color=E.GENERACION,
+             markeredgewidth=0, zorder=5)
+    fuera = (desfase.abs() > alto * 60).fillna(False)
+    for k in x[fuera]:
+        arriba = desfase.iloc[k] > 0
+        ax1.plot([k], [solar.iloc[k] + (alto if arriba else -alto)],
+                 marker="^" if arriba else "v", linestyle="none",
+                 markersize=4.0, markerfacecolor="white",
+                 markeredgecolor=E.ANTES, markeredgewidth=0.9, zorder=6)
+    ax1.set_ylim(float(solar.min()) - 1.32 * alto,
+                 float(solar.max()) + 1.32 * alto)
+    ax1.set_ylabel("Hora local", fontsize=7.6)
+    ax1.tick_params(labelsize=7)
+    ax1.set_title("El mediodía de la generación contra el solar de Pasto  ·  "
+                  "la generación es la misma en las dos fronteras",
+                  fontsize=8.2, pad=6)
+    # Los rótulos de la vara van fuera de sus curvas y no encima: entre
+    # las dos reglas está la nube entera.
+    k = int(0.62 * len(dias))
+    ax1.text(k, float(solar.iloc[k]) + VARA_MINUTOS / 60 + 0.06,
+             f"+{VARA_MINUTOS} min", fontsize=6.2, color=E.ALERTA,
+             ha="center", va="bottom")
+    # El de abajo se aparta del recuento, que ocupa el centro de la
+    # franja inferior: la prueba de oclusión los encontró tocándose.
+    ax1.text(int(0.90 * len(dias)),
+             float(solar.iloc[int(0.90 * len(dias))]) - VARA_MINUTOS / 60 - 0.06,
+             f"−{VARA_MINUTOS} min", fontsize=6.2, color=E.ALERTA,
+             ha="center", va="top")
+    j = int(0.22 * len(dias))
+    ax1.text(j, float(solar.iloc[j]) - 1.22 * alto,
+             f"desfase medio {E.fmt_miles(desfase.mean(), 1)} min · "
+             f"{int(dentro.sum())} de {int(desfase.notna().sum())} días "
+             f"dentro de la vara", fontsize=6.2, color=E.NEUTRO, ha="left",
+             va="bottom")
+
+    # ── Banda 2: qué fracción del día cubre el sol ───────────────────────
+    # La razón es adimensional y por eso admite las dos fronteras en un
+    # mismo eje, cosa que los kilovatios no: M1 y M3 miden circuitos de
+    # tamaño distinto.
+    ax2.axhline(1.0, color=E.NEUTRO, linewidth=0.9, linestyle=(0, (4, 2)),
+                zorder=2)
+    estilos = {"m1": dict(linestyle="-", marker="o"),
+               "m3": dict(linestyle=(0, (3.5, 2)), marker="^")}
+    for cob in ("m1", "m3"):
+        ax2.plot(x, razon[cob].values, marker=estilos[cob]["marker"],
+                 linestyle="none", markersize=1.7, color=E.COBERTURAS[cob],
+                 alpha=0.42, markeredgewidth=0, zorder=3)
+        ax2.plot(x, movil[cob].values, color=E.COBERTURAS[cob], linewidth=1.6,
+                 linestyle=estilos[cob]["linestyle"], zorder=5)
+        med = float(razon[cob].median())
+        ax2.text(len(dias) + 2, float(movil[cob].dropna().iloc[-1]),
+                 f"{cob.upper()} · mediana {E.fmt_miles(med, 2)}", fontsize=6.4,
+                 color=E.COBERTURAS[cob], ha="left", va="center")
+    sobre = int((razon["m3"] > 1).sum())
+    # La franja de encima del dato queda libre a propósito para el
+    # recuento: dentro de la nube el rótulo se imprimía sobre los puntos.
+    ax2.text(2, 2.62, f"M3 pasa de 1 en {sobre} de {len(dias)} días; M1 en "
+             f"{int((razon['m1'] > 1).sum())}", fontsize=6.2, color=E.NEUTRO,
+             ha="left", va="center")
+    ax2.set_ylim(0, 2.80)
+    ax2.set_yticks([0, 0.5, 1.0, 1.5, 2.0])
+    ax2.set_yticklabels(["0", "0,5", "1", "1,5", "2"])
+    ax2.set_ylabel("Generación\nsobre demanda", fontsize=7.6)
+    ax2.tick_params(labelsize=7)
+
+    # ── Banda 3: las horas que la limpieza repuso ────────────────────────
+    # En mariposa y con la misma escala hacia arriba y hacia abajo: el
+    # sentido es lo que distingue las dos fronteras, y la altura tiene que
+    # seguir siendo comparable entre ellas.
+    tope = max(float(rep["m1"].max()), float(rep["m3"].max()))
+    ax3.axhline(0, color=E.TINTA, linewidth=0.8, zorder=4)
+    ax3.bar(x, rep["m1"].reindex(dias).values, width=1.0, color=E.COBERTURAS["m1"],
+            linewidth=0, zorder=3)
+    ax3.bar(x, -rep["m3"].reindex(dias).values, width=1.0, facecolor="white",
+            edgecolor=E.COBERTURAS["m3"], linewidth=0.6, zorder=3)
+    ax3.set_ylim(-1.18 * tope, 1.18 * tope)
+    ax3.set_yticks([-120, -60, 0, 60])
+    ax3.set_yticklabels(["120", "60", "0", "60"])
+    ax3.set_ylabel("Horas repuestas", fontsize=7.6)
+    ax3.tick_params(labelsize=7)
+    for cob, y, va in (("m1", 0.62 * tope, "bottom"), ("m3", -0.62 * tope, "top")):
+        ax3.text(2, y, f"{cob.upper()} · {E.fmt_miles(rep[cob].sum())} h",
+                 fontsize=6.4, color=E.COBERTURAS[cob], ha="left", va=va,
+                 fontweight="bold")
+    ax3.set_xticks(marcas)
+    ax3.set_xticklabels(rotulos, fontsize=7)
+    ax3.set_xlim(-3, len(dias) + 2)
+    ax3.set_xlabel("Mes de 2025", fontsize=7.6)
+
+    # ── El rastro: una fila por día, con todo lo dibujado ────────────────
+    filas = pd.DataFrame({
+        "fecha": [str(d.date()) for d in dias],
+        "mediodia_medido_h": medio.values,
+        "mediodia_solar_h": solar.values,
+        "desfase_min": desfase.values,
+        "razon_gd_m1": razon["m1"].values,
+        "razon_gd_m3": razon["m3"].values,
+        "razon_movil_m1": movil["m1"].values,
+        "razon_movil_m3": movil["m3"].values,
+        "horas_repuestas_m1": rep["m1"].reindex(dias).values,
+        "horas_repuestas_m3": rep["m3"].reindex(dias).values,
+    })
+
+    fig.tight_layout(rect=(0, 0, 0.905, 0.995), h_pad=1.4)
+    return E.guardar(
+        fig, "f3_07_matrices", datos=filas,
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+            "mediodía solar: longitud de Pasto -77,28 grados, meridiano del "
+            "huso -75, ecuación del tiempo de Spencer (1971); no entra "
+            "ningún dato medido en esa curva",
+            "la generación es byte a byte la misma en las dos fronteras; el "
+            "generador lo comprueba con un aserto antes de dibujar",
+        ])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f38_perfiles_instituciones(cobertura: str = "m1"):
+def f38_perfiles_instituciones():
     """
-    F3.8 — Cinco ritmos distintos.
+    F3.8 — Cinco ritmos distintos, y qué queda de ellos en la otra frontera.
 
-    Perfil medio de demanda y generación de cada institución. Aunque
-    comparten ciudad y clima, no comparten rutina: un hospital no se
-    parece a un campus universitario, y esa diferencia es justamente la
-    que hace posible el intercambio.
+    Cada perfil va dividido por su propia media diaria. La subsección
+    afirma algo sobre la FORMA del día, y la versión anterior daba a cada
+    panel su propia escala vertical y lo advertía al pie: «lo comparable
+    entre ellos es la forma del perfil, no su altura». Es decir, pedía
+    comparar formas y las dibujaba a escalas distintas, que es lo que
+    impide compararlas. Normalizadas, los cinco caen sobre un mismo eje y
+    la diferencia de forma pasa a ser geometría. El nivel absoluto no se
+    pierde: se declara en la columna del sexto panel.
+
+    El sexto panel lleva la evidencia de la afirmación del título, que es
+    a qué distancia media queda la forma de cada institución de las otras
+    cuatro. El Hospital es el caso aparte y no por poco: su perfil apenas
+    se mueve, su fin de semana vale el 97 % del día laboral, y su
+    distancia media a las demás es la mayor del conjunto.
+
+    Cada panel lleva además las dos curvas de la misma institución en las
+    dos fronteras, de modo que se vea qué queda de la forma al cambiar de
+    circuito. La cifra que acompaña a cada título es la correlación entre
+    esas dos curvas, que mide si las subidas y bajadas caen en las mismas
+    horas; no mide la amplitud, y por eso Udenar puede conservar la forma
+    con un recorrido casi doble.
     """
-    series, _ = D.preproceso(cobertura)
-    fig, axes = plt.subplots(2, 3, figsize=(E.ANCHO_COMPLETO, 4.2), sharex=True)
+    perfil, nivel, gdr = {}, {}, {}
+    for cob in ("m1", "m3"):
+        series, _ = D.preproceso(cob)
+        for inst in D.AGENTES:
+            d = series[f"{inst}__D_limpia"]
+            g = series[f"{inst}__G_limpia"]
+            media = float(d.mean())
+            assert media > 0, (cob, inst)
+            perfil[(cob, inst)] = (d.groupby(d.index.hour).mean() / media).values
+            nivel[(cob, inst)] = media
+            gdr[(cob, inst)] = 100 * float(g.sum()) / float(d.sum())
+
+    # La evidencia del título: cuánto se separa la forma de cada una de las
+    # otras cuatro, medido como diferencia media entre perfiles ya
+    # normalizados. La matriz entera no se dibuja porque son diez números
+    # y lo que la afirmación necesita es el resumen por institución.
+    pares = {}
+    for a in D.AGENTES:
+        for b in D.AGENTES:
+            if a < b:
+                pares[(a, b)] = float(np.abs(perfil[("m1", a)]
+                                             - perfil[("m1", b)]).mean())
+    lejania = {a: float(np.mean([v for k, v in pares.items() if a in k]))
+               for a in D.AGENTES}
+    forma = {a: float(np.corrcoef(perfil[("m1", a)], perfil[("m3", a)])[0, 1])
+             for a in D.AGENTES}
+
+    fig, ejes = plt.subplots(2, 3, figsize=(E.ANCHO_COMPLETO, 4.3),
+                             sharex=False)
+    hora = np.arange(24)
+    tope = max(v.max() for v in perfil.values())
     filas = []
-    for ax, inst in zip(axes.ravel(), D.AGENTES):
-        d = series[f"{inst}__D_limpia"]
-        g = series[f"{inst}__G_limpia"]
-        pdm = d.groupby(d.index.hour).mean()
-        pgm = g.groupby(g.index.hour).mean()
-        ax.fill_between(pgm.index, 0, pgm.values, color=E.MECANISMOS["C5"],
-                        alpha=0.30)
-        ax.plot(pgm.index, pgm.values, color=E.MECANISMOS["C5"], linewidth=1.4)
-        ax.plot(pdm.index, pdm.values, color=E.color_institucion(inst),
-                linewidth=1.6)
-        # El porcentaje es la razón entre lo generado y lo consumido POR EL
-        # CIRCUITO MEDIDO. Sin el rótulo «G/D» el lector lo lee como
-        # autosuficiencia de la institución, y en M3 aparecen valores por
-        # encima del 100 % que con esa lectura no tendrían sentido.
-        cob_pct = 100 * g.sum() / d.sum() if d.sum() else float("nan")
-        ax.set_title(f"{E.etiqueta_institucion(inst)}  ·  "
-                     f"G/D = {E.fmt_miles(cob_pct, 0)} %", pad=5,
-                     color=E.color_institucion(inst), fontsize=8.5)
+
+    for ax, inst in zip(ejes.ravel()[:5], D.AGENTES):
+        ax.axhline(1.0, color=E.NEUTRO, linewidth=0.7, linestyle=(0, (4, 2)),
+                   zorder=2)
+        for cob, ancho, trazo, marca in (("m1", 1.7, "-", "o"),
+                                         ("m3", 1.3, (0, (3.5, 2)), "^")):
+            ax.plot(hora, perfil[(cob, inst)], color=E.COBERTURAS[cob],
+                    linewidth=ancho, linestyle=trazo, marker=marca,
+                    markersize=2.6, markevery=(0 if cob == "m1" else 2, 4),
+                    zorder=4 if cob == "m1" else 3)
+        # La marca de la Universidad Mariana remite a la declaración de
+        # honestidad: bajo la frontera secundaria su medidor no recibe la
+        # reconstrucción que sí recibe bajo la principal, de modo que su
+        # curva hunde el mediodía. Se dibuja tal cual y se señala.
+        estrella = "*" if inst == "Mariana" else ""
+        ax.set_title(f"{E.etiqueta_institucion(inst)}{estrella}  ·  forma "
+                     f"{E.fmt_miles(forma[inst], 2)}", fontsize=8.0,
+                     color=E.color_institucion(inst), pad=5)
+        ax.set_ylim(0, tope * 1.10)
+        ax.set_xlim(-0.5, 23.5)
         ax.set_xticks(range(0, 24, 6))
-        for h in pdm.index:
-            filas.append({"institucion": inst, "hora": int(h),
-                          "demanda_kW": pdm[h], "generacion_kW": pgm[h]})
+        ax.tick_params(labelsize=6.8)
+        ax.set_yticks([0, 1, 2])
+        for h in range(24):
+            filas.append({"bloque": "perfil", "institucion": inst, "hora": h,
+                          "m1_sobre_su_media": perfil[("m1", inst)][h],
+                          "m3_sobre_su_media": perfil[("m3", inst)][h]})
+    for k in (0, 3):
+        ejes.ravel()[k].set_ylabel("Demanda sobre\nsu media diaria",
+                                   fontsize=7.4)
+    for k in (3, 4):
+        ejes.ravel()[k].set_xlabel("Hora del día", fontsize=7.4)
+    ejes.ravel()[2].set_xlabel("Hora del día", fontsize=7.4)
 
-    # El sexto panel resume la comunidad completa.
-    ax = axes.ravel()[5]
-    dt = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
-    gt = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
-    pdt = dt.groupby(dt.index.hour).mean()
-    pgt = gt.groupby(gt.index.hour).mean()
-    ax.fill_between(pgt.index, 0, pgt.values, color=E.MECANISMOS["C5"], alpha=0.30)
-    ax.plot(pgt.index, pgt.values, color=E.MECANISMOS["C5"], linewidth=1.4,
-            label="Generación fotovoltaica")
-    ax.plot(pdt.index, pdt.values, color="black", linewidth=1.7,
-            label="Demanda (en el color de cada institución)")
-    ax.set_title(f"Comunidad  ·  "
-                 f"G/D = {E.fmt_miles(100 * gt.sum() / dt.sum(), 0)} %",
-                 pad=5, fontsize=8.5)
-    ax.set_xticks(range(0, 24, 6))
+    # ── El sexto panel: la evidencia y el nivel ─────────────────────────
+    ax = ejes.ravel()[5]
+    E.eje_instituciones(ax, eje="y")
+    ax.grid(visible=False, axis="y")
+    ax.grid(visible=True, axis="x")
+    X_ROTULO = 0.62
+    for k, inst in enumerate(D.AGENTES):
+        ax.plot([0, lejania[inst]], [k, k], color=E.color_institucion(inst),
+                linewidth=1.2, solid_capstyle="butt", zorder=3)
+        ax.plot([lejania[inst]], [k], marker="o", markersize=5.0,
+                color=E.color_institucion(inst), markeredgecolor="white",
+                markeredgewidth=0.7, zorder=4)
+        ax.text(X_ROTULO, k, f"{E.fmt_miles(nivel[('m1', inst)], 1)} · "
+                f"{E.fmt_miles(nivel[('m3', inst)], 1)}", fontsize=6.2,
+                color=E.NEUTRO, ha="right", va="center")
+        filas.append({"bloque": "resumen", "institucion": inst,
+                      "distancia_media_a_las_otras": lejania[inst],
+                      "forma_m1_m3": forma[inst],
+                      "media_diaria_m1_kW": nivel[("m1", inst)],
+                      "media_diaria_m3_kW": nivel[("m3", inst)],
+                      "gd_m1_pct": gdr[("m1", inst)],
+                      "gd_m3_pct": gdr[("m3", inst)]})
+    for (a, b), v in pares.items():
+        filas.append({"bloque": "par", "institucion": f"{a} y {b}",
+                      "distancia_media_a_las_otras": v})
+    ax.set_xlim(0, 0.66)
+    ax.set_xticks([0, 0.2, 0.4])
+    ax.set_xticklabels(["0", "0,2", "0,4"])
+    ax.set_ylim(len(D.AGENTES) - 0.5, -0.85)
+    ax.tick_params(labelsize=6.8)
+    ax.set_xlabel("Distancia media de su forma\na las otras cuatro",
+                  fontsize=7.4)
+    ax.text(X_ROTULO, -0.70, "media diaria M1 · M3 (kW)", fontsize=6.2,
+            color=E.NEUTRO, ha="right", va="center")
 
-    for ax in axes[1, :]:
-        ax.set_xlabel("Hora del día")
-    for ax in axes[:, 0]:
-        ax.set_ylabel("Potencia media (kW)")
+    fig.tight_layout(rect=(0, 0.065, 1, 0.995), h_pad=1.8, w_pad=1.2)
+    fig.legend(handles=[
+        Line2D([], [], color=E.COBERTURAS["m1"], linewidth=1.7, marker="o",
+               markersize=2.8, label=E.COBERTURA_NOMBRE["m1"]),
+        Line2D([], [], color=E.COBERTURAS["m3"], linewidth=1.3, marker="^",
+               markersize=2.8, linestyle=(0, (3.5, 2)),
+               label=E.COBERTURA_NOMBRE["m3"])],
+        loc="upper center",
+        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes.ravel(), 0.008)),
+        ncol=2, fontsize=6.9, frameon=False, handlelength=2.2,
+        columnspacing=2.0)
 
-    # La leyenda va al pie de la figura: dentro del sexto panel se
-    # imprimía sobre la curva de demanda de la comunidad.
-    fig.legend(*axes.ravel()[5].get_legend_handles_labels(),
-               loc="lower center", bbox_to_anchor=(0.5, -0.055), ncol=2,
-               fontsize=7.2, frameon=False, columnspacing=2.0,
-               handlelength=1.8)
-    # Sin esta advertencia, comparar el tamaño del área verde entre
-    # paneles induce a error: la UCC llega a 37 kW y CESMAG a 8, y las
-    # dos ocupan el mismo alto de panel.
-    fig.text(0.5, -0.10,
-             "Cada panel tiene su propia escala vertical: lo comparable "
-             "entre ellos es la forma del perfil, no su altura.",
-             ha="center", va="top", fontsize=7, color="#555555",
-             style="italic")
-
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.945))
-    return E.guardar(fig, f"f3_08_perfiles_instituciones_{cobertura}",
-                     datos=pd.DataFrame(filas),
-                     procedencia=[f"reformateo/documento/datos_cache/"
-                                  f"preproceso_{cobertura}.npz"])
+    return E.guardar(
+        fig, "f3_08_perfiles_instituciones", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+            "cada perfil va dividido por su propia media diaria; la "
+            "distancia entre formas es la diferencia media entre dos "
+            "perfiles ya normalizados",
+        ])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f39_ritmos(cobertura: str = "m1"):
+def f39_ritmos():
     """
-    F3.9 y F3.10 — El ritmo semanal y el anual.
+    F3.9 y F3.10 — El ritmo semanal y el anual, en las dos fronteras.
 
-    A la izquierda, día hábil frente a fin de semana: la demanda cae pero
-    la generación no, de modo que el excedente disponible para intercambio
-    es mayor precisamente cuando hay menos gente en los edificios. A la
-    derecha, el recorrido a lo largo del horizonte, que en esta latitud
-    varía poco pero no nada.
+    A la izquierda, día hábil frente a fin de semana, una fila por
+    frontera y en kilovatios: la demanda cae y la generación no, de modo
+    que el excedente disponible para intercambio es mayor precisamente
+    cuando hay menos gente en los edificios. Las dos filas hacen falta
+    porque la asimetría no vale lo mismo en las dos: en el circuito
+    principal la generación no alcanza a la demanda en ninguna hora ni
+    siquiera el fin de semana, y en el secundario la supera en las horas
+    de sol y la supera mucho más el fin de semana.
+
+    El eje va en kilovatios y no normalizado a propósito: lo que el panel
+    tiene que dejar ver es si la generación cruza a la demanda, y eso solo
+    se ve con las dos magnitudes en la misma escala. Por eso cada frontera
+    lleva su fila, con su propia escala: sus demandas medias se separan
+    por un factor de casi cinco.
+
+    A la derecha, el recorrido mensual. Aporta sobre la banda diaria de la
+    figura de cierre porque aquella lleva la razón entre generación y
+    demanda, y una razón no dice cuál de los dos términos se movió: aquí
+    se ve que la demanda recorre un factor de 1,76 en el circuito
+    principal y de 1,58 en el secundario mientras la generación se queda
+    en 1,11, y que en el secundario la demanda mensual y la generación van
+    casi montadas, que es la forma visible de una razón próxima a uno.
     """
-    series, _ = D.preproceso(cobertura)
-    dem = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
-    gen = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
+    dem, gen = {}, None
+    for cob in ("m1", "m3"):
+        series, _ = D.preproceso(cob)
+        dem[cob] = sum(series[f"{i}__D_limpia"] for i in D.AGENTES)
+        g = sum(series[f"{i}__G_limpia"] for i in D.AGENTES)
+        if gen is None:
+            gen = g
+        else:
+            assert np.abs(gen.values - g.values).max() == 0, (
+                "la generación difiere entre M1 y M3: el panel mensual "
+                "dibuja una sola curva y dejaría de ser cierto")
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.3))
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 4.4))
+    malla = fig.add_gridspec(2, 2, width_ratios=[1.0, 0.92], wspace=0.30,
+                             hspace=0.55)
+    ejes = [fig.add_subplot(malla[0, 0]), fig.add_subplot(malla[1, 0])]
+    ax_mes = fig.add_subplot(malla[:, 1])
     filas = []
-    for nombre, mascara, trazo in (("Día hábil", dem.index.weekday < 5, "-"),
-                                   ("Fin de semana", dem.index.weekday >= 5, "--")):
-        pdm = dem[mascara].groupby(dem[mascara].index.hour).mean()
-        pgm = gen[mascara].groupby(gen[mascara].index.hour).mean()
-        ax1.plot(pdm.index, pdm.values, trazo, color=E.NEUTRO, linewidth=1.7,
-                 label=f"Demanda · {nombre.lower()}")
-        ax1.plot(pgm.index, pgm.values, trazo, color=E.MECANISMOS["C5"],
-                 linewidth=1.7, label=f"Generación · {nombre.lower()}")
-        for h in pdm.index:
-            filas.append({"corte": nombre, "hora": int(h),
-                          "demanda_kW": pdm[h], "generacion_kW": pgm[h]})
-    habil, finde = dem.index.weekday < 5, dem.index.weekday >= 5
-    caida = 100 * (1 - dem[finde].mean() / dem[habil].mean())
-    # «La generación no cambia» es una afirmación medible, y hay que
-    # medirla antes de escribirla: entre día hábil y fin de semana la
-    # media varía lo que diga este número, no cero.
-    var_gen = 100 * (gen[finde].mean() / gen[habil].mean() - 1)
-    signo = "sube" if var_gen >= 0 else "baja"
-    # Techo ampliado: la anotación va dentro del eje y sin margen se
-    # imprimía sobre el pico de la demanda de día hábil.
-    lo1, hi1 = ax1.get_ylim()
-    ax1.set_ylim(lo1, hi1 + 0.22 * (hi1 - lo1))
-    ax1.text(0.03, 0.97,
-             f"la demanda cae {E.fmt_miles(caida, 1)} % el fin de semana;\n"
-             f"la generación apenas cambia "
-             f"({signo} {E.fmt_miles(abs(var_gen), 1)} %)",
-             transform=ax1.transAxes, va="top", fontsize=7.2,
-             linespacing=1.35)
-    ax1.set_xlabel("Hora del día")
-    ax1.set_ylabel("Potencia media (kW)")
-    ax1.set_title("Ritmo semanal", pad=8)
-    ax1.set_xticks(range(0, 24, 3))
 
+    # ── El ritmo semanal, una fila por frontera ──────────────────────────
+    for ax, cob in zip(ejes, ("m1", "m3")):
+        d, g = dem[cob], gen
+        hab, fin = d.index.weekday < 5, d.index.weekday >= 5
+        for nombre, mascara, trazo in (("día hábil", hab, "-"),
+                                       ("fin de semana", fin, (0, (3.5, 2)))):
+            pd_ = d[mascara].groupby(d[mascara].index.hour).mean()
+            pg_ = g[mascara].groupby(g[mascara].index.hour).mean()
+            ax.plot(pd_.index, pd_.values, linestyle=trazo, color=E.TINTA,
+                    linewidth=1.6, zorder=4)
+            ax.plot(pg_.index, pg_.values, linestyle=trazo,
+                    color=E.GENERACION, linewidth=1.6, zorder=3)
+            for h in pd_.index:
+                filas.append({"bloque": "semana", "frontera": cob.upper(),
+                              "corte": nombre, "hora": int(h),
+                              "demanda_kW": float(pd_[h]),
+                              "generacion_kW": float(pg_[h])})
+        caida = 100 * (1 - d[fin].mean() / d[hab].mean())
+        var_g = 100 * (g[fin].mean() / g[hab].mean() - 1)
+        # Las horas de sol son donde la comparación entre las dos
+        # magnitudes decide algo: fuera de ellas la generación es cero y
+        # la resta no informa.
+        sol = (d.index.hour >= 8) & (d.index.hour <= 16)
+        exc = {"habil": float((g - d)[sol & hab].mean()),
+               "finde": float((g - d)[sol & fin].mean())}
+        lo, hi = ax.get_ylim()
+        ax.set_ylim(min(0, lo), hi + 0.20 * (hi - lo))
+        # Una sola cifra dentro del panel, junto a la geometría que nombra:
+        # la distancia entre las dos curvas de demanda.
+        ax.text(0.985, 0.94, f"la demanda cae {E.fmt_miles(caida, 1)} %",
+                transform=ax.transAxes, ha="right", va="top", fontsize=6.6,
+                color=E.TINTA)
+        ax.set_title(E.titulo_cobertura(cob), fontsize=8.0,
+                     color=E.COBERTURAS[cob], pad=5)
+        ax.set_ylabel("Potencia media (kW)", fontsize=7.4)
+        ax.set_xticks(range(0, 24, 6))
+        ax.tick_params(labelsize=7)
+        filas.append({"bloque": "semana", "frontera": cob.upper(),
+                      "corte": "resumen", "caida_demanda_pct": caida,
+                      "cambio_generacion_pct": var_g,
+                      "gen_menos_dem_habil_kW": exc["habil"],
+                      "gen_menos_dem_finde_kW": exc["finde"]})
+    ejes[1].set_xlabel("Hora del día", fontsize=7.4)
+
+    # ── El recorrido mensual ─────────────────────────────────────────────
     med_g = gen.groupby(gen.index.to_period("M")).mean()
-    med_d = dem.groupby(dem.index.to_period("M")).mean()
     x = np.arange(len(med_g))
-    ax2.plot(x, med_d.values, marker="o", markersize=3.4, color=E.NEUTRO,
-             linewidth=1.6, label="Demanda")
-    ax2.plot(x, med_g.values, marker="s", markersize=3.4,
-             color=E.MECANISMOS["C5"], linewidth=1.6, label="Generación")
-    ax2.set_xticks(x)
-    ax2.set_xticklabels([_mes_es(p) for p in med_g.index], fontsize=7)
-    ax2.set_xlabel("Mes de 2025")
-    ax2.set_ylabel("Potencia media (kW)")
+    rotulos_mes = []
+    for cob, marca, trazo in (("m1", "o", "-"), ("m3", "^", (0, (3.5, 2)))):
+        med = dem[cob].groupby(dem[cob].index.to_period("M")).mean()
+        ax_mes.plot(x, med.values, marker=marca, markersize=3.2, linestyle=trazo,
+                    color=E.COBERTURAS[cob], linewidth=1.5, zorder=4)
+        # El rótulo va en dos líneas: en una sola, las tres etiquetas del
+        # margen se comían la cuarta parte del panel y los nueve meses del
+        # eje se imprimían pegados.
+        rotulos_mes.append((float(med.values[-1]),
+                            f"{cob.upper()}\n×{E.fmt_miles(med.max() / med.min(), 2)}",
+                            E.COBERTURAS[cob]))
+        for p, v in zip(med.index, med.values):
+            filas.append({"bloque": "mes", "frontera": cob.upper(),
+                          "corte": str(p), "demanda_kW": float(v)})
+    ax_mes.plot(x, med_g.values, marker="s", markersize=3.2,
+                color=E.GENERACION, linewidth=1.5, zorder=3)
+    rotulos_mes.append((float(med_g.values[-1]),
+                        f"generación\n×{E.fmt_miles(med_g.max() / med_g.min(), 2)}",
+                        E.GENERACION))
+    for p, v in zip(med_g.index, med_g.values):
+        filas.append({"bloque": "mes", "frontera": "M1 = M3", "corte": str(p),
+                      "generacion_kW": float(v)})
+    ax_mes.set_xticks(x)
+    ax_mes.set_xticklabels([_mes_es(p) for p in med_g.index], fontsize=6.2)
+    ax_mes.set_xlim(-0.5, len(x) + 0.9)
     # Desde cero: con el eje arrancando en el mínimo, una serie que va de
-    # 8,3 a 13,2 kW parece desplomarse, y la comparación entre las dos
-    # magnitudes —que es de lo que trata el panel— queda deformada.
-    ax2.set_ylim(0, max(med_d.max(), med_g.max()) * 1.18)
-    ax2.set_title("Recorrido a lo largo del horizonte", pad=8)
-    ax2.legend(fontsize=7.5, loc="upper right", ncol=2)
-    for p, vd, vg in zip(med_g.index, med_d.values, med_g.values):
-        filas.append({"corte": "mensual", "hora": str(p),
-                      "demanda_kW": vd, "generacion_kW": vg})
+    # 8,4 a 13,2 kW parece desplomarse, y la comparación entre las dos
+    # magnitudes, que es de lo que trata el panel, queda deformada.
+    ax_mes.set_ylim(0, max(float(med_g.max()),
+                           max(float(dem[c].groupby(
+                               dem[c].index.to_period("M")).mean().max())
+                               for c in ("m1", "m3"))) * 1.14)
+    ax_mes.set_xlabel("Mes de 2025", fontsize=7.4)
+    ax_mes.set_ylabel("Potencia media (kW)", fontsize=7.4)
+    ax_mes.set_title("Recorrido a lo largo del horizonte", fontsize=8.0, pad=5)
+    ax_mes.tick_params(labelsize=7)
+    # Los tres rótulos del margen se reparten: la demanda del circuito
+    # secundario y la generación acaban el horizonte a 1,1 kW una de otra,
+    # que sobre este eje son tres puntos tipográficos para dos rótulos de
+    # dos líneas.
+    alturas = _separar_etiquetas([r[0] for r in rotulos_mes],
+                                 0.075 * ax_mes.get_ylim()[1],
+                                 tope=0.94 * ax_mes.get_ylim()[1])
+    for y, (_, texto, color) in zip(alturas, rotulos_mes):
+        ax_mes.text(x[-1] + 0.22, y, texto, fontsize=6.4, color=color,
+                    ha="left", va="center", linespacing=1.25)
 
-    # La leyenda del panel izquierdo son cuatro entradas largas y ninguna
-    # esquina del eje las admite sin cruzar una curva: van al pie.
-    fig.legend(*ax1.get_legend_handles_labels(), loc="lower center",
-               bbox_to_anchor=(0.5, -0.09), ncol=2, fontsize=7,
-               frameon=False, columnspacing=2.2, handlelength=2.2)
+    fig.tight_layout(rect=(0, 0.075, 1, 0.995))
+    fig.legend(handles=[
+        Line2D([], [], color=E.TINTA, linewidth=1.6, label="Demanda · día hábil"),
+        Line2D([], [], color=E.TINTA, linewidth=1.6, linestyle=(0, (3.5, 2)),
+               label="Demanda · fin de semana"),
+        Line2D([], [], color=E.GENERACION, linewidth=1.6,
+               label="Generación · día hábil"),
+        Line2D([], [], color=E.GENERACION, linewidth=1.6, linestyle=(0, (3.5, 2)),
+               label="Generación · fin de semana")],
+        loc="upper center",
+        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes + [ax_mes], 0.008)),
+        ncol=4, fontsize=6.6, frameon=False, handlelength=2.0,
+        columnspacing=1.4)
 
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.945))
-    return E.guardar(fig, f"f3_09_ritmos_{cobertura}", datos=pd.DataFrame(filas),
-                     procedencia=[f"reformateo/documento/datos_cache/"
-                                  f"preproceso_{cobertura}.npz"])
+    return E.guardar(
+        fig, "f3_09_ritmos", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+            "la generación es byte a byte la misma en las dos fronteras; el "
+            "generador lo comprueba con un aserto antes de dibujar",
+        ])
 
 
 if __name__ == "__main__":
@@ -2950,12 +3337,10 @@ if __name__ == "__main__":
     f32b_profundidad()
     f33_reconstruccion("m1", "Udenar")
     f33b_reconstruccion_mosaico()
-    for cob in ("m1", "m3"):
-        f37_matrices(cob)
-        f38_perfiles_instituciones(cob)
-        f39_ritmos(cob)
+    f37_matrices()
+    f38_perfiles_instituciones()
+    f39_ritmos()
     f34_anatomia_umbral()
-    for cob in ("m1", "m3"):
-        f35_umbral_atipicos(cob)
+    f35_umbral_caso()
     f36_escalera_huecos()
     print("\nlisto.")

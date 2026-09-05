@@ -3872,6 +3872,308 @@ desbordes; auditoria numerica en cero desfases.
 
 ---
 
+## C-112 · Respuesta medida a la critica externa (pasos 1 y 2 de 4)
+
+**2026-09-04 · tipo: `contenido` · aplicada**
+
+Una revision externa objeto seis puntos a los capitulos 2 y 3. Dos de
+ellos cambian de signo al medirlos, y esa es la respuesta que entra en el
+documento.
+
+### El multiplicador «sin sustento», medido
+
+El reparo decia que el 5 del primer criterio es arbitrario y que el
+segundo es «un parche». Barrido el multiplicador entre 1,5 y 7, **con los
+dos criterios la energia retirada va del 0,083 % al 0,021 % de la
+demanda**: entre el clasico y el elegido hay cuatro horas de diferencia
+sobre 122.880 horas de serie. El multiplicador no gobierna nada.
+
+Y la segunda columna del barrido **invierte el reparo**: sin el segundo
+criterio, el 1,5 clasico retiraria el 13,4 % de la demanda y ni un 7
+bajaria del 2,4 %. El segundo criterio no cubre un fallo del primero, hace
+que el primero deje de importar. Nueva `tab:prep-sensibilidad`.
+
+La declaracion de honestidad decia «ni analisis de sensibilidad sobre su
+valor», que dejo de ser cierto y se corrigio.
+
+### Las mesetas que «contaminan irremediablemente», acotadas
+
+El reparo decia que insertar mesetas planas de hasta 24 h contamina la
+coincidencia entre el pico solar y el valle de demanda. La cota es doble y
+esta ahora publicada: **la generacion no se rellena ni una sola hora** en
+ninguna frontera, de modo que el pico solar nunca se fabrica; y del lado
+de la demanda son 121 y 300 horas de serie en la franja diurna sobre
+30.720, el 0,39 % y el 0,98 %.
+
+### El mosaico de la reconstruccion, y dos defectos que destapo
+
+Entra `f3_03b_reconstruccion_mosaico` con las diez series. Siete paneles
+salen sin banda y ese vacio es el hallazgo: la fila de M3 funciona como
+control de la de M1.
+
+**Defecto 1, una banda que no existia.** La primera version dibujaba banda
+de 0,10 kW en el Hospital y 0,04 en CESMAG. No era generacion: la serie
+reconstruida conserva el hueco donde el medidor no trajo lectura y la de
+la lectura lo lleva relleno con cero, de modo que **las dos curvas se
+promediaban sobre conjuntos de horas distintos**, con 113 y 117 horas de
+diferencia.
+
+**Defecto 2, un aserto que no comprobaba lo que decia.** La identidad de
+la reconstruccion se verificaba con el maximo de pandas sobre una
+diferencia con huecos, y ese maximo los descarta en silencio: la prueba se
+saltaba justo las horas que importaban. Misma familia que el
+`assert ... or True` de C-84.
+
+**Una cifra nueva**: bajo M3 la Universidad Mariana no recibe generacion y
+sin embargo el recorte a cero todavia le quita 46,7 kWh, que son los 156
+de M1 por el mismo factor 0,3 con que se construye su serie secundaria.
+
+### Lo que queda de la critica
+
+Pendiente el paso 3, nominalizar los titulos, y el paso 4, la matriz de
+sensibilidad completa del preprocesamiento, que va con la corrida. Y la
+declaracion de alcance sobre topologia electrica y capacidad de red, que
+es el reparo mas fuerte y no tiene respuesta preparada.
+
+---
+
+## C-110 · La atribucion de fuente sale de los pies
+
+**2026-09-04 · tipo: `norma` · aplicada**
+
+Retiradas las **42** apariciones del macro `uente{}` de todas las
+figuras y tablas del documento: 21 en los capitulos escritos y 21 en las
+plantillas de los que aun no lo estan. El borrado cuenta llaves, porque
+varias llevaban `ile{}` o `\code{}` anidados dentro.
+
+**La trazabilidad no se pierde**, solo deja de imprimirse. Cada figura
+conserva su `figuras/<nombre>.fuente.txt` con la ruta exacta del artefacto,
+su CSV hermano, y la fila correspondiente en la tabla maestra de `GUIA.md`.
+Lo que sale es la linea de la pagina.
+
+**Efecto**: el documento pasa de 93 a 91 paginas.
+
+`GUIA.md` queda al dia: su norma 4 decia que «el `\caption` termina con
+`uente{...}`», que ya no es cierto, y la excepcion que permitia citar
+rutas dentro de ese macro se reduce ahora al cierre de un `
+otafig{}`.
+
+**Pendiente de su palabra.** Sobreviven **18 «Elaboracion propia»** dentro
+de notas de figura, que son ahora la unica atribucion impresa del
+documento. El pidio borrar la fuente de las figuras, y esas frases lo son
+aunque no usen el macro. Se dejan hasta que lo confirme, porque quitarlas
+es otra decision y no la que pidio literalmente. El macro sigue definido en
+el preambulo por si decide recuperarlo.
+
+---
+
+## C-109 · El pie describe; el parrafo siguiente explica
+
+**2026-09-04 · tipo: `norma` · aplicada, y guardada como regla**
+
+El lo pidio como regla y no como caso: el pie lleva la descripcion directa
+y corta de lo que se ve, y lo que haya que seguir explicando baja al
+parrafo siguiente, que en este documento es la nota de figura.
+
+**Los pies habian crecido solos**, porque cada revision añadia una frase y
+ninguna la quitaba. Medidos: 198 palabras la profundidad, 190 la escalera,
+174 la anatomia y 148 el umbral, con la descripcion, el argumento, las
+cifras del caso y los remites mezclados. Los cuatro eran de esta misma
+sesion.
+
+Despues de partirlos: **44, 61, 93 y 92**, y ninguno argumenta ya. Lo que
+salio del pie no se perdio: bajo a la nota, salvo en la profundidad, donde
+el pie repetia entero lo que el parrafo siguiente ya decia sobre la mitad
+central de Udenar y bastaba con cortar.
+
+La regla queda en `GUIA.md` con su comprobacion: un pie de mas de un
+centenar de palabras casi siempre lleva algo que no le toca.
+
+---
+
+## C-108 · La demanda negativa y la profundidad, en las dos fronteras
+
+**2026-09-04 · tipo: `figuras` + `contenido` · aplicada**
+
+Siguen el criterio de C-106. Dos figuras mas que pasan a un archivo unico
+con las dos fronteras, y con ello el capitulo pierde una figura y gana
+coherencia.
+
+**`f3_02_demanda_negativa`.** Fundir aqui no era apilar: las dos versiones
+no dibujaban lo mismo a la izquierda, porque en M1 era el perfil medio y en
+M3 el minimo de cada hora, ya que alli ninguna media llega a ser negativa.
+Se resolvio dibujando **las dos curvas de la institucion afectada**,
+promedio y minimo, en cada fila. El contraste entre filas es ahora el
+argumento: bajo M1 el promedio de Udenar entra en la zona imposible y baja
+a −11,0 kW a las 13, de modo que el neteo no arrastra casos sueltos sino la
+media entera; bajo M3 ningun promedio la alcanza y solo el minimo la roza.
+
+**Un defecto que la fusion destapo.** En la version M3 la curva destacada
+era el minimo y las cuatro de contexto seguian siendo promedios, sin que
+nada lo dijera. Eran objetos distintos comparados en el mismo par de ejes,
+que es lo que C-84 dejo prohibido, y llevaba ahi desde que se creo.
+
+**`f3_02b_profundidad`.** Dos paneles con escalas independientes, no una
+sola: el recorrido dibujado abarca 51 kW en M1 y 3,8 en M3, un factor de
+13, y con escala comun las cinco filas de la derecha caben en el 7 % del
+ancho. Lo que se compara entre paneles no es una longitud sino **si el
+recorrido cruza el cero**. En M3 lo cruza una sola institucion y las otras
+cuatro nunca se acercan, que es lo que sostiene la afirmacion del capitulo
+de que la lectura imposible es un asunto de la frontera principal.
+
+**Lo que NO se hizo, y por que.** El autor pidio tambien la version M3 de
+`f3_03_reconstruccion`. **Medido: bajo M3 no hay nada que reconstruir.** La
+generacion devuelta es 0,0 kWh en las cinco instituciones y la demanda
+reconstruida coincide con la lectura recortada a cero, con diferencia
+maxima de 0,00e+00, porque en el circuito secundario los cinco medidores
+son brutos. Una figura M3 seria dos curvas superpuestas y una banda de
+altura cero. El dato de M3 esta reportado de otra forma: la tabla de tipos
+lo dice con sus cinco «bruto» y la de la reconstruccion al no tener ese
+bloque.
+
+**Tres desfases de arrastre, corregidos**: la etiqueta `fig:prep-gradacion`
+sobrevivia con dos referencias que habrian impreso «??»; el texto decia que
+la profundidad pone la gradacion «en una sola escala», y ahora son dos
+paneles; y el Anexo A1 decia «los cinco medidores de la frontera
+principal», cuando ya son los diez.
+
+**Estado**: 93 paginas, sin errores, sin desbordes y sin referencias sin
+resolver; auditoria numerica en cero desfases.
+
+---
+
+## C-106 · Todo el dato, para todas las entidades, en las dos fronteras
+
+**2026-09-04 · tipo: `contenido` + `figuras` · aplicada**
+
+Criterio que el fijo: «deberiamos ir reportando todos los datos para todas
+las entidades». Aplicado a las tres piezas de la etapa.
+
+**`tab:prep-tipos` pasa a las dos fronteras.** El bloque de M3 no es
+relleno: dice que en el circuito secundario **los cinco medidores son
+brutos**, de modo que la frontera no cambia solo cuanta carga se mide sino
+la semantica del propio equipo. La unica excepcion aparente es Mariana, que
+no tiene medidor secundario y reutiliza el del principal escalado, y con el
+hereda sus 213 horas negativas ya reducidas: -0,72 kW es -2,41 x 0,3 y los
+47 kWh son 156 x 0,3.
+
+**`f3_04b` pasa a diez paneles en un archivo**, cinco instituciones por dos
+fronteras. Fue posible porque la tabla de C-103 se llevo los valores y la
+figura pudo quedarse con la geometria.
+
+**`f3_06` pasa a las dos fronteras**, y aqui el motivo era mas grave que el
+criterio. Su franja del presupuesto **afirmaba que Udenar y la UCC no
+tenian ninguna hora tratada**, lo que es falso sobre el dato: bajo M3
+tienen 97 y 126. En M1 sus huecos los habia borrado el `fillna(0)` de la
+reconstruccion antes de que la limpieza los viera, que es H-25. Ahora esos
+ceros dicen «0 · huecos cerrados antes» y la figura lleva la explicacion
+debajo, no solo en el pie. El tercer peldaño pasa ademas a ser el hueco mas
+largo **del estudio**, 49 h de la UCC bajo M3, que es el que prueba que ni
+el mayor alcanza el techo de 51.
+
+**Los dos archivos pierden el sufijo de frontera**, porque cubrirlas las dos
+lo habria vuelto falso y el generador habria emitido duplicados identicos.
+
+**Quedan tres figuras huerfanas en disco** de versiones retiradas:
+`f3_02b_gradacion_m1`, `f3_05_outliers_imputacion_m1` y `_m3`. Ningun `.tex`
+las cita y ningun generador las produce. Se dejan a la espera de su palabra,
+porque borrarlas no es reversible.
+
+---
+
+## C-103 · El rango intercuartilico, tabulado por entidad
+
+**2026-09-04 · tipo: `contenido` · aplicada**
+
+Su objecion, sobre la figura de anatomia: «no lo comprendo ya que ese valor
+no se reporta en ningun lugar para cada entidad». Tenia razon. El cuadro de
+la figura representa el rango intercuartilico, pero ese valor solo aparecia
+en los titulos de los tres paneles dibujados y en dos cifras sueltas del
+texto. **Udenar y Mariana no lo tenian en ninguna parte.**
+
+Nueva `tab:prep-umbral`, con la anatomia completa de las diez series de
+demanda en las dos fronteras: rango, distancia de la cola en rangos, los
+dos candidatos con el que se aplica en negrita, y horas retiradas. Las
+series de generacion no entran porque en las diez manda el primer criterio
+y ninguna retira una sola hora, y asi queda dicho.
+
+La columna de la cola es la que explica el reparto, y en la tabla se ve en
+dos filas contiguas: bajo M1 el HUDN y CESMAG tienen rangos casi iguales,
+1,40 y 1,27 kW, y el umbral de cada uno lo fija un criterio distinto porque
+la cola cae a 1,2 rangos en uno y a 8,2 en el otro.
+
+La tabla permite ademas recortar prosa: las cifras que el texto venia
+soltando sueltas dejan de repetirse.
+
+**Sobre el tamaño del cuadro**, que fue lo que disparo la pregunta: su
+altura es el dato, el rango entre el primer y el tercer cuartil, y el ancho
+no significa nada, esta solo para que las cinco copias se reconozcan como
+copias. La pila completa mide seis rangos, de modo que el cuadro ocupa
+siempre un sexto y los tres paneles se parecen aunque los rangos reales
+difieran casi veinte veces. Es el precio de las escalas independientes.
+**Medido sobre las diez series** al pasar la figura a las dos fronteras: los
+rangos reales difieren por un factor de **76,7**, de 24,35 kW en la UCC bajo
+M1 a 0,318 kW en el Hospital bajo M3, mientras que la altura con que se
+dibuja el cuadro solo difiere por un factor de **5,5**, del 15,1 % del panel
+al 2,7 %. No es un descuido del dibujo: cuando manda el primer criterio, la
+pila ocupa casi todo el panel y el cuadro es un sexto de ella sea cual sea
+el rango.
+
+Lo que si se hizo, porque era el fallo de fondo, es **decir en el pie que
+se compara**: con escalas independientes, entre paneles no se comparan
+alturas sino una relacion, si la cola con su prolongacion queda por encima
+o por debajo de la quinta copia. Sin esa instruccion el lector intenta
+comparar alturas y no le cuadra.
+
+**La distorsion queda sin corregir a la espera de su decision.** De las tres
+salidas propuestas, la vineta con los rangos sobre un eje comun es la unica
+que no obliga a renunciar a las escalas independientes.
+
+---
+
+## C-102 · La anatomia del umbral, y la metrica que la sostiene
+
+**2026-09-04 · tipo: `figuras` + `contenido` · aplicada**
+
+El pidio una figura para entender el IQR de forma grafica en cada factor.
+Lo que faltaba era la anatomia de la formula: el panel derecho de `f3_05`
+dice quien manda en cada serie, pero el lector veia `Q75 + 5·IQR` como
+notacion y nunca veia el rango como una longitud que se multiplica por
+cinco.
+
+**`f3_04b_anatomia_umbral`**, nueva. Tres series de demanda con escalas
+independientes, porque sus rangos van de 1,3 a 24,4 kW bajo M1. En cada
+una: la caja de la mitad central, **cinco copias exactas de esa misma
+caja** apiladas sobre el tercer cuartil y numeradas del 1 al 5, de modo que
+la multiplicacion se cuenta con el ojo, el percentil 99,5 con su
+prolongacion del 20 %, el umbral aplicado con trazo lleno y el candidato
+perdedor discontinuo.
+
+**La cifra que faltaba y que resulta ser el argumento entero**: a cuantos
+rangos intercuartilicos del tercer cuartil cae el percentil 99,5. Bajo M1,
+el Hospital a 1,2 y CESMAG a 8,2, **con rangos casi iguales, 1,4 y 1,3 kW**.
+Bajo M3 el contraste llega a 1,5 frente a 23,2. Es la contrapartida
+numerica de lo que C-100 dejo dicho en prosa, que el peligro no lo trae el
+rango estrecho sino el perfil de dos modas, y el texto la adopta: donde
+antes se afirmaba, ahora se mide.
+
+**Numeracion**: el prefijo `f3_04` estaba libre en disco pero el numero 3.4
+lo ocupa el diagrama de los tres tipos de medidor, que se dibuja en LaTeX y
+por eso no tiene archivo. Se usa la letra, que es la convencion que ya
+siguen otras cuatro figuras del capitulo.
+
+**Un defecto que el cambio de vocabulario habia introducido.** Al renombrar
+el rotulo de `f3_05` a «segundo criterio: 1,2 × P99,5» paso a medir 1,13
+pulgadas, justo lo que hay entre su vertical y la columna de umbrales, y
+**se imprimia sobre la cifra de la primera fila**. La prueba de oclusion lo
+cazo en las dos fronteras. El nombre bajo a la leyenda y `f3_05` se
+regenero.
+
+**Estado**: 91 paginas, sin errores ni desbordes; cero choques de oclusion
+en las seis figuras de la etapa; auditoria numerica en cero desfases.
+
+---
+
 ## C-100 · La etapa de limpieza describía mal tres de sus cuatro pasos
 
 **2026-09-04 · tipo: `dato` + `figuras` + `estructura` · aplicada**
@@ -3961,6 +4263,36 @@ remite de la zona horaria, que se apoyaba en que la limpieza distingue el
 cero nocturno de la generación del hueco de medida. **Eso no ocurre**,
 porque las series de generación no reciben tratamiento; ahora se apoya en
 la banda solar de la matriz.
+
+### El pasaje del umbral, reordenado y renombrado (mismo dia)
+
+El siguio sin entenderlo, y con razon. Dos fallos:
+
+**Nombraba los dos criterios antes de decir que hacen** y no explicaba lo
+esencial, que al tomar el MAYOR de los dos se aplica siempre el mas
+permisivo, y que el segundo solo entra cuando el primero se ha vuelto
+demasiado estricto. Un «piso» sobre un techo es ademas una doble negacion
+que nadie descifra al vuelo. Reordenado por la logica: la tension que hay
+que resolver, que hace el primer criterio, donde falla, para que existe el
+segundo, la prueba de CESMAG con su mitad central de 1,273 kW frente a un
+corte en 10,6 kW, y solo entonces el matiz del HUDN.
+
+**Y «cerca de Tukey» sale del documento.** El preguntó si estaba bien
+decirlo. No lo estaba: en español «cerca» es sustantivo y adverbio, y el
+pasaje usaba los dos con dos líneas de diferencia («el corte queda cerca de
+esa base» y «la cerca cae en 10,6 kW»), y más abajo «le basta la cerca,
+porque su carga es tan plana que nunca llega a acercársele». La solución no
+fue buscar sinónimo sino no necesitar el sustantivo: el pasaje ya nombra
+los dos candidatos como primer y segundo criterio. Tukey se menciona una
+vez, como procedencia, glosado con los bigotes del diagrama de caja.
+
+Los rótulos de la figura se alinearon con el texto y se regeneró: «Corte
+del primer criterio» y «segundo criterio: 1,2 × P99,5». Un objeto, un
+nombre, el mismo en los dos sitios.
+
+De paso se cazó un énfasis escrito en formato markdown dentro del `.tex`,
+que habría impreso los asteriscos. Comprobado que no queda ninguno suelto
+en ninguna sección.
 
 **Estado**: 90 páginas, sin errores ni desbordes; auditoría numérica en
 cero desfases; estilo en 23,8 palabras por oración frente a 24,6 del
@@ -4255,6 +4587,399 @@ peldaños.
 coordinador, y retirar los seis archivos de la figura antigua
 (`f3_05_outliers_imputacion_{m1,m3}` con su PNG, su CSV y su fuente) en
 cuanto la fuente del capítulo deje de citarlos.
+
+---
+
+## C-101 · El umbral gana una figura de anatomía, y el par que hace el argumento
+
+**2026-09-04 · tipo: `figura` · aplicada · él pidió que el rango intercuartílico se entendiera de forma gráfica en cada factor**
+
+> Es el mismo cambio que registra C-102, visto desde el generador. C-102
+> es la entrada de referencia; esta añade el detalle de implementación y
+> las comprobaciones. La figura pasó después a las diez series por C-104,
+> que retira de aquí la nota del par y los rótulos de valor.
+
+La figura del umbral dice quién manda en cada serie, pero no cómo se
+construye ninguno de los dos candidatos. El lector veía `Q75 + 5 · IQR`
+como notación y en ningún sitio veía el rango intercuartílico como lo que
+es, es decir, una longitud que se multiplica por cinco y se apila sobre el
+tercer cuartil. Entra una figura antes que aquella, dedicada solo a la
+anatomía de la fórmula.
+
+**El recurso central son las cinco copias.** La caja de la mitad central se
+dibuja una vez sobre el tercer cuartil y luego cinco veces más encima,
+todas del mismo ancho y del mismo alto, numeradas. La multiplicación deja
+de ser una operación y pasa a ser una distancia que se cuenta con el ojo.
+Al lado, la cola: una línea de puntos que sube desde el tercer cuartil
+hasta el percentil 99,5 y, sobre ella, el bloque de su prolongación del
+20 %. El máximo de la fórmula se lee entonces sin aritmética, porque gana
+el que queda más alto y es el que va pintado en ámbar y con trazo lleno,
+mientras el que pierde queda en gris y discontinuo.
+
+**Es la prueba geométrica del mecanismo que C-100 identificó.** Allí quedó
+medido que el peligro no lo trae el rango intercuartílico pequeño, porque
+el Hospital tiene el menor de todo el estudio y no le pasa nada, sino el
+perfil de dos modas. Esta figura lo dibuja.
+
+**El par que hace el argumento.** El Hospital y CESMAG tienen rangos
+intercuartílicos casi iguales en la frontera principal, \uni{1.4}{kW} y
+\uni{1.3}{kW}, es decir, una diferencia del \pct{10}, y sin embargo el
+umbral de cada uno lo fija un criterio distinto. Lo que los separa no es
+la dispersión del cuerpo sino dónde cae la cola respecto de él: el
+percentil 99,5 del Hospital está a 1,2 rangos por encima de su tercer
+cuartil y el de CESMAG a 8,2. Eso es la bimodalidad que el texto afirmaba
+y que hasta ahora no se veía. La tercera serie, la UCC, es el contraste de
+escala: rango intercuartílico de \uni{24.4}{kW}, el más ancho de las
+cinco, y el primer criterio gana con holgura.
+
+**La frase del par solo se imprime cuando es cierta.** La razón entre los
+dos rangos se calcula y se compara contra 1,15: en la frontera principal
+vale 1,10 y la figura lo dice; en la otra vale 1,76 y la figura calla. El
+argumento del par es de M1, y la nota no se hereda a M3 escribiéndola a
+mano.
+
+**Escalas independientes, y por qué no es una trampa.** Los rangos van de
+1,3 a 24,4 kW en la frontera principal, de modo que una escala común
+aplastaría tres de las cinco series. Lo que se compara entre paneles no es
+una altura sino una relación, que es si la cola con su prolongación queda
+por encima o por debajo de la quinta copia. Esa relación es invariante a
+la escala de cada panel.
+
+**Lo que la frontera M3 enseña de más.** En CESMAG la cola cae a 23,2
+rangos del cuerpo y el cuerpo mide \uni{0.6}{kW}, de modo que la pila de
+seis cajas ocupa la parte baja del panel y la línea de puntos lo recorre
+entero. Los ordinales de las copias no se imprimen ahí, porque cada una
+mide menos de nueve puntos tipográficos y el número saldría fuera de su
+caja; la condición se evalúa sobre la geometría del render y no se decide
+a ojo. El panel se ve extremo porque el caso lo es, y es justo el caso que
+explica que sin el segundo criterio esa serie perdería 927 horas, es
+decir, el \pct{52.5} de su energía.
+
+**Numeración.** El archivo es `f3_04b_anatomia_umbral`, con la letra que ya
+usan otras cuatro figuras del capítulo, y no `f3_04`: el número 3.4 lo
+ocupa el diagrama de los tres tipos de medidor, que se dibuja en LaTeX y
+por eso no tiene archivo, y dos filas con el mismo número en la tabla
+maestra se prestan a error. La letra deja la figura donde va, que es
+después de aquel diagrama y antes de la del umbral.
+
+**Vocabulario.** Se usan «primer criterio» y «segundo criterio», que es la
+denominación que el texto acaba de fijar. El percentil se marca con una
+raya y no con un círculo hueco, porque el círculo hueco significa otra
+cosa en la figura siguiente, que es el corte del primer criterio, y dos
+figuras vecinas no pueden dar dos sentidos a la misma marca.
+
+**Un defecto que el cambio de vocabulario introdujo en la figura vecina.**
+Al renombrar el segundo criterio, su rótulo pasó a medir 1,13 pulgadas,
+que es exactamente lo que hay entre su vertical y la columna de umbrales
+en kilovatios, y se imprimía sobre la cifra de la primera fila. La prueba
+de oclusión lo cazó. El nombre baja a la leyenda, que pasa de cuatro
+entradas a cinco.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo en las seis
+figuras de la etapa. Escala de grises: la caja medida y sus copias se
+distinguen por el relleno y por el borde, y los dos criterios por trazo
+lleno frente a discontinuo. El CSV hermano tiene cinco filas, una por
+institución, con las dos que no se dibujan marcadas como tales.
+
+**Cifras que la figura publica**, todas regenerables desde el caché: por
+institución, los dos cuartiles, el rango intercuartílico, los dos
+candidatos, el percentil 99,5, el umbral aplicado, el máximo observado y a
+cuántos rangos del tercer cuartil cae la cola.
+
+---
+
+## C-104 · La anatomía del umbral pasa a las diez series, porque la tabla se quedó con los valores
+
+**2026-09-04 · tipo: `figura` · aplicada · él pidió las cinco entidades en las dos fronteras, en una sola imagen · continúa C-102 y usa la tabla de C-103**
+
+Lo que ataba la figura a tres paneles no era el argumento sino los
+rótulos: cada uno arrastraba los dos candidatos con su fórmula y su valor,
+y esos rótulos ocupaban más ancho que el dibujo. La tabla del umbral, que
+C-103 publicó, cambia el reparto: **la tabla lleva los valores y la figura
+se queda con la geometría.** Sin rótulos largos caben diez paneles donde
+antes cabían tres, y Udenar y la Universidad Mariana dejan de faltar
+también en la figura.
+
+**La retícula.** Dos filas por cinco columnas, las instituciones en el
+orden fijo a lo ancho y las fronteras apiladas, de modo que comparar una
+institución entre M1 y M3 sea mirar hacia abajo. La frontera rotula la
+fila entera, en su color y con su razón entre generación y consumo, fuera
+del área de dato. En cada panel queda escrito lo que identifica y lo que
+la escala no dice: el nombre de la institución, una vez por columna, y el
+rango intercuartílico.
+
+**Los ordinales sobreviven, y se decidió midiendo.** Con diez paneles cada
+uno queda en 1,2 pulgadas de ancho por 1,8 de alto, de modo que había que
+comprobar si el número de cada copia seguía cabiendo. La condición se
+evalúa sobre el render ya compuesto, con la posición real del eje después
+de componer y no con la que tiene antes: **se imprimen 45 de los 50**, y
+los cinco que faltan son los de CESMAG bajo M3, donde cada copia mide 3,6
+puntos tipográficos. Se conserva la numeración porque sobrevive en nueve
+de los diez paneles; si hubiera caído en la mayoría, habría que haberla
+sustituido por una sola marca al margen de cada pila.
+
+**Un solo archivo, sin sufijo de frontera.** La figura cubre las dos, de
+modo que `f3_04b_anatomia_umbral_m1` sería un nombre falso y el generador
+emitiría dos archivos idénticos. La función ya no recibe cobertura.
+
+**Lo que se retira.** La nota que declaraba el par del Hospital y CESMAG:
+esa comparación la sostienen ahora dos columnas contiguas y la publica la
+tabla con sus cifras. Con ella sale la condición que solo la imprimía
+cuando la razón entre los dos rangos bajaba de 1,15. También salen los
+rótulos de valor de cada panel y la selección de tres series con sus
+asertos, que ya no tiene objeto.
+
+**Lo que este cambio NO resuelve, con la medida que faltaba.** El reparo
+del tamaño del cuadro que C-103 dejó abierto sigue en pie, y ahora se
+puede cuantificar sobre las diez series: los rangos reales difieren por un
+factor de **76,7**, de 24,35 kW en la UCC bajo M1 a 0,318 kW en el
+Hospital bajo M3, mientras que la altura con que se dibuja el cuadro solo
+difiere por un factor de **5,5**, del \pct{15.1} del panel al \pct{2.7}.
+La compresión no es un descuido del dibujo sino la consecuencia aritmética
+de la escala independiente: cuando manda el primer criterio la pila ocupa
+casi todo el panel y el cuadro es un sexto de ella, sea cual sea el rango.
+Con diez paneles el efecto se nota más que con tres, porque hay más pilas
+parecidas a la vista. **No se toca a la espera de su decisión**, que es lo
+que C-103 dejó dicho; de las tres salidas propuestas allí, la viñeta con
+los rangos sobre un eje común es la única que no obliga a renunciar a las
+escalas independientes.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo. Escala de
+grises: el criterio que fija el umbral se distingue del descartado por
+trazo lleno frente a discontinuo, y las tres marcas horizontales por su
+longitud y su posición, que es el ancho del panel para los criterios, el
+carril de la cola para el percentil y el carril del cuadro para el máximo.
+El CSV hermano tiene diez filas, una por serie y frontera.
+
+**Ninguna cifra nueva respecto de la tabla.** El CSV añade los dos
+cuartiles y el máximo observado, que la tabla no trae y que la figura sí
+dibuja.
+
+---
+
+## C-105 · La escalera pasa a las dos fronteras, porque la versión de M1 sostenía una lectura falsa
+
+**2026-09-04 · tipo: `figura` + `dato` · aplicada · criterio general del autor, reportar todos los datos para todas las entidades**
+
+La franja del presupuesto de la versión de M1 imprimía «ninguna» junto a
+Udenar y a la UCC, y esa palabra es falsa como afirmación sobre el dato:
+bajo M3 esas dos instituciones acumulan 97 y 126 horas tratadas. La causa
+está declarada en el capítulo y es H-25: en la frontera principal las dos
+llevan medidor neto y el recorte a cero de la reconstrucción cierra sus
+huecos antes de que la limpieza los vea. Un lector que solo viera M1
+concluiría que no tuvieron cortes, y los tuvieron.
+
+**La franja pasa a las diez series de demanda**, cinco instituciones con
+sus dos fronteras en barras contiguas, de modo que el contraste entre 0 y
+97 esté en el mismo renglón. La frontera de cada barra va rotulada en su
+color a la izquierda del origen.
+
+**Los ceros dejan de leerse como ausencia.** Donde no hay barra, el rótulo
+dice «0 · huecos cerrados antes» en el color de aviso, y bajo la franja
+una línea explica de qué cero se trata: en M1, Udenar y la UCC llevan
+medidor neto y la reconstrucción cerró sus huecos antes de la limpieza. La
+nota va en la figura y no solo en el pie, porque quien mira el dibujo
+tiene que poder leerla ahí.
+
+**El tercer peldaño cambia de caso.** Al dejar de haber una figura por
+frontera, ya no es «el hueco más largo de esta frontera» sino el más largo
+del estudio, que son las 49 horas de la demanda de la UCC bajo M3, del 11
+al 13 de diciembre, con su reparto de 3 más 24 más 22. Es además el que
+cierra el argumento, porque prueba que ni el mayor de todos alcanza el
+techo de 51 horas. Un aserto comprueba que sigue siendo el más largo de
+las dos fronteras, no solo de la suya. Los dos primeros peldaños siguen
+siendo del Hospital bajo M1, y cada panel declara ahora su frontera,
+porque los tres ya no salen de la misma.
+
+**Por qué los dos primeros se quedan en M1.** El hueco de tres horas sube
+un \pct{30} entre sus anclas bajo M1 y baja un \pct{3} bajo M3, de modo
+que allí la recta de la interpolación no se distinguiría de una línea
+plana. El de trece horas se lee en las dos: la separación entre la meseta
+y la última lectura observada mide el \pct{13.7} del alto del panel bajo
+M1 y el \pct{21.4} bajo M3. Se conservan los dos de M1 para que los
+peldaños primero y segundo pertenezcan al mismo medidor; si se prefiere la
+separación mayor, el segundo puede pasar a M3 cambiando una línea.
+
+**Un archivo, sin sufijo**, porque la figura cubre las dos fronteras y la
+función ya no recibe cobertura. Se retiran los dos anteriores.
+
+**Un defecto de composición corregido de paso.** La banda de las llaves
+queda bajo el dato y no es área de medida, pero el eje seguía imprimiendo
+sus marcas dentro de ella: en el hueco de 49 horas la marca del cero caía
+en la banda e invitaba a leer que la serie había bajado hasta ahí. Las
+marcas se recortan al recorrido del dato.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo en las cuatro
+figuras de la etapa. Escala de grises: la geometría sigue llevando la
+distinción, que es rampa frente a meseta en los paneles y orden fijo de
+los dos tramos en la franja. El CSV hermano tiene catorce filas, tres de
+peldaño, diez de presupuesto y una de resumen.
+
+**Cifras que la figura publica**, todas verificadas contra el caché antes
+de dibujar: 234 horas tratadas en M1, de ellas 74 interpoladas y 160
+arrastradas, y 574 en M3, de ellas 159 y 415; el reparto por institución
+de la tabla de arriba; cero horas rellenas con cero en las veinte series;
+y el hueco más largo del estudio en 49 horas frente a un alcance de 51.
+
+---
+
+## C-107 · La demanda negativa y la profundidad pasan a las dos fronteras, y una de ellas comparaba objetos distintos
+
+**2026-09-04 · tipo: `figura` + `dato` · aplicada · aplica a estas dos piezas el criterio que registra C-106**
+
+Las dos figuras de la demanda negativa se funden en una, con una fila por
+frontera, y la de la profundidad pasa a dos paneles. Se mantienen como
+figuras separadas y no se funden entre sí: la primera queda ya con dos
+filas de dos paneles y meterle una tercera pieza la haría ilegible.
+
+**Un defecto que la fusión destapó.** En la versión secundaria de la
+demanda negativa la curva destacada era el mínimo de cada hora, porque
+allí ningún promedio baja de cero, mientras que las cuatro de contexto
+seguían siendo promedios, y nada en la figura lo decía. Eran objetos
+distintos comparados en el mismo par de ejes, que es lo que C-84 dejó
+prohibido. Ahora cada fila dibuja las dos curvas de la institución
+afectada, promedio y mínimo de cada hora, rotuladas, sobre cuatro
+promedios de contexto.
+
+**Por qué caben las dos curvas, medido.** Dibujar el mínimo estira el
+recorrido vertical de la fila principal de 42,3 a 64,9 kW, es decir, un
+factor de 1,53, y la excursión negativa del promedio de Udenar pasa de
+ocupar el \pct{25.9} del alto de su panel a ocupar el \pct{16.9}. Sigue
+siendo legible, de modo que no hay que elegir entre las dos lecturas: se
+ve que el neteo arrastra la media entera de una institución y se ve hasta
+dónde llega el caso extremo. En la frontera secundaria la relación es la
+misma con otro reparto, 3,59 a 5,97 kW, y allí el promedio se queda
+fuera de la zona imposible, que es justamente lo que esa fila enseña.
+
+**Lo que cada figura conserva y lo que suelta.** La tabla de los tipos ya
+publica, en las dos fronteras, las horas bajo cero de cada institución, su
+fracción, la lectura mínima y la energía hacia la red. Ninguna de las dos
+figuras repite esas columnas. La de la demanda negativa se queda con la
+forma de la campana solar y con el único valor que no está en la tabla,
+que es el mínimo del promedio horario, \uni{-11.0}{kW} a las 13 en Udenar.
+La de la profundidad se queda con a qué profundidad ocurre la inversión de
+ordinario frente a ese mínimo que es un extremo: la mitad central de las
+negativas de Udenar cae entre −15,1 y −3,9 kW con mediana de −8,7,
+mientras el mínimo publicado, −33,6, es casi cuatro veces esa mediana.
+
+**El vacío de la frontera secundaria es el hallazgo.** Bajo M3 solo la
+Universidad Mariana cruza el cero, y con un recorrido de \uni{-0.72}{kW}
+frente a los \uni{-33.57}{kW} de Udenar bajo M1. Los otros cuatro
+circuitos nunca se acercan. La figura lo hace visible dejando cuatro filas
+enteras a la derecha del cero y rotulando la banda vacía, en vez de
+disimularlo. La razón está declarada en el capítulo y es que la
+Universidad Mariana no tiene medidor secundario y se representa escalando
+su totalizador.
+
+**Las dos escalas de la profundidad son independientes, y tienen que
+serlo.** El recorrido dibujado abarca 51 kW en la frontera principal y 3,8
+en la secundaria, un factor de 13. Con escala común las cinco filas de la
+derecha cabrían en el \pct{7} del ancho y la figura no podría dibujar lo
+que afirma. Es la misma razón que en la anatomía del umbral, y como allí,
+lo que se compara entre paneles no es una longitud sino una relación: si
+el recorrido cruza el cero o no.
+
+**Tres rótulos recolocados sobre el render.** La glosa de la zona
+imposible la cruzaban las dos curvas, porque el mínimo de cada hora
+recorre la banda entera de las 6 a las 18; queda reducida a dos palabras
+en el único hueco, que son las horas de noche, y la glosa pasa al pie. El
+rótulo del promedio que no entra en la zona imposible se imprimía sobre la
+leyenda; va sobre el tramo final de su propia curva. Y en la profundidad,
+el rótulo del panel derecho no cabía horizontal en ninguna fila sin tocar
+un recorrido, de modo que va girado dentro de la banda; la prueba de
+oclusión lo cazó contra el de CESMAG.
+
+**Una cabecera nueva.** La columna de tipos del panel izquierdo cae en el
+hueco entre los dos paneles y podía leerse como propia del derecho. Lleva
+ahora cabecera, y dice que el tipo es de la frontera principal.
+
+**Un archivo cada una, sin sufijo**, y las funciones dejan de recibir
+cobertura. Se retiran los tres anteriores.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo en las seis
+figuras de la etapa. La compuerta de asertos de la profundidad se extiende
+a la segunda frontera: conteos, mínimos, medianas de las negativas y sus
+cajas, más la comprobación de que allí cruza el cero una sola institución.
+Escala de grises: la identidad de cada fila la llevan su rótulo y su
+posición, no el color. Los CSV hermanos tienen 82 y 10 filas.
+
+**Un fallo de la prueba de oclusión, anotado porque es de la misma familia
+que el de C-84.** Un eje gemelo, el que aloja la columna de tipos, oculta
+su eje horizontal pero conserva los objetos de marca, de modo que la
+prueba los encontraba solapados consigo mismos y daba seis choques
+inexistentes. La prueba salta ahora los ejes cuyo eje no está visible.
+
+---
+
+## C-111 · El mosaico de la reconstrucción, y una banda que no existía
+
+**2026-09-04 · tipo: `figura` + `dato` · aplicada · él pidió la reconstrucción de todas las entidades en un mosaico aparte**
+
+Entra `f3_03b_reconstruccion_mosaico`, diez paneles con el perfil medio
+horario de las 6.144 horas, cinco instituciones por dos fronteras. La
+figura del caso, el viernes de Udenar hora a hora, se queda intacta: son
+dos trabajos distintos, y el del mosaico es enseñar a quién se le aplica la
+reconstrucción y a quién no.
+
+**Siete paneles de diez salen sin banda, y ese es el contenido.** En la
+frontera principal el Hospital y CESMAG entregan lectura bruta y no hay
+generación que devolverles; en la secundaria no la entrega ninguno de los
+cinco. La fila de abajo es el control de la de arriba: prueba de un
+vistazo que la reconstrucción es un asunto de la frontera principal, que
+es algo que el capítulo venía afirmando en prosa. Para que ese vacío no se
+lea como una figura a medio hacer, cada panel dice lo que le pasa: los
+tres que reciben generación llevan cuánta, y los otros siete dicen que su
+medidor no netea.
+
+**Una banda que no existía, y por qué apareció.** La primera versión
+dibujaba banda en los siete paneles planos, de 0,10 kW en el Hospital y
+0,04 en CESMAG. No era generación devuelta: la serie reconstruida conserva
+el hueco donde el medidor no trajo lectura y no hay nada que sumarle,
+mientras que la de la lectura lo lleva relleno con cero, de modo que las
+dos curvas se estaban promediando sobre conjuntos de horas distintos, 113
+y 117 horas de diferencia. Ahora las dos se promedian sobre el mismo
+relleno y las curvas coinciden exactamente donde tienen que coincidir, lo
+que a su vez pasa a comprobarse con un aserto.
+
+**Un aserto que no comprobaba lo que decía, anotado porque es de la misma
+familia que el `assert ... or True` de C-84.** La comprobación de la
+identidad de la reconstrucción usaba el máximo de pandas sobre una
+diferencia con huecos, y el máximo de pandas los descarta en silencio: la
+prueba se saltaba justo las horas que aquí importaban. Ahora se compara
+sobre las series ya rellenas y se exige además que la diferencia sea
+finita en las 6.144 horas.
+
+**Un caso intermedio que la revisión destapó.** Bajo M3 la Universidad
+Mariana no recibe generación pero la reconstrucción todavía muerde,
+porque el recorte a cero le quita 46,7 kWh, que son los mismos 156 de la
+frontera principal escalados. Su panel lo dice, y no se le pone la
+etiqueta de los otros seis.
+
+**Escalas verticales independientes por panel.** Medido sobre los perfiles
+medios: con una escala común a los diez, el recorrido entero del Hospital
+ocuparía el \pct{4.8} del alto de su panel y el de CESMAG el \pct{10}, de
+modo que las filas quedarían planas por aplastamiento y no por ausencia de
+banda, que es justo la distinción que la figura existe para enseñar. Lo
+que se compara entre paneles no es una altura sino si hay banda o no, y
+eso no depende de la escala. La energía devuelta va escrita en cada panel
+para que el ancho de la banda no se lea como magnitud.
+
+**Numeración.** El prefijo `f3_03b` estaba libre en disco y el número 3.3b
+no lo ocupa ningún diagrama de LaTeX; los dos que dibuja el capítulo son
+el del canal y el de los tipos de medidor. La comprobación se hace ahora
+siempre, después de lo que pasó con `f3_04`.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo en las siete
+figuras de la etapa. Escala de grises: la banda se distingue de las dos
+curvas por relleno frente a trazo, y las curvas entre sí por grosor. El
+CSV hermano trae los diez perfiles dibujados y el resumen por institución.
+
+**Cifras que la figura publica y que no estaban.** La generación devuelta
+por institución, las horas en que se devuelve y el recorte de cada una:
+Udenar 32.691,4 kWh en 3.261 horas con recorte de 1.013,3; la Universidad
+Mariana 12.549,1 en 3.265 con 0,6; la UCC 15.378,0 en 3.209 sin recorte;
+el Hospital y CESMAG, nada. Y en la frontera secundaria, cero en las cinco
+salvo el recorte de 46,7 kWh de la Universidad Mariana.
 
 ---
 

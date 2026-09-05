@@ -299,10 +299,9 @@ Una hora puede llegar de tres maneras, y el tratamiento cambia en cada una.
  \num{835} horas del horizonte.
 
  \item \textbf{Vacía}, sin ninguna muestra. No se estima aquí: pasa a la
- etapa de limpieza, que la interpola entre las horas de los dos lados si el
- hueco es corto, le copia el valor de la más próxima si llega a durar un
- día, y le pone cero más allá, según describe la
- subsección~\ref{sub:prep-limpieza}. Son \num{567} horas.
+ etapa de limpieza, que interpola sus primeras horas y repite un valor en
+ las restantes, según describe la subsección~\ref{sub:prep-huecos}. Son
+ \num{567} horas.
 \end{enumerate}
 
 La media horaria ignora las muestras que faltan, de modo que la
@@ -651,8 +650,14 @@ suma solo puede devolver lo que midieron esos dos, y queda incompleta.
 Que sumar los tres sea lo correcto lo dice el propio medidor. Desde el 3
 de septiembre, devolverle la generación de los tres deja
 \emph{exactamente} cero horas con demanda negativa. Las \num{353} de la
-tabla caen todas antes, que es donde la suma va incompleta, y la
-subsección~\ref{sub:prep-costo} mide cuánto cuesta.
+tabla caen todas antes, que es donde la suma va incompleta.
+
+Tomar como nula la demanda de partida tiene además una consecuencia de
+mucho más alcance, y es que convierte en cero toda hora sin lectura de
+medidor. Bajo M1 eso alcanza a \num{330} horas: \num{90} de Udenar,
+\num{114} de Mariana y \num{126} de la UCC. Entran al modelo como consumo
+nulo sin pasar por la etapa de limpieza, que ya no las ve, y sin que
+ninguna marca las distinga de una hora realmente medida.
 
 La Figura~\ref{fig:prep-reconstruccion} confronta las tres series sobre un
 mismo eje y muestra el resultado de aplicar esa devolución. La coincidencia
@@ -686,7 +691,7 @@ partes de la cuenta: de los \uni{33705}{kWh} en que la reconstrucción
 levanta la serie de Udenar, \uni{32691}{kWh} son generación devuelta y
 \uni{1013}{kWh} proceden del recorte a cero. Elaboración propia aplicando
 la ecuación~\eqref{eq:prep-reconstruccion}.}
-\end{guardado}
+
 
 \begin{detallebox}
 Los inversores intervienen en dos capas distintas. La generación $G$ que
@@ -697,7 +702,9 @@ que inyectan detrás del medidor, que en Udenar son tres. Las dos capas
 responden a preguntas distintas: cuál generación se negocia, y cuánta
 restó el medidor.
 \end{detallebox}
+\end{guardado}
 
+\begin{guardado}
 \subsection{Lo que cuesta reconstruir}
 \label{sub:prep-costo}
 
@@ -726,63 +733,139 @@ pares es, por tanto, restrictivo: hace el mercado más pequeño, no más
 grande. Es la primera de una serie de decisiones que apuntan todas en la
 misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
 \end{lecturabox}
+\end{guardado}
 
-\subsection{Valores atípicos y huecos}
-\label{sub:prep-limpieza}
+\subsection{El umbral de los atípicos}
+\label{sub:prep-umbral}
 
-La última etapa que altera el valor del dato es la limpieza, que aplica
-cuatro tratamientos en cascada sobre cada una de las 10 series de medida,
-que son la demanda y la generación de cada institución.
+La última etapa que altera el valor del dato es la limpieza, que primero
+retira los valores imposibles y después rellena lo que falta. Actúa sobre
+las 10 series de medida, que son la demanda y la generación de cada
+institución, aunque en la práctica solo sobre la demanda: las cinco de
+generación atraviesan la etapa sin que se les toque una sola hora.
 
-\begin{enumerate}[leftmargin=*, itemsep=0.35em]
- \item \textbf{Los valores atípicos se marcan como faltantes.} El umbral es
- $\max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr)$. El
- primer término es una cerca robusta de tipo Tukey, con un multiplicador de
- 5 deliberadamente más permisivo que el 1,5 clásico, de modo que solo
- elimine valores físicamente inverosímiles. El segundo impone un piso
- situado un \pct{20} por encima del percentil 99,5 y protege los picos
- operativos legítimos en series de carga base muy estable: cuando el rango
- intercuartílico es pequeño, como ocurre con la demanda de CESMAG, la
- primera cerca se vuelve demasiado estricta y recortaría consumo real.
+Un valor se retira cuando supera el umbral
 
- \item \textbf{Los huecos de hasta 3 horas se interpolan} linealmente en el
- tiempo, es decir, trazando la recta entre el valor de la hora anterior al
- hueco y el de la posterior.
+\begin{equation}
+ u = \max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr),
+ \label{eq:prep-umbral}
+\end{equation}
 
- \item \textbf{Los huecos de hasta 24 horas se rellenan copiando el valor
- de la hora vecina más próxima}, primero la anterior y después la
- posterior, bajo la heurística de que el patrón del día operativo anterior
- es representativo.
+que combina dos criterios porque ninguno basta por separado. El primero es
+una cerca de tipo Tukey con un multiplicador de 5 en vez del 1,5 clásico,
+deliberadamente permisivo para que solo retire valores físicamente
+inverosímiles. El segundo es un piso situado un \pct{20} por encima del
+percentil 99,5, y es el que protege los picos operativos legítimos.
 
- \item \textbf{Lo que aún sobrevive como faltante se imputa con cero}, que
- corresponde sobre todo a horas nocturnas de las series de generación.
-\end{enumerate}
+Cuál de los dos manda depende de la forma de la serie. La cerca fija el
+umbral en 16 de las 20 series, y el piso en las otras cuatro, todas de
+demanda: Mariana y CESMAG en las dos fronteras. El caso de CESMAG mide lo
+que está en juego. Sin el piso, su demanda perdería \num{451} horas bajo
+M1, que concentran el \pct{20.7} de su energía, y \num{927} bajo M3, que
+concentran el \pct{52.5}. Con el piso tiene cero atípicos en M1 y dos en
+M3.
 
-La Figura~\ref{fig:prep-limpieza}
-sitúa el umbral sobre la serie y reparte por mes las horas que la limpieza
-tuvo que rellenar.
+Lo que hace peligrosa la cerca en CESMAG no es el rango intercuartílico
+pequeño por sí solo. El HUDN tiene el menor de todo el estudio,
+\uni{0.318}{kW} bajo M3, y su umbral lo fija la cerca sin que marque nada,
+porque su carga es tan plana que nunca se acerca. El mecanismo es la
+combinación de una base muy estable con picos operativos raros de gran
+amplitud, es decir, un perfil de dos modas: la cerca se calibra sobre la
+base y deja fuera el pico legítimo.
+
+El criterio retira \num{11} horas en las 20 series. Todas son de demanda y
+solo de dos instituciones: Mariana, con cuatro bajo M1 y cinco bajo M3, y
+CESMAG, con dos bajo M3.
+
+La Figura~\ref{fig:prep-umbral} muestra a la izquierda qué le pasa a una de
+esas horas y a la derecha por qué el umbral está donde está en cada serie.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_05_outliers_imputacion_m1.png}
- \caption[Criterio de atípicos e imputación por mes]{A la izquierda, la
- serie de demanda reconstruida de la institución con más valores
- atípicos, que es la Universidad Mariana, con el umbral de
- atípicos dibujado y señalados los valores que este marca; la separación
- entre el umbral y la masa de la serie muestra que el criterio no
- recorta operación normal. A la derecha, cuántas horas quedaron
- imputadas cada mes en cada institución.
- \fuente{elaboración propia; criterio de limpieza declarado en
+ \includegraphics[width=0.95\textwidth]{figuras/f3_05_umbral_atipicos_m1.png}
+ \caption[El umbral de atípicos y lo que retira]{A la izquierda, la hora que
+ el umbral retira con mayor holgura entre las que quedan aisladas, que es la
+ de la Universidad Mariana el 1 de octubre de 2025: entra con
+ \uni{39.9}{kW}, excede en un \pct{13.7} el umbral de \uni{35.1}{kW} y sale
+ con \uni{28.2}{kW}, interpolada entre las lecturas de las 8 y las 10 horas.
+ A la derecha, el criterio en las diez series, con el eje en múltiplos del
+ percentil 99,5 de cada serie: la barra es la mitad central de las lecturas,
+ la línea llega hasta el máximo observado, el círculo marca la cerca de
+ Tukey y el rombo el umbral que se aplica. El piso del percentil es la
+ vertical en 1,2, común a las diez filas, de modo que manda el piso
+ justamente en las filas cuya cerca cae a su izquierda, que son las de rango
+ intercuartílico más estrecho.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento; criterio de limpieza declarado en
  \file{data/xm\_data\_loader.py}.}}
- \label{fig:prep-limpieza}
+ \label{fig:prep-umbral}
 \end{figure}
 
-\notafig{La distancia entre el umbral y la masa de la serie es lo que
-acredita el criterio: si estuviera pegado a la nube de puntos estaría
-recortando operación normal, y no lo está. En cuanto a la imputación, se
-concentra en meses concretos y no se reparte de manera uniforme, lo que
-apunta a interrupciones de adquisición y no a un defecto sistemático.
-Elaboración propia desde el caché de estados intermedios.}
+\notafig{La distancia entre la masa de la serie y su umbral es lo que
+acredita el criterio, y solo en cuatro de las 20 series, todas de demanda,
+hace falta el piso del percentil para conservarla. Bajo M3 las cifras del
+caso son equivalentes, con una lectura de \uni{10.3}{kW} sobre un umbral de
+\uni{9.1}{kW}. Elaboración propia desde el caché de estados intermedios.}
+
+\subsection{La escalera de los huecos}
+\label{sub:prep-huecos}
+
+Lo que queda como faltante, sea porque el equipo no registró o porque el
+umbral acaba de retirarlo, pasa por una cascada de tres tratamientos. La
+cascada no clasifica los huecos por su longitud: se aplica hora a hora
+dentro de cada uno, de modo que un mismo hueco puede recibir los tres.
+
+Las tres primeras horas de cualquier hueco se interpolan linealmente en el
+tiempo, sobre la recta que une la última hora observada antes del hueco
+con la primera de después. Si el hueco dura tres horas o menos, ahí
+termina. Si es más largo, el tramo interpolado avanza solo esas tres horas
+y el resto pasa al tratamiento siguiente.
+
+Ese resto se rellena repitiendo un valor, primero hacia adelante hasta 24
+horas y después hacia atrás otras 24. El valor que se repite no es el que
+cabría esperar: hacia adelante se propaga la tercera hora interpolada, que
+es un valor fabricado, y no la última lectura del equipo. Y se repite un
+escalar, de modo que la serie queda plana durante todo el tramo en vez de
+recuperar el ciclo diario.
+
+Entre los tres, la cascada cierra cualquier hueco de hasta 51 horas. Lo
+que sobreviviera se imputaría con cero, pero ese cuarto tratamiento no
+llega a actuar en este horizonte: el hueco más largo mide 49 horas, en la
+demanda de la UCC bajo M3.
+
+La cascada toca \num{808} horas repartidas entre las 20 series. De ellas,
+\num{11} son los atípicos que retira el umbral, \num{233} quedan
+interpoladas y \num{575}, el \pct{71.2}, se rellenan repitiendo un valor.
+
+La Figura~\ref{fig:prep-huecos} recorre los tres tratamientos sobre huecos
+reales de longitud creciente.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_06_escalera_huecos_m1.png}
+ \caption[La escalera de los huecos]{Tres huecos reales de la demanda del
+ Hospital, con el eje horizontal en horas desde el inicio de cada uno, que
+ es la magnitud de la que depende el tratamiento. El de tres horas lo
+ cierra entero la interpolación. El de 13 sale con sus tres primeras horas
+ interpoladas y las diez restantes arrastradas, y la meseta no se queda en
+ la última lectura observada, \uni{9.9}{kW}, sino en la tercera hora
+ interpolada, \uni{10.1}{kW}, es decir, en un valor que ninguna hora
+ observada tuvo. El de 42, el más largo de esta frontera, añade el arrastre
+ hacia atrás desde la lectura que reabre la serie. Abajo, cuántas horas
+ trató la limpieza en cada institución y por qué mecanismo.
+ \fuente{elaboración propia desde el caché de estados intermedios del
+ preprocesamiento; cascada de limpieza declarada en
+ \file{data/xm\_data\_loader.py}.}}
+ \label{fig:prep-huecos}
+\end{figure}
+
+\notafig{El arrastre es el \pct{71.2} de todo lo que la limpieza trata, de
+modo que la mayor parte de lo rellenado es una meseta y no una rampa. El
+relleno con cero no aparece en la figura porque no ocurre: no es una
+decisión que se tome, sino un recurso que nunca hizo falta. Bajo M3 el
+peldaño mayor es el hueco de 49 horas de la Universidad Cooperativa de
+Colombia, que tampoco alcanza las 51 de la cascada. Elaboración propia
+desde el caché de estados intermedios.}
 
 \begin{trampabox}
 En el proyecto conviven tres criterios de relleno distintos:
@@ -857,9 +940,9 @@ horas por detrás, ese máximo aparecería entre las 16 y las 17.
 
 Los dos argumentos que dependen de esto son el de la
 subsección~\ref{sub:prep-negativa}, que sitúa las lecturas negativas en las
-horas de sol, y el de la subsección~\ref{sub:prep-limpieza}, que distingue
-el cero nocturno de la generación del hueco de medida. Los dos se caerían
-si la serie estuviera desplazada cinco horas.
+horas de sol, y el de la subsección~\ref{sub:prep-matrices}, que lee la
+banda solar de la matriz de generación en torno al mediodía. Los dos se
+caerían si la serie estuviera desplazada cinco horas.
 
 Colombia no aplica horario de verano, de modo que en este conjunto no hay
 horas que no existan ni horas que ocurran dos veces. Las dos salvaguardas
@@ -934,14 +1017,13 @@ que la objeción es inmediata: cuánto del resultado son las decisiones. La
 respuesta honesta no es que las decisiones sean neutrales, sino que lo que
 importa es hacia dónde apuntan.
 
-Cinco apuntan en la misma dirección, la de recortar el resultado. Tres son
+Seis apuntan en la misma dirección, la de recortar el resultado. Cuatro son
 del pipeline y dos del modelo:
 
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
  \item \textbf{El recorte de la reconstrucción} elimina
- \uni{1013.3}{kWh} de la demanda de Udenar en horas
- solares, según la subsección~\ref{sub:prep-costo}. Menos demanda en
- horas de sol
+ \uni{1013.3}{kWh} de la demanda de Udenar en horas solares, según la
+ Tabla~\ref{tab:prep-reconstruccion}. Menos demanda en horas de sol
  significa menos déficit que cubrir y, por tanto, un mercado más
  pequeño.
 
@@ -969,9 +1051,15 @@ del pipeline y dos del modelo:
  produce, pero \num{285} horas de sol del horizonte quedan con generación
  nula cuando lo que hubo fue una avería de registro. Menos generación es
  menos excedente que ofrecer.
+
+ \item \textbf{La demanda sin lectura de medidor también se pone a cero},
+ en la reconstrucción y no en la limpieza, según la
+ subsección~\ref{sub:prep-reconstruccion}. Son \num{330} horas bajo M1 que
+ entran al modelo como consumo nulo, y menos demanda es menos déficit que
+ cubrir.
 \end{enumerate}
 
-La sexta apunta al revés. Al estimar la hora incompleta con la media de
+La séptima apunta al revés. Al estimar la hora incompleta con la media de
 sus muestras presentes se le atribuye al tramo no observado el
 comportamiento del observado, lo que da entre \pct{0.26} y \pct{0.55} más
 energía que truncarlo. Afecta a \num{835} horas del horizonte, es decir, al
@@ -986,7 +1074,7 @@ comparables de la misma institución, la misma hora del día y el mismo mes:
 el sesgo resulta indistinguible de cero en las cinco, y suma el
 \pct{0.0007} de la demanda del horizonte.
 
-Cinco de las seis recortan el resultado y la restante lo amplía en una
+Seis de las siete recortan el resultado y la restante lo amplía en una
 proporción tres órdenes de magnitud menor que el margen que separa a los
 mecanismos. La
 consecuencia metodológica es que las cifras del Capítulo~\ref{sec:res}

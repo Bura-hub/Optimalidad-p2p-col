@@ -1606,101 +1606,608 @@ def f33_reconstruccion(cobertura: str = "m1", institucion: str = "Udenar",
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f35_outliers_imputacion(cobertura: str = "m1"):
+# ── La etapa de limpieza: el umbral y la escalera ────────────────────────────
+# Las dos figuras que siguen sustituyen a la antigua F3.5, que metia en un
+# solo par de paneles dos ideas distintas, el criterio de atipicos y el
+# relleno de huecos, y no podia sostener ninguna de las dos: el panel del
+# umbral dibujaba una sola linea horizontal sobre 6.144 horas, de modo que
+# no se veia cual de los dos terminos del maximo mandaba ni a que distancia
+# quedaba la masa de la serie, y el panel de la derecha repartia por mes
+# unas horas cuyo mecanismo de relleno no declaraba. Ahora son dos figuras,
+# una por idea, y el mes se retira porque la variable que decide el
+# tratamiento es la longitud del hueco, no el calendario.
+
+
+def _cascada_instrumentada(s: pd.Series) -> dict:
     """
-    F3.5/F3.6 — Lo que la limpieza marca y lo que rellena.
+    Replica de ``xm_data_loader._clean`` con una fotografia por etapa.
 
-    Panel izquierdo: la serie de una institución con los valores atípicos
-    señalados y el umbral dibujado, para que se vea que el criterio no
-    recorta picos operativos legítimos. Panel derecho: cuántas horas
-    quedaron imputadas por mes en cada institución.
+    Devuelve el umbral, sus dos candidatos y una mascara por destino:
+    retirada por atipico, interpolada, arrastrada hacia adelante,
+    arrastrada hacia atras y puesta a cero. La serie final se compara
+    contra la del pipeline en el sitio donde se usa, de modo que la
+    instrumentacion no pueda desviarse en silencio.
     """
-    series, horas = D.preproceso(cobertura)
-    resumen = D.conteo_negativas(cobertura).set_index("institucion")
+    q25, q75 = s.quantile(0.25), s.quantile(0.75)
+    p995 = s.quantile(0.995)
+    iqr = q75 - q25
+    cand_tukey = q75 + 5 * iqr if iqr > 0 else np.inf
+    cand_piso = p995 * 1.2 if np.isfinite(p995) else np.inf
+    umbral = max(cand_tukey, cand_piso)
 
-    # Para el panel izquierdo se elige la institución con más atípicos;
-    # si ninguna tiene, se muestra la de mayor imputación.
-    r = resumen.reindex(E.ORDEN_INSTITUCIONES)
-    inst = (r["outliers_D"].idxmax() if r["outliers_D"].max() > 0
-            else r["imputadas_D"].idxmax())
+    m_out = pd.Series(False, index=s.index)
+    if np.isfinite(umbral) and umbral > 0:
+        m_out = s > umbral
+    m_out = m_out.fillna(False)
 
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.5))
+    s1 = s.copy()
+    s1[m_out] = np.nan
+    entran = s1.isna()
+    s2 = s1.interpolate(method="time", limit=3)
+    m_int = s1.isna() & s2.notna()
+    s3 = s2.ffill(limit=24)
+    m_ff = s2.isna() & s3.notna()
+    s4 = s3.bfill(limit=24)
+    m_bf = s3.isna() & s4.notna()
+    s5 = s4.fillna(0.0)
+    m_ze = s4.isna()
 
-    s = series[f"{inst}__D_recon"]
-    out = series[f"{inst}__mask_out_D"].astype(bool)
-    umbral = float(resumen.loc[inst, "umbral_outlier_D_kW"])
+    return {"umbral": float(umbral), "tukey": float(cand_tukey),
+            "piso": float(cand_piso), "q25": float(q25), "q75": float(q75),
+            "p995": float(p995), "max": float(s.max()),
+            "limpia": s5, "entran": entran, "out": m_out, "interp": m_int,
+            "ffill": m_ff, "bfill": m_bf, "cero": m_ze}
 
-    ax1.plot(s.index, s.values, color=E.NEUTRO, linewidth=0.5, alpha=0.85,
-             label="Demanda reconstruida")
-    if np.isfinite(umbral):
-        ax1.axhline(umbral, color=E.ALERTA, linewidth=1.1, linestyle="--",
-                    label=f"Umbral: {E.fmt_miles(umbral, 1)} kW")
-    if out.any():
-        ax1.scatter(s.index[out], s[out], s=22, color=E.ANTES, zorder=5,
-                    label=f"Atípicos: {E.fmt_miles(int(out.sum()))} h",
-                    edgecolors="white", linewidths=0.4)
-    ax1.set_ylabel("Demanda (kW)")
-    ax1.set_xlabel("Mes de 2025")
-    ax1.set_title(f"Criterio de atípicos: {E.etiqueta_institucion(inst)}",
-                  pad=8)
-    # Techo ampliado y leyenda a la derecha: los atípicos están sobre el
-    # umbral y a la izquierda del eje, que es justo donde la leyenda se
-    # imprimía antes. Tapaba los cuatro puntos que la figura existe para
-    # enseñar.
-    lo1, hi1 = ax1.get_ylim()
-    ax1.set_ylim(lo1, hi1 + 0.30 * (hi1 - lo1))
-    ax1.legend(loc="upper right", fontsize=7)
-    ax1.xaxis.set_major_locator(mdates.MonthLocator())
-    ax1.xaxis.set_major_formatter(
-        FuncFormatter(lambda v, _: MESES_ES[mdates.num2date(v).month - 1]))
-    ax1.tick_params(axis="x", labelsize=7)
 
-    # Panel derecho: imputación por mes
-    meses = None
-    matriz = []
-    for i in E.ORDEN_INSTITUCIONES:
-        imp = series[f"{i}__mask_imp_D"].astype(bool)
-        por_mes = imp.groupby(imp.index.to_period("M")).sum()
-        meses = por_mes.index
-        matriz.append(por_mes.values)
-    matriz = np.array(matriz, dtype=float)
+def _censo_limpieza(cobertura: str):
+    """Estado de la limpieza en las diez series de una frontera."""
+    series, _ = D.preproceso(cobertura)
+    filas, detalle = [], {}
+    for inst in E.ORDEN_INSTITUCIONES:
+        for magnitud, entrada, salida in (
+                ("demanda", f"{inst}__D_recon", f"{inst}__D_limpia"),
+                ("generación", f"{inst}__G_ems", f"{inst}__G_limpia")):
+            r = _cascada_instrumentada(series[entrada])
+            # La compuerta del capitulo: si la replica no reprodujera la
+            # serie del pipeline, la figura estaria describiendo otro
+            # calculo. Se detiene antes de dibujar.
+            dif = float(np.abs(r["limpia"].values - series[salida].values).max())
+            assert dif == 0.0, (f"la réplica de la limpieza no reproduce "
+                                f"{salida}: max|dif| = {dif}")
+            detalle[(inst, magnitud)] = r
+            filas.append({
+                "institucion": inst, "magnitud": magnitud,
+                "entran": int(r["entran"].sum()), "atipicos": int(r["out"].sum()),
+                "interpoladas": int(r["interp"].sum()),
+                "arrastradas": int(r["ffill"].sum() + r["bfill"].sum()),
+                "cero": int(r["cero"].sum()),
+                "umbral_kW": r["umbral"], "cand_tukey_kW": r["tukey"],
+                "cand_piso_kW": r["piso"],
+                "manda": ("cerca de Tukey" if r["tukey"] >= r["piso"]
+                          else "piso del percentil"),
+                "q25_kW": r["q25"], "q75_kW": r["q75"], "p995_kW": r["p995"],
+                "max_kW": r["max"], "serie_entrada": entrada})
+    return pd.DataFrame(filas), detalle, series
 
-    im = ax2.imshow(matriz, aspect="auto", cmap="YlOrBr", vmin=0)
-    ax2.set_xticks(range(len(meses)))
-    # Nombre corto de mes: con «04/25 … 12/25» las nueve etiquetas se
-    # solapaban entre sí y con el rótulo del eje.
-    ax2.set_xticklabels([_mes_es(m) for m in meses], fontsize=7)
-    ax2.set_yticks(range(len(E.ORDEN_INSTITUCIONES)))
-    ax2.set_yticklabels([E.etiqueta_institucion(i)
-                         for i in E.ORDEN_INSTITUCIONES], fontsize=7.5)
-    ax2.set_xlabel("Mes de 2025")
-    ax2.set_title(f"Horas imputadas por mes  ·  "
-                  f"{E.fmt_miles(matriz.sum())} h en total", pad=8)
-    ax2.grid(False)
-    corte = 0.62 * matriz.max() if matriz.max() else 1
-    for i in range(matriz.shape[0]):
-        for j in range(matriz.shape[1]):
-            v = int(matriz[i, j])
-            if v:
-                # Sobre las celdas más oscuras el gris de siempre era
-                # ilegible; el texto se aclara donde el relleno se oscurece.
-                ax2.text(j, i, str(v), ha="center", va="center", fontsize=6.2,
-                         color="white" if matriz[i, j] > corte else "#333333")
-    cb = fig.colorbar(im, ax=ax2, fraction=0.045, pad=0.03)
-    cb.set_label("Horas imputadas", fontsize=7.5)
-    cb.ax.tick_params(labelsize=7)
+
+def _bajo_de_los_ejes(fig, ejes, holgura: float = 0.012) -> float:
+    """
+    Altura, en coordenadas de figura, justo debajo del rotulo mas bajo.
+
+    Existe porque una leyenda de figura colocada a una altura elegida a
+    ojo se imprime encima de los rotulos de eje en cuanto cambia el
+    tamaño de la letra o el numero de lineas. Aqui se mide sobre el
+    render y la leyenda no puede tapar nada.
+    """
+    fig.canvas.draw()
+    render = fig.canvas.get_renderer()
+    inv = fig.transFigure.inverted()
+    y = min(inv.transform((0, ax.get_tightbbox(render).y0))[1] for ax in ejes)
+    return y - holgura
+
+
+def _rachas(mascara: pd.Series) -> list:
+    """Rachas maximales de horas marcadas, como (inicio, fin, longitud)."""
+    v = mascara.values
+    fuera, i = [], 0
+    while i < len(v):
+        if v[i]:
+            j = i
+            while j < len(v) and v[j]:
+                j += 1
+            fuera.append((mascara.index[i], mascara.index[j - 1], j - i))
+            i = j
+        else:
+            i += 1
+    return fuera
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+def f35_umbral_atipicos(cobertura: str = "m1"):
+    """
+    F3.5 — El umbral: que retira y por que esta donde esta.
+
+    Panel izquierdo, el caso: la hora que el criterio retira y el valor con
+    que quedo, sobre una ventana de tres dias, que es la escala a la que un
+    pico se distingue de la operacion normal. Sobre las 6.144 horas del
+    horizonte esa hora es un marcador sobre una maraña.
+
+    Paneles derechos, la regla: una fila por serie con su mitad central, su
+    cola hasta el maximo observado y los dos candidatos del umbral, en
+    multiplos del percentil 99,5 de la propia serie. La normalizacion no es
+    cosmetica: los diez umbrales de la frontera principal van de 10,2 a
+    154,8 kW, mas de un orden de magnitud, de modo que en kilovatios las
+    filas pequeñas no podrian dibujar ninguna diferencia. Normalizados, el
+    piso es una sola vertical en 1,2 comun a las diez filas, y basta mirar
+    a que lado de esa vertical cae la cerca de Tukey para saber cual de los
+    dos manda.
+    """
+    censo, detalle, series = _censo_limpieza(cobertura)
+
+    # ── el caso del panel izquierdo ──────────────────────────────────────
+    # Regla: entre todas las horas retiradas, las aisladas (ni la anterior
+    # ni la posterior lo estan) y de esas la que mas sobresale del umbral en
+    # terminos relativos. La aislada es imprescindible: en un tramo de horas
+    # seguidas no se ve que la interpolacion cierre el hueco, y el tramo del
+    # 24 de abril, tres horas de la rampa de mañana, sobresale un 1,3 %, de
+    # modo que enseñaria un criterio que apenas discrimina.
+    mejor = None
+    for inst in E.ORDEN_INSTITUCIONES:
+        for magnitud in ("demanda", "generación"):
+            r = detalle[(inst, magnitud)]
+            m = r["out"]
+            if not m.any():
+                continue
+            clave = censo.loc[(censo.institucion == inst) &
+                              (censo.magnitud == magnitud),
+                              "serie_entrada"].iat[0]
+            entrada = series[clave]
+            for t in m.index[m]:
+                pos = m.index.get_loc(t)
+                previo = bool(m.iloc[pos - 1]) if pos > 0 else False
+                post = bool(m.iloc[pos + 1]) if pos + 1 < len(m) else False
+                if previo or post:
+                    continue
+                exceso = (entrada[t] - r["umbral"]) / r["umbral"]
+                if mejor is None or exceso > mejor["exceso"]:
+                    mejor = {"inst": inst, "magnitud": magnitud, "hora": t,
+                             "exceso": exceso, "entra": float(entrada[t]),
+                             "umbral": r["umbral"], "sale": float(r["limpia"][t]),
+                             "entrada": entrada, "limpia": r["limpia"]}
+    assert mejor is not None, (f"{cobertura}: ninguna hora retirada por el "
+                               "umbral queda aislada; el panel del caso se "
+                               "queda sin objeto")
+
+    t = mejor["hora"]
+    ventana = slice(t - pd.Timedelta("36h"), t + pd.Timedelta("36h"))
+    obs = mejor["entrada"][ventana]
+    fin = mejor["limpia"][ventana]
+    ancla_previa = float(mejor["entrada"][t - pd.Timedelta("1h")])
+    ancla_post = float(mejor["entrada"][t + pd.Timedelta("1h")])
+
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 3.9))
+    malla = fig.add_gridspec(2, 2, width_ratios=(1.0, 1.18),
+                             height_ratios=(1.0, 1.0), wspace=0.30, hspace=0.24)
+    ax_caso = fig.add_subplot(malla[:, 0])
+    ax_dem = fig.add_subplot(malla[0, 1])
+    ax_gen = fig.add_subplot(malla[1, 1], sharex=ax_dem)
+
+    # ── panel del caso ───────────────────────────────────────────────────
+    ax_caso.plot(fin.index, fin.values, color=E.TINTA, linewidth=1.0,
+                 label="Serie ya limpia")
+    ax_caso.axhline(mejor["umbral"], color=E.ALERTA, linewidth=1.1,
+                    linestyle="--",
+                    label=f"Umbral: {E.fmt_miles(mejor['umbral'], 1)} kW")
+    lo = float(min(fin.min(), obs.min()))
+    hi = float(max(obs.max(), mejor["entra"]))
+    margen = 0.16 * (hi - lo)
+    ax_caso.axhspan(mejor["umbral"], hi + 3 * margen, color=E.ALERTA,
+                    alpha=0.07, linewidth=0, zorder=0)
+    ax_caso.plot([t], [mejor["entra"]], marker="o", markersize=7,
+                 markerfacecolor="white", markeredgecolor=E.ANTES,
+                 markeredgewidth=1.6, linestyle="none",
+                 label="Lectura retirada", zorder=6)
+    ax_caso.plot([t], [mejor["sale"]], marker="s", markersize=6,
+                 color=E.DESPUES, linestyle="none",
+                 label="Valor con que quedó", zorder=6)
+    ax_caso.annotate("", xy=(t, mejor["sale"]), xytext=(t, mejor["entra"]),
+                     arrowprops=dict(arrowstyle="->", color=E.NEUTRO,
+                                     linewidth=0.9, shrinkA=4, shrinkB=4))
+    ax_caso.plot([t - pd.Timedelta("1h"), t + pd.Timedelta("1h")],
+                 [ancla_previa, ancla_post], color=E.DESPUES, linewidth=0.9,
+                 linestyle=":", zorder=4)
+    ax_caso.set_ylim(lo - margen, hi + 1.75 * margen)
+    ax_caso.set_ylabel("Demanda (kW)" if mejor["magnitud"] == "demanda"
+                       else "Generación (kW)")
+    ax_caso.set_xlabel("Día y mes de 2025")
+    ax_caso.set_title(f"El caso: {E.etiqueta_institucion(mejor['inst'])}, "
+                      f"{E.fmt_fecha(t, 'dia_corto')}", pad=7)
+    # Una marca por dia: con marcas cada doce horas las siete etiquetas se
+    # imprimian una encima de otra.
+    ax_caso.xaxis.set_major_locator(mdates.DayLocator())
+    ax_caso.xaxis.set_minor_locator(mdates.HourLocator(byhour=(12,)))
+    ax_caso.xaxis.set_major_formatter(FuncFormatter(
+        lambda v, _: mdates.num2date(v).strftime("%d/%m")))
+    ax_caso.tick_params(axis="x", labelsize=7)
+    # La leyenda cae dentro de la banda que marca la zona que el umbral
+    # retira; sin fondo propio, sus rotulos se leerian como parte de ella.
+    ax_caso.legend(loc="upper left", fontsize=6.8, handlelength=1.6,
+                   borderpad=0.25, labelspacing=0.3, frameon=True,
+                   facecolor="white", edgecolor="none", framealpha=0.92)
+
+    # ── paneles de la regla ──────────────────────────────────────────────
+    # La columna de umbrales en kilovatios va a la derecha del dato y no
+    # sobre el: el candidato mas alejado, el de la UCC, cae en 2,49 y la
+    # cifra se imprimia encima de su rombo.
+    X_ROTULO = 3.02
+    filas_csv = []
+    for ax, magnitud in ((ax_dem, "demanda"), (ax_gen, "generación")):
+        sub = censo[censo.magnitud == magnitud].set_index("institucion")
+        for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
+            f = sub.loc[inst]
+            p = f["p995_kW"]
+            q25, q75 = f["q25_kW"] / p, f["q75_kW"] / p
+            cola, tukey = f["max_kW"] / p, f["cand_tukey_kW"] / p
+            umbral = f["umbral_kW"] / p
+            ax.plot([q75, cola], [k, k], color=E.NEUTRO, linewidth=0.9,
+                    solid_capstyle="butt", zorder=2)
+            ax.plot([cola, cola], [k - 0.17, k + 0.17], color=E.NEUTRO,
+                    linewidth=0.9, zorder=2)
+            ax.barh(k, q75 - q25, left=q25, height=0.36, color=E.APAGADO,
+                    edgecolor="white", linewidth=0.6, zorder=3)
+            ax.plot([tukey], [k], marker="o", markersize=6.2,
+                    markerfacecolor="white", markeredgecolor=E.NEUTRO,
+                    markeredgewidth=1.1, linestyle="none", zorder=4)
+            ax.plot([umbral], [k], marker="D", markersize=5.0, color=E.ALERTA,
+                    linestyle="none", zorder=5)
+            ax.text(X_ROTULO, k, E.fmt_miles(f["umbral_kW"], 1), fontsize=6.4,
+                    color=E.NEUTRO, ha="right", va="center")
+            if f["atipicos"]:
+                # En la ultima fila el rotulo iria contra el eje inferior;
+                # ahi se pone encima del renglon y no debajo.
+                ultima = k == len(E.ORDEN_INSTITUCIONES) - 1
+                ax.text(umbral + 0.05, k - 0.28 if ultima else k + 0.28,
+                        f"{int(f['atipicos'])} h retiradas",
+                        fontsize=6.2, color=E.ANTES, ha="left",
+                        va="bottom" if ultima else "top")
+            filas_csv.append({
+                "bloque": "criterio", "institucion": inst, "magnitud": magnitud,
+                "q25_kW": f["q25_kW"], "q75_kW": f["q75_kW"], "p995_kW": p,
+                "max_kW": f["max_kW"], "cand_tukey_kW": f["cand_tukey_kW"],
+                "cand_piso_kW": f["cand_piso_kW"], "umbral_kW": f["umbral_kW"],
+                "manda": f["manda"], "horas_retiradas": int(f["atipicos"])})
+        ax.axvline(1.2, color=E.ALERTA, linewidth=1.0, linestyle="--",
+                   alpha=0.85, zorder=1)
+        E.eje_instituciones(ax, eje="y")
+        ax.tick_params(axis="y", labelsize=7)
+        ax.set_xlim(0, 3.06)
+        ax.set_xticks([0, 0.5, 1.0, 1.5, 2.0, 2.5])
+        ax.set_title(magnitud.capitalize(), pad=5, fontsize=8.5)
+        ax.grid(axis="y", visible=False)
+    ax_dem.tick_params(axis="x", labelbottom=False)
+    # Los dos rotulos de cabecera van dentro del area, colgando del borde
+    # superior: por encima del eje se imprimian sobre el titulo del panel.
+    ax_dem.text(1.26, -0.46, "piso: 1,2 × P99,5", fontsize=6.3, color=E.ALERTA,
+                ha="left", va="top")
+    # La cabecera de la columna va sobre el borde superior y no dentro:
+    # dentro se imprimia contra la cifra de la primera fila.
+    ax_dem.text(X_ROTULO, -0.60, "umbral (kW)", fontsize=6.3, color=E.NEUTRO,
+                ha="right", va="bottom")
+    ax_gen.set_xlabel("Múltiplos del percentil 99,5 de la propia serie",
+                      fontsize=7.6)
+    ax_gen.xaxis.set_major_formatter(FuncFormatter(lambda v, _: E.fmt_miles(v, 1)))
+
+    marcas = [
+        Patch(facecolor=E.APAGADO, edgecolor="white",
+              label="Mitad central de las lecturas"),
+        Line2D([], [], color=E.NEUTRO, linewidth=0.9,
+               label="Hasta el máximo observado"),
+        Line2D([], [], marker="o", markerfacecolor="white", linestyle="none",
+               markeredgecolor=E.NEUTRO, markersize=6.2,
+               label="Cerca de Tukey"),
+        Line2D([], [], marker="D", color=E.ALERTA, linestyle="none",
+               markersize=5.0, label="Umbral aplicado"),
+    ]
+    filas_csv.append({
+        "bloque": "caso", "institucion": mejor["inst"],
+        "magnitud": mejor["magnitud"], "hora": str(t),
+        "entra_kW": mejor["entra"], "umbral_kW": mejor["umbral"],
+        "exceso_pct": 100 * mejor["exceso"], "sale_kW": mejor["sale"],
+        "ancla_previa_kW": ancla_previa, "ancla_posterior_kW": ancla_post})
 
     _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.955))
-
-    tabla = pd.DataFrame(matriz, index=E.ORDEN_INSTITUCIONES,
-                         columns=[str(m) for m in meses]
-                         ).reset_index(names="institucion")
+    fig.tight_layout(rect=(0, 0.10, 1, 0.945))
+    # La leyenda se coloca despues de componer y por debajo del rotulo de
+    # eje mas bajo, medido sobre el render: fijarla a una altura elegida a
+    # ojo la imprimia encima de los dos rotulos de eje.
+    fig.legend(handles=marcas, loc="upper center",
+               bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, (ax_caso, ax_gen))),
+               ncol=4, fontsize=6.8, frameon=False, handlelength=1.6,
+               columnspacing=1.4, labelspacing=0.25)
     return E.guardar(
-        fig, f"f3_05_outliers_imputacion_{cobertura}", datos=tabla,
+        fig, f"f3_05_umbral_atipicos_{cobertura}",
+        datos=pd.DataFrame(filas_csv),
         procedencia=[
             f"reformateo/documento/datos_cache/preproceso_{cobertura}.npz",
-            "criterio: max(Q75 + 5*IQR, P99,5 * 1,2) — data/xm_data_loader.py::_clean",
+            "criterio: max(Q75 + 5*IQR, P99,5 * 1,2) — "
+            "data/xm_data_loader.py::_clean",
+            f"caso: {mejor['inst']}, {t}, hora retirada aislada de mayor "
+            "exceso relativo sobre el umbral",
+        ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Los tres huecos de la escalera van fijados en el generador y no buscados
+# por codigo, igual que el dia de la reconstruccion: los asertos comprueban
+# que cada uno mantiene la longitud y el reparto que la figura afirma, y
+# detienen la corrida si dejan de tenerlos. El tercero es el hueco mas largo
+# de su frontera, y eso tambien se comprueba. En M1 el mas largo empata
+# entre el Hospital y CESMAG con 42 horas; se toma el primero en el orden
+# fijo de instituciones, que ademas es el mismo medidor de los otros dos
+# peldaños, de modo que los tres paneles comparan el mismo aparato.
+HUECOS_ESCALERA = {
+    "m1": [("HUDN", "2025-07-26 05:00", 3, (3, 0, 0)),
+           ("HUDN", "2025-12-12 21:00", 13, (3, 10, 0)),
+           ("HUDN", "2025-12-07 22:00", 42, (3, 24, 15))],
+    "m3": [("HUDN", "2025-07-26 05:00", 3, (3, 0, 0)),
+           ("HUDN", "2025-12-12 21:00", 13, (3, 10, 0)),
+           ("UCC", "2025-12-11 09:00", 49, (3, 24, 22))],
+}
+# Alcance de la cascada: 3 horas de interpolacion mas 24 de arrastre hacia
+# adelante mas 24 hacia atras. Se calcula aqui una sola vez porque es la
+# cifra contra la que la figura mide el hueco mas largo del estudio.
+ALCANCE_CASCADA = 3 + 24 + 24
+
+
+def f36_escalera_huecos(cobertura: str = "m1"):
+    """
+    F3.6 — La escalera: la longitud del hueco decide el tratamiento.
+
+    Tres huecos reales de longitud creciente, uno por peldaño, con el eje
+    horizontal en horas desde el inicio del hueco, que es la magnitud de la
+    que depende la regla. Los tres comparten figura a proposito: separados,
+    la unica diferencia entre ellos, la longitud, viajaria entre paginas,
+    que es donde peor se compara.
+
+    El cuarto tratamiento, el relleno con cero, no tiene ningun caso que
+    enseñar. La cascada cierra cualquier hueco de hasta 51 horas y el mas
+    largo del estudio mide 49, de modo que en las veinte series de las dos
+    fronteras ninguna hora llega a el. Eso se publica como resultado, no se
+    omite.
+    """
+    censo, detalle, series = _censo_limpieza(cobertura)
+    dem = censo[censo.magnitud == "demanda"].set_index("institucion")
+
+    # El hueco mas largo de la frontera, medido, para comprobar el tercer
+    # peldaño y para la cifra que cierra la figura.
+    mas_largo = 0
+    for inst in E.ORDEN_INSTITUCIONES:
+        for magnitud in ("demanda", "generación"):
+            for _, _, n in _rachas(detalle[(inst, magnitud)]["entran"]):
+                mas_largo = max(mas_largo, n)
+
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 5.2))
+    malla = fig.add_gridspec(2, 3, height_ratios=(1.0, 0.88), hspace=0.68,
+                             wspace=0.32)
+    ejes = [fig.add_subplot(malla[0, j]) for j in range(3)]
+    ax_pres = fig.add_subplot(malla[1, :2])
+    ax_cero = fig.add_subplot(malla[1, 2])
+
+    filas_csv = []
+    largo_max_declarado = max(x[2] for x in HUECOS_ESCALERA[cobertura])
+    for ax, (inst, inicio, largo, reparto) in zip(ejes,
+                                                  HUECOS_ESCALERA[cobertura]):
+        r = detalle[(inst, "demanda")]
+        t0 = pd.Timestamp(inicio)
+        candidatas = [x for x in _rachas(r["entran"]) if x[0] == t0]
+        assert candidatas, f"{cobertura}/{inst}: no hay hueco que empiece en {t0}"
+        _, t1, n = candidatas[0]
+        assert n == largo, f"{inst} {t0}: el hueco mide {n} h, no {largo}"
+        tramo = slice(t0, t1)
+        n_int = int(r["interp"][tramo].sum())
+        n_ff = int(r["ffill"][tramo].sum())
+        n_bf = int(r["bfill"][tramo].sum())
+        assert (n_int, n_ff, n_bf) == reparto, (
+            f"{inst} {t0}: reparto {(n_int, n_ff, n_bf)}, no {reparto}")
+        assert int(r["cero"][tramo].sum()) == 0, (
+            f"{inst} {t0}: hay horas rellenas con cero")
+        if largo == largo_max_declarado:
+            assert n == mas_largo, (
+                f"{cobertura}: el tercer peldaño mide {n} h y el hueco más "
+                f"largo de la frontera mide {mas_largo}")
+
+        entrada = series[dem.loc[inst, "serie_entrada"]]
+        limpia = r["limpia"]
+        idx = r["entran"].index
+        ctx = max(2, int(round(0.22 * n)))
+        ini_v = idx[max(0, idx.get_loc(t0) - ctx)]
+        fin_v = idx[min(len(idx) - 1, idx.get_loc(t1) + ctx)]
+
+        def eje_x(ts):
+            return (pd.DatetimeIndex(ts) - t0) / pd.Timedelta("1h")
+
+        obs = entrada[ini_v:fin_v]
+        ax.axvspan(-0.5, n - 0.5, facecolor="none", edgecolor="#CFCFCF",
+                   hatch="///", linewidth=0.0, zorder=0)
+        ax.plot(eje_x(obs.index), obs.values, color=E.TINTA, linewidth=1.1,
+                zorder=4)
+        vis = obs.dropna()
+        ax.plot(eje_x(vis.index), vis.values, marker="o", markersize=2.4,
+                linestyle="none", color=E.TINTA, zorder=4)
+
+        rell = limpia[tramo]
+        # El puente incluye las dos anclas: sin ellas el relleno arranca
+        # separado de la serie observada y se lee como otra curva.
+        puente = limpia[t0 - pd.Timedelta("1h"):t1 + pd.Timedelta("1h")]
+        ax.plot(eje_x(puente.index), puente.values, color=E.NEUTRO,
+                linewidth=0.8, zorder=3)
+        for mascara, color, marca, ancho in (
+                (r["interp"], E.DESPUES, "o", 1.8),
+                (r["ffill"], E.NEUTRO, "s", 1.5),
+                (r["bfill"], E.NEUTRO, "^", 1.5)):
+            m = mascara[tramo]
+            if not m.any():
+                continue
+            sub = rell[m.values]
+            ax.plot(eje_x(sub.index), sub.values, color=color, linewidth=ancho,
+                    zorder=5)
+            # Con mas de doce puntos los marcadores se funden en una barra
+            # continua; entonces la forma la lleva uno solo, en el centro.
+            if len(sub) <= 12:
+                ax.plot(eje_x(sub.index), sub.values, marker=marca,
+                        markersize=3.6, linestyle="none", color=color, zorder=6)
+            else:
+                c = sub.iloc[[len(sub) // 2]]
+                ax.plot(eje_x(c.index), c.values, marker=marca, markersize=4.6,
+                        linestyle="none", color=color, zorder=6)
+
+        ancla_previa = float(entrada[t0 - pd.Timedelta("1h")])
+        ancla_post = float(entrada[t1 + pd.Timedelta("1h")])
+        ax.plot([-1, n], [ancla_previa, ancla_post], marker="o", markersize=4.6,
+                linestyle="none", color=E.TINTA, zorder=7)
+
+        vals = np.concatenate([vis.values, rell.values])
+        lo, hi = float(vals.min()), float(vals.max())
+        span = max(hi - lo, 1e-6)
+        base = lo - 0.52 * span
+        ax.set_ylim(base - 0.05 * span, hi + 0.16 * span)
+
+        # La meseta no se queda en la ultima lectura observada sino en la
+        # tercera hora interpolada. Solo se rotula cuando la separacion es
+        # dibujable: por debajo del 4 % del alto del panel, la linea de
+        # referencia y la meseta se imprimirian una encima de la otra.
+        meseta = float(rell.iloc[2]) if n > 3 else np.nan
+        if n > 3 and abs(meseta - ancla_previa) > 0.04 * span:
+            ax.axhline(ancla_previa, color=E.TINTA, linewidth=0.7,
+                       linestyle=":", alpha=0.75, zorder=2)
+            ax.text(n * 0.52, ancla_previa - 0.04 * span,
+                    "última lectura observada", fontsize=5.9, color=E.TINTA,
+                    ha="center", va="top")
+
+        # Las llaves de longitud, bajo el dato. Miden en horas, que es lo
+        # que se compara entre paneles: los tres tienen el mismo ancho
+        # impreso y escalas horizontales distintas, de modo que la
+        # comparacion la lleva la cifra y no la longitud del trazo.
+        # El nombre del mecanismo no cabe junto a la cifra en el peldaño
+        # largo, donde los tres tramos se reparten el mismo ancho impreso:
+        # las llaves miden y la leyenda comun nombra.
+        tramos = [(0, reparto[0]), (reparto[0], reparto[1]),
+                  (reparto[0] + reparto[1], reparto[2])]
+        niveles = [0.06, 0.20, 0.34]
+        for k, (desde, cuantas) in enumerate(tramos):
+            if not cuantas:
+                continue
+            y = base + niveles[k] * span
+            ax.plot([desde - 0.4, desde + cuantas - 0.6], [y, y],
+                    color=E.NEUTRO, linewidth=0.8, solid_capstyle="butt")
+            for xx in (desde - 0.4, desde + cuantas - 0.6):
+                ax.plot([xx, xx], [y - 0.028 * span, y + 0.028 * span],
+                        color=E.NEUTRO, linewidth=0.8)
+            ax.text(desde + cuantas / 2 - 0.5, y + 0.040 * span,
+                    f"{cuantas} h", fontsize=6.4, color=E.NEUTRO,
+                    ha="center", va="bottom")
+
+        ax.set_xlim(-ctx - 0.6, n + ctx + 0.6)
+        ax.set_title(f"{E.etiqueta_institucion(inst)} · "
+                     f"{t0.day} {MESES_ES[t0.month - 1]} {t0.year}\n"
+                     f"hueco de {n} horas", fontsize=8.2, pad=5)
+        ax.set_xlabel("Horas desde el inicio del hueco", fontsize=7.2)
+        ax.tick_params(labelsize=7)
+        ax.xaxis.set_major_locator(
+            MultipleLocator(1 if n <= 4 else (6 if n <= 16 else 12)))
+        filas_csv.append({
+            "bloque": "peldaño", "institucion": inst, "inicio": str(t0),
+            "horas": n, "interpoladas": n_int, "arrastre_adelante": n_ff,
+            "arrastre_atras": n_bf, "cero": 0,
+            "ancla_previa_kW": ancla_previa, "ancla_posterior_kW": ancla_post,
+            "meseta_kW": meseta})
+    ejes[0].set_ylabel("Demanda (kW)")
+
+    # ── el presupuesto de horas ──────────────────────────────────────────
+    total_int = int(dem["interpoladas"].sum())
+    total_arr = int(dem["arrastradas"].sum())
+    tope = float((dem["interpoladas"] + dem["arrastradas"]).max())
+    for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
+        f = dem.loc[inst]
+        n_i, n_a = int(f["interpoladas"]), int(f["arrastradas"])
+        if n_i:
+            ax_pres.barh(k, n_i, height=0.5, color=E.DESPUES, zorder=3)
+        if n_a:
+            ax_pres.barh(k, n_a, left=n_i, height=0.5, color=E.NEUTRO,
+                         edgecolor="white", linewidth=1.2, zorder=3)
+        total = n_i + n_a
+        if total:
+            rotulo = f"{E.fmt_miles(total)} h"
+            if f["atipicos"]:
+                rotulo += f"  ({int(f['atipicos'])} del umbral)"
+            ax_pres.text(total + 0.02 * tope, k, rotulo, fontsize=6.6,
+                         color=E.TINTA, va="center")
+        else:
+            ax_pres.text(0.02 * tope, k, "ninguna", fontsize=6.6,
+                         color=E.NEUTRO, va="center", style="italic")
+        filas_csv.append({
+            "bloque": "presupuesto", "institucion": inst, "horas": total,
+            "interpoladas": n_i, "arrastradas": n_a, "cero": 0,
+            "atipicos_retirados": int(f["atipicos"])})
+    E.eje_instituciones(ax_pres, eje="y")
+    ax_pres.tick_params(axis="y", labelsize=7.5)
+    ax_pres.set_xlim(0, max(1.0, tope) * 1.52)
+    ax_pres.set_xlabel("Horas tratadas en la serie de demanda (h)", fontsize=7.4)
+    ax_pres.tick_params(axis="x", labelsize=7)
+    ax_pres.grid(axis="y", visible=False)
+    ax_pres.set_title(f"El presupuesto: {E.fmt_miles(total_int)} horas "
+                      f"interpoladas y {E.fmt_miles(total_arr)} arrastradas",
+                      fontsize=8.5, pad=6)
+
+    # ── el peldaño que no existe ─────────────────────────────────────────
+    ax_cero.axis("off")
+    ax_cero.add_patch(Rectangle((0.03, 0.04), 0.94, 0.90,
+                                transform=ax_cero.transAxes,
+                                facecolor=E.FONDO_BANDA, edgecolor="none",
+                                zorder=0))
+    ax_cero.text(0.5, 0.74, "0", fontsize=32, color=E.TINTA, ha="center",
+                 va="center", transform=ax_cero.transAxes)
+    ax_cero.text(0.5, 0.45, "horas rellenas con cero\nen las diez series",
+                 fontsize=7.0, color=E.TINTA, ha="center", va="center",
+                 transform=ax_cero.transAxes)
+    ax_cero.text(0.5, 0.19, f"el hueco más largo mide {mas_largo} h\ny la "
+                 f"cascada alcanza {ALCANCE_CASCADA} h", fontsize=6.4,
+                 color=E.NEUTRO, ha="center", va="center",
+                 transform=ax_cero.transAxes)
+    filas_csv.append({
+        "bloque": "resumen", "institucion": "las diez series",
+        "interpoladas": total_int, "arrastradas": total_arr,
+        "cero": int(censo["cero"].sum()),
+        "atipicos_retirados": int(censo["atipicos"].sum()),
+        "hueco_mas_largo_h": mas_largo, "alcance_cascada_h": ALCANCE_CASCADA})
+
+    _rotulo_cobertura(fig, cobertura)
+    fig.tight_layout(rect=(0, 0, 1, 0.945))
+    # Una sola leyenda para los dos bloques: las llaves de los paneles
+    # miden y esta nombra, de modo que ningun rotulo tenga que caber junto
+    # a un tramo de tres horas. Va medida bajo la fila de arriba.
+    fig.legend(handles=[
+        Line2D([], [], color=E.TINTA, linewidth=1.1, marker="o", markersize=3.4,
+               label="Lectura observada"),
+        Line2D([], [], color=E.DESPUES, linewidth=1.8, marker="o",
+               markersize=3.6, label="Interpolación, hasta 3 h"),
+        Line2D([], [], color=E.NEUTRO, linewidth=1.5, marker="s",
+               markersize=3.6, label="Arrastre hacia adelante, hasta 24 h"),
+        Line2D([], [], color=E.NEUTRO, linewidth=1.5, marker="^",
+               markersize=3.6, label="Arrastre hacia atrás, hasta 24 h")],
+        loc="upper center",
+        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes, 0.008)),
+        ncol=4, fontsize=6.8, frameon=False, handlelength=1.9,
+        columnspacing=1.5)
+    return E.guardar(
+        fig, f"f3_06_escalera_huecos_{cobertura}", datos=pd.DataFrame(filas_csv),
+        procedencia=[
+            f"reformateo/documento/datos_cache/preproceso_{cobertura}.npz",
+            "cascada: interpolación temporal límite 3 h, arrastre hacia "
+            "adelante y hacia atrás límite 24 h, resto a cero — "
+            "data/xm_data_loader.py::_clean",
+            "los tres huecos van fijados en el generador y comprobados con "
+            "asertos de longitud y reparto antes de dibujar",
         ])
 
 
@@ -1963,5 +2470,6 @@ if __name__ == "__main__":
         f38_perfiles_instituciones(cob)
         f39_ritmos(cob)
     for cob in ("m1", "m3"):
-        f35_outliers_imputacion(cob)
+        f35_umbral_atipicos(cob)
+        f36_escalera_huecos(cob)
     print("\nlisto.")

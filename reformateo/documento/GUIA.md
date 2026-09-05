@@ -190,12 +190,12 @@ Listo y verificado:
 - `main.tex` + 21 archivos de sección — compila limpio con bibliografía IEEE.
 - `datos_cache/` — caché del preprocesamiento y réplicas del remuestreo.
 
-**39 figuras generadas**, todas con su `.csv` y su `.fuente.txt`:
+**40 figuras generadas**, todas con su `.csv` y su `.fuente.txt`:
 
 | Script | Figuras | Qué cubre |
 |---|---|---|
 | `gen_cap02.py` | 3 | censo de fuentes, cobertura, horizonte |
-| `gen_cap03.py` | 11 | preprocesamiento, perfiles, matrices, ritmos |
+| `gen_cap03.py` | 12 | preprocesamiento, perfiles, matrices, ritmos |
 | `gen_cap04.py` | 4 | cobertura, perfiles M1/M3, inversión de papeles, embudo |
 | `gen_cap05.py` | 4 | bolsa, costo unitario, categorías tarifarias, banda |
 | `gen_cap09.py` | 2 | las tres versiones de C4, reproducibilidad entre corridas |
@@ -270,7 +270,8 @@ antes y su después.
 | 3.2b | **La gradación del neteo, en lecturas ordenadas** | ✓ | caché de estados intermedios |
 | 3.3 | **Reconstrucción net→bruta: antes y después** | ✓ | `f3_03_reconstruccion_m1` |
 | 3.4 | Los tres tipos de medidor | T | `DEMAND_METER_CONFIG` |
-| 3.5 | Atípicos e imputación | ✓ | `f3_05_outliers_imputacion_{m1,m3}` |
+| 3.5 | **El umbral: qué retira y por qué está donde está** | ✓ | `f3_05_umbral_atipicos_{m1,m3}` |
+| 3.6 | **La escalera de los huecos: la longitud decide el trato** | ✓ | `f3_06_escalera_huecos_{m1,m3}` |
 | 3.7 | Las matrices D y G resultantes (hora × día) | N | caché |
 | 3.8 | Perfiles por institución | N | caché |
 | 3.9 | Ritmo semanal: hábil frente a fin de semana | N | caché |
@@ -289,6 +290,26 @@ sumando los inversores en vez de descartar las horas; (iii) el umbral de
 atípicos `max(Q75 + 5·IQR, P99,5 × 1,2)` y por qué el piso evita recortar
 picos operativos legítimos; (iv) los límites de imputación de 3 h y 24 h;
 (v) la no-negatividad como contrato verificado, no como aspiración.
+
+La limpieza ocupa **dos subsecciones y dos figuras**, una por idea: el
+umbral, que retira, y la escalera de los huecos, que rellena. Tres cosas
+medidas que el texto tiene que decir y que la figura antigua no decía:
+
+- El máximo del umbral no es adorno. Manda la cerca de Tukey en 16 de las
+  20 series y el piso del percentil en 4, todas de demanda: Mariana y
+  CESMAG en las dos fronteras. Sin el piso, la demanda de CESMAG perdería
+  451 horas en M1 y 927 en M3, es decir, el 20,7 % y el 52,5 % de su
+  energía.
+- La cascada **no clasifica huecos por longitud, actúa hora a hora dentro
+  de cada uno**. Un hueco de 13 horas no se rellena con el vecino: sus 3
+  primeras horas se interpolan y las 10 restantes se arrastran. Y el
+  arrastre propaga la **tercera hora interpolada**, no la última lectura
+  observada.
+- **El cuarto tratamiento no tiene ningún caso.** La cascada alcanza 51
+  horas (3 de interpolación más 24 hacia adelante más 24 hacia atrás) y el
+  hueco más largo del estudio mide 49, en la demanda de la UCC bajo M3. En
+  las 20 series de las dos fronteras hay **cero horas rellenas con cero**.
+  Es un resultado y se publica como tal.
 
 Cierra con la subsección **«Las decisiones que sesgan en contra del P2P»**:
 el conjunto de elecciones conservadoras que hacen que la ventaja medida sea
@@ -438,7 +459,7 @@ de dos paneles M1 | M3.
 |---|---|---|---|---|---|
 | 1 | — | — | 2 | — | 2 |
 | 2 | 3 | — | 1 | — | 4 |
-| 3 | 4 | — | 2 | 3 | 9 |
+| 3 | 4 | — | 2 | 4 | 10 |
 | 4 | 4 | — | 1 | — | 5 |
 | 5 | 7 | — | — | — | 7 |
 | 6 | 3 | 3 | 3 | — | 9 |
@@ -450,7 +471,7 @@ de dos paneles M1 | M3.
 | 12 | 1 | 6 | — | — | 7 |
 | 13 | 3 | — | — | — | 3 |
 | 14–15 | 1 | — | 1 | — | 2 |
-| | **40** | **26** | **17** | **3** | **86** |
+| | **40** | **26** | **17** | **4** | **87** |
 
 ---
 

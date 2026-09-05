@@ -1172,6 +1172,56 @@ palabra.
 
 ---
 
+## H-26 · Mariana entra en M3 como neta y en M1 como bruta: las dos fronteras miden cosas distintas para la misma institución
+
+**2026-09-04 · confirmado en el código y medido · pendiente de decisión, invalida el canon**
+
+Apareció al preparar la comparación M1 frente a M3 de la figura de los
+perfiles. El perfil normalizado de Mariana, que debería ser idéntico en
+las dos fronteras porque su serie secundaria es la principal multiplicada
+por un factor, correlaciona **0,21**.
+
+**Lo que ocurre.** Mariana tiene un solo medidor y es **neto**: por eso la
+configuración de la frontera principal lo declara `net_partial` y le
+aplica reconstrucción, que le devuelve la generación descontada y le sube
+la energía un **27,1 %**. La configuración de la frontera secundaria
+reutiliza *ese mismo medidor* multiplicado por 0,3, pero lo declara
+**`gross`**, de modo que no recibe reconstrucción: solo el recorte a cero,
+que le suma un 0,34 %. El comentario del propio bloque de configuración
+dice «todos son gross» y la excepción de Mariana rompe esa premisa sin que
+se advierta.
+
+**Comprobado de tres formas.** La serie reconstruida de M3 coincide con
+`0,3 × (serie cruda de M1)` recortada a cero con `max|dif| = 0` en las
+6.144 horas, y **no** coincide con `0,3 ×` la serie reconstruida, de la
+que difiere en 3.265 horas. El perfil normalizado de M3 conserva el
+hundimiento solar que M1 pierde: al mediodía vale 0,79 en M3 y 1,29 en M1,
+y el pico se queda a las 8 en vez de moverse a las 9. Y en el contraste,
+las otras cuatro instituciones suben exactamente 0,00 % con la
+reconstrucción en M3 y no tienen ni una hora negativa en crudo, mientras
+Mariana arrastra 213.
+
+**Lo que vale.** Corregirlo, es decir, construir la serie secundaria desde
+la principal ya reconstruida, sube la demanda de Mariana en M3 de
+14.111,1 a 17.652,3 kWh, un **+25,1 %**; sube la demanda de la comunidad
+en esa frontera un **+5,3 %**, de 66.733,7 a 70.274,9 kWh; y baja la
+cobertura G/D de M3 del **95,3 % al 90,5 %**.
+
+**Por qué importa más allá de la cifra.** La demanda es el lado corto en
+esta frontera, y el volumen transado es el lado corto, de modo que
+subestimar la demanda de una de las cinco instituciones un 25 % no es un
+detalle de presentación. Además, la serie de M3 conserva justamente el
+artefacto que el capítulo entero argumenta que hay que quitar: un perfil
+con hundimiento solar no es demanda, es demanda menos generación.
+
+**La decisión no es mía.** Corregirlo invalida el canon vigente y obliga a
+rehacer la corrida en las dos fronteras. Va a la misma lista que el
+multiplicador del umbral y que P-21: **hacerlo junto con la próxima
+corrida canónica**, no abrir una solo para esto. Mientras tanto el
+documento no debe afirmar que en la frontera secundaria los cinco
+medidores son brutos, porque uno no lo es.
+
+
 ## H-25 · Las 330 horas de demanda que entran como cero
 
 **2026-09-04 · declarado en el documento · pendiente de decidir si se corrige**

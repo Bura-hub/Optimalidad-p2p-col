@@ -293,12 +293,11 @@ antes y su después.
 | 3.3b | **A quién se le aplica la reconstrucción y a quién no** | ✓ | `f3_03b_reconstruccion_mosaico` (diez paneles) |
 | 3.4 | Los tres tipos de medidor | T | `DEMAND_METER_CONFIG` |
 | 3.4b | **La anatomía del umbral: el IQR como longitud** | ✓ | `f3_04b_anatomia_umbral` (las diez series en una sola imagen) |
-| 3.5 | **El umbral: qué retira y por qué está donde está** | ✓ | `f3_05_umbral_atipicos_{m1,m3}` |
+| 3.5 | **La hora que el umbral retira, y con qué se queda la serie** | ✓ | `f3_05_umbral_caso` (las dos fronteras en una sola imagen) |
 | 3.6 | **La escalera de los huecos: la longitud decide el trato** | ✓ | `f3_06_escalera_huecos` (las dos fronteras en una sola imagen) |
-| 3.7 | Las matrices D y G resultantes (hora × día) | N | caché |
-| 3.8 | Perfiles por institución | N | caché |
-| 3.9 | Ritmo semanal: hábil frente a fin de semana | N | caché |
-| 3.10 | Ritmo anual: hora × mes | N | caché |
+| 3.7 | **Las tres comprobaciones que cierran el capítulo** | ✓ | `f3_07_matrices` (tres bandas sobre el eje de días) |
+| 3.8 | **Cinco ritmos distintos, normalizados y en las dos fronteras** | ✓ | `f3_08_perfiles_instituciones` |
+| 3.9 | **Ritmo semanal y anual, en las dos fronteras** | ✓ | `f3_09_ritmos` |
 
 Cifras medidas, ya disponibles en `conteo_negativas()`:
 

@@ -3872,6 +3872,99 @@ desbordes; auditoria numerica en cero desfases.
 
 ---
 
+## C-114 · Pasada de revision: repeticion, estilo y un error de hecho
+
+**2026-09-04 · tipo: `contenido` · aplicada**
+
+Revision de lo escrito con cuatro comprobaciones, una de ellas nueva: un
+detector de cifras repetidas, que es la que el pidio.
+
+**Un error de hecho.** El texto decia que los minimos de Mariana y la UCC
+son «veinte veces menos profundos» que el de Udenar. Medido: 13,9 y 5,7
+veces. Corregido a «entre seis y catorce».
+
+**Dos parrafos que recitaban la tabla de tipos celda a celda.** Mismo
+patron que ya se corrigio en la reconstruccion: la prosa enumeraba lo que
+la tabla muestra, de modo que el lector leia dos veces lo mismo. Se queda
+la interpretacion, que es lo que la tabla no dice.
+
+**El caso de Mariana bajo M3, explicado tres veces.** En la subseccion de
+la demanda negativa, tras la tabla de tipos y al cerrar la clasificacion.
+La tercera repetia la explicacion entera solo para poder añadir el costo
+de llevar esas horas a cero. Se queda la explicacion junto a la tabla, que
+es donde el lector ve la anomalia, y la tercera se reduce a lo que
+aportaba. La cifra 213 baja de seis apariciones a cuatro, de las cuales
+dos son las dos filas de la tabla.
+
+**Un parrafo mio de 126 palabras**, el del acotamiento del relleno,
+partido en la objecion y sus dos cotas.
+
+**Lo que se reviso y se deja como esta.** La raya larga que el detector
+marca en la nomenclatura esta en un comentario y no se imprime. Los
+«conviene» y el «es importante» de los capitulos 2 y 3 son los que el dejo
+a proposito. Los ocho pies por encima de 55 palabras describen y no
+argumentan, que es la norma de C-109.
+
+**Lo que queda fuera de esta pasada**: las repeticiones de `182,5` en el
+Capitulo 5 y de `1.865.016` en el Anexo A6, mas los nueve «este capitulo»
+del Capitulo 5 y los seis «conviene» de A6. Los dos capitulos siguen sin
+auditar.
+
+**Estado**: 94 paginas, sin errores, sin desbordes, sin referencias sin
+resolver; auditoria numerica en cero desfases; estilo en 24,3 palabras por
+oracion frente a 24,6 del perfil y sin una sola raya larga en el texto
+impreso.
+
+---
+
+## C-113 · La matriz de sensibilidad del preprocesamiento (paso 4 de 4)
+
+**2026-09-04 · tipo: `contenido` · aplicada**
+
+Cierra la respuesta a la critica externa. El reparo decia que admitir «no
+se construyo una matriz de sensibilidad» y relegarla a trabajo futuro es
+inadmisible para este nivel de grado. Tenia razon, y ademas resulto barato:
+los cuatro parametros viven en la etapa de limpieza, cuya entrada esta
+cacheada.
+
+**Que se mide y por que esa magnitud.** No basta el efecto sobre el dato:
+la critica exige el efecto sobre la conclusion economica. El puente ya
+estaba probado en el proyecto, y es que el volumen transado es el lado
+corto, de modo que el excedente vendible acota lo que puede transarse. Se
+barre cada parametro de uno en uno y se mide la desviacion en la demanda,
+en la generacion y en ese excedente, tomando el peor caso de las dos
+fronteras.
+
+| Parametro | Rango | Demanda | Generacion | Excedente |
+|---|---|---:|---:|---:|
+| Multiplicador del primer criterio | 1,5 a 10 | 0,024 % | 0,052 % | **0,059 %** |
+| Factor del segundo criterio | 1,0 a 1,5 | 0,318 % | 0 % | 0,005 % |
+| Limite de interpolacion | 1 a 12 h | 0,048 % | 0 % | 0,003 % |
+| Limite de arrastre | 6 a 72 h | 0,511 % | 0 % | 0 % |
+
+**Ninguna variacion mueve el excedente mas de seis partes en diez mil**, y
+eso incluye llevar el multiplicador al clasico de 1,5, cuadruplicar el
+limite de interpolacion o reducir el arrastre a la cuarta parte.
+
+**La lectura**: lo que sostiene el preprocesamiento no es el acierto de
+cada eleccion sino su irrelevancia. **La cautela**, dicha en el documento:
+el barrido acota las entradas y el excedente, no el resultado del mercado,
+que exigiria repetir la corrida por combinacion.
+
+**Dos frases que caducaron y se corrigieron.** El punto tercero de la
+declaracion de honestidad decia que la matriz no se habia construido. Y la
+cota global del ±0,3 % se presentaba como «una estimacion declarada y no un
+valor calculado, sin matriz que la respalde»; ahora tiene una medida
+debajo, un orden de magnitud menor, y se conserva solo porque cubre ademas
+lo que el barrido no alcanza.
+
+**Con esto la critica externa queda respondida en sus seis puntos**: dos se
+invirtieron al medirlos, uno estaba ya contestado en el documento y mal
+colocado, dos se declararon como alcance con su argumento, y este se
+construyo.
+
+---
+
 ## C-112 · Respuesta medida a la critica externa (pasos 1 y 2 de 4)
 
 **2026-09-04 · tipo: `contenido` · aplicada**
@@ -4983,6 +5076,561 @@ salvo el recorte de 46,7 kWh de la Universidad Mariana.
 
 ---
 
+## C-115 · El panel del criterio se retira: hacía lo que hace la anatomía, y peor
+
+**2026-09-04 · tipo: `figura` · aplicada · él dijo que la figura no se entendía**
+
+La figura del umbral tenía dos paneles y el problema estaba entero en el de
+la derecha, el del criterio de las diez series. Se retira, y la figura
+queda en el caso, que es lo único que no hace ninguna otra pieza. Pasa a
+llamarse `f3_05_umbral_caso` y funde las dos fronteras en un archivo, con
+una fila cada una.
+
+**Las cinco razones, y las tres primeras son de lectura.** El eje decía
+«múltiplos del percentil 99,5 de la propia serie», es decir, que cada fila
+usaba su propia normalización, de modo que un eje compartido invitaba a
+comparar magnitudes que no lo son: el 2,37 de la UCC y el 1,35 de CESMAG
+no significan lo mismo. El círculo del corte del primer criterio solo
+asomaba en dos filas de diez, porque en las otras ocho coincide con el
+rombo y quedaba debajo, sin que nada lo advirtiera. Y el rombo se llamaba
+umbral aplicado pero su posición no era el umbral sino el umbral dividido
+por el percentil de su serie, de manera que **el mismo objeto aparecía dos
+veces, dibujado y en la columna del margen, con dos valores distintos y
+ninguna relación visible entre ellos**; la cifra del margen, que es la
+única comparable entre filas, no era la que estaba dibujada.
+
+**La quinta es la decisiva.** La anatomía del umbral construye los dos
+candidatos en kilovatios reales, con las cinco copias apiladas, para las
+diez series y las dos fronteras, y la tabla del umbral publica los valores.
+Aquel panel era una versión comprimida y normalizada de lo mismo. Llegó
+antes que las otras dos piezas y se quedó por inercia.
+
+**El caso se sigue eligiendo por regla y no por fecha.** Entre las horas
+retiradas se toman las aisladas y de esas la de mayor exceso relativo
+sobre el umbral. Bajo las dos fronteras sale la misma hora, el 1 de
+octubre en la Universidad Mariana, que es lo esperable porque su serie
+secundaria es la principal escalada: entra con \uni{39.9}{kW} sobre un
+umbral de \uni{35.1}{kW} y sale con \uni{28.2}{kW} en la principal, y con
+\uni{10.3}{kW} sobre \uni{9.1}{kW} para salir con \uni{7.2}{kW} en la
+secundaria.
+
+**Y se prepara para que ese caso desaparezca.** Está abierta la decisión de
+llevar el multiplicador del primer criterio de 5 a 7, y con 7 la frontera
+principal no retiraría ninguna hora, de modo que su panel se quedaría sin
+objeto. En vez de fallar, el panel imprime que esa frontera no tiene
+ninguna hora retirada; la corrida solo se detiene si no la tuviera ninguna
+de las dos. Comprobado forzando el caso vacío: la figura se dibuja igual.
+
+**Dos asertos nuevos sobre lo que se dibuja.** Que la hora sobresale del
+umbral, y que el valor con que quedó es el punto medio de sus dos vecinas.
+Lo segundo se sigue de la primera regla: al exigir que la hora esté
+aislada, el hueco que deja mide una hora y la interpolación lo cierra por
+la recta entre las dos anclas. Si algún día dejara de cumplirse, sería que
+el caso no es el que la figura dice.
+
+**Un rótulo colocado midiendo.** El de la frontera se sitúa a partir de la
+caja real del eje y no a una fracción fija: los dos paneles tienen marcas
+de distinto ancho y a fracción fija el rótulo se montaba sobre el del eje.
+La prueba de oclusión lo cazó en las dos filas.
+
+**Comprobaciones de cierre.** Cero solapamientos en las seis figuras de la
+etapa. El CSV hermano tiene dos filas, una por frontera. Se retiran los dos
+archivos anteriores.
+
+## C-116 · La subseccion de los huecos, reorganizada, con diagrama de flujo
+
+**2026-09-04 · tipo: `contenido` · aplicada**
+
+El autor: «parecen parrafos tirados que no son capaces de entenderse por
+si mismos». Seis defectos, y dos de bulto.
+
+**El de bulto primero: dos reparticiones del mismo total con cifras casi
+iguales y sin decir que eran distintas.** El texto imprimia 233
+interpoladas y 575 arrastradas, que es el reparto por mecanismo, y dos
+parrafos despues 234 bajo M1 y 574 bajo M3, que es el reparto por
+frontera. Las cuatro cifras son correctas, comprobadas contra el cache,
+pero puestas asi el lector concluye que hay una errata. Pasan a una tabla
+de doble entrada, `tab:prep-huecos`, donde reconcilian por suma en los dos
+sentidos: 74 + 160 = 234, 159 + 415 = 574, 233 + 575 = 808.
+
+**El segundo de bulto: anunciaba cuatro tratamientos y no los listaba.**
+Los parrafos siguientes los describian sin numerarlos, de modo que la
+cuenta anunciada no se cerraba nunca. Van a lista enumerada, contra la
+regla de que una cuenta anunciada es una lista.
+
+**Diagrama de flujo nuevo, `fig:prep-cascada`.** El autor lo pidio. Sitúa
+los cuatro tratamientos sobre las horas de un hueco de 51 horas, con la
+flecha de cada arrastre indicando desde que lado propaga. Hace visible de
+una vez lo que la prosa tardaba tres parrafos en decir: 3 + 24 + 24 = 51,
+y el cuarto tratamiento apagado porque no llega a actuar.
+
+**Cuatro defectos menores.** La advertencia mas dificil, que el
+tratamiento se decide hora a hora y no hueco a hueco, llegaba antes de que
+existiera un tratamiento del que hablar. Un acertijo: «el valor que se
+repite no es el que cabria esperar» decia lo que no es antes de lo que es.
+Decia que las 808 horas se reparten entre las 20 series y dos parrafos
+despues decia que la generacion no se toca: viven enteras en las 10 series
+de demanda. Y la base del porcentaje no estaba nombrada: las 30.720 horas
+son las cinco series de demanda de una frontera, no las diez de la
+frontera.
+
+## C-117 · La zona horaria deja de ser etapa y su comprobacion se salva
+
+**2026-09-04 · tipo: `estructura` · aplicada**
+
+El autor propuso borrar la subseccion entera y sacarla del diagrama de
+fases. Tiene razon en lo de la etapa: localizar un indice no altera ningun
+valor, y en un documento que muestra que le pasa al dato, una etapa que no
+le hace nada no es una etapa.
+
+Pero dentro habia una medida que carga peso y que ademas estaba
+duplicada. La caja de lectura de las matrices ya AFIRMA que un error de
+zona horaria desplazaria la banda solar; la subseccion lo MEDIA. Eran el
+mismo argumento partido en dos sitios. La comprobacion se muda a la
+subseccion de las matrices, junto a la figura que la ensena, y lo demas se
+va: el aparato del horario de verano, cuyas dos salvaguardas nunca llegan
+a ejecutarse en Colombia, y la lista de argumentos dependientes, que era
+el texto hablando de si mismo.
+
+El pipeline pasa a **cinco etapas**. Corregidas las seis menciones a la
+cuenta, el rotulo del carril, el fondo del carril y las flechas del
+diagrama. Se retira ademas el parrafo que repartia subsecciones por etapa:
+era el texto describiendose a si mismo y ya estaba desfasado, porque decia
+que las tres ultimas ocupan una subseccion cada una y la de atipicos y
+huecos ocupa dos.
+
+## C-118 · La comprobacion de la zona horaria, sobre una medida que no se voltea
+
+**2026-09-04 · tipo: `numerica` · aplicada**
+
+Al mudar la comprobacion escribi que el maximo de generacion cae entre las
+11 y las 12. Es cierto, pero **por 0,09 kW**: el intervalo de las 11 vale
+33,30 kW y el de las 12 vale 33,21 kW, un margen del 0,3 %. Cualquier
+retoque menor del preprocesamiento lo voltea y obliga a reescribir la
+frase. Y como los intervalos van etiquetados por su borde izquierdo,
+«entre las 11 y las 12» significa de 11:00 a 13:00, que no es lo que el
+lector entiende.
+
+Pasa a la hora media ponderada por la energia, que no tiene esa
+fragilidad: **12:06 en la comunidad y entre las 12:03 y las 12:11 en las
+cinco instituciones**, identica en las dos fronteras porque la generacion
+es la misma serie en las dos. Es ademas mas fuerte, porque el mediodia
+solar de Pasto cae justo ahi.
+
+## C-119 · Las quince atribuciones de fuente que quedaban
+
+**2026-09-04 · tipo: `norma` · aplicada**
+
+La regla dice que la atribucion de fuente no se imprime, y sobrevivian
+quince «Elaboracion propia» dentro de notas de figura, en los capitulos 3,
+4, 5 y el anexo A6. Retiradas todas.
+
+**Con un incidente que conviene dejar anotado.** El primer barrido uso
+`[^.}]*` para acotar la frase, y el punto de «precios\_bolsa\_xm\_api.csv»
+cerraba la coincidencia antes de tiempo: se comio el `\file{` y dejo el
+cierre huerfano en cuatro notas. Cuatro errores «Too many }'s» en la
+compilacion. Se revirtieron los tres ficheros afectados con la compuerta
+de control de versiones, y el barrido se rehizo con una compuerta de
+cuadre de llaves antes de escribir. **Leccion: un barrido con expresion
+regular sobre LaTeX comprueba el cuadre de llaves antes de guardar.**
+
+
+---
+
+## C-120 · Los dos mapas de calor se retiran: no podían sostener las tres comprobaciones que se les atribuían
+
+**2026-09-05 · tipo: `figura` + `dato` · aplicada · tres agentes la auditaron por separado y coinciden**
+
+`f3_07_matrices` se rehace entera. Los dos mapas de hora contra día daban
+0,21 mm de papel por día, de modo que un fin de semana medía 0,43 mm: el
+eje de días no era legible, era una trama. Y ninguna de las tres
+comprobaciones que la caja de lectura les atribuía se podía hacer sobre
+ellos con una vara.
+
+**Las tres, una por una.** La zona horaria se juzgaba a ojo entre dos
+marcas separadas 17,7 mm. El difuminado de la banda solar no tenía unidad,
+y además un desfase sistemático la *desplaza* en vez de difuminarla, de
+manera que la imagen no separaba las dos hipótesis que decía separar. Y la
+semana laboral es una estructura diaria que sobrevive a cualquier error de
+agregación horaria, de modo que el criterio y su prueba no hablaban de lo
+mismo: barajar los 256 días al azar da una imagen indistinguible de la
+real.
+
+**Dos defectos más.** Todo iba codificado en luminosidad, que es el peor
+canal para juzgar cantidad, y la figura llevaba una nota advirtiendo que
+sus dos escalas no son comparables, advertencia que en gris deja de
+funcionar porque lo único que avisaba de las dos escalas era el tono. Y la
+generación es byte a byte idéntica en las dos fronteras, de modo que medio
+panel se dibujaba dos veces para nada.
+
+**Lo que entra.** Tres bandas que comparten el eje de días, de manera que
+una anomalía se lee verticalmente en las tres a la vez, y cada una con su
+vara dibujada:
+
+- **El mediodía medido contra el solar.** Para cada día, la hora media de
+  la generación ponderada por la energía, y encima la curva del mediodía
+  solar de Pasto calculada desde la longitud y la ecuación del tiempo, que
+  es una referencia externa al dato y por tanto no circular. Dos reglas a
+  una hora de esa curva, que es lo que valdría un huso mal puesto. El
+  desfase medio es de \uni{2.4}{min} y 253 de los 255 días con generación
+  caen dentro de la vara; los dos que se salen se fijan al borde con otra
+  marca en vez de ocultarse, y los dos son días con horas repuestas, cosa
+  que la tercera banda enseña en la misma vertical.
+- **Qué fracción del día cubre el sol.** La razón entre generación y
+  demanda del día, que es adimensional y por eso admite las dos fronteras
+  en un mismo eje, cosa que los kilovatios no. La mediana diaria vale 0,20
+  en M1 y 1,01 en M3, y M3 pasa de 1 en 129 de los 256 días mientras que
+  M1 no lo pasa ninguno.
+- **Las horas que la limpieza repuso**, en mariposa, hacia arriba M1 y
+  hacia abajo M3, sobre las máscaras del caché que la figura anterior no
+  usaba. Es lo único de la figura que no hace ninguna otra, y hace que el
+  8 de diciembre aparezca marcado en vez de tapado: 48 horas en M1 y 120
+  en M3, que son las cinco instituciones el día entero.
+
+**La distinción entre fronteras la lleva la geometría** y no el color,
+porque el contraste medido entre los dos tonos de cobertura es de 1,69 a
+1, muy por debajo del 3 a 1 útil: continua contra discontinua, círculo
+contra triángulo, relleno hacia arriba contra hueco hacia abajo.
+Comprobado en escala de grises.
+
+**El hermano tiene 256 filas, una por día**, con las nueve magnitudes
+dibujadas. El anterior tenía 48 filas para 12.288 celdas, de modo que no
+regeneraba la figura.
+
+**Un aserto detiene la corrida si la generación deja de coincidir entre
+fronteras**, porque es la premisa de la primera banda y del rótulo que la
+acompaña.
+
+**Lo que se pierde.** La matriz como objeto: hoy se veían las 6.144 celdas
+de una vez y esto son tres lecturas derivadas. La pérdida es real pero
+menor de lo que parece, porque aquella vista de conjunto no soportaba
+ninguna afirmación con vara; lo que se pierde es la impresión de completud,
+no una comprobación. Queda anotado por si el autor prefiere conservar un
+mapa reducido en el anexo.
+
+## C-121 · El texto de la figura de cierre, rehecho con la figura
+
+**2026-09-05 · tipo: `contenido` · aplicada**
+
+C-120 sustituye los dos mapas de calor por tres bandas sobre el eje de
+dias. El texto que los acompanaba prometia tres comprobaciones que la
+figura vieja no hacia con vara ninguna, de modo que se rehace entero: la
+frase de entrada, el pie, tres parrafos, uno por banda, y la caja de
+lectura.
+
+**Lo que dice ahora la caja** es que cada banda trae su vara y no solo su
+forma: la franja de una hora, que es lo que valdria un huso mal puesto;
+que la nube no se ensanche ni se corra a lo largo del horizonte; y que las
+intervenciones de la limpieza se concentren en dias identificables en vez
+de repartirse por el recorrido.
+
+**Cifras nuevas que publica**: el desfase medio de 2,4 minutos y los 253 de
+255 dias dentro de la vara; las medianas diarias de la razon entre
+generacion y demanda, 0,20 y 1,01; los 129 de 256 dias en que el circuito
+secundario se cubre a si mismo y los cero del principal; y el reparto del 8
+de diciembre, 48 horas repuestas en la frontera principal y 120 en la
+secundaria.
+
+## C-122 · H-26 propagado: la excepcion de Mariana se declara y se cifra
+
+**2026-09-05 · tipo: `numerica` · aplicada**
+
+El texto afirmaba que en el circuito secundario «los cinco medidores son
+brutos» y que «la unica excepcion aparente es Mariana, y no es tal».
+**Si lo es**, y H-26 lo prueba en el codigo y en el dato: bajo la frontera
+principal se le devuelve la generacion descontada y bajo la secundaria no,
+porque la configuracion declara bruto el mismo aparato que la otra declara
+neto.
+
+Corregido el parrafo, que ahora dice cuatro de cinco y explica el quinto
+entero. La declaracion de honestidad metodologica pasa de cuatro
+elecciones a cinco, y la nueva va cifrada: la demanda de esa institucion
+en esa frontera resulta un 25,1 % menor de lo que seria si se
+reconstruyera, la de la comunidad un 5,3 % menor, y la razon entre
+generacion y demanda de la frontera pasaria del 95,3 % al 90,5 %.
+
+**Y alcanza a una cifra de la figura de cierre**, cosa que se declara en
+el propio parrafo en vez de dejarla en pie: corregida la serie, la mediana
+diaria del circuito secundario baja de 1,01 a 0,95 y los dias que se
+cubren a si mismos pasan de 129 a 116, es decir, de algo mas de la mitad a
+algo menos. La del circuito principal no se mueve.
+
+El pipeline **no se toca**: la correccion invalida el canon vigente y entra
+con la proxima corrida canonica, junto con el multiplicador del umbral y
+con P-21.
+
+
+---
+
+## C-123 · Los perfiles se normalizan, y la figura del umbral gana el antes que su pie prometía
+
+**2026-09-05 · tipo: `figura` · aplicada · él pidió los perfiles con la mayor precisión y con la comparación en M3**
+
+**Los perfiles.** La subsección se titula «Cinco ritmos distintos» y su
+afirmación es sobre la forma del perfil, pero la figura daba a cada panel
+su propia escala vertical y lo advertía al pie: «lo comparable entre ellos
+es la forma del perfil, no su altura». Pedía comparar formas y las
+dibujaba a escalas distintas, que es lo que impide compararlas; la nota no
+salvaba el problema, lo confesaba. Es el mismo vicio que C-115 quitó del
+panel del criterio y C-120 de los mapas de calor.
+
+Cada perfil pasa a ir dividido por su propia media diaria, de manera que
+los cinco caen sobre un mismo eje y la diferencia de forma es geometría.
+El nivel absoluto no se pierde: se declara en la columna del sexto panel,
+que da la media diaria de cada institución en las dos fronteras.
+
+**La evidencia del título entra en la figura.** El sexto panel mide a qué
+distancia media queda la forma de cada institución de las otras cuatro,
+sobre los perfiles ya normalizados. El Hospital es el caso aparte y no por
+poco: 0,34 frente a valores entre 0,20 y 0,26 de las demás. El par más
+lejano es el Hospital contra la UCC, 0,45, y el más parecido la
+Universidad Mariana con CESMAG, 0,11. Se resume por institución y no como
+matriz de diez celdas porque lo que la afirmación necesita es el resumen.
+
+**Las dos fronteras, en el mismo panel de cada institución.** La cifra que
+acompaña a cada título es la correlación entre los dos perfiles
+normalizados: 0,99 en la UCC, 0,98 en CESMAG, 0,96 en Udenar, 0,63 en el
+Hospital y 0,21 en la Universidad Mariana.
+
+**Una cautela sobre esa cifra, medida.** Mide si las subidas y bajadas
+caen en las mismas horas, no la amplitud, y las dos cosas se separan en
+este conjunto: Udenar conserva la forma con 0,96 pero su recorrido pasa de
+1,10 a 1,96, de modo que sus dos curvas se ven muy distintas; el Hospital
+tiene 0,63 y sus dos curvas casi se tocan, porque las dos son planas y la
+diferencia media entre ellas vale 0,05. La figura dibuja las dos curvas y
+la cifra dice otra cosa que también es cierta, de manera que el texto no
+debe leer el 0,63 como un cambio grande de nivel sino como un cambio de
+patrón dentro de una banda estrecha: bajo la frontera principal el
+Hospital sube por la tarde y bajo la secundaria sube por la mañana.
+
+**La Universidad Mariana lleva asterisco.** Su fila de M3 hunde el
+mediodía, 0,79 contra 1,29 en la principal, y adelanta el pico de las 9 a
+las 8. No se maquilla: es H-26, su medidor único y neto recibe
+reconstrucción bajo una frontera y no bajo la otra. El asterisco remite a
+la declaración de honestidad, con la misma convención que C-76 usó para
+los arranques tardíos.
+
+**La figura del umbral gana el antes que su pie prometía.** Él lo señaló:
+«aquí debería verse la serie antes del proceso». La única curva dibujada
+era la serie ya limpia, es decir, la salida, y el antes eran dos
+marcadores sueltos. Entra la serie que el umbral mira, que es la
+reconstruida y no la cruda, porque la diferencia entre cruda y
+reconstruida es asunto de la figura de la reconstrucción y aquí solo
+metería ruido. Va por debajo y con trazo propio, discontinua y más fina,
+de modo que la salida sigue mandando en grosor.
+
+**El premio de hacerlo, medido.** Las dos curvas coinciden en toda la
+ventana menos en una hora: **1 de las 73 horas** en cada frontera. Eso
+prueba lo que la figura solo afirmaba, que el tratamiento es puntual y no
+un alisado de la serie entera. La expectativa de que la frontera
+secundaria mostrara más divergencias no se cumple en esta ventana: esa
+institución arrastra 119 horas tratadas en todo el horizonte, pero
+ninguna cae en estos tres días. El rótulo publica la cuenta en las dos
+filas, de manera que si el caso cambia la cifra cambia con él.
+
+**Comprobaciones de cierre.** Cero solapamientos en las ocho figuras del
+capítulo. Escala de grises: en los perfiles, M1 continua con círculos
+frente a M3 discontinua con triángulos; en el umbral, la salida en trazo
+lleno y grueso frente a la entrada discontinua y fina. Los hermanos tienen
+135 y 2 filas.
+
+---
+
+## C-124 · Los ritmos pasan a las dos fronteras, y la asimetría del fin de semana resulta valer cosas distintas en cada una
+
+**2026-09-05 · tipo: `figura` + `dato` · aplicada · era la última del capítulo que incumplía la regla de las dos fronteras**
+
+`f3_09_ritmos` pasa a un archivo único con las dos fronteras. El panel del
+ritmo semanal se parte en dos filas, una por frontera, porque sus demandas
+medias se separan por un factor de casi cinco y en un solo eje la
+secundaria quedaría aplastada. El eje sigue en kilovatios y no
+normalizado, a propósito: lo que el panel tiene que dejar ver es si la
+generación cruza a la demanda, y eso solo se ve con las dos magnitudes en
+la misma escala.
+
+**La asimetría no vale lo mismo en las dos, y eso es contenido nuevo.** La
+demanda cae el \pct{42.5} el fin de semana en el circuito principal y el
+\pct{46.8} en el secundario, mientras la generación baja el \pct{1.7} en
+las dos, porque es la misma serie. Pero la consecuencia es distinta: en
+las horas de sol, de 8 a 16, la generación se queda \uni{58.9}{kW} por
+debajo de la demanda el día hábil y \uni{10.5}{kW} el fin de semana en el
+circuito principal, de modo que allí no hay excedente agregado ni siquiera
+el domingo; en el secundario la supera en \uni{7.5}{kW} el día hábil y en
+\uni{19.5}{kW} el fin de semana, es decir, dos veces y media más. La
+frase del capítulo, que el fin de semana es periodo de excedente, se
+sostiene en la frontera secundaria y no en la principal, y el panel lo
+enseña como cruce de curvas.
+
+**El panel mensual se conserva, y hay una medida que lo justifica.** Se
+solapa en parte con la segunda banda de la figura de cierre, que recorre
+el horizonte día a día, pero aquella lleva la razón entre generación y
+demanda y una razón no dice cuál de sus dos términos se movió. Medido: la
+demanda mensual recorre un factor de 1,76 en el circuito principal y de
+1,58 en el secundario, y la generación solo 1,11. El vaivén de la razón
+es, por tanto, el de la demanda. Y hay un segundo aporte que la banda
+diaria no puede dar: en el circuito secundario la demanda mensual y la
+generación van casi montadas la una sobre la otra, que es la forma visible
+de una razón próxima a uno. La fila 3.10 de la tabla maestra, que pedía
+una figura aparte para el ritmo anual, queda absorbida por este panel.
+
+**Fuera las dos líneas de prosa del panel izquierdo.** Queda una sola
+cifra por fila, la caída de la demanda, junto a la geometría que nombra,
+que es la distancia entre sus dos curvas. Lo demás lo dice el párrafo.
+
+**Un rótulo colocado midiendo.** Las tres etiquetas del margen del panel
+mensual acaban el horizonte muy juntas, la demanda del circuito secundario
+y la generación a \uni{1.1}{kW} una de otra, que sobre ese eje son tres
+puntos tipográficos para dos rótulos de dos líneas. Se reparten con el
+mismo auxiliar que ya usa la anatomía del umbral.
+
+**Comprobaciones de cierre.** Cero solapamientos en las nueve figuras del
+capítulo. Escala de grises: demanda en tinta y generación en verde, que en
+gris quedan a distinta luminosidad, y dentro de cada una el día hábil en
+trazo lleno y el fin de semana discontinuo; en el panel mensual, círculo,
+triángulo y cuadrado. El hermano tiene 125 filas.
+
+## C-125 · Los perfiles, normalizados, y el «antes» que faltaba en el umbral
+
+**2026-09-05 · tipo: `contenido` · aplicada**
+
+**Los perfiles.** La subseccion se titula «Cinco ritmos distintos» y su
+afirmacion es sobre la FORMA del dia, pero la figura daba a cada uno de
+los seis paneles su propia escala vertical y lo advertia al pie: «lo
+comparable entre ellos es la forma del perfil, no su altura». Es decir,
+pedia comparar formas y las dibujaba a escalas distintas. La nota no
+salvaba el problema, lo confesaba. Es el mismo vicio de C-120.
+
+Cada perfil pasa a dividirse por su propia media diaria, con lo que los
+cinco quedan sobre un eje comun y la diferencia de forma pasa a ser
+geometria. Entran las dos fronteras superpuestas en cada panel y el sexto
+trae la evidencia que faltaba, que es a que distancia media queda la forma
+de cada institucion de las otras cuatro, con el nivel absoluto al margen.
+
+**Una cautela que se escribe porque la cifra y el dibujo dicen cosas
+distintas y las dos son ciertas.** La correlacion entre fronteras mide si
+las subidas caen en las mismas horas, no la amplitud. Udenar la conserva
+con 0,96 y su recorrido casi se dobla entre fronteras, de 1,10 a 1,96; el
+HUDN baja a 0,63 y sus dos curvas casi se tocan, porque las dos son planas
+y su diferencia media vale 0,05. El parrafo dice cual de las dos esta
+leyendo.
+
+**El umbral.** La unica curva que se dibujaba era la serie ya limpia, o
+sea la salida, y el «antes» eran dos marcadores sueltos: el pie prometia
+un antes y un despues y entregaba el despues con una marca encima. Lo
+señalo el autor. Entra la serie que el umbral mira, y con ella una cuenta
+que demuestra lo que antes solo se afirmaba: **las dos curvas coinciden en
+toda la ventana menos en una hora de 73**, en las dos fronteras, de modo
+que el tratamiento es puntual y no un alisado de la serie.
+
+## C-126 · El ritmo semanal, con las dos fronteras, y lo que aparece al medir la segunda
+
+**2026-09-05 · tipo: `contenido` · aplicada**
+
+La figura imprimia solo la frontera principal y tenia la secundaria
+huerfana en disco, contra la regla de las dos fronteras en una sola
+imagen. Era la ultima del capitulo que la incumplia.
+
+**Al medir la segunda aparece que la asimetria no produce lo mismo en las
+dos.** La demanda cae el 42,5 % con el fin de semana en el circuito
+principal y el 46,8 % en el secundario, y la generacion baja 1,7 % en los
+dos porque es la misma serie. Pero en horas de sol la generacion se queda
+58,9 kW por debajo de la demanda el dia habil en el principal y 10,5 kW el
+fin de semana, es decir, **alli el fin de semana acerca las dos curvas sin
+llegar a cruzarlas**; en el secundario las cruza en los dos casos, con
+7,5 kW el dia habil y 19,5 kW el fin de semana.
+
+**Se añade una cautela que el agente no acoto y que importa.** Que el
+agregado no cruce en el circuito principal no dice que alli no haya nada
+que intercambiar: el intercambio ocurre entre instituciones dentro de cada
+hora y no entre agregados. Lo que la resta indica es de donde procede el
+excedente que se transa, del desajuste entre unas y otras en el principal
+y ademas de un sobrante del conjunto en el secundario.
+
+El panel mensual se conserva, y con razon medida: la banda diaria de la
+figura de cierre lleva la razon entre generacion y demanda, y **una razon
+no dice cual de sus dos terminos se movio**. Aqui se ve, porque la demanda
+recorre un factor de 1,76 en el principal y 1,58 en el secundario y la
+generacion solo 1,11.
+
+**Con esto el capitulo queda entero en archivos unicos con las dos
+fronteras.** Las dos referencias con sufijo que sobreviven son legitimas:
+el recorrido de una hora del archivo a la serie, que es un solo medidor y
+no tiene version secundaria, y el caso detallado de la reconstruccion, que
+va precedido del mosaico de las diez series en las dos fronteras.
+
+
+---
+
+## C-127 · La segunda fila del caso del umbral dibujaba el mismo medidor de la primera, escalado
+
+**2026-09-05 · tipo: `figura` + `dato` · aplicada · él lo vio: «estás usando los mismos medidores pero escalados»**
+
+Las dos filas de la figura del caso dibujaban la misma hora del mismo
+aparato con otro eje, porque la serie secundaria de la Universidad Mariana
+es la principal multiplicada por 0,3. La segunda fila no comprobaba nada;
+era la primera repetida.
+
+**Lo que falla es la regla, no la fecha.** La selección tomaba la hora
+retirada aislada de mayor exceso relativo, y esa regla no excluía las
+series que no son una medición propia de su frontera. Se le añade esa
+condición, y se comprueba sobre el dato en vez de declararla a mano: una
+serie queda fuera cuando su cociente con la de la otra frontera es
+constante en todo el horizonte y su valor es la fracción, que es la que se
+obtuvo multiplicando. La Universidad Mariana bajo M3 da un cociente de
+0,3 con desviación 5,9e-18; en las otras cuatro el cociente varía entre
+0,08 y 2,5, de modo que la prueba las distingue sin ambigüedad. Las series
+que se comparan son las que ve el umbral, es decir, la lectura del medidor
+y la generación tal como entra al filtro; con la generación devuelta el
+cociente valdría cero en las cinco de la frontera secundaria y la prueba
+las marcaría todas.
+
+**Excluida esa, solo queda una candidata en la frontera secundaria y es la
+mejor posible.** Las horas retiradas allí son las dos de CESMAG, las dos
+aisladas: el 4 de abril con un exceso del \pct{2.5} y el 9 de mayo con el
+\pct{9.0}. Gana el **9 de mayo de 2025 a las 9, que entra con
+\uni{19.2}{kW} sobre un umbral de \uni{17.6}{kW} y sale con
+\uni{17.2}{kW}**, interpolada entre 17,53 y 16,81.
+
+**Dos razones más para que sea esa.** CESMAG es la institución donde manda
+el segundo criterio, de modo que la fila secundaria pasa a ilustrar el
+criterio que el capítulo defiende en vez de repetir el primero. Y
+sobrevive a la decisión pendiente del multiplicador: con 7, CESMAG
+conserva sus dos horas bajo M3 mientras la frontera principal se queda sin
+ninguna, caso que el respaldo de la figura ya contempla.
+
+**Lo que cambia en el texto.** El pie y el párrafo decían que las dos
+filas dibujan la misma hora porque una serie es la otra escalada. Deja de
+ser cierto y pasa a ser lo contrario: cada fila es una institución, un
+medidor y una fecha distintos, y por eso la figura comprueba dos veces en
+vez de una.
+
+## C-128 · El texto del caso del umbral, con dos medidores distintos
+
+**2026-09-05 · tipo: `numerica` · aplicada**
+
+C-127 cambia la regla de seleccion de la figura, no su fecha: excluye las
+series que no son una medicion propia de su frontera. El texto se ajusta
+en tres sitios y **cambia una afirmacion por su contraria**: donde decia
+que las dos filas dibujan la misma hora porque la serie secundaria es la
+principal escalada, ahora dice que cada fila comprueba en un aparato
+distinto, que era el defecto que el autor señalo.
+
+**Cuatro cifras retiradas y cuatro nuevas.** Salen las de Mariana bajo la
+frontera secundaria, 10,3 / 9,1 / 13,9 % / 7,2, que no deben publicarse
+porque eran las de la principal multiplicadas por 0,3. Entran las de
+CESMAG el 9 de mayo: entra con 19,2 kW sobre un umbral de 17,6 kW, un
+exceso del 9,0 %, y sale con 17,2 kW. Verificadas contra el hermano de la
+figura.
+
+**Y el caso nuevo aporta lo que el viejo no.** CESMAG es la institucion
+donde manda el segundo criterio, de modo que la figura pasa a ilustrar los
+dos criterios en vez de repetir el primero. Sobrevive ademas a la decision
+del multiplicador que sigue abierta: con 7 conserva sus dos horas, mientras
+la frontera principal se queda sin ninguna.
+
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |
@@ -5006,7 +5654,7 @@ salvo el recorte de 46,7 kWh de la Universidad Mariana.
 | P-13 | Quedan dentro de notas al pie de figura, que no se tocan por decisión del autor: «Cesmag» en minúsculas en los capítulos 3, 4 y 5; mezclas de cifras y palabras contrarias a la norma; y en el capítulo 4, dos notas que sostienen la contraposición que C-40 retiró del cuerpo. | pendiente de decisión |
 | P-16 | Las etiquetas internas y los nombres de fichero de dos figuras conservan «cobertura» en el sentido de frontera (`fig:frontera-cobertura`, `f4_02_cobertura.png`). No son prosa y no cambian nada impreso; renombrarlos obliga a tocar los generadores. | pendiente |
 | P-17 | ~~Los tramos de un mismo medidor se solapan en un instante exacto y el código los suma.~~ **CERRADA el 2026-09-03 por C-87**: `pd.concat(parts, axis=1).sum(axis=1, min_count=1)` pasa a `.mean(axis=1)` en `data/preprocessing.py`. Equivalencia comprobada en todo lo demás. Efecto medido: la demanda comunitaria pasa de 254.949,9 a 254.948,7 kWh, 1,2 kWh, el 0,0005 %, y **ninguna cifra publicada cambia porque las dos redondean a 254.949**. El código queda por delante del canon hasta la próxima corrida. | cerrada |
-| P-18 | ~~La etapa que fija la zona horaria no tiene una sola palabra de prosa.~~ **CERRADA por C-83**: subsección propia, con la suposición declarada y comprobada sobre el dato (el máximo de generación cae entre las 11 y las 12 en las cinco instituciones). | cerrada |
+| P-18 | ~~La etapa que fija la zona horaria no tiene una sola palabra de prosa.~~ **CERRADA por C-83** y **reabierta y recerrada de otra forma por C-117 y C-118**: la subsección propia se retira, porque localizar un índice no es una etapa, y la comprobación se muda a la subsección de las matrices, sobre la hora media ponderada por la energía (12:06) en vez del máximo, que se decidía por 0,09 kW. | cerrada |
 | P-20 | ~~Declarar un umbral de cobertura para la hora incompleta.~~ **CERRADA por C-72**: aplicado como prueba de fragilidad, no como regla, porque mover el agregado 0,026 % no justifica invalidar el canon. | cerrada |
 | P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |

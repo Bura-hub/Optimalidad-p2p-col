@@ -974,334 +974,398 @@ def f31d_duplicados():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f32_demanda_negativa(cobertura: str = "m1"):
+def f32_demanda_negativa():
     """
     F3.2 — La demanda que el medidor entrega en negativo.
 
-    Izquierda: el perfil medio de la institución cuyo promedio horario cae
-    bajo cero, a solas. Se dibuja una sola serie a propósito. Los perfiles
-    medios de Mariana y de la UCC no bajan de cero aunque las dos tengan
-    horas negativas, de modo que ponerlas juntas escondía el fenómeno en
-    dos de las tres afectadas y dejaba cinco curvas indistinguibles.
+    Una fila por frontera. A la izquierda, el perfil de la institución que
+    carga con el fenómeno en esa frontera, dibujado dos veces, en promedio
+    y en mínimo de cada hora, sobre las cuatro restantes en promedio y en
+    gris de contexto. A la derecha, cuántas horas caen bajo cero en cada
+    hora del día, apiladas por institución.
 
-    Derecha: cuántas horas caen bajo cero en cada hora del día, apiladas
-    por institución. Ese es el argumento del capítulo, que el valor
-    negativo no es ruido porque se concentra cuando el sol produce, y
-    hasta ahora solo estaba enunciado en el texto.
+    **Por qué van las dos curvas y no una.** Las dos fronteras no admiten
+    la misma lectura: bajo M1 el promedio horario de Udenar entra en la
+    zona imposible, y bajo M3 ningún promedio lo hace, de modo que dibujar
+    solo promedios dejaría la segunda fila sin fenómeno y dibujar solo
+    mínimos perdería lo que la primera enseña, que es que el neteo arrastra
+    la media entera de una institución y no unos pocos casos sueltos.
+    Medido: con el mínimo dibujado, la excursión negativa del promedio de
+    Udenar ocupa el 16,9 % del alto de su panel, y sin él, el 25,9 %; sigue
+    siendo legible, de modo que caben las dos.
 
-    El conteo por institución y los mínimos no se repiten aquí: los da la
-    Tabla de los tipos de medidor.
+    Esto corrige además un defecto de la versión anterior: en la frontera
+    secundaria la curva destacada era el mínimo de cada hora y las cuatro
+    de contexto seguían siendo promedios, sin que nada lo dijera. Eran
+    objetos distintos comparados en el mismo par de ejes.
+
+    El conteo por institución, la fracción, el mínimo y la energía hacia la
+    red no se repiten aquí: los da la tabla de los tipos de medidor. La
+    figura se queda con lo que solo se ve dibujando, que es la forma de la
+    campana solar y el promedio que se hunde.
     """
-    series, horas = D.preproceso(cobertura)
+    fig, ejes = plt.subplots(2, 2, figsize=(E.ANCHO_COMPLETO, 6.0),
+                             gridspec_kw={"width_ratios": [1, 1.18]})
+    filas = []
 
-    negativas = {}
-    for inst in E.ORDEN_INSTITUCIONES:
-        s = series[f"{inst}__D_raw"]
-        n = int((s < 0).sum())
-        if n:
-            negativas[inst] = s
-    assert negativas, f"ninguna institución con negativos en {cobertura}"
+    for fila, cob in enumerate(("m1", "m3")):
+        ax1, ax2 = ejes[fila]
+        series, _ = D.preproceso(cob)
 
-    # El panel izquierdo lo ocupa quien más horas negativas acumula, y se
-    # dibuja su media si esa media llega a bajar de cero. Cuando ninguna
-    # media baja, como ocurre en la frontera secundaria, se dibuja el
-    # mínimo de cada hora, que es lo que sí desciende, y el título lo dice.
-    principal = max(negativas, key=lambda i: int((negativas[i] < 0).sum()))
-    s = negativas[principal]
-    media = s.groupby(s.index.hour).mean()
-    if media.min() < 0:
-        curva, que = media, "El perfil medio"
-    else:
-        curva, que = s.groupby(s.index.hour).min(), "El mínimo de cada hora"
+        negativas = {i: series[f"{i}__D_raw"] for i in E.ORDEN_INSTITUCIONES
+                     if (series[f"{i}__D_raw"] < 0).any()}
+        assert negativas, f"ninguna institución con negativos en {cob}"
+        principal = max(negativas, key=lambda i: int((negativas[i] < 0).sum()))
+        s = negativas[principal]
+        media = s.groupby(s.index.hour).mean()
+        minimo = s.groupby(s.index.hour).min()
 
-    fig, (ax1, ax2) = plt.subplots(
-        1, 2, figsize=(E.ANCHO_COMPLETO, 3.3),
-        gridspec_kw={"width_ratios": [1, 1.22]})
+        # ── Izquierda: la curva que se hunde, y las que no ───────────────
+        # Las otras cuatro van en gris de contexto y en promedio, que es la
+        # misma definicion que la curva gruesa de su fila: cinco colores
+        # compitiendo enterrarian la lectura, y comparar un minimo contra
+        # cuatro promedios compararia objetos distintos.
+        otras = []
+        for inst in E.ORDEN_INSTITUCIONES:
+            if inst == principal:
+                continue
+            o = series[f"{inst}__D_raw"]
+            otras.append(o.groupby(o.index.hour).mean())
+        for k, o in enumerate(otras):
+            ax1.plot(o.index, o.values, color="#BFBFBF", linewidth=1.1,
+                     zorder=2, label="Las otras cuatro, en promedio"
+                     if k == 0 else None)
 
-    # ── Izquierda: la curva que se hunde, y las que no ──────────────────
-    # Las otras cuatro van en gris de contexto y no en su color. El
-    # contraste es el argumento: cuatro perfiles se quedan arriba y uno
-    # se hunde. Cinco colores compitiendo enterrarian esa lectura.
-    otras = []
-    for inst in E.ORDEN_INSTITUCIONES:
-        if inst == principal:
-            continue
-        o = series[f"{inst}__D_raw"]
-        otras.append(o.groupby(o.index.hour).mean())
-    for k, o in enumerate(otras):
-        ax1.plot(o.index, o.values, color="#BFBFBF", linewidth=1.1, zorder=2,
-                 label="Las otras cuatro" if k == 0 else None)
+        color = E.color_institucion(principal)
+        etiqueta = E.etiqueta_institucion(principal)
+        ax1.plot(minimo.index, minimo.values, color=color, linewidth=1.1,
+                 linestyle=(0, (4, 2)), zorder=3,
+                 label=f"{etiqueta}, mínimo de cada hora")
+        ax1.plot(media.index, media.values, color=color, linewidth=2.0,
+                 zorder=4, label=f"{etiqueta}, en promedio")
+        ax1.axhline(0, color="#333333", linewidth=1.0, zorder=3)
 
-    color = E.color_institucion(principal)
-    ax1.plot(curva.index, curva.values, color=color, linewidth=2.0, zorder=4,
-             label=E.etiqueta_institucion(principal))
-    ax1.axhline(0, color="#333333", linewidth=1.0, zorder=3)
+        techo = max([float(media.max())] + [float(o.max()) for o in otras])
+        piso = float(minimo.min())
+        alto = techo - piso
+        lo, hi = piso - 0.10 * alto, techo + 0.34 * alto
+        ax1.set_ylim(lo, hi)
+        ax1.axhspan(lo, 0, color=E.ANTES, alpha=0.09, zorder=0)
+        ax1.legend(loc="upper left", fontsize=6.6, frameon=False,
+                   handlelength=1.4, handletextpad=0.5, borderpad=0.2,
+                   labelspacing=0.3)
 
-    techo = max([float(curva.max())] + [float(o.max()) for o in otras])
-    alto = techo - float(curva.min())
-    lo = float(curva.min()) - 0.30 * alto
-    hi = techo + 0.26 * alto
-    ax1.set_ylim(lo, hi)
-    ax1.legend(loc="upper left", fontsize=7, frameon=False,
-               handlelength=1.1, handletextpad=0.5, borderpad=0.2)
-    ax1.axhspan(lo, 0, color=E.ANTES, alpha=0.09, zorder=0)
-    ax1.text(0.6, lo + 0.16 * (0 - lo),
-             "zona imposible: un edificio\nno consume energía negativa",
-             ha="left", va="center", fontsize=7.2, color=E.ANTES,
-             style="italic", linespacing=1.35, zorder=5)
+        # La zona imposible se rotula una vez, en la fila de arriba: la
+        # banda es identica en las dos y el rotulo repetido gasta el sitio
+        # que necesita la curva.
+        if fila == 0:
+            # Dos palabras y en el único hueco de la banda, que son las
+            # horas de noche a la izquierda: la glosa de dos líneas que
+            # había antes la cruzaban las dos curvas, porque el mínimo de
+            # cada hora recorre la banda entera de las 6 a las 18. Lo que
+            # decía la glosa lo dice ahora el pie.
+            ax1.text(0.3, -0.07 * (0 - lo), "zona imposible", ha="left",
+                     va="top", fontsize=7.0, color=E.ANTES, style="italic",
+                     zorder=5)
 
-    h_min = int(curva.idxmin())
-    ax1.text(22.0, float(curva.min()) - 0.09 * alto,
-             f"{E.fmt_miles(float(curva.min()), 1)} kW a las {h_min}",
-             ha="right", va="center", fontsize=7.2, color=color,
-             zorder=6)
-    ax1.set_xlabel("Hora del día")
-    ax1.set_ylabel("Demanda del medidor (kW)")
-    ax1.set_title(f"{que}, tal como llega del medidor", pad=8)
-    ax1.set_xticks(range(0, 24, 6))
+        # Lo unico que se rotula del perfil es lo que la tabla no trae: si
+        # el promedio entra o no en la zona imposible. Los minimos por
+        # institucion los publica la tabla de los tipos de medidor.
+        if float(media.min()) < 0:
+            h = int(media.idxmin())
+            ax1.annotate(f"el promedio baja\na "
+                         f"{E.fmt_miles(float(media.min()), 1)} kW a las {h}",
+                         xy=(h, float(media.min())),
+                         xytext=(h + 4.2, float(media.min()) - 0.01 * alto),
+                         fontsize=6.8, color=color, ha="left", va="center",
+                         linespacing=1.3,
+                         arrowprops=dict(arrowstyle="-", color=color, lw=0.7,
+                                         shrinkA=1, shrinkB=3), zorder=6)
+        else:
+            # Sobre el tramo final de la propia curva, que es la única
+            # región libre: arriba a la derecha se imprimía sobre la
+            # leyenda y en medio cruzaba las cuatro de contexto.
+            ax1.text(23.4, float(media.iloc[-1]) + 0.05 * alto,
+                     "el promedio no entra\nen la zona imposible",
+                     fontsize=6.8, color=color, ha="right", va="bottom",
+                     linespacing=1.3, zorder=6)
 
-    # ── Derecha: cuándo ocurre ──────────────────────────────────────────
-    conteos = {}
-    for inst, s in negativas.items():
-        c = (s < 0).groupby(s.index.hour).sum().reindex(range(24), fill_value=0)
-        conteos[inst] = c
-    base = np.zeros(24)
-    for inst in E.ORDEN_INSTITUCIONES:
-        if inst not in conteos:
-            continue
-        v = conteos[inst].values.astype(float)
-        ax2.bar(range(24), v, bottom=base, width=0.82,
-                color=E.color_institucion(inst),
-                label=E.etiqueta_institucion(inst),
-                edgecolor="white", linewidth=0.5, zorder=3)
-        base += v
+        ax1.set_xlabel("Hora del día", fontsize=7.6)
+        ax1.set_ylabel("Demanda del medidor (kW)", fontsize=7.6)
+        ax1.set_xticks(range(0, 24, 6))
+        ax1.tick_params(labelsize=7)
+        if fila == 0:
+            ax1.set_title("Cómo llega del medidor", pad=8)
 
-    pico = int(np.argmax(base))
-    # El eje se acota a las horas que tienen dato: sobre 0 a 23 la mitad
-    # del panel queda vacía y las barras se estrechan sin necesidad.
-    con_dato = np.flatnonzero(base > 0)
-    h0, h1 = int(con_dato[0]) - 1, int(con_dato[-1]) + 1
-    ax2.annotate(f"{E.fmt_miles(base[pico])} horas",
-                 xy=(pico, base[pico]),
-                 xytext=(pico + (h1 - pico) * 0.42, base[pico] * 1.13),
-                 fontsize=7.2, color="#555555", ha="left", va="center",
-                 arrowprops=dict(arrowstyle="-", color="#999999", lw=0.8,
-                                 shrinkA=1, shrinkB=3), zorder=6)
-    # Las instituciones sin negativos no se dibujan: la leyenda de tres
-    # ya lo dice, y el rotulo dentro del panel chocaba con las barras.
-    # Quienes son lo dice el cuerpo del texto.
-    ax2.set_ylim(0, base.max() * 1.42)
-    ax2.set_xlim(h0 - 0.6, h1 + 0.6)
-    ax2.set_xlabel("Hora del día")
-    ax2.set_ylabel("Horas con lectura negativa")
-    ax2.set_title("Cuándo ocurre", pad=8)
-    ax2.set_xticks(range(h0 + (h0 % 2), h1 + 1, 2))
-    ax2.text(h1 + 0.4, base.max() * 1.36,
-             f"{E.fmt_miles(base.sum())} horas en total",
-             ha="right", va="center", fontsize=7.2, color="#555555")
-    ax2.legend(loc="upper left", fontsize=7, frameon=False,
-               handlelength=1.1, handletextpad=0.5, borderpad=0.2)
+        for h in range(24):
+            filas.append({"zona": "perfil", "frontera": cob.upper(),
+                          "institucion": principal, "hora": h,
+                          "promedio_kW": round(float(media[h]), 6),
+                          "minimo_kW": round(float(minimo[h]), 6)})
 
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+        # ── Derecha: cuándo ocurre ──────────────────────────────────────
+        conteos = {i: (t < 0).groupby(t.index.hour).sum()
+                          .reindex(range(24), fill_value=0)
+                   for i, t in negativas.items()}
+        base = np.zeros(24)
+        for inst in E.ORDEN_INSTITUCIONES:
+            if inst not in conteos:
+                continue
+            v = conteos[inst].values.astype(float)
+            ax2.bar(range(24), v, bottom=base, width=0.82,
+                    color=E.color_institucion(inst),
+                    label=E.etiqueta_institucion(inst),
+                    edgecolor="white", linewidth=0.5, zorder=3)
+            base += v
+            filas += [{"zona": "horas_negativas", "frontera": cob.upper(),
+                       "institucion": inst, "hora": int(h), "horas": int(x)}
+                      for h, x in conteos[inst].items() if x]
 
-    filas = [{"zona": "perfil", "institucion": principal, "hora": h,
-              "valor": round(float(v), 6), "unidad": "kW"}
-             for h, v in curva.items()]
-    for inst in E.ORDEN_INSTITUCIONES:
-        if inst in conteos:
-            filas += [{"zona": "horas_negativas", "institucion": inst,
-                       "hora": h, "valor": int(v), "unidad": "h"}
-                      for h, v in conteos[inst].items()]
+        pico = int(np.argmax(base))
+        con_dato = np.flatnonzero(base > 0)
+        h0, h1 = int(con_dato[0]) - 1, int(con_dato[-1]) + 1
+        ax2.annotate(f"{E.fmt_miles(base[pico])} horas",
+                     xy=(pico, base[pico]),
+                     xytext=(pico + (h1 - pico) * 0.42, base[pico] * 1.13),
+                     fontsize=6.8, color="#555555", ha="left", va="center",
+                     arrowprops=dict(arrowstyle="-", color="#999999", lw=0.8,
+                                     shrinkA=1, shrinkB=3), zorder=6)
+        ax2.set_ylim(0, base.max() * 1.42)
+        ax2.set_xlim(h0 - 0.6, h1 + 0.6)
+        ax2.set_xlabel("Hora del día", fontsize=7.6)
+        ax2.set_ylabel("Horas con lectura negativa", fontsize=7.6)
+        ax2.set_xticks(range(h0 + (h0 % 2), h1 + 1, 2))
+        ax2.tick_params(labelsize=7)
+        ax2.text(h1 + 0.4, base.max() * 1.36,
+                 f"{E.fmt_miles(base.sum())} horas en total",
+                 ha="right", va="center", fontsize=6.8, color="#555555")
+        ax2.legend(loc="upper left", fontsize=6.6, frameon=False,
+                   handlelength=1.1, handletextpad=0.5, borderpad=0.2,
+                   labelspacing=0.3)
+        if fila == 0:
+            ax2.set_title("Cuándo ocurre", pad=8)
 
+        # La frontera rotula la fila entera, en su color, fuera del area de
+        # dato, como en la anatomia del umbral.
+        ax1.text(-0.30, 0.5, E.titulo_cobertura(cob, dos_lineas=True),
+                 transform=ax1.transAxes, rotation=90, fontsize=7.0,
+                 fontweight="bold", color=E.COBERTURAS[cob], ha="center",
+                 va="center")
+
+    fig.tight_layout(rect=(0, 0, 1, 0.995), h_pad=2.6)
     return E.guardar(
-        fig, f"f3_02_demanda_negativa_{cobertura}", datos=pd.DataFrame(filas),
-        procedencia=[D.rel(D.CACHE / f"preproceso_{cobertura}.npz")
-                     if hasattr(D, "CACHE") else
-                     "reformateo/documento/datos_cache/"
-                     f"preproceso_{cobertura}.npz"])
+        fig, "f3_02_demanda_negativa", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+        ])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-def f32b_profundidad(cobertura: str = "m1"):
+def f32b_profundidad():
     """
-    F3.3 — Hasta dónde baja la lectura de cada medidor.
+    F3.3 — Hasta dónde baja la lectura de cada medidor, en las dos fronteras.
 
-    Sustituye a la curva de duración que ocupaba este sitio. Aquella
-    tenía en el eje horizontal un percentil de horas ordenadas, es decir
-    un orden y no una magnitud, y el lector llegaba a ella desde la
-    figura de la demanda negativa, cuyo eje horizontal es la hora del
-    día. Medido sobre aquel render: el 80 % de las lecturas de las cinco
-    instituciones cabía en 15 puntos tipográficos del panel izquierdo,
-    y en el derecho los cruces de Mariana y de la UCC quedaban a 9,6
-    puntos con un marcador de 4,5, de modo que la gradación entre los
-    dos casos intermedios no se podía leer.
+    Sustituye a la curva de duración que ocupaba este sitio. Aquella tenía
+    en el eje horizontal un percentil de horas ordenadas, es decir un orden
+    y no una magnitud, y el lector llegaba a ella desde la figura de la
+    demanda negativa, cuyo eje horizontal es la hora del día.
 
-    Qué añade esta figura sobre la tabla de los tipos. La tabla publica
-    el conteo de horas bajo cero y el mínimo, que es un extremo. No dice
-    a qué profundidad ocurre la inversión de ordinario, y la diferencia
-    importa: en Udenar la mitad central de las lecturas negativas cae
-    entre −15,1 y −3,9 kW, con mediana de −8,7, mientras que el mínimo
-    publicado, −33,6 kW, es casi cuatro veces esa mediana.
+    Qué añade sobre la tabla de los tipos. La tabla publica el conteo de
+    horas bajo cero, la fracción, el mínimo y la energía hacia la red. No
+    dice a qué profundidad ocurre la inversión de ordinario, y la
+    diferencia importa: en Udenar la mitad central de las lecturas
+    negativas cae entre −15,1 y −3,9 kW, con mediana de −8,7, mientras que
+    el mínimo publicado, −33,6 kW, es casi cuatro veces esa mediana.
 
-    La forma. Una fila por institución, en el orden fijo del documento,
-    y una sola magnitud en el eje horizontal, los kilovatios, que es la
-    misma del eje vertical de las dos figuras vecinas. Cada fila lleva la
-    lectura mediana del medidor, el recorrido desde esa mediana hasta su
-    lectura más baja, y la mitad central de sus lecturas negativas cuando
-    las tiene. La comparación entre lo que el medidor marca de ordinario
-    y hasta dónde desciende es la gradación misma, y en el HUDN y en
-    CESMAG ese recorrido no llega a tocar el cero.
+    La forma. Una fila por institución en el orden fijo, una sola magnitud
+    en el eje horizontal, los kilovatios, y un panel por frontera. Cada
+    fila lleva la lectura mediana del medidor, el recorrido desde esa
+    mediana hasta su lectura más baja, y la mitad central de sus lecturas
+    negativas cuando las tiene.
+
+    **Las dos escalas son independientes, y tienen que serlo.** El
+    recorrido dibujado abarca 51 kW en la frontera principal y 3,8 en la
+    secundaria, es decir, un factor de 13; con una escala común las cinco
+    filas de la derecha cabrían en el 7 % del ancho y la figura no podría
+    dibujar lo que afirma.
+
+    **El vacío de la derecha es el hallazgo, no una carencia.** Bajo M3
+    solo la Universidad Mariana cruza el cero, y apenas, porque es la
+    única institución sin medidor secundario y se representa escalando su
+    totalizador. Los otros cuatro circuitos nunca se acercan al cero, y es
+    lo que sostiene que la lectura imposible sea un asunto de la frontera
+    principal.
 
     La identidad de cada fila la lleva su rótulo y su posición, no el
     color, de modo que la figura sobrevive impresa en escala de grises.
-
-    Solo M1. En M3 los cinco medidores son brutos y no hay gradación.
     """
-    series, _ = D.preproceso(cobertura)
-    resumen = D.conteo_negativas(cobertura).set_index("institucion")
-
-    # El contrato es la tabla impresa del capítulo, no solo el caché. Si
-    # el caché cambia de versión, la figura se detiene antes de dibujar
-    # otra cosa con los mismos rótulos.
-    HORAS_TABLA = {"Udenar": 1517, "Mariana": 213, "UCC": 94,
-                   "HUDN": 0, "Cesmag": 0}
-    MIN_TABLA = {"Udenar": -33.567, "Mariana": -2.411, "UCC": -5.909}
-    # Las tres medianas y los dos mínimos que no cruzan son las cifras
-    # nuevas que el pie publica, y por eso entran también en la compuerta.
-    NEGMED_PIE = {"Udenar": -8.678, "Mariana": -0.590, "UCC": -1.938}
-    CAJA_PIE = {"Udenar": (-15.051, -3.902)}
+    # El contrato es la tabla impresa del capítulo, no solo el caché. Si el
+    # caché cambia de versión, la figura se detiene antes de dibujar otra
+    # cosa con los mismos rótulos.
+    HORAS_TABLA = {"m1": {"Udenar": 1517, "Mariana": 213, "UCC": 94,
+                          "HUDN": 0, "Cesmag": 0},
+                   "m3": {"Udenar": 0, "Mariana": 213, "UCC": 0,
+                          "HUDN": 0, "Cesmag": 0}}
+    MIN_TABLA = {"m1": {"Udenar": -33.567, "Mariana": -2.411, "UCC": -5.909},
+                 "m3": {"Mariana": -0.723}}
+    # Las medianas de las negativas y las cajas son las cifras nuevas que
+    # el pie publica, y por eso entran también en la compuerta.
+    NEGMED_PIE = {"m1": {"Udenar": -8.678, "Mariana": -0.590, "UCC": -1.938},
+                  "m3": {"Mariana": -0.177}}
+    CAJA_PIE = {"m1": {"Udenar": (-15.051, -3.902)},
+                "m3": {"Mariana": (-0.330, -0.089)}}
     FRAC_TABLA = {"Udenar": 73.8, "Mariana": 21.3, "UCC": 11.7,
                   "HUDN": 0.0, "Cesmag": 0.0}
     TIPO_TABLA = {"Udenar": "net", "Mariana": "net_partial",
                   "UCC": "net_partial", "HUDN": "gross", "Cesmag": "gross"}
 
-    med = {}      # lectura mediana de cada medidor
-    minimo = {}   # su lectura más baja
-    caja = {}     # mitad central de sus lecturas negativas
-    negmed = {}   # mediana de sus lecturas negativas
-    for inst in E.ORDEN_INSTITUCIONES:
-        v = series[f"{inst}__D_raw"].dropna().values
-        assert not np.isnan(v).any(), inst
-        assert 5900 <= len(v) <= 6144, (inst, len(v))
+    datos = {}
+    for cob in ("m1", "m3"):
+        series, _ = D.preproceso(cob)
+        resumen = D.conteo_negativas(cob).set_index("institucion")
+        med, minimo, caja, negmed = {}, {}, {}, {}
+        for inst in E.ORDEN_INSTITUCIONES:
+            v = series[f"{inst}__D_raw"].dropna().values
+            assert not np.isnan(v).any(), inst
+            assert 5900 <= len(v) <= 6144, (inst, len(v))
 
-        n_neg = int((v < 0).sum())
-        assert n_neg == HORAS_TABLA[inst], (inst, n_neg, HORAS_TABLA[inst])
-        assert n_neg == int(resumen.loc[inst, "horas_negativas"]), inst
+            n_neg = int((v < 0).sum())
+            assert n_neg == HORAS_TABLA[cob][inst], (cob, inst, n_neg)
+            assert n_neg == int(resumen.loc[inst, "horas_negativas"]), (cob, inst)
 
-        med[inst] = float(np.median(v))
-        minimo[inst] = float(v.min())
-        if inst in MIN_TABLA:
-            assert abs(minimo[inst] - MIN_TABLA[inst]) < 1e-3, (inst, minimo[inst])
-            neg = v[v < 0]
-            caja[inst] = (float(np.percentile(neg, 25)),
-                          float(np.percentile(neg, 75)))
-            negmed[inst] = float(np.median(neg))
-        else:
-            assert minimo[inst] > 0, (inst, minimo[inst])
+            med[inst] = float(np.median(v))
+            minimo[inst] = float(v.min())
+            if inst in MIN_TABLA[cob]:
+                assert abs(minimo[inst] - MIN_TABLA[cob][inst]) < 1e-3, \
+                    (cob, inst, minimo[inst])
+                neg = v[v < 0]
+                caja[inst] = (float(np.percentile(neg, 25)),
+                              float(np.percentile(neg, 75)))
+                negmed[inst] = float(np.median(neg))
+            else:
+                assert minimo[inst] > 0, (cob, inst, minimo[inst])
 
-        g = float(series[f"{inst}__G_recon"].sum())
-        d = float(series[f"{inst}__D_recon"].sum())
-        assert abs(round(100 * g / d, 1) - FRAC_TABLA[inst]) < 0.05, inst
+            if cob == "m1":
+                g = float(series[f"{inst}__G_recon"].sum())
+                d = float(series[f"{inst}__D_recon"].sum())
+                assert abs(round(100 * g / d, 1) - FRAC_TABLA[inst]) < 0.05, inst
+
+        for i, v in NEGMED_PIE[cob].items():
+            assert abs(negmed[i] - v) < 1e-3, (cob, i, negmed[i], v)
+        for i, (lo, hi) in CAJA_PIE[cob].items():
+            assert abs(caja[i][0] - lo) < 1e-3 and abs(caja[i][1] - hi) < 1e-3, \
+                (cob, i, caja[i])
+        datos[cob] = (series, med, minimo, caja, negmed)
 
     # Las afirmaciones que la figura dibuja y el pie enuncia.
-    assert abs(minimo["Cesmag"] - 0.195) < 5e-4, minimo["Cesmag"]
-    assert 6 < minimo["HUDN"] < 7, minimo["HUDN"]
-    for i, v in NEGMED_PIE.items():
-        assert abs(negmed[i] - v) < 1e-3, (i, negmed[i], v)
-    for i, (lo, hi) in CAJA_PIE.items():
-        assert abs(caja[i][0] - lo) < 1e-3 and abs(caja[i][1] - hi) < 1e-3,             (i, caja[i])
-    # Y la relación que el pie enuncia: el mínimo casi cuadruplica la
-    # inversión ordinaria de Udenar.
-    assert 3.7 < minimo["Udenar"] / negmed["Udenar"] < 4.0,         minimo["Udenar"] / negmed["Udenar"]
-    assert minimo["Udenar"] < caja["Udenar"][0] < negmed["Udenar"] \
-        < caja["Udenar"][1] < 0, caja["Udenar"]
-    # La proporción de horas de Udenar, tal como el texto la publica.
-    su = series["Udenar__D_raw"]
+    series1, med1, min1, caja1, negmed1 = datos["m1"]
+    assert abs(min1["Cesmag"] - 0.195) < 5e-4, min1["Cesmag"]
+    assert 6 < min1["HUDN"] < 7, min1["HUDN"]
+    assert 3.7 < min1["Udenar"] / negmed1["Udenar"] < 4.0, \
+        min1["Udenar"] / negmed1["Udenar"]
+    assert min1["Udenar"] < caja1["Udenar"][0] < negmed1["Udenar"] \
+        < caja1["Udenar"][1] < 0, caja1["Udenar"]
+    su = series1["Udenar__D_raw"]
     assert round(100 * int((su < 0).sum()) / len(su), 1) == 24.7
     assert round(100 * int((su < 0).sum()) / int(su.notna().sum()), 1) == 25.1
-    # Y la nota al pie: al mediodía la inversión es lo ordinario en Udenar.
-    gu, du = series["Udenar__G_recon"], series["Udenar__D_recon"]
+    gu, du = series1["Udenar__G_recon"], series1["Udenar__D_recon"]
     mediodia = (gu > du)[gu.index.hour == 12]
     assert mediodia.mean() > 0.5, float(mediodia.mean())
-
-    # La otra frontera: allí solo Mariana baja de cero, las mismas horas.
-    otras, _ = D.preproceso("m3" if cobertura == "m1" else "m1")
-    neg_m3 = {i: int((otras[f"{i}__D_raw"].dropna() < 0).sum())
-              for i in E.ORDEN_INSTITUCIONES}
-    assert neg_m3 == {"Udenar": 0, "Mariana": 213, "UCC": 0,
-                      "HUDN": 0, "Cesmag": 0}, neg_m3
+    # Y lo que sostiene el panel de la derecha: allí cruza el cero una sola.
+    cruzan_m3 = [i for i in E.ORDEN_INSTITUCIONES if datos["m3"][2][i] < 0]
+    assert cruzan_m3 == ["Mariana"], cruzan_m3
 
     # ── Lienzo ───────────────────────────────────────────────────────────
-    fig, ax = E.figura(alto=2.7)
-    E.eje_instituciones(ax, eje="y")
-    ax.grid(visible=False, axis="y")
-    ax.grid(visible=True, axis="x")
+    fig, ejes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.1),
+                             sharey=True, gridspec_kw={"width_ratios": [1.35, 1]})
+    marcas = {}
+    for ax, cob in zip(ejes, ("m1", "m3")):
+        series, med, minimo, caja, negmed = datos[cob]
+        E.eje_instituciones(ax, eje="y")
+        ax.grid(visible=False, axis="y")
+        ax.grid(visible=True, axis="x")
 
-    XLO, XHI = -37.5, 13.5
-    ax.set_xlim(XLO, XHI)
-    ax.axvspan(XLO, 0, color=E.ANTES, alpha=0.07, zorder=0)
-    ax.axvline(0, color="#333333", linewidth=1.0, zorder=2)
+        # El margen se calcula del dato y no se fija a mano: las dos
+        # fronteras abarcan 51 y 3,8 kW.
+        piso = min(minimo.values())
+        techo = max(med.values())
+        ancho = techo - piso
+        xlo, xhi = piso - 0.10 * ancho, techo + 0.24 * ancho
+        ax.set_xlim(xlo, xhi)
+        ax.axvspan(xlo, 0, color=E.ANTES, alpha=0.07, zorder=0)
+        ax.axvline(0, color="#333333", linewidth=1.0, zorder=2)
 
-    # Las marcas se registran en coordenadas de dato, no como artistas.
-    # El extremo en pantalla de una coleccion de lineas no es fiable y
-    # devolvia una caja que no correspondia a la marca, de modo que la
-    # prueba de oclusion habria fallado sobre un objeto equivocado.
-    marcas = []   # (nombre, x0, x1, y0, y1) en unidades de dato
-    for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
-        c = E.color_institucion(inst)
-        # El recorrido de la lectura mediana a la más baja.
-        ax.plot([minimo[inst], med[inst]], [k, k], color=c,
-                linewidth=1.4, solid_capstyle="butt", zorder=4)
-        marcas.append((f"recorrido {inst}", minimo[inst], med[inst],
-                       k - 0.02, k + 0.02))
-        # La mitad central de las lecturas negativas, donde las hay.
-        if inst in caja:
-            lo, hi = caja[inst]
-            ax.add_patch(Rectangle((lo, k - 0.17), hi - lo, 0.34,
-                                   facecolor=c, edgecolor="white",
-                                   linewidth=0.5, zorder=5))
-            marcas.append((f"caja {inst}", lo, hi, k - 0.17, k + 0.17))
-        # La lectura más baja.
-        ax.plot([minimo[inst]], [k], marker="o", markersize=5.2,
-                color=c, markeredgecolor="white", markeredgewidth=0.7,
-                zorder=6)
-        marcas.append((f"mínimo {inst}", minimo[inst], minimo[inst],
-                       k, k))
-        # La lectura mediana, en tinta y no en color: es la referencia
-        # contra la que se mide el descenso, y es la misma en las cinco.
-        ax.vlines(med[inst], k - 0.21, k + 0.21, color=E.TINTA,
-                  linewidth=1.8, zorder=7)
-        marcas.append((f"mediana {inst}", med[inst], med[inst],
-                       k - 0.21, k + 0.21))
+        # Las marcas se registran en coordenadas de dato, no como
+        # artistas: el extremo en pantalla de una colección de líneas no
+        # es fiable y la prueba de oclusión fallaría sobre otro objeto.
+        marcas[cob] = []
+        for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
+            c = E.color_institucion(inst)
+            ax.plot([minimo[inst], med[inst]], [k, k], color=c, linewidth=1.4,
+                    solid_capstyle="butt", zorder=4)
+            marcas[cob].append((f"recorrido {inst}", minimo[inst], med[inst],
+                                k - 0.02, k + 0.02))
+            if inst in caja:
+                lo, hi = caja[inst]
+                ax.add_patch(Rectangle((lo, k - 0.17), hi - lo, 0.34,
+                                       facecolor=c, edgecolor="white",
+                                       linewidth=0.5, zorder=5))
+                marcas[cob].append((f"caja {inst}", lo, hi, k - 0.17, k + 0.17))
+            ax.plot([minimo[inst]], [k], marker="o", markersize=5.2, color=c,
+                    markeredgecolor="white", markeredgewidth=0.7, zorder=6)
+            marcas[cob].append((f"mínimo {inst}", minimo[inst], minimo[inst],
+                                k, k))
+            # La lectura mediana, en tinta y no en color: es la referencia
+            # contra la que se mide el descenso, y es la misma en las diez.
+            ax.vlines(med[inst], k - 0.21, k + 0.21, color=E.TINTA,
+                      linewidth=1.8, zorder=7)
+            marcas[cob].append((f"mediana {inst}", med[inst], med[inst],
+                                k - 0.21, k + 0.21))
 
-    # Segunda columna de rótulos, fuera del área de dato: el tipo que la
-    # subsección asigna a cada medidor. Puesta al lado de la geometría
-    # deja ver que el neto parcial se parece más al bruto que al neto.
-    axd = ax.twinx()
-    axd.set_ylim(ax.get_ylim())
+        ax.set_xlabel("Lectura del medidor (kW)", fontsize=7.6)
+        ax.set_title(E.titulo_cobertura(cob, dos_lineas=True),
+                     color=E.COBERTURAS[cob], fontweight="bold", pad=8,
+                     fontsize=8.2)
+        ax.tick_params(labelsize=7.5)
+
+    # Segunda columna de rótulos en el panel de la izquierda, fuera del
+    # área de dato: el tipo que la subsección asigna a cada medidor.
+    # Puesta al lado de la geometría deja ver que el neto parcial se
+    # parece más al bruto que al neto.
+    axd = ejes[0].twinx()
+    axd.set_ylim(ejes[0].get_ylim())
     axd.grid(visible=False)
     axd.spines["right"].set_visible(False)
     axd.set_yticks(range(len(E.ORDEN_INSTITUCIONES)))
     axd.set_yticklabels([E.TIPO_MEDIDOR_ES[TIPO_TABLA[i]]
-                         for i in E.ORDEN_INSTITUCIONES], fontsize=7.6,
+                         for i in E.ORDEN_INSTITUCIONES], fontsize=7.0,
                         color=E.NEUTRO)
-    axd.tick_params(axis="y", length=0, pad=12)
+    axd.tick_params(axis="y", length=0, pad=8)
+    # La columna cae en el hueco entre los dos paneles, de modo que sin
+    # cabecera podría leerse como propia del de la derecha. El tipo es una
+    # propiedad de la frontera principal: en la secundaria los cinco son
+    # circuitos derivados.
+    axd.text(1.01, 1.015, "tipo en M1", transform=axd.transAxes, ha="left",
+             va="bottom", fontsize=6.3, color=E.NEUTRO)
 
-    # Un solo rótulo, y sin cifra. La mediana de las lecturas negativas,
-    # que es lo que la tabla no da, va al pie y al CSV hermano: leer
-    # valores exactos sobre el papel no es tarea de la figura. Y que el
-    # mínimo de CESMAG roce el cero sin cruzarlo lo dice su marca, puesta
-    # sobre la línea del cero; el rótulo que lo decía quedaba en el
-    # mismo renglón que la columna de tipos y se leía pegado a ella.
-    t3 = ax.text(XLO + 1.2, 3.72, "flujo invertido, es decir,"
-                 + chr(10) + "del circuito hacia la red",
-                 ha="left", va="center", fontsize=7.2, style="italic",
-                 color=E.ANTES, linespacing=1.35, zorder=9)
-
-    ax.set_xlabel("Lectura del medidor (kW)")
-    ax.set_title("Hasta dónde baja la lectura de cada medidor", pad=8)
-    ax.set_xticks([-30, -20, -10, 0, 10])
+    # Un solo rótulo por panel, y sin cifra: los valores exactos van al
+    # pie y al CSV hermano. En el panel de la derecha el rótulo dice lo
+    # que el vacío significa, que es que solo un circuito cruza el cero.
+    t1 = ejes[0].text(ejes[0].get_xlim()[0] + 0.03 * (ejes[0].get_xlim()[1]
+                                                      - ejes[0].get_xlim()[0]),
+                      3.72, "flujo invertido, es decir,\ndel circuito hacia la red",
+                      ha="left", va="center", fontsize=7.0, style="italic",
+                      color=E.ANTES, linespacing=1.35, zorder=9)
+    # En el panel de la derecha la banda del flujo invertido está casi
+    # vacía y es estrecha, de modo que el rótulo va girado dentro de ella:
+    # horizontal no cabía en ninguna fila sin tocar un recorrido, y la
+    # prueba de oclusión lo cazó contra el de CESMAG.
+    x3lo, x3hi = ejes[1].get_xlim()
+    t3 = ejes[1].text(x3lo + 0.03 * (x3hi - x3lo), 2.0,
+                      "solo un circuito cruza el cero",
+                      ha="center", va="center", rotation=90, fontsize=6.8,
+                      style="italic", color=E.ANTES, zorder=9)
 
     leyenda = [
         Line2D([], [], color=E.TINTA, linestyle="none", marker="|",
@@ -1314,55 +1378,52 @@ def f32b_profundidad(cobertura: str = "m1"):
         Patch(facecolor=E.NEUTRO, edgecolor="white", linewidth=0.5,
               label="Mitad central de las lecturas negativas"),
     ]
-    fig.legend(handles=leyenda, loc="lower center", ncol=4, fontsize=7.6,
+    fig.legend(handles=leyenda, loc="lower center", ncol=4, fontsize=7.0,
                frameon=False, handlelength=1.5, handletextpad=0.5,
-               columnspacing=1.4, bbox_to_anchor=(0.5, -0.012))
+               columnspacing=1.4, bbox_to_anchor=(0.5, -0.015))
 
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0.08, 1, 0.945))
+    fig.tight_layout(rect=(0, 0.09, 1, 0.995))
 
     # ── Ningún rótulo puede tapar dato ───────────────────────────────────
     # Las marcas se llevan a pantalla desde sus coordenadas de dato y se
-    # ensanchan 2,6 puntos, que es el radio del marcador del mínimo más
-    # la mitad del grosor de la línea de la mediana.
+    # ensanchan 2,6 puntos, que es el radio del marcador del mínimo más la
+    # mitad del grosor de la línea de la mediana.
     fig.canvas.draw()
     HOLGURA = 2.6 * fig.dpi / 72.0
-    cajas = []
-    for nombre, x0, x1, y0, y1 in marcas:
-        (px0, py0), (px1, py1) = ax.transData.transform([(x0, y0), (x1, y1)])
-        cajas.append((nombre, Bbox([[min(px0, px1) - HOLGURA,
-                                     min(py0, py1) - HOLGURA],
-                                    [max(px0, px1) + HOLGURA,
-                                     max(py0, py1) + HOLGURA]])))
-    bt = t3.get_window_extent()
-    for nombre, bm in cajas:
-        assert not bt.overlaps(bm), (t3.get_text(), nombre)
-    # Y ningún rótulo se sale de la caja del panel.
-    bax = ax.get_window_extent()
-    assert bax.contains(*bt.min) and bax.contains(*bt.max), t3.get_text()
-    # Ni la leyenda se sale del ancho de la figura.
+    for ax, cob, t in ((ejes[0], "m1", t1), (ejes[1], "m3", t3)):
+        bt = t.get_window_extent()
+        for nombre, x0, x1, y0, y1 in marcas[cob]:
+            (px0, py0), (px1, py1) = ax.transData.transform([(x0, y0), (x1, y1)])
+            bm = Bbox([[min(px0, px1) - HOLGURA, min(py0, py1) - HOLGURA],
+                       [max(px0, px1) + HOLGURA, max(py0, py1) + HOLGURA]])
+            assert not bt.overlaps(bm), (t.get_text(), cob, nombre)
+        bax = ax.get_window_extent()
+        assert bax.contains(*bt.min) and bax.contains(*bt.max), t.get_text()
     bl = fig.legends[0].get_window_extent()
     bf = fig.get_window_extent()
     assert bl.x0 >= bf.x0 and bl.x1 <= bf.x1, (bl.x0, bl.x1, bf.x1)
 
-    filas = [{"institucion": inst,
-              "tipo": E.TIPO_MEDIDOR_ES[TIPO_TABLA[inst]],
-              "horas_con_dato": int(series[f"{inst}__D_raw"].notna().sum()),
-              "horas_negativas": HORAS_TABLA[inst],
-              "mediana_kW": round(med[inst], 6),
-              "minimo_kW": round(minimo[inst], 6),
-              "negativas_p25_kW": round(caja[inst][0], 6) if inst in caja else "",
-              "negativas_mediana_kW": round(negmed[inst], 6) if inst in negmed else "",
-              "negativas_p75_kW": round(caja[inst][1], 6) if inst in caja else ""}
-             for inst in E.ORDEN_INSTITUCIONES]
-
-    print("  [f3.3] mediana de las lecturas negativas: " + ", ".join(
-        f"{i} {negmed[i]:.2f} kW" for i in negmed))
+    filas = []
+    for cob in ("m1", "m3"):
+        series, med, minimo, caja, negmed = datos[cob]
+        for inst in E.ORDEN_INSTITUCIONES:
+            filas.append({
+                "frontera": cob.upper(), "institucion": inst,
+                "tipo_en_m1": E.TIPO_MEDIDOR_ES[TIPO_TABLA[inst]],
+                "horas_con_dato": int(series[f"{inst}__D_raw"].notna().sum()),
+                "horas_negativas": HORAS_TABLA[cob][inst],
+                "mediana_kW": round(med[inst], 6),
+                "minimo_kW": round(minimo[inst], 6),
+                "negativas_p25_kW": round(caja[inst][0], 6) if inst in caja else "",
+                "negativas_mediana_kW": round(negmed[inst], 6) if inst in negmed else "",
+                "negativas_p75_kW": round(caja[inst][1], 6) if inst in caja else ""})
 
     return E.guardar(
-        fig, f"f3_02b_profundidad_{cobertura}", datos=pd.DataFrame(filas),
-        procedencia=[D.rel(D.CACHE / f"preproceso_{cobertura}.npz"),
-                     D.rel(D.CACHE / f"preproceso_{cobertura}_resumen.csv")])
+        fig, "f3_02b_profundidad", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+        ])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1683,8 +1744,8 @@ def _censo_limpieza(cobertura: str):
                 "cero": int(r["cero"].sum()),
                 "umbral_kW": r["umbral"], "cand_tukey_kW": r["tukey"],
                 "cand_piso_kW": r["piso"],
-                "manda": ("cerca de Tukey" if r["tukey"] >= r["piso"]
-                          else "piso del percentil"),
+                "manda": ("primer criterio" if r["tukey"] >= r["piso"]
+                          else "segundo criterio"),
                 "q25_kW": r["q25"], "q75_kW": r["q75"], "p995_kW": r["p995"],
                 "max_kW": r["max"], "serie_entrada": entrada})
     return pd.DataFrame(filas), detalle, series
@@ -1723,6 +1784,393 @@ def _rachas(mascara: pd.Series) -> list:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+def _separar_etiquetas(ys, minimo, tope=None):
+    """
+    Reparte alturas de rotulo que caerian una sobre otra.
+
+    Los cuatro valores que rotula la anatomia del umbral pueden quedar muy
+    juntos: en la UCC el segundo criterio y el maximo observado distan
+     6,9 kW sobre un panel de 150, es decir, ocho puntos tipograficos
+    para dos rotulos de seis. Aqui se separan por el minimo pedido
+    conservando el orden.
+    """
+    orden = sorted(range(len(ys)), key=lambda i: ys[i])
+    fuera = list(ys)
+    for k in range(1, len(orden)):
+        i, j = orden[k - 1], orden[k]
+        if fuera[j] - fuera[i] < minimo:
+            fuera[j] = fuera[i] + minimo
+    if tope is not None and orden:
+        exceso = fuera[orden[-1]] - tope
+        if exceso > 0:
+            for i in orden:
+                fuera[i] -= exceso
+    return fuera
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+def f33b_reconstruccion_mosaico():
+    """
+    F3.3b — A quién se le aplica la reconstrucción y a quién no.
+
+    La figura anterior enseña la operación sobre un día y una institución.
+    Esta es la vista de conjunto y tiene otro trabajo: enseñar de un vistazo
+    quién recibe generación de vuelta y quién no. Diez paneles, cinco
+    instituciones por dos fronteras, con el perfil medio horario de las
+    6.144 horas y no un día concreto, porque cinco días distintos no se
+    comparan entre sí.
+
+    **Siete de los diez paneles salen sin banda, y eso es el contenido.**
+    En la frontera principal el Hospital y CESMAG entregan lectura bruta,
+    de modo que no hay generación que devolverles; en la secundaria no la
+    entrega ninguno de los cinco. La fila de abajo es el control de la de
+    arriba: prueba de un vistazo que la reconstrucción es un asunto de la
+    frontera principal, que es algo que el capítulo venía afirmando en
+    prosa.
+
+    **Escalas verticales independientes por panel.** Medido sobre los
+    perfiles medios: con una escala común a los diez, el recorrido entero
+    del Hospital ocuparía el 4,8 % del alto de su panel y el de CESMAG el
+    10 %, de modo que las dos filas quedarían en líneas planas por
+    aplastamiento y no por ausencia de banda, que es justo la distinción
+    que la figura existe para enseñar. Lo que se compara entre paneles no
+    es una altura sino si hay banda o no, y eso no depende de la escala.
+    La energía devuelta va escrita en cada panel para que el ancho de la
+    banda no se lea como magnitud.
+
+    La codificación es la de la figura anterior, de manera que la lectura
+    se transfiera sin releer la leyenda.
+    """
+    fig, ejes = plt.subplots(2, 5, figsize=(E.ANCHO_COMPLETO, 4.9),
+                             sharex=True)
+    idx = np.arange(24)
+    filas, resumen = [], {}
+
+    for fila, cob in enumerate(("m1", "m3")):
+        series, horas = D.preproceso(cob)
+        for col, inst in enumerate(E.ORDEN_INSTITUCIONES):
+            ax = ejes[fila][col]
+            D_raw = series[f"{inst}__D_raw"]
+            G_rec = series[f"{inst}__G_recon"]
+            D_rec = series[f"{inst}__D_recon"]
+            D_neto = D_raw.fillna(0.0)
+            # La serie reconstruida conserva el hueco donde el medidor no
+            # trajo lectura y no hay generación que sumarle, de modo que
+            # las dos curvas hay que promediarlas sobre las mismas horas.
+            # Promediando una con el hueco relleno y la otra sin él, los
+            # dos medidores brutos salían con banda: 0,10 kW en el
+            # Hospital y 0,04 en CESMAG, que no es generación devuelta
+            # sino la ausencia de 113 y 117 horas.
+            D_rec_lleno = D_rec.fillna(0.0)
+            assert (D_rec.isna() & D_raw.notna()).sum() == 0, (cob, inst)
+            recorte = (-(D_neto + G_rec)).clip(lower=0.0)
+            # La misma identidad que comprueba la figura del caso: la
+            # demanda reconstruida es la lectura más la generación devuelta
+            # más lo que el recorte a cero añade. Se compara sobre las
+            # series ya rellenas: el máximo de pandas descarta los huecos
+            # en silencio y la comprobación se saltaría justo las horas
+            # que aquí importan.
+            dif = np.abs(D_rec_lleno.to_numpy(float)
+                         - (D_neto + G_rec + recorte).to_numpy(float))
+            assert np.isfinite(dif).all() and dif.max() < 1e-9, (cob, inst)
+
+            p_neto = D_neto.groupby(D_neto.index.hour).mean().to_numpy(float)
+            p_gen = G_rec.groupby(G_rec.index.hour).mean().to_numpy(float)
+            p_rec = D_rec_lleno.groupby(
+                D_rec_lleno.index.hour).mean().to_numpy(float)
+            p_cor = recorte.groupby(recorte.index.hour).mean().to_numpy(float)
+            assert np.allclose(p_rec, p_neto + p_gen + p_cor, atol=1e-9), \
+                (cob, inst)
+            # Y la consecuencia visible: sin generación devuelta no hay
+            # banda de ningún grosor. Lo que pueda quedar entre las dos
+            # curvas es entonces el recorte a cero, que va en gris.
+            if float(G_rec.sum()) == 0.0:
+                assert np.allclose(p_gen, 0.0, atol=1e-12), (cob, inst)
+            devuelto = float(G_rec.sum())
+            n_horas = int((G_rec > 0).sum())
+            recortado = float(recorte.sum())
+            resumen[(cob, inst)] = (devuelto, n_horas, recortado)
+
+            ax.fill_between(idx, p_neto, p_neto + p_gen, color=E.APOYO,
+                            zorder=1)
+            ax.fill_between(idx, p_neto + p_gen, p_rec, color=E.NEUTRO,
+                            alpha=0.65, zorder=2)
+            if min(p_neto.min(), p_rec.min()) < 0:
+                ax.axhline(0, color="#333333", linewidth=0.8, zorder=3)
+            ax.plot(idx, p_rec, color=E.DESPUES, linewidth=1.7, zorder=4)
+            ax.plot(idx, p_neto, color=E.ANTES, linewidth=1.1, zorder=5)
+
+            lo = float(min(p_neto.min(), p_rec.min()))
+            hi = float(max(p_neto.max(), p_rec.max()))
+            alto = max(hi - lo, 1e-6)
+            ax.set_ylim(lo - 0.12 * alto, hi + 0.30 * alto)
+            ax.set_xlim(-0.6, 23.6)
+            ax.set_xticks(range(0, 24, 6))
+            ax.tick_params(labelsize=6.4)
+
+            # Cada panel dice si recibe generación de vuelta y cuánta, o
+            # por qué no la recibe. Sin esta línea, un panel plano se lee
+            # como una figura a medio hacer.
+            if devuelto > 0:
+                tag, tinta = f"devuelve {E.fmt_miles(devuelto)} kWh", E.DESPUES
+            elif recortado >= 1:
+                # Sin generación que devolver la reconstrucción se reduce
+                # al recorte, y en la Universidad Mariana bajo M3 todavía
+                # muerde: es el hilo gris de ese panel.
+                tag = f"solo recorta {E.fmt_miles(recortado)} kWh"
+                tinta = E.NEUTRO
+            else:
+                tag, tinta = "el medidor no netea", E.NEUTRO
+            ax.text(0.5, 1.015, tag, transform=ax.transAxes, fontsize=6.0,
+                    color=tinta, ha="center", va="bottom")
+
+            if fila == 0:
+                ax.set_title(E.etiqueta_institucion(inst), fontsize=8.2,
+                             pad=13)
+            else:
+                ax.set_xlabel("Hora del día", fontsize=7.2)
+
+            for h in range(24):
+                filas.append({"bloque": "perfil", "frontera": cob.upper(),
+                              "institucion": inst, "hora": h,
+                              "lectura_kW": round(float(p_neto[h]), 6),
+                              "devuelta_kW": round(float(p_gen[h]), 6),
+                              "reconstruida_kW": round(float(p_rec[h]), 6)})
+
+        ejes[fila][0].set_ylabel("Demanda (kW)", fontsize=7.4)
+        # La frontera rotula la fila entera, en su color, fuera del área de
+        # dato, igual que en la anatomía del umbral.
+        ejes[fila][0].text(-0.62, 0.5, E.titulo_cobertura(cob, dos_lineas=True),
+                           transform=ejes[fila][0].transAxes, rotation=90,
+                           fontsize=7.0, fontweight="bold",
+                           color=E.COBERTURAS[cob], ha="center", va="center")
+
+    # Las tres afirmaciones que sostiene la figura, comprobadas antes de
+    # publicarla: quién devuelve en la frontera principal, y que en la
+    # secundaria no devuelve nadie.
+    for inst, esperado in (("Udenar", 32691.4), ("Mariana", 12549.1),
+                           ("UCC", 15378.0), ("HUDN", 0.0), ("Cesmag", 0.0)):
+        assert abs(resumen[("m1", inst)][0] - esperado) < 0.1, \
+            (inst, resumen[("m1", inst)])
+    assert all(resumen[("m3", i)][0] == 0.0 for i in E.ORDEN_INSTITUCIONES), \
+        {i: resumen[("m3", i)][0] for i in E.ORDEN_INSTITUCIONES}
+
+    for (cob, inst), (dev, n, rec) in resumen.items():
+        filas.append({"bloque": "resumen", "frontera": cob.upper(),
+                      "institucion": inst, "devuelto_kWh": round(dev, 3),
+                      "horas_con_devolucion": n,
+                      "recorte_a_cero_kWh": round(rec, 3)})
+
+    fig.tight_layout(rect=(0, 0.075, 1, 0.995), h_pad=2.4, w_pad=0.7)
+    fig.legend(handles=[
+        Line2D([], [], color=E.ANTES, lw=1.6,
+               label="Antes: lectura del medidor"),
+        Patch(facecolor=E.APOYO, label="Generación devuelta"),
+        Line2D([], [], color=E.DESPUES, lw=2.2,
+               label="Después: demanda reconstruida")],
+        loc="upper center",
+        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes.ravel(), 0.006)),
+        ncol=3, fontsize=7.0, frameon=False, columnspacing=1.6,
+        handlelength=1.8)
+
+    return E.guardar(
+        fig, "f3_03b_reconstruccion_mosaico", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+            "regla: D = max(0, D_net + suma de inversores) — "
+            "data/preprocessing.py",
+        ])
+
+
+# La anatomia del umbral se dibuja para las diez series de demanda de las
+# dos fronteras en una sola imagen. Los valores no viajan con la figura:
+# los publica la tabla del umbral, que da por entidad el rango
+# intercuartilico, la distancia de la cola, los dos candidatos con el
+# aplicado en negrita y las horas retiradas. Ese reparto es lo que permite
+# meter diez paneles donde antes cabian tres: sin los rotulos largos, cada
+# panel solo tiene que sostener la geometria.
+ANATOMIA_ALTO_MINIMO_PT = 9.0   # alto de copia por debajo del cual el
+                                # ordinal saldria fuera de su caja
+
+
+def f34_anatomia_umbral():
+    """
+    F3.4b — La anatomia del umbral: el rango intercuartilico como longitud.
+
+    La figura del umbral dice quien manda en cada serie, pero no como se
+    construye ninguno de los dos candidatos. Aqui el ``5 · IQR`` deja de
+    ser notacion: la caja de la mitad central se apila cinco veces sobre el
+    tercer cuartil y el primer criterio es donde aterriza la quinta copia,
+    de modo que la multiplicacion se cuenta con el ojo.
+
+    Diez paneles, cinco instituciones en el orden fijo a lo ancho y las dos
+    fronteras apiladas, de manera que comparar una institucion entre M1 y
+    M3 sea mirar hacia abajo. Las escalas verticales son independientes
+    porque los rangos van de 0,32 a 24,35 kW; lo que se compara entre
+    paneles no es una altura sino una relacion, que es si la cola con su
+    prolongacion queda por encima o por debajo de la quinta copia. Esa
+    relacion no depende de la escala de cada panel.
+
+    Los ordinales de las copias se imprimen donde caben, y esa condicion se
+    mide sobre el render ya compuesto y no se decide a ojo.
+    """
+    X_CAJA, ANCHO, X_COLA = 0.28, 0.34, 0.95
+    datos, filas, pendientes = {}, [], []
+
+    for cob in ("m1", "m3"):
+        series, _ = D.preproceso(cob)
+        for inst in E.ORDEN_INSTITUCIONES:
+            s = series[f"{inst}__D_recon"]
+            q25, q75 = float(s.quantile(0.25)), float(s.quantile(0.75))
+            p995 = float(s.quantile(0.995))
+            iqr = q75 - q25
+            c1, c2 = q75 + 5 * iqr, 1.2 * p995
+            datos[(cob, inst)] = {
+                "q25": q25, "q75": q75, "iqr": iqr, "p995": p995,
+                "c1": c1, "c2": c2, "umbral": max(c1, c2),
+                "max": float(s.max()), "cola_iqr": (p995 - q75) / iqr,
+                "manda": "primer criterio" if c1 >= c2 else "segundo criterio"}
+
+    fig, ejes = plt.subplots(2, 5, figsize=(E.ANCHO_COMPLETO, 5.3))
+    for fila, cob in enumerate(("m1", "m3")):
+        for col, inst in enumerate(E.ORDEN_INSTITUCIONES):
+            ax = ejes[fila][col]
+            d = datos[(cob, inst)]
+            iqr, q25, q75 = d["iqr"], d["q25"], d["q75"]
+            alto = max(d["c1"], d["c2"], d["max"])
+            bajo = max(0.0, q25 - 0.10 * alto)
+            ax.set_ylim(bajo, alto * 1.07)
+            ax.set_xlim(-0.15, 1.32)
+            span = ax.get_ylim()[1] - ax.get_ylim()[0]
+
+            # La caja: la mitad central de las lecturas, que es el rango
+            # intercuartilico dibujado como lo que es, una longitud.
+            ax.add_patch(Rectangle((X_CAJA, q25), ANCHO, iqr,
+                                   facecolor=E.APAGADO, edgecolor=E.TINTA,
+                                   linewidth=0.9, zorder=3))
+
+            # Cinco copias de esa misma caja, apiladas sobre el tercer
+            # cuartil. Mismo ancho y mismo alto que la de abajo: son la
+            # misma longitud repetida, y por eso se pueden contar.
+            for k in range(5):
+                base = q75 + k * iqr
+                ax.add_patch(Rectangle((X_CAJA, base), ANCHO, iqr,
+                                       facecolor=E.FONDO_BANDA,
+                                       edgecolor=E.NEUTRO, linewidth=0.7,
+                                       zorder=3))
+                pendientes.append((ax, iqr / span, X_CAJA + ANCHO / 2,
+                                   base + iqr / 2, str(k + 1)))
+
+            # La cola: hasta donde llega el percentil 99,5 desde el cuerpo,
+            # y su prolongacion del 20 %. El percentil se marca con una
+            # raya y no con un circulo hueco, porque el circulo hueco ya
+            # significa otra cosa en la figura siguiente.
+            ax.plot([X_COLA, X_COLA], [q75, d["p995"]], color=E.NEUTRO,
+                    linewidth=0.8, linestyle=":", zorder=3)
+            ax.plot([X_COLA - 0.12, X_COLA + 0.12], [d["p995"], d["p995"]],
+                    color=E.NEUTRO, linewidth=1.2, zorder=5)
+            ax.add_patch(Rectangle((X_COLA - 0.10, d["p995"]), 0.20,
+                                   0.2 * d["p995"], facecolor=E.ALERTA,
+                                   alpha=0.22, edgecolor=E.ALERTA,
+                                   linewidth=0.7, zorder=3))
+
+            # Los dos cortes. El que manda va en ambar y con trazo lleno; el
+            # que pierde, en gris y discontinuo. El maximo de la formula se
+            # lee entonces sin aritmetica: gana el mas alto y es el pintado.
+            gana_primero = d["c1"] >= d["c2"]
+            assert (d["c1"] if gana_primero else d["c2"]) == d["umbral"]
+            for valor, es_ganador in ((d["c1"], gana_primero),
+                                      (d["c2"], not gana_primero)):
+                ax.plot([0.0, 1.20], [valor, valor],
+                        color=E.ALERTA if es_ganador else E.NEUTRO,
+                        linewidth=1.4 if es_ganador else 0.9,
+                        linestyle="-" if es_ganador else (0, (3.5, 2)),
+                        zorder=6)
+            ax.plot([X_CAJA - 0.05, X_CAJA + ANCHO + 0.05],
+                    [d["max"], d["max"]], color=E.TINTA, linewidth=1.0,
+                    zorder=6)
+
+            # Lo unico escrito en el panel: quien es y cuanto mide su
+            # rango. El resto de los valores los publica la tabla.
+            if fila == 0:
+                ax.set_title(E.etiqueta_institucion(inst), fontsize=8.2,
+                             pad=13)
+            ax.text(0.5, 1.015, f"IQR = {E.fmt_miles(iqr, 1)} kW",
+                    transform=ax.transAxes, fontsize=6.3, color=E.NEUTRO,
+                    ha="center", va="bottom")
+            ax.set_xticks([])
+            ax.spines["bottom"].set_visible(False)
+            ax.grid(axis="x", visible=False)
+            ax.grid(axis="y", linewidth=0.5)
+            ax.tick_params(axis="y", labelsize=6.4)
+            # Un decimal solo cuando hace falta: con el eje llegando a
+            # 160 kW, «160,0» gasta ancho y no informa de nada.
+            dec = 0 if span > 30 else 1
+            ax.yaxis.set_major_formatter(
+                FuncFormatter(lambda v, _, d=dec: E.fmt_miles(v, d)))
+
+            filas.append({"frontera": cob.upper(), "institucion": inst,
+                          "q25_kW": d["q25"], "q75_kW": d["q75"],
+                          "iqr_kW": iqr, "primer_criterio_kW": d["c1"],
+                          "p995_kW": d["p995"],
+                          "segundo_criterio_kW": d["c2"],
+                          "umbral_kW": d["umbral"], "max_kW": d["max"],
+                          "manda": d["manda"],
+                          "cola_sobre_q75_en_iqr": d["cola_iqr"]})
+
+        ejes[fila][0].set_ylabel("Demanda (kW)", fontsize=7.4)
+        # La frontera rotula la fila entera, en su color, fuera del area de
+        # dato. Va en dos lineas porque el nombre completo mide 2,3
+        # pulgadas y la fila solo tiene 1,9 de alto.
+        ejes[fila][0].text(-0.78, 0.5, E.titulo_cobertura(cob, dos_lineas=True),
+                           transform=ejes[fila][0].transAxes, rotation=90,
+                           fontsize=7.0, fontweight="bold",
+                           color=E.COBERTURAS[cob], ha="center", va="center")
+
+    fig.tight_layout(rect=(0, 0.085, 1, 0.995), w_pad=0.6, h_pad=2.2)
+
+    # Los ordinales, decididos sobre el render ya compuesto: una copia que
+    # mide menos de nueve puntos tipograficos no puede alojar su numero.
+    puestos = 0
+    for ax, fraccion, x, y, texto in pendientes:
+        alto_pt = fraccion * ax.get_position().height * fig.get_figheight() * 72
+        if alto_pt >= ANATOMIA_ALTO_MINIMO_PT:
+            ax.text(x, y, texto, fontsize=5.6, color=E.NEUTRO, ha="center",
+                    va="center", zorder=4)
+            puestos += 1
+    print(f"  [anatomía] ordinales impresos: {puestos} de {len(pendientes)}")
+
+    fig.legend(handles=[
+        Patch(facecolor=E.APAGADO, edgecolor=E.TINTA, linewidth=0.9,
+              label="Mitad central de las lecturas (IQR)"),
+        Patch(facecolor=E.FONDO_BANDA, edgecolor=E.NEUTRO, linewidth=0.7,
+              label="Cinco copias del mismo rango"),
+        Line2D([], [], color=E.NEUTRO, linewidth=1.2, label="Percentil 99,5"),
+        Patch(facecolor=E.ALERTA, alpha=0.22, edgecolor=E.ALERTA,
+              linewidth=0.7, label="Su prolongación del 20 %"),
+        Line2D([], [], color=E.ALERTA, linewidth=1.4,
+               label="Criterio que fija el umbral"),
+        Line2D([], [], color=E.NEUTRO, linewidth=0.9, linestyle=(0, (3.5, 2)),
+               label="Criterio descartado"),
+        Line2D([], [], color=E.TINTA, linewidth=1.0,
+               label="Máximo observado")],
+        loc="upper center",
+        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes.ravel(), 0.008)),
+        ncol=4, fontsize=6.6, frameon=False, handlelength=1.6,
+        columnspacing=1.4, labelspacing=0.5)
+
+    return E.guardar(
+        fig, "f3_04b_anatomia_umbral", datos=pd.DataFrame(filas),
+        procedencia=[
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
+            "criterio: max(Q75 + 5*IQR, P99,5 * 1,2) — "
+            "data/xm_data_loader.py::_clean",
+        ])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 def f35_umbral_atipicos(cobertura: str = "m1"):
     """
     F3.5 — El umbral: que retira y por que esta donde esta.
@@ -1738,9 +2186,9 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
     cosmetica: los diez umbrales de la frontera principal van de 10,2 a
     154,8 kW, mas de un orden de magnitud, de modo que en kilovatios las
     filas pequeñas no podrian dibujar ninguna diferencia. Normalizados, el
-    piso es una sola vertical en 1,2 comun a las diez filas, y basta mirar
-    a que lado de esa vertical cae la cerca de Tukey para saber cual de los
-    dos manda.
+    segundo criterio es una sola vertical en 1,2 comun a las diez filas, y
+    basta mirar a que lado de esa vertical cae el corte del primero para
+    saber cual de los dos manda.
     """
     censo, detalle, series = _censo_limpieza(cobertura)
 
@@ -1885,10 +2333,10 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
         ax.set_title(magnitud.capitalize(), pad=5, fontsize=8.5)
         ax.grid(axis="y", visible=False)
     ax_dem.tick_params(axis="x", labelbottom=False)
-    # Los dos rotulos de cabecera van dentro del area, colgando del borde
-    # superior: por encima del eje se imprimian sobre el titulo del panel.
-    ax_dem.text(1.26, -0.46, "piso: 1,2 × P99,5", fontsize=6.3, color=E.ALERTA,
-                ha="left", va="top")
+    # El nombre del segundo criterio vive en la leyenda y no junto a su
+    # vertical: con el vocabulario nuevo el rotulo mide 1,13 pulgadas, que
+    # es justo lo que hay entre la vertical y la columna de kilovatios, y
+    # se imprimia sobre la cifra de la primera fila.
     # La cabecera de la columna va sobre el borde superior y no dentro:
     # dentro se imprimia contra la cifra de la primera fila.
     ax_dem.text(X_ROTULO, -0.60, "umbral (kW)", fontsize=6.3, color=E.NEUTRO,
@@ -1904,9 +2352,11 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
                label="Hasta el máximo observado"),
         Line2D([], [], marker="o", markerfacecolor="white", linestyle="none",
                markeredgecolor=E.NEUTRO, markersize=6.2,
-               label="Cerca de Tukey"),
+               label="Corte del primer criterio"),
         Line2D([], [], marker="D", color=E.ALERTA, linestyle="none",
                markersize=5.0, label="Umbral aplicado"),
+        Line2D([], [], color=E.ALERTA, linewidth=1.0, linestyle="--",
+               label="Segundo criterio: 1,2 × P99,5"),
     ]
     filas_csv.append({
         "bloque": "caso", "institucion": mejor["inst"],
@@ -1922,8 +2372,8 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
     # ojo la imprimia encima de los dos rotulos de eje.
     fig.legend(handles=marcas, loc="upper center",
                bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, (ax_caso, ax_gen))),
-               ncol=4, fontsize=6.8, frameon=False, handlelength=1.6,
-               columnspacing=1.4, labelspacing=0.25)
+               ncol=5, fontsize=6.5, frameon=False, handlelength=1.6,
+               columnspacing=1.1, labelspacing=0.25)
     return E.guardar(
         fig, f"f3_05_umbral_atipicos_{cobertura}",
         datos=pd.DataFrame(filas_csv),
@@ -1940,26 +2390,24 @@ def f35_umbral_atipicos(cobertura: str = "m1"):
 # Los tres huecos de la escalera van fijados en el generador y no buscados
 # por codigo, igual que el dia de la reconstruccion: los asertos comprueban
 # que cada uno mantiene la longitud y el reparto que la figura afirma, y
-# detienen la corrida si dejan de tenerlos. El tercero es el hueco mas largo
-# de su frontera, y eso tambien se comprueba. En M1 el mas largo empata
-# entre el Hospital y CESMAG con 42 horas; se toma el primero en el orden
-# fijo de instituciones, que ademas es el mismo medidor de los otros dos
-# peldaños, de modo que los tres paneles comparan el mismo aparato.
-HUECOS_ESCALERA = {
-    "m1": [("HUDN", "2025-07-26 05:00", 3, (3, 0, 0)),
-           ("HUDN", "2025-12-12 21:00", 13, (3, 10, 0)),
-           ("HUDN", "2025-12-07 22:00", 42, (3, 24, 15))],
-    "m3": [("HUDN", "2025-07-26 05:00", 3, (3, 0, 0)),
-           ("HUDN", "2025-12-12 21:00", 13, (3, 10, 0)),
-           ("UCC", "2025-12-11 09:00", 49, (3, 24, 22))],
-}
+# detienen la corrida si dejan de tenerlos. Los dos primeros son del mismo
+# medidor bajo M1, que es donde la rampa de la interpolacion se ve, porque
+# bajo M3 ese mismo hueco de tres horas cae en vez de subir y la recta no
+# se distingue de una linea plana. El tercero es el hueco mas largo de todo
+# el estudio, que esta bajo M3, y se comprueba que lo sigue siendo en las
+# dos fronteras.
+HUECOS_ESCALERA = [
+    ("m1", "HUDN", "2025-07-26 05:00", 3, (3, 0, 0)),
+    ("m1", "HUDN", "2025-12-12 21:00", 13, (3, 10, 0)),
+    ("m3", "UCC", "2025-12-11 09:00", 49, (3, 24, 22)),
+]
 # Alcance de la cascada: 3 horas de interpolacion mas 24 de arrastre hacia
 # adelante mas 24 hacia atras. Se calcula aqui una sola vez porque es la
 # cifra contra la que la figura mide el hueco mas largo del estudio.
 ALCANCE_CASCADA = 3 + 24 + 24
 
 
-def f36_escalera_huecos(cobertura: str = "m1"):
+def f36_escalera_huecos():
     """
     F3.6 — La escalera: la longitud del hueco decide el tratamiento.
 
@@ -1969,38 +2417,44 @@ def f36_escalera_huecos(cobertura: str = "m1"):
     la unica diferencia entre ellos, la longitud, viajaria entre paginas,
     que es donde peor se compara.
 
+    Abajo, el presupuesto de horas de las diez series de demanda, las cinco
+    instituciones en las dos fronteras. Presentarlo por una sola frontera
+    engaña: bajo M1, Udenar y la UCC salen con cero horas tratadas, y eso
+    no significa que no tuvieran cortes sino que su medidor es neto y el
+    recorte a cero de la reconstruccion cerro esos huecos antes de que la
+    limpieza los viera. Bajo M3, las mismas dos instituciones acumulan 97 y
+    126 horas.
+
     El cuarto tratamiento, el relleno con cero, no tiene ningun caso que
     enseñar. La cascada cierra cualquier hueco de hasta 51 horas y el mas
     largo del estudio mide 49, de modo que en las veinte series de las dos
     fronteras ninguna hora llega a el. Eso se publica como resultado, no se
     omite.
     """
-    censo, detalle, series = _censo_limpieza(cobertura)
-    dem = censo[censo.magnitud == "demanda"].set_index("institucion")
+    censo, detalle, series, mas_largo = {}, {}, {}, 0
+    for cob in ("m1", "m3"):
+        c, d, s = _censo_limpieza(cob)
+        censo[cob] = c[c.magnitud == "demanda"].set_index("institucion")
+        detalle[cob], series[cob] = d, s
+        for inst in E.ORDEN_INSTITUCIONES:
+            for magnitud in ("demanda", "generación"):
+                for _, _, n in _rachas(d[(inst, magnitud)]["entran"]):
+                    mas_largo = max(mas_largo, n)
 
-    # El hueco mas largo de la frontera, medido, para comprobar el tercer
-    # peldaño y para la cifra que cierra la figura.
-    mas_largo = 0
-    for inst in E.ORDEN_INSTITUCIONES:
-        for magnitud in ("demanda", "generación"):
-            for _, _, n in _rachas(detalle[(inst, magnitud)]["entran"]):
-                mas_largo = max(mas_largo, n)
-
-    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 5.2))
-    malla = fig.add_gridspec(2, 3, height_ratios=(1.0, 0.88), hspace=0.68,
+    fig = plt.figure(figsize=(E.ANCHO_COMPLETO, 6.0))
+    malla = fig.add_gridspec(2, 3, height_ratios=(1.0, 1.06), hspace=0.62,
                              wspace=0.32)
     ejes = [fig.add_subplot(malla[0, j]) for j in range(3)]
     ax_pres = fig.add_subplot(malla[1, :2])
     ax_cero = fig.add_subplot(malla[1, 2])
 
     filas_csv = []
-    largo_max_declarado = max(x[2] for x in HUECOS_ESCALERA[cobertura])
-    for ax, (inst, inicio, largo, reparto) in zip(ejes,
-                                                  HUECOS_ESCALERA[cobertura]):
-        r = detalle[(inst, "demanda")]
+    largo_declarado = max(x[3] for x in HUECOS_ESCALERA)
+    for ax, (cob, inst, inicio, largo, reparto) in zip(ejes, HUECOS_ESCALERA):
+        r = detalle[cob][(inst, "demanda")]
         t0 = pd.Timestamp(inicio)
         candidatas = [x for x in _rachas(r["entran"]) if x[0] == t0]
-        assert candidatas, f"{cobertura}/{inst}: no hay hueco que empiece en {t0}"
+        assert candidatas, f"{cob}/{inst}: no hay hueco que empiece en {t0}"
         _, t1, n = candidatas[0]
         assert n == largo, f"{inst} {t0}: el hueco mide {n} h, no {largo}"
         tramo = slice(t0, t1)
@@ -2011,12 +2465,12 @@ def f36_escalera_huecos(cobertura: str = "m1"):
             f"{inst} {t0}: reparto {(n_int, n_ff, n_bf)}, no {reparto}")
         assert int(r["cero"][tramo].sum()) == 0, (
             f"{inst} {t0}: hay horas rellenas con cero")
-        if largo == largo_max_declarado:
+        if largo == largo_declarado:
             assert n == mas_largo, (
-                f"{cobertura}: el tercer peldaño mide {n} h y el hueco más "
-                f"largo de la frontera mide {mas_largo}")
+                f"el tercer peldaño mide {n} h y el hueco más largo del "
+                f"estudio mide {mas_largo}")
 
-        entrada = series[dem.loc[inst, "serie_entrada"]]
+        entrada = series[cob][censo[cob].loc[inst, "serie_entrada"]]
         limpia = r["limpia"]
         idx = r["entran"].index
         ctx = max(2, int(round(0.22 * n)))
@@ -2070,7 +2524,7 @@ def f36_escalera_huecos(cobertura: str = "m1"):
         lo, hi = float(vals.min()), float(vals.max())
         span = max(hi - lo, 1e-6)
         base = lo - 0.52 * span
-        ax.set_ylim(base - 0.05 * span, hi + 0.16 * span)
+        ax.set_ylim(base - 0.05 * span, hi + 0.18 * span)
 
         # La meseta no se queda en la ultima lectura observada sino en la
         # tercera hora interpolada. Solo se rotula cuando la separacion es
@@ -2088,9 +2542,6 @@ def f36_escalera_huecos(cobertura: str = "m1"):
         # que se compara entre paneles: los tres tienen el mismo ancho
         # impreso y escalas horizontales distintas, de modo que la
         # comparacion la lleva la cifra y no la longitud del trazo.
-        # El nombre del mecanismo no cabe junto a la cifra en el peldaño
-        # largo, donde los tres tramos se reparten el mismo ancho impreso:
-        # las llaves miden y la leyenda comun nombra.
         tramos = [(0, reparto[0]), (reparto[0], reparto[1]),
                   (reparto[0] + reparto[1], reparto[2])]
         niveles = [0.06, 0.20, 0.34]
@@ -2107,57 +2558,78 @@ def f36_escalera_huecos(cobertura: str = "m1"):
                     f"{cuantas} h", fontsize=6.4, color=E.NEUTRO,
                     ha="center", va="bottom")
 
+        # La banda de las llaves queda bajo el dato y no es area de medida:
+        # rotularla con marcas del eje invita a leer que la serie bajo
+        # hasta ahi, y en el hueco de 49 horas la marca del cero caia
+        # dentro de la banda.
+        ax.set_yticks([v for v in ax.get_yticks()
+                       if lo - 0.03 * span <= v <= hi + 0.18 * span])
         ax.set_xlim(-ctx - 0.6, n + ctx + 0.6)
         ax.set_title(f"{E.etiqueta_institucion(inst)} · "
                      f"{t0.day} {MESES_ES[t0.month - 1]} {t0.year}\n"
-                     f"hueco de {n} horas", fontsize=8.2, pad=5)
+                     f"hueco de {n} horas", fontsize=8.2, pad=14)
+        # Cada panel declara su frontera: los tres ya no salen de la misma.
+        ax.text(0.5, 1.015, E.COBERTURA_NOMBRE[cob], transform=ax.transAxes,
+                fontsize=6.0, fontweight="bold", color=E.COBERTURAS[cob],
+                ha="center", va="bottom")
         ax.set_xlabel("Horas desde el inicio del hueco", fontsize=7.2)
         ax.tick_params(labelsize=7)
         ax.xaxis.set_major_locator(
             MultipleLocator(1 if n <= 4 else (6 if n <= 16 else 12)))
         filas_csv.append({
-            "bloque": "peldaño", "institucion": inst, "inicio": str(t0),
-            "horas": n, "interpoladas": n_int, "arrastre_adelante": n_ff,
-            "arrastre_atras": n_bf, "cero": 0,
+            "bloque": "peldaño", "frontera": cob.upper(), "institucion": inst,
+            "inicio": str(t0), "horas": n, "interpoladas": n_int,
+            "arrastre_adelante": n_ff, "arrastre_atras": n_bf, "cero": 0,
             "ancla_previa_kW": ancla_previa, "ancla_posterior_kW": ancla_post,
             "meseta_kW": meseta})
     ejes[0].set_ylabel("Demanda (kW)")
 
-    # ── el presupuesto de horas ──────────────────────────────────────────
-    total_int = int(dem["interpoladas"].sum())
-    total_arr = int(dem["arrastradas"].sum())
-    tope = float((dem["interpoladas"] + dem["arrastradas"]).max())
+    # ── el presupuesto de horas, en las dos fronteras ────────────────────
+    tope = max(float((censo[c]["interpoladas"] + censo[c]["arrastradas"]).max())
+               for c in ("m1", "m3"))
+    borrados = []
     for k, inst in enumerate(E.ORDEN_INSTITUCIONES):
-        f = dem.loc[inst]
-        n_i, n_a = int(f["interpoladas"]), int(f["arrastradas"])
-        if n_i:
-            ax_pres.barh(k, n_i, height=0.5, color=E.DESPUES, zorder=3)
-        if n_a:
-            ax_pres.barh(k, n_a, left=n_i, height=0.5, color=E.NEUTRO,
-                         edgecolor="white", linewidth=1.2, zorder=3)
-        total = n_i + n_a
-        if total:
-            rotulo = f"{E.fmt_miles(total)} h"
-            if f["atipicos"]:
-                rotulo += f"  ({int(f['atipicos'])} del umbral)"
-            ax_pres.text(total + 0.02 * tope, k, rotulo, fontsize=6.6,
-                         color=E.TINTA, va="center")
-        else:
-            ax_pres.text(0.02 * tope, k, "ninguna", fontsize=6.6,
-                         color=E.NEUTRO, va="center", style="italic")
-        filas_csv.append({
-            "bloque": "presupuesto", "institucion": inst, "horas": total,
-            "interpoladas": n_i, "arrastradas": n_a, "cero": 0,
-            "atipicos_retirados": int(f["atipicos"])})
+        for j, cob in enumerate(("m1", "m3")):
+            f = censo[cob].loc[inst]
+            n_i, n_a = int(f["interpoladas"]), int(f["arrastradas"])
+            y = k - 0.19 + 0.38 * j
+            ax_pres.text(-0.012 * tope, y, cob.upper(), fontsize=6.2,
+                         fontweight="bold", color=E.COBERTURAS[cob],
+                         ha="right", va="center")
+            if n_i:
+                ax_pres.barh(y, n_i, height=0.30, color=E.DESPUES, zorder=3)
+            if n_a:
+                ax_pres.barh(y, n_a, left=n_i, height=0.30, color=E.NEUTRO,
+                             edgecolor="white", linewidth=1.2, zorder=3)
+            total = n_i + n_a
+            if total:
+                rotulo = f"{E.fmt_miles(total)} h"
+                if f["atipicos"]:
+                    rotulo += f"  ({int(f['atipicos'])} del umbral)"
+                ax_pres.text(total + 0.015 * tope, y, rotulo, fontsize=6.4,
+                             color=E.TINTA, va="center")
+            else:
+                # Un cero que no significa ausencia de cortes. Dejarlo en
+                # «ninguna» era la lectura falsa que esta figura corrige.
+                ax_pres.text(0.015 * tope, y, "0 · huecos cerrados antes",
+                             fontsize=6.4, color=E.ALERTA, va="center")
+                borrados.append(inst)
+            filas_csv.append({
+                "bloque": "presupuesto", "frontera": cob.upper(),
+                "institucion": inst, "horas": total, "interpoladas": n_i,
+                "arrastradas": n_a, "cero": 0,
+                "atipicos_retirados": int(f["atipicos"])})
     E.eje_instituciones(ax_pres, eje="y")
-    ax_pres.tick_params(axis="y", labelsize=7.5)
-    ax_pres.set_xlim(0, max(1.0, tope) * 1.52)
+    ax_pres.tick_params(axis="y", labelsize=7.5, pad=22)
+    ax_pres.set_xlim(-0.13 * tope, tope * 1.42)
     ax_pres.set_xlabel("Horas tratadas en la serie de demanda (h)", fontsize=7.4)
     ax_pres.tick_params(axis="x", labelsize=7)
     ax_pres.grid(axis="y", visible=False)
-    ax_pres.set_title(f"El presupuesto: {E.fmt_miles(total_int)} horas "
-                      f"interpoladas y {E.fmt_miles(total_arr)} arrastradas",
-                      fontsize=8.5, pad=6)
+    ax_pres.spines["left"].set_visible(False)
+    ax_pres.set_title(
+        f"El presupuesto: {E.fmt_miles(censo['m1']['entran'].sum())} horas "
+        f"tratadas en M1 y {E.fmt_miles(censo['m3']['entran'].sum())} en M3",
+        fontsize=8.5, pad=6)
 
     # ── el peldaño que no existe ─────────────────────────────────────────
     ax_cero.axis("off")
@@ -2167,7 +2639,7 @@ def f36_escalera_huecos(cobertura: str = "m1"):
                                 zorder=0))
     ax_cero.text(0.5, 0.74, "0", fontsize=32, color=E.TINTA, ha="center",
                  va="center", transform=ax_cero.transAxes)
-    ax_cero.text(0.5, 0.45, "horas rellenas con cero\nen las diez series",
+    ax_cero.text(0.5, 0.45, "horas rellenas con cero\nen las veinte series",
                  fontsize=7.0, color=E.TINTA, ha="center", va="center",
                  transform=ax_cero.transAxes)
     ax_cero.text(0.5, 0.19, f"el hueco más largo mide {mas_largo} h\ny la "
@@ -2175,17 +2647,20 @@ def f36_escalera_huecos(cobertura: str = "m1"):
                  color=E.NEUTRO, ha="center", va="center",
                  transform=ax_cero.transAxes)
     filas_csv.append({
-        "bloque": "resumen", "institucion": "las diez series",
-        "interpoladas": total_int, "arrastradas": total_arr,
-        "cero": int(censo["cero"].sum()),
-        "atipicos_retirados": int(censo["atipicos"].sum()),
+        "bloque": "resumen", "institucion": "las veinte series",
+        "interpoladas": int(sum(censo[c]["interpoladas"].sum()
+                                for c in ("m1", "m3"))),
+        "arrastradas": int(sum(censo[c]["arrastradas"].sum()
+                               for c in ("m1", "m3"))),
+        "cero": 0, "horas": int(sum(censo[c]["entran"].sum()
+                                    for c in ("m1", "m3"))),
         "hueco_mas_largo_h": mas_largo, "alcance_cascada_h": ALCANCE_CASCADA})
 
-    _rotulo_cobertura(fig, cobertura)
-    fig.tight_layout(rect=(0, 0, 1, 0.945))
+    fig.tight_layout(rect=(0, 0.045, 1, 0.995))
+    y_ejes = _bajo_de_los_ejes(fig, ejes, 0.008)
     # Una sola leyenda para los dos bloques: las llaves de los paneles
     # miden y esta nombra, de modo que ningun rotulo tenga que caber junto
-    # a un tramo de tres horas. Va medida bajo la fila de arriba.
+    # a un tramo de tres horas.
     fig.legend(handles=[
         Line2D([], [], color=E.TINTA, linewidth=1.1, marker="o", markersize=3.4,
                label="Lectura observada"),
@@ -2195,14 +2670,24 @@ def f36_escalera_huecos(cobertura: str = "m1"):
                markersize=3.6, label="Arrastre hacia adelante, hasta 24 h"),
         Line2D([], [], color=E.NEUTRO, linewidth=1.5, marker="^",
                markersize=3.6, label="Arrastre hacia atrás, hasta 24 h")],
-        loc="upper center",
-        bbox_to_anchor=(0.5, _bajo_de_los_ejes(fig, ejes, 0.008)),
-        ncol=4, fontsize=6.8, frameon=False, handlelength=1.9,
-        columnspacing=1.5)
+        loc="upper center", bbox_to_anchor=(0.5, y_ejes), ncol=4, fontsize=6.8,
+        frameon=False, handlelength=1.9, columnspacing=1.5)
+
+    # La nota que impide la lectura falsa, bajo la franja y no en el pie:
+    # quien mira solo el dibujo tiene que poder leerla ahi.
+    if borrados:
+        cuales = " y ".join(E.etiqueta_institucion(i) for i in borrados)
+        fig.text(0.5, _bajo_de_los_ejes(fig, [ax_pres], 0.006),
+                 f"Bajo M1, {cuales} llevan medidor neto y la reconstrucción "
+                 f"cerró sus huecos antes de la limpieza: ese cero no es "
+                 f"ausencia de cortes.", fontsize=6.4, color=E.ALERTA,
+                 ha="center", va="top")
+
     return E.guardar(
-        fig, f"f3_06_escalera_huecos_{cobertura}", datos=pd.DataFrame(filas_csv),
+        fig, "f3_06_escalera_huecos", datos=pd.DataFrame(filas_csv),
         procedencia=[
-            f"reformateo/documento/datos_cache/preproceso_{cobertura}.npz",
+            "reformateo/documento/datos_cache/preproceso_m1.npz",
+            "reformateo/documento/datos_cache/preproceso_m3.npz",
             "cascada: interpolación temporal límite 3 h, arrastre hacia "
             "adelante y hacia atrás límite 24 h, resto a cero — "
             "data/xm_data_loader.py::_clean",
@@ -2461,15 +2946,16 @@ if __name__ == "__main__":
     f31d_duplicados()
     f31b_energia_hora()
     f31c_hora_incompleta()
-    for cob in ("m1", "m3"):
-        f32_demanda_negativa(cob)
-    f32b_profundidad("m1")
+    f32_demanda_negativa()
+    f32b_profundidad()
     f33_reconstruccion("m1", "Udenar")
+    f33b_reconstruccion_mosaico()
     for cob in ("m1", "m3"):
         f37_matrices(cob)
         f38_perfiles_instituciones(cob)
         f39_ritmos(cob)
+    f34_anatomia_umbral()
     for cob in ("m1", "m3"):
         f35_umbral_atipicos(cob)
-        f36_escalera_huecos(cob)
+    f36_escalera_huecos()
     print("\nlisto.")

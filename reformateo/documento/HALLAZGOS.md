@@ -1170,3 +1170,26 @@ decisiones que sesgan en contra, que es un argumento central del capitulo,
 y la redaccion correcta depende de que se quiera afirmar. Pendiente de su
 palabra.
 
+---
+
+## H-25 · Las 330 horas de demanda que entran como cero
+
+**2026-09-04 · declarado en el documento · pendiente de decidir si se corrige**
+
+`preprocessing.py` hace `D_recon = (D_raw.fillna(0.0) + G_recon).clip(0)`
+para los medidores netos. Ese `fillna(0.0)` convierte en cero toda hora sin
+lectura, **antes** de la limpieza, de modo que la cascada no las ve y
+ninguna máscara las registra.
+
+Bajo M1 son 330 horas: Udenar 90, Mariana 114, UCC 126.
+
+**El sesgo va en la dirección conservadora**, porque menos demanda es menos
+déficit y un mercado más pequeño, y así queda declarado en la lista de
+decisiones que sesgan en contra. Pero es una imputación silenciosa: esas
+horas son indistinguibles de un consumo realmente medido de 0 kW.
+
+**La alternativa** sería dejarlas como faltantes y que la limpieza las
+trate como trata las de los medidores brutos, es decir, interpolación y
+arrastre. Cambiaría la demanda de tres instituciones bajo M1 e invalida el
+canon, de modo que iría con la corrida nueva. **No se toca sin su palabra.**
+

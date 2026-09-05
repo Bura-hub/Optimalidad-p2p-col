@@ -3872,6 +3872,140 @@ desbordes; auditoria numerica en cero desfases.
 
 ---
 
+## C-100 · La etapa de limpieza describía mal tres de sus cuatro pasos
+
+**2026-09-04 · tipo: `dato` + `figuras` + `estructura` · aplicada**
+
+Él pidió una figura por cada uno de los cuatro pasos. Al medirlos con dos
+agentes, uno de análisis y otro de diseño, y verificarlo yo por mi cuenta,
+resultó que **el documento describía mal tres de los cuatro**. La
+corrección del texto iba antes que cualquier figura: dibujar el cuarto paso
+habría sido dibujar algo que no ocurre.
+
+### Los tres errores, todos confirmados dos veces
+
+**El paso 2 no rellena «los huecos de hasta 3 horas».** `interpolate` acota
+los NaN *consecutivos*, de modo que rellena **las tres primeras horas de
+cualquier hueco**. Uno de cinco horas recibe tres y deja dos. Comprobado
+con casos mínimos de 2 a 6 horas y sobre el dato real, donde los 55 huecos
+que necesitan relleno posterior tienen exactamente tres horas interpoladas.
+
+**El paso 4 no actúa nunca.** `ffill(24).bfill(24)`, después de las tres
+horas del paso anterior, alcanza **51 horas**. El hueco más largo del
+estudio mide 49, en la demanda de la UCC bajo M3. Cero horas rellenas con
+cero en las 20 series, en las dos fronteras.
+
+**El paso 3 no copia «el valor de la hora vecina más próxima».** El
+arrastre hacia adelante propaga **la tercera hora interpolada**, que es un
+valor fabricado, no la última lectura del equipo. Y repite un escalar: en
+un hueco de 42 horas del Hospital la demanda queda plana en 10,1228 kW
+durante 24 horas seguidas. No replica «el patrón del día operativo
+anterior», lo destruye.
+
+### Una imprecisión más, en el paso que sí estaba bien
+
+La explicación de CESMAG atribuía el peligro de la cerca de Tukey al rango
+intercuartílico pequeño. **El HUDN tiene el menor de todo el estudio,
+0,318 kW bajo M3, y no le pasa nada**, porque su carga es tan plana que
+nunca se acerca a la cerca. El mecanismo real es el perfil de dos modas,
+base muy estable con picos operativos raros de gran amplitud.
+
+Lo que sí se sostiene, y con holgura, es la afirmación de fondo: sin el
+piso del percentil, la demanda de CESMAG perdería 451 horas bajo M1, que
+concentran el 20,7 % de su energía, y 927 bajo M3, que concentran el
+**52,5 %**.
+
+### El censo, verificado dos veces de forma independiente
+
+De 808 horas que la cascada trata en las 20 series: 11 atípicos, 233
+interpoladas, 575 arrastradas (el 71,2 %) y **cero puestas a cero**. Las
+diez series de generación no reciben ningún tratamiento en ninguna
+frontera.
+
+### La subsección se parte en dos, con una figura cada una
+
+«Valores atípicos y huecos» pasa a «El umbral de los atípicos» y «La
+escalera de los huecos». **Dos figuras y no cuatro**, porque los pasos 2, 3
+y 4 no son tres ideas sino tres tramos de una: el filtro se aplica hora a
+hora dentro del hueco y no clasifica huecos por longitud, de modo que el
+caso puro del paso 3 no existe en el dato y el del paso 4 tampoco. Tres
+figuras separadas habrían fingido una separación que el canal no hace.
+
+- **`f3_05_umbral_atipicos`** sustituye a la figura vieja. A la izquierda,
+  la hora retirada con su antes y su después sobre tres días. A la derecha,
+  las diez series con el eje en múltiplos del percentil 99,5, de modo que
+  el `max()` se lee como geometría: manda el piso justamente en las filas
+  cuya cerca de Tukey cae a la izquierda de la vertical de 1,2.
+- **`f3_06_escalera_huecos`** es nueva. Tres huecos reales de longitud
+  creciente con el eje en horas desde el inicio, llaves que miden cada
+  tramo, y la referencia punteada de la última lectura observada, que
+  enseña que la meseta no se queda en ella.
+
+**Se retira el reparto por mes** de la figura vieja: el mes no decide nada,
+y el «cuándo» ya lo lleva el Gantt del Capítulo 2.
+
+### Y una declaración que faltaba
+
+Tomar como nula la demanda de partida en la reconstrucción convierte en
+cero **330 horas bajo M1**: 90 de Udenar, 114 de Mariana y 126 de la UCC.
+Entran al modelo como consumo nulo sin pasar por la limpieza, que ya no las
+ve, y sin que ninguna marca las distinga de una hora medida. Declarado
+donde ocurre y añadido a la lista del sesgo, **que pasa de seis decisiones
+a siete**: seis recortan y una amplía.
+
+### De paso
+
+Se corrigieron otros dos sitios que arrastraban el error: la descripción
+adelantada en «la hora incompleta», que decía «le pone cero más allá», y el
+remite de la zona horaria, que se apoyaba en que la limpieza distingue el
+cero nocturno de la generación del hueco de medida. **Eso no ocurre**,
+porque las series de generación no reciben tratamiento; ahora se apoya en
+la banda solar de la matriz.
+
+**Estado**: 90 páginas, sin errores ni desbordes; auditoría numérica en
+cero desfases; estilo en 23,8 palabras por oración frente a 24,6 del
+perfil.
+
+---
+
+## C-98 · «Lo que cuesta reconstruir» se aparta del documento principal
+
+**2026-09-04 · tipo: `estructura` · aplicada**
+
+El aviso: la subseccion no es importante en el documento principal. Se
+aparta con `guardado`, 238 palabras, siguiendo el precedente del Capitulo 2,
+que ya tiene una subseccion entera dentro de uno de esos bloques.
+
+**Por que sobraba.** Sus dos cifras centrales, las 353 horas y los 1.013,3
+kWh, quedaron en la Tabla de la reconstruccion cuando esa enumeracion paso
+de prosa a tabla (C-93). El argumento del signo lo recoge entera la
+subseccion del sesgo, que lo pone como primero de seis. Lo unico propio que
+quedaba eran tres porcentajes y el enunciado del mecanismo, que el parrafo
+de la reconstruccion ya da.
+
+**Dos referencias reconectadas antes de apartar**, porque la etiqueta queda
+dentro del bloque y LaTeX habria impreso «??»:
+
+- El parrafo de la reconstruccion remitia a ella para «medir cuanto
+  cuesta». Se retira el remite: la tabla ya lo mide.
+- El primer punto de la lista del sesgo remitia a ella. Ahora remite a la
+  Tabla~
+ef{tab:prep-reconstruccion}.
+
+Comprobado que no queda ninguna referencia rota.
+
+**Efecto sobre H-24.** La frase «lo que eso elimina de la serie de demanda»
+sale de imprenta con la subseccion. Queda impresa una sola vez, en el primer
+punto de la lista del sesgo: «el recorte de la reconstruccion elimina
+1.013,3 kWh de la demanda de Udenar». El hallazgo sigue abierto, pero ahora
+se resuelve tocando una sola frase.
+
+**Estado**: 87 paginas, sin errores ni desbordes; el Capitulo 3 pasa de
+5.340 a 5.035 palabras publicadas; estilo en 24,1 palabras por oracion
+frente a 24,6 del perfil.
+
+---
+
 ## C-97 · La nota de la figura se aparta, y el medidor de estilo deja de medir lo apartado
 
 **2026-09-04 · tipo: `contenido` + `herramienta` · aplicada**
@@ -4003,6 +4137,124 @@ no todo es generacion: son 32.691 kWh de generacion devuelta mas 1.013 que
 proceden del recorte a cero. La franja inferior de la figura los separa y
 la nota ahora tambien. Y «el area beige alcanza su maximo» dejo de
 describir el dibujo, porque la generacion ya no se traza desde cero.
+
+---
+
+## C-99 · La limpieza pasa a dos figuras, y el cuarto tratamiento resulta no tener ningún caso
+
+**2026-09-04 · tipo: `figura` · aplicada · él aprobó la partición**
+
+Él pidió que después de cada uno de los cuatro pasos de la limpieza hubiera
+una figura con un ejemplo real. Se propuso agruparlos en dos y lo aprobó,
+porque los pasos segundo, tercero y cuarto operan sobre el mismo objeto,
+que es un hueco, y solo se distinguen por su longitud: repartidos en tres
+figuras, lo único que los diferencia viajaría entre páginas, que es donde
+peor se compara. La subsección se parte en dos, una por idea.
+
+**Lo que la figura antigua no podía sostener.** Su panel izquierdo dibujaba
+una línea horizontal sobre las 6.144 horas del horizonte y afirmaba en el
+pie que la distancia entre el umbral y la masa de la serie acredita el
+criterio. El umbral es el máximo de dos candidatos y el panel dibujaba uno
+solo, de modo que no se veía cuál de los dos mandaba ni por qué el máximo
+hace falta; y la masa de una serie de 6.144 puntos trazada como línea
+continua es una maraña de la que solo se lee la envolvente. Es el defecto
+que C-76 midió sobre las barras de cobertura y C-84 sobre la curva de
+duración, reaparecido por tercera vez.
+
+**Figura 3.5, el umbral.** A la izquierda, la hora retirada sobre una
+ventana de tres días, con el valor que entró, el umbral y el valor con que
+quedó, unidos por una cota. A la derecha, una fila por serie con su mitad
+central, su cola hasta el máximo observado y los dos candidatos del
+umbral. El eje va en múltiplos del percentil 99,5 de cada serie y no en
+kilovatios, y la razón está medida: los diez umbrales de la frontera
+principal van de 10,2 a 154,8 kW, es decir, más de un orden de magnitud,
+de modo que en kilovatios las filas pequeñas no dibujarían ninguna
+diferencia. Normalizados, el piso es una sola vertical en 1,2 común a las
+diez filas y basta ver a qué lado cae la cerca de Tukey para saber cuál
+manda.
+
+**El caso se elige por regla y no a dedo.** Entre las horas retiradas, las
+aisladas, y de esas la que más sobresale del umbral en términos
+relativos. Sale la del 1 de octubre de 2025 en la Universidad Mariana, que
+entra con 39,9 kW frente a un umbral de 35,1 y sale con 28,2 por
+interpolación entre sus vecinas. El tramo del 24 de abril queda descartado
+por la propia regla, y conviene que así sea: son tres horas seguidas de la
+rampa de mañana, la primera sobresale un 1,3 % y enseñaría un criterio
+que apenas discrimina.
+
+**Manda la cerca en 16 de las 20 series y el piso en 4**, todas de
+demanda, que son Mariana y CESMAG en las dos fronteras. Lo que el piso
+evita está medido: sin él, la demanda de CESMAG perdería 451 horas en M1
+y 927 en M3, es decir, el 20,7 % y el 52,5 % de su energía.
+
+**Figura 3.6, la escalera.** Tres huecos reales de longitud creciente, con
+el eje horizontal en horas desde el inicio del hueco, que es la magnitud
+de la que depende la regla. Los tres van fijados en el generador y
+comprobados con asertos de longitud y de reparto antes de dibujar, como el
+día de la reconstrucción en C-96, y el tercero se comprueba además contra
+el hueco más largo de su frontera. Abajo, el presupuesto de horas por
+institución.
+
+**La cascada no clasifica huecos por longitud: actúa hora a hora dentro de
+cada uno.** El texto anterior decía que los huecos de hasta 3 horas se
+interpolan y los de hasta 24 se rellenan con el vecino, como si fueran
+casos disjuntos, y no lo son. Un hueco de 13 horas sale con sus 3 primeras
+horas interpoladas y las 10 restantes arrastradas. Y el arrastre propaga
+la tercera hora interpolada, no la última lectura observada: en el hueco
+del 12 de diciembre la meseta se queda en 10,09 kW cuando la última
+lectura fue 9,89, es decir, en un valor que ninguna hora observada tuvo.
+La figura lo dibuja con una referencia punteada, y solo cuando la
+separación pasa del 4 % del alto del panel, porque por debajo de eso las
+dos líneas se imprimirían una encima de la otra.
+
+**El cuarto tratamiento no tiene ningún caso, y eso es el hallazgo.** La
+cascada alcanza 51 horas, que son 3 de interpolación más 24 de arrastre
+hacia adelante más 24 hacia atrás, y el hueco más largo del estudio mide
+49, en la demanda de la UCC bajo M3, entre el 11 y el 13 de diciembre. En
+las 20 series de las dos fronteras hay cero horas rellenas con cero. Se
+publica como cifra, con el mismo recurso que C-81 usó para los instantes
+repetidos sin discrepancia, y no se omite. De paso cae la frase que
+atribuía ese relleno a las horas nocturnas de la generación: las diez
+series de generación no reciben ningún tratamiento en ninguna de las dos
+fronteras.
+
+**El panel mensual se retira.** El mes no es la variable que decide el
+tratamiento, la longitud del hueco sí, y el cuándo ya lo lleva el Gantt de
+cobertura del Capítulo 2. En su lugar entra el reparto por mecanismo, que
+es lo que la subsección explica: en M1, 74 horas interpoladas y 160
+arrastradas; en M3, 159 y 415. El arrastre es el 71,2 % de todo lo
+tratado.
+
+**Compuerta.** Las dos figuras replican la limpieza del pipeline paso a
+paso y comparan la serie resultante contra la del propio pipeline antes de
+dibujar: si `max|dif|` dejara de ser cero, la corrida se detiene en vez de
+publicar una figura que describe otro cálculo.
+
+**Comprobaciones de cierre.** Cero solapamientos de rótulo en las cuatro
+figuras, medidos sobre el render y descontando las marcas de eje que
+matplotlib conserva fuera del rango visible. Conversión a escala de
+grises: la distinción la llevan la geometría, que es rampa frente a
+meseta, y la forma del marcador, que es círculo, cuadrado y triángulo, de
+modo que no se pierde nada. Los CSV hermanos tienen 11 y 9 filas.
+
+**Dos defectos de composición que la prueba de oclusión cazó y que se
+anotan porque son recurrentes.** La leyenda de figura fijada a una altura
+elegida a ojo se imprimía sobre los dos rótulos de eje; ahora se coloca
+después de componer y por debajo del rótulo más bajo, medido sobre el
+render. Y la cabecera de la columna de umbrales, puesta dentro del área de
+dato, caía sobre la cifra de la primera fila.
+
+**Cifras nuevas que las figuras publican**, todas regenerables desde el
+caché de estados intermedios y volcadas a los CSV hermanos: los diez
+umbrales de cada frontera con sus dos candidatos, las 4 y 7 horas
+retiradas, el reparto por mecanismo de las 234 y 574 horas tratadas, el
+hueco más largo de cada frontera y las tres ternas de reparto de los
+peldaños.
+
+**Pendiente**: el texto de las dos subsecciones nuevas, que redacta el
+coordinador, y retirar los seis archivos de la figura antigua
+(`f3_05_outliers_imputacion_{m1,m3}` con su PNG, su CSV y su fuente) en
+cuanto la fuente del capítulo deje de citarlos.
 
 ---
 

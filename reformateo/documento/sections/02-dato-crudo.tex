@@ -7,12 +7,12 @@
 %
 % Reglas del documento:
 % - Una idea = una subseccion = una figura.
-% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda figura declara su procedencia con.
 % - Toda cifra sale del canon de agosto; ver GUIA.md.
 % - M1 y M3 se reportan siempre en paralelo.
 % - Ningun superlativo sin releer el CSV de la frontera correcta.
 % =====================================================================
-\section{El dato crudo: cinco instituciones, veintisiete fuentes}
+\section{Las fuentes de medición: cinco instituciones, veintisiete equipos}
 \label{sec:dato}
 \justifying
 
@@ -263,7 +263,6 @@ medida.}\label{tab:dato-var-medidor}\\
     Tensión entre fases (AB, BC, CA)                  & V \\
     \bottomrule
     \end{tabular}
-    \fuente{elaboración propia recorriendo los siete inversores.}
 \end{table}
 
 \begin{guardado}
@@ -279,7 +278,7 @@ de tomarla medida.
 \end{detallebox}
 \end{guardado}
 
-\subsubsection*{Qué mide cada equipo}
+\subsubsection*{Las magnitudes de cada equipo}
 
 Hasta aquí los equipos se han citado con el nombre que les da la plataforma,
 esto es, Medidor 1 o Medidor 3, y ese nombre no dice a qué circuito se
@@ -342,7 +341,7 @@ puntos distintos del circuito, y sumarlos mezclaría totalizadores con
 ramales.
 \end{detallebox}
 
-\subsection{Lo que se deja fuera al quedarse con la activa}
+\subsection{Las magnitudes excluidas}
 \label{sub:dato-reactiva}
 
 Que la energía reactiva no entregue trabajo no significa que no se pague.
@@ -363,7 +362,7 @@ Anexo~\ref{sec:no-representado} recoge la medición completa y las razones
 por las que el trabajo se hace solo sobre energía activa.
 \end{guardado}
 
-\subsection{Cuánto tiempo hay medido}
+\subsection{Cobertura temporal de las fuentes}
 \label{sub:dato-gantt}
 
 La segunda pregunta después de «qué se midió» es «desde cuándo». Los
@@ -382,7 +381,7 @@ se fue instrumentando.
  \label{fig:dato-gantt}
 \end{figure}
 
-\subsection{Por qué el horizonte empieza el 4 de abril}
+\subsection{Delimitación del horizonte de estudio}
 \label{sub:dato-horizonte}
 
 El inicio del horizonte no se eligió: viene impuesto. Un mercado entre
@@ -414,7 +413,7 @@ instituciones tienen registro en sus medidores y en su inversor. Se cierra
 el 16 de diciembre del mismo año, lo que da \num{256} días y \num{6144}
 horas.
 
-\subsection{Cuánto dato hay, fuente por fuente}
+\subsection{Completitud del registro por fuente}
 \label{sub:dato-cobertura}
 
 Queda la tercera pregunta: dentro de ese horizonte, ¿cuántas horas faltan?
@@ -448,7 +447,7 @@ horas que le faltan al Medidor 4 de Cesmag, que es auxiliar; de los equipos
 que el modelo emplea, a ninguno le faltan más de \num{126}. Son pocas, y
 son exactamente las que el capítulo siguiente tiene que rellenar.
 
-\subsection{Qué se puede y qué no se puede concluir de aquí}
+\subsection{Alcance y límites del inventario}
 \label{sub:dato-alcance}
 
 Antes de pasar al tratamiento es importante delimitar el alcance de esta base de
@@ -469,6 +468,28 @@ la participación relativa de cada miembro y con cinco miembros ciertos
 umbrales resultan matemáticamente inalcanzables. Tampoco sostiene conclusiones
 estacionales completas: nueve meses cubren buena parte del ciclo anual de
 Pasto, pero no un año entero.
+
+Hay una segunda ausencia, y es de otra naturaleza: el modelo no representa
+la red. No hay impedancias, ni distancias eléctricas, ni límites de
+capacidad entre los nodos, de modo que las cinco instituciones entran como
+cinco perfiles de carga y de generación sin más relación entre sí que la
+temporal.
+
+Esa ausencia no es un descuido sino el alcance del objeto que se simula.
+Lo que la regulación colombiana define para una comunidad energética es
+una liquidación en kilovatios hora sobre un periodo, no un despacho
+físico: el intercambio entre pares se salda a través de la red del
+operador, y ninguna de las resoluciones que el Capítulo~\ref{sec:esc}
+compara exige un flujo de potencia para calcular lo que cada miembro paga.
+El modelo reproduce esa liquidación y no otra cosa.
+
+La consecuencia hay que decirla con el mismo cuidado. Los resultados
+describen lo que la liquidación regulatoria arrojaría, no si la red física
+podría alojar esos intercambios, y un despliegue real exigiría un estudio
+de flujo de carga que este trabajo no hace. De esa familia de restricciones
+el documento solo mide la que tiene precio en la factura, que es el consumo
+de energía reactiva, y lo hace en el
+Anexo~\ref{sec:no-representado}.
 
 En resumen, de las 27 fuentes instrumentadas el modelo emplea 16: los
 nueve medidores de frontera, los cinco inversores que definen la generación

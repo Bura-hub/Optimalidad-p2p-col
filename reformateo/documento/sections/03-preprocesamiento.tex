@@ -1,5 +1,5 @@
 % =====================================================================
-% La domesticación del dato
+% El preprocesamiento del dato
 % Parte I. El dato
 %
 % ENCARGO: el pipeline etapa por etapa. Es el capitulo central del
@@ -7,12 +7,12 @@
 %
 % Reglas del documento:
 % - Una idea = una subseccion = una figura.
-% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda figura declara su procedencia con.
 % - Toda cifra sale del canon de agosto; ver GUIA.md.
 % - M1 y M3 se reportan siempre en paralelo.
 % - Ningun superlativo sin releer el CSV de la frontera correcta.
 % =====================================================================
-\section{La domesticación del dato}
+\section{El preprocesamiento del dato}
 \label{sec:prep}
 \justifying
 
@@ -30,7 +30,7 @@ algo. Juzgar la solidez de las cifras del
 Capítulo~\ref{sec:res} exige, por tanto, haber recorrido antes ese
 proceso completo.
 
-\subsection{El camino completo, de un vistazo}
+\subsection{Estructura del canal de preprocesamiento}
 \label{sub:prep-mapa}
 
 Antes de precisar cada etapa conviene ver el flujo completo de
@@ -199,7 +199,7 @@ ahí, sino a que por debajo del cero no hay nada que medir.
 Queda una sola ambigüedad que la etapa sí tiene que resolver, y es la del
 instante que llega dos veces.
 
-\subsection{El instante que llega repetido}
+\subsection{Los instantes duplicados}
 \label{sub:prep-duplicados}
 
 Antes de promediar hay que resolver una ambigüedad del dato crudo. En la totalidad de la base de datos algunas
@@ -381,22 +381,31 @@ datos que no concuerdan: la demanda de tres de las cinco instituciones baja
 de cero durante varias horas al día. Un edificio no consume energía
 negativa. Y el tratamiento no lo causó, porque esa etapa no corrige, no
 sustituye ni descarta ninguna medida, de modo que lo que la serie trae es
-lo que el medidor entregó. La Figura~\ref{fig:prep-negativa}
-recoge el fenómeno en sus dos dimensiones: la forma que toma en la
-institución más afectada y la hora del día en que aparece.
+lo que el medidor entregó. La Figura~\ref{fig:prep-negativa} recoge el
+fenómeno en sus dos dimensiones y en las dos fronteras: la forma que toma
+en la institución más afectada de cada una y la hora del día en que
+aparece.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m1.png}
- \caption[Demanda negativa en la lectura cruda]{A la izquierda, el perfil
- medio de la demanda de las cinco instituciones tal como la entrega el
- medidor, en la frontera M1, con Udenar destacada y las otras cuatro en
- gris de contexto. Solo la suya entra en la franja sombreada, que marca la
- zona físicamente imposible, y baja a \uni{-11.0}{kW} a las 13. A la
- derecha, en qué hora del día ocurren las lecturas
- negativas de las tres instituciones que las registran.}
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa.png}
+ \caption[La demanda que el medidor entrega en negativo]{Una fila por
+ frontera de medición. A la izquierda, el perfil de la institución que
+ carga con el fenómeno en cada una, en promedio y en mínimo de cada hora,
+ sobre las otras cuatro en promedio y en gris; la banda sombreada es la
+ zona imposible. A la derecha, cuántas horas caen bajo cero en cada hora
+ del día, apiladas por institución.}
  \label{fig:prep-negativa}
 \end{figure}
+
+\notafig{Las dos curvas de la institución destacada van juntas a
+propósito. Bajo M1 el promedio horario de Udenar entra en la zona
+imposible y baja a \uni{-11.0}{kW} a las 13, de modo que el neteo no
+arrastra unos pocos casos sueltos sino la media entera; bajo M3 ningún
+promedio la alcanza y solo el mínimo la roza. Los conteos por institución,
+la fracción, el mínimo y la energía hacia la red los da la
+Tabla~\ref{tab:prep-tipos}. Elaboración propia desde el caché de estados
+intermedios.}
 
 El reparto es muy desigual. En Udenar la demanda cae bajo cero en cerca de
 una cuarta parte del horizonte, es decir, el \pct{24.7} de las \num{6144}
@@ -418,23 +427,15 @@ sensor averiado, es un medidor que está restando la generación antes de
 reportar, y dónde esté puesto respecto de la inyección es lo que decide si
 lo hace.
 
-Y decide también en qué frontera aparece. En la secundaria el fenómeno casi
-desaparece: de las cinco instituciones solo Mariana registra lecturas
-negativas, y son las mismas \num{213} horas de la principal, porque en M3
-se lee su mismo medidor multiplicado por un factor. Los otros cuatro
-circuitos secundarios no bajan de cero ni una hora, de modo que la lectura
-imposible es un asunto de la frontera principal.
+Y decide también en qué frontera aparece, que es lo que separa las dos
+filas de la figura. En la secundaria el fenómeno casi desaparece: de las
+cinco instituciones solo Mariana registra lecturas negativas, y son las
+mismas \num{213} horas de la principal, porque en M3 se lee su mismo
+medidor multiplicado por un factor. Los otros cuatro circuitos secundarios
+no bajan de cero ni una hora, de modo que la lectura imposible es un
+asunto de la frontera principal.
 
-\begin{figure}[H]
- \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_02_demanda_negativa_m3.png}
- \caption[Demanda negativa en la frontera secundaria]{A la izquierda, el mínimo de cada hora y no el perfil medio,
- porque en esta frontera ninguna media llega a ser negativa. A la derecha,
- las horas afectadas, todas de Mariana.}
- \label{fig:prep-negativa-m3}
-\end{figure}
-
-\subsection{Clasificar el medidor: tres tipos}
+\subsection{Clasificación del medidor: tres tipos}
 \label{sub:prep-tipos}
 
 La explicación de ese patrón es de topología eléctrica, o dicho de otro
@@ -505,8 +506,8 @@ que separa a esos dos es el impacto.
 
 \begin{table}[H]
  \centering
- \caption{Clasificación de los medidores de demanda en la frontera M1 y
- huella del neteo. Las cuatro columnas de la derecha se leen directamente
+ \caption{Clasificación de los medidores de demanda y huella del neteo, en
+ las dos fronteras. Las cuatro columnas de la derecha se leen directamente
  sobre la serie que cada medidor entrega, sin reconstruir nada: son horas
  en que su lectura fue negativa, la fracción que representan sobre las
  horas con dato de ese equipo, su lectura más baja del horizonte y la
@@ -520,18 +521,30 @@ que separa a esos dos es el impacto.
  & & \textbf{bajo cero} & \textbf{horas} & \textbf{mínima (kW)} &
  \textbf{la red (kWh)} \\
  \midrule
+ \multicolumn{6}{@{}l}{\itshape Frontera M1} \\
  Udenar & neto & \num{1517} & \pct{25.1} & \num{-33,57} & \num{15348} \\
- \addlinespace
  Mariana & neto parcial & \num{213} & \pct{3.5} & \num{-2,41} & \num{156} \\
- \addlinespace
  UCC & neto parcial & \num{94} & \pct{1.6} & \num{-5,91} & \num{200} \\
- \addlinespace
  HUDN & bruto & \num{0} & \pct{0} & \num{6,12} & \num{0} \\
+ CESMAG & bruto & \num{0} & \pct{0} & \num{0,20} & \num{0} \\
  \addlinespace
+ \multicolumn{6}{@{}l}{\itshape Frontera M3} \\
+ Udenar & bruto & \num{0} & \pct{0} & \num{0,22} & \num{0} \\
+ Mariana & bruto & \num{213} & \pct{3.5} & \num{-0,72} & \num{47} \\
+ UCC & bruto & \num{0} & \pct{0} & \num{0,73} & \num{0} \\
+ HUDN & bruto & \num{0} & \pct{0} & \num{1,29} & \num{0} \\
  CESMAG & bruto & \num{0} & \pct{0} & \num{0,20} & \num{0} \\
  \bottomrule
  \end{tabular}
 \end{table}
+
+El bloque de M3 dice algo que no se deduce del de M1: en el circuito
+secundario los cinco medidores son brutos, de modo que la frontera no
+cambia solo cuánta carga se mide sino la semántica del propio equipo. La
+única excepción aparente es Mariana, y no es tal: esa institución no tiene
+medidor en el circuito secundario, de modo que se reutiliza el del
+principal multiplicado por un factor, y con él hereda sus \num{213} horas
+negativas, ya escaladas.
 
 Los tres tipos no nombran tres aparatos distintos sino tres situaciones
 del mismo, y lo que las separa es dónde se conecta la generación. Si entra
@@ -556,19 +569,19 @@ Mariana y los \uni{200}{kWh} de la UCC.
 En el HUDN y en CESMAG el inversor entra fuera del tramo que el medidor
 vigila, o alimenta un circuito distinto del medido, y por eso el flujo
 nunca se invierte allí aunque las dos instituciones tengan su equipo. La
-Figura~\ref{fig:prep-gradacion} pone esa gradación en una sola escala, es
-decir, sitúa a cada medidor entre la lectura que entrega de ordinario y la
-más baja que llegó a entregar.
+Figura~\ref{fig:prep-profundidad} pone esa gradación en una sola magnitud,
+es decir, sitúa a cada medidor entre la lectura que entrega de ordinario y
+la más baja que llegó a entregar, y lo hace en las dos fronteras.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_02b_profundidad_m1.png}
- \caption[Hasta dónde baja la lectura de cada medidor]{Los cinco medidores
- de demanda de la frontera M1, cada uno resumido por tres marcas: la lectura
- mediana que entrega, el recorrido que va de esa mediana a su lectura más
- baja, y la mitad central de sus lecturas negativas. La franja sombreada
- marca la zona físicamente imposible.} 
- \label{fig:prep-gradacion}
+ \includegraphics[width=0.95\textwidth]{figuras/f3_02b_profundidad.png}
+ \caption[Hasta dónde baja la lectura de cada medidor]{Una fila por
+ institución en el orden fijo y un panel por frontera, con los kilovatios
+ en el eje horizontal. Cada fila lleva la lectura mediana del medidor, el
+ recorrido desde esa mediana hasta la más baja, y la mitad central de sus
+ lecturas negativas cuando las tiene.}
+ \label{fig:prep-profundidad}
 \end{figure}
 
 En Udenar esa mitad central cae entre
@@ -664,6 +677,29 @@ mismo eje y muestra el resultado de aplicar esa devolución. La coincidencia
 temporal es el argumento: la lectura se hunde exactamente cuando la banda
 de generación se ensancha, y ninguna avería de sensor produciría eso.
 
+La Figura~\ref{fig:prep-mosaico} repite esa lectura en las diez series, de
+modo que se vea a quién se le aplica la devolución y a quién no.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_03b_reconstruccion_mosaico.png}
+ \caption[La reconstrucción en las diez series]{Perfil medio horario de la
+ lectura del medidor y de la demanda reconstruida en las cinco
+ instituciones y las dos fronteras, con la generación devuelta como banda
+ entre las dos curvas. Las escalas verticales son independientes por
+ panel.}
+ \label{fig:prep-mosaico}
+\end{figure}
+
+\notafig{Siete de los diez paneles salen sin banda porque su medidor no
+netea y no hay generación que devolverles, de modo que la fila de la
+frontera secundaria funciona como control de la principal. La excepción es
+la Universidad Mariana bajo M3, donde tampoco hay devolución y sin embargo
+el recorte a cero todavía quita \uni{46.7}{kWh}, que son los
+\uni{156}{kWh} de la frontera principal multiplicados por el mismo factor
+con que se construye su serie secundaria. Elaboración propia desde el
+caché de estados intermedios.}
+
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_03_reconstruccion_m1.png}
@@ -744,38 +780,161 @@ las 10 series de medida, que son la demanda y la generación de cada
 institución, aunque en la práctica solo sobre la demanda: las cinco de
 generación atraviesan la etapa sin que se les toque una sola hora.
 
-Un valor se retira cuando supera el umbral
+Todo se hace a traves del siguiente criterio, un valor se retira cuando supera el umbral dado por:
 
 \begin{equation}
  u = \max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr),
  \label{eq:prep-umbral}
 \end{equation}
 
-que combina dos criterios porque ninguno basta por separado. El primero es
-una cerca de tipo Tukey con un multiplicador de 5 en vez del 1,5 clásico,
-deliberadamente permisivo para que solo retire valores físicamente
-inverosímiles. El segundo es un piso situado un \pct{20} por encima del
-percentil 99,5, y es el que protege los picos operativos legítimos.
+que combina dos criterios. La tensión que resuelve es la siguiente: una
+lectura físicamente imposible hay que retirarla, pero un criterio
+demasiado estricto retira consumo real, y mirando el valor aislado no hay
+forma de distinguirlos.
 
-Cuál de los dos manda depende de la forma de la serie. La cerca fija el
-umbral en 16 de las 20 series, y el piso en las otras cuatro, todas de
-demanda: Mariana y CESMAG en las dos fronteras. El caso de CESMAG mide lo
-que está en juego. Sin el piso, su demanda perdería \num{451} horas bajo
-M1, que concentran el \pct{20.7} de su energía, y \num{927} bajo M3, que
-concentran el \pct{52.5}. Con el piso tiene cero atípicos en M1 y dos en
-M3.
+El primer criterio mide cuánto se dispersa la mitad central de las
+lecturas y pone el corte cinco veces esa dispersión por encima de ella.
+Sigue la regla de Tukey, la que traza los bigotes de un diagrama de caja,
+pero con un multiplicador de 5 en vez del 1,5 clásico, deliberadamente
+permisivo para que solo retire lo inverosímil. Funciona bien mientras la
+serie tenga recorrido.
 
-Lo que hace peligrosa la cerca en CESMAG no es el rango intercuartílico
-pequeño por sí solo. El HUDN tiene el menor de todo el estudio,
-\uni{0.318}{kW} bajo M3, y su umbral lo fija la cerca sin que marque nada,
-porque su carga es tan plana que nunca se acerca. El mecanismo es la
-combinación de una base muy estable con picos operativos raros de gran
-amplitud, es decir, un perfil de dos modas: la cerca se calibra sobre la
-base y deja fuera el pico legítimo.
+Donde falla es en las cargas muy planas. Si la mitad central de las
+lecturas cabe en un margen estrecho, el corte queda cerca de esa base y
+cualquier pico operativo legítimo lo supera. CESMAG es ese caso: bajo M1 su
+mitad central mide poco más de un kilovatio y el corte cae en
+\uni{10.6}{kW}, un valor que la institución rebasa con frecuencia.
+
+El segundo criterio existe para eso. Fija un valor por debajo del cual el
+corte no puede bajar, y lo sitúa un \pct{20} por encima del percentil 99,5,
+es decir, por encima de lo que la propia serie alcanza operando con
+normalidad. Como el umbral es el mayor de los dos, se aplica siempre el
+\emph{más permisivo}, y el segundo solo entra cuando el primero se ha vuelto
+demasiado estricto.
+
+La Figura~\ref{fig:prep-anatomia} construye los dos candidatos sobre las
+diez series de demanda, de modo que la multiplicación por cinco se cuenta
+con el ojo en vez de leerse en la fórmula.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f3_04b_anatomia_umbral.png}
+ \caption[La anatomía del umbral]{Cómo se construye cada uno de los dos
+ candidatos, en las diez series de demanda y en las dos fronteras. La caja
+ oscura es la mitad central de las lecturas; sobre el tercer cuartil se
+ apilan cinco copias exactas de esa misma caja, y donde aterriza la quinta
+ está el primer criterio. A su derecha, la línea de puntos sube hasta el
+ percentil 99,5 y el bloque ámbar es su prolongación del \pct{20}, cuyo
+ techo es el segundo criterio. El que fija el umbral va con trazo lleno y
+ el descartado, discontinuo.}
+ \label{fig:prep-anatomia}
+\end{figure}
+
+\notafig{Cada panel lleva su propia escala vertical, porque los rangos van
+de \uni{0.3}{kW} a \uni{24.4}{kW}, de modo que lo que se compara entre
+paneles no es una altura sino una relación, esto es, si la cola con su
+prolongación queda por encima o por debajo de la quinta copia. CESMAG bajo
+M3 es el caso extremo: su pila apenas despega del suelo del panel y el
+umbral queda cuatro veces más arriba, porque su cola cae a 23,2 rangos del
+cuartil. El Hospital, con el rango más estrecho de todo el estudio,
+\uni{0.318}{kW}, no necesita el segundo criterio en ninguna de las dos
+fronteras. Los valores de cada panel están en la
+Tabla~\ref{tab:prep-umbral}. Elaboración propia desde el caché de estados
+intermedios.}
+
+Lo que está en juego se mide en CESMAG. Sin ese segundo criterio, su
+demanda perdería \num{451} horas bajo M1, que concentran el \pct{20.7} de
+su energía, y \num{927} bajo M3, que concentran el \pct{52.5}. Con él tiene
+cero atípicos bajo M1 y dos bajo M3.
+
+El segundo criterio manda en cuatro de las 20 series, todas de demanda:
+Mariana y CESMAG en las dos fronteras. En las 16 restantes basta el
+primero, y entre ellas están las diez de generación, donde además no se
+retira una sola hora. La Tabla~\ref{tab:prep-umbral} da la anatomía
+completa de las series de demanda.
+
+\begin{table}[H]
+ \centering
+ \caption{Los dos candidatos en cada serie de demanda, con el que se
+ aplica en negrita. La columna de la cola dice a cuántos rangos
+ intercuartílicos del tercer cuartil cae el percentil 99,5, y es la que
+ explica el reparto: cuanto más lejos queda la cola del cuerpo, más se
+ queda corto el primer criterio.}
+ \label{tab:prep-umbral}
+ \footnotesize
+ \setlength{\tabcolsep}{5pt}
+ \begin{tabular}{@{}l r r r r r@{}}
+ \toprule
+ \textbf{Institución} & \textbf{Rango} & \textbf{Cola} &
+ \textbf{Primer} & \textbf{Segundo} & \textbf{Horas} \\
+ & \textbf{(kW)} & \textbf{(rangos)} & \textbf{criterio (kW)} &
+ \textbf{criterio (kW)} & \textbf{retiradas} \\
+ \midrule
+ \multicolumn{6}{@{}l}{\itshape Frontera M1} \\
+ Udenar & \num{4,91} & \num{3,4} & \textbf{\num{33,4}} & \num{31,0} & \num{0} \\
+ Mariana & \num{4,50} & \num{4,1} & \num{33,5} & \textbf{\num{35,1}} & \num{4} \\
+ UCC & \num{24,35} & \num{1,3} & \textbf{\num{154,8}} & \num{78,5} & \num{0} \\
+ HUDN & \num{1,40} & \num{1,2} & \textbf{\num{16,8}} & \num{13,7} & \num{0} \\
+ CESMAG & \num{1,27} & \num{8,2} & \num{10,6} & \textbf{\num{17,7}} & \num{0} \\
+ \addlinespace
+ \multicolumn{6}{@{}l}{\itshape Frontera M3} \\
+ Udenar & \num{1,54} & \num{2,2} & \textbf{\num{9,5}} & \num{6,3} & \num{0} \\
+ Mariana & \num{0,97} & \num{5,0} & \num{7,6} & \textbf{\num{9,1}} & \num{5} \\
+ UCC & \num{3,62} & \num{1,2} & \textbf{\num{23,0}} & \num{11,1} & \num{0} \\
+ HUDN & \num{0,32} & \num{1,5} & \textbf{\num{3,7}} & \num{3,0} & \num{0} \\
+ CESMAG & \num{0,56} & \num{23,2} & \num{4,5} & \textbf{\num{17,6}} & \num{2} \\
+ \bottomrule
+ \end{tabular}
+\end{table}
+
+Que la mitad central sea estrecha no lo decide por sí solo, y la tabla lo
+enseña en dos filas contiguas: bajo M1 el HUDN y CESMAG tienen rangos casi
+iguales y el umbral de cada uno lo fija un criterio distinto. Lo que los
+separa es la columna de la cola, \num{1,2} rangos frente a \num{8,2}. Eso
+es lo que obliga al segundo criterio, una base estable con picos altos y
+poco frecuentes, y no la estrechez del cuerpo.
 
 El criterio retira \num{11} horas en las 20 series. Todas son de demanda y
 solo de dos instituciones: Mariana, con cuatro bajo M1 y cinco bajo M3, y
 CESMAG, con dos bajo M3.
+
+Queda una objeción por responder, y es que el multiplicador de 5 no
+procede de ninguna referencia sino de la inspección de estas series. La
+respuesta no es defender el valor sino medir cuánto depende de él el
+resultado. La Tabla~\ref{tab:prep-sensibilidad} barre el multiplicador
+entre el clásico y el doble del elegido, con los dos criterios y con el
+primero solo.
+
+\begin{table}[H]
+ \centering
+ \caption{Energía que el criterio retira, en porcentaje de la demanda de
+ las 10 series, al variar el multiplicador del primer criterio.}
+ \label{tab:prep-sensibilidad}
+ \small
+ \begin{tabular}{@{}c r r@{}}
+ \toprule
+ \textbf{Multiplicador} & \textbf{Con los dos} & \textbf{Solo con el} \\
+ & \textbf{criterios} & \textbf{primero} \\
+ \midrule
+ 1,5 & \pct{0.083} & \pct{13.369} \\
+ 3 & \pct{0.083} & \pct{6.563} \\
+ \textbf{5} & \textbf{\pct{0.062}} & \pct{3.650} \\
+ 7 & \pct{0.021} & \pct{2.356} \\
+ \bottomrule
+ \end{tabular}
+\end{table}
+
+La columna de la izquierda contesta la objeción: entre el multiplicador
+clásico y el elegido hay cuatro horas de diferencia sobre las \num{122880}
+horas de serie del estudio, y la energía afectada no llega en ningún caso
+al \pct{0.1} de la demanda. El valor del multiplicador no gobierna nada.
+
+La columna de la derecha explica por qué. Sin el segundo criterio, el
+multiplicador sí gobierna, y de forma brutal: el clásico retiraría el
+\pct{13.4} de la demanda y ni siquiera un 7 bajaría del \pct{2.4}. El
+segundo criterio no cubre un fallo del primero, sino que hace que el
+primero deje de importar, y es esa insensibilidad, y no la elección del
+valor, lo que sostiene el criterio.
 
 La Figura~\ref{fig:prep-umbral} muestra a la izquierda qué le pasa a una de
 esas horas y a la derecha por qué el umbral está donde está en cada serie.
@@ -783,37 +942,34 @@ esas horas y a la derecha por qué el umbral está donde está en cada serie.
 \begin{figure}[H]
  \centering
  \includegraphics[width=0.95\textwidth]{figuras/f3_05_umbral_atipicos_m1.png}
- \caption[El umbral de atípicos y lo que retira]{A la izquierda, la hora que
- el umbral retira con mayor holgura entre las que quedan aisladas, que es la
- de la Universidad Mariana el 1 de octubre de 2025: entra con
- \uni{39.9}{kW}, excede en un \pct{13.7} el umbral de \uni{35.1}{kW} y sale
- con \uni{28.2}{kW}, interpolada entre las lecturas de las 8 y las 10 horas.
- A la derecha, el criterio en las diez series, con el eje en múltiplos del
- percentil 99,5 de cada serie: la barra es la mitad central de las lecturas,
- la línea llega hasta el máximo observado, el círculo marca la cerca de
- Tukey y el rombo el umbral que se aplica. El piso del percentil es la
- vertical en 1,2, común a las diez filas, de modo que manda el piso
- justamente en las filas cuya cerca cae a su izquierda, que son las de rango
- intercuartílico más estrecho.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento; criterio de limpieza declarado en
- \file{data/xm\_data\_loader.py}.}}
+ \caption[El umbral de atípicos y lo que retira]{A la izquierda, la hora
+ que el umbral retira con mayor holgura entre las que quedan aisladas, la
+ de la Universidad Mariana el 1 de octubre de 2025, con el valor que entra
+ y el que queda tras la cascada. A la derecha, el criterio en las diez
+ series, con el eje en múltiplos del percentil 99,5 de cada una: la barra
+ es la mitad central de las lecturas, la línea llega hasta el máximo
+ observado, el círculo marca el corte del primer criterio y el rombo el
+ umbral que se aplica.}
  \label{fig:prep-umbral}
 \end{figure}
 
-\notafig{La distancia entre la masa de la serie y su umbral es lo que
-acredita el criterio, y solo en cuatro de las 20 series, todas de demanda,
-hace falta el piso del percentil para conservarla. Bajo M3 las cifras del
-caso son equivalentes, con una lectura de \uni{10.3}{kW} sobre un umbral de
-\uni{9.1}{kW}. Elaboración propia desde el caché de estados intermedios.}
+\notafig{La hora del caso entra con \uni{39.9}{kW}, excede en un
+\pct{13.7} el umbral de \uni{35.1}{kW} y sale con \uni{28.2}{kW},
+interpolada entre las lecturas de las 8 y las 10 horas. En el panel
+derecho, el segundo criterio es la vertical en 1,2, común a las diez filas,
+de modo que manda justamente donde el círculo cae a su izquierda. La
+distancia entre la masa de la serie y su umbral es lo que acredita el
+criterio, y solo en cuatro de las 20 series hace falta el segundo para
+conservarla. Elaboración propia desde el caché de estados intermedios.}
 
-\subsection{La escalera de los huecos}
+\subsection{Tratamiento de los huecos}
 \label{sub:prep-huecos}
 
 Lo que queda como faltante, sea porque el equipo no registró o porque el
-umbral acaba de retirarlo, pasa por una cascada de tres tratamientos. La
-cascada no clasifica los huecos por su longitud: se aplica hora a hora
-dentro de cada uno, de modo que un mismo hueco puede recibir los tres.
+umbral acaba de retirarlo, pasa por una cascada de cuatro tratamientos, de
+los que solo tres llegan a actuar. La cascada no clasifica los huecos por
+su longitud: se aplica hora a hora dentro de cada uno, de modo que un
+mismo hueco puede recibir varios.
 
 Las tres primeras horas de cualquier hueco se interpolan linealmente en el
 tiempo, sobre la recta que une la última hora observada antes del hueco
@@ -822,72 +978,88 @@ termina. Si es más largo, el tramo interpolado avanza solo esas tres horas
 y el resto pasa al tratamiento siguiente.
 
 Ese resto se rellena repitiendo un valor, primero hacia adelante hasta 24
-horas y después hacia atrás otras 24. El valor que se repite no es el que
-cabría esperar: hacia adelante se propaga la tercera hora interpolada, que
-es un valor fabricado, y no la última lectura del equipo. Y se repite un
-escalar, de modo que la serie queda plana durante todo el tramo en vez de
-recuperar el ciclo diario.
+horas y después hacia atrás otras 24. Hacia adelante, el valor que se
+repite no es el que cabría esperar: se propaga la tercera hora
+interpolada, que es un valor fabricado, y no la última lectura del equipo.
+Hacia atrás sí se propaga una lectura real, la primera que reabre la
+serie. En los dos casos se repite un único número, de modo que el tramo
+queda plano en vez de recuperar el ciclo diario.
 
-Entre los tres, la cascada cierra cualquier hueco de hasta 51 horas. Lo
-que sobreviviera se imputaría con cero, pero ese cuarto tratamiento no
-llega a actuar en este horizonte: el hueco más largo mide 49 horas, en la
-demanda de la UCC bajo M3.
+Sumados los tres tramos, tres horas más 24 más otras 24, la cascada cierra
+cualquier hueco de hasta 51 horas. El cuarto tratamiento imputaría con
+cero lo que sobreviviera, y por eso no llega a actuar en este horizonte:
+el hueco más largo mide 49 horas, en la demanda de la UCC bajo M3.
 
-La cascada toca \num{808} horas repartidas entre las 20 series. De ellas,
-\num{11} son los atípicos que retira el umbral, \num{233} quedan
-interpoladas y \num{575}, el \pct{71.2}, se rellenan repitiendo un valor.
+La limpieza trata en total \num{808} horas repartidas entre las 20 series,
+que son las \num{11} que el umbral retira más las \num{797} que ya
+faltaban en el dato. De ellas, \num{233} quedan interpoladas y \num{575},
+el \pct{71.2}, rellenas repitiendo un valor.
+
+Que ese relleno sea plano tiene una consecuencia que hay que acotar, y es
+que introduce mesetas donde el capítulo va a leer después la coincidencia
+entre el pico solar y el valle de demanda. La cota es doble. La primera es
+que \emph{la generación no se rellena ni una sola hora} en ninguna de las
+dos fronteras, de modo que el pico solar nunca se fabrica: lo que la
+limpieza toca es siempre demanda. La segunda es el tamaño de lo tocado.
+Sobre las \num{30720} horas de serie de cada frontera, la limpieza rellena
+\num{234} bajo M1 y \num{574} bajo M3, y de ellas caen en la franja diurna
+\num{121} y \num{300}, es decir, el \pct{0.39} y el \pct{0.98} de las
+horas de serie.
 
 La Figura~\ref{fig:prep-huecos} recorre los tres tratamientos sobre huecos
 reales de longitud creciente.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_06_escalera_huecos_m1.png}
- \caption[La escalera de los huecos]{Tres huecos reales de la demanda del
- Hospital, con el eje horizontal en horas desde el inicio de cada uno, que
- es la magnitud de la que depende el tratamiento. El de tres horas lo
- cierra entero la interpolación. El de 13 sale con sus tres primeras horas
- interpoladas y las diez restantes arrastradas, y la meseta no se queda en
- la última lectura observada, \uni{9.9}{kW}, sino en la tercera hora
- interpolada, \uni{10.1}{kW}, es decir, en un valor que ninguna hora
- observada tuvo. El de 42, el más largo de esta frontera, añade el arrastre
- hacia atrás desde la lectura que reabre la serie. Abajo, cuántas horas
- trató la limpieza en cada institución y por qué mecanismo.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento; cascada de limpieza declarada en
- \file{data/xm\_data\_loader.py}.}}
+ \includegraphics[width=0.95\textwidth]{figuras/f3_06_escalera_huecos.png}
+ \caption[La escalera de los huecos]{Tres huecos reales de longitud
+ creciente, con el eje horizontal en horas desde el inicio de cada uno, que
+ es la magnitud de la que depende el tratamiento, y cada panel con su
+ frontera de medición, porque los tres no salen de la misma. Abajo, cuántas
+ horas trató la limpieza en cada institución y en cada frontera, y por qué
+ mecanismo.}
  \label{fig:prep-huecos}
 \end{figure}
 
-\notafig{El arrastre es el \pct{71.2} de todo lo que la limpieza trata, de
-modo que la mayor parte de lo rellenado es una meseta y no una rampa. El
-relleno con cero no aparece en la figura porque no ocurre: no es una
-decisión que se tome, sino un recurso que nunca hizo falta. Bajo M3 el
-peldaño mayor es el hueco de 49 horas de la Universidad Cooperativa de
-Colombia, que tampoco alcanza las 51 de la cascada. Elaboración propia
-desde el caché de estados intermedios.}
+\notafig{El hueco de tres horas lo cierra entero la interpolación. El de 13
+sale con sus tres primeras horas interpoladas y las diez restantes
+arrastradas, y la meseta no se queda en la última lectura observada,
+\uni{9.9}{kW}, sino en la tercera hora interpolada, \uni{10.1}{kW}, es
+decir, en un valor que ninguna hora observada tuvo. El de 49, el más largo
+de todo el estudio, añade el arrastre hacia atrás desde la lectura que
+reabre la serie. Los ceros de M1 en Udenar y en la Universidad Cooperativa
+de Colombia no significan que no tuvieran cortes: su medidor es neto y el
+recorte de la reconstrucción cerró esos huecos antes de que la limpieza los
+viera, y bajo M3 esas mismas dos instituciones acumulan \num{97} y
+\num{126} horas. El arrastre es además el \pct{71.2} de todo lo que la
+limpieza trata, de modo que la mayor parte de lo rellenado es una meseta y
+no una rampa. Elaboración propia desde el caché de estados intermedios.}
 
 \begin{trampabox}
 En el proyecto conviven tres criterios de relleno distintos:
 
 \begin{enumerate}[leftmargin=*, itemsep=0.2em, topsep=0.3em]
- \item Las 10 series de medida siguen el criterio descrito arriba.
+ \item Las 10 series de medida interpolan las tres primeras horas de cada
+ hueco, arrastran el resto hasta 24 horas por cada lado y solo entonces
+ recurrirían al cero.
  \item La serie horaria de precios de bolsa, que construye el
- Capítulo~\ref{sec:precios}, interpola huecos de hasta seis horas y
- completa el residuo con la mediana, sin marcado de atípicos.
- \item El caso de estudio prospectivo mezcla el límite de seis horas con
- el residuo en cero.
+ Capítulo~\ref{sec:precios}, interpola las seis primeras horas de cada
+ hueco y completa el resto con la mediana de la propia serie, sin marcado
+ de atípicos y sin arrastre.
+ \item El caso de estudio prospectivo interpola también las seis primeras
+ y completa el resto con cero.
 \end{enumerate}
 
-De las dos diferencias, solo una se sostiene. Que el residuo de los
-precios sea la mediana y no cero está justificado, porque cero es una
-potencia legítima pero no describe ninguna hora del mercado mayorista. El
-límite de interpolación, en cambio, no tiene justificación registrada: es
-heterogeneidad heredada de la construcción incremental del repositorio, y
-no una elección fundamentada.
+Las diferencias son tres y solo una está justificada. Que el residuo de
+los precios sea la mediana y no cero se sostiene, porque un consumo de
+cero kilovatios es una lectura legítima pero un precio de cero no describe
+ninguna hora del mercado mayorista. El límite de interpolación, seis horas
+en vez de tres, y la ausencia de arrastre en los dos últimos criterios no
+tienen justificación registrada: son heterogeneidad heredada de la
+construcción incremental del repositorio, y no elecciones fundamentadas.
 \end{trampabox}
 
-\subsection{Ensamblar y verificar: lo que el modelo recibe}
+\subsection{Ensamblaje y verificación de las matrices}
 \label{sub:prep-matrices}
 
 Las 10 series limpias se apilan en dos matrices de dimensión
@@ -907,9 +1079,7 @@ visibles de una vez.
  resultantes, dibujadas como mapas de hora del día contra día del
  horizonte, en la frontera M1. La generación traza una banda diurna
  nítida que sigue el arco solar; la demanda muestra la semana laboral
- en franjas verticales regulares.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ en franjas verticales regulares.}
  \label{fig:prep-matrices}
 \end{figure}
 
@@ -922,7 +1092,7 @@ franjas de la semana laboral no se distinguirían. Que las tres estructuras
 aparezcan donde deben es lo que autoriza a seguir adelante.
 \end{lecturabox}
 
-\subsection{Fijar la zona horaria}
+\subsection{La zona horaria del índice}
 \label{sub:prep-zona}
 
 La última etapa no altera ningún valor: le pone zona horaria al índice.
@@ -965,9 +1135,7 @@ con el de la comunidad completa como sexto panel.
  generación por institución en la frontera M1; el porcentaje del
  título es la razón entre generación y demanda de cada una. La curva
  verde sombreada es común en forma a las cinco (el sol es el mismo),
- mientras que las curvas de demanda difieren en nivel y en forma.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ mientras que las curvas de demanda difieren en nivel y en forma.}
  \label{fig:prep-perfiles}
 \end{figure}
 
@@ -995,9 +1163,7 @@ diario con el corte semanal y con el recorrido mensual.
  \caption[Ritmo semanal y recorrido anual]{A la izquierda, día hábil
  frente a fin de semana: la demanda cae de forma apreciable mientras la
  generación permanece igual. A la derecha, el recorrido mensual de las
- dos magnitudes a lo largo del horizonte.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ dos magnitudes a lo largo del horizonte.}
  \label{fig:prep-ritmos}
 \end{figure}
 
@@ -1093,9 +1259,13 @@ no aplicada.
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
  \item El umbral de valores atípicos
  $\max(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5})$ se adoptó
- por inspección de las series del proyecto. No hay referencia de
- literatura que respalde el multiplicador cinco, ni análisis de
- sensibilidad sobre su valor.
+ por inspección de las series del proyecto, y no hay referencia de
+ literatura que respalde el multiplicador cinco. Lo que sí hay es la
+ medida de cuánto depende el resultado de él, según la
+ Tabla~\ref{tab:prep-sensibilidad}: entre el multiplicador clásico y el
+ elegido la energía retirada varía dos centésimas de punto porcentual, de
+ modo que la falta de respaldo bibliográfico no compromete la cifra. Lo
+ que sostiene el criterio no es el valor sino esa insensibilidad.
 
  \item El relleno hacia adelante con límite de 24 horas es una
  heurística de «día operativo» (supone que el patrón del día anterior es

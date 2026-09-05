@@ -25,10 +25,15 @@ no una variante de estilo.
 3. **Títulos `Raíz: Subtema`.** La `\section` lleva la raíz, la
    `\subsection` el subtema. No se repite la raíz en la subsección.
 
-4. **Toda figura declara su procedencia.** El `\caption` termina con
-   `\fuente{...}` diciendo de qué artefacto salió. Cada figura del proyecto
-   tiene además un `figuras/<nombre>.fuente.txt` generado automáticamente
-   con la ruta exacta; el texto del `\caption` debe coincidir con él.
+4. **Toda figura declara su procedencia, pero fuera de la página.** El
+   `\caption` **no** lleva atribución de fuente: el macro `\fuente{}` se
+   retiró de las 42 figuras y tablas del documento. La trazabilidad vive en
+   el `figuras/<nombre>.fuente.txt` que cada figura genera con la ruta
+   exacta, en su CSV hermano y en la tabla maestra de esta guía. Lo que se
+   quitó es la línea impresa, no el rastro. El macro sigue definido en el
+   preámbulo, de modo que su ausencia es una elección y no un olvido.
+   Pendiente de decidir: sobreviven 18 «Elaboración propia…» al cierre de
+   notas de figura, que son ahora la única atribución impresa.
 
 5. **M1 y M3 siempre en paralelo.** Ninguna cifra se presenta sin decir a
    qué frontera de medición pertenece. Cuando las dos coberturas dan
@@ -71,10 +76,10 @@ no una variante de estilo.
 
     Dónde sí cabe, y solo ahí:
 
-    - En la atribución de procedencia de una figura o una tabla, dentro
-      de `\fuente{}` o al cerrar un `\notafig{}`. Citar la carpeta de
-      datos o el artefacto canónico es justamente el hábito del autor
-      al escribir «Elaboración propia a partir del Formato 1».
+    - Al cerrar un `\notafig{}`, si la nota atribuye la procedencia.
+      Citar la carpeta de datos o el artefacto canónico es justamente el
+      hábito del autor al escribir «Elaboración propia a partir del
+      Formato 1».
     - Cuando la pieza de software es el objeto de la subsección. El
       capítulo 3 trata del pipeline y el 6 del solucionador, de modo que
       ahí nombrar el módulo informa en vez de estorbar. Aun así con
@@ -153,6 +158,22 @@ Van en `\begin{trampabox}` cuando aparecen en el texto.
 
 ---
 
+### El pie describe; el parrafo siguiente explica
+
+El pie de figura lleva **la descripcion directa y corta de lo que se ve**:
+que hay en cada panel, que codifica cada marca, y nada mas. Lo que haya que
+seguir explicando (el argumento, la lectura, las cifras del caso, la
+comparacion entre paneles) baja a la nota de figura, que es el parrafo que
+el documento ya tiene para eso.
+
+Los pies crecen solos, porque cada revision añade una frase y ninguna la
+quita. En una sola sesion cuatro de ellos llegaron a 198, 190, 174 y 148
+palabras, con la descripcion, el argumento y los remites mezclados. Medidos
+despues de partirlos: 44, 61, 93 y 92, y ninguno argumenta ya.
+
+Como comprobacion, un pie de mas de un centenar de palabras casi siempre
+esta llevando algo que no le toca.
+
 ### Ninguna cifra derivada se escribe a mano
 
 Toda magnitud que salga del preprocesamiento o del canon **se calcula donde
@@ -190,12 +211,12 @@ Listo y verificado:
 - `main.tex` + 21 archivos de sección — compila limpio con bibliografía IEEE.
 - `datos_cache/` — caché del preprocesamiento y réplicas del remuestreo.
 
-**40 figuras generadas**, todas con su `.csv` y su `.fuente.txt`:
+**42 figuras generadas**, todas con su `.csv` y su `.fuente.txt`:
 
 | Script | Figuras | Qué cubre |
 |---|---|---|
 | `gen_cap02.py` | 3 | censo de fuentes, cobertura, horizonte |
-| `gen_cap03.py` | 12 | preprocesamiento, perfiles, matrices, ritmos |
+| `gen_cap03.py` | 14 | preprocesamiento, perfiles, matrices, ritmos |
 | `gen_cap04.py` | 4 | cobertura, perfiles M1/M3, inversión de papeles, embudo |
 | `gen_cap05.py` | 4 | bolsa, costo unitario, categorías tarifarias, banda |
 | `gen_cap09.py` | 2 | las tres versiones de C4, reproducibilidad entre corridas |
@@ -257,7 +278,7 @@ institución, y no la suma de todos los CSV de la carpeta.
 Declara con honestidad: el inversor «MTE — Udenar» solo cubre el 39,3 % del
 horizonte porque arrancó en septiembre.
 
-### Capítulo 3 — La domesticación del dato
+### Capítulo 3 — El preprocesamiento del dato
 
 El capítulo central. Una subsección por etapa del pipeline, cada una con su
 antes y su después.
@@ -266,12 +287,14 @@ antes y su después.
 |---|---|---|---|
 | 3.1 | El pipeline en seis etapas | T | `data/preprocessing.py` |
 | 3.1b | **Una hora real, del archivo a la serie** | ✓ | `MedicionesMTE_v3/UCC/` + caché |
-| 3.2 | La demanda que llega en negativo | ✓ | `f3_02_demanda_negativa_{m1,m3}` |
-| 3.2b | **La gradación del neteo, en lecturas ordenadas** | ✓ | caché de estados intermedios |
+| 3.2 | La demanda que llega en negativo | ✓ | `f3_02_demanda_negativa` (las dos fronteras en una sola imagen) |
+| 3.2b | **Hasta dónde baja la lectura de cada medidor** | ✓ | `f3_02b_profundidad` (las dos fronteras en una sola imagen) |
 | 3.3 | **Reconstrucción net→bruta: antes y después** | ✓ | `f3_03_reconstruccion_m1` |
+| 3.3b | **A quién se le aplica la reconstrucción y a quién no** | ✓ | `f3_03b_reconstruccion_mosaico` (diez paneles) |
 | 3.4 | Los tres tipos de medidor | T | `DEMAND_METER_CONFIG` |
+| 3.4b | **La anatomía del umbral: el IQR como longitud** | ✓ | `f3_04b_anatomia_umbral` (las diez series en una sola imagen) |
 | 3.5 | **El umbral: qué retira y por qué está donde está** | ✓ | `f3_05_umbral_atipicos_{m1,m3}` |
-| 3.6 | **La escalera de los huecos: la longitud decide el trato** | ✓ | `f3_06_escalera_huecos_{m1,m3}` |
+| 3.6 | **La escalera de los huecos: la longitud decide el trato** | ✓ | `f3_06_escalera_huecos` (las dos fronteras en una sola imagen) |
 | 3.7 | Las matrices D y G resultantes (hora × día) | N | caché |
 | 3.8 | Perfiles por institución | N | caché |
 | 3.9 | Ritmo semanal: hábil frente a fin de semana | N | caché |
@@ -292,7 +315,7 @@ picos operativos legítimos; (iv) los límites de imputación de 3 h y 24 h;
 (v) la no-negatividad como contrato verificado, no como aspiración.
 
 La limpieza ocupa **dos subsecciones y dos figuras**, una por idea: el
-umbral, que retira, y la escalera de los huecos, que rellena. Tres cosas
+umbral, que retira, y el tratamiento de los huecos, que rellena. Tres cosas
 medidas que el texto tiene que decir y que la figura antigua no decía:
 
 - El máximo del umbral no es adorno. Manda la cerca de Tukey en 16 de las
@@ -459,7 +482,7 @@ de dos paneles M1 | M3.
 |---|---|---|---|---|---|
 | 1 | — | — | 2 | — | 2 |
 | 2 | 3 | — | 1 | — | 4 |
-| 3 | 4 | — | 2 | 4 | 10 |
+| 3 | 4 | — | 2 | 6 | 12 |
 | 4 | 4 | — | 1 | — | 5 |
 | 5 | 7 | — | — | — | 7 |
 | 6 | 3 | 3 | 3 | — | 9 |
@@ -471,7 +494,7 @@ de dos paneles M1 | M3.
 | 12 | 1 | 6 | — | — | 7 |
 | 13 | 3 | — | — | — | 3 |
 | 14–15 | 1 | — | 1 | — | 2 |
-| | **40** | **26** | **17** | **4** | **87** |
+| | **40** | **26** | **17** | **6** | **89** |
 
 ---
 

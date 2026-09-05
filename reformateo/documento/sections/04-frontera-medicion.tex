@@ -7,7 +7,7 @@
 %
 % Reglas del documento:
 % - Una idea = una subseccion = una figura.
-% - Toda figura declara su procedencia con \fuente{...}.
+% - Toda figura declara su procedencia con.
 % - Toda cifra sale del canon de agosto; ver GUIA.md.
 % - M1 y M3 se reportan siempre en paralelo.
 % - Ningun superlativo sin releer el CSV de la frontera correcta.
@@ -87,9 +87,7 @@ fronteras sobre el circuito de una institución.
  entrega la misma energía en los dos casos; lo que cambia es la carga
  contra la que se la compara. El esquema es una idealización: la posición
  del punto de inyección respecto de cada medidor varía entre
- instituciones, como recoge el inventario del Capítulo~\ref{sec:dato}.
- \fuente{elaboración propia a partir de \code{DEMAND\_METER\_CONFIG} y
- \code{PAPER\_METER\_DEMAND\_CONFIG} en \file{data/preprocessing.py}.}}
+ instituciones, como recoge el inventario del Capítulo~\ref{sec:dato}.}
  \label{fig:frontera-esquema}
 \end{figure}
 
@@ -101,7 +99,7 @@ repartir; la segunda, uno donde el excedente abunda. Ninguna es más
 legítima que la otra, porque la relación de cada circuito con el consumo
 institucional completo está por establecer.
 
-\subsection{Qué mide cada frontera}
+\subsection{Cobertura de cada frontera}
 \label{sub:frontera-cobertura}
 
 La diferencia entre las dos fronteras se resume en un hecho que desactiva
@@ -120,9 +118,7 @@ agregado comunitario y en cada institución.
  completa: la barra de generación es la misma en los dos casos y solo
  cambia la de demanda. A la derecha, la razón entre generación y
  demanda por institución. Las cifras se leen del caché del
- preprocesamiento, no se fijan en el código.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ preprocesamiento, no se fijan en el código.}
  \label{fig:frontera-cobertura}
 \end{figure}
 
@@ -155,9 +151,7 @@ las dos fronteras en un mismo par de paneles.
  del día de la comunidad en cada frontera. La curva verde es la misma
  en los dos paneles; la gris cae casi un factor cinco. En M3 las dos
  curvas llegan a cruzarse en las horas centrales, lo que en M1 no
- ocurre nunca.
- \fuente{elaboración propia desde el caché de estados intermedios del
- preprocesamiento.}}
+ ocurre nunca.}
  \label{fig:frontera-perfiles}
 \end{figure}
 
@@ -188,9 +182,7 @@ otro.
  de cada institución en la energía transada, hacia la derecha como
  vendedora y hacia la izquierda como compradora. Las cinco conservan el
  mismo orden vertical en los dos paneles, de modo que el cambio de
- frontera se lee como un vuelco del perfil.
- \fuente{elaboración propia desde
- \file{p2p\_breakdown\_flujos.csv} de las dos carpetas canónicas.}}
+ frontera se lee como un vuelco del perfil.}
  \label{fig:frontera-inversion}
 \end{figure}
 
@@ -227,9 +219,7 @@ escalones sucesivos.
  número de horas: horizonte completo, horas con generación, horas en
  que alguna institución tiene excedente sobre su propia demanda, y
  horas en que efectivamente se liquidó un intercambio. El último
- escalón procede de los archivos de flujos y no de una estimación.
- \fuente{elaboración propia desde el caché del preprocesamiento y
- \file{p2p\_breakdown\_flujos.csv} de las dos carpetas canónicas.}}
+ escalón procede de los archivos de flujos y no de una estimación.}
  \label{fig:frontera-embudo}
 \end{figure}
 
@@ -251,7 +241,7 @@ ventaja que el Capítulo~\ref{sec:res} reporte se genera en esa fracción de
 horas y se diluye sobre el total.
 \end{lecturabox}
 
-\subsection{Una salvedad que hay que declarar}
+\subsection{Una salvedad del escenario secundario}
 \label{sub:frontera-mariana}
 
 La frontera M3 no es perfectamente homogénea, y la excepción se dice aquí
@@ -268,7 +258,7 @@ fronteras. Su efecto sobre el resultado agregado se examina en el
 Capítulo~\ref{sec:rob}, donde el barrido del nivel de demanda cubre
 holgadamente el rango en que ese factor podría equivocarse.
 
-\subsection{La consecuencia: reportar dos veces}
+\subsection{La consecuencia: el reporte doble}
 \label{sub:frontera-consecuencia}
 
 De todo lo anterior se sigue la decisión metodológica que gobierna el

@@ -47,6 +47,7 @@ RAIZ = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(RAIZ))
 
 from data.preprocessing import (                       # noqa: E402
+    _guardia_fisico,
     DEMAND_METER_CONFIG,
     EMS_INVERTER_BACKFILL_CONFIG,
     EMS_INVERTER_CONFIG,
@@ -86,11 +87,17 @@ def limpiar_instrumentado(s: pd.Series):
     """
     Réplica instrumentada de ``xm_data_loader._clean``.
 
-    Devuelve (serie_limpia, mask_outliers, mask_imputados). La lógica y
-    los umbrales son exactamente los del original —umbral robusto
-    ``max(Q75 + 5·IQR, P99,5 × 1,2)``, interpolación temporal de hasta
-    3 h, relleno hacia adelante y atrás de hasta 24 h, y ceros para el
-    resto—; lo único que se añade es el registro de qué horas tocó.
+    Devuelve (serie_limpia, mask_outliers, mask_imputados, umbral,
+    faltantes). La lógica es exactamente la del original: interpolación
+    temporal de hasta 3 h, relleno hacia adelante y atrás de hasta 24 h, y
+    ceros para el resto. Lo único que se añade es el registro de qué horas
+    tocó.
+
+    CAL-45 (2026-09-05): la etapa perdió su primer paso, el umbral
+    distribucional de atípicos. La máscara de atípicos se conserva en la
+    firma, siempre vacía, para no romper a los lectores del caché; lo que
+    ahora retira dato es el guardia físico, que actúa sobre la muestra de
+    dos minutos y aguas arriba de esta función. Ver ``mask_guardia``.
 
     Al final se comprueba que la serie coincide con la del pipeline
     original, de modo que la instrumentación no pueda desviarse en
@@ -99,20 +106,11 @@ def limpiar_instrumentado(s: pd.Series):
     s = s.copy()
     faltantes_iniciales = s.isna()
 
-    q25, q75 = s.quantile(0.25), s.quantile(0.75)
-    p995 = s.quantile(0.995)
-    iqr = q75 - q25
-    umbral_iqr = q75 + 5 * iqr if iqr > 0 else np.inf
-    umbral_p995 = p995 * 1.2 if np.isfinite(p995) else np.inf
-    umbral = max(umbral_iqr, umbral_p995)
-
     mask_out = pd.Series(False, index=s.index)
-    if np.isfinite(umbral) and umbral > 0:
-        mask_out = s > umbral
-        s[mask_out] = np.nan
+    umbral = float("nan")
 
     # Todo lo que está vacío justo antes del relleno y sale con valor
-    # después, fue imputado: los huecos originales más los atípicos.
+    # después, fue imputado.
     vacios_antes = s.isna()
     s = s.interpolate(method="time", limit=3)
     s = s.ffill(limit=24).bfill(limit=24)
@@ -142,8 +140,24 @@ def construir(cobertura: str, verbose: bool = True) -> Path:
         # ── 1. Demanda cruda, tal como la entrega el medidor ─────────
         meter_root = _find_subdir(adir, METER_FOLDER[agente])
         mdir = _find_subdir(meter_root, cfg["subfolder"]) if meter_root else None
-        D_raw = (_read_single_meter(mdir, COL_DEMAND, idx, divide_by=1.0)
+        # CAL-45: dos lecturas del mismo medidor, con guardia y sin él, para
+        # que el capítulo pueda enseñar exactamente qué retira. La que sigue
+        # al pipeline es la primera.
+        D_raw = (_read_single_meter(mdir, COL_DEMAND, idx, divide_by=1.0,
+                                    guardia=True, etiqueta=agente)
                  if mdir is not None else pd.Series(np.nan, index=idx))
+        D_sin_guardia = (_read_single_meter(mdir, COL_DEMAND, idx,
+                                            divide_by=1.0)
+                         if mdir is not None else pd.Series(np.nan, index=idx))
+        marca_g = (_guardia_fisico(mdir, verbose=False)
+                   if mdir is not None else None)
+        if marca_g is not None:
+            por_hora = marca_g.groupby(
+                marca_g.index.floor("h")).sum().reindex(
+                    idx.tz_localize(None)).fillna(0)
+            muestras_guardia = pd.Series(por_hora.values, index=idx)
+        else:
+            muestras_guardia = pd.Series(0.0, index=idx)
         if float(cfg.get("scale", 1.0)) != 1.0:
             D_raw = D_raw * float(cfg["scale"])
 
@@ -173,6 +187,8 @@ def construir(cobertura: str, verbose: bool = True) -> Path:
         G_limpia, out_g, imp_g, umbral_g, falt_g = limpiar_instrumentado(G_ems)
 
         for clave, serie in (
+            (f"{agente}__D_sin_guardia", D_sin_guardia),
+            (f"{agente}__muestras_guardia", muestras_guardia),
             (f"{agente}__D_raw", D_raw), (f"{agente}__G_recon", G_recon),
             (f"{agente}__D_recon", D_recon), (f"{agente}__D_limpia", D_limpia),
             (f"{agente}__G_ems", G_ems), (f"{agente}__G_limpia", G_limpia),

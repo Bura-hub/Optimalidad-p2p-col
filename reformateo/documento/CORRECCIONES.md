@@ -5805,6 +5805,68 @@ proyecto son telemetría, no medida comercial de frontera. El dato nativo
 sirve de instrumento para medir el error del paso que sí se puede liquidar,
 y para nada más.
 
+## C-133 · CAL-45 aplicada: el umbral sale del código y del capítulo
+
+**2026-09-05 · tipo: `dato` + `codigo` + `figura` · aplicada**
+
+El criterio distribucional de atípicos se retira del pipeline y el
+capítulo 3 pierde su subsección, su ecuación, su figura de anatomía, su
+tabla por entidad y su figura del caso: **185 líneas**. En su lugar entra
+la del guardia físico, con la tabla de sus tres comprobaciones y las dos
+figuras que son la prueba de la decisión.
+
+**En el código.** El guardia descarta la **lectura** y no la hora, de modo
+que vive dentro del lector de medidor y actúa antes del remuestreo; la
+etapa de limpieza pierde su primer paso y conserva la cascada de huecos.
+El caché instrumentado del capítulo guarda ahora dos lecturas del mismo
+medidor, con guardia y sin él, para que las figuras puedan enseñar
+exactamente qué retira.
+
+**La compuerta que el registro de la decisión pedía, pasada.** El guardia
+programado reproduce al guardia medido: **44 horas y 151 lecturas** en la
+frontera principal y **23 y 134** en la secundaria, las mismas cifras que
+la medición previa. Y el caché sigue siendo fiel al pipeline con
+`max|dif| = 0` en las diez series.
+
+**Cinco cifras publicadas se movieron, y las cinco las atrapó una
+aserción del generador**, que es exactamente para lo que estaban:
+
+| Cifra | Antes | Ahora | Por qué |
+|---|---|---|---|
+| Horas negativas de Mariana | 213 | **210** | Tres eran el hundimiento de tensión, no flujo inverso |
+| Mediana de las negativas de Mariana bajo M1 | −0,590 | −0,596 | Arrastra el cambio anterior |
+| Mediana bajo M3 | −0,177 | −0,179 | Ídem |
+| **Mínimo de demanda de CESMAG** | **0,195 kW** | **2,588 kW** | El mínimo publicado **era el propio fallo** del 17 de junio |
+| Censo de la limpieza | 808 | **803** | Ver abajo |
+
+La cuarta merece un renglón aparte. La demanda horaria mínima que el
+capítulo publicaba de CESMAG no era un valle de consumo sino el episodio
+de tensión hundida de las 6 de la mañana del 17 de junio. Retirado el
+fallo, el mínimo real de esa serie es más de trece veces mayor.
+
+**El censo pasa de 808 a 803, y la cuenta cuadra al detalle.** Ya no hay
+horas retiradas por umbral; las 803 son todas dato ausente. Son las 797
+que ya faltaban más las **seis** que el guardia vacía y que llegan hasta
+la limpieza. El guardia vacía **diez**, pero cuatro no llegan: son de la
+Universidad Mariana bajo la frontera principal, donde el relleno con cero
+de la reconstrucción las convierte en consumo nulo antes de que la
+limpieza las vea. **El guardia las detecta y H-25 las tapa**, y así queda
+declarado en el capítulo en vez de disimularse.
+
+**La matriz de sensibilidad pierde dos de sus cuatro filas**, las del
+multiplicador y las del piso, porque esos parámetros dejaron de existir.
+Las bandas del guardia no las sustituyen en esa tabla: vienen de fuera del
+dato y barrerlas mediría la sensibilidad a una norma. La única que sí es
+una elección de este trabajo, la de la suma de fases en pasos del
+registro, se declara y se acota en la declaración de honestidad.
+
+**Lo que queda pendiente y hay que tener presente.** El capítulo 3 y el 4
+describen ya el pipeline nuevo; los capítulos de resultados siguen citando
+el canon, que se produjo con el criterio viejo. La demanda comunitaria se
+mueve un \pct{0.015} bajo M1 y un \pct{0.058} bajo M3, de modo que la
+inconsistencia es pequeña, pero existe hasta la corrida canónica que
+aplique además H-26 y P-21.
+
 ---
 
 ## Pendientes

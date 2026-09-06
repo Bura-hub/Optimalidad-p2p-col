@@ -1371,3 +1371,33 @@ los límites tienen que expresarse en duración y derivar el conteo del paso
 del eje, igual que ya hace el remuestreo desde CAL-46. No corre prisa
 mientras el canon sea horario, pero queda anotado para que no vuelva a
 descubrirse por casualidad.
+
+---
+
+## Dónde quedó cada hallazgo de esta tanda
+
+**H-26 · La serie de Mariana en la frontera secundaria no es bruta.** Toca
+cifras publicadas y por eso está **declarado en el capítulo 3**, con la
+excepción escrita donde el texto enumera los tipos de medidor. Se corrige
+con la próxima corrida canónica.
+
+**H-27 · El cuarto medidor de CESMAG publica su tensión bajo dos escalas.**
+**No entra en el documento.** Ese medidor no participa en ninguna de las dos
+fronteras, de modo que ninguna cifra publicada depende de él y mencionarlo
+solo añadiría ruido a un capítulo que ya es largo. Queda aquí, que es donde
+sirve: como aviso para quien vuelva a tocar el árbol de datos y como la
+primera evidencia directa del asunto abierto de la escala de los
+transformadores.
+
+**H-28 · El paso horario sobrestima el autoconsumo.** Toca la magnitud
+absoluta de dos índices publicados, de modo que **se declara dos veces**: en
+la lista de decisiones que sesgan del capítulo 3, como la octava, y en la
+subsección del paso de tiempo del capítulo de robustez, con su figura.
+
+**H-29 · La cascada de limpieza cuenta pasos y no horas.** **CERRADO el
+2026-09-05 y no entra en el documento.** Se arregló en el código: los dos
+límites se expresan en horas y el conteo se deriva del propio eje. A paso
+horario el arreglo es inerte, comprobado con `max|dif| = 0` sobre las
+diez series contra el caché, de modo que no hay nada que contar al lector:
+ninguna cifra publicada cambia y el defecto solo habría aparecido en una
+corrida subhoraria que todavía no existe.

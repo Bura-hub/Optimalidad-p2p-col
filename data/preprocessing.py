@@ -201,8 +201,123 @@ def _find_subdir(parent: Path, name: str) -> Optional[Path]:
     return None
 
 
+# ── El guardia fisico (CAL-45, ADR-0045) ──────────────────────────────────────
+# Sustituye al criterio distribucional de atipicos, que retiraba once horas de
+# consumo cierto y no podia ver el unico fallo de equipo del horizonte, porque
+# un medidor averiado informa numeros PEQUEÑOS y un numero pequeño nunca
+# sobresale de la cola de su propia distribucion.
+#
+# Las tres bandas vienen de fuera del dato y se midieron antes de fijarlas,
+# sobre las 122.880 horas-serie del horizonte. Lo que se descarta es la
+# MUESTRA y no la hora: retirada la muestra, la hora conserva las demas y su
+# media se calcula con ellas.
+COL_GUARDIA = ["voltagePhaseA", "voltagePhaseB", "voltagePhaseC", "frequency",
+               "totalActivePower", "activePowerPhaseA", "activePowerPhaseB",
+               "activePowerPhaseC"]
+
+# Los tres nominales del parque. Se elige por muestra el mas cercano a la
+# mediana de las tres fases, porque el circuito secundario de Udenar mide a
+# 220 V y no a 127.
+GUARDIA_NOMINALES = (127.0, 220.0, 440.0)
+GUARDIA_TENSION_REL = 0.10       # simetrica; la asimetrica de la norma de
+                                 # calidad marcaba 5.920 horas-serie, casi
+                                 # todas sobretension nocturna del Hospital
+GUARDIA_FRECUENCIA = (59.5, 60.5)   # Hz; la banda regulatoria marcaba las
+                                    # excursiones del sistema interconectado,
+                                    # donde el medidor mide bien
+GUARDIA_SUMA_PASOS = 3.0         # pasos del propio registro del medidor; en
+                                 # kilovatios o en porcentaje la comprobacion
+                                 # marcaba del 8 al 90 % del horizonte
+
+
+def _paso_registro(df: pd.DataFrame) -> float:
+    """El salto menor entre valores distintos que el medidor publica.
+
+    Es una propiedad del instrumento y no del dato: va de 0,050 a 0,402 kW
+    segun el aparato. La discrepancia de la suma de fases se juzga en estas
+    unidades porque es ruido de cuantizacion, no un error de medida.
+    """
+    u = np.sort(pd.unique(df["activePowerPhaseA"].dropna()))
+    d = np.diff(u)
+    d = d[(d > 1e-9) & (d < 1.0)]
+    return float(np.median(d)) if len(d) else float("nan")
+
+
+def _guardia_fisico(folder: Path, verbose: bool = True,
+                    etiqueta: str = "") -> Optional[pd.Series]:
+    """Marca las muestras en que el propio equipo se delata.
+
+    Devuelve una serie booleana indexada por instante, o ``None`` si el
+    medidor no publica los canales del guardia, en cuyo caso no se marca
+    nada y asi queda declarado.
+    """
+    partes = []
+    for path in sorted(folder.rglob("*.csv")):
+        # Un solo paso por fichero y no uno por canal: son ocho columnas y
+        # los ficheros pesan cientos de miles de filas.
+        try:
+            df = pd.read_csv(path, low_memory=False, on_bad_lines="skip",
+                             encoding="utf-8", engine="c",
+                             usecols=lambda c: c in COL_GUARDIA + ["date"])
+        except (UnicodeDecodeError, ValueError):
+            try:
+                df = pd.read_csv(path, low_memory=False, on_bad_lines="skip",
+                                 encoding="cp1252",
+                                 usecols=lambda c: c in COL_GUARDIA + ["date"])
+            except Exception:                               # noqa: BLE001
+                continue
+        if not set(COL_GUARDIA + ["date"]).issubset(df.columns):
+            continue
+        df["date"] = pd.to_datetime(df["date"], errors="coerce")
+        df = df.dropna(subset=["date"]).set_index("date")
+        for c in COL_GUARDIA:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+        partes.append(df[COL_GUARDIA])
+    if not partes:
+        if verbose:
+            print(f"  AVISO {etiqueta}: sin canales fisicos; el guardia no "
+                  f"actua sobre este medidor")
+        return None
+
+    df = pd.concat(partes).groupby(level=0).mean().sort_index()
+
+    V = df[["voltagePhaseA", "voltagePhaseB", "voltagePhaseC"]]
+    cand = np.asarray(GUARDIA_NOMINALES)
+    med = V.median(axis=1).values
+    nominal = cand[np.abs(med[:, None] - cand[None, :]).argmin(axis=1)]
+    fuera_v = ((V.min(axis=1).values < (1 - GUARDIA_TENSION_REL) * nominal)
+               | (V.max(axis=1).values > (1 + GUARDIA_TENSION_REL) * nominal))
+
+    f = df["frequency"]
+    fuera_f = (f < GUARDIA_FRECUENCIA[0]) | (f > GUARDIA_FRECUENCIA[1])
+
+    paso = _paso_registro(df)
+    if np.isfinite(paso) and paso > 0:
+        # La suma de las tres fases contra el total, en pasos del registro.
+        # Falta el total en este marco, de modo que se reconstruye leyendo
+        # la columna de potencia total junto a las fases.
+        total = df.get("totalActivePower")
+        if total is not None:
+            r = (df["activePowerPhaseA"] + df["activePowerPhaseB"]
+                 + df["activePowerPhaseC"]) - total
+            fuera_s = (r.abs() / paso) > GUARDIA_SUMA_PASOS
+        else:
+            fuera_s = pd.Series(False, index=df.index)
+    else:
+        fuera_s = pd.Series(False, index=df.index)
+
+    marca = (pd.Series(fuera_v, index=df.index).fillna(False)
+             | fuera_f.fillna(False) | fuera_s.fillna(False))
+    if verbose and int(marca.sum()):
+        print(f"    [CAL-45] {etiqueta}: el guardia retira "
+              f"{int(marca.sum())} muestras "
+              f"({100 * marca.mean():.3f} % de las lecturas)")
+    return marca
+
+
 def _read_single_meter(folder: Path, col: str, idx: pd.DatetimeIndex,
-                       divide_by: float = 1.0) -> pd.Series:
+                       divide_by: float = 1.0, guardia: bool = False,
+                       etiqueta: str = "") -> pd.Series:
     """
     Lee los CSV de UNA subcarpeta (puede haber varios CSVs si los datos
     están particionados temporalmente — caso v3 con 3 archivos por
@@ -226,6 +341,17 @@ def _read_single_meter(folder: Path, col: str, idx: pd.DatetimeIndex,
     # un mismo archivo. Para un instante presente en un solo tramo el
     # resultado es identico, y una fila entera vacia sigue dando NaN.
     combined = pd.concat(parts, axis=1).mean(axis=1)
+
+    # CAL-45: el guardia fisico retira MUESTRAS antes de que el
+    # remuestreo las promedie. Lo que sobrevive define la media de su
+    # paso; si no sobrevive ninguna, el paso queda ausente y lo recoge
+    # la cascada de huecos.
+    if guardia:
+        marca = _guardia_fisico(folder, etiqueta=etiqueta)
+        if marca is not None:
+            fuera = marca.reindex(combined.index).fillna(False)
+            combined = combined[~fuera.values]
+
     # Filtra al horizonte indicado por idx (no al T_START/T_END global)
     t_start, t_end = idx[0], idx[-1] + (idx[1] - idx[0])
     combined = combined.loc[t_start:t_end]
@@ -407,7 +533,8 @@ def build_demand_generation(
             mdir = _find_subdir(meter_root, cfg_d["subfolder"])
             kind = cfg_d.get("kind", "gross")
             if mdir is not None:
-                D_raw = _read_single_meter(mdir, COL_DEMAND, idx, divide_by=1.0)
+                D_raw = _read_single_meter(mdir, COL_DEMAND, idx, divide_by=1.0,
+                                   guardia=True, etiqueta=agent)
             else:
                 # CAL-40a (H-D-008): aviso INCONDICIONAL — antes solo con
                 # verbose, y una institución sin medidor (D=NaN) podía

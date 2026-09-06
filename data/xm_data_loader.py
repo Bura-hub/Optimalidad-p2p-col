@@ -152,27 +152,38 @@ def _clean(s: pd.Series, label: str = "") -> pd.Series:
     (reconstrucción net→bruta o clip(lower=0) según semántica), por lo
     que aquí ya no se tratan los negativos como NaN.
 
-    1. Outliers extremos → NaN, con umbral robusto a distribuciones bimodales:
-       umbral = max(Q75 + 5·IQR, P99.5 · 1.2).
-       El piso P99.5·1.2 evita cortar picos operacionales legítimos cuando
-       la carga base es muy estable (IQR chico) — p. ej. Cesmag D.
-    2. Interpolación lineal para gaps ≤ 3 h
-    3. Forward/backward fill para gaps ≤ 24 h
-    4. Resto → 0 (horas nocturnas para generación)
+    1. Interpolación lineal para gaps ≤ 3 h
+    2. Forward/backward fill para gaps ≤ 24 h
+    3. Resto → 0 (horas nocturnas para generación)
+
+    CAL-45 (2026-09-05, ADR-0045): esta etapa tenía un primer paso que
+    marcaba como atípica la hora por encima de ``max(Q75 + 5·IQR,
+    P99,5 × 1,2)`` de su propia serie. Se retiró. Medido, la regla del IQR
+    gobernaba en 16 de las 20 series y en esas dieciséis no retiraba nada;
+    lo que cortaba era el piso del percentil, que es autorreferente —por
+    construcción el 0,5 % de cualquier serie está por encima de su propio
+    percentil 99,5— y por tanto **no puede distinguir raro de erróneo**.
+    Las once horas que retiraba resultaron ser consumo real, comprobado a
+    la resolución nativa de dos minutos y contra el contador de energía del
+    propio equipo. La defensa contra el fallo de instrumento pasa al
+    guardia físico de ``preprocessing._guardia_fisico``, que mira canales
+    que no pasan por la media.
     """
     s = s.copy()
 
-    q25, q75 = s.quantile(0.25), s.quantile(0.75)
-    p995 = s.quantile(0.995)
-    iqr = q75 - q25
-    umbral_iqr = q75 + 5 * iqr if iqr > 0 else np.inf
-    umbral_p995 = p995 * 1.2 if np.isfinite(p995) else np.inf
-    umbral = max(umbral_iqr, umbral_p995)
-    if np.isfinite(umbral) and umbral > 0:
-        s[s > umbral] = np.nan
+    # H-29: los dos limites estan en HORAS y no en numero de pasos. Con el
+    # eje horario las dos lecturas coinciden, que es por lo que el defecto
+    # llevaba invisible; con cualquier paso mas fino dejan de coincidir y
+    # «huecos de hasta 3 h» pasaria a valer tres pasos, es decir, seis
+    # minutos a paso nativo. El conteo se deriva del propio eje.
+    paso_h = 1.0
+    if isinstance(s.index, pd.DatetimeIndex) and len(s.index) > 1:
+        paso_h = (s.index[1] - s.index[0]) / pd.Timedelta("1h")
+    lim_interp = max(1, int(round(3.0 / paso_h)))
+    lim_arrastre = max(1, int(round(24.0 / paso_h)))
 
-    s = s.interpolate(method="time", limit=3)
-    s = s.ffill(limit=24).bfill(limit=24)
+    s = s.interpolate(method="time", limit=lim_interp)
+    s = s.ffill(limit=lim_arrastre).bfill(limit=lim_arrastre)
     s = s.fillna(0.0)
     return s
 

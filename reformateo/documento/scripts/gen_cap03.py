@@ -1203,18 +1203,21 @@ def f32b_profundidad():
     # El contrato es la tabla impresa del capítulo, no solo el caché. Si el
     # caché cambia de versión, la figura se detiene antes de dibujar otra
     # cosa con los mismos rótulos.
-    HORAS_TABLA = {"m1": {"Udenar": 1517, "Mariana": 213, "UCC": 94,
+    # CAL-45: Mariana pasa de 213 a 210. Las tres que faltan son lecturas
+    # del hundimiento de tension del 29 de agosto, que el guardia retira:
+    # no eran flujo inverso sino un equipo averiado.
+    HORAS_TABLA = {"m1": {"Udenar": 1517, "Mariana": 210, "UCC": 94,
                           "HUDN": 0, "Cesmag": 0},
-                   "m3": {"Udenar": 0, "Mariana": 213, "UCC": 0,
+                   "m3": {"Udenar": 0, "Mariana": 210, "UCC": 0,
                           "HUDN": 0, "Cesmag": 0}}
     MIN_TABLA = {"m1": {"Udenar": -33.567, "Mariana": -2.411, "UCC": -5.909},
                  "m3": {"Mariana": -0.723}}
     # Las medianas de las negativas y las cajas son las cifras nuevas que
     # el pie publica, y por eso entran también en la compuerta.
-    NEGMED_PIE = {"m1": {"Udenar": -8.678, "Mariana": -0.590, "UCC": -1.938},
-                  "m3": {"Mariana": -0.177}}
+    NEGMED_PIE = {"m1": {"Udenar": -8.678, "Mariana": -0.596, "UCC": -1.938},
+                  "m3": {"Mariana": -0.179}}
     CAJA_PIE = {"m1": {"Udenar": (-15.051, -3.902)},
-                "m3": {"Mariana": (-0.330, -0.089)}}
+                "m3": {"Mariana": (-0.333, -0.093)}}
     FRAC_TABLA = {"Udenar": 73.8, "Mariana": 21.3, "UCC": 11.7,
                   "HUDN": 0.0, "Cesmag": 0.0}
     TIPO_TABLA = {"Udenar": "net", "Mariana": "net_partial",
@@ -1260,7 +1263,10 @@ def f32b_profundidad():
 
     # Las afirmaciones que la figura dibuja y el pie enuncia.
     series1, med1, min1, caja1, negmed1 = datos["m1"]
-    assert abs(min1["Cesmag"] - 0.195) < 5e-4, min1["Cesmag"]
+    # CAL-45: el minimo de CESMAG era el propio fallo de tension del 17 de
+    # junio, con las fases A y B hundidas y el medidor informando 0,195 kW.
+    # Retirado el fallo, el minimo real de la serie es 2,588 kW.
+    assert abs(min1["Cesmag"] - 2.588) < 5e-4, min1["Cesmag"]
     assert 6 < min1["HUDN"] < 7, min1["HUDN"]
     assert 3.7 < min1["Udenar"] / negmed1["Udenar"] < 4.0, \
         min1["Udenar"] / negmed1["Udenar"]
@@ -1689,6 +1695,11 @@ def _cascada_instrumentada(s: pd.Series) -> dict:
     contra la del pipeline en el sitio donde se usa, de modo que la
     instrumentacion no pueda desviarse en silencio.
     """
+    # CAL-45: la etapa perdio su primer paso, el umbral distribucional de
+    # atipicos. Lo que retira dato ahora es el guardia fisico, que actua
+    # sobre la lectura de dos minutos y aguas arriba de esta funcion. Los
+    # candidatos del umbral se conservan como diagnostico, porque siguen
+    # describiendo la forma de la serie, pero ya no cortan nada.
     q25, q75 = s.quantile(0.25), s.quantile(0.75)
     p995 = s.quantile(0.995)
     iqr = q75 - q25
@@ -1697,12 +1708,8 @@ def _cascada_instrumentada(s: pd.Series) -> dict:
     umbral = max(cand_tukey, cand_piso)
 
     m_out = pd.Series(False, index=s.index)
-    if np.isfinite(umbral) and umbral > 0:
-        m_out = s > umbral
-    m_out = m_out.fillna(False)
 
     s1 = s.copy()
-    s1[m_out] = np.nan
     entran = s1.isna()
     s2 = s1.interpolate(method="time", limit=3)
     m_int = s1.isna() & s2.notna()
@@ -3340,7 +3347,12 @@ if __name__ == "__main__":
     f37_matrices()
     f38_perfiles_instituciones()
     f39_ritmos()
-    f34_anatomia_umbral()
-    f35_umbral_caso()
+    # CAL-45: la anatomia del umbral y la figura del caso perdieron su
+    # objeto al retirarse el criterio distribucional. Las sustituyen las dos
+    # del guardia, que viven en su propio generador porque son la prueba de
+    # esa decision y conviene que se puedan rehacer solas.
+    import gen_cal45
+    gen_cal45.f310_umbral_nativo()
+    gen_cal45.f311_fallo_tension()
     f36_escalera_huecos()
     print("\nlisto.")

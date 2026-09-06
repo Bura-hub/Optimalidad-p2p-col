@@ -768,197 +768,216 @@ misma dirección, y que la subsección~\ref{sub:prep-sesgo} reúne.
 \end{lecturabox}
 \end{guardado}
 
-\subsection{El umbral de los atípicos}
+\subsection{El guardia físico}
 \label{sub:prep-umbral}
 
 La última etapa que altera el valor del dato es la limpieza, que primero
-retira los valores imposibles y después rellena lo que falta. Actúa sobre
-las 10 series de medida, que son la demanda y la generación de cada
+retira lo que no es medida y después rellena lo que falta. Actúa sobre las
+10 series de medida, que son la demanda y la generación de cada
 institución, aunque en la práctica solo sobre la demanda: las cinco de
 generación atraviesan la etapa sin que se les toque una sola hora.
 
-Todo se hace a traves del siguiente criterio, un valor se retira cuando supera el umbral dado por:
+Retirar exige un criterio, y el que esta etapa usaba era distribucional:
+marcaba la hora que superase \num{5} veces el recorrido intercuartílico por
+encima del tercer cuartil de su propia serie, o bien un \pct{20} por encima
+de su percentil \num{99,5}. Ese criterio se retiró, y conviene explicar por
+qué antes de describir el que ocupa su lugar, porque el motivo no es de
+ajuste sino de fondo.
 
-\begin{equation}
- u = \max\bigl(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5}\bigr),
- \label{eq:prep-umbral}
-\end{equation}
+\subsubsection*{Por qué un criterio de cola no puede servir}
 
-que combina dos criterios. La tensión que resuelve es la siguiente: una
-lectura físicamente imposible hay que retirarla, pero un criterio
-demasiado estricto retira consumo real, y mirando el valor aislado no hay
-forma de distinguirlos.
-
-El primer criterio mide cuánto se dispersa la mitad central de las
-lecturas y pone el corte cinco veces esa dispersión por encima de ella.
-Sigue la regla de Tukey, la que traza los bigotes de un diagrama de caja,
-pero con un multiplicador de 5 en vez del 1,5 clásico, deliberadamente
-permisivo para que solo retire lo inverosímil. Funciona bien mientras la
-serie tenga recorrido.
-
-Donde falla es en las cargas muy planas. Si la mitad central de las
-lecturas cabe en un margen estrecho, el corte queda cerca de esa base y
-cualquier pico operativo legítimo lo supera. CESMAG es ese caso: bajo M1 su
-mitad central mide poco más de un kilovatio y el corte cae en
-\uni{10.6}{kW}, un valor que la institución rebasa con frecuencia.
-
-El segundo criterio existe para eso. Fija un valor por debajo del cual el
-corte no puede bajar, y lo sitúa un \pct{20} por encima del percentil 99,5,
-es decir, por encima de lo que la propia serie alcanza operando con
-normalidad. Como el umbral es el mayor de los dos, se aplica siempre el
-\emph{más permisivo}, y el segundo solo entra cuando el primero se ha vuelto
-demasiado estricto.
-
-La Figura~\ref{fig:prep-anatomia} construye los dos candidatos sobre las
-diez series de demanda, de modo que la multiplicación por cinco se cuenta
-con el ojo en vez de leerse en la fórmula.
+La objeción la formuló el autor y resultó ser correcta. Si la serie horaria
+es la \emph{media} de treinta lecturas, esa media ya atenúa cualquier
+exceso breve, de modo que lo que sobrevive a ella tiene todas las
+papeletas de ser consumo real y no un fallo. Se midió en vez de
+discutirse, bajando a las lecturas de dos minutos de las \num{11} horas que
+el criterio retiraba.
 
 \begin{figure}[H]
  \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_04b_anatomia_umbral.png}
- \caption[La anatomía del umbral]{Cómo se construye cada uno de los dos
- candidatos, en las diez series de demanda y en las dos fronteras. La caja
- oscura es la mitad central de las lecturas; sobre el tercer cuartil se
- apilan cinco copias exactas de esa misma caja, y donde aterriza la quinta
- está el primer criterio. A su derecha, la línea de puntos sube hasta el
- percentil 99,5 y el bloque ámbar es su prolongación del \pct{20}, cuyo
- techo es el segundo criterio. El que fija el umbral va con trazo lleno y
- el descartado, discontinuo.}
- \label{fig:prep-anatomia}
+ \includegraphics[width=0.97\textwidth]{figuras/f3_10_umbral_nativo.png}
+ \caption[Las horas retiradas, a su resolución nativa]{Dos de las horas que
+ el criterio distribucional retiraba, vistas a las lecturas de dos minutos
+ con que se midieron. A la izquierda la que menos sobresalía del umbral y a
+ la derecha la que más. La franja sombreada marca las horas que el criterio
+ descartaba y la fila inferior cuenta, hora a hora, cuántas de las treinta
+ lecturas superan el umbral por sí solas.}
+ \label{fig:prep-umbral-nativo}
 \end{figure}
 
-Lo que está en juego se mide en CESMAG. Sin ese segundo criterio, su
-demanda perdería \num{451} horas bajo M1, que concentran el \pct{20.7} de
-su energía, y \num{927} bajo M3, que concentran el \pct{52.5}. Con él tiene
-cero atípicos bajo M1 y dos bajo M3.
+La Figura~\ref{fig:prep-umbral-nativo} enseña que ninguna de las dos tiene
+forma de espiga. En las \num{11} horas están presentes las treinta
+lecturas, la que menos sobresale tiene \num{13} de ellas por encima del
+umbral por sí solas y en nueve de las once la lectura mediana ya lo supera.
+La de CESMAG del 9 de mayo mantiene \num{29} de \num{30} por encima, es
+decir, una racha seguida de \uni{58}{min}. Su dispersión, su salto entre
+lecturas consecutivas y su razón entre máximo y mediana quedan dentro de la
+distribución de su propio tramo horario, y varias son más lisas que la hora
+corriente.
 
-El segundo criterio manda en cuatro de las 20 series, todas de demanda:
-Mariana y CESMAG en las dos fronteras. En las 16 restantes basta el
-primero, y entre ellas están las diez de generación, donde además no se
-retira una sola hora. La Tabla~\ref{tab:prep-umbral} da la anatomía
-completa de las series de demanda.
+El panel derecho enseña además lo arbitrario del corte. La hora anterior
+tiene \num{19} de sus \num{30} lecturas por encima del umbral y sobrevive,
+porque su media queda seis centésimas por debajo; la siguiente tiene
+\num{29} y se retira. Entre una y otra no hay diferencia de naturaleza sino
+de milésimas.
+
+La comprobación externa cierra el asunto. El contador de energía acumulada
+del propio equipo, que es un canal independiente de las lecturas
+instantáneas, confirma el nivel: en la Universidad Mariana, entre las 6 y
+las 11 del 24 de abril el contador avanzó \uni{158.8}{kWh} frente a los
+\uni{160.0}{kWh} que suma la media de potencias, es decir, un \pct{0.7} de
+diferencia. En CESMAG un segundo medidor independiente ve el mismo suceso
+en el percentil \num{97} y \num{99} de su tramo.
+
+\begin{trampabox}
+\textbf{El criterio no cortaba por donde se creía.} Medido sobre las veinte
+series, la regla del recorrido intercuartílico gobierna en \num{16} de
+\num{20} y en esas dieciséis no retira ni una hora. Lo que retira las once
+es el piso del percentil, y ese piso es \textbf{autorreferente}: por
+construcción el \pct{0.5} de las horas de cualquier serie está por encima
+de su percentil \num{99,5}, de modo que la regla siempre encuentra algo en
+la cola de su propia distribución, haya o no haya algo mal. No puede
+distinguir raro de erróneo.
+\end{trampabox}
+
+\subsubsection*{Lo que el criterio de cola era incapaz de ver}
+
+Hay un segundo argumento, y es más fuerte que el primero. Un criterio
+construido sobre la cola alta de una serie solo puede ver fallos que
+produzcan números \emph{grandes}. El único fallo de equipo del horizonte
+produce lo contrario.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.97\textwidth]{figuras/f3_11_fallo_tension.png}
+ \caption[El fallo que un criterio de cola no puede ver]{Las tres tensiones
+ de fase y la potencia que el medidor de la Universidad Mariana informa
+ entre la tarde del 28 y la del 29 de agosto de 2025. La banda sombreada del
+ panel superior es la tolerancia de \pct{10} sobre la tensión nominal y la
+ trama rayada marca el tramo en que el equipo no entregó ninguna lectura.}
+ \label{fig:prep-fallo}
+\end{figure}
+
+La Figura~\ref{fig:prep-fallo} recorre un episodio de unas quince horas con
+tres tramos. La noche del 28 dos de las tres fases se hunden por debajo de
+la mitad de su tensión nominal, hasta \uni{19.0}{V} y \uni{33.3}{V},
+mientras la tercera se mantiene. El equipo deja entonces de informar
+durante ocho horas seguidas. Y cuando vuelve informa una potencia constante
+de \uni{-0.10}{kW}, que sostiene seis horas más, incluso después de que la
+tensión ya se ha restablecido.
+
+Ese es el punto ciego. El edificio consumía \uni{10.1}{kW} de media antes
+del fallo y durante él el medidor informa una décima de kilovatio, es
+decir, prácticamente nada. Un número pequeño no sobresale de la cola alta
+de ninguna distribución, de modo que ninguna regla construida sobre esa
+cola puede verlo, suba o baje su multiplicador. El criterio retiraba once
+horas de consumo cierto y dejaba pasar el único fallo real, es decir, se
+equivocaba en las dos direcciones a la vez.
+
+\subsubsection*{El guardia, y de dónde salen sus bandas}
+
+En su lugar entra un guardia cuyas bandas vienen \textbf{de fuera del
+dato}, y no de la distribución de la propia serie. Son tres
+comprobaciones, todas sobre canales que el medidor ya publica junto a la
+potencia y que ninguna media atenúa.
 
 \begin{table}[H]
  \centering
- \caption{Los dos candidatos en cada serie de demanda, con el que se
- aplica en negrita. La columna de la cola dice a cuántos rangos
- intercuartílicos del tercer cuartil cae el percentil 99,5, y es la que
- explica el reparto: cuanto más lejos queda la cola del cuerpo, más se
- queda corto el primer criterio.}
- \label{tab:prep-umbral}
- \footnotesize
- \setlength{\tabcolsep}{5pt}
- \begin{tabular}{@{}l r r r r r@{}}
- \toprule
- \textbf{Institución} & \textbf{Rango} & \textbf{Cola} &
- \textbf{Primer} & \textbf{Segundo} & \textbf{Horas} \\
- & \textbf{(kW)} & \textbf{(rangos)} & \textbf{criterio (kW)} &
- \textbf{criterio (kW)} & \textbf{retiradas} \\
- \midrule
- \multicolumn{6}{@{}l}{\itshape Frontera M1} \\
- Udenar & \num{4,91} & \num{3,4} & \textbf{\num{33,4}} & \num{31,0} & \num{0} \\
- Mariana & \num{4,50} & \num{4,1} & \num{33,5} & \textbf{\num{35,1}} & \num{4} \\
- UCC & \num{24,35} & \num{1,3} & \textbf{\num{154,8}} & \num{78,5} & \num{0} \\
- HUDN & \num{1,40} & \num{1,2} & \textbf{\num{16,8}} & \num{13,7} & \num{0} \\
- CESMAG & \num{1,27} & \num{8,2} & \num{10,6} & \textbf{\num{17,7}} & \num{0} \\
- \addlinespace
- \multicolumn{6}{@{}l}{\itshape Frontera M3} \\
- Udenar & \num{1,54} & \num{2,2} & \textbf{\num{9,5}} & \num{6,3} & \num{0} \\
- Mariana & \num{0,97} & \num{5,0} & \num{7,6} & \textbf{\num{9,1}} & \num{5} \\
- UCC & \num{3,62} & \num{1,2} & \textbf{\num{23,0}} & \num{11,1} & \num{0} \\
- HUDN & \num{0,32} & \num{1,5} & \textbf{\num{3,7}} & \num{3,0} & \num{0} \\
- CESMAG & \num{0,56} & \num{23,2} & \num{4,5} & \textbf{\num{17,6}} & \num{2} \\
- \bottomrule
- \end{tabular}
-\end{table}
-
-Que la mitad central sea estrecha no lo decide por sí solo, y la tabla lo
-enseña en dos filas contiguas: bajo M1 el HUDN y CESMAG tienen rangos casi
-iguales y el umbral de cada uno lo fija un criterio distinto. Lo que los
-separa es la columna de la cola, \num{1,2} rangos frente a \num{8,2}. Eso
-es lo que obliga al segundo criterio, una base estable con picos altos y
-poco frecuentes, y no la estrechez del cuerpo.
-
-El criterio retira \num{11} horas en las 20 series. Todas son de demanda y
-solo de dos instituciones: Mariana, con cuatro bajo M1 y cinco bajo M3, y
-CESMAG, con dos bajo M3.
-
-Queda una objeción por responder, y es que el multiplicador de 5 no
-procede de ninguna referencia sino de la inspección de estas series. La
-respuesta no es defender el valor sino medir cuánto depende de él el
-resultado. La Tabla~\ref{tab:prep-sensibilidad} barre el multiplicador
-entre el clásico y el doble del elegido, con los dos criterios y con el
-primero solo.
-
-\begin{table}[H]
- \centering
- \caption{Energía que el criterio retira, en porcentaje de la demanda de
- las 10 series, al variar el multiplicador del primer criterio.}
- \label{tab:prep-sensibilidad}
+ \caption{Las tres comprobaciones del guardia físico, su banda y lo que
+ marcan sobre las \num{122880} horas-serie del horizonte.}
+ \label{tab:prep-guardia}
  \small
- \begin{tabular}{@{}c r r@{}}
- \toprule
- \textbf{Multiplicador} & \textbf{Con los dos} & \textbf{Solo con el} \\
- & \textbf{criterios} & \textbf{primero} \\
- \midrule
- 1,5 & \pct{0.083} & \pct{13.369} \\
- 3 & \pct{0.083} & \pct{6.563} \\
- \textbf{5} & \textbf{\pct{0.062}} & \pct{3.650} \\
- 7 & \pct{0.021} & \pct{2.356} \\
- \bottomrule
+ \begin{tabular}{@{}p{4.5cm}p{3.6cm}p{2.3cm}r@{}}
+  \toprule
+  \textbf{Comprobación} & \textbf{Banda} & \textbf{De dónde sale} &
+  \textbf{Marca} \\
+  \midrule
+  Tensión de fase fuera de banda & \pct{10} del nominal de la lectura,
+  simétrica & Norma de calidad del servicio & \num{17} h \\
+  Frecuencia fuera de banda & De \uni{59.5}{Hz} a \uni{60.5}{Hz} & Margen
+  que el sistema interconectado no cruza & \num{39} h \\
+  Suma de las tres fases contra el total & Más de \num{3} pasos del propio
+  registro & El instrumento & \num{50} h \\
+  \bottomrule
  \end{tabular}
 \end{table}
 
-La columna de la izquierda contesta la objeción: entre el multiplicador
-clásico y el elegido hay cuatro horas de diferencia sobre las \num{122880}
-horas de serie del estudio, y la energía afectada no llega en ningún caso
-al \pct{0.1} de la demanda. El valor del multiplicador no gobierna nada.
+Dos detalles de la Tabla~\ref{tab:prep-guardia} deciden que las
+comprobaciones sirvan. El primero es que el nominal de tensión no se
+supone: se elige por lectura entre \uni{127}{V}, \uni{220}{V} y
+\uni{440}{V}, porque el circuito secundario de Udenar mide a doscientos
+veinte. El segundo es que la discrepancia entre la suma de las fases y el
+total se juzga en \textbf{pasos del propio registro del medidor}, que van
+de \uni{0.050}{kW} a \uni{0.402}{kW} según el aparato, y no en kilovatios
+ni en porcentaje. Esa discrepancia es ruido de cuantización, de modo que
+medirla en porcentaje marcaría el \pct{90} del horizonte y medirla en
+kilovatios dependería del tamaño del edificio.
 
-La columna de la derecha explica por qué. Sin el segundo criterio, el
-multiplicador sí gobierna, y de forma brutal: el clásico retiraría el
-\pct{13.4} de la demanda y ni siquiera un 7 bajaría del \pct{2.4}. El
-segundo criterio no cubre un fallo del primero, sino que hace que el
-primero deje de importar, y es esa insensibilidad, y no la elección del
-valor, lo que sostiene el criterio.
+Las tres bandas se fijaron \textbf{después} de medir qué marcaba cada
+candidata, y no antes, porque fijar un número y ver luego qué recoge es
+exactamente el error del piso del percentil. Esa medición descartó dos
+comprobaciones que parecían razonables. El factor de potencia, con el
+umbral regulatorio, marca \num{64823} de las \num{122880} horas-serie, es
+decir, más de la mitad del horizonte, porque un factor de potencia bajo es
+lo que parece un edificio poco cargado de madrugada. Y la banda asimétrica
+de la norma de calidad marca \num{5920} horas-serie, casi todas el primer
+medidor del Hospital por encima de su tolerancia superior de madrugada, que
+es la sobretensión ordinaria de una red poco cargada.
 
-La Figura~\ref{fig:prep-umbral} muestra qué le pasa a una de esas horas
-en cada frontera.
+\begin{lecturabox}
+\textbf{Lo que se descarta es la lectura, no la hora.} Las \num{50} marcas
+de la suma de fases son, las cincuenta, una sola lectura dentro de su hora,
+y en el \pct{82} de ellas el salto de potencia entre lecturas vecinas
+supera los tres pasos del registro, es decir, son instantes en que el total
+y las tres fases se enclavaron en momentos distintos de una rampa.
+Retirada la lectura, la hora conserva las otras veintinueve y su media se
+calcula con ellas.
+\end{lecturabox}
 
-\begin{figure}[H]
- \centering
- \includegraphics[width=0.95\textwidth]{figuras/f3_05_umbral_caso.png}
- \caption[La hora que el umbral retira]{Una hora retirada por el umbral
- de atípicos en cada frontera de medición, con su antes y su después sobre
- una ventana de tres días. Las dos salen de la misma regla: entre las horas
- retiradas de una serie medida en esa frontera, la aislada que más
- sobresale del umbral.}
- \label{fig:prep-umbral}
-\end{figure}
+\subsubsection*{Qué marca el guardia sobre este horizonte}
 
-\notafig{La ventana de tres días es la escala a la que un pico se distingue
-de la operación normal: sobre las \num{6144} horas del horizonte esa hora
-sería un trazo dentro de una maraña. Las dos curvas de cada fila
-coinciden en toda la ventana menos en una hora de \num{73}, y eso es lo
-que hace ver que el tratamiento es puntual y no un alisado de la serie.
-En el circuito principal la hora entra
-con \uni{39.9}{kW} sobre un umbral de \uni{35.1}{kW}, es decir, un exceso
-del \pct{13.7}, y sale con \uni{28.2}{kW}; en el secundario entra con
-\uni{19.2}{kW} sobre \uni{17.6}{kW}, un exceso del \pct{9.0}, y sale con
-\uni{17.2}{kW}. Al quedar aisladas, el hueco que cada una deja mide una
-hora y el tratamiento que sigue la devuelve al punto medio de sus dos
-vecinas. La regla que elige el caso excluye las series que no son una
-medición propia de su frontera, es decir, las que se obtuvieron escalando
-el medidor de la otra, de modo que las dos filas comprueban en aparatos
-distintos. La segunda tiene además un valor propio, porque CESMAG es la
-institución donde manda el segundo criterio, y así la figura ilustra los
-dos.}
+Un guardia que no dispara nunca es un guardia sin probar, de modo que la
+pregunta no es si las bandas son razonables sino qué recogen. Sobre las
+\num{61440} horas-serie de las diez series que el modelo usa, el guardia
+marca \num{67}, es decir, el \pct{0.11}, y retira \num{285} lecturas: son
+\num{44} horas y \num{151} lecturas en la frontera principal y \num{23} y
+\num{134} en la secundaria.
+
+No son marcas dispersas sino tres sucesos que se dejan contar uno a uno. El
+mayor es el hundimiento de tensión de la Universidad Mariana del 28 al 29
+de agosto que la Figura~\ref{fig:prep-fallo} dibuja, con seis horas de
+reloj afectadas. El segundo ocurre en CESMAG el 17 de junio a las 6 de la
+mañana, con las fases A y B en \uni{59.2}{V} y \uni{78.8}{V} mientras la C
+se mantiene, y lo ven sus dos medidores a la vez. El tercero es el circuito
+secundario de Udenar el 5 de abril, con siete lecturas en que la fase C cae
+a \uni{188.6}{V} sobre un nominal de doscientos veinte.
+
+De las \num{67} horas marcadas, \num{57} conservan lecturas suficientes
+para calcular su media y \num{10} se quedan sin ninguna. Estas últimas
+pasan a la etapa siguiente como hora vacía, salvo cuatro: las de la
+Universidad Mariana bajo la frontera principal, donde la reconstrucción de
+la demanda las convierte en cero antes de que la limpieza las vea, según
+describe la subsección~\ref{sub:prep-reconstruccion}. El guardia las
+detecta y el relleno con cero las tapa, y eso queda declarado como está
+porque corregirlo es una decisión aparte.
+
+\begin{detallebox}
+\textbf{Las once horas quedan intactas, y por la razón correcta.} Bajo el
+guardia su tensión se mueve entre el \pct{-3.1} y el \pct{2.8} del nominal,
+su frecuencia no se acerca a la banda, y su discrepancia entre fases no
+pasa de \num{1,975} pasos del registro contra una banda de tres. No es un
+resultado gratuito: con las bandas expresadas en kilovatios que la primera
+redacción de esta decisión proponía, el guardia \emph{sí} habría marcado
+lecturas en cinco de las once. La forma de normalizar no era cosmética.
+\end{detallebox}
 
 \subsection{Tratamiento de los huecos}
 \label{sub:prep-huecos}
 
 Al terminar el marcado quedan sin valor dos clases de horas: las que el
-equipo nunca registró y las que el umbral acaba de retirar. La etapa que
-sigue las trata a todas por igual, sin distinguir de dónde viene el vacío.
+equipo nunca registró y las diez que el guardia deja sin ninguna lectura.
+La etapa que sigue las trata a todas por igual, sin distinguir de dónde
+viene el vacío.
 
 Una sola regla gobierna esa etapa y conviene fijarla antes del detalle: el
 tratamiento se decide para cada hora, no para cada hueco. Es decir, lo que
@@ -1071,10 +1090,12 @@ lectura del equipo. Hacia atrás sí se propaga una lectura real, la primera
 que reabre la serie. El segundo es que en ambos casos se repite un número
 único, de modo que el tramo queda plano y no recupera el ciclo diario.
 
-La limpieza trata en total \num{808} horas, que son las \num{11} que el
-umbral retira más las \num{797} que ya faltaban en el dato. Ese total
-admite dos reparticiones y las dos importan: la
-Tabla~\ref{tab:prep-huecos} las cruza.
+La limpieza trata en total \num{803} horas, y desde CAL-45 todas por la
+misma causa: dato que el equipo no entregó. Son las \num{797} que ya
+faltaban más las seis que el guardia vacía y que llegan hasta aquí; las
+otras cuatro que vacía no llegan, porque la reconstrucción de la demanda
+las convierte en cero antes. Ese total admite dos reparticiones y las dos
+importan: la Tabla~\ref{tab:prep-huecos} las cruza.
 
 \begin{table}[H]
  \centering
@@ -1087,17 +1108,17 @@ Tabla~\ref{tab:prep-huecos} las cruza.
  \textbf{Frontera} & \textbf{Interpoladas} & \textbf{Arrastradas}
  & \textbf{Total} \\
  \midrule
- M1 & \num{74} & \num{160} & \num{234} \\
- M3 & \num{159} & \num{415} & \num{574} \\
+ M1 & \num{71} & \num{160} & \num{231} \\
+ M3 & \num{153} & \num{419} & \num{572} \\
  \midrule
- \textbf{Las dos} & \textbf{\num{233}} & \textbf{\num{575}}
- & \textbf{\num{808}} \\
+ \textbf{Las dos} & \textbf{\num{224}} & \textbf{\num{579}}
+ & \textbf{\num{803}} \\
  \bottomrule
  \end{tabular}
 \end{table}
 
-El arrastre gobierna: \num{575} horas, el \pct{71.2} del total, quedan
-rellenas repitiendo un valor, y solo \num{233} conservan la pendiente que
+El arrastre gobierna: \num{579} horas, el \pct{72.1} del total, quedan
+rellenas repitiendo un valor, y solo \num{224} conservan la pendiente que
 la interpolación les da. La
 Figura~\ref{fig:prep-huecos} recorre los tres tratamientos sobre huecos
 reales de longitud creciente y reparte la misma cuenta entre las cinco
@@ -1137,8 +1158,8 @@ En el proyecto conviven tres criterios de relleno distintos:
  recurrirían al cero.
  \item La serie horaria de precios de bolsa, que construye el
  Capítulo~\ref{sec:precios}, interpola las seis primeras horas de cada
- hueco y completa el resto con la mediana de la propia serie, sin marcado
- de atípicos y sin arrastre.
+ hueco y completa el resto con la mediana de la propia serie, sin
+ guardia y sin arrastre.
  \item El caso de estudio prospectivo interpola también las seis primeras
  y completa el resto con cero.
 \end{enumerate}
@@ -1418,11 +1439,16 @@ hostil.
 \subsection{La sensibilidad del preprocesamiento}
 \label{sub:prep-sensib}
 
-Las etapas anteriores fijaron cuatro parámetros por inspección de estas
-series: el multiplicador del primer criterio de atípicos, el factor del
-segundo, el límite de la interpolación y el del arrastre. Ninguno procede
-de una referencia, y la objeción evidente es cuánto del resultado depende
-de ellos.
+Las etapas anteriores fijaron dos parámetros por inspección de estas
+series: el límite de la interpolación y el del arrastre. Ninguno procede de
+una referencia, y la objeción evidente es cuánto del resultado depende de
+ellos.
+
+Eran cuatro hasta CAL-45. Los otros dos eran el multiplicador del criterio
+de atípicos y el factor de su piso, y desaparecieron con él: las bandas del
+guardia que lo sustituye no se eligen por inspección de estas series sino
+que vienen de fuera del dato, de modo que barrerlas mediría la sensibilidad
+a una norma y no a una decisión de este trabajo.
 
 La forma de contestarla es barrerlos. La Tabla~\ref{tab:prep-matriz} mueve
 cada uno alrededor de su valor vigente, sobre rangos amplios, y mide la
@@ -1441,10 +1467,6 @@ puede llegar a transarse.
  \textbf{Parámetro} & \textbf{Rango} & \textbf{Demanda} &
  \textbf{Generación} & \textbf{Excedente} \\
  \midrule
- Multiplicador del primer criterio & 1,5 a 10 & \pct{0.024} & \pct{0.052} & \pct{0.059} \\
- \addlinespace
- Factor del segundo criterio & 1,0 a 1,5 & \pct{0.318} & \pct{0} & \pct{0.005} \\
- \addlinespace
  Límite de interpolación & 1 a 12 h & \pct{0.048} & \pct{0} & \pct{0.003} \\
  \addlinespace
  Límite de arrastre & 6 a 72 h & \pct{0.511} & \pct{0} & \pct{0} \\
@@ -1452,14 +1474,13 @@ puede llegar a transarse.
  \end{tabular}
 \end{table}
 
-Ninguna variación mueve el excedente más de seis partes en diez mil, y eso
-incluye llevar el multiplicador al valor clásico de 1,5, cuadruplicar el
-límite de interpolación o reducir el arrastre a la cuarta parte. La
-demanda se mueve algo más, hasta el \pct{0.5} al acortar el arrastre a
-seis horas bajo M3, y la generación no pasa nunca del \pct{0.05}.
+Ninguna variación mueve el excedente más de tres partes en cien mil, y eso
+incluye cuadruplicar el límite de interpolación o reducir el arrastre a la
+cuarta parte. La demanda se mueve algo más, hasta el \pct{0.5} al acortar
+el arrastre a seis horas bajo M3, y la generación no se mueve.
 
 El resultado admite una lectura y exige una cautela. La lectura es que
-estos cuatro parámetros no gobiernan lo que el modelo recibe, de modo que
+estos dos parámetros no gobiernan lo que el modelo recibe, de modo que
 la ausencia de respaldo bibliográfico en sus valores no compromete la
 cifra: lo que sostiene el preprocesamiento no es el acierto de cada
 elección sino su irrelevancia. La cautela es que el barrido acota el
@@ -1475,15 +1496,20 @@ primeras carecen de respaldo formal; las dos últimas están adoptadas pero
 todavía no aplicadas.
 
 \begin{enumerate}[leftmargin=*, itemsep=0.35em]
- \item El umbral de valores atípicos
- $\max(Q_{75} + 5\,\mathrm{IQR},\; 1{,}2 \cdot P_{99{,}5})$ se adoptó
- por inspección de las series del proyecto, y no hay referencia de
- literatura que respalde el multiplicador cinco. Lo que sí hay es la
- medida de cuánto depende el resultado de él, según la
- Tabla~\ref{tab:prep-sensibilidad}: entre el multiplicador clásico y el
- elegido la energía retirada varía dos centésimas de punto porcentual, de
- modo que la falta de respaldo bibliográfico no compromete la cifra. Lo
- que sostiene el criterio no es el valor sino esa insensibilidad.
+ \item Dos de las tres bandas del guardia físico están ancladas a una
+ norma, la de tensión y la de frecuencia, pero la tercera no. La
+ discrepancia entre la suma de las fases y el total se juzga en pasos
+ del propio registro del medidor, y el número tres se eligió mirando la
+ distribución de esa discrepancia en este parque. Lo que sostiene la
+ elección es que el resultado apenas depende de ella. Sobre las diez
+ series del modelo, bajar la banda a dos pasos marcaría \num{263}
+ lecturas en vez de \num{50} y subirla a cinco marcaría \num{22}; en
+ las tres el efecto sobre la energía de las series se queda por debajo
+ del kilovatio hora, sobre un horizonte de \num{318093}. Lo que decide
+ el tres es que a dos pasos la marca todavía coincide con el ruido de
+ cuantización del registro, y a partir de tres el \pct{82} de las
+ marcas cae sobre una rampa de potencia, es decir, sobre un instante en
+ que el total y las tres fases se enclavaron en momentos distintos.
 
  \item El relleno hacia adelante con límite de 24 horas es una
  heurística de «día operativo» (supone que el patrón del día anterior es

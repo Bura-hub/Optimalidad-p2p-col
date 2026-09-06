@@ -15,4 +15,100 @@
 \label{sec:rob}
 \justifying
 
-\placeholderfig{Capítulo pendiente de redacción. Barridos uniparamétricos, mapa bivariado e índices de Sobol sobre el caso de estudio real.}
+\subsection{El paso de tiempo del modelo}
+\label{sub:rob-paso}
+
+Los barridos anteriores mueven parámetros. Este mueve algo distinto y más
+incómodo: el reloj con el que se mide todo lo demás. El modelo negocia por
+horas, los datos llegan cada dos minutos, y esa diferencia no la había
+justificado nadie. La propuesta de esta tesis la enuncia como un requisito
+del modelo, y al comprobarlo resulta que no lo es: el juego itera sobre
+columnas sin usar en ninguna línea la duración de un paso.
+
+De modo que la pregunta queda abierta y hay que contestarla con medida. Se
+contesta por dos caminos que no comparten supuestos. El primero corre el
+modelo entero a cuartos de hora sobre julio de 2025, que es el mes de más
+actividad del circuito principal y el de mayor diversidad de papeles del
+secundario. El segundo no corre el modelo: recorre el dato a nueve ventanas
+de promedio, de una hora a los dos minutos nativos, y mide directamente las
+dos cantidades que el paso puede distorsionar.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.97\textwidth]{figuras/f3_12_convergencia_paso.png}
+ \caption[Qué se pierde y qué se gana al afinar el paso]{El autoconsumo de
+ la comunidad y el lado corto del mercado, medidos a nueve ventanas de
+ promedio y expresados como diferencia contra el valor a la resolución
+ nativa de dos minutos. Solo entran las horas con las treinta lecturas
+ presentes en las cinco instituciones a la vez, \num{5338} de \num{6144}
+ bajo M1 y \num{5327} bajo M3, de modo que lo único que cambia entre un
+ punto y el siguiente es la ventana del promedio.}
+ \label{fig:rob-paso}
+\end{figure}
+
+La Figura~\ref{fig:rob-paso} enseña que al afinar el paso las dos curvas se
+separan, y esa separación es el resultado. El autoconsumo baja porque es un
+mínimo entre generación y demanda, y el mínimo de dos promedios es mayor o
+igual que el promedio de los mínimos, de modo que promediar la hora antes
+de comparar lo sobrestima. El lado corto sube porque el paso horario borra
+papeles: una institución equilibrada en el promedio de la hora no aparece
+en el mercado, y a menor ventana vende en unos tramos y compra en otros.
+
+Las dos cifras que el paso horario introduce son, contra la resolución
+nativa, una sobrestimación del autoconsumo del \pct{4.24} en el circuito
+principal y del \pct{6.98} en el secundario, y una subestimación del lado
+corto del \pct{27.15} y del \pct{17.87}. Ninguna de las dos curvas se ha
+aplanado en los dos minutos, es decir, el último tramo todavía aporta el
+\pct{28} y el \pct{22} del total, de modo que las cuatro son cotas
+inferiores del error y no su valor.
+
+Lo que importa no es que el error exista sino cómo se reparte. El
+autoconsumo lo comparten los seis mecanismos, porque todos leen las mismas
+matrices y todos lo valoran a la misma tarifa; el lado corto es el techo de
+lo único que el mercado entre pares aporta por encima de ellos. La fracción
+de la oportunidad física que es mercado y no autoconsumo pasa del
+\pct{7.74} al \pct{11.08} en el circuito principal al afinar de la hora al
+dato nativo, y del \pct{15.00} al \pct{19.53} en el secundario.
+
+La corrida completa a cuartos de hora confirma la consecuencia sobre el
+resultado publicable. Los seis mecanismos pierden entre el \pct{0.60} y el
+\pct{1.99}, porque el autoconsumo pesa del \pct{89.6} al \pct{96.3} del
+beneficio y su caída manda sobre la subida del mercado. El mercado entre
+pares es el que menos pierde de los seis en las dos fronteras, y su
+rendimiento relativo frente al régimen colectivo crece, de \num{0.0901} a
+\num{0.0950} en el circuito principal y de \num{0.0261} a \num{0.0343} en
+el secundario.
+
+\begin{lecturabox}
+\textbf{Ningún veredicto depende del paso.} El orden de los seis mecanismos
+es idéntico a las dos resoluciones en el circuito principal. En el
+secundario lo único que se mueve es que el régimen de autogeneración y el
+par de contrato bilateral y bolsa intercambian posiciones, separados por el
+\pct{0.3}. El límite de \uni{100}{kW} por usuario del artículo 20 no se
+cruza a ninguna resolución, y el máximo mayor de las cinco instituciones es
+de \uni{18.3}{kW}.
+\end{lecturabox}
+
+El paso horario se conserva, y ahora por razones y no por herencia. Es el
+paso de la serie de precios con la que se liquidan los escenarios, según el
+Capítulo~\ref{sec:precios}; ningún veredicto cambia al afinarlo; y el sesgo
+que introduce apunta en contra del mecanismo que esta tesis evalúa, de modo
+que las cifras publicadas vuelven a ser la lectura más adversa, en línea
+con la posición que la subsección~\ref{sub:prep-sesgo} deja sentada.
+
+\begin{detallebox}
+\textbf{Por qué el dato nativo no es un escenario de mercado.} Un mercado no
+puede liquidar por debajo del más grueso de tres relojes: la medida
+certificada de la frontera comercial, el precio disponible y el período de
+liquidación que el operador reconoce. Las lecturas de dos minutos de este
+proyecto son telemetría de investigación y no medida comercial, y la serie
+de bolsa se publica por horas. El dato nativo entra aquí como instrumento
+para medir el error del paso que sí se puede liquidar, y no como una
+alternativa a él. El paso de quince minutos, en cambio, sí es una
+resolución de liquidación en uso en otros mercados, y por eso la sonda se
+corrió a esa y no a otra.
+\end{detallebox}
+
+\placeholderfig{Resto del capítulo pendiente de redacción. Barridos
+uniparamétricos, mapa bivariado e índices de Sobol sobre el caso de
+estudio real.}

@@ -1243,3 +1243,131 @@ trate como trata las de los medidores brutos, es decir, interpolación y
 arrastre. Cambiaría la demanda de tres instituciones bajo M1 e invalida el
 canon, de modo que iría con la corrida nueva. **No se toca sin su palabra.**
 
+
+## H-27 · Un medidor publica su tensión bajo dos escalas incompatibles
+
+**2026-09-05 · descubierto al medir el guardia físico · no toca ninguna cifra
+publicada · abierto**
+
+El cuarto medidor de CESMAG tiene cuatro ficheros de origen, y el cuarto de
+ellos se solapa entero con el segundo. Entre el 1 de junio y el 15 de diciembre
+hay **114.897 instantes que aparecen dos veces con lecturas distintas**, y la
+diferencia no es ruido: en el solape un fichero informa una tensión de fase A
+con mediana de **129,7 V** y el otro de **745,5 V**, es decir, un factor de
+5,748. La potencia activa, en cambio, apenas cambia entre los dos, −0,024 frente
+a −0,034 kW, de modo que lo que difiere es el ajuste de relación del
+transformador de tensión y no el de corriente.
+
+**El promedio de duplicados fabrica un medidor que no existe.** Desde P-17 la
+carga funde los instantes repetidos promediándolos, y la media de 129,7 y 745,5
+es 437,6. Por eso la mediana mensual de tensión de ese medidor salta de 127,1 V
+en abril, mayo y junio a 432,6 V en julio y a 438,8 V de agosto en adelante, y
+por eso al elegirle un nominal entre los tres del parque le corresponde 440 V.
+**Ese medidor no opera a 440 V**: el número es el promedio de dos registros
+incompatibles.
+
+**No toca ninguna cifra publicada.** La frontera principal lee el medidor 1 de
+CESMAG y la secundaria el 3; el 4 no entra en ningún cálculo. Pero sí toca al
+guardia, porque un medidor con dos escalas superpuestas pasa la comprobación de
+tensión sin marcar nada, es decir, el guardia no lo ve precisamente donde más
+haría falta.
+
+**Conecta con el asunto abierto de la escala de los transformadores** que dejó
+el inventario de medidores. Es la primera evidencia directa, dentro del propio
+árbol de datos, de que un registro se publicó bajo dos configuraciones
+distintas. Antes de aplicar el guardia hay que decidir qué fichero es el bueno
+para ese medidor, y de paso comprobar si algún otro tiene el mismo solape.
+
+## H-28 · El paso horario sobrestima el autoconsumo, y afecta a los seis mecanismos
+
+**2026-09-05 · medido en la sonda CAL-46 · no invalida el canon · declararlo
+en el documento**
+
+El autoconsumo es el mínimo entre generación y demanda, y **el mínimo de dos
+promedios es mayor o igual que el promedio de los mínimos**. Al promediar la
+hora antes de tomar el mínimo, el pipeline sobrestima cuánta generación se
+consume en el sitio. No es un error de programación sino una consecuencia de
+la desigualdad de Jensen sobre una función cóncava, y estaba sin declarar.
+
+**Cuánto.** Medido sobre julio de 2025, comparando la misma corrida a paso
+horario y a cuartos de hora:
+
+| | Circuito principal | Circuito secundario |
+|---|---|---|
+| Autoconsumo del P2P | **−1,53 %** | **−2,67 %** |
+| Índice de autoconsumo | 0,266 → 0,264 | 0,528 → 0,522 |
+| Índice de autosuficiencia | 0,961 → 0,955 | 0,427 → 0,423 |
+
+**Por qué importa y por qué no cambia el veredicto.** El autoconsumo pesa el
+89,6 % del beneficio en la frontera principal y el 96,3 % en la secundaria, de
+modo que la sobrestimación arrastra el agregado de **los seis mecanismos por
+igual**: todos usan las mismas matrices y todos valoran el autoconsumo a la
+misma tarifa. Por eso el orden se conserva y ninguna comparación queda tocada.
+Lo que queda tocado es la **magnitud absoluta**, y ahí el documento debe
+declarar una cota: entre el 1,5 y el 2,7 % según la frontera.
+
+**Va en la dirección conservadora para la tesis.** Los términos de mercado se
+mueven al revés, es decir, suben al afinar el paso, y suben mucho más: la prima
+del vendedor un 7,19 % en la principal y un 40,46 % en la secundaria, y el
+ahorro del comprador un 3,67 % y un 28,77 %. De modo que el paso horario
+**infravalora justamente la parte que el mercado P2P aporta** y sobrevalora la
+que comparte con todos los demás. Ver el registro de la decisión CAL-46.
+
+### La cota por arriba, medida el 2026-09-05
+
+Las cifras de arriba son las de quince minutos y acotan el sesgo **por
+abajo**. El barrido de convergencia lo lleva hasta la resolución nativa de dos
+minutos, sobre las horas con las treinta ranuras presentes en las cinco
+instituciones a la vez, 5.338 y 5.327 de 6.144, y **sin pasar por la etapa de
+limpieza**, cuya cascada está escrita en conteos de pasos (ver H-29):
+
+| Contra el valor nativo | Circuito principal | Circuito secundario |
+|---|---|---|
+| El paso horario sobrestima el autoconsumo en | **+4,24 %** | **+6,98 %** |
+| El paso horario subestima el lado corto en | **−27,15 %** | **−17,87 %** |
+| Con cuartos de hora, el autoconsumo | +2,64 % | +3,93 % |
+
+**La curva no se ha aplanado en los dos minutos.** El último tramo, de cuatro
+a dos minutos, todavía aporta el 28 % del sesgo total en la principal y el
+22 % en la secundaria, de modo que estas cifras siguen siendo cotas
+inferiores: el sesgo verdadero es mayor. Dos minutos es lo más fino que el
+dato permite, no el límite del fenómeno.
+
+**Y la razón entre las dos ramas es la cifra que resume el asunto.** La
+fracción de la oportunidad física que es mercado y no autoconsumo pasa del
+7,74 % al 11,08 % en la frontera principal al afinar de la hora al dato
+nativo, y del 15,00 % al 19,53 % en la secundaria: un 43,1 % y un 30,3 % más.
+El paso horario no reparte su error por igual, **esconde sobre todo la parte
+que solo el mercado puede capturar**.
+
+## H-29 · La cascada de limpieza está escrita en pasos y no en horas
+
+**2026-09-05 · descubierto al preparar el barrido de convergencia · no toca
+ninguna cifra publicada · corregir antes de cualquier corrida subhoraria**
+
+La etapa de limpieza documenta «interpolación para huecos de hasta 3 h» y
+«arrastre de hasta 24 h», pero el código escribe esos límites como **conteos
+de pasos**: `interpolate(limit=3)` y `ffill(limit=24)`. Con el paso horario
+las dos lecturas coinciden y por eso el defecto llevaba invisible desde
+siempre. Con cualquier paso más fino dejan de coincidir: a quince minutos
+esos límites valen 45 minutos y 6 horas, y a dos minutos, 6 minutos y 48
+minutos.
+
+Lo mismo pasa con el guardia de solape de la reconstrucción del inversor,
+que exige `int(solape.sum()) < 24` pensando en veinticuatro horas.
+
+**Cuánto contamina la sonda de quince minutos, medido.** En julio la
+cobertura es buena y los huecos son cortos: bajo la frontera principal hay
+4 horas sin ninguna muestra, el 0,5 %, que a quince minutos son 28 cuartos,
+el 0,9 %. Un hueco de cuatro horas mide dieciséis pasos de quince minutos,
+por debajo de los veinticuatro del arrastre, de modo que **sigue quedando
+imputado y ninguna hora cae al relleno con cero**. Lo que cambia es cuál de
+los dos tratamientos lo recoge, en menos del 1 % de los pasos. La sonda se
+sostiene, y el sesgo del promedio queda confirmado además por un camino que
+no pasa por la limpieza, el barrido de convergencia.
+
+**Qué hay que hacer.** Antes de correr nada por debajo de la hora en serio,
+los límites tienen que expresarse en duración y derivar el conteo del paso
+del eje, igual que ya hace el remuestreo desde CAL-46. No corre prisa
+mientras el canon sea horario, pero queda anotado para que no vuelva a
+descubrirse por casualidad.

@@ -5629,6 +5629,182 @@ del multiplicador que sigue abierta: con 7 conserva sus dos horas, mientras
 la frontera principal se queda sin ninguna.
 
 
+## C-129 · El guardia físico, medido: se queda en tres comprobaciones y no en cuatro
+
+**2026-09-05 · tipo: `dato` · medida hecha, aún no aplicada al documento**
+
+La decisión de sustituir el umbral distribucional por un guardia físico
+llevaba una condición: **medir qué marcaría antes de fijarle ninguna
+banda**, porque fijar un número y ver después qué recoge es exactamente el
+error del piso del percentil. La medición está hecha sobre el crudo de dos
+minutos de los veinte medidores, 122.880 horas-serie, y **corrige dos de
+las cuatro comprobaciones que la decisión traía**.
+
+**El factor de potencia sale.** Con el umbral regulatorio marca 64.823 de
+las 122.880 horas-serie, más de la mitad del horizonte, y 32.374 aun
+restringido a las horas con más de 1 kW de carga. Un factor de potencia
+bajo es lo que parece un edificio poco cargado de madrugada. La
+comprobación no distingue nada.
+
+**La banda de tensión pasa de asimétrica a simétrica.** La de la norma de
+calidad, −10 % y +5 %, marca 5.920 horas-serie, y casi todas son el primer
+medidor del Hospital por encima del +5 % de madrugada, hasta el 34,5 % de
+las muestras de las 3. La simétrica de ±10 % marca 17.
+
+**La banda de frecuencia se ensancha.** La regulatoria marca 103
+horas-serie, pero 25 de las 35 que tocan a las series del modelo son
+excursiones del sistema interconectado, vistas por los veinte medidores en
+el mismo instante. En una excursión real de la red el medidor mide bien.
+La banda de ±0,5 Hz deja pasar todo evento de sistema, cuya desviación
+mayor fue 0,30 Hz, y aísla el único fallo de sincronismo del horizonte.
+
+**La afirmación que había que corregir es mía.** El registro de la decisión
+decía que el guardia no tocaría ninguna de las once horas y lo apoyaba en
+que el factor de potencia se movía «entre 0,87 y 1,00». Ese 0,866 está por
+debajo del umbral regulatorio, de modo que bajo la tabla que el propio
+registro proponía **el guardia sí habría marcado cinco de las once**. Con
+las tres comprobaciones corregidas no marca ninguna, y por una razón mejor:
+la discrepancia de la suma de fases no se juzga en kilovatios sino en pasos
+del propio registro del medidor, y en las once no pasa de 1,975 pasos
+contra una banda de 3.
+
+**Qué marca.** Sobre las 61.440 horas-serie de las diez series del modelo,
+67, el 0,11 %: 44 en la frontera principal y 23 en la secundaria. Son tres
+sucesos legibles, y el mayor es el hundimiento de tensión de la Universidad
+Mariana del 28 al 29 de agosto, con dos fases en 19,0 y 33,3 V mientras la
+tercera se mantiene en 128. De las 67, cuatro cruzan el umbral de cobertura
+por causa del guardia y 51 pierden una sola muestra.
+
+**Lo que la medición añade al argumento.** Durante ese hundimiento el
+medidor informa −0,098 kW, es decir, prácticamente nada, y un número
+pequeño **nunca sobresale de la cola de su propia distribución**. El filtro
+viejo retiraba once horas de consumo cierto y dejaba pasar el único fallo
+de equipo del horizonte, de modo que se equivocaba en las dos direcciones a
+la vez. Eso, y no el multiplicador, es lo que justifica el cambio.
+
+**No se aplica todavía al documento**, que sigue describiendo el umbral
+distribucional, porque el cambio entra con la corrida canónica junto a H-26
+y P-21. Ver el registro de la decisión y H-27.
+
+## C-130 · La sonda de quince minutos: el paso horario se sostiene, y sesga en contra
+
+**2026-09-05 · tipo: `dato` + `codigo` · medida hecha, aún no aplicada al documento**
+
+El paso horario del modelo no venía de ninguna decisión: se heredó del
+Excel de veinticuatro filas del modelo base. La sonda lo pone a prueba
+corriendo julio de 2025 en las dos fronteras, a paso horario y a cuartos
+de hora, con los cinco escenarios y el P2P.
+
+**Primero hubo que hacer explícito el factor de duración**, que estaba
+supuesto en una hora y no se escribía en ninguna parte. Toca la
+liquidación, los cinco escenarios, el motor de comparación, el techo de
+escasez y el cargador. Va con una compuerta que prueba que el camino
+horario no se mueve, y **pasa con 672 números idénticos bit a bit**. La
+compuerta encontró de paso un defecto real que yo había dejado: las tres
+implementaciones internas del escenario colectivo no recibían el factor.
+
+**Los seis mecanismos pierden valor al afinar**, entre el 0,60 y el 1,99 %.
+El P2P es el que menos pierde en las dos fronteras.
+
+**La caída no contradice la medición previa, la explica.** Dentro del P2P
+los dos efectos van en direcciones opuestas: los términos de mercado
+**suben**, la prima del vendedor un 7,19 % en la frontera principal y un
+40,46 % en la secundaria, que es el mecanismo que la medición anticipaba;
+y el autoconsumo **baja**, un 1,53 % y un 2,67 %, por la desigualdad de
+Jensen sobre un mínimo. Como el autoconsumo pesa del 90 al 96 % del total,
+su caída manda. Ver H-28.
+
+**Ningún veredicto cambia.** El orden de los seis es idéntico en la
+frontera principal. En la secundaria lo único que se mueve es que el
+régimen AGR y el par bilateral/bolsa se intercambian, y están separados por
+el 0,3 %.
+
+**Y el paso horario sesga en contra de la tesis.** El rendimiento relativo
+del P2P frente al colectivo **crece** al afinar: de 0,0901 a 0,0950 en la
+principal y de 0,0261 a 0,0343 en la secundaria. Las cifras publicadas son
+el punto más adverso, que es donde conviene estar.
+
+**No se aplica al documento todavía.** La sonda no invalida el canon y el
+paso horario se conserva; lo que entra al documento es la declaración de
+por qué se conserva, con la cota de H-28. Registro completo en el ADR de
+CAL-46.
+
+## C-131 · Las dos figuras de la decisión del umbral, y un objeto que no era el mismo
+
+**2026-09-05 · tipo: `figura` · construidas, pendientes de que el texto cambie**
+
+El registro de CAL-45 pide dos figuras que no existen: las treinta muestras
+de dos minutos de una hora retirada, y el fallo de tensión que el criterio
+distribucional no puede ver. Se construyen ya, para que el día que el
+capítulo cambie no haya que inventarlas con prisa.
+
+**El error que la primera versión destapó.** Dibujé la lectura del medidor
+y el umbral juzga la **demanda reconstruida**. En las instituciones de
+medidor neto parcial esas dos series difieren justo a las horas de sol, que
+son las de los once casos, de modo que mi figura contaba nueve muestras
+sobre el umbral donde el censo cuenta trece. Comparar objetos comparables:
+el caché nativo suma ahora el inversor a su propia resolución con la misma
+cuenta que el pipeline hace por horas, y **reproduce el censo exactamente**,
+14, 13, 22 y 29 muestras en las cuatro horas del caso.
+
+**La primera figura enseña el caso débil junto al fuerte.** A la izquierda
+la hora que menos sobresale de las once, 13 de 30 muestras sobre el umbral;
+a la derecha la que más, 29 de 30 en una racha seguida de 58 minutos. Si ni
+siquiera el más flojo tiene forma de espiga, ninguno la tiene. De regalo se
+ve la arbitrariedad del corte: en CESMAG la hora anterior tiene 19 de 30
+sobre el umbral y **sobrevive**, porque su media queda seis centésimas por
+debajo.
+
+**La segunda resultó más fuerte que lo que el registro anticipaba.** No es
+solo un hundimiento de tensión: el medidor deja de informar **ocho horas
+seguidas** y después informa una potencia constante de −0,10 kW durante
+**seis horas más**, incluso cuando la tensión ya volvió. Un número pequeño
+no sobresale de la cola de ninguna distribución, y ahí está el punto ciego
+que justifica el cambio.
+
+## C-132 · La curva de convergencia del paso, y la cota que faltaba
+
+**2026-09-05 · tipo: `dato` + `figura` · medida hecha, figura construida**
+
+La sonda dejó el sesgo del paso horario acotado **por abajo**, con las
+cifras de quince minutos. El barrido de convergencia lo acota por arriba
+recorriendo el mismo dato a nueve ventanas de promedio, de una hora a los
+dos minutos nativos.
+
+**Tres decisiones de método, y las tres eran necesarias.** No corre el
+modelo, porque el autoconsumo y el lado corto son aritmética sobre las
+matrices. No pasa por la limpieza, porque su cascada está escrita en
+conteos de pasos y a dos minutos «huecos de hasta 3 h» valdría seis
+minutos, con lo que se mezclaría el sesgo del promedio con un cambio de
+criterio de imputación; ver H-29. Y solo entran las horas con las treinta
+ranuras presentes en las cinco instituciones a la vez, porque sin esa
+restricción una ventana fina «pierde» energía que la hora sí recoge y el
+resultado confundiría el sesgo con la cobertura.
+
+**El resultado.** Contra el valor nativo, la hora sobrestima el
+autoconsumo un 4,24 % en la frontera principal y un 6,98 % en la
+secundaria, y subestima el lado corto un 27,15 % y un 17,87 %.
+
+**Y la curva no se ha aplanado.** El tramo de cuatro a dos minutos todavía
+aporta el 28 % y el 22 % del sesgo, de modo que son cotas inferiores y no
+el límite del fenómeno. Eso hay que decirlo, porque la tentación es
+presentar el valor nativo como «el verdadero».
+
+**La figura enseña lo que ninguna cifra suelta enseña.** Al afinar, las dos
+ramas **se separan**: baja lo que los seis mecanismos comparten y sube el
+techo de lo único que el mercado aporta por encima de ellos. La fracción de
+la oportunidad física que es mercado pasa del 7,74 % al 11,08 % en la
+principal y del 15,00 % al 19,53 % en la secundaria. El paso horario no
+reparte su error por igual: esconde sobre todo la parte del P2P.
+
+**Lo que la medida NO justifica**, y conviene dejarlo escrito para que
+nadie lo lea al revés: correr el juego a dos minutos. Un mercado no liquida
+más fino que el más grueso de tres relojes institucionales, la medida
+certificada, el precio y el período de liquidación. Los dos minutos del
+proyecto son telemetría, no medida comercial de frontera. El dato nativo
+sirve de instrumento para medir el error del paso que sí se puede liquidar,
+y para nada más.
+
 ---
 
 ## Pendientes

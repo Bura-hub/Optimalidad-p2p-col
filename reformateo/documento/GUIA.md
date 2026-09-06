@@ -187,6 +187,35 @@ pantalla**: una cifra que caduca en silencio es peor que un fallo.
 El mismo criterio vale para la prosa de los generadores. Un docstring con
 una cifra dentro también caduca, y nadie lo mira.
 
+### El paso de la figura lo elige la ventana, no el gusto
+
+Los datos crudos vienen con una lectura cada dos minutos y el documento los
+dibuja casi siempre a paso horario. Dibujar mas fino mejora unas pocas
+figuras y **empeora** otras, y la frontera esta medida en milimetros de
+papel sobre la caja de texto de este documento:
+
+| Ventana que dibuja la figura | Paso | Milimetros por muestra |
+|---|---|---|
+| Un dia o menos | 2 min | 0,23 · se ve como textura |
+| De dos a siete dias | 15 min | 0,57 · se lee |
+| Mas de una semana | 1 hora | a 2 min serian 0,075, por debajo de lo que la impresion resuelve |
+
+De modo que las ventanas de tres dias, que varias figuras usan, van a
+quince minutos: a dos minutos **no se verian mejor sino peor**, porque el
+trazo se convierte en una banda solida.
+
+Dos consecuencias practicas. La primera es que la mayoria de las figuras
+del documento **no gana nada** con el paso fino, porque recorren el
+horizonte entero o son perfiles medios; medido, ganarian cuatro de unas
+sesenta y cinco, y dos ya estan al paso nativo. La segunda es que cuando
+una figura se dibuja a paso fino, el texto tiene que decir sin ambiguedad
+que **la figura y el modelo miran objetos distintos**: el modelo negocia
+por horas y la figura ensena lo que hay dentro de una.
+
+El coste no es el obstaculo: son 1,7 GB, veintiun segundos de lectura de
+los veintisiete equipos, y una cache binaria deja la relectura en
+centesimas. El obstaculo es que casi ninguna figura lo necesita.
+
 ### Un cambio en el pipeline se escala revisando los archivos uno a uno
 
 Cambiar la designación de un inversor tocó nueve puntos del repositorio y

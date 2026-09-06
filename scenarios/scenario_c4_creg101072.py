@@ -245,6 +245,10 @@ def run_c4_creg101072(
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta período YYYYMM (CAL-27)
     tolls: Union[float, np.ndarray, None] = None,   # CAL-41: T+D+PR+Rm
     caso: Union[int, str] = "auto",                 # CAL-41: 1, 2 o "auto"
+    # CAL-46: duración del paso en horas. Las matrices llevan potencia media
+    # del paso (kW) y los precios COP/kWh. La prueba del artículo 20 compara
+    # capacidad instalada y porcentajes, de modo que es invariante al paso.
+    dt: float = 1.0,
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
@@ -302,7 +306,7 @@ def run_c4_creg101072(
         )
         return _run_c4_legacy(
             D, G, pi_gs, pi_bolsa, pde, capacity,
-            max_capacity_kw, mode,
+            max_capacity_kw, mode, dt=dt,
         )
 
     # ── CAL-41: resolver el Caso del art. 20 y plegar los peajes ─────────
@@ -337,12 +341,12 @@ def run_c4_creg101072(
         # CAL-27 (ADR-0027): agregación mensual + cruce Hx por agente.
         res = _run_c4_monthly_hx(
             D, G, pi_gs, pi_bolsa, pde, capacity,
-            max_capacity_kw, ded, month_labels,
+            max_capacity_kw, ded, month_labels, dt=dt,
         )
     else:
         res = _run_c4_creg174_inheritance(
             D, G, pi_gs, pi_bolsa, pde, capacity,
-            max_capacity_kw, ded,
+            max_capacity_kw, ded, dt=dt,
         )
 
     res["caso_art20"] = caso_res
@@ -395,7 +399,7 @@ def _validate_capacity(
 
 def _run_c4_creg174_inheritance(
     D, G, pi_gs, pi_bolsa, pde, capacity,
-    max_capacity_kw, component_c,
+    max_capacity_kw, component_c, dt=1.0,
 ):
     """Implementación CAL-15: Tipo 1 a (pi_gs-Cvm), Tipo 2 a pi_bolsa."""
     N, T = D.shape
@@ -439,6 +443,13 @@ def _run_c4_creg174_inheritance(
     pde_t1    = (permuta_t1   * (pi_gs_v - pi_C)).sum(axis=1)   # (N,)
     surplus   = (excedente_t2 * pi_bolsa[None, :]).sum(axis=1)  # (N,)
     grid_cost = (grid_buy     * pi_gs_v).sum(axis=1)            # (N,)
+
+    # CAL-46: de potencia a energía.
+    if dt != 1.0:
+        savings = savings * dt
+        pde_t1 = pde_t1 * dt
+        surplus = surplus * dt
+        grid_cost = grid_cost * dt
 
     net_benefit = savings + pde_t1 + surplus
 
@@ -489,7 +500,7 @@ def _run_c4_creg174_inheritance(
 
 def _run_c4_monthly_hx(
     D, G, pi_gs, pi_bolsa, pde, capacity,
-    max_capacity_kw, component_c, month_labels,
+    max_capacity_kw, component_c, month_labels, dt=1.0,
 ):
     """
     Implementación CAL-27 (ADR-0027): C4 con agregación mensual + cruce Hx
@@ -595,6 +606,15 @@ def _run_c4_monthly_hx(
         permuta_t1_total      += float(permuta_t1_m.sum())
         excedente_t2_total    += float(excedente_t2_m.sum())
 
+    # CAL-46: de potencia a energía. La reliquidación mensual es homogénea.
+    if dt != 1.0:
+        savings_per_agent = savings_per_agent * dt
+        pde_credits_per_agent = pde_credits_per_agent * dt
+        surplus_revenue_agent = surplus_revenue_agent * dt
+        grid_cost_per_agent = grid_cost_per_agent * dt
+        permuta_t1_total *= dt
+        excedente_t2_total *= dt
+
     net_benefit = (savings_per_agent + pde_credits_per_agent
                     + surplus_revenue_agent)
 
@@ -635,7 +655,7 @@ def _run_c4_monthly_hx(
 
 def _run_c4_legacy(
     D, G, pi_gs, pi_bolsa, pde, capacity,
-    max_capacity_kw, mode,
+    max_capacity_kw, mode, dt=1.0,
 ):
     """
     Implementación legacy pre-CAL-15 (mode='pde_only' o
@@ -687,6 +707,13 @@ def _run_c4_legacy(
             if residual_export > 0:
                 for n in range(N):
                     surplus_sell[n] += pde[n] * residual_export * pi_bolsa[k]
+
+    # CAL-46: de potencia a energía.
+    if dt != 1.0:
+        savings = savings * dt
+        credits_pde = credits_pde * dt
+        surplus_sell = surplus_sell * dt
+        grid_cost = grid_cost * dt
 
     net_benefit = savings + credits_pde + surplus_sell
 

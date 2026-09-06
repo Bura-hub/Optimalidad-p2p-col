@@ -390,7 +390,7 @@ def load_xm_prices(csv_path, t_start="2025-07-01", t_end="2026-02-01"):
 # ── 3. Sintético calibrado ────────────────────────────────────────────────────
 
 def generate_synthetic_prices(T, t_start="2025-07-01",
-                               scenario="2025_real", seed=42):
+                               scenario="2025_real", seed=42, dt=1.0):
     """
     Serie sintética calibrada con promedios mensuales REALES de XM.
     Incluye patrón intradiario colombiano y efecto día de semana.
@@ -398,7 +398,7 @@ def generate_synthetic_prices(T, t_start="2025-07-01",
     rng = np.random.default_rng(seed)
     ref = XM_PRICES_REFERENCE.get(scenario, XM_PRICES_REFERENCE["2025_real"])
     dt_start = pd.Timestamp(t_start)
-    idx    = pd.date_range(dt_start, periods=T, freq="1h")
+    idx    = pd.date_range(dt_start, periods=T, freq=_paso(dt))
     prices = np.zeros(T)
 
     for i, dt in enumerate(idx):
@@ -430,7 +430,8 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
                  csv_path=None, use_api=True,
                  scenario="2025_real", seed=42,
                  apply_ceiling=True,
-                 ceiling_level="PES"):
+                 ceiling_level="PES",
+                 dt=1.0):
     """
     Obtiene vector de precios bolsa pi_bolsa (T,) en COP/kWh.
 
@@ -443,9 +444,26 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
         antes de retornarla. Ver ``apply_creg101066_ceiling``. CAL-14.
     ceiling_level : {"PEI", "PE", "PES"}
         Nivel del techo. Default ``"PES"`` (techo absoluto superior).
+    dt : float
+        Duracion del paso en horas (CAL-46). XM publica precio HORARIO, de
+        modo que a paso fino cada precio se replica sobre los subpasos de su
+        hora: la resolucion de la bolsa no acota la del modelo, solo la del
+        residual y la de los escenarios regulatorios. `T` cuenta pasos, no
+        horas. Antes de CAL-46, pedir T pasos de quince minutos devolvia una
+        serie horaria truncada y rellenada con la mediana, sin aviso.
     """
     global ULTIMA_FUENTE
     base_dir = Path(__file__).parent
+
+    # Numero de horas de reloj que cubre el horizonte de T pasos.
+    if dt == 1.0:
+        n_sub, T_horas = 1, T
+    else:
+        n_sub = 1.0 / dt
+        if abs(n_sub - round(n_sub)) > 1e-9:
+            raise ValueError(f"paso de {dt} h no divide la hora en partes enteras")
+        n_sub = int(round(n_sub))
+        T_horas = int(np.ceil(T / n_sub))
 
     prices = None
     ULTIMA_FUENTE = None
@@ -491,15 +509,20 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
         # corrida entera puede salir de precios inventados sin que nada en
         # el artefacto lo diga. `ULTIMA_FUENTE` viaja a la hoja Diagnostico.
         ULTIMA_FUENTE = f"SINTETICO:{scenario}"
-        prices = generate_synthetic_prices(T, t_start, scenario, seed)
+        prices = generate_synthetic_prices(T_horas, t_start, scenario, seed)
 
-    prices = _adj(prices, T)
+    prices = _adj(prices, T_horas)
+
+    # CAL-46: de horario al paso del modelo. El precio de una hora rige en
+    # todos sus subpasos.
+    if n_sub != 1:
+        prices = np.repeat(prices, n_sub)[:T]
 
     # CAL-14: aplicar techo CREG 101 066/2024 (PES por defecto).
     if apply_ceiling:
         prices, diag = apply_creg101066_ceiling(
             prices, t_start, level=ceiling_level,
-            return_diagnostics=True)
+            return_diagnostics=True, dt=dt)
         _print_ceiling_summary(diag, level=ceiling_level)
 
     return prices
@@ -814,6 +837,20 @@ def load_creg_ceiling(
     return serie
 
 
+def _paso(dt: float) -> str:
+    """Frecuencia de pandas para un paso de `dt` horas (CAL-46).
+
+    Con el paso horario devuelve exactamente ``"1h"``, de modo que el eje
+    reconstruido es identico al de antes de CAL-46.
+    """
+    if dt == 1.0:
+        return "1h"
+    minutos = dt * 60.0
+    if abs(minutos - round(minutos)) > 1e-9:
+        raise ValueError(f"paso de {dt} h no es un numero entero de minutos")
+    return f"{int(round(minutos))}min"
+
+
 def apply_creg101066_ceiling(
     pi_bolsa: np.ndarray,
     t_start: str,
@@ -821,6 +858,7 @@ def apply_creg101066_ceiling(
     effective_date: str = "2024-12-01",
     csv_path: Optional[str] = None,
     return_diagnostics: bool = False,
+    dt: float = 1.0,
 ):
     """
     Aplica el techo CREG 101 066/2024 al precio de bolsa horario.
@@ -841,6 +879,8 @@ def apply_creg101066_ceiling(
         Fecha desde la cual aplica CREG 101 066/2024. Default ``"2024-12-01"``.
     csv_path : str, optional
         Override de la ruta al CSV de techos.
+    dt : float
+        Duracion del paso en horas (CAL-46). Default 1.0.
     return_diagnostics : bool
         Si True, devuelve ``(pi_capped, diag)`` con metricas de recorte.
 
@@ -855,9 +895,12 @@ def apply_creg101066_ceiling(
     pi = np.asarray(pi_bolsa, dtype=float).copy()
     T = len(pi)
 
-    idx = pd.date_range(t_start, periods=T, freq="1h")
+    # CAL-46: antes el eje se reconstruia suponiendo una hora por posicion.
+    # Con T pasos de quince minutos eso construia un horizonte cuatro veces
+    # mas largo y buscaba el techo de meses que la serie nunca alcanza.
+    idx = pd.date_range(t_start, periods=T, freq=_paso(dt))
     eff = pd.Timestamp(effective_date)
-    t_end = (idx[-1] + pd.Timedelta(hours=1)).strftime("%Y-%m-%d")
+    t_end = (idx[-1] + pd.Timedelta(hours=dt)).strftime("%Y-%m-%d")
 
     ceil_monthly = load_creg_ceiling(t_start, t_end, level=level,
                                       csv_path=csv_path)

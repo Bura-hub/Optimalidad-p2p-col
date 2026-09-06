@@ -26,7 +26,16 @@ def residual_settlement(
     pi_gb:      float,
     seller_ids: list,
     buyer_ids:  list,
+    dt:         float = 1.0,
 ) -> dict:
+    """
+    `dt` (CAL-46) es la duración del paso en horas. Las cantidades del juego
+    son potencia media del paso (kW) y los precios COP/kWh, de modo que la
+    energía liquidada es potencia por duración. Este es el sitio donde el
+    supuesto de que un paso dura una hora estaba implícito: antes de CAL-46
+    el producto se hacía sin factor, y a quince minutos toda cifra monetaria
+    habría salido multiplicada por cuatro sin error ni excepción.
+    """
     J, I = P_star.shape
     P_ext = np.array([max(0.0, G_net_j[j] - float(np.sum(P_star[j, :])))
                       for j in range(J)])
@@ -35,8 +44,8 @@ def residual_settlement(
     return {
         "P_int":               P_int,
         "P_ext":               P_ext,
-        "cost_grid_purchases": float(np.sum(P_int)) * pi_gs,
-        "revenue_grid_sales":  float(np.sum(P_ext)) * pi_gb,
+        "cost_grid_purchases": float(np.sum(P_int)) * pi_gs * dt,
+        "revenue_grid_sales":  float(np.sum(P_ext)) * pi_gb * dt,
     }
 
 
@@ -78,12 +87,16 @@ def self_sufficiency_index(P_star, G_klim_k, D_k=None) -> float:
     return numerator / denom if denom > 1e-10 else 0.0
 
 
-def compute_savings(P_star, pi_star, pi_gs, pi_gb):
+def compute_savings(P_star, pi_star, pi_gs, pi_gb, dt: float = 1.0):
+    """`dt` (CAL-46): duración del paso en horas. Ver `residual_settlement`."""
     I = len(pi_star); J = P_star.shape[0]
     S_i  = np.array([(pi_gs - pi_star[i]) * float(np.sum(P_star[:, i]))
                      for i in range(I)])
     SR_j = np.array([float(np.sum((pi_star - pi_gb) * P_star[j, :]))
                      for j in range(J)])
+    if dt != 1.0:
+        S_i = S_i * dt
+        SR_j = SR_j * dt
     return S_i, SR_j
 
 

@@ -30,12 +30,18 @@ def run_c3_spot(
     pi_bolsa: np.ndarray,    # (T,) precio de bolsa horario $/kWh
     prosumer_ids: list,
     consumer_ids: list,
+    dt: float = 1.0,         # CAL-46: duración del paso en horas
 ) -> dict:
     """
     Lógica:
       1. Autoconsumo: ahorro a pi_gs
       2. Excedente vendido al mercado al precio de bolsa horario
       3. Déficit comprado a la red a pi_gs
+
+    `dt` (CAL-46) es la duración de un paso en horas. Las matrices D y G
+    llevan potencia media del paso (kW) y los precios son COP/kWh, de modo
+    que la energía del paso es potencia por `dt`. Con el paso horario
+    `dt = 1.0` y el resultado es idéntico al de antes de CAL-46.
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)   # (N, T) — CAL-9
@@ -63,6 +69,14 @@ def run_c3_spot(
         # Exposición total comunitaria al precio spot esta hora
         total_surplus = sum(max(0.0, G[n, k] - D[n, k]) for n in prosumer_ids)
         hourly_exposure[k] = total_surplus * pi_bolsa[k]
+
+    # CAL-46: de potencia a energía. Un solo sitio, porque todo el dinero de
+    # este escenario es lineal en la energía.
+    if dt != 1.0:
+        savings *= dt
+        revenues *= dt
+        grid_cost *= dt
+        hourly_exposure *= dt
 
     # Ganancia = ahorro por autoconsumo + ingresos por excedentes vendidos.
     # No se resta grid_cost: la comunidad seguiría comprando esa energía

@@ -102,6 +102,12 @@ def run_comparison(
     include_c5:    bool = False,
     pi_escasez:    Optional[np.ndarray] = None,   # (T,) PES mensual→horario
     f_split_c5:    float = 0.5,
+    # ── CAL-46 (ADR-0046): duración del paso en horas ───────────────────
+    # D, G_klim y G_raw llevan potencia media del paso (kW) y los precios
+    # COP/kWh, de modo que la energía del paso es potencia por `dt`. Antes de
+    # CAL-46 el factor estaba implícito en 1 hora y no se escribía en ninguna
+    # parte. El default 1.0 deja el camino horario idéntico bit a bit.
+    dt:            float = 1.0,
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -186,7 +192,7 @@ def run_comparison(
     # Ver scenarios/scenario_c1_creg174.py y data/cedenar_tariff.py.
     c1 = run_c1_creg174(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
                         month_labels=month_labels,
-                        component_c=component_c)
+                        component_c=component_c, dt=dt)
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
     cr.net_benefit["C1"]           = float(np.sum(c1_net))
@@ -212,13 +218,15 @@ def run_comparison(
         pi_G=pi_G_v,
         # CAL-37: excedente no colocado a bolsa HORARIA (fix artefacto §7.5)
         pi_bolsa=pi_bolsa,
+        dt=dt,
     )
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))
     cr.net_benefit_per_agent["C2"] = c2_net
 
     # ── C3 ──────────────────────────────────────────────────────────────
-    c3 = run_c3_spot(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids, consumer_ids)
+    c3 = run_c3_spot(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
+                     consumer_ids, dt=dt)
     c3_net = np.array([c3["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C3"]           = float(np.sum(c3_net))
     cr.net_benefit_per_agent["C3"] = c3_net
@@ -232,7 +240,7 @@ def run_comparison(
     # permuta se liquida contra T+D+Cvm+PR+Rm y no solo contra Cvm. Por eso
     # `tolls` viaja hasta aquí: sin él C4 quedaría sobrestimado.
     c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
-                            component_c=component_c, tolls=tolls)
+                            component_c=component_c, tolls=tolls, dt=dt)
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
     cr.net_benefit_per_agent["C4"] = c4_net
@@ -246,7 +254,8 @@ def run_comparison(
     if month_labels is not None:
         c4m = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
                                 component_c=component_c, tolls=tolls,
-                                mode="monthly_hx", month_labels=month_labels)
+                                mode="monthly_hx", month_labels=month_labels,
+                                dt=dt)
         c4m_net = np.array([c4m["per_agent"][n]["net_benefit"]
                             for n in range(N)])
         cr.net_benefit["C4_mensual"]           = float(np.sum(c4m_net))
@@ -265,7 +274,7 @@ def run_comparison(
             cot_component=cot_component if cot_component is not None else 0.0,
             mem_costs=mem_costs if mem_costs is not None else 0.0,
             cot_alpha=cot_alpha, f_split=f_split_c5, pi_escasez=pi_escasez,
-            prosumer_ids=prosumer_ids,
+            prosumer_ids=prosumer_ids, dt=dt,
         )
         c5_net = np.array([c5["per_agent"][n]["net_benefit"]
                            for n in range(N)])
@@ -279,7 +288,7 @@ def run_comparison(
     # (modo premium incremental) pasar mode="premium" explícitamente.
     p2p_net = _p2p_monetary_benefit(
         p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids,
-        pi_bolsa=pi_bolsa, mode="canonical",
+        pi_bolsa=pi_bolsa, mode="canonical", dt=dt,
     )
     cr.net_benefit["P2P"]           = float(np.sum(p2p_net))
     cr.net_benefit_per_agent["P2P"] = p2p_net
@@ -440,6 +449,12 @@ def run_comparison(
     auto_cop = float(np.sum(
         auto_kwh_hourly[prosumer_ids] * pi_gs_v[prosumer_ids]
     ))
+    # CAL-46: de potencia a energía, en el autoconsumo que este motor calcula
+    # por su cuenta y no le pide a ningún escenario.
+    if dt != 1.0:
+        auto_kwh_per_agent = auto_kwh_per_agent * dt
+        auto_kwh *= dt
+        auto_cop *= dt
 
     # C1 breakdown
     c1_savings_total = c1["aggregate"]["total_savings"]      # auto + permutación
@@ -456,7 +471,8 @@ def run_comparison(
     c4_excedente     = c4["aggregate"]["total_surplus_revenue"]
 
     # P2P breakdown: prima vendedor + ahorro comprador + autoconsumo propio
-    p2p_prima, p2p_ahorro = _p2p_flow_breakdown(p2p_results, pi_gs_v, pi_gb)
+    p2p_prima, p2p_ahorro = _p2p_flow_breakdown(p2p_results, pi_gs_v, pi_gb,
+                                                dt=dt)
 
     cr.flow_breakdown = {
         "P2P": {
@@ -496,10 +512,12 @@ def run_comparison(
     # Acumula los valores W_j y W_i calculados por el motor P2P hora a hora.
     # Estos incluyen utilidad de autoconsumo (λ, θ) y aversión al riesgo (η),
     # que no están capturados en el beneficio monetario de Nivel 1.
+    # CAL-46: las utilidades del juego son por unidad de tiempo, de modo que
+    # su acumulado sobre el horizonte lleva el mismo factor que el dinero.
     cr.W_sellers_total = float(sum(
-        r.Wj_total for r in p2p_results if r.P_star is not None))
+        r.Wj_total for r in p2p_results if r.P_star is not None)) * dt
     cr.W_buyers_total = float(sum(
-        r.Wi_total for r in p2p_results if r.P_star is not None))
+        r.Wi_total for r in p2p_results if r.P_star is not None)) * dt
 
     # ── RPE: Rendimiento Relativo P2P vs C4 ──────────────────────────────
     w_p2p = cr.net_benefit["P2P"]
@@ -540,7 +558,8 @@ def _effective_buyer_prices(pi_star, buyer_ids, pi_gs_v, k_local):
 def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                            prosumer_ids,
                            pi_bolsa: Optional[np.ndarray] = None,
-                           mode: str = "canonical") -> np.ndarray:
+                           mode: str = "canonical",
+                           dt: float = 1.0) -> np.ndarray:
     """
     Convierte resultados P2P a flujos monetarios netos por agente.
 
@@ -589,6 +608,11 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     pi_bolsa : ndarray (T,) | None — precio bolsa horario para modo canonical.
         Si None, se usa π_gb escalar como aproximación.
     mode : "canonical" | "premium" — fórmula a aplicar (default canonical).
+    dt : float — duración del paso en horas (CAL-46). Las cantidades del juego
+        y las matrices son potencia media del paso (kW) y los precios COP/kWh,
+        de modo que el dinero lleva el factor de duración. Todo lo que este
+        cálculo acumula es lineal en la energía y por eso basta escalarlo al
+        final. Con paso horario dt = 1.0 y no se ejecuta ninguna operación.
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
@@ -678,10 +702,15 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 residual_nk = max(surplus_total_nk - P_sold_n_k[n, k], 0.0)
                 net[n] += residual_nk * float(pi_bolsa_v[k])
 
+    # CAL-46: de potencia a energía.
+    if dt != 1.0:
+        net = net * dt
+
     return net
 
 
-def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
+def _p2p_flow_breakdown(results, pi_gs, pi_gb: float,
+                        dt: float = 1.0) -> tuple:
     """
     Descompone el beneficio P2P en prima de vendedor y ahorro de comprador.
 
@@ -696,6 +725,7 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
     results : list[HourlyResult]
     pi_gs   : float | ndarray (N,) | ndarray (N, T) — tarifa al usuario (CAL-9)
     pi_gb   : float — precio de bolsa, baseline de venta (COP/kWh)
+    dt      : float — duración del paso en horas (CAL-46)
     """
     if not results:
         return 0.0, 0.0
@@ -735,6 +765,10 @@ def _p2p_flow_breakdown(results, pi_gs, pi_gb: float) -> tuple:
             paid     = (pi_eff[idx_i] * received if pi_eff is not None
                         else received * pi_ref)
             ahorro  += max(0.0, received * pi_ref - paid)
+    # CAL-46: de potencia a energía.
+    if dt != 1.0:
+        prima *= dt
+        ahorro *= dt
     return prima, ahorro
 
 

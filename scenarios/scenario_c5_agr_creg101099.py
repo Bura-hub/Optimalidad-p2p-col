@@ -67,6 +67,7 @@ def run_c5_agr_creg101099(
     pi_escasez: Optional[np.ndarray] = None,   # (T,) PES mensual→horario
     lbc_window_days: int = 60,     # ventana LBC (Anexo 1 CREG 101 019/2022)
     prosumer_ids: Optional[list] = None,       # informativo (todos en MTE)
+    dt: float = 1.0,               # CAL-46: duración del paso en horas
 ) -> dict:
     """Simula el régimen AGR (CREG 101 099/2026). Ver docstring del módulo.
 
@@ -118,6 +119,14 @@ def run_c5_agr_creg101099(
     comp_generador = gen_val.sum(axis=1)
     residual_bolsa = (residual * np.maximum(pb[None, :] - mem_v, 0.0)).sum(axis=1)
 
+    # CAL-46: de potencia a energía. La compensación y su reparto son
+    # homogéneos, de modo que basta escalar el dinero ya compuesto.
+    if dt != 1.0:
+        savings_auto = savings_auto * dt
+        comp_receptor = comp_receptor * dt
+        comp_generador = comp_generador * dt
+        residual_bolsa = residual_bolsa * dt
+
     net = savings_auto + comp_receptor + comp_generador + residual_bolsa
 
     # ── LBC/PES: SOLO diagnóstico (S4 gated a asesores) ──────────────────
@@ -126,15 +135,18 @@ def run_c5_agr_creg101099(
     exp_cop = 0.0
     if pi_escasez is not None:
         pes = np.asarray(pi_escasez, dtype=float).reshape(-1)
-        win = min(lbc_window_days * 24, T)
+        # CAL-46: la ventana está en días, de modo que su longitud en pasos
+        # depende de la duración del paso. Es el único sitio de C5 que no es
+        # homogéneo y por eso no basta escalar el dinero al final.
+        win = min(int(round(lbc_window_days * 24 / dt)), T)
         lbc = np.array([float(np.mean(D_pos[n, :win])) for n in range(N)])
         trig = pb > pes
         lbc_active_hours = int(trig.sum())
         if lbc_active_hours:
             exceso = np.maximum(D_pos[:, trig] - lbc[:, None], 0.0)
-            exp_kwh = float(exceso.sum())
+            exp_kwh = float(exceso.sum()) * dt
             exp_cop = float((exceso * np.maximum(
-                pb[None, trig] - pi_gs_v[:, trig], 0.0)).sum())
+                pb[None, trig] - pi_gs_v[:, trig], 0.0)).sum()) * dt
 
     per_agent = {
         n: {

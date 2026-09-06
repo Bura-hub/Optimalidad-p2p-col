@@ -61,7 +61,8 @@ from data.cedenar_tariff import (
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
          single_day: str = None, paper_meters: bool = False,
-         include_c5: bool = False, out_dir: str = None):
+         include_c5: bool = False, out_dir: str = None,
+         paso: float = 1.0, desde: str = None, hasta: str = None):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -89,7 +90,19 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             print("    [CAL-36] Escenario M3 sub-medidores (paper meters): "
                   "demanda = circuito PV, no campus completo")
         loader = MTEDataLoader(mte_root, demand_config=demand_cfg)
-        D_full, G_full, index_full = loader.load(verbose=True)
+        D_full, G_full, index_full = loader.load(verbose=True, paso=paso)
+        # CAL-46: ventana acotada de la sonda. Recorta antes que nada mas para
+        # que la tarifa, la bolsa y las etiquetas de mes salgan del mismo
+        # horizonte que las series.
+        if desde or hasta:
+            from data.xm_data_loader import slice_horizon
+            _d = desde or index_full[0].strftime("%Y-%m-%d")
+            _h = hasta or (index_full[-1] + pd.Timedelta(hours=paso)
+                           ).strftime("%Y-%m-%d")
+            D_full, G_full, index_full = slice_horizon(
+                D_full, G_full, index_full, _d, _h)
+            print(f"    [CAL-46] Ventana {_d} -> {_h}: "
+                  f"{D_full.shape[1]} pasos de {paso * 60:.0f} min")
         print_validation_report(validate_load(D_full, G_full, index_full))
 
         from scenarios.scenario_c4_creg101072 import compute_pde_weights
@@ -137,7 +150,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             # Etiquetas de período de facturación (YYYYMM) para C1 (CREG 174)
             month_labels = np.array([ts.year * 100 + ts.month
                                      for ts in index_full], dtype=int)
-            print(f"\n    Modo: COMPLETO  N={N}  T={T}h ({T//24} días)")
+            print(f"\n    Modo: COMPLETO  N={N}  T={T} pasos "
+                  f"({T * paso / 24:.0f} días, paso {paso * 60:.0f} min)")
             n_periods = len(set(month_labels))
             print(f"    Períodos de facturación C1: {n_periods} meses")
         else:
@@ -159,13 +173,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                                "data", "xm_precios_bolsa.csv")
         if full_horizon:
             t_start_xm = index_full[0].strftime("%Y-%m-%d")
-            t_end_xm = (index_full[-1] + pd.Timedelta(hours=1)).strftime("%Y-%m-%d")
+            t_end_xm = (index_full[-1]
+                        + pd.Timedelta(hours=paso)).strftime("%Y-%m-%d")
             pi_bolsa = get_pi_bolsa(
                 T,
                 t_start=t_start_xm,
                 t_end=t_end_xm,
                 csv_path=xm_csv if os.path.exists(xm_csv) else None,
                 scenario="2025_normal",
+                dt=paso,          # CAL-46
             )
         elif single_day:
             t_start_xm = idx_day[0].strftime("%Y-%m-%d")
@@ -459,6 +475,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         # CAL-37: escenario C5 AGR (CREG 101 099/2026)
         include_c5=include_c5,
         pi_escasez=pi_escasez_arr,
+        # CAL-46: duracion del paso. Con 1.0 no se ejecuta ninguna operacion
+        # nueva y el camino horario queda identico bit a bit (compuerta en
+        # tests/gate_cal46_paso_horario.py).
+        dt=paso,
     )
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
@@ -1588,6 +1608,15 @@ if __name__ == "__main__":
     ap.add_argument("--out-dir", type=str, default=None, metavar="DIR",
                     help="CAL-43: carpeta destino de outputs/ y graficas/ "
                          "(por defecto, la raiz del repositorio)")
+    ap.add_argument("--paso", type=float, default=1.0, metavar="H",
+                    help="CAL-46: duracion del paso en horas. 1.0 (defecto) "
+                         "es el eje canonico; 0.25 corre la sonda de quince "
+                         "minutos. Ver docs/adr/0046-cal46-sonda-quince-"
+                         "minutos.md")
+    ap.add_argument("--desde", type=str, default=None, metavar="YYYY-MM-DD",
+                    help="CAL-46: inicio de la ventana acotada")
+    ap.add_argument("--hasta", type=str, default=None, metavar="YYYY-MM-DD",
+                    help="CAL-46: fin de la ventana acotada, excluido")
     ap.add_argument("--include-c5", action="store_true",
                     help="CAL-37/39: añade el escenario C5 AGR (CREG 101 099) "
                          "a la comparación, al PoF y a los barridos SA-1/SA-2 "
@@ -1638,4 +1667,5 @@ if __name__ == "__main__":
              full_horizon=args.full,
              run_analysis=args.analysis,
              paper_meters=args.paper_meters,
-             include_c5=args.include_c5, out_dir=args.out_dir)
+             include_c5=args.include_c5, out_dir=args.out_dir,
+             paso=args.paso, desde=args.desde, hasta=args.hasta)

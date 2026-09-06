@@ -229,7 +229,12 @@ def _read_single_meter(folder: Path, col: str, idx: pd.DatetimeIndex,
     # Filtra al horizonte indicado por idx (no al T_START/T_END global)
     t_start, t_end = idx[0], idx[-1] + (idx[1] - idx[0])
     combined = combined.loc[t_start:t_end]
-    hourly = combined.resample("1h").mean()
+    # CAL-46: el paso del remuestreo lo fija el propio eje que pide el
+    # llamador, y no una hora escrita a mano. Es la unica linea del pipeline
+    # donde se pierde la resolucion nativa de dos minutos.
+    paso = idx[1] - idx[0] if len(idx) > 1 else pd.Timedelta("1h")
+    hourly = (combined.resample("1h") if paso == pd.Timedelta("1h")
+              else combined.resample(paso)).mean()
     hourly = hourly / divide_by
     return hourly.reindex(idx)
 
@@ -315,6 +320,16 @@ def _sum_inverter_reconstruction(agent_dir: Path, subfolders: list[str],
 
 # ── API pública ───────────────────────────────────────────────────────────────
 
+def _freq_paso(paso: float) -> str:
+    """Frecuencia de pandas para un paso de `paso` horas (CAL-46)."""
+    if paso == 1.0:
+        return "1h"
+    minutos = paso * 60.0
+    if abs(minutos - round(minutos)) > 1e-9:
+        raise ValueError(f"paso de {paso} h no es un numero entero de minutos")
+    return f"{int(round(minutos))}min"
+
+
 def build_demand_generation(
     root: Path | str,
     *,
@@ -324,6 +339,7 @@ def build_demand_generation(
     reconstruction_inverters_config: dict | None = None,
     t_start: str | None = None,
     t_end: str | None = None,
+    paso: float = 1.0,
     verbose: bool = True,
 ) -> tuple[np.ndarray, np.ndarray, pd.DatetimeIndex]:
     """
@@ -334,6 +350,10 @@ def build_demand_generation(
     Parámetros
     ----------
     root : ruta a ``MedicionesMTE/``.
+    paso : duracion de un paso en horas (CAL-46). Default 1.0, el eje
+        canonico. Con 0.25 el eje va a cuartos de hora y las series salen
+        como potencia media del cuarto, no como energia: quien monetiza es
+        el que multiplica por la duracion.
     demand_config, ems_inverter_config, reconstruction_inverters_config :
         dicts opcionales para sobreescribir las configuraciones default.
         Útil para pruebas o análisis comparativo (ej. UCC con Med 1 vs
@@ -356,11 +376,14 @@ def build_demand_generation(
 
     ts = t_start or T_START
     te = t_end or T_END
-    idx = pd.date_range(ts, te, freq="1h", inclusive="left")
+    # CAL-46: `paso` es la duracion de un paso en horas. Con 1.0 el eje es el
+    # canonico y todo el pipeline se comporta como antes.
+    idx = pd.date_range(ts, te, freq=_freq_paso(paso), inclusive="left")
 
     if verbose:
         print(f"\n[preprocessing] Raiz: {root}")
-        print(f"  Periodo: {ts} -> {te}  ({len(idx)} horas)")
+        unidad = "horas" if paso == 1.0 else f"pasos de {paso*60:.0f} min"
+        print(f"  Periodo: {ts} -> {te}  ({len(idx)} {unidad})")
         print(f"  Estrategia: 1 medidor + 1 inversor EMS por institucion; "
               f"reconstruccion net->bruta donde aplique\n")
 

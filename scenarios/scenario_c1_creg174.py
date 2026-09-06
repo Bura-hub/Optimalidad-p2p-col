@@ -75,6 +75,7 @@ def run_c1_creg174(
     agent_ids:    list,                      # índices de agentes autogeneradores
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (ej. YYYYMM)
     component_c:  Union[str, float, np.ndarray, None] = "auto",  # CAL-10
+    dt:           float = 1.0,               # CAL-46: duración del paso en horas
 ) -> dict:
     """
     Simula el esquema CREG 174 con balance por período de facturación,
@@ -236,6 +237,18 @@ def run_c1_creg174(
             e_permuted_n  += E_permuted_1
             e_tipo2_n     += E_tipo2
             e_auto_n      += E_auto
+
+        # CAL-46: de potencia a energía. Las matrices llevan potencia media
+        # del paso (kW) y los precios COP/kWh, de modo que tanto el dinero
+        # como las energías de diagnóstico se multiplican por la duración.
+        # La búsqueda de la hora de cruce es homogénea y no se toca.
+        if dt != 1.0:
+            savings_n *= dt
+            surplus_n *= dt
+            grid_cost_n *= dt
+            e_auto_n *= dt
+            e_permuted_n *= dt
+            e_tipo2_n *= dt
 
         results[n] = {
             "savings":         savings_n,

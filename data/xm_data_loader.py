@@ -206,10 +206,12 @@ class MTEDataLoader:
         self._ems_backfill_cfg = ems_inverter_backfill_config
         self._recon_inv_cfg = reconstruction_inverters_config
 
-    def load(self, verbose: bool = True
+    def load(self, verbose: bool = True, paso: float = 1.0
              ) -> tuple[np.ndarray, np.ndarray, pd.DatetimeIndex]:
         # La selección puntual de medidor/inversor por institución y la
         # reconstrucción net→bruta viven en data/preprocessing.py.
+        # `paso` (CAL-46) es la duración de un paso en horas; 1.0 es el eje
+        # canónico y deja el pipeline exactamente como estaba.
         from data.preprocessing import build_demand_generation
         return build_demand_generation(
             self.root,
@@ -217,6 +219,7 @@ class MTEDataLoader:
             ems_inverter_config=self._ems_inv_cfg,
             ems_inverter_backfill_config=self._ems_backfill_cfg,
             reconstruction_inverters_config=self._recon_inv_cfg,
+            paso=paso,
             verbose=verbose,
         )
 

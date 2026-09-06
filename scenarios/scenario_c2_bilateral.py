@@ -116,6 +116,10 @@ def run_c2_bilateral(
     # C2 +11% e invirtiendo el ranking. Si pi_bolsa es None se conserva el
     # comportamiento histórico (retro-compatible con tests CAL-13/16/21).
     pi_bolsa: Union[np.ndarray, None] = None,
+    # CAL-46: duración del paso en horas. Las matrices llevan potencia media
+    # del paso (kW) y los precios COP/kWh; con paso horario dt = 1.0 y el
+    # resultado es idéntico al de antes de CAL-46.
+    dt: float = 1.0,
 ) -> dict:
     """
     Lógica:
@@ -241,6 +245,12 @@ def run_c2_bilateral(
                 grid_revenue[n] += gen_surplus[n] * pb_k
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs_v[i, k]
+
+    # CAL-46: de potencia a energía. Un solo sitio, antes de componer.
+    if dt != 1.0:
+        for _arr in (savings_gen, savings_G, savings_Cvm, savings_COT,
+                     savings_CXC, mem_costs_arr, grid_cost, grid_revenue):
+            _arr *= dt
 
     # CAL-16: savings_ppa es la suma neta descompuesta. CAL-23 agrega CXC.
     savings_ppa = (savings_G + savings_Cvm + savings_COT + savings_CXC

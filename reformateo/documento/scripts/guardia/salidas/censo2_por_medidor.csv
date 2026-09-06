@@ -1,0 +1,521 @@
+muestras,horas,muestras_en_horas,horas_mayoria,horas_quedan_lt23,horas_quedan_0,horas_incompletas,horas_completas,horas_adyacentes_vacia,energia_kWh,delta_kWh_quitar_muestras,inst,medidor,med,bandera
+358,42,1244,9,14,6,2,40,0,146.45989425287357,-15.115011300726561,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_ntc_-10+5
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_pm10
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_pm8
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_pm15
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_pm20
+14,1,15,1,1,0,1,0,0,0.195,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,V_pm50
+103,7,195,4,5,0,4,3,0,44.2762348003848,3.198703796106428,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,f_59.8-60.2
+226,53,1525,6,10,4,10,43,1,260.4092555940356,-29.02844129459403,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,f_59-61
+38,35,1042,0,1,0,1,34,0,331.8723969696969,-0.3218727496641218,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_1.5q
+8,8,240,0,0,0,0,8,0,93.16763333333333,-0.200840229885058,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_2q
+1,1,30,0,0,0,0,1,0,10.571666666666665,-0.026080459770113862,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_3q
+1,1,30,0,0,0,0,1,0,10.571666666666665,-0.026080459770113862,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_10q
+8,8,240,0,0,0,0,8,0,93.16763333333333,-0.200840229885058,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_2q_o_2pct
+8,8,240,0,0,0,0,8,0,93.16763333333333,-0.200840229885058,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_2q_o_5pct
+1,1,30,0,0,0,0,1,0,10.571666666666665,-0.026080459770113862,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_3q_o_2pct
+1,1,30,0,0,0,0,1,0,10.571666666666665,-0.026080459770113862,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_3q_o_5pct
+1,1,30,0,0,0,0,1,0,10.571666666666665,-0.026080459770113862,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,S_3q_o_10pct
+119,9,240,5,6,1,5,4,0,55.04290146705146,2.9776233363363143,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,G_final_V10_f0.2_S3q
+118,8,210,5,6,1,5,3,0,44.47123480038479,3.003703796106428,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,G_final_V10_f0.2_S5q
+16,2,45,1,1,1,1,1,0,10.766666666666666,-0.22108045977011387,Cesmag,Medidor 1 - Cesmag - electricMeter,Cesmag 1,G_solo_S3q_V10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,V_pm50
+5,4,120,0,0,0,0,4,0,-0.3658666666666667,-0.005857471264367808,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,f_59.8-60.2
+56,39,1167,0,0,0,2,37,0,-55.411193513957315,-0.23611683087027724,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,f_59-61
+2623,1711,51157,0,9,0,72,1639,6,-3355.040544180103,-81.5256759717787,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_1.5q
+250,236,7055,0,1,0,12,224,0,-638.8600115763547,6.649991573481735,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_2q
+2,2,60,0,0,0,0,2,0,-6.935566666666666,0.007704597701149174,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_3q
+1,1,30,0,0,0,0,1,0,-5.909133333333333,0.012167816091953831,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_4q
+1,1,30,0,0,0,0,1,0,-5.909133333333333,0.012167816091953831,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_10q
+250,236,7055,0,1,0,12,224,0,-638.8600115763547,6.649991573481735,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_2q_o_2pct
+237,224,6695,0,1,0,12,212,0,-555.6339115763546,5.376554135058091,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_2q_o_5pct
+2,2,60,0,0,0,0,2,0,-6.935566666666666,0.007704597701149174,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_3q_o_2pct
+2,2,60,0,0,0,0,2,0,-6.935566666666666,0.007704597701149174,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_3q_o_5pct
+2,2,60,0,0,0,0,2,0,-6.935566666666666,0.007704597701149174,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,S_3q_o_10pct
+7,6,180,0,0,0,0,6,0,-7.301433333333333,0.0018471264367813656,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,G_final_V10_f0.2_S3q
+6,5,150,0,0,0,0,5,0,-6.2749999999999995,0.006310344827586023,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,G_final_V10_f0.2_S5q
+2,2,60,0,0,0,0,2,0,-6.935566666666666,0.007704597701149174,Cesmag,Medidor 2 - Cesmag - electricMeter,Cesmag 2,G_solo_S3q_V10
+367,42,1243,9,15,6,3,39,0,71.02297701149425,-7.6056031117601925,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_ntc_-10+5
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_pm10
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_pm8
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_pm15
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_pm20
+14,1,15,1,1,0,1,0,0,0.195,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,V_pm50
+101,8,225,4,5,0,4,4,0,41.749618999519,0.8847752187853821,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,f_59.8-60.2
+227,52,1495,6,10,4,10,42,1,169.9914236291486,-34.43747760735433,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,f_59-61
+47,44,1317,0,0,0,3,41,0,289.2476413793103,-0.08959950738915534,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_1.5q
+8,8,239,0,0,0,1,7,0,64.4956,-0.1362206896551701,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_10q
+8,8,239,0,0,0,1,7,0,64.4956,-0.1362206896551701,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_2q_o_2pct
+7,7,209,0,0,0,1,6,0,48.92646666666667,-0.07667356321838881,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,S_3q_o_10pct
+116,9,240,5,6,1,5,4,0,41.944618999519,0.6897752187853821,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,G_final_V10_f0.2_S3q
+116,9,240,5,6,1,5,4,0,41.944618999519,0.6897752187853821,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,G_final_V10_f0.2_S5q
+15,1,15,1,1,1,1,0,0,0.195,-0.195,Cesmag,Medidor 3 - Cesmag - electricMeter,Cesmag 3,G_solo_S3q_V10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,V_pm50
+49,4,115,2,2,0,2,2,0,4.4542284391534395,4.486578211092866,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,f_59.8-60.2
+110,42,1202,2,6,1,7,35,1,16.85860542075879,3.1556470827519285,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,f_59-61
+1181,752,22510,0,2,0,30,722,0,-339.3725599672566,-8.731250491368261,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_1.5q
+82,63,1890,0,0,0,0,63,0,-37.871633333333335,0.15674485495347495,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_2q
+3,3,90,0,0,0,0,3,0,2.5806666666666667,-0.0409770114942527,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_3q
+2,2,60,0,0,0,0,2,0,1.1656333333333333,-0.01980574712643679,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_10q
+82,63,1890,0,0,0,0,63,0,-37.871633333333335,0.15674485495347495,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_2q_o_2pct
+79,62,1860,0,0,0,0,62,0,-37.072599999999994,-0.024679488232075053,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_2q_o_5pct
+3,3,90,0,0,0,0,3,0,2.5806666666666667,-0.0409770114942527,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_3q_o_2pct
+3,3,90,0,0,0,0,3,0,2.5806666666666667,-0.0409770114942527,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_3q_o_5pct
+2,2,60,0,0,0,0,2,0,1.1656333333333333,-0.01980574712643679,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,S_3q_o_10pct
+52,7,205,2,2,0,2,5,0,7.034895105820106,4.445601199598613,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,G_final_V10_f0.2_S3q
+49,4,115,2,2,0,2,2,0,4.4542284391534395,4.486578211092866,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,G_final_V10_f0.2_S5q
+3,3,90,0,0,0,0,3,0,2.5806666666666667,-0.0409770114942527,Cesmag,Medidor 4 - Cesmag - electricMeter,Cesmag 4,G_solo_S3q_V10
+15764,1041,31167,510,678,156,18,1023,4,9055.974472942626,-1253.4806708421042,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,V_pm50
+4,2,60,0,0,0,0,2,0,18.423133333333332,-0.07405925925925949,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,f_59.8-60.2
+68,62,1859,0,0,0,1,61,0,568.4109126436782,-0.23631737274220033,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,f_59.9-60.1
+1,1,30,0,0,0,0,1,0,8.883633333333334,-0.01746091954023221,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,f_59-61
+31,31,927,0,0,0,3,28,0,276.334683908046,-0.4034178981937506,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_1.5q
+27,27,807,0,0,0,3,24,0,240.08118390804603,-0.39595238095237395,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_2q
+24,24,717,0,0,0,3,21,0,210.47228390804597,-0.3358799671592694,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_3q
+17,17,507,0,0,0,3,14,0,150.63575057471266,-0.2182087027914541,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_4q
+11,11,328,0,0,0,2,9,0,96.19222758620691,-0.09803177339900948,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_5q
+7,7,208,0,0,0,2,5,0,64.83176091954023,-0.0658064860426899,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_8q
+3,3,89,0,0,0,1,2,0,26.743824137931036,-0.03493374384236425,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_10q
+27,27,807,0,0,0,3,24,0,240.08118390804603,-0.39595238095237395,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_2q_o_2pct
+15,15,447,0,0,0,3,12,0,130.6756172413793,-0.14928226600984473,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_2q_o_5pct
+24,24,717,0,0,0,3,21,0,210.47228390804597,-0.3358799671592694,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_3q_o_2pct
+15,15,447,0,0,0,3,12,0,130.6756172413793,-0.14928226600984473,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_3q_o_5pct
+5,5,148,0,0,0,2,3,0,43.67229425287356,-0.007270853858783788,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,S_3q_o_10pct
+28,26,777,0,0,0,3,23,0,228.89541724137933,-0.40993922641852887,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,G_final_V10_f0.2_S3q
+15,13,388,0,0,0,2,11,0,114.61536091954025,-0.17209103265826897,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,G_final_V10_f0.2_S5q
+24,24,717,0,0,0,3,21,0,210.47228390804597,-0.3358799671592694,HUDN,Medidor 1 - HUDN - electricMeter,HUDN 1,G_solo_S3q_V10
+15667,1041,31165,506,673,153,21,1020,4,1296.024471593741,-187.73579919070602,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,V_pm50
+4,2,60,0,0,0,0,2,0,2.821266666666667,0.013060280970625726,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,f_59.8-60.2
+66,58,1739,0,0,0,1,57,0,75.22994252873563,-0.030402775041051266,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,f_59.9-60.1
+1,1,30,0,0,0,0,1,0,1.6484666666666667,-0.001432183908046003,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,f_59-61
+275,203,6086,0,0,0,4,199,0,272.25617816091955,-0.4606903253196386,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,S_3q_o_10pct
+4,2,60,0,0,0,0,2,0,2.821266666666667,0.013060280970625726,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,G_final_V10_f0.2_S3q
+4,2,60,0,0,0,0,2,0,2.821266666666667,0.013060280970625726,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 2 - HUDN - electricMeter,HUDN 2,G_solo_S3q_V10
+16243,1051,31467,520,693,168,19,1032,4,1923.5008325374288,-290.03710477037345,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,V_pm50
+5,3,90,0,0,0,0,3,0,4.927133333333334,0.0030314176245214153,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,f_59.8-60.2
+68,59,1769,0,0,0,1,58,0,110.14400689655172,-0.013447832512315294,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,f_59-61
+184,144,4280,0,2,0,8,136,1,286.82725048348846,0.06541302733698129,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_1.5q
+155,122,3631,0,1,0,6,116,0,238.44360680532748,0.30066622738691695,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_2q
+3,3,90,0,0,0,0,3,0,6.781733333333333,0.024887356321839693,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_10q
+155,122,3631,0,1,0,6,116,0,238.44360680532748,0.30066622738691695,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_2q_o_2pct
+155,122,3631,0,1,0,6,116,0,238.44360680532748,0.30066622738691695,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_2q_o_5pct
+3,3,90,0,0,0,0,3,0,6.781733333333333,0.024887356321839693,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_3q_o_2pct
+3,3,90,0,0,0,0,3,0,6.781733333333333,0.024887356321839693,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_3q_o_5pct
+3,3,90,0,0,0,0,3,0,6.781733333333333,0.024887356321839693,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,S_3q_o_10pct
+8,6,180,0,0,0,0,6,0,11.708866666666665,0.02791877394636111,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,G_final_V10_f0.2_S3q
+5,3,90,0,0,0,0,3,0,4.927133333333334,0.0030314176245214153,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,G_final_V10_f0.2_S5q
+3,3,90,0,0,0,0,3,0,6.781733333333333,0.024887356321839693,HUDN,Medidor 3 - HUDN - electricMeter,HUDN 3,G_solo_S3q_V10
+18948,1174,35157,634,778,228,18,1156,5,3143.7589935936444,-548.1492039795958,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,V_pm50
+5,3,90,0,0,0,0,3,0,10.480466666666667,0.010721072796934461,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,f_59.8-60.2
+82,75,2245,0,0,0,4,71,0,87.33668440065681,0.7688647783251237,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,f_59-61
+183,173,5188,0,0,0,1,172,1,171.7834761904762,-0.14173070607552718,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_1.5q
+49,49,1470,0,0,0,0,49,1,47.5001,0.01848620689655328,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_10q
+48,48,1440,0,0,0,0,48,1,54.240899999999996,-0.2099689655172387,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_2q_o_2pct
+38,38,1140,0,0,0,0,38,1,82.77016666666667,-0.274718390804598,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,S_3q_o_10pct
+5,3,90,0,0,0,0,3,0,10.480466666666667,0.010721072796934461,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,G_final_V10_f0.2_S3q
+5,3,90,0,0,0,0,3,0,10.480466666666667,0.010721072796934461,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,HUDN,Medidor 4 - HUDN - electricMeter,HUDN 4,G_solo_S3q_V10
+415,47,1356,14,17,5,4,43,2,269.93382745098046,-4.680999638830852,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_ntc_-10+5
+99,6,126,5,5,4,4,2,2,6.342460784313727,3.3475392156862736,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_pm10
+99,6,126,5,5,4,4,2,2,6.342460784313727,3.3475392156862736,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_pm8
+99,6,126,5,5,4,4,2,2,6.342460784313727,3.3475392156862736,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_pm15
+99,6,126,5,5,4,4,2,2,6.342460784313727,3.3475392156862736,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_pm20
+99,6,126,5,5,4,4,2,2,6.342460784313727,3.3475392156862736,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,V_pm50
+4,3,90,0,0,0,0,3,0,23.05313333333333,-0.08680574712643452,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,f_59.8-60.2
+43,36,1080,0,0,0,0,36,0,263.6820666666666,0.9530322003284064,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,f_59-61
+172,167,5008,0,0,0,2,165,0,1287.680140229885,0.48413686371101305,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_1.5q
+31,31,930,0,0,0,0,31,0,244.48283333333336,0.07933908045977023,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_2q
+10,10,300,0,0,0,0,10,0,68.9754,0.035082758620691434,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_3q
+6,6,180,0,0,0,0,6,0,40.58873333333334,-0.17649195402298923,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_4q
+5,5,150,0,0,0,0,5,0,34.14993333333334,-0.22382988505747226,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_5q
+2,2,60,0,0,0,0,2,0,9.5393,-0.11657586206896675,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_10q
+31,31,930,0,0,0,0,31,0,244.48283333333336,0.07933908045977023,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_2q_o_2pct
+21,21,630,0,0,0,0,21,0,137.21429999999998,-0.089472413793102,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_2q_o_5pct
+10,10,300,0,0,0,0,10,0,68.9754,0.035082758620691434,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_3q_o_2pct
+10,10,300,0,0,0,0,10,0,68.9754,0.035082758620691434,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_3q_o_5pct
+8,8,240,0,0,0,0,8,0,51.930366666666664,0.050254022988506675,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,S_3q_o_10pct
+113,19,516,5,5,4,4,15,2,98.37099411764706,3.2958162271805307,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,G_final_V10_f0.2_S3q
+108,14,366,5,5,4,4,10,2,63.54552745098039,3.0369035835023674,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,G_final_V10_f0.2_S5q
+109,16,426,5,5,4,4,12,2,75.31786078431372,3.3826219743069657,Mariana,Medidor 1 - Alvernia - electricMeter,Marian 1,G_solo_S3q_V10
+269,32,934,8,13,0,3,29,2,-0.047633333333333416,0.436027969348659,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_ntc_-10+5
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_pm10
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_pm8
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_pm15
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_pm20
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,V_pm50
+268,15,399,10,12,8,7,8,1,3.793471714142928,-1.6416013437725583,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,f_59.8-60.2
+307,49,1419,10,12,8,7,42,1,10.915638380809595,-1.47549976011994,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,f_59.9-60.1
+264,13,339,10,12,8,7,6,1,3.3182383808095954,-1.6997383808095952,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,f_59.7-60.3
+262,13,339,10,12,7,7,6,1,3.3182383808095954,-1.7237383808095952,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,f_59-61
+14,13,389,0,0,0,1,12,0,27.864359770114945,-1.042231691297208,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_1.5q
+3,2,60,0,0,0,0,2,0,8.863766666666667,0.06252151067323553,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_10q
+3,2,60,0,0,0,0,2,0,8.863766666666667,0.06252151067323553,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,S_3q_o_10pct
+283,16,417,11,13,9,8,8,2,3.769471714142929,-1.617601343772558,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,G_final_V10_f0.2_S3q
+283,16,417,11,13,9,8,8,2,3.769471714142929,-1.617601343772558,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,G_final_V10_f0.2_S5q
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 2 - Alvernia - electricMeter,Marian 2,G_solo_S3q_V10
+321,41,1205,8,13,1,2,39,2,1.0631529411764706,-0.18975209241129268,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_ntc_-10+5
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_pm10
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_pm8
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_pm15
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_pm20
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,V_pm50
+269,16,429,10,12,8,7,9,1,2.538423295285131,-1.4400890040973913,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,f_59.8-60.2
+309,51,1479,10,12,8,7,44,1,5.055589961951797,-1.4445780188757162,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,f_59.9-60.1
+264,13,339,10,12,8,7,6,1,2.4952232952851308,-1.4370844063962418,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,f_59.7-60.3
+262,13,339,10,12,7,7,6,1,2.4952232952851308,-1.2385844063962417,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,f_59-61
+552,132,3932,13,27,0,3,129,2,24.32248850574713,-0.15034905619485656,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,S_3q_o_10pct
+284,17,447,11,13,9,8,9,2,2.6962566286184644,-2.0449223374307244,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,G_final_V10_f0.2_S3q
+284,17,447,11,13,9,8,9,2,2.6962566286184644,-2.0449223374307244,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,G_final_V10_f0.2_S5q
+15,2,35,1,2,0,2,0,2,0.694186274509804,-0.1747487745098039,Mariana,Medidor 3 - Alvernia - electricMeter,Marian 3,G_solo_S3q_V10
+337,43,1264,10,15,1,3,40,2,-1.032,0.024,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_ntc_-10+5
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_pm10
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_pm8
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_pm15
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_pm20
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,V_pm50
+267,16,428,10,12,8,8,8,1,-0.384,0.192,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,f_59.8-60.2
+306,48,1388,10,12,8,8,40,1,-1.152,0.192,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,f_59.9-60.1
+263,13,338,10,12,8,8,5,1,-0.31200000000000006,0.192,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,f_59.7-60.3
+261,13,338,10,12,7,8,5,1,-0.31200000000000006,0.16799999999999998,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,f_59-61
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,S_3q_o_10pct
+282,17,446,11,13,9,9,8,2,-0.40800000000000003,0.21600000000000003,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,G_final_V10_f0.2_S3q
+282,17,446,11,13,9,9,8,2,-0.40800000000000003,0.21600000000000003,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,G_final_V10_f0.2_S5q
+15,2,35,1,2,0,2,0,2,-0.048,0.0,Mariana,Medidor 4 - Alvernia - electricMeter,Marian 4,G_solo_S3q_V10
+93,22,659,0,5,0,1,21,0,396.4953896551724,-0.38511001211713225,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,V_pm50
+5,3,90,0,0,0,0,3,0,25.498800000000003,-0.027140996168581566,UCC,Medidor 1 - UCC - electricMeter,UCC 1,f_59.8-60.2
+46,39,1166,0,0,0,1,38,0,792.7847282051284,-0.6434037223695863,UCC,Medidor 1 - UCC - electricMeter,UCC 1,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,f_59-61
+3,3,90,0,0,0,0,3,0,91.26086666666666,-0.2693839080459792,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_1.5q
+2,2,60,0,0,0,0,2,0,58.8334,-0.10253793103448139,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_2q
+2,2,60,0,0,0,0,2,0,58.8334,-0.10253793103448139,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_3q
+1,1,30,0,0,0,0,1,0,52.3017,-0.20780344827586106,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_4q
+1,1,30,0,0,0,0,1,0,52.3017,-0.20780344827586106,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_5q
+1,1,30,0,0,0,0,1,0,52.3017,-0.20780344827586106,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_10q
+2,2,60,0,0,0,0,2,0,58.8334,-0.10253793103448139,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_2q_o_2pct
+1,1,30,0,0,0,0,1,0,6.5317,0.10526551724137967,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_2q_o_5pct
+2,2,60,0,0,0,0,2,0,58.8334,-0.10253793103448139,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_3q_o_2pct
+1,1,30,0,0,0,0,1,0,6.5317,0.10526551724137967,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_3q_o_5pct
+1,1,30,0,0,0,0,1,0,6.5317,0.10526551724137967,UCC,Medidor 1 - UCC - electricMeter,UCC 1,S_3q_o_10pct
+7,5,150,0,0,0,0,5,0,84.3322,-0.12967892720306295,UCC,Medidor 1 - UCC - electricMeter,UCC 1,G_final_V10_f0.2_S3q
+6,4,120,0,0,0,0,4,0,77.8005,-0.23494444444444262,UCC,Medidor 1 - UCC - electricMeter,UCC 1,G_final_V10_f0.2_S5q
+2,2,60,0,0,0,0,2,0,58.8334,-0.10253793103448139,UCC,Medidor 1 - UCC - electricMeter,UCC 1,G_solo_S3q_V10
+105,26,779,1,5,0,1,25,0,29.987918390804598,0.41140339410270454,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_pm10
+1,1,30,0,0,0,0,1,0,4.968833333333333,0.012856321839080032,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,V_pm50
+5,3,90,0,0,0,0,3,0,0.5021333333333333,-0.0006850574712643498,UCC,Medidor 2 - UCC - electricMeter,UCC 2,f_59.8-60.2
+47,41,1228,0,0,0,1,40,0,68.12108571428573,-0.12743998357963698,UCC,Medidor 2 - UCC - electricMeter,UCC 2,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 2 - UCC - electricMeter,UCC 2,f_59-61
+7,7,210,0,0,0,0,7,0,15.102766666666664,-0.07628390804597537,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_1.5q
+3,3,90,0,0,0,0,3,0,13.246699999999999,-0.08204482758620513,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_2q
+3,3,90,0,0,0,0,3,0,13.246699999999999,-0.08204482758620513,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_3q
+2,2,60,0,0,0,0,2,0,8.3607,-0.0526310344827583,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_4q
+2,2,60,0,0,0,0,2,0,8.3607,-0.0526310344827583,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_5q
+2,2,60,0,0,0,0,2,0,8.3607,-0.0526310344827583,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_8q
+1,1,30,0,0,0,0,1,0,3.4168333333333334,-0.004660919540229624,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_10q
+3,3,90,0,0,0,0,3,0,13.246699999999999,-0.08204482758620513,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_2q_o_2pct
+2,2,60,0,0,0,0,2,0,8.3607,-0.0526310344827583,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_2q_o_5pct
+3,3,90,0,0,0,0,3,0,13.246699999999999,-0.08204482758620513,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_3q_o_2pct
+2,2,60,0,0,0,0,2,0,8.3607,-0.0526310344827583,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_3q_o_5pct
+1,1,30,0,0,0,0,1,0,3.4168333333333334,-0.004660919540229624,UCC,Medidor 2 - UCC - electricMeter,UCC 2,S_3q_o_10pct
+8,6,180,0,0,0,0,6,0,13.748833333333332,-0.08272988505746948,UCC,Medidor 2 - UCC - electricMeter,UCC 2,G_final_V10_f0.2_S3q
+7,5,150,0,0,0,0,5,0,8.862833333333333,-0.05331609195402265,UCC,Medidor 2 - UCC - electricMeter,UCC 2,G_final_V10_f0.2_S5q
+3,3,90,0,0,0,0,3,0,13.246699999999999,-0.08204482758620513,UCC,Medidor 2 - UCC - electricMeter,UCC 2,G_solo_S3q_V10
+112,28,839,0,5,0,1,27,0,64.78084712643677,-0.17037436103825443,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_pm10
+1,1,30,0,0,0,0,1,0,5.664266666666666,-0.06764597701149455,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,V_pm50
+4,2,59,0,0,0,1,1,0,2.6697850574712643,-0.011218744473916686,UCC,Medidor 3 - UCC - electricMeter,UCC 3,f_59.8-60.2
+47,40,1196,0,0,0,2,38,0,131.66216653895276,0.09189562158785947,UCC,Medidor 3 - UCC - electricMeter,UCC 3,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,f_59-61
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,S_3q_o_10pct
+4,2,59,0,0,0,1,1,0,2.6697850574712643,-0.011218744473916686,UCC,Medidor 3 - UCC - electricMeter,UCC 3,G_final_V10_f0.2_S3q
+4,2,59,0,0,0,1,1,0,2.6697850574712643,-0.011218744473916686,UCC,Medidor 3 - UCC - electricMeter,UCC 3,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 3 - UCC - electricMeter,UCC 3,G_solo_S3q_V10
+77,18,539,0,5,0,1,17,0,36.65178045977012,-0.3278706015887056,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_pm10
+2,2,60,0,0,0,0,2,0,13.451666666666668,0.04240229885057456,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,V_pm50
+4,2,60,0,0,0,0,2,0,0.247,0.016272030651341002,UCC,Medidor 4 - UCC - electricMeter,UCC 4,f_59.8-60.2
+42,35,1044,0,0,0,3,32,0,54.84406657824934,-0.1361688935202717,UCC,Medidor 4 - UCC - electricMeter,UCC 4,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,UCC,Medidor 4 - UCC - electricMeter,UCC 4,f_59-61
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_1.5q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_2q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_3q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_4q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_5q
+1,1,30,0,0,0,0,1,0,0.12513333333333335,-0.025685057471264372,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_8q
+1,1,30,0,0,0,0,1,0,0.12513333333333335,-0.025685057471264372,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_10q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_2q_o_2pct
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_2q_o_5pct
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_3q_o_2pct
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_3q_o_5pct
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,S_3q_o_10pct
+6,4,120,0,0,0,0,4,0,1.5249333333333335,-0.00821302681992328,UCC,Medidor 4 - UCC - electricMeter,UCC 4,G_final_V10_f0.2_S3q
+6,4,120,0,0,0,0,4,0,1.5249333333333335,-0.00821302681992328,UCC,Medidor 4 - UCC - electricMeter,UCC 4,G_final_V10_f0.2_S5q
+2,2,60,0,0,0,0,2,0,1.2779333333333334,-0.024485057471264282,UCC,Medidor 4 - UCC - electricMeter,UCC 4,G_solo_S3q_V10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_pm10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,V_pm50
+4,2,60,0,0,0,0,2,0,10.028500000000001,0.048360791826309146,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,f_59.8-60.2
+43,36,1080,0,0,0,0,36,0,36.42269999999999,-0.6753988669950722,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,f_59-61
+1,1,30,0,0,0,0,1,0,3.1136666666666666,0.014781609195402279,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_1.5q
+1,1,30,0,0,0,0,1,0,3.1136666666666666,0.014781609195402279,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_10q
+1,1,30,0,0,0,0,1,0,3.1136666666666666,0.014781609195402279,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_2q_o_2pct
+1,1,30,0,0,0,0,1,0,3.1136666666666666,0.014781609195402279,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,S_3q_o_10pct
+4,2,60,0,0,0,0,2,0,10.028500000000001,0.048360791826309146,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,G_final_V10_f0.2_S3q
+4,2,60,0,0,0,0,2,0,10.028500000000001,0.048360791826309146,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 1 - electricMeter,Udenar 1,G_solo_S3q_V10
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_pm10
+1,1,30,0,0,0,0,1,0,-0.024,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,V_pm50
+4,3,90,0,0,0,0,3,0,-0.07200000000000001,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,f_59.8-60.2
+47,39,1170,0,0,0,0,39,0,-0.9360000000000002,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,f_59-61
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,S_3q_o_10pct
+4,3,90,0,0,0,0,3,0,-0.07200000000000001,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,G_final_V10_f0.2_S3q
+4,3,90,0,0,0,0,3,0,-0.07200000000000001,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 2 - electricMeter,Udenar 2,G_solo_S3q_V10
+7,3,90,0,0,0,0,3,0,1.9996666666666667,-0.00045977011494258146,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_ntc_-10+5
+7,3,90,0,0,0,0,3,0,1.9996666666666667,-0.00045977011494258146,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_pm10
+15,4,120,0,0,0,0,4,0,2.6639999999999997,-0.0017113665389526522,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,V_pm50
+4,2,60,0,0,0,0,2,0,0.8137666666666667,0.0064619412515963814,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,f_59.8-60.2
+43,36,1079,0,0,0,1,35,0,40.99712413793104,-0.07486093596059112,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,f_59-61
+1,1,30,0,0,0,0,1,0,0.341,-0.0010689655172413937,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_1.5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_10q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_2q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,S_3q_o_10pct
+11,5,150,0,0,0,0,5,0,2.8134333333333332,0.0060021711366538,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,G_final_V10_f0.2_S3q
+11,5,150,0,0,0,0,5,0,2.8134333333333332,0.0060021711366538,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,G_final_V10_f0.2_S5q
+7,3,90,0,0,0,0,3,0,1.9996666666666667,-0.00045977011494258146,Udenar,Bloque Sur - Medidor 3 - electricMeter,Udenar 3,G_solo_S3q_V10
+12424,1269,37906,325,637,34,34,1235,0,-3700.6698450108834,1035.0931639262585,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_ntc_-10+5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_pm10
+135,30,899,1,7,0,1,29,0,-104.98274942528735,9.162507493660597,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_pm8
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_pm15
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_pm20
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,V_pm50
+4,3,90,0,0,0,0,3,0,-0.02940000000000001,0.001762068965517255,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,f_59.8-60.2
+41,35,1050,0,0,0,0,35,0,-38.55306666666667,-0.06170505747126383,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,f_59.9-60.1
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,f_59.7-60.3
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,f_59.5-60.5
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,f_59-61
+25,20,600,0,0,0,0,20,0,-0.41680000000000045,-0.0503483305966064,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_1.5q
+1,1,30,0,0,0,0,1,0,-1.8283,0.02429999999999999,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_2q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_3q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_4q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_8q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_10q
+1,1,30,0,0,0,0,1,0,-1.8283,0.02429999999999999,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_2q_o_2pct
+1,1,30,0,0,0,0,1,0,-1.8283,0.02429999999999999,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_2q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_3q_o_2pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_3q_o_5pct
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,S_3q_o_10pct
+4,3,90,0,0,0,0,3,0,-0.02940000000000001,0.001762068965517255,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,G_final_V10_f0.2_S3q
+4,3,90,0,0,0,0,3,0,-0.02940000000000001,0.001762068965517255,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,G_final_V10_f0.2_S5q
+0,0,0,0,0,0,0,0,0,0.0,0.0,Udenar,Bloque Sur - Medidor 4 - electricMeter,Udenar 4,G_solo_S3q_V10

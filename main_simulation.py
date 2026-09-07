@@ -272,7 +272,31 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # ── 2. EMS P2P ───────────────────────────────────────────────────────
     print("\n[2/5] EMS P2P (RD + Stackelberg)...")
     t0   = time.time()
-    grid = GridParams(**grid_params)
+
+    # ── El techo por agente, que ahora entra AL JUEGO ─────────────────────
+    # C-146 / H-45. Se arma aqui, antes del EMS, porque hasta el 2026-09-07
+    # solo se construia mas abajo para los escenarios y la liquidacion: el
+    # juego recibia un unico escalar comunitario. Esa asimetria dejaba a los
+    # compradores del techo mas bajo pagando exactamente su techo, con ahorro
+    # cero por construccion, en 109 de 200 horas de la frontera principal.
+    #
+    # Mas abajo se REUTILIZA en vez de recalcularse.
+    if use_real_data:
+        if full_horizon:
+            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, index_full)
+        elif single_day:
+            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, idx_day)
+        else:
+            pi_gs_arg = pi_gs_per_agent           # (N,) — perfil diario
+    else:
+        pi_gs_arg = grid_params["pi_gs"]
+
+    grid = GridParams(**grid_params,
+                      pi_gs_agente=pi_gs_arg if use_real_data else None)
+    if use_real_data:
+        _t = np.atleast_2d(np.asarray(pi_gs_arg, dtype=float))
+        print(f"    [C-146] El juego usa el techo de cada agente: "
+              f"{np.min(_t):.1f} a {np.max(_t):.1f} COP/kWh entre agentes")
 
     # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro en modo --data real.
     # Equilibrio invariante en c_j (verificado por scripts/demo_invariancia_c_lambda.py).
@@ -314,19 +338,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     # ── 3. Escenarios C1–C4 ──────────────────────────────────────────────
     print("\n[3/5] Escenarios regulatorios C1–C4...")
-    # CAL-9: con datos reales construimos pi_gs como matriz (N, T) mes a mes
-    # (CU Cedenar temporal). Modos single_day y full_horizon llevan la
+    # CAL-9: con datos reales pi_gs es una matriz (N, T) mes a mes (CU
+    # Cedenar temporal). Modos single_day y full_horizon llevan la
     # variabilidad mensual real; perfil diario usa el vector (N,) del CAL-8
     # porque representa el promedio del horizonte (sin variabilidad mensual).
-    if use_real_data:
-        if full_horizon:
-            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, index_full)
-        elif single_day:
-            pi_gs_arg = pi_gs_per_agent_hourly(agent_names, idx_day)
-        else:
-            pi_gs_arg = pi_gs_per_agent           # (N,) — perfil diario
-    else:
-        pi_gs_arg = grid_params["pi_gs"]
+    #
+    # C-146: `pi_gs_arg` YA SE ARMO arriba, antes del EMS, porque desde el
+    # 2026-09-07 el juego tambien lo necesita y no solo la liquidacion. Aqui
+    # solo se reutiliza; recalcularlo daria lo mismo y costaria de mas.
 
     # CAL-10b.2: componente C = Cvm,i,j puro de CREG 119/2007 (literalidad
     # CREG 174 art. 25), leído desde tarifas_cedenar_mensual.csv.

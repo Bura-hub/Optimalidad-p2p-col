@@ -143,6 +143,25 @@ class GridParams:
     pi_gs: float = 1250.0
     pi_gb: float =  114.0
 
+    # H-45 / C-146: el techo de CADA agente, matriz (N, T), o None.
+    #
+    # Hasta el 2026-09-07 el juego recibia un unico escalar comunitario
+    # mientras la LIQUIDACION recibia la matriz por agente. Esa asimetria era
+    # la que producia el cero exacto: el ahorro de un comprador es su techo
+    # menos el precio, y el precio se resolvia contra un techo ajeno.
+    #
+    # Con `None` el comportamiento es el historico, bit a bit. Con la matriz,
+    # el juego usa el techo de cada comprador y el limite economico de
+    # generacion el de cada agente, igual que la liquidacion.
+    #
+    # AVISO DE FIDELIDAD: el modelo base no contempla esto. Su ecuacion (5)
+    # escribe las dos cotas como escalares globales. El techo por agente es
+    # una extension de esta tesis, justificada porque la comunidad tiene dos
+    # comercializadores dentro de un mismo mercado de comercializacion, que
+    # es lo que la Resolucion CREG 101 072 de 2025 permite expresamente al
+    # indexar sus formulas por comercializador. Ver H-48.
+    pi_gs_agente: Optional[np.ndarray] = None
+
 
 @dataclass
 class SolverParams:
@@ -435,11 +454,29 @@ class EMSP2P:
         N, T = D.shape
         ag = self.agents; gr = self.grid; sv = self.solver
 
+        # ── El techo, por agente y hora si se dio ─────────────────────────
+        # C-146: con la matriz presente, el techo de cada agente gobierna su
+        # limite economico de generacion y el precio de cada comprador. Sin
+        # ella, el escalar de siempre y el resultado es identico bit a bit.
+        techo_m = gr.pi_gs_agente
+        if techo_m is not None:
+            techo_m = np.asarray(techo_m, dtype=float)
+            if techo_m.ndim == 1:                  # (N,) — perfil sin calendario
+                techo_m = np.tile(techo_m[:, None], (1, T))
+            if techo_m.shape != (N, T):
+                raise ValueError(
+                    f"pi_gs_agente tiene forma {techo_m.shape}; se esperaba "
+                    f"({N}, {T}) o ({N},)")
+
+        def _techo(k: int):
+            """El techo que rige la hora k: vector por agente o el escalar."""
+            return gr.pi_gs if techo_m is None else techo_m[:, k]
+
         # ── Algoritmo 1, pasos 1-14: límite de generación ────────────────
         G_klim = np.zeros((N, T))
         for k in range(T):
             G_klim[:, k] = compute_generation_limit(
-                G[:, k], ag.a, ag.b, ag.c, gr.pi_gs)
+                G[:, k], ag.a, ag.b, ag.c, _techo(k))
 
         # ── Algoritmo 1, pasos 15-22: programa DR ────────────────────────
         # Si alpha=0 en todos los agentes, run_dr_program devuelve D sin cambios.
@@ -450,10 +487,15 @@ class EMSP2P:
         jobs = []
         for k in range(T):
             _, sids, bids = classify_agents(G_klim[:, k], D_star[:, k])
+            # C-146: al trabajo de la hora entra el techo de SUS compradores.
+            # Todo lo que lo recibe admite vector desde CAL-47 y C-143: el
+            # bloque comprador, el solucionador acoplado y la liquidacion.
+            techo_k = (gr.pi_gs if techo_m is None
+                       else techo_m[bids, k] if bids else gr.pi_gs)
             jobs.append((k, G_klim[:, k].copy(), D_star[:, k].copy(), G[:, k].copy(),
                          sids, bids,
                          ag.a, ag.b, ag.lam, ag.theta, ag.etha,
-                         gr.pi_gs, gr.pi_gb,
+                         techo_k, gr.pi_gb,
                          sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                          sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
                          sv.ode_method, sv.buyer_competition,

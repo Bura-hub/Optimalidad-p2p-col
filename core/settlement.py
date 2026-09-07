@@ -88,11 +88,21 @@ def self_sufficiency_index(P_star, G_klim_k, D_k=None) -> float:
 
 
 def compute_savings(P_star, pi_star, pi_gs, pi_gb, dt: float = 1.0):
-    """`dt` (CAL-46): duración del paso en horas. Ver `residual_settlement`."""
+    """`dt` (CAL-46): duración del paso en horas. Ver `residual_settlement`.
+
+    CAL-47: las dos cotas admiten **escalar o vector**. El techo se indexa
+    por comprador, porque es lo que cada comprador paga a la red; el piso se
+    indexa por vendedor, porque es lo que la red le paga a cada vendedor por
+    inyectar, y bajo la Resolución CREG 174 eso depende de si su inyección
+    acumulada del mes ya superó su retiro. Con escalares el resultado es
+    idéntico bit a bit al histórico.
+    """
     I = len(pi_star); J = P_star.shape[0]
-    S_i  = np.array([(pi_gs - pi_star[i]) * float(np.sum(P_star[:, i]))
+    gs = np.broadcast_to(np.asarray(pi_gs, dtype=float), (I,))
+    gb = np.broadcast_to(np.asarray(pi_gb, dtype=float), (J,))
+    S_i  = np.array([(gs[i] - pi_star[i]) * float(np.sum(P_star[:, i]))
                      for i in range(I)])
-    SR_j = np.array([float(np.sum((pi_star - pi_gb) * P_star[j, :]))
+    SR_j = np.array([float(np.sum((pi_star - gb[j]) * P_star[j, :]))
                      for j in range(J)])
     if dt != 1.0:
         S_i = S_i * dt

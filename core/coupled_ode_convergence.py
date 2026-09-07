@@ -96,6 +96,7 @@ def solve_coupled_for_hour(
     method:      str   = "LSODA",
     rtol:        float = 1e-6,
     atol:        float = 1e-9,
+    buyer_competition: str = "aggregate",
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -176,7 +177,24 @@ def solve_coupled_for_hour(
 
     # ── Condiciones iniciales (matching JoinFinal.m) ──────────
     simple = pi_gs * I
-    pi_all_0 = np.full(n_pi_all, simple / n_pi_all)
+    # CAL-47 / H-32: el arranque de JoinFinal.m reparte un presupuesto de
+    # pi_gs*I entre los compradores y el jugador virtual. Esa forma supone
+    # que el piso es despreciable frente al techo, que es el regimen del
+    # modelo base (114 frente a 1250). Con las cotas medidas la banda se
+    # estrecha y el arranque puede nacer POR DEBAJO del piso: el clip lo
+    # devuelve al borde, alli el peso (pi_gs-pi)(pi-pi_gb) vale cero y la
+    # dinamica no arranca nunca. Medido en la hora 2342 de la frontera
+    # principal: banda [640,75 · 703,63] y arranque en 527,72, con lo que el
+    # precio se quedaba clavado y el recorrido era exactamente cero.
+    #
+    # La generalizacion fiel reparte LA BANDA en lugar del techo, y solo se
+    # aplica cuando la forma original cae fuera. Con banda ancha el
+    # resultado es identico bit a bit. Misma correccion que en
+    # core/replicator_buyers.py.
+    ci = simple / n_pi_all
+    if not (pi_gb < ci < pi_gs):
+        ci = pi_gb + (pi_gs - pi_gb) * I / n_pi_all
+    pi_all_0 = np.full(n_pi_all, ci)
     gamma_0  = 0.1 * np.ones(J)
     y_filt_0 = np.ones(J)
 
@@ -197,7 +215,27 @@ def solve_coupled_for_hour(
     ])
     assert X0.shape[0] == n_total, "state-vector dim mismatch"
 
+    # H-42: el termino de competencia admite tres formas, y las tres estan
+    # en las fuentes del modelo base.
+    #
+    #   "aggregate"  etha_s * sumP_i             historico de esta traduccion
+    #   "matlab"     (sum_{k!=i} etha_k) * sumP_i   la LINEA ACTIVA de
+    #                JoinFinal.m:189, `compe = etha * matriz` con etha
+    #                vector fila, es decir un producto vector-matriz. Con
+    #                etha uniforme vale etha*(I-1)*sumP_i, de modo que la
+    #                forma historica se queda corta por el factor (I-1).
+    #   "matrix"     etha_i * (matriz @ (pi_real * sumP_i))   la linea
+    #                COMENTADA de JoinFinal.m:188 y la ecuacion (11) de la
+    #                version arbitrada, la unica que hace que un comprador
+    #                responda al PRECIO de los demas.
+    #
+    # El defecto es el historico, para no mover ninguna cifra publicada.
+    if buyer_competition not in ("aggregate", "matlab", "matrix"):
+        raise ValueError(f"buyer_competition={buyer_competition!r}; use "
+                         "'aggregate', 'matlab' o 'matrix'")
     etha_s = float(np.mean(etha_i))
+    matriz = np.ones((I, I)) - np.eye(I)
+    etha_fila = matriz.T @ etha_i          # (I,) = sum_{k != i} etha_k
 
     def _rhs(t: float, X: np.ndarray) -> np.ndarray:
         pi_all   = X[:n_pi_all]
@@ -218,7 +256,12 @@ def solve_coupled_for_hour(
         # ── BUYER DYNAMICS (replicating solve_buyers loop body) ──
         pagos = -pi_gb * sumP_i / (pi_real + 1.0)
         trestris = (y_filt[:, None] * P).sum(axis=0)
-        compe = etha_s * sumP_i
+        if buyer_competition == "aggregate":
+            compe = etha_s * sumP_i
+        elif buyer_competition == "matlab":
+            compe = etha_fila * sumP_i
+        else:
+            compe = etha_i * (matriz @ (pi_real * sumP_i))
         dwi_real = pagos - compe + trestris
         dwi_all = np.append(dwi_real, simple - pi_p)
 

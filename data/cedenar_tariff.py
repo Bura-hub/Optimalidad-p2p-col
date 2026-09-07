@@ -91,12 +91,19 @@ TARIFA_ABRIL_2026 = {
 # Asunciones provisionales: verificar nivel de tensión y propiedad con factura.
 @dataclass(frozen=True)
 class TariffProfile:
-    categoria: str           # "oficial" | "comercial"
+    categoria: str           # "no_regulado" | "oficial" | "comercial"
     nivel_tension: int       # 1 | 2 | 3
     propiedad: str           # "cedenar" | "compartida" | "usuario"
+    # CAL-47: la comunidad tiene DOS comercializadores. ASC atiende a cuatro
+    # instituciones y CEDENAR al CESMAG, de modo que las cinco NO comparten
+    # techo. Los cargos de red coinciden entre las dos tablas, como debe ser
+    # porque los fija el operador; lo que difiere es generacion y, sobre
+    # todo, comercializacion: 38,37 COP/kWh en ASC frente a 174,92 en
+    # CEDENAR. Y ese cargo ES el ancho de la banda del mercado entre pares.
+    comercializador: str = "cedenar"   # "cedenar" | "asc"
 
 
-INSTITUTION_PROFILE: dict[str, TariffProfile] = {
+_PERFIL_HISTORICO: dict[str, TariffProfile] = {
     "Udenar":  TariffProfile("oficial",   2, "cedenar"),
     "HUDN":    TariffProfile("oficial",   2, "cedenar"),
     "Mariana": TariffProfile("comercial", 2, "cedenar"),
@@ -104,10 +111,103 @@ INSTITUTION_PROFILE: dict[str, TariffProfile] = {
     "Cesmag":  TariffProfile("comercial", 2, "cedenar"),
 }
 
+# CAL-47: las cinco son usuarios NO REGULADOS.
+#
+# «Oficial» y «comercial» son clases del mercado REGULADO, y estas cinco
+# instituciones no pertenecen a ninguna: compran su energia por contrato
+# bilateral. La tabla publicada del comercializador no es su tarifa, es la
+# **referencia** con que se las liquida, porque su contrato no es publico y
+# no se obtuvo. Eso lo declara el capitulo de precios y lo confirmo el
+# asesor regulatorio del proyecto en reunion.
+#
+# De esa tabla se lee la fila SIN la contribucion de solidaridad, y no por
+# comodidad:
+#
+# El Decreto 3087 de 1997, articulo 6, no incluye al sector oficial entre los
+# sujetos pasivos de la contribucion, y su paragrafo 1 exime a hospitales y a
+# los centros educativos sin animo de lucro **que asi lo soliciten**. La Ley
+# 30 de 1992, articulo 98, obliga a que toda institucion privada de educacion
+# superior colombiana sea sin animo de lucro, de modo que las tres privadas
+# cumplen la condicion de fondo por obligacion legal.
+#
+# QUEDA DECLARADO que la exencion se supone SOLICITADA, que es lo unico que
+# una factura podria confirmar. Ver ADR-0047 y H-8.
+#
+# ASC atiende a cuatro; el CESMAG es cliente de CEDENAR. Confirmado por el
+# asesor en reunion, por el archivo de consumos que ASC entrego, y por el
+# autor. Las cinco NO comparten techo.
+COMERCIALIZADOR: dict[str, str] = {
+    "Udenar":  "asc",
+    "Mariana": "asc",
+    "UCC":     "asc",
+    "HUDN":    "asc",
+    "Cesmag":  "cedenar",
+}
+
+_PERFIL_NO_REGULADO: dict[str, TariffProfile] = {
+    nombre: TariffProfile("no_regulado", 2, "cedenar", COMERCIALIZADOR[nombre])
+    for nombre in _PERFIL_HISTORICO
+}
+
+# La clase del usuario no es la fila del CSV. El CSV publica lo que publica
+# Cedenar, que son clases del mercado regulado; «no_regulado» no existe ahi
+# y se lee contra la fila exenta, que es la que no lleva la contribucion.
+_CATEGORIA_CSV: dict[str, str] = {
+    "oficial": "oficial",
+    "comercial": "comercial",
+    "no_regulado": "oficial",
+}
+
+
+def fila_csv(categoria: str) -> str:
+    """Que fila de la tabla publicada le corresponde a una clase de usuario.
+
+    Existe para que el codigo no confunda **la clase del usuario** con **la
+    fila que se lee como referencia**. Un usuario no regulado no tiene fila
+    propia en una tabla de regulados; se le lee la exenta.
+    """
+    try:
+        return _CATEGORIA_CSV[categoria]
+    except KeyError:
+        raise KeyError(
+            f"categoria {categoria!r} desconocida; use una de "
+            f"{sorted(_CATEGORIA_CSV)}") from None
+
+# Se muta en sitio para que los ~10 consumidores de este modulo sigan el
+# cambio sin tocarlos. El defecto es el historico: nada se mueve en silencio.
+INSTITUTION_PROFILE: dict[str, TariffProfile] = dict(_PERFIL_HISTORICO)
+
+
+def aplicar_regimen_no_regulado(no_regulado: bool = True) -> None:
+    """Pone las cinco instituciones en el regimen no regulado, o las devuelve.
+
+    Con `no_regulado=True` (CAL-47) las cinco comparten costo unitario y por tanto
+    **techo**, con lo que el techo por agente de CAL-35 deja de morder. Con
+    `no_regulado=False` se recupera el reparto historico entre oficial y
+    comercial, que es el del mercado regulado y no corresponde a estas cinco.
+
+    Efecto medido sobre septiembre de 2025: el escalar comunitario baja de
+    906,28 a 797,94 COP/kWh, y el excedente del mercado cae un 17,1 % en la
+    frontera principal porque la alternativa de red de tres instituciones se
+    abarata. Va **en contra** de la tesis, que es la razon por la que se toma.
+    """
+    INSTITUTION_PROFILE.clear()
+    INSTITUTION_PROFILE.update(
+        _PERFIL_NO_REGULADO if no_regulado else _PERFIL_HISTORICO)
+
 
 # ── Carga del CSV ───────────────────────────────────────────────────────────
 
 CSV_DEFAULT_PATH = Path(__file__).parent / "tarifas_cedenar_mensual.csv"
+CSV_ASC_PATH = Path(__file__).parent / "tarifas_asc_mensual.csv"
+
+# CAL-47: la comunidad tiene DOS comercializadores. La tabla cargada une las
+# dos publicaciones y el comercializador entra en la clave, de modo que cada
+# institucion se liquida contra la suya.
+_RUTA_POR_COMERCIALIZADOR = {
+    "cedenar": CSV_DEFAULT_PATH,
+    "asc": CSV_ASC_PATH,
+}
 
 # Columnas esperadas en el CSV
 _REQUIRED_COLS = {
@@ -129,13 +229,43 @@ def load_monthly_tariffs(csv_path: str | Path | None = None) -> pd.DataFrame:
     con CU_aplicado como columna principal. Filas vacías o con CU_aplicado
     NaN se descartan silenciosamente (placeholders para meses pendientes).
     """
-    path = Path(csv_path) if csv_path else CSV_DEFAULT_PATH
+    if csv_path is None:
+        # Union de las publicaciones disponibles. Si la de ASC todavia no se
+        # ha generado, se sigue con la de Cedenar sola y el comportamiento es
+        # el historico.
+        partes = []
+        for com, ruta in _RUTA_POR_COMERCIALIZADOR.items():
+            if not ruta.exists():
+                continue
+            t = _lee_una(ruta)
+            t["comercializador"] = com
+            partes.append(t)
+        if not partes:
+            raise FileNotFoundError(
+                f"No se encontro ninguna tabla de tarifa en "
+                f"{Path(__file__).parent}")
+        df = pd.concat(partes, ignore_index=True)
+        return df.set_index(
+            ["mes", "comercializador", "categoria", "nivel_tension",
+             "propiedad"]
+        ).sort_index()
+
+    path = Path(csv_path)
     if not path.exists():
         raise FileNotFoundError(
             f"No se encontró {path}. Crea el CSV con la plantilla "
             f"o invoca cedenar_tariff.print_template()."
         )
 
+    t = _lee_una(path)
+    t["comercializador"] = "cedenar"
+    return t.set_index(
+        ["mes", "comercializador", "categoria", "nivel_tension", "propiedad"]
+    ).sort_index()
+
+
+def _lee_una(path: Path) -> pd.DataFrame:
+    """Lee y normaliza UNA tabla de tarifa, sin indexar."""
     df = pd.read_csv(path, encoding="utf-8-sig",
                      comment="#", skip_blank_lines=True)
     df.columns = [c.strip() for c in df.columns]
@@ -156,9 +286,7 @@ def load_monthly_tariffs(csv_path: str | Path | None = None) -> pd.DataFrame:
     df = df.dropna(subset=["CU_aplicado", "nivel_tension"])
     df["nivel_tension"] = df["nivel_tension"].astype(int)
 
-    return df.set_index(
-        ["mes", "categoria", "nivel_tension", "propiedad"]
-    ).sort_index()
+    return df
 
 
 # ── Lookup mes a mes ────────────────────────────────────────────────────────
@@ -175,7 +303,8 @@ def _lookup_pi_gs(df: pd.DataFrame, mes_key: str,
     `fallback: float` explicito, lo usa con warning unico por mes (modo
     legacy / sensibilidades).
     """
-    key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
+    key = (mes_key, profile.comercializador, fila_csv(profile.categoria),
+           profile.nivel_tension, profile.propiedad)
     try:
         return float(df.loc[key, "CU_aplicado"])
     except KeyError:
@@ -224,7 +353,8 @@ def _lookup_cvm(df: pd.DataFrame, mes_key: str,
 
     Ref: CREG 174/2021 art. 25; CREG 119/2007 art. 11 (definicion Cvm,i,j).
     """
-    key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
+    key = (mes_key, profile.comercializador, fila_csv(profile.categoria),
+           profile.nivel_tension, profile.propiedad)
     try:
         cvm = float(df.loc[key, "Cvm"])
     except KeyError:
@@ -499,7 +629,8 @@ def _lookup_g(df: pd.DataFrame, mes_key: str,
 
     Ref: CREG 119/2007 arts. 6-8; ADR-0012 (CAL-12).
     """
-    key = (mes_key, profile.categoria, profile.nivel_tension, profile.propiedad)
+    key = (mes_key, profile.comercializador, fila_csv(profile.categoria),
+           profile.nivel_tension, profile.propiedad)
     try:
         gm = float(df.loc[key, "Gm"])
     except KeyError:
@@ -653,7 +784,8 @@ def g_plus_commercialization_per_agent_hourly(
         for t in range(T):
             mes_key = months[t]
             if mes_key not in cache:
-                key = (mes_key, prof.categoria, prof.nivel_tension,
+                key = (mes_key, prof.comercializador,
+                       fila_csv(prof.categoria), prof.nivel_tension,
                        prof.propiedad)
                 try:
                     gm = float(df.loc[key, "Gm"])
@@ -753,7 +885,8 @@ def mem_costs_per_agent_hourly(agent_names: list[str],
         for t in range(T):
             mes_key = months[t]
             if mes_key not in cache:
-                key = (mes_key, prof.categoria, prof.nivel_tension,
+                key = (mes_key, prof.comercializador,
+                       fila_csv(prof.categoria), prof.nivel_tension,
                        prof.propiedad)
                 try:
                     gm = float(df_tar.loc[key, "Gm"])
@@ -839,7 +972,8 @@ def cu_components_per_agent_hourly(agent_names: list[str],
         for t in range(T):
             mes_key = months[t]
             if mes_key not in cache:
-                key = (mes_key, prof.categoria, prof.nivel_tension,
+                key = (mes_key, prof.comercializador,
+                       fila_csv(prof.categoria), prof.nivel_tension,
                        prof.propiedad)
                 try:
                     row = df.loc[key]
@@ -921,7 +1055,8 @@ def tolls_per_agent_hourly(agent_names: list[str],
         for t in range(T):
             mes_key = months[t]
             if mes_key not in cache:
-                key = (mes_key, prof.categoria, prof.nivel_tension,
+                key = (mes_key, prof.comercializador,
+                       fila_csv(prof.categoria), prof.nivel_tension,
                        prof.propiedad)
                 try:
                     tm  = float(df.loc[key, "Tm"])

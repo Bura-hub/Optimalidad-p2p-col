@@ -1,0 +1,81 @@
+# Tarifas ASC Ingenieria S.A. E.S.P. — CU mensual por nivel de tension
+# =====================================================================
+# Brayan S. Lopez-Mendez · Udenar 2026 · Actividad 1.0 · CAL-47
+#
+# La comunidad MTE tiene DOS comercializadores, no uno:
+#   ASC Ingenieria  -> Universidad de Narino, Universidad Mariana,
+#                      Universidad Cooperativa y Hospital Departamental
+#   CEDENAR         -> CESMAG
+# De modo que las cinco NO comparten techo, y el techo por agente de CAL-35
+# sigue haciendo falta. La heterogeneidad es un dato, no un supuesto.
+#
+# Generado por scripts/extrae_tarifas_asc.py desde data/ASC_pdfs/.
+# NO editar a mano: volver a correr el script.
+#
+# Diferencias con la tabla de CEDENAR, medidas sobre el horizonte:
+#   - los cargos de red coinciden (270,96 frente a 274,16), como debe ser
+#     porque los fija el operador de red y no el comercializador;
+#   - la generacion de ASC es mas cara (412,92 frente a 304,65);
+#   - la comercializacion de ASC es 4,6 veces mas barata (38,37 frente
+#     a 174,92), y ESE es el ancho de la banda del mercado entre pares.
+#
+# La tabla de ASC no desglosa el cargo adicional por separado: la suma de
+# sus seis componentes da exactamente su costo unitario. Se emite con ese
+# cargo en cero en vez de inventar un reparto.
+#
+# La categoria "oficial" es la fila SIN contribucion de solidaridad, que es
+# la que corresponde a un usuario no regulado exento; "comercial" lleva el
+# 20 %. Ver data/cedenar_tariff.py y ADR-0047.
+mes,categoria,nivel_tension,propiedad,Gm,Tm,Dnm,Cvm,PR,Rm,COT,CU_aplicado,fuente
+2025-04,oficial,2,cedenar,415.1011,62.1955,153.4570,38.6197,25.8624,39.0651,0.0000,734.3008,tarifa_2025-04.pdf
+2025-04,comercial,2,cedenar,415.1011,62.1955,153.4570,38.6197,25.8624,39.0651,0.0000,881.1610,tarifa_2025-04.pdf
+2025-04,oficial,3,cedenar,415.1011,62.1955,94.9269,38.6197,22.4381,39.0651,0.0000,672.3464,tarifa_2025-04.pdf
+2025-04,comercial,3,cedenar,415.1011,62.1955,94.9269,38.6197,22.4381,39.0651,0.0000,806.8157,tarifa_2025-04.pdf
+2025-05,oficial,2,cedenar,415.6101,56.7575,153.1842,38.4338,25.5953,41.5459,0.0000,731.1268,tarifa_2025-05.pdf
+2025-05,comercial,2,cedenar,415.6101,56.7575,153.1842,38.4338,25.5953,41.5459,0.0000,877.3522,tarifa_2025-05.pdf
+2025-05,oficial,3,cedenar,415.6101,56.7575,94.3738,38.4338,22.2064,41.5459,0.0000,668.9275,tarifa_2025-05.pdf
+2025-05,comercial,3,cedenar,415.6101,56.7575,94.3738,38.4338,22.2064,41.5459,0.0000,802.7130,tarifa_2025-05.pdf
+2025-06,oficial,2,cedenar,412.1261,54.6881,154.2833,39.3244,24.7999,68.1691,0.0000,753.3909,tarifa_2025-06.pdf
+2025-06,comercial,2,cedenar,412.1261,54.6881,154.2833,39.3244,24.7999,68.1691,0.0000,904.0691,tarifa_2025-06.pdf
+2025-06,oficial,3,cedenar,412.1261,54.6881,95.1502,39.3244,21.5163,68.1691,0.0000,690.9742,tarifa_2025-06.pdf
+2025-06,comercial,3,cedenar,412.1261,54.6881,95.1502,39.3244,21.5163,68.1691,0.0000,829.1690,tarifa_2025-06.pdf
+2025-07,oficial,2,cedenar,410.7318,53.8356,159.9797,37.6189,24.4682,16.9949,0.0000,703.6291,tarifa_2025-07.pdf
+2025-07,comercial,2,cedenar,410.7318,53.8356,159.9797,37.6189,24.4682,16.9949,0.0000,844.3549,tarifa_2025-07.pdf
+2025-07,oficial,3,cedenar,410.7318,53.8356,98.8313,37.6189,21.2285,16.9949,0.0000,639.2410,tarifa_2025-07.pdf
+2025-07,comercial,3,cedenar,410.7318,53.8356,98.8313,37.6189,21.2285,16.9949,0.0000,767.0892,tarifa_2025-07.pdf
+2025-08,oficial,2,cedenar,408.3938,56.9345,157.2167,38.5462,24.7262,41.0950,0.0000,726.9124,tarifa_2025-08.pdf
+2025-08,comercial,2,cedenar,408.3938,56.9345,157.2167,38.5462,24.7262,41.0950,0.0000,872.2949,tarifa_2025-08.pdf
+2025-08,oficial,3,cedenar,408.3938,56.9345,97.6253,38.5462,21.4523,41.0950,0.0000,664.0471,tarifa_2025-08.pdf
+2025-08,comercial,3,cedenar,408.3938,56.9345,97.6253,38.5462,21.4523,41.0950,0.0000,796.8565,tarifa_2025-08.pdf
+2025-09,oficial,2,cedenar,411.0223,51.6610,157.1169,37.7319,24.5287,29.0740,0.0000,711.1348,tarifa_2025-09.pdf
+2025-09,comercial,2,cedenar,411.0223,51.6610,157.1169,37.7319,24.5287,29.0740,0.0000,853.3618,tarifa_2025-09.pdf
+2025-09,oficial,3,cedenar,411.0223,51.6610,95.7968,37.7319,21.2810,29.0740,0.0000,646.5670,tarifa_2025-09.pdf
+2025-09,comercial,3,cedenar,411.0223,51.6610,95.7968,37.7319,21.2810,29.0740,0.0000,775.8804,tarifa_2025-09.pdf
+2025-10,oficial,2,cedenar,413.2302,52.9668,160.2666,38.3373,25.2609,25.5583,0.0000,715.6201,tarifa_2025-10.pdf
+2025-10,comercial,2,cedenar,413.2302,52.9668,160.2666,38.3373,25.2609,25.5583,0.0000,858.7441,tarifa_2025-10.pdf
+2025-10,oficial,3,cedenar,413.2302,52.9668,95.9796,38.3373,21.9163,25.5583,0.0000,647.9885,tarifa_2025-10.pdf
+2025-10,comercial,3,cedenar,413.2302,52.9668,95.9796,38.3373,21.9163,25.5583,0.0000,777.5862,tarifa_2025-10.pdf
+2025-11,oficial,2,cedenar,415.2302,53.2977,160.4765,38.5760,25.1787,27.3589,0.0000,720.1180,tarifa_2025-11.pdf
+2025-11,comercial,2,cedenar,415.2302,53.2977,160.4765,38.5760,25.1787,27.3589,0.0000,864.1416,tarifa_2025-11.pdf
+2025-11,oficial,3,cedenar,415.2302,53.2977,95.3809,38.5760,21.8449,27.3589,0.0000,651.6886,tarifa_2025-11.pdf
+2025-11,comercial,3,cedenar,415.2302,53.2977,95.3809,38.5760,21.8449,27.3589,0.0000,782.0263,tarifa_2025-11.pdf
+2025-12,oficial,2,cedenar,414.8271,54.1358,154.0312,38.1361,25.3027,17.5389,0.0000,703.9718,tarifa_2025-12.pdf
+2025-12,comercial,2,cedenar,414.8271,54.1358,154.0312,38.1361,25.3027,17.5389,0.0000,844.7662,tarifa_2025-12.pdf
+2025-12,oficial,3,cedenar,414.8271,54.1358,95.0773,38.1361,21.9525,17.5389,0.0000,641.6677,tarifa_2025-12.pdf
+2025-12,comercial,3,cedenar,414.8271,54.1358,95.0773,38.1361,21.9525,17.5389,0.0000,770.0012,tarifa_2025-12.pdf
+2026-01,oficial,2,cedenar,415.1604,52.9743,152.3954,38.4979,24.9866,17.8294,0.0000,701.8440,tarifa_2026-01.pdf
+2026-01,comercial,2,cedenar,415.1604,52.9743,152.3954,38.4979,24.9866,17.8294,0.0000,842.2128,tarifa_2026-01.pdf
+2026-01,oficial,3,cedenar,415.1604,52.9743,94.5266,38.4979,21.6783,17.8294,0.0000,640.6669,tarifa_2026-01.pdf
+2026-01,comercial,3,cedenar,415.1604,52.9743,94.5266,38.4979,21.6783,17.8294,0.0000,768.8003,tarifa_2026-01.pdf
+2026-02,oficial,2,cedenar,416.0130,50.6152,159.6149,39.1056,25.2510,19.3931,0.0000,709.9928,tarifa_2026-02.pdf
+2026-02,comercial,2,cedenar,416.0130,50.6152,159.6149,39.1056,25.2510,19.3931,0.0000,851.9914,tarifa_2026-02.pdf
+2026-02,oficial,3,cedenar,416.0130,50.6152,97.3352,39.1056,21.9076,19.3931,0.0000,644.3697,tarifa_2026-02.pdf
+2026-02,comercial,3,cedenar,416.0130,50.6152,97.3352,39.1056,21.9076,19.3931,0.0000,773.2436,tarifa_2026-02.pdf
+2026-03,oficial,2,cedenar,419.4755,57.6320,162.0250,40.4993,25.8521,28.7748,0.0000,734.2587,tarifa_2026-03.pdf
+2026-03,comercial,2,cedenar,419.4755,57.6320,162.0250,40.4993,25.8521,28.7748,0.0000,881.1104,tarifa_2026-03.pdf
+2026-03,oficial,3,cedenar,419.4755,57.6320,101.2607,40.4993,22.4292,28.7748,0.0000,670.0715,tarifa_2026-03.pdf
+2026-03,comercial,3,cedenar,419.4755,57.6320,101.2607,40.4993,22.4292,28.7748,0.0000,804.0858,tarifa_2026-03.pdf
+2026-04,oficial,2,cedenar,420.3446,55.9536,165.3700,40.5841,25.8083,20.7042,0.0000,728.7648,tarifa_2026-04.pdf
+2026-04,comercial,2,cedenar,420.3446,55.9536,165.3700,40.5841,25.8083,20.7042,0.0000,874.5178,tarifa_2026-04.pdf
+2026-04,oficial,3,cedenar,420.3446,55.9536,96.6989,40.5841,22.3912,20.7042,0.0000,656.6766,tarifa_2026-04.pdf
+2026-04,comercial,3,cedenar,420.3446,55.9536,96.6989,40.5841,22.3912,20.7042,0.0000,788.0119,tarifa_2026-04.pdf

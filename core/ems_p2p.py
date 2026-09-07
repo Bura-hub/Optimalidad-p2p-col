@@ -177,6 +177,16 @@ class SolverParams:
     # forma matricial de JoinFinal.m:187-200 (smoke A2). Solo afecta a
     # solve_buyers; ningún caller de producción cambia.
     buyer_competition: str   = "aggregate"
+    # CAL-48 / H-38. "alternado" (defecto) = comportamiento historico bit a
+    # bit. "acoplado" = la via del modelo base, que integra precios y
+    # cantidades juntos con un solo solver, como hace JoinFinal.m:139.
+    # Medido sobre dato real: el alternado deja el 72 % de los precios
+    # pegados a una cota y el acoplado solo el 1,2 %.
+    metodo:            str   = "alternado"   # "alternado" | "acoplado"
+    t_span_acoplado:   float = 0.05   # horizonte del acoplado; a 0,05 dos
+                                      # tercios de las horas llegan a
+                                      # estacionario y la corrida cuesta
+                                      # 1,4 h con once procesos
 
 
 @dataclass
@@ -268,10 +278,19 @@ def _run_hour_worker(args):
     El loop Stackelberg corre al menos min_iter veces y sale antes si
     ||P_new - P_old|| / (||P_old|| + ε) < tol (convergencia relativa).
     """
+    # CAL-48 anadio dos campos al final. Se aceptan tuplas de la longitud
+    # anterior para no romper a los llamadores que la construyen a mano
+    # (varios tests de humo y de convergencia lo hacen); esos siguen
+    # resolviendo por alternancia, que es su comportamiento historico.
+    args = tuple(args)
+    if len(args) == 22:
+        args = args + ("alternado", 0.05)
+
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
-     min_iter, tol, max_iter, ode_method, buyer_competition) = args
+     min_iter, tol, max_iter, ode_method, buyer_competition,
+     metodo, t_span_aco) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -294,26 +313,63 @@ def _run_hour_worker(args):
     P_star = np.clip(P_star, 1e-10, None)
     pi_i   = np.full(I, pi_gb)
 
-    iter_count = 0
-    P_old = np.zeros_like(P_star)
-    norm_rel = 0.0
-    while iter_count < max_iter:
-        P_old  = P_star.copy()
-        # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
-        P_star = solve_sellers(pi_i, G_net_j, D_net_i, a_j, b_j,
-                               tau=tau, t_span=t_span, n_points=n_points,
-                               method=ode_method)
-        # Algoritmo 3: RD compradores (tau_buyers = tau3 de JoinFinal.m)
-        pi_i   = solve_buyers(P_star, a_j, b_j, etha_i,
-                              pi_gs=pi_gs, pi_gb=pi_gb,
-                              tau=tau_buyers, t_span=t_span, n_points=n_points,
-                              buyer_competition=buyer_competition)
-        pi_i   = np.clip(pi_i, pi_gb, pi_gs)
-        iter_count += 1
-        norm_rel = (np.linalg.norm(P_star - P_old)
-                    / (np.linalg.norm(P_old) + 1e-9))
-        if iter_count >= min_iter and norm_rel < tol:
-            break
+    # CAL-48 / H-38: la vía del modelo base integra precios y cantidades
+    # JUNTOS, no alterna. El lazo alternado es una aproximación de esta
+    # traducción y deja el precio pegado a una cota en el 72 % de los casos,
+    # frente al 1,2 % del acoplado. Medido sobre el dato real: el acoplado
+    # cuesta 26,3 s por hora en mediana al horizonte que se conserva, es
+    # decir 1,4 h de corrida completa con once procesos.
+    if metodo == "acoplado":
+        from core.coupled_ode_convergence import solve_coupled_for_hour
+        try:
+            tr = solve_coupled_for_hour(
+                G_net_j=G_net_j, D_net_i=D_net_i, a_j=a_j, b_j=b_j,
+                lam_j=lam_j, theta_j=theta_j, G_klim_i=G_klim_i,
+                lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
+                pi_gs=pi_gs, pi_gb=pi_gb, tau_sellers=tau,
+                tau_buyers=tau_buyers, t_span=(0.0, float(t_span_aco)),
+                n_points=n_points)
+        except Exception:
+            return res
+        # El integrador avisa cuando no logra resolver. Antes de CAL-48 esa
+        # bandera no se miraba y la hora entraba igual con lo que el solver
+        # tuviera a mano. Se marca como sin mercado, que es lo que ya hace
+        # esta funcion con las horas que producen NaN.
+        if not bool(getattr(tr, "success", True)):
+            return res
+        P_star = np.asarray(tr.P_star, dtype=float)
+        pi_i = np.clip(np.asarray(tr.pi_star, dtype=float), pi_gb, pi_gs)
+        # Cuánto se mueve el precio en el último décimo frente a todo su
+        # recorrido: cerca de cero es estacionario. Se guarda donde el lazo
+        # alternado guardaba su residuo, para que el diagnóstico de la
+        # corrida siga teniendo una sola columna de convergencia.
+        traj = tr.pi_t
+        cola = int(max(1, traj.shape[1] // 10))
+        mov = float(np.max(np.abs(traj[:, -1] - traj[:, -cola])))
+        rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
+        iter_count = int(traj.shape[1])
+        norm_rel = mov / rec if rec > 1e-12 else 0.0
+    else:
+        iter_count = 0
+        P_old = np.zeros_like(P_star)
+        norm_rel = 0.0
+        while iter_count < max_iter:
+            P_old  = P_star.copy()
+            # Algoritmo 2: RD vendedores (tau = τ de JoinFinal.m)
+            P_star = solve_sellers(pi_i, G_net_j, D_net_i, a_j, b_j,
+                                   tau=tau, t_span=t_span, n_points=n_points,
+                                   method=ode_method)
+            # Algoritmo 3: RD compradores (tau_buyers = tau3 de JoinFinal.m)
+            pi_i   = solve_buyers(P_star, a_j, b_j, etha_i,
+                                  pi_gs=pi_gs, pi_gb=pi_gb,
+                                  tau=tau_buyers, t_span=t_span, n_points=n_points,
+                                  buyer_competition=buyer_competition)
+            pi_i   = np.clip(pi_i, pi_gb, pi_gs)
+            iter_count += 1
+            norm_rel = (np.linalg.norm(P_star - P_old)
+                        / (np.linalg.norm(P_old) + 1e-9))
+            if iter_count >= min_iter and norm_rel < tol:
+                break
 
     # Guard: si el ODE produjo NaN (~0.2% de horas con G_net minúsculos +
     # VelGrad=1e6 generan inestabilidad puntual), marcar la hora como sin
@@ -396,7 +452,8 @@ class EMSP2P:
                          gr.pi_gs, gr.pi_gb,
                          sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                          sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
-                         sv.ode_method, sv.buyer_competition))
+                         sv.ode_method, sv.buyer_competition,
+                         sv.metodo, sv.t_span_acoplado))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -658,4 +715,5 @@ class EMSP2P:
                                   gr.pi_gs, gr.pi_gb,
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
-                                  sv.ode_method, sv.buyer_competition))
+                                  sv.ode_method, sv.buyer_competition,
+                         sv.metodo, sv.t_span_acoplado))

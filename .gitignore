@@ -141,3 +141,13 @@ reformateo/documento/*
 !reformateo/documento/sections/
 !reformateo/documento/scripts/
 reformateo/documento/scripts/__pycache__/
+
+# === Local, no va al repositorio publico (2026-09-06) ===
+# Presentacion en Beamer y material de apoyo: pesa 13 MB, no es codigo, y
+# arrastra ficheros ajenos al proyecto.
+Presentacion/
+# Informes propios en Word que sirven de referencia de estilo.
+referencias de estilo/
+# PDF de tarifas publicados por terceros. El CSV derivado si se versiona,
+# que es lo que el codigo lee; los PDF quedan fuera por prudencia.
+data/ASC_pdfs/

@@ -42,8 +42,15 @@ def compute_generation_limit(
     N = len(G_k)
     G_klim = np.zeros(N)
 
+    # CAL-47: el techo admite escalar o vector por agente. Es el precio al
+    # que cada agente vendería a la red, y por tanto lo que decide hasta
+    # donde le conviene generar. Con un escalar el resultado es identico
+    # bit a bit al historico.
+    gs = np.broadcast_to(np.asarray(pi_gs, dtype=float), (N,))
+
     for n in range(N):
         an, bn, cn, gn = a[n], b[n], c[n], G_k[n]
+        pi_gs = float(gs[n])
         cost_gk = an * gn**2 + bn * gn + cn
 
         if cost_gk < pi_gs * gn:

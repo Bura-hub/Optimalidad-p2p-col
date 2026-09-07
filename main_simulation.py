@@ -62,7 +62,9 @@ from data.cedenar_tariff import (
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
          single_day: str = None, paper_meters: bool = False,
          include_c5: bool = False, out_dir: str = None,
-         paso: float = 1.0, desde: str = None, hasta: str = None):
+         paso: float = 1.0, desde: str = None, hasta: str = None,
+         metodo: str = "alternado", t_span_acoplado: float = 0.05,
+         exencion_contribucion: bool = False):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -104,6 +106,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             print(f"    [CAL-46] Ventana {_d} -> {_h}: "
                   f"{D_full.shape[1]} pasos de {paso * 60:.0f} min")
         print_validation_report(validate_load(D_full, G_full, index_full))
+
+        # CAL-47: la clase tarifaria se decide ANTES de armar nada, porque
+        # de ella cuelgan el escalar comunitario y la matriz de liquidacion.
+        if exencion_contribucion:
+            from data.cedenar_tariff import aplicar_regimen_no_regulado
+            aplicar_regimen_no_regulado(True)
+            print("    [CAL-47] Las cinco como usuarios NO REGULADOS: la tabla "
+                  "publicada es referencia, no su tarifa, y se lee la fila sin "
+                  "contribucion; comparten costo unitario y por tanto techo")
 
         from scenarios.scenario_c4_creg101072 import compute_pde_weights
         pde = compute_pde_weights(np.maximum(G_full.mean(axis=1), 0))
@@ -273,7 +284,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     ) if use_real_data else AgentParams(**p)
 
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
-                          n_points=150, stackelberg_iters=2, parallel=True)
+                          n_points=150, stackelberg_iters=2, parallel=True,
+                          metodo=metodo, t_span_acoplado=t_span_acoplado)
+    if metodo == "acoplado":
+        print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
+              f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
     ems    = EMSP2P(agents, grid, solver)
     p2p_results, G_klim, D_star = ems.run(D, G)
 
@@ -1617,6 +1632,19 @@ if __name__ == "__main__":
                     help="CAL-46: inicio de la ventana acotada")
     ap.add_argument("--hasta", type=str, default=None, metavar="YYYY-MM-DD",
                     help="CAL-46: fin de la ventana acotada, excluido")
+    ap.add_argument("--metodo", choices=["alternado", "acoplado"],
+                    default="alternado",
+                    help="CAL-48: 'acoplado' integra precios y cantidades "
+                         "juntos como el modelo base; 'alternado' (defecto) "
+                         "es el comportamiento historico")
+    ap.add_argument("--t-span-acoplado", type=float, default=0.05,
+                    metavar="T",
+                    help="CAL-48: horizonte del solucionador acoplado")
+    ap.add_argument("--no-regulado", dest="exencion_contribucion",
+                    action="store_true",
+                    help="CAL-47: trata a las cinco como usuarios no regulados. "
+                         "La tabla publicada pasa a ser referencia y se lee su "
+                         "fila sin la contribucion de solidaridad")
     ap.add_argument("--include-c5", action="store_true",
                     help="CAL-37/39: añade el escenario C5 AGR (CREG 101 099) "
                          "a la comparación, al PoF y a los barridos SA-1/SA-2 "
@@ -1661,11 +1689,15 @@ if __name__ == "__main__":
     elif args.day:
         main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
              single_day=args.day, paper_meters=args.paper_meters,
-             include_c5=args.include_c5, out_dir=args.out_dir)
+             include_c5=args.include_c5, out_dir=args.out_dir,
+             metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             exencion_contribucion=args.exencion_contribucion)
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
              run_analysis=args.analysis,
              paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
-             paso=args.paso, desde=args.desde, hasta=args.hasta)
+             paso=args.paso, desde=args.desde, hasta=args.hasta,
+             metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             exencion_contribucion=args.exencion_contribucion)

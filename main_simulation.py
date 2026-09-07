@@ -64,7 +64,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          include_c5: bool = False, out_dir: str = None,
          paso: float = 1.0, desde: str = None, hasta: str = None,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
-         exencion_contribucion: bool = False):
+         exencion_contribucion: bool = False,
+         buyer_competition: str = "aggregate"):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -285,7 +286,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
                           n_points=150, stackelberg_iters=2, parallel=True,
-                          metodo=metodo, t_span_acoplado=t_span_acoplado)
+                          metodo=metodo, t_span_acoplado=t_span_acoplado,
+                          buyer_competition=buyer_competition)   # CAL-49
     if metodo == "acoplado":
         print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
               f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
@@ -1640,6 +1642,14 @@ if __name__ == "__main__":
     ap.add_argument("--t-span-acoplado", type=float, default=0.05,
                     metavar="T",
                     help="CAL-48: horizonte del solucionador acoplado")
+    ap.add_argument("--competencia", dest="buyer_competition",
+                    choices=["aggregate", "matlab", "matrix"],
+                    default="aggregate",
+                    help="CAL-49: forma del termino de competencia del "
+                         "comprador. 'aggregate' (defecto) es la decision "
+                         "del 2026-09-06; 'matlab' es la linea activa del "
+                         "modelo base; 'matrix' es la ecuacion (11) de la "
+                         "version arbitrada")
     ap.add_argument("--no-regulado", dest="exencion_contribucion",
                     action="store_true",
                     help="CAL-47: trata a las cinco como usuarios no regulados. "
@@ -1691,6 +1701,7 @@ if __name__ == "__main__":
              single_day=args.day, paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)
     else:
         main(use_real_data=(args.data == "real"),
@@ -1700,4 +1711,5 @@ if __name__ == "__main__":
              include_c5=args.include_c5, out_dir=args.out_dir,
              paso=args.paso, desde=args.desde, hasta=args.hasta,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)

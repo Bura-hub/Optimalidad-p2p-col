@@ -328,7 +328,11 @@ def _run_hour_worker(args):
                 lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
                 pi_gs=pi_gs, pi_gb=pi_gb, tau_sellers=tau,
                 tau_buyers=tau_buyers, t_span=(0.0, float(t_span_aco)),
-                n_points=n_points)
+                n_points=n_points,
+                # CAL-49: la via acoplada no recibia la forma del termino de
+                # competencia, de modo que elegirla no la afectaba y las dos
+                # vias podian correr con formas distintas sin avisar.
+                buyer_competition=buyer_competition)
         except Exception:
             return res
         # El integrador avisa cuando no logra resolver. Antes de CAL-48 esa
@@ -691,6 +695,7 @@ class EMSP2P:
                         tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
                         t_span=COUPLED_T_SPAN_VIS, n_points=COUPLED_N_POINTS_VIS,
                         method=sv.ode_method,
+                        buyer_competition=sv.buyer_competition,   # CAL-49
                     )
                     if coupled.success:
                         cd.coupled_t    = coupled.t

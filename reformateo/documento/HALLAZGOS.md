@@ -2769,27 +2769,34 @@ eficiencia se mueve menos de un punto. **Lo que la forma decide es el
 reparto**, y lo mueve mucho: la tajada del vendedor sube once puntos en M1 y
 trece y medio en M3. Es exactamente lo que predice H-33.
 
-### La recomendación, con el argumento que la sostiene
+### La decisión: se mantiene la forma agregada
 
-**Adoptar la forma publicada, y presentar el mayor pegado a las cotas como
-resultado y no como defecto.**
+**Tomada por el autor el 2026-09-06**, sobre las 240 horas medidas, con el
+criterio de cuál opera mejor como mercado. Queda formalizada en
+`docs/adr/0049-cal49-termino-de-competencia.md`.
 
-El argumento es este. La razón por la que el pegado preocupaba es que un
-precio en una cota deja a una de las dos partes con cero excedente, y eso no
-parece un acuerdo negociado. Pero **la tabla III del artículo publica sus
-cuatro precios exactamente en las cotas** (H-40). De modo que pegarse a las
-cotas **es el comportamiento del modelo publicado**, y lo que hacía nuestra
-forma agregada era suavizarlo por accidente, al eliminar del término de
-competencia toda dependencia del precio.
+Se sostiene en tres cosas. El beneficio de la comunidad es un empate, con
+−1,44 % en M1 y +0,38 % en M3, de modo que no se pierde nada; el reparto
+queda mucho más equilibrado, 51/49 en M1 frente al 85/15 de la forma
+publicada; y se pegan menos precios a las cotas, en las dos direcciones y en
+las dos fronteras.
 
-Dicho de otro modo: adoptar la forma publicada nos deja a la vez más fieles
-a la fuente arbitrada y con una explicación de por qué su propia tabla
-tiene los precios donde los tiene. Quedarnos con la agregada nos deja
-reproduciendo ocho de doce afirmaciones con un mecanismo que el artículo
-declara y que no está implementado.
+El único criterio en que la publicada gana, dejar menos vendedores bajo su
+piso, **no cuenta**, porque H-43 establece que la causa de eso es otra: el
+precio se acota con el piso mínimo de la comunidad y no con el de cada
+vendedor. Arreglarlo donde corresponde elimina esa ventaja.
 
-La decisión formal es de CAL-49 y le corresponde al asesor, porque es su
-modelo.
+**Lo que la decisión cuesta, y hay que declararlo.** El trabajo no puede
+afirmar que reproduce el modelo publicado: con la forma agregada reproduce
+ocho de las doce afirmaciones, frente a once. Y el mecanismo de respuesta al
+precio ajeno, que el artículo declara entre sus contribuciones, no queda
+implementado. Lo que sí puede afirmar, que es lo que pide el primer objetivo
+específico de la propuesta, es que analizó el modelo de referencia, encontró
+que sus fuentes discrepan, midió las tres formas sobre datos reales y eligió
+con evidencia.
+
+La forma publicada queda implementada, medida y alcanzable, y el documento
+la presenta como la alternativa fiel a la fuente arbitrada.
 
 La forma del código no es una alternativa: es la corrección de higiene de la
 agregada, conviene aplicarla, y ya está medido que no cambia ninguna

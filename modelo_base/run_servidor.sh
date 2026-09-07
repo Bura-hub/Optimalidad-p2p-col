@@ -8,6 +8,14 @@
 #   bash modelo_base/run_servidor.sh competencia M1 60
 #   bash modelo_base/run_servidor.sh eficiencia  M1 60
 #   bash modelo_base/run_servidor.sh todo        60
+#
+#   --- la tanda del 2026-09-07 -------------------------------------------
+#   bash modelo_base/run_servidor.sh techo       200    <- H-45
+#   bash modelo_base/run_servidor.sh escenario   200    <- H-47
+#   bash modelo_base/run_servidor.sh pesovirtual 200    <- H-46
+#   bash modelo_base/run_servidor.sh tanda       200    <- las tres seguidas
+#   bash modelo_base/run_servidor.sh canonica           <- la corrida entera
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
@@ -24,7 +32,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|canonica|reparto|juntar|recoger}"
 
 SONDA="reformateo/documento/scripts/sonda"
 SALIDAS="$SONDA/salidas"
@@ -41,6 +49,39 @@ else
 fi
 
 marca() { date +%Y-%m-%d_%H%M; }
+
+# Nucleos para las sondas paralelas: todos menos dos, para que la maquina
+# siga respondiendo y quede holgura para el sistema de ficheros.
+#
+# DOS TRAMPAS, las dos medidas el 2026-09-07 en el servidor:
+#
+# 1. `nproc` OBEDECE a OMP_NUM_THREADS. Su manual lo dice: si esa variable
+#    esta puesta, fija el minimo que devuelve. Como mas abajo se exporta a
+#    uno, y la accion `tanda` vuelve a invocar este guion para cada sonda,
+#    en la segunda invocacion `nproc` devolvia 1 y treinta procesos se
+#    quedaban en uno. Por eso se cuenta con la variable limpiada para esa
+#    llamada concreta.
+# 2. Aun asi conviene heredar la cuenta en vez de rehacerla, para que las
+#    invocaciones anidadas no puedan discrepar entre si.
+if [[ -z "${NUCLEOS:-}" ]]; then
+  NUCLEOS="$( { OMP_NUM_THREADS= OMP_THREAD_LIMIT= nproc 2>/dev/null                 || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8; } )"
+fi
+if [[ -z "${PROCS:-}" ]]; then
+  PROCS=$(( NUCLEOS > 2 ? NUCLEOS - 2 : 1 ))
+fi
+export NUCLEOS PROCS
+
+# UN hilo por proceso. Las bibliotecas de algebra lineal abren por defecto
+# tantos hilos como nucleos vean, y como el trabajo se reparte en tantos
+# PROCESOS como nucleos, eso multiplica: con 32 nucleos serian 32 procesos
+# por 32 hilos peleando por 32 nucleos. El sistema que se integra tiene del
+# orden de treinta y siete estados, demasiado pequeno para que repartirlo
+# entre hilos compense siquiera.
+export OMP_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
 
 # Corre una sonda con su log fechado y avisa del codigo de salida. No usa
 # tuberias: una tuberia retiene la salida y el log se queda vacio hasta el
@@ -79,8 +120,16 @@ case "$ACCION" in
     .venv/bin/pip install -r requirements.txt
     echo
     echo "  interprete: $(.venv/bin/python --version)"
-    echo "  Comprueba que MTE_ROOT apunta a MedicionesMTE/ antes de medir:"
-    echo "    export MTE_ROOT=/ruta/a/MedicionesMTE"
+    echo "  Comprueba MTE_ROOT antes de medir. La carpeta que el codigo busca"
+    echo "  por defecto se llama MedicionesMTE_v3, no MedicionesMTE:"
+    echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+    if [[ -d MedicionesMTE_v3 ]]; then
+      echo "    -> encontrada aqui, con $(ls MedicionesMTE_v3 | wc -l) ficheros"
+    elif [[ -n "${MTE_ROOT:-}" && -d "${MTE_ROOT}" ]]; then
+      echo "    -> MTE_ROOT ya apunta a $MTE_ROOT"
+    else
+      echo "    -> NO la encuentro. Copiala antes de medir."
+    fi
     ;;
 
   compuertas)
@@ -181,9 +230,92 @@ PYFIN
     echo "  hecho"
     ;;
 
+  escenario)
+    # H-47. Tres escenarios de comercializador sobre la misma muestra. NO es
+    # el regimen del techo: aqui se sustituye el perfil tarifario entero, de
+    # modo que el cambio viaja al piso, al limite economico de generacion, a
+    # la clasificacion en papeles y a la liquidacion.
+    #
+    # LEER LOS DOS NUMEROS. El excedente del mercado y la factura pagada
+    # ordenan los escenarios AL REVES: el de mayor excedente es el de peor
+    # factura, porque la banda es el cargo de comercializar y el mercado solo
+    # lo recupera sobre el lado corto. El bueno es el de menor factura.
+    N="${2:-200}"
+    echo "Escenario de comercializador · $N horas por frontera · H-47"
+    echo "  $NUCLEOS nucleos · $PROCS procesos"
+    corre "escenario_n${N}" "$SONDA/escenario_comercializador.py" \
+          --muestra "$N" --procesos "$PROCS"
+    ;;
+
+  techo)
+    # H-45. Cuatro regimenes del limite superior, sobre la misma muestra.
+    N="${2:-200}"
+    echo "Regimen del techo · $N horas por frontera · H-45"
+    echo "  $NUCLEOS nucleos · $PROCS procesos"
+    corre "techo_n${N}" "$SONDA/techo_regimen.py" \
+          --muestra "$N" --procesos "$PROCS"
+    ;;
+
+  pesovirtual)
+    # H-46. Las dos formas del peso del jugador virtual. Si el volumen y el
+    # excedente no se mueven, la eleccion es de fidelidad al modelo base y no
+    # de resultado, y entonces conviene adoptar la del fichero original.
+    N="${2:-200}"
+    echo "Peso del jugador virtual · $N horas por frontera · H-46"
+    echo "  $NUCLEOS nucleos · $PROCS procesos"
+    corre "pesovirtual_n${N}" "$SONDA/peso_virtual.py" \
+          --muestra "$N" --procesos "$PROCS"
+    ;;
+
+  canonica)
+    # La corrida canonica. Acumula CAL-44, CAL-45, CAL-47 y C-143, cada uno
+    # de los cuales invalida el canon por su cuenta.
+    #
+    # Va por la via ALTERNADA a proposito. La acoplada cuesta unos 47 s por
+    # hora de mercado y el horizonte son 5.160 horas por frontera: ni con
+    # dieciseis nucleos es viable. Ver H-42 y CAL-48.
+    #
+    # ANTES DE LANZARLA, dos cosas que no se pueden dar por supuestas:
+    #   1. las compuertas en verde, TODAS;
+    #   2. que MTE_ROOT apunte a las mediciones.
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=/ruta/a/MedicionesMTE"
+      exit 2
+    fi
+    echo "Corrida canonica · las dos fronteras · via alternada"
+    echo "  MTE_ROOT = $MTE_ROOT"
+    for par in "M1:" "M3:--paper-meters"; do
+      COB="${par%%:*}"; EXTRA="${par#*:}"
+      DIR="SALIDAS_SERVIDOR/canonica_$(echo "$COB" | tr 'A-Z' 'a-z')"
+      mkdir -p "$DIR"
+      echo
+      echo "  --- $COB  ->  $DIR"
+      corre "canonica_${COB}" main_simulation.py \
+            --data real --full --analysis --include-c5 --no-regulado \
+            ${EXTRA:+$EXTRA} --out-dir "$DIR"
+    done
+    echo
+    echo "  Comprueba las dos compuertas del canon antes de citar nada."
+    ;;
+
+  tanda)
+    # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
+    N="${2:-200}"
+    echo "=== Tanda de H-45, H-46 y H-47 · $N horas por frontera ==="
+    echo "    $NUCLEOS nucleos · $PROCS procesos · 1 hilo cada uno"
+    bash "$0" compuertas
+    echo; bash "$0" techo       "$N"
+    echo; bash "$0" escenario   "$N"
+    echo; bash "$0" pesovirtual "$N"
+    echo
+    echo "=== Hecho. Ahora: bash modelo_base/run_servidor.sh recoger ==="
+    ;;
+
   recoger)
     DEST="modelo_base/resultados_$(marca).tar.gz"
-    tar czf "$DEST" "$SALIDAS" "$LOGS" 2>/dev/null || true
+    VALID="reformateo/documento/validacion_horaria"
+    tar czf "$DEST" "$SALIDAS" "$LOGS" \n        $([[ -d "$VALID" ]] && echo "$VALID") \n        $([[ -d SALIDAS_SERVIDOR ]] && echo SALIDAS_SERVIDOR) \n        2>/dev/null || true
     echo "  resultados en $DEST"
     echo "  $(tar tzf "$DEST" | wc -l) ficheros"
     echo

@@ -69,16 +69,29 @@ activarlo.
 
 ## Paso 2 — Copiar las mediciones
 
+**El nombre de la carpeta importa.** Tanto el orquestador como las sondas
+buscan por defecto `MedicionesMTE_v3` en la raíz del repositorio, no
+`MedicionesMTE`. Con ese nombre no hace falta exportar nada; con cualquier
+otro, la variable de entorno es obligatoria y olvidarla produce un fallo de
+carga que no dice cuál es la causa.
+
 Desde tu máquina:
 
 ```bash
-rsync -av --progress MedicionesMTE/ servidor:/home/brayan_lopez/sistemabl/MedicionesMTE/
+rsync -av --progress MedicionesMTE_v3/       servidor:/home/brayan_lopez/sistemabl/MedicionesMTE_v3/
 ```
 
-Y en el servidor, antes de medir:
+En el servidor, exportar la variable de todas formas, porque la corrida
+canónica la exige explícitamente y para si falta:
 
 ```bash
-export MTE_ROOT=/home/brayan_lopez/sistemabl/MedicionesMTE
+export MTE_ROOT=/home/brayan_lopez/sistemabl/MedicionesMTE_v3
+```
+
+Conviene dejarla en el perfil, para que sobreviva a una sesión nueva:
+
+```bash
+echo 'export MTE_ROOT=/home/brayan_lopez/sistemabl/MedicionesMTE_v3' >> ~/.bashrc
 ```
 
 ## Paso 3 — Medir
@@ -129,9 +142,83 @@ Tráelo y descomprímelo en la raíz del repositorio, en tu máquina.
 
 ---
 
+## La tanda del 7 de septiembre
+
+Se añaden tres mediciones y la corrida canónica. Las tres primeras son
+independientes entre sí y de lo anterior, de modo que se pueden lanzar en
+cualquier orden.
+
+| Acción | Cuesta | Qué decide |
+|---|---|---|
+| `techo 200` | ~2 h | **H-45.** Si el límite superior del precio va por comprador o es uno solo |
+| `escenario 200` | ~3 h | **H-47.** Qué pasaría si las cinco compraran al mismo comercializador |
+| `pesovirtual 200` | ~2 h | **H-46.** Si adoptar la forma del fichero original cambia algún resultado |
+| `canonica` | ~2 h por frontera | La corrida entera, que ya acumula cuatro motivos |
+
+```bash
+bash modelo_base/run_servidor.sh compuertas
+nohup bash modelo_base/run_servidor.sh tanda 200       > modelo_base/logs/tanda.log 2>&1 &
+tail -f modelo_base/logs/tanda.log
+```
+
+Las tres escriben en `reformateo/documento/validacion_horaria/`, no en la
+carpeta de salidas de las sondas anteriores. El recogedor ya se lleva las
+dos.
+
+### Qué mirar en cada una
+
+**`techo_n200`.** La columna de horas con comprador sin ahorro. Con el
+régimen que entró el 7 de septiembre tiene que salir **cero en todas las
+horas**; medido sobre 60 horas por frontera daba 88 y 2 antes del arreglo.
+Si aparece alguna, es un hallazgo. El excedente puede subir o bajar según la
+hora, y eso está previsto: el criterio no es el excedente.
+
+**`escenario_n200`.** Dos columnas, y **ordenan al revés**. El escenario de
+mayor excedente de mercado es el de peor factura, porque el ancho de la
+banda es el cargo de comercializar y el mercado solo lo recupera sobre el
+lado corto. Lo que se comprueba es que el orden por factura sea el mismo que
+en local, es decir todas con ASC mejor que el reparto real y este mejor que
+todas con Cedenar. Mirar también la columna de vendedores retirados: el
+escenario real retira más del doble que los uniformes, y por eso mueve menos
+energía.
+
+**`pesovirtual_n200`.** Lo que decide es si el volumen y el excedente se
+mueven. Si no se mueven, la elección es de fidelidad al modelo base y no de
+resultado, y entonces conviene adoptar la forma del original. Medido en la
+compuerta sintética: el volumen no se mueve, con una diferencia de
+1,1·10⁻¹³ (kWh), y los precios suben unos 23 (COP/kWh), es decir que el
+efecto es de reparto entre vendedor y comprador.
+
+### La corrida canónica
+
+```bash
+export MTE_ROOT=/ruta/a/MedicionesMTE
+bash modelo_base/run_servidor.sh canonica
+```
+
+**Va por la vía alternada a propósito.** La acoplada cuesta unos 47 segundos
+por hora de mercado, y el horizonte son 5.160 horas por frontera: ni con
+dieciséis núcleos es viable. El servidor permite muestras grandes, no el
+horizonte por la vía acoplada.
+
+Acumula cuatro motivos que la obligan, y cada uno invalida el canon por su
+cuenta: la generación de Udenar reconstruida, el guardia físico de atípicos,
+la banda de precios medida y el techo por comprador. Deja sus salidas en
+`SALIDAS_SERVIDOR/canonica_m1/` y `.../canonica_m3/`.
+
+Al recibirla, correr las dos compuertas del canon **antes de citar ninguna
+cifra**. Van a fallar, y eso es lo esperado, porque el canon cambia; lo que
+hay que mirar es qué cambia y si el cambio se explica por los cuatro
+motivos.
+
+---
+
 ## Lo que este paquete NO hace
 
-- **No corre el horizonte completo.** La corrida canónica tiene siete
-  motivos acumulados que la obligan, pero uno de ellos es justo la decisión
-  que estas mediciones resuelven. Primero se decide, luego se corre.
-- **No toca el canon.** Ninguna cifra publicada cambia con esto.
+- **No decide por ti.** Las tres mediciones nuevas dejan cifras; la
+  interpretación va en `HALLAZGOS.md`, hallazgos H-45 a H-47.
+- **No responde la pregunta regulatoria.** Si el techo debe ser uno solo o
+  uno por comercializador es del comité, y está planteada con sus cifras en
+  el anexo de preguntas abiertas.
+- **No toca el canon vigente.** Lo sustituye entero cuando la corrida
+  canónica termine y se verifique.

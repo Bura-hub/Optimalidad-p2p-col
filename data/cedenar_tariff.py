@@ -196,6 +196,37 @@ def aplicar_regimen_no_regulado(no_regulado: bool = True) -> None:
         _PERFIL_NO_REGULADO if no_regulado else _PERFIL_HISTORICO)
 
 
+def forzar_comercializador(nombre: str | None = None) -> None:
+    """Pone a las cinco instituciones con un mismo comercializador, o las devuelve.
+
+    CONTRAFACTUAL, no una calibracion. Existe para medir el escenario que la
+    pregunta abierta de H-45 plantea: que pasaria si las cinco compraran al
+    mismo comercializador, en vez de cuatro a ASC y una a Cedenar.
+
+    A diferencia de los regimenes de techo de la sonda, que solo cambian el
+    numero que entra al juego, esto cambia **el perfil tarifario**, de modo
+    que el cambio viaja tambien al piso de permuta, al limite economico de
+    generacion, a la clasificacion en vendedores y compradores y a la
+    liquidacion. Por eso aqui el volumen SI puede moverse.
+
+    Con `nombre=None` se restituye el reparto real. Llamar SIEMPRE despues de
+    `aplicar_regimen_no_regulado`, porque esa funcion reescribe el diccionario
+    entero.
+    """
+    from dataclasses import replace
+
+    if nombre is None:
+        for k, v in INSTITUTION_PROFILE.items():
+            INSTITUTION_PROFILE[k] = replace(v,
+                                             comercializador=COMERCIALIZADOR[k])
+        return
+    if nombre not in _RUTA_POR_COMERCIALIZADOR:
+        raise ValueError(f"comercializador {nombre!r}; use "
+                         f"{sorted(_RUTA_POR_COMERCIALIZADOR)} o None")
+    for k, v in INSTITUTION_PROFILE.items():
+        INSTITUTION_PROFILE[k] = replace(v, comercializador=nombre)
+
+
 # ── Carga del CSV ───────────────────────────────────────────────────────────
 
 CSV_DEFAULT_PATH = Path(__file__).parent / "tarifas_cedenar_mensual.csv"

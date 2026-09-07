@@ -15,4 +15,133 @@
 \label{sec:verif}
 \justifying
 
-\placeholderfig{Capítulo pendiente de redacción. Prueba dorada contra el oráculo, contraste MATLAB frente a Python, el ciclo de período dos y la sensibilidad al horizonte de integración.}
+\subsection{Con qué se mide la calidad de una solución}
+\label{sub:verif-medida}
+
+El modelo de referencia valida su método contra un óptimo centralizado y
+publica el error normalizado de esa comparación. Conviene mirar de cerca qué
+compara ese número antes de adoptarlo, y conviene además reparar en que
+\textbf{no hay una métrica sino dos}, según qué documento se consulte.
+
+La versión extensa del modelo calcula el error sobre dos cantidades: el
+ahorro que obtiene cada comprador, su techo menos el precio acordado por la
+energía que adquiere; y la prima que obtiene cada vendedor, el precio
+acordado menos su piso por la energía que coloca. Reporta un \pct{0,316} de
+media, por debajo del \pct{6} en el peor caso. La suma de esas dos
+cantidades es el ancho de la banda por la energía transada, que es la
+identidad establecida en el capítulo del modelo, y la energía está fijada
+por una restricción de igualdad del propio planteamiento. De modo que
+\textbf{ese total vale lo mismo cualquiera que sea el método}, y lo que el
+error mide no es eficiencia económica sino cuánto se parece el reparto entre
+vendedores y compradores al que produce el método centralizado.
+
+La versión arbitrada mide otra cosa y publica otro número: el error sobre
+\textbf{la suma de los bienestares}, contra un centralizado resuelto por
+punto interior, con un promedio de \pct{0,23} que se mantiene por debajo del
+\pct{1,00} en \num{23} de las \num{24} horas y alcanza un máximo de
+\pct{1,65} a las 19:00.
+
+Esta segunda métrica tampoco sirve aquí, y por una razón que vale la pena
+enunciar porque es analítica y no un accidente de los datos. Los dos
+términos de pago entran en los bienestares con signos opuestos y se cancelan
+exactamente al sumarlos, de manera que la suma depende del precio únicamente
+a través del término de competencia, que es lineal y decreciente en todos
+ellos. Un centralizado que maximice esa suma tiene entonces una sola
+respuesta posible en la dimensión del precio, que es el piso para todos los
+compradores. Comprobado en cinco horas de tres conjuntos de datos distintos,
+la distancia de esos precios al piso resulta exactamente nula.
+
+Dicho de otro modo, ese óptimo centralizado entrega siempre todo el
+excedente al comprador, y no puede discriminar entre mecanismos cuyo trabajo
+entero consiste en fijar un precio intermedio. El propio artículo arbitrado
+apunta en la misma dirección al advertir que la optimización admite máximos
+locales y que hay horas en las que su método supera a la referencia
+centralizada.
+
+Ninguna de las dos métricas responde, entonces, a la pregunta que interesa
+aquí, que es cuánto del ahorro alcanzable captura el mercado. Para eso hace
+falta una referencia distinta.
+
+\subsection{Cuánto del ahorro alcanzable captura el mercado}
+\label{sub:verif-eficiencia}
+
+La referencia natural para una comunidad energética es lo que deja de
+pagarle a la red. Por cada kilovatio hora que va de un vendedor a un
+comprador, la comunidad se ahorra la diferencia entre lo que ese comprador
+le pagaría a su comercializador y lo que la red le pagaría a ese vendedor
+por inyectarlo, es decir el techo del uno menos el piso del otro. El costo
+de generar no interviene, porque el arreglo fotovoltaico produce lo mismo se
+venda al vecino o se exporte, de modo que en el momento de decidir a quién
+vender ese costo ya está comprometido. Con esa función objetivo el reparto
+óptimo es un problema de transporte lineal, coherente con lo establecido en
+el capítulo del modelo.
+
+El cociente entre lo capturado y ese óptimo mezcla dos preguntas que
+conviene separar, porque tienen respuestas muy distintas: cuánta energía se
+movió frente a la que se podía mover, y cuánto vale en promedio cada
+kilovatio hora movido frente a lo que valdría bien emparejado. El producto
+de las dos es la eficiencia total.
+
+\textbf{El volumen no admite mejora.} Sobre las \num{60} horas medidas,
+treinta por frontera, el mercado mueve el lado corto en todas y alcanza el
+\pct{100,0} de lo que el reparto óptimo mueve, tanto por la vía acoplada
+como por la alternada. Todo el margen está, entonces, en el emparejamiento.
+
+\begin{figure}[H]
+ \centering
+ \includegraphics[width=0.95\textwidth]{figuras/f7_01_eficiencia_emparejamiento.png}
+ \caption[Ahorro capturado frente al alcanzable]{Ahorro capturado por el
+ mercado en cada hora de la muestra, expresado sobre el máximo alcanzable
+ con la misma energía. El segmento gris recorre el margen que el
+ emparejamiento puede decidir, desde el peor reparto posible hasta el
+ óptimo; el círculo hueco marca un reparto proporcional ciego y el rombo
+ lleno, el mercado. Las horas van ordenadas por la ventaja del segundo
+ sobre el primero.}
+ \label{fig:verif-eficiencia}
+\end{figure}
+
+La Figura~\ref{fig:verif-eficiencia} enfrenta el mercado con un reparto
+proporcional ciego, es decir uno que mueve exactamente el mismo volumen y lo
+distribuye a prorrata sin mirar precios ni bandas. Esa comparación es la que
+decide si el juego aporta algo: un mecanismo que no supere al reparto ciego
+no está emparejando, está repartiendo.
+
+En la frontera principal el mercado captura el \pct{81,8} de media y el
+\pct{94,0} ponderando por el excedente en juego, frente al \pct{73,9} del
+reparto ciego y al \pct{68,7} del peor reparto posible. Supera al reparto
+ciego en \num{22} de las treinta horas, empata en seis y pierde en dos.
+Descontando las tres horas de banda uniforme, donde no hay nada que decidir,
+la comparación queda en \pct{79,8} contra \pct{71,0}.
+
+En la frontera secundaria el resultado se invierte. El mercado captura el
+\pct{88,8} de media y el \pct{90,9} ponderado, y el reparto ciego alcanza el
+\pct{90,9} de media. Supera al reparto ciego en solo cuatro horas, empata en
+nueve y \textbf{pierde en diecisiete}. Descontando las siete horas de banda
+uniforme, la comparación queda en \pct{85,4} contra \pct{88,1}.
+
+La inversión tiene una explicación estructural y no numérica. En la frontera
+principal hay un vendedor grande repartiendo entre compradores con techos
+distintos, que es la situación en que emparejar decide algo. En la
+secundaria hay un comprador dominante, y con un solo comprador no queda
+nada que emparejar salvo el orden en que entran los vendedores, de modo que
+el aparato dinámico no tiene margen donde aportar.
+
+\begin{detallebox}
+\textbf{Qué sostiene esta medida y qué no.} Sostiene que el mercado \textbf{nunca deja energía sin mover}: el volumen es
+el lado corto en las sesenta horas medidas, y ninguna constante del
+solucionador puede cambiarlo. Sostiene también que el emparejamiento aporta
+en la frontera principal y no en la secundaria.
+
+No sostiene una comparación contra el \pct{0,316} ni contra el \pct{0,23}
+del modelo de referencia, porque ninguna de las tres medidas mide lo mismo
+que las otras. Y no se puede contrastar sobre el
+caso del artículo: allí todos los compradores comparten techo y todos los
+vendedores comparten piso, de modo que en las doce horas examinadas
+cualquier reparto del mismo volumen vale exactamente igual y la pregunta no
+llega a plantearse. Que aquí sí se plantee es consecuencia directa de que la
+comunidad tenga dos comercializadores.
+\end{detallebox}
+
+\placeholderfig{Faltan la prueba dorada contra el oráculo, el contraste
+entre las dos implementaciones del modelo de referencia, el ciclo de período
+dos y la sensibilidad al horizonte de integración.}

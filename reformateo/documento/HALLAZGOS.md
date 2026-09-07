@@ -169,6 +169,53 @@ al artículo, que hoy presentan la tarifa como la del comercializador de
 las cinco. Contrastar contra las facturas efectivas queda recomendado para
 una fase posterior, no como condición de este trabajo.
 
+### Ampliación 2026-09-06 · son exactamente cuatro, y lo confirman dos vías independientes
+
+El hallazgo decía «la mayoría». Ahora se sabe cuáles y son **cuatro de las
+cinco**, confirmado por dos fuentes que no se conocen entre sí:
+
+1. **La transcripción de la reunión con los asesores.** Un asesor las
+   enumera: «son cuatro, UDENAR, hospital, Mariana y UCC, todas transan con
+   la ASC a través de contratos bilaterales».
+2. **El propio archivo de consumos de ASC**, entregado con las
+   recomendaciones. Su censo de 162 clientes contiene la Universidad de
+   Nariño en dos fronteras, Torobajo y VIPRI, la Universidad Mariana en dos,
+   la principal y sus laboratorios, la Universidad Cooperativa y el Hospital
+   Departamental. **No contiene al CESMAG.**
+
+**Tres cosas más que la transcripción aporta y que el registro no tenía.**
+
+**El asesor avala expresamente el precio de referencia**, que era el punto
+más débil de la decisión: «ese no lo pasaron, por eso es que Brian toma un
+precio de referencia». La objeción de que la tarifa no es la contratada
+queda así reconocida por quien conoce el asunto, y no pendiente.
+
+**El asesor avala también el techo por agente**, que hasta ahora era una
+decisión interna sin respaldo externo: «esa tarifa va a ser como los techos
+para cada uno, nunca van a sobrepasar el tope de la tarifa regulada, eso es
+lo que haría que el mercado sea dinámico y sea eficiente».
+
+**Y da una receta concreta para mejorar la fuente**: tomar la estructura del
+costo unitario, sustituir el componente de generación por el precio de
+contratos del mercado no regulado que publica el operador del mercado, y
+conservar el resto, que son cargos regulados. La maquinaria ya existe porque
+los componentes están desglosados; lo que falta es el dato.
+
+**Consecuencia práctica.** La tarifa publicada por ASC pasa a ser la fuente
+preferente, y sustituirá a la actual sin cambiar nada del diseño: el costo
+unitario que un comercializador publica para un mercado **ya lleva dentro
+los cargos de red del operador**, de modo que no hay que mezclar dos
+fuentes. Queda como supuesto nuevo, más pequeño que el actual y en la
+dirección correcta, aplicarle esa tarifa también al CESMAG, que no es
+cliente de ASC.
+
+**Un matiz que corrige el hallazgo original.** Este decía que las
+condiciones contratadas «no son públicas». Es cierto del contrato bilateral,
+pero **no de la tarifa publicada**: ASC reporta al sistema único de
+información y figura en el boletín tarifario del regulador, aunque allí sale
+promediada entre mercados porque atiende varios. Existe, por tanto, una vía
+pública y auditable que el hallazgo daba por cerrada.
+
 ---
 
 ## H-7 · Ni M1 es el campus ni M3 es el circuito fotovoltaico
@@ -1371,6 +1418,1367 @@ los límites tienen que expresarse en duración y derivar el conteo del paso
 del eje, igual que ya hace el remuestreo desde CAL-46. No corre prisa
 mientras el canon sea horario, pero queda anotado para que no vuelva a
 descubrirse por casualidad.
+
+---
+
+## H-30 · Las dos cotas del juego son constantes escritas a mano, y el precio vive pegado a ellas
+
+**Estado: MEDIDO el 2026-09-05. Da origen a CAL-47. PARCIALMENTE CORREGIDO
+por H-38 el 2026-09-06: la lectura de que el precio pegado a las cotas es
+estructural del modelo es FALSA. Lo es del lazo alternado que usa
+producción; el sistema acoplado del modelo base converge a un punto
+interior. Todo lo que este hallazgo dice sobre el REPARTO hay que leerlo a
+traves de H-38. Lo que dice sobre la BANDA sigue en pie.**
+
+### Qué son las cotas en el modelo base, que no es lo que parecía
+
+En el modelo original de Chacón las dos cotas valen 1.250 y 114, y no son
+un recorte. Aparecen como las raíces de un producto que **multiplica la
+dinámica del precio**:
+
+    peso = (techo − precio) · (precio − piso)
+
+Ese peso vale cero en los dos extremos y es máximo en el punto medio, de
+modo que el precio no se sale de la banda porque **al llegar al borde la
+dinámica se apaga**. La traducción a Python lo reproduce fielmente. De ahí
+se siguen dos cosas que cambian cómo hay que leer todo el capítulo del
+modelo:
+
+1. **Los dos extremos son equilibrios absorbentes.** No hay que buscar una
+   explicación numérica al precio degenerado: está en la forma de la
+   ecuación.
+2. **Las cotas no son calibración, son la teoría de precios del modelo.**
+   Si el precio se queda casi siempre en un borde, el borde es el
+   resultado.
+
+### Lo que se mide sobre el canon
+
+En la frontera principal, **el 51,1 % de las transacciones cierra
+exactamente en el piso** y el 32,6 % exactamente en el techo; queda un
+16,3 % interior. En la secundaria el piso se lleva el 66,5 %. Es decir,
+**el 83,7 % del mercado está pegado a una cota**.
+
+El piso vale 280 COP/kWh, escrito a mano. La serie real de bolsa del
+horizonte promedia 182,7 y su mediana es 114,6, de modo que el piso está
+un **53 % por encima de la media** y es **2,4 veces la mediana**. La razón
+entre techo y piso vale 3,24 en el modelo actual, 10,96 en el modelo base
+y 6,97 con las cotas medidas: **el valor vigente es el atípico**, no el
+propuesto.
+
+### La consecuencia que nadie había mirado
+
+En las 2.441 transacciones que cierran en el piso de la frontera
+principal, **la prima del vendedor suma exactamente cero pesos**. No es un
+defecto de cuenta: la prima se define como lo que el precio supera al
+piso, y si el precio es el piso, el modelo declara que al vendedor le da
+igual vender al vecino que exportar.
+
+De ahí sale el reparto del excedente: **26,8 % al vendedor y 73,2 % al
+comprador** en la frontera principal, **10,2 frente a 89,8** en la
+secundaria.
+
+Pero ese cero descansa en suponer que la red le paga al vendedor 280.
+**Le paga el precio de bolsa.** Recontabilizando la prima contra la bolsa
+real de cada hora, con el juego congelado, la prima crece **×1,9** en la
+frontera principal y **×2,9** en la secundaria, y el reparto pasa a
+40,4/59,6 y 25,0/75,0. Es una cota del efecto contable, no una predicción
+de la corrida.
+
+### El código ya sabía que estas dos magnitudes son la misma
+
+El motor de comparación, cuando no recibe la serie de bolsa, la sustituye
+por un vector constante con el valor del piso. Es decir, **el árbol trata
+el piso y el precio de bolsa como la misma magnitud en todas partes menos
+dentro del juego**, donde usa el sustituto siempre. Los cuatro escenarios
+regulados y el residual del propio P2P valoran la exportación a bolsa
+horaria; solo el juego usa la constante.
+
+### Qué NO invalida
+
+El volumen transado, que es el lado corto y reproduce entre métodos
+distintos, y por tanto el bienestar agregado. El ordenamiento entre
+mecanismos tampoco depende de esto de forma directa.
+
+### Qué SÍ invalida
+
+Toda afirmación sobre **el reparto** entre quien vende y quien compra: el
+índice de posición del precio, los porcentajes de vendedor y comprador,
+los umbrales de deserción y el precio del acuerdo. Y explica por qué el
+índice de desigualdad publicado no distingue los mecanismos: véase H-31.
+
+### Trabajo abierto
+
+La banda medida se invierte **133 horas de 6.144, el 2,16 %**,
+concentradas en agosto y septiembre, que es el pico seco de la bolsa. Ahí
+el mayorista supera al costo unitario y ninguna transacción conviene a las
+dos partes, de modo que **el mercado no debe abrir esa hora**. Hay que
+programarlo y declararlo, no dejar que un recorte lo tape.
+
+---
+
+### Cierre parcial · la sonda, ejecutada el 2026-09-05
+
+Tres configuraciones sobre los mismos datos: las cotas de hoy, solo el piso
+medido, y la banda completa. El lazo de la sonda se validó antes contra el
+motor: 380 flujos, **diferencia máxima 0,000e+00** en energía y en precio.
+
+| | Principal, julio | Principal, septiembre | Secundaria, septiembre |
+|---|---:|---:|---:|
+| Bolsa mediana del mes | 112,90 | 245,56 | 245,56 |
+| Excedente con las cotas de hoy | 644.510 | 125.922 | 384.987 |
+| Excedente con la banda medida | 719.661 | 104.371 | 354.341 |
+| Variación | **+11,7 %** | **−17,1 %** | **−8,0 %** |
+| Tajada del vendedor, hoy | 24,7 % | 30,1 % | 15,1 % |
+| Tajada del vendedor, banda | **32,4 %** | 30,7 % | **20,1 %** |
+
+**El volumen no se mueve.** Idéntico en las tres configuraciones, los dos
+meses y las dos fronteras. Cambiar las cotas no mueve energía, solo dinero.
+
+**La tajada del vendedor mejora siempre**, entre 2 y 5 puntos.
+
+**El nivel del excedente cambia de signo según el mes.** Cuando la bolsa
+está barata, exportar es mal negocio y venderle al vecino vale mucho;
+cuando está cara, exportar ya es buen negocio. El piso constante **borraba
+esa estacionalidad**. El cambio no corrige un sesgo direccional: habilita
+una señal que el modelo hoy no puede ver.
+
+**Lo que no cambia:** el precio sigue clavado en las cotas, del 89,2 % al
+85,5 % en julio. La degeneración es estructural y no se arregla poniendo
+cotas con sentido.
+
+Decidido y especificado en `docs/adr/0047-cal47-banda-de-precios-medida.md`.
+**Invalida el canon**, de modo que entra en la misma corrida que CAL-45,
+H-26 y P-21.
+
+**Aviso sobre la comprobación.** La sonda **no puede** compararse contra el
+canon: el canon se produjo el 2026-08-08 y el pipeline lleva encima CAL-44 y
+CAL-45, de modo que los datos de entrada ya no son los mismos. En julio son
+968 flujos frente a 1.028 y en la secundaria 1.060 frente a 1.132; la brecha
+es mayor en la frontera principal porque CAL-44 tocó justamente la
+generación de Udenar, que es allí el vendedor dominante. La comprobación que
+sí vale, y la que se pasó, es contra el motor de hoy.
+
+---
+
+## H-31 · El índice de desigualdad mide la dotación y no el mecanismo
+
+**Estado: ABIERTO. Medido el 2026-09-05.**
+
+El índice publicado se calcula sobre el beneficio **absoluto en pesos** de
+cada institución, que está dominado por el autoconsumo valorado a tarifa,
+idéntico en los siete mecanismos. Resultado: los siete caen entre 0,136 y
+0,176, indistinguibles, y **el mercado entre pares sale peor que el
+escenario regulado C1** en la frontera principal, 0,1513 frente a 0,1473.
+
+Calculado sobre **lo que cada mecanismo reparte de verdad**, es decir la
+diferencia contra el escenario de bolsa pura, el mismo índice se abre de
+0,21 a 0,66 y **reordena los mecanismos**: C1 pasa de parecer el más
+equitativo a ser el menos.
+
+Y hay una afirmación que no necesita índice ninguno: **bajo el mercado
+entre pares ganan las cinco instituciones**, la peor sube 353 mil pesos en
+la frontera principal y 296 mil en la secundaria; **bajo el esquema
+colectivo alguna pierde**, 348 mil pesos abajo en la principal y 289 mil
+en la secundaria.
+
+### La medida que pidió el autor, y lo que dice
+
+Pesos capturados por cada kWh que la institución movió en el mercado:
+
+| Institución | Principal, kWh | Principal, COP/kWh | Secundaria, kWh | Secundaria, COP/kWh |
+|---|---:|---:|---:|---:|
+| Udenar | 2.866 | 184,89 | 1.393 | 96,30 |
+| Mariana | 851 | 396,00 | 1.196 | 149,05 |
+| UCC | 1.390 | 497,08 | 1.216 | 309,49 |
+| HUDN | 1.129 | 299,51 | 1.531 | 104,26 |
+| CESMAG | 1.048 | 431,97 | 3.130 | 627,98 |
+
+La dispersión es de **2,7 veces** en la principal y **6,5 veces** en la
+secundaria. Y va al revés de lo que cabría temer: **Udenar mueve el 39 %
+de la energía de la frontera principal y es quien menos captura por
+unidad**. La causa está en H-30, porque quien vende cobra el piso.
+
+### Decisión tomada
+
+El documento publica **dos** medidas con papeles distintos: lo ganado por
+kWh aportado como principal, por interpretable, y el índice sobre lo que
+cada mecanismo reparte para ordenar los siete entre sí. El índice sobre el
+nivel se conserva solo para explicar por qué se sustituyó.
+
+---
+
+## H-32 · La condición inicial del bloque comprador está calibrada para una banda ancha
+
+**Estado: ABIERTO. Descubierto el 2026-09-06 al estrechar la banda en la
+sonda de CAL-47.**
+
+El bloque comprador arranca con todos los precios en
+
+    arranque = techo · I / (I + 1)
+
+con `I` el número de compradores de esa hora. Viene literalmente del modelo
+base, donde reparte un presupuesto de `techo · I` entre los `I` compradores
+y el jugador virtual.
+
+**Por qué nunca dio problema.** En el modelo base el piso vale 114 y el
+techo 1.250, de modo que el arranque cae entre 625 y 1.042 según el número
+de compradores, siempre holgadamente dentro de la banda. En el modelo con
+datos reales el piso vale 280 y el techo 906, y el arranque cae entre 453 y
+725: también dentro. **La fórmula solo falla cuando el piso deja de ser
+despreciable frente al techo**, y eso no había ocurrido nunca.
+
+**Por qué falla ahora.** Con el piso de permuta de CAL-47 la banda mide unos
+175 COP/kWh y empieza en unos 620. El arranque, que se calcula sobre el
+techo y no sobre la banda, **nace por debajo del piso** en cuanto hay pocos
+compradores:
+
+| Compradores | Horas | Arranque | ¿Dentro de la banda? |
+|---:|---:|---:|---|
+| 1 | 88 | 398,97 | **No** |
+| 2 | 41 | 531,96 | **No** |
+| 3 | 51 | 598,46 | **No** |
+| 4 | 57 | 638,35 | Sí, apenas |
+
+Medido sobre la frontera secundaria en septiembre, **el 75,9 % de las horas
+activas nace por debajo del piso**. El código recorta ese valor hasta el
+piso, y allí el peso que gobierna la dinámica,
+`(techo − precio)·(precio − piso)`, vale exactamente cero. **La dinámica no
+arranca y el precio queda congelado en el piso.**
+
+Esa es la explicación completa de lo que la sonda mostró: 99,5 % de los
+flujos en el piso y una tajada del 0,1 % para el vendedor. No es una
+decisión del mercado, es una condición inicial que nació fuera del dominio.
+
+### Qué invalida y qué no
+
+**No invalida** las configuraciones de banda ancha, que son las tres
+primeras de la sonda de CAL-47 y el canon entero: en todas ellas el arranque
+cae dentro. Tampoco invalida la prueba dorada ni el caso base.
+
+**Sí invalida** cualquier lectura de la banda estrecha, es decir del piso de
+permuta, hasta que se corrija. La conclusión de que el mercado casi no vale
+nada bajo la alternativa regulada correcta **no está medida**.
+
+### El arreglo, y por qué así
+
+La generalización fiel reparte **la banda** en vez del techo:
+
+    arranque = piso + (techo − piso) · I / (I + 1)
+
+que recupera la fórmula del modelo base cuando el piso es despreciable
+frente al techo, que es justamente el régimen en que se calibró.
+
+Para no mover nada de lo ya publicado, la regla se aplica **solo cuando el
+arranque del modelo base cae fuera de la banda**. Así el caso base, el canon
+y las tres configuraciones de banda ancha quedan idénticos bit a bit, y solo
+cambia donde estaba roto.
+
+### Lección
+
+Es la tercera vez en este trabajo que una constante heredada del modelo base
+resulta estar calibrada para un régimen que ya no es el nuestro: antes fue el
+paso de tiempo, que no existía, y el piso de precios, que era una constante
+escrita a mano. **Conviene revisar el resto de constantes del solucionador
+contra el régimen de los datos reales antes de la corrida canónica.**
+
+---
+
+## H-33 · El excedente del mercado es el ancho de la banda por la energía, y el precio no interviene
+
+**Estado: MEDIDO y COMPROBADO el 2026-09-06. Es una identidad, no un
+resultado empírico.**
+
+La prima que se lleva el vendedor es `(precio − piso)·q` y el ahorro que se
+lleva el comprador es `(techo − precio)·q`. Al sumarlas **el precio se
+cancela**:
+
+    excedente total = (techo − piso) · energía transada
+
+Comprobado sobre las salidas de la sonda de CAL-47, al último decimal:
+
+| Configuración | kWh | Excedente | Excedente por kWh | Ancho de la banda |
+|---|---:|---:|---:|---:|
+| M1 julio, cotas de hoy | 1.029,111 | 644.509,50 | 626,278 | 906,28 − 280 = **626,28** |
+| M3 septiembre, piso de permuta | 608,539 | 108.386,83 | 178,110 | 797,94 − 619,83 = **178,11** |
+| M1 julio, piso de permuta | 1.036,670 | 180.546,44 | 174,160 | 814,91 − 640,75 = **174,16** |
+
+Cuando el piso varía hora a hora, la columna del medio es la media del
+ancho ponderada por energía, y también cuadra.
+
+### La anatomía del modelo, completa
+
+1. **La energía** la fija el lado corto. Medido invariante a las cotas en
+   seis comparaciones de la sonda: mismos flujos y mismos kWh al decimal.
+2. **El excedente total** es el ancho de la banda por esa energía.
+   Aritmética pura.
+3. **El precio**, es decir todo el aparato del replicador, el lazo de
+   Stackelberg y las ecuaciones diferenciales, determina **únicamente el
+   reparto** entre quien vende y quien compra.
+
+### Por qué importa, y mucho
+
+**Ninguna constante del solucionador puede mover el agregado.** El
+bienestar total, la comparación entre mecanismos y el ordenamiento son
+aritmética sobre la banda y el volumen. Las velocidades heredadas del
+modelo base, el presupuesto de integración, el número de iteraciones del
+lazo externo y la condición inicial de H-32 solo pueden mover el reparto.
+
+Eso acota de golpe el alcance de tres hallazgos abiertos y hace innecesaria
+una revisión exhaustiva de constantes: basta comprobar la convergencia del
+**reparto**.
+
+Y acota H-32: corregir el arranque mueve la tajada del vendedor de 0,1 a
+6,6 % y **no toca el excedente ni un peso**.
+
+### Es la forma fuerte de un hallazgo que ya existía
+
+La ronda 3 había establecido que el volumen transado es el lado corto y que
+por tanto el juego no determina el agregado. Esta identidad lo cierra: no
+solo el volumen, **el excedente entero** es independiente del juego. La
+tesis de Juan B. Medina llega a lo mismo por otra vía, al observar que los
+pagos bilaterales se cancelan entre comprador y vendedor y el bienestar se
+reduce al volumen transado.
+
+### Consecuencia para la redacción
+
+El capítulo del modelo tiene que decir esto donde presenta el mecanismo, no
+esconderlo en robustez. Que el aparato dinámico gobierne el reparto y no el
+agregado **no es una debilidad**: es lo que hace que el ordenamiento entre
+mecanismos sea robusto, y es la razón por la que el precio degenerado de
+H-30 no invalida los resultados agregados.
+
+---
+
+## H-34 · Con datos reales el reparto es un programa lineal, y de ahí sale el precio degenerado
+
+**Estado: ESTABLECIDO el 2026-09-06. Explica hallazgos anteriores; no obliga
+a cambiar nada.**
+
+### El costo del vendedor pierde su curvatura en modo real
+
+El costo de generar es `a·(ΣP)² + b·(ΣP) + c`. En el modelo base el
+coeficiente cuadrático vale `[2,167 · 0,420 · 0 · 0 · 0 · 0]`, de modo que
+**dos de los seis vendedores tienen curvatura**. En modo con datos reales
+vale **cero para los cinco**, junto con el término independiente.
+
+**La justificación es correcta y está escrita**: un arreglo fotovoltaico no
+tiene costo de combustible, su costo marginal es constante y la curvatura
+sobra. Lo que no estaba escrito es la consecuencia matemática.
+
+### Qué problema resuelve entonces cada bloque
+
+**El vendedor, dadas las cotas: convexo.** Maximiza ingreso menos costo
+sobre un poliedro de transporte, con la capacidad de cada vendedor y la
+demanda neta de cada comprador. Con curvatura no negativa es maximizar una
+función cóncava sobre un convexo.
+
+**Pero sin curvatura es lineal.** El objetivo queda `Σ (precio − b)·P`, es
+decir vender a quien más pague hasta agotar capacidad, y todo el reparto se
+vuelve **un problema de transporte lineal**.
+
+**El bloque comprador no optimiza.** Su función de aptitud no es cóncava en
+el precio; es una dinámica de replicador, no la solución de un problema.
+
+**El problema conjunto no es convexo.** Son dos niveles anidados resueltos
+por respuesta óptima alternada, y un problema de dos niveles es no convexo
+en general aunque cada nivel lo sea.
+
+### La consecuencia, que explica tres hallazgos previos de golpe
+
+Un programa lineal tiene **valor óptimo único**, pero su conjunto de
+soluciones es una cara y sus **variables duales, que aquí son los precios,
+forman un poliedro** cuando el primal es degenerado.
+
+Eso es literalmente lo que la batería de validación había medido sin
+nombrarlo así:
+
+- el volumen reproduce entre tres métodos hasta la decimotercera cifra;
+- el precio sale **distinto en los tres**;
+- el lazo alternado cicla entre dos vectores de precio en torno al 21 % de
+  las horas no triviales, que es lo típico cuando el nivel de abajo tiene
+  un óptimo plano y el de arriba salta entre vértices.
+
+**El precio degenerado no es un defecto numérico ni un fallo de la
+traducción: es el comportamiento esperado de un mercado con costo lineal.**
+
+### Es la misma afirmación que H-33, vista por el otro lado
+
+Que el excedente total sea el ancho de la banda por la energía transada
+equivale a decir que **el primal fija el valor y el dual no es único**. Las
+dos observaciones son la misma propiedad.
+
+### Qué hacer con esto
+
+Nada en el código. Todo en la redacción. Convierte tres cosas que hoy
+parecen debilidades del trabajo en una sola propiedad bien entendida, y da
+la frase que ordena el capítulo del modelo:
+
+> La optimización fija cuánta energía se mueve y cuánto vale el
+> intercambio; la dinámica y las cotas solo deciden quién se lleva ese
+> valor.
+
+Conviene decirlo donde se presenta el mecanismo y no esconderlo en el
+capítulo de robustez, porque es también la razón por la que el ordenamiento
+entre mecanismos sobrevive al precio degenerado.
+
+---
+
+## H-35 · Las dos fronteras tienen ritmos semanales opuestos, y en una el mercado se queda sin comprador
+
+**Estado: MEDIDO el 2026-09-05. Pendiente de redactar en el capítulo de
+resultados.**
+
+La Actividad 4.1 de la propuesta comprometió evaluar el desempeño «en
+distintas semanas o días», y ese corte no existía. Lo que había era un corte
+sintético que multiplica la demanda por 0,65 y un corte real que solo mira
+energía, no transacciones ni beneficios.
+
+El canon no lleva marca de tiempo, sus columnas de hora y día son enteros,
+pero el horizonte es contiguo y horario: la hora k es el 2025-04-04 a las
+00:00 más k horas, son 6.144 horas, es decir 256 días exactos, y el 4 de
+abril de 2025 cae en viernes. Con ese mapeo el corte sale como post-proceso,
+sin re-correr nada.
+
+| | Principal | Secundaria |
+|---|---:|---:|
+| Horas activas en día hábil | 12,2 % | 30,5 % |
+| Horas activas en fin de semana | **28,0 %** | 23,7 % |
+| Energía transada el fin de semana | **49,1 %** del total | **6,2 %** del total |
+| Cobertura en día hábil | 16,9 % | 79,3 % |
+| Cobertura en fin de semana | 28,8 % | **146,2 %** |
+
+**En la frontera principal el fin de semana es el 28,9 % del calendario y
+concentra casi la mitad de la energía transada.** La demanda se desploma y
+la generación no, de modo que sobra excedente y todavía queda quien lo
+compre.
+
+**En la secundaria ocurre lo contrario, y la causa está en la última fila.**
+La cobertura supera el 100 %: todos generan más de lo que consumen, todos
+quieren vender y **no queda comprador**. El mercado no cierra por falta de
+contraparte, no por falta de energía.
+
+> Es la demostración más directa que este trabajo tiene de que **un mercado
+> entre pares necesita heterogeneidad y no solo excedente**.
+
+**Dos consecuencias en el reparto.** El precio mediano del fin de semana en
+la principal es exactamente el piso, frente a 378,93 en día hábil: con más
+oferta relativa los vendedores compiten y el precio cae hasta abajo. Y por
+eso su tajada empeora, del 28,3 al 25,1 %. Por institución, la UCC captura
+el 55,2 % de su excedente en fines de semana; el CESMAG, en la otra
+frontera, solo el 3,7 %.
+
+**Límite que hay que declarar y no esconder.** El corte solo vale para el
+mercado entre pares. Para los mecanismos regulados el canon guarda únicamente
+totales de horizonte por agente, y los que liquidan por neteo mensual no
+admiten el corte sin inventar una regla de atribución. Se reporta lo que se
+puede y se declara lo que no.
+
+**Robusto a CAL-47.** Como el volumen no depende de las cotas (H-33), el
+reparto semanal de la energía sobrevive al cambio de banda. Solo se moverán
+las cifras de excedente, y en proporción conocida.
+
+---
+
+## H-36 · Las fronteras del proyecto son una fracción pequeña de las instituciones reales
+
+**Estado: MEDIDO el 2026-09-05 sobre los datos de ASC. Refuerza H-7.**
+
+Los archivos de consumos entregados con las recomendaciones contienen la
+medida del comercializador para cuatro de las cinco instituciones, a paso de
+quince minutos. Comparados con lo que el modelo llama la institución:
+
+| Frontera de ASC | kW medios, enero 2025 | El modelo, frontera principal |
+|---|---:|---:|
+| Hospital Departamental | **231,5** | 9,1 |
+| Universidad Mariana | 39,5 | — |
+| Universidad Cooperativa | 19,9 | — |
+| Universidad de Nariño, VIPRI | 13,1 | — |
+| Universidad de Nariño, Torobajo | 4,2 | — |
+| Mariana, laboratorios | 6,0 | — |
+
+**El hospital real es unas veinticinco veces mayor que el hospital del
+modelo.** Eso confirma y cuantifica H-7, que había establecido que la
+frontera principal no es el campus sino el circuito de inyección.
+
+**Y hay un aviso dentro del propio dato.** Los 4,2 kW medios de la sede de
+Torobajo son implausibles para un campus universitario, de modo que **las
+fronteras de ASC tampoco son la institución entera**. Sirven para acotar el
+orden de magnitud, no para sustituir la medida del proyecto.
+
+**Lo que contienen y lo que no.** Consumo activo y reactivo en los dos
+sentidos, con código de frontera y serial de medidor, a quince minutos. **No
+contienen generación, ni tarifa, ni nivel de tensión.** Son, exactamente,
+lo que el autor anticipó: «los consumos nada más».
+
+**Unidades por confirmar.** La magnitud es consistente con energía por
+intervalo de quince minutos, pero no se verificó contra una fuente
+independiente. El contraste decisivo está disponible y no se ha hecho:
+comparar una frontera de ASC contra el medidor del proyecto de la misma
+institución en el mismo mes, usando uno de los archivos que cae dentro del
+horizonte del estudio.
+
+**Para qué sirve.** Es la única vía a la vista para construir el caso del
+consumidor grande y del comprador puro, que hoy no existe en el dato real:
+las cinco instituciones son prosumidores de escala parecida, con generación
+media entre 1,1 y 2,5 kW, y las cinco venden en algún momento.
+
+---
+
+## H-37 · El paso de integración del bloque comprador es marginal, y con banda estrecha deja de bastar
+
+**Estado: MEDIDO el 2026-09-06. Afecta al reparto, nunca al agregado.**
+
+Al estrechar la banda quedaba por saber si el precio se queda abajo porque
+el mercado lo decide o porque no le da tiempo a moverse. Se probó con cinco
+presupuestos sobre las mismas 720 horas, con la condición inicial ya
+corregida de H-32.
+
+| Variante | Horizonte | Pasos | Iteraciones | En el piso | Tajada del vendedor |
+|---|---:|---:|---:|---:|---:|
+| Producción | 0,005 | 150 | 2 | 64,1 % | 6,6 % |
+| Horizonte ×2 | 0,010 | 300 | 2 | 67,3 % | 6,8 % |
+| Horizonte ×4 | 0,020 | 600 | 2 | 69,5 % | 6,1 % |
+| Iteraciones ×4 | 0,005 | 150 | 8 | 64,6 % | 6,5 % |
+| **Paso ×4** | 0,005 | 600 | 2 | **39,4 %** | **14,9 %** |
+
+**El excedente sale idéntico en las cinco, 108.387 COP, y el volumen
+también.** Es la quinta confirmación de H-33 y garantiza que nada de esto
+puede tocar el agregado.
+
+### Lo que dice el cuadro
+
+**No es el horizonte.** Alargarlo dos y cuatro veces no mueve el reparto:
+la dinámica ya había convergido en el tiempo que se le daba.
+
+**No son las iteraciones del lazo externo.** Cuadruplicarlas tampoco.
+
+**Es el paso de integración.** Afinarlo cuatro veces, a horizonte constante,
+**más que duplica la tajada del vendedor**, del 6,6 al 14,9 %, y baja del
+64,1 al 39,4 % la fracción de transacciones pegadas al piso.
+
+### El mecanismo
+
+El bloque comprador se integra con Euler explícito de paso fijo. Una de sus
+velocidades vale cien mil y el propio código documenta que **exige un paso
+por debajo de cuatro centésimas de milésima para ser estable**. El paso de
+producción vale tres coma tres centésimas de milésima, es decir **queda
+justo por debajo del límite**.
+
+Con la banda ancha eso basta. Con la banda estrecha el peso que gobierna la
+dinámica cae doce veces, el sistema se vuelve relativamente más rígido, y un
+paso marginal **sobrepasa la cota**. El recorte lo devuelve al borde, y allí
+el peso vale cero y el precio queda absorbido. Por eso un paso más grueso
+produce sistemáticamente **más precios pegados al piso**: no es que el
+mercado los lleve ahí, es que el integrador los deja ahí.
+
+Es H-32 en su versión de segundo orden: allí la condición inicial nacía
+fuera de la banda, aquí la trayectoria se sale de ella por error de
+truncamiento.
+
+### Qué invalida
+
+**Nada del agregado**, por H-33. Ni el bienestar, ni la comparación entre
+mecanismos, ni el ordenamiento, que son aritmética sobre la banda y el
+volumen.
+
+**Sí toca todo lo que depende del reparto**: el índice de posición del
+precio, los porcentajes de vendedor y comprador, la equidad y los umbrales
+de deserción.
+
+### Cuánto toca al canon, medido
+
+La misma batería sobre la banda ancha con que se produjo el canon:
+
+| Variante | En el piso | Tajada del vendedor |
+|---|---:|---:|
+| Producción | 57,9 % | **16,3 %** |
+| Horizonte ×2 | 59,7 % | 16,1 % |
+| Horizonte ×4 | 60,7 % | 14,9 % |
+| Paso ×4 | 53,0 % | 17,0 % |
+| Iteraciones ×4 | 58,1 % | 16,0 % |
+
+El excedente sale idéntico en las cinco, 384.987 COP. Es la sexta
+confirmación de H-33.
+
+| | Recorrido de la tajada | En relativo |
+|---|---|---|
+| Banda ancha, el canon | 14,9 a 17,0 % | **−9 % a +4 %** |
+| Banda estrecha, CAL-47 | 6,1 a 14,9 % | **−8 % a +126 %** |
+
+**El canon no queda invalidado.** Sus cifras de reparto llevan una
+incertidumbre numérica de aproximadamente **un punto sobre la tajada del
+vendedor**, que conviene declarar como cota de precisión donde se publiquen,
+igual que ya se hizo con el índice de posición del precio en la sensibilidad
+global. No hay nada que rehacer.
+
+**La banda estrecha es unas catorce veces más sensible en términos
+relativos y no se puede publicar sin arreglar antes el paso.** El defecto
+existe siempre; solo muerde cuando la banda se estrecha.
+
+**Un detalle que refuerza el diagnóstico.** Con la banda ancha, alargar el
+horizonte **baja** la tajada del vendedor y afinar el paso la **sube**: los
+dos errores tiran en direcciones contrarias y en producción se compensan en
+parte. Con la banda estrecha esa compensación desaparece y el error del paso
+queda al descubierto.
+
+### Qué hacer
+
+Antes de la corrida canónica, **fijar el paso por criterio de estabilidad y
+no por número de puntos**: derivarlo del límite documentado y del ancho de
+la banda, en vez de heredar un valor calibrado para otro régimen. Es el
+mismo patrón que CAL-46 aplicó al paso de tiempo del modelo, y la cuarta
+constante heredada que resulta estar calibrada para un régimen que ya no es
+el nuestro.
+
+---
+
+## H-38 · El lazo alternado no resuelve el modelo base, y por eso el precio se pega a las cotas
+
+**Estado: ESTABLECIDO el 2026-09-06. Es el hallazgo más grave de esta
+tanda. Corrige a H-30.**
+
+### Lo que se creía
+
+H-30 concluyó que el precio pegado a las cotas era **estructural**: los dos
+extremos son equilibrios absorbentes del replicador, luego el precio
+degenerado sería una propiedad del modelo y no un defecto. Se apoyaba en
+que el modelo base también pega el precio a las cotas cuando se le corre
+por la vía de producción.
+
+**Eso último es cierto y la conclusión es falsa**, porque la vía de
+producción no es la del modelo base.
+
+### El modelo base no alterna
+
+`JoinFinal.m` construye un estado combinado con precios y cantidades y lo
+integra de una sola vez con `ode15s`, tolerancias 1e-6, sobre un horizonte
+declarado. **La alternancia entre bloques es una aproximación de la
+traducción**, y en producción corre con **dos** iteraciones.
+
+El artículo publica precios **interiores**: en el caso de las 22:00 un
+**Matiz del 2026-09-06 (ver H-39).** Ese 380,30 es del caso de las 22:00.
+La tabla III, que es la del caso de las 14:00, publica los cuatro precios en
+114,000 · 1.250,000 · 114,000 · 114,000: **los cuatro en una cota**. El
+modelo base también los pega, de modo que este hallazgo mide una proporción
+y no una diferencia cualitativa.
+
+comprador paga **380,30** con la banda en [114, 1250], y en el análisis de
+sensibilidad el precio de un agente sube de 114 a **402** al aumentar su
+urgencia. Es decir, el mecanismo **diferencia precios entre compradores**,
+que es lo que se espera de una negociación.
+
+### Las tres vías, sobre la misma hora del caso base
+
+La batería de validación del proyecto ya lo tenía medido y archivado como
+«el precio es degenerado» en vez de como «la alternancia no resuelve»:
+
+| Vía | Precios | Volumen |
+|---|---|---|
+| Alternante, la de producción | `[1250, 1250, 114]` | 3,032617 |
+| **Acoplado, el del modelo base** | **`[1250, 1250, 1136,0]`** | 3,032617 |
+| Oráculo estático | `[212,24, 114, 114]` | 3,032617 |
+
+Tres vectores distintos, **volumen idéntico al sexto decimal**. El precio
+es genuinamente indeterminado, y en eso H-34 acierta; pero **entre los
+óptimos, cada método escoge otro**, y el alternante escoge sistemáticamente
+las esquinas.
+
+### El acoplado converge, y a un punto interior
+
+Medido sobre la hora 14 del caso base, con dos vendedores y cuatro
+compradores, banda [114, 1250]:
+
+| Horizonte | Segundos | Precios | Movimiento en la cola |
+|---|---:|---|---:|
+| 0,01, el del artículo | 5,4 | 1058,52 · 573,15 · 1052,78 · 1065,56 | 7,8 % |
+| 0,05 | 54,2 | 1207,74 · 126,20 · 1202,05 · 1214,00 | 0,2 % |
+| 0,10 | 130,2 | 1208,12 · 125,08 · 1203,17 · 1213,64 | **0,0 %** |
+| 0,40 | 951,2 | 1208,33 · 124,90 · 1207,81 · 1208,96 | 0,1 % |
+
+**Hay equilibrio interior y es estable.** De 0,05 en adelante los precios no
+se mueven, y cuadruplicar el horizonte cuarenta veces los deja igual.
+Ninguno de los cuatro toca una cota. Y hay diferenciación entre
+compradores, uno cerca del piso y tres cerca del techo, que es
+cualitativamente lo que describe el artículo.
+
+### Pero el artículo para el reloj antes de tiempo
+
+A su horizonte de 0,01 la cola todavía se mueve un 7,8 % y el segundo
+comprador marca **573** cuando el equilibrio son **125**, un factor de más
+de cuatro. **Los precios publicados en el modelo base son un transitorio,
+no el equilibrio de su propio sistema.** No invalida aquel trabajo, pero
+impide copiarle el horizonte: hay que integrar hasta converger.
+
+### Qué invalida
+
+**Todo el reparto publicado**: el índice de posición del precio, los
+porcentajes de vendedor y comprador, la equidad, los umbrales de deserción,
+el precio del acuerdo, y las conclusiones sobre la tajada del vendedor que
+se derivaron de las sondas de CAL-47.
+
+**Y obliga a releer H-30 y H-37.** El pinning no es estructural sino un
+artefacto del método; y el ciclo de período dos que H-37 daba por
+característico del problema es, en realidad, el lazo alternado sin
+converger.
+
+### El coste de converger no está repartido, está concentrado
+
+Primer intento de medirlo sobre el dato real, con parada adaptativa que
+dobla el horizonte hasta converger, 36 horas de la frontera principal y
+seis procesos:
+
+    las 10 primeras horas ....    16 s
+    las 10 siguientes ........   499 s
+    las 10 siguientes ........ 1.432 s
+    las 6 ultimas ............ sin acabar en 3.500 s
+
+**Un tercio de las horas converge en segundos y la cola no cierra.**
+Extrapolado a las 6.144 horas del horizonte, exigir convergencia estricta
+se va por encima de las treinta horas de reloj y con la cola abierta, de
+modo que **no es viable tal cual**.
+
+La consecuencia práctica es que la pregunta útil no es cuánto cuesta
+converger sino **qué horizonte se puede pagar y qué fracción converge
+ahí**, y qué se hace con las horas que se resisten. Medirlo es el paso
+previo a cualquier cambio en producción.
+
+### Qué NO invalida, y no es poco
+
+El **volumen**, idéntico en las tres vías al sexto decimal. Y con él, por la
+identidad del excedente (H-33), **el excedente total, el bienestar
+agregado, la comparación entre mecanismos y el ordenamiento**. La
+conclusión principal del trabajo sobrevive intacta.
+
+Tampoco toca nada de la banda: el techo como costo unitario, el piso como
+permuta o bolsa según el estado del vendedor, ni la condición de existencia
+frente a los cargos de red. Todo eso es aritmética sobre las series y no
+pasa por el solucionador.
+
+---
+
+## H-39 · Con qué mide el modelo base su propia calidad, y qué pasa al aplicarlo aquí
+
+**Estado: MEDIDO el 2026-09-06. Contiene la rectificación de un diagnóstico
+propio equivocado, una discrepancia entre las fuentes del modelo base que
+queda ABIERTA para el asesor, y una medida nueva que el proyecto no tenía.**
+
+Nace de una pregunta que el proyecto nunca se había hecho: **con qué
+parámetro mide el modelo base la calidad de su propia solución**. El
+artículo la responde: compara contra un método centralizado y publica el
+error normalizado, **0,316 % de media y por debajo del 6 % en el peor caso**.
+Nuestro proyecto no tenía esa comprobación, y el oráculo que hay en el
+repositorio no sirve para hacerla, porque es un lazo de Stackelberg con
+optimizador dentro y no un centralizado.
+
+### Qué mide de verdad ese 0,316 %
+
+**Acotado por H-40 el mismo día.** Lo que sigue vale para el documento
+extenso del modelo base. La versión arbitrada y publicada usa **otra
+métrica y otro número**, el error sobre la suma de bienestares y 0,23 % de
+media, y hay que leer las dos cosas juntas.
+
+El documento extenso define el error sobre dos cantidades, no sobre el
+bienestar:
+
+    ahorro del comprador   S_i  = (techo − precio_i) · energía comprada
+    prima del vendedor     SR_j = (precio_i − piso) · energía vendida
+
+Su suma es **el ancho de la banda por la energía transada**, que es la
+identidad de H-33. Y el volumen está fijado por las restricciones del propio
+modelo. De modo que el total es idéntico para todos los métodos, y el error
+**no mide eficiencia económica**: mide cuánto se parece el **reparto** entre
+vendedores y compradores al que produce el centralizado.
+
+Conviene decirlo con esas palabras, porque el nombre «error de bienestar»
+sugiere otra cosa.
+
+### Rectificación: la suma de bienestares no se puede maximizar libremente
+
+Un primer intento de construir el centralizado devolvió uno que **no
+transaba nada**, y la métrica salía indefinida. El diagnóstico que di
+entonces fue que el objetivo era decreciente en lo transado, y esa parte del
+álgebra es cierta: los dos bienestares llevan el pago con signos opuestos,
+
+    vendedor   − Σ_ji P_ji / log(1 + π_i)
+    comprador  + Σ_i (Σ_j P_ji) / log(|π_i| + 1)
+
+y **se cancelan exactamente**, comprobado a precisión de máquina,
+4,4 · 10⁻¹⁶ sobre un valor de 2,25. Es lo que debe pasar: un pago entre dos
+miembros de la comunidad es una transferencia interna.
+
+**Pero la conclusión que saqué de ahí era falsa.** El álgebra no es
+vinculante, porque **el modelo base no deja elegir cuánto transar**: fija el
+volumen al lado corto con una restricción de **igualdad**, sus ecuaciones 11
+y 12. Si sobra oferta, cada comprador recibe exactamente su déficit; si
+falta, se coloca toda la generación. El error estaba en mi sonda, que usaba
+desigualdades en los dos lados y por eso permitía cerrar el mercado.
+
+Corregido en `error_centralizado.py`, el centralizado transa.
+
+### La discrepancia que queda abierta
+
+Al comparar término a término apareció otra cosa, y esta **no se resuelve
+desde el repositorio**. El término que penaliza competir con los demás
+compradores está escrito de dos formas distintas en las fuentes del modelo
+base:
+
+| Fuente | Forma | Energía que multiplica |
+|---|---|---|
+| Artículo, ecuación 14 | `−β_i Σ_{ℓ≠i} π_ℓ Σ_j P_jℓ` | la del comprador **ajeno** |
+| `JoinFinal.m`, línea comentada | la misma | la del **ajeno** |
+| El script en Python del modelo base | `Σ_{k≠i} π_k Σ_j P_ji` | la **propia** |
+
+Coinciden exactamente cuando todos los compradores compran lo mismo, que es
+el caso de las pruebas sintéticas con que se validó en su día, y divergen en
+cuanto no. Medido sobre cuatro compradores con cantidades distintas, la
+diferencia mayor asciende a **1.755,95** unidades sobre valores del orden de
+2.500, y el agregado del día de prueba pasa de −725,47 a −3.587,30.
+
+**Decisión: se sigue al artículo**, que es la especificación publicada y
+coincide con el MATLAB. **CONFIRMADA el mismo día por H-40**: la versión
+arbitrada en *IEEE Latin America Transactions* escribe esa misma forma en su
+ecuación (11), de modo que la elección deja de necesitar consulta y la
+discrepancia queda confinada al guion en Python.
+
+**No mueve nada más.** Comprobado sobre el día completo con la compuerta del
+paso horario: de los **672 números de la huella difieren 25**, y los
+veinticinco son bienestar del comprador, las veinticuatro horas y el
+agregado. Flujos, precios, volúmenes y liquidación quedan **idénticos bit a
+bit**. La función solo informa: ninguna función de resolución la llama,
+comprobado sobre el árbol sintáctico de los tres módulos del núcleo.
+
+Hay una segunda discrepancia del mismo tipo: el documento extenso escribe el
+término del pago como `π_gb · Σ_j P_ji · ln(1/(π_i+1))` y el script lo
+escribe como `Σ_j P_ji / ln(|π_i|+1)`, sin el factor del piso y con la
+operación invertida. **Resuelta por H-40**: la versión publicada escribe la
+segunda forma, que es la que el proyecto ya usaba.
+
+### El artículo también publica precios en las cotas
+
+Conviene dejarlo dicho, porque el registro venía argumentando lo contrario.
+La tabla III del artículo, el caso de las 14:00, publica los cuatro precios
+así: **114,000 · 1.250,000 · 114,000 · 114,000**, con la banda en
+[114; 1.250]. **Los cuatro están exactamente en una cota.** El valor
+interior de 380,30 que el registro venía citando pertenece a otro caso, el
+de las 22:00.
+
+Eso no anula el argumento de CAL-48, porque el modelo base sí produce
+precios interiores en ese otro caso y en el análisis de sensibilidad, donde
+un precio sube de 114 a 402. Pero **sí obliga a matizarlo**: que el precio
+se pegue a una cota no es exclusivo de nuestra traducción.
+
+### La medida que sí sirve, y lo que dice
+
+Como la métrica del artículo mide el reparto y no la eficiencia, se añade la
+que faltaba: **cuánto del ahorro alcanzable captura el mecanismo**. La
+referencia es lo que la comunidad deja de pagarle a la red, es decir, por
+cada kWh del vendedor `j` al comprador `i`, su techo menos su piso. El costo
+de generar no entra, porque el panel genera igual se venda al vecino o se
+exporte. Eso convierte el óptimo en un **problema de transporte lineal**,
+coherente con H-34.
+
+El cociente se parte en dos, porque mezcla dos preguntas: cuánta energía se
+movió, y cuánto vale en promedio cada kWh movido.
+
+**Primer resultado, y es el fuerte: el volumen es del 100,0 % en las sesenta
+horas medidas, en las dos fronteras y por las dos vías.** El mecanismo mueve
+siempre el lado corto. Es la forma medida de D-7.
+
+**Segundo: todo el margen está en el emparejamiento, y ahí el resultado se
+invierte entre fronteras.** Sobre 30 horas por frontera, contra un reparto
+proporcional ciego que mueve el mismo volumen:
+
+| Sobre 30 horas por frontera | M1 | M3 |
+|---|---:|---:|
+| Mecanismo acoplado, media | 81,8 % | 88,8 % |
+| Mecanismo acoplado, ponderado por excedente | **94,0 %** | **90,9 %** |
+| Reparto proporcional ciego, media | 73,9 % | 90,9 % |
+| Peor reparto del mismo volumen, media | 68,7 % | 79,4 % |
+| Horas en que el juego supera al ciego | **22** | **4** |
+| Horas en que empata | 6 | 9 |
+| Horas en que pierde | 2 | **17** |
+
+Descontando las horas de banda uniforme, donde el emparejamiento no puede
+decidir nada, quedan **27 horas en M1 con 79,8 % contra 71,0 %** y **23 en
+M3 con 85,4 % contra 88,1 %**.
+
+La figura `f7_01_eficiencia_emparejamiento` lo dibuja hora a hora: el
+segmento gris es el rango que el emparejamiento puede decidir, el círculo
+hueco es el reparto ciego y el rombo lleno es el mercado.
+
+Es decir: **en la frontera principal el juego aporta, y en la secundaria
+no**. Encaja con la inversión de papeles que el proyecto ya tiene
+documentada: en M1 hay un vendedor dominante repartiendo entre compradores
+heterogéneos, que es donde emparejar decide; en M3 hay un comprador
+dominante, y con un solo comprador no hay nada que emparejar salvo el orden
+de los vendedores.
+
+### En el caso base del artículo la pregunta no se puede hacer
+
+Medido sobre sus doce horas: **en las doce el margen del emparejamiento es
+cero**. Todos los compradores comparten techo, 1.250, y todos los vendedores
+comparten piso, 114, de modo que cada kWh vale lo mismo venga de donde
+venga y **cualquier reparto del mismo volumen vale exactamente igual**.
+
+De ahí que el caso base no pueda distinguir mecanismos por esta vía, y de
+ahí también que nuestra comunidad sí pueda: tiene dos comercializadores.
+
+### Qué queda pendiente
+
+1. ~~Preguntar al asesor cuál de las dos formas del término de competencia
+   es la buena, y lo mismo para el término del pago.~~ **CERRADO por H-40**:
+   la versión arbitrada escribe las dos formas que el proyecto ya usaba.
+2. La comparación directa contra el 0,316 % **no procede**, porque no miden
+   lo mismo. Y la comparación contra el 0,23 % de la versión publicada
+   tampoco, por otra razón: H-40 mide que la suma de bienestares manda todos
+   los precios al piso, de modo que no discrimina mecanismos de precio.
+3. El lazo alternado incumple ligeramente una restricción cuando se corta en
+   dos iteraciones: hasta **1,4 · 10⁻² kWh** en la peor de las 30 horas de
+   M1. Es despreciable para cualquier cifra publicada, pero explica que
+   alguna hora dé por encima del 100 %.
+4. **El costo del solucionador acoplado no está acotado, y eso bloquea
+   CAL-48.** Sobre el caso base, la hora 4 no termina en 420 segundos
+   mientras la hora 1 resuelve en 47, con el mismo tamaño de problema y una
+   rigidez inicial del mismo orden. No es un fallo numérico: el lado derecho
+   es finito en las dos. Sobre datos reales las sesenta horas medidas
+   resolvieron a unos 80 segundos, pero una corrida de 5.160 horas no puede
+   apoyarse en eso. Registrado en la decisión correspondiente: la activación
+   necesita presupuesto de tiempo por hora y alternativa declarada.
+
+---
+
+## H-40 · La versión publicada del modelo base zanja las discrepancias, y su métrica resulta degenerada en el precio
+
+**Estado: MEDIDO y COMPROBADO el 2026-09-06 contra la fuente publicada.
+Cierra dos preguntas que H-39 dejó abiertas para el asesor, y corrige dos
+afirmaciones de H-39.**
+
+Aparecieron dos artículos más del grupo que no estaban en el árbol:
+
+1. **Chacón, Guerrero, Obando y Pantoja**, «Welfare Optimization in Energy
+   Communities with P2P Markets», *IEEE Latin America Transactions*,
+   vol. 23, n.º 8, agosto de 2025. Es **la versión arbitrada y publicada**
+   del modelo base, y además está en la revista objetivo de esta tesis.
+2. **Chacón, Benavides, Pantoja y Obando**, «Optimización de costos en un
+   escenario de mercado entre pares multimicrorred con dinámicas de
+   replicadores», *TecnoLógicas*, vol. 27, n.º 60, 2024. Es el precedente
+   multimicrorred del mismo grupo.
+
+### Las dos preguntas del anexo quedan respondidas
+
+La ecuación (11) de la versión publicada dice, literalmente:
+
+    W_i = U_i(G_i) + [ Σ_j P_ji ] / ln(π_i + 1) − β_i Σ_{k≠i} π_k Σ_j P_jk
+
+Es decir, **las dos formas que este proyecto había elegido son las
+publicadas**:
+
+| Asunto | Lo que sigue el proyecto | La versión publicada |
+|---|---|---|
+| Término del pago | división por el logaritmo | **división**, ec. (11) |
+| Índice de la energía en la competencia | la del comprador **ajeno** | **la del ajeno**, ec. (11) |
+| Recompensa del vendedor | negativa | **negativa**, ec. (4) |
+| Volumen | fijado por igualdad | **igualdad**, ec. (10) |
+
+De modo que la traducción coincide con la fuente arbitrada en los cuatro
+puntos. Lo que discrepa es el guion en Python que acompaña al modelo, y solo
+en el índice de la energía. **Las dos preguntas del anexo dejan de ser
+preguntas** y pasan a ser una nota documental.
+
+### Hay dos métricas distintas, no una
+
+H-39 afirmaba que la métrica del modelo base mide el reparto y no la
+eficiencia. **Eso vale para uno de los dos documentos, no para el otro.**
+
+| Documento | Sobre qué se calcula el error | Valor publicado |
+|---|---|---|
+| El documento extenso del modelo base | el ahorro del comprador y la prima del vendedor | 0,316 % de media, máximo por debajo del 6 % |
+| **La versión publicada** | **la suma de los bienestares**, contra punto interior | **0,23 % de media**, por debajo del 1,00 % en 23 de las 24 horas, máximo 1,65 % a las 19:00 |
+
+De modo que la afirmación de H-39 hay que acotarla al primero. Sobre el
+segundo hace falta otra cosa, y es lo que sigue.
+
+### La suma de bienestares siempre manda todos los precios al piso
+
+Es un resultado analítico, no un accidente numérico. Los dos términos del
+pago se cancelan exactamente, de manera que **la suma de los bienestares
+depende del precio únicamente a través del término de competencia**,
+
+    − Σ_i β_i Σ_{k≠i} π_k Σ_j P_jk
+
+que es lineal y estrictamente decreciente en cada precio, con coeficiente
+negativo para todos ellos. Un centralizado que maximice esa suma tiene, por
+tanto, una única respuesta posible en la dimensión del precio: **el piso,
+siempre, para todos los compradores**.
+
+Comprobado en cinco horas de tres conjuntos de datos distintos, y la
+distancia al piso sale **exactamente cero** en todas:
+
+| Datos | Hora | Piso | Precios del centralizado |
+|---|---:|---:|---|
+| Caso base | 1 | 114 | 114 · 114 · 114 · 114 |
+| Caso base | 9 | 114 | 114 · 114 · 114 · 114 |
+| M1 | 2342 | 640,75 | 640,75 en los tres |
+| M1 | 344 | 695,68 | 695,68 en los cuatro |
+| M3 | 424 | 114,28 | 114,28 en los cuatro |
+
+Y el volumen coincide al cuarto decimal con el del mercado, porque la
+restricción de igualdad lo fija.
+
+**Consecuencia.** Maximizar la suma de bienestares no sirve como referencia
+para un mercado cuyo trabajo entero es fijar un precio: su respuesta es
+siempre «todo el excedente al comprador». Medido en la hora 1 del caso base,
+el centralizado alcanza 5,52 unidades de bienestar con los cuatro precios en
+114, y el mercado −273,74 con los suyos cerca del techo. El error
+normalizado sobre el bienestar asciende entonces a más del 5.000 %, no al
+0,23 % publicado.
+
+### Cómo se explica entonces el 0,23 %
+
+Con lo medido aquí no se puede determinar, y conviene decirlo así en vez de
+conjeturar. Lo que sí se puede señalar es que **el propio artículo publicado
+lo advierte**: reconoce que la optimización puede tener máximos locales, que
+por eso establece un criterio de desempate, y que **hay horas en las que su
+método alcanza un óptimo superior al del punto interior**, concretamente a
+las 20:00. Un método descentralizado que supera a su propia referencia
+centralizada es señal de que la referencia no está en el óptimo global.
+
+De modo que el 0,23 % documenta el acuerdo entre dos solucionadores que caen
+en óptimos locales parecidos, y no la cercanía al óptimo global. Eso no le
+resta valor al modelo, pero **sí lo descarta como medida de calidad
+importable a este trabajo**, y refuerza la medida propia de H-39, que es la
+eficiencia del emparejamiento sobre el ahorro alcanzable.
+
+### El precedente del costo de transmisión
+
+El artículo de *TecnoLógicas* de 2024 modela una comunidad repartida en
+varias microrredes y **cobra una penalización, o costo de transmisión,
+cuando un recurso envía energía a una microrred vecina**. Es un precedente
+del propio grupo para la pregunta regulatoria que sigue abierta, la de si la
+energía intercambiada dentro de la comunidad paga cargos por uso de redes.
+Conviene llevarlo a esa conversación: el grupo ya ha modelado que el
+transporte entre zonas se cobra.
+
+---
+
+## H-41 · El caso publicado ya es reproducible, y no es el que el repositorio llama caso base
+
+**Estado: MEDIDO el 2026-09-06. Cierra un pendiente que llevaba abierto toda
+la validación: hasta hoy el caso del modelo base no se podía reproducir.**
+
+El código en Matlab del modelo base carga un libro de cálculo que **no está
+en el repositorio**, de modo que su caso de estudio nunca se pudo rehacer. Lo
+que el proyecto llama caso base es una **reconstrucción sintética hecha a
+mano**, con perfiles escritos como constantes y gaussianas.
+
+La versión arbitrada del modelo, en *IEEE Latin America Transactions* 23(8)
+de agosto de 2025, **publica sus datos de entrada completos** en sus tablas
+II y III. Con eso el caso se arma exactamente.
+
+### Lo primero que aparece: no son el mismo caso
+
+| | Repositorio | Publicado |
+|---|---|---|
+| Demanda a las 13:00 | 2,8 · 0,6 · 0,5 · 3,5 · 0,3 · 0,2 | 1,24 · 0,46 · 0,12 · 3,17 · 0,06 · 1,03 |
+| Generación a las 13:00 | 4,00 · 3,81 · 2,50 · 0,97 · 0 · 0 | 2,00 · 2,60 · 0,89 · 0,30 · 0,61 · 0 |
+| Demanda a las 19:00 | 3,0 · 1,4 · 1,0 · 0 · 0,6 · 0,5 | 3,34 · 0,68 · 0,25 · 1,06 · 0,07 · 0,66 |
+| Generación a las 19:00 | 2,00 · 0 · 0 · 0,88 · 0 · 0 | 2,00 · 1,58 · 0,49 · 0,48 · 0,96 · 0 |
+| Coeficiente cuadrático | 2,167 · 0,420 · 0 · 0 · 0 · 0 | 0,089 · 0,110 · 0,069 · 0 · 0 · 0 |
+| Coeficiente lineal | 1.243,8 · 194,8 · 286,1 · 225,2 · 0 · 0 | 52 · 58 · 40 · 37 · 32 · 0 |
+| Factor de competencia | 0,1 | **1** |
+
+**No coincide ninguna de las siete filas.** Los coeficientes de costo del
+repositorio son los publicados multiplicados por un factor de escala de
+6,0865, con factores adicionales de 4 y 3,93 sobre el primer agente y con un
+valor de 47 que no aparece en la tabla publicada. Nada de eso está
+justificado en el módulo que los define.
+
+De modo que la validación que el proyecto venía haciendo «contra el modelo
+base» se hacía contra una reconstrucción, no contra el caso publicado.
+
+### La reproducción: ocho de doce afirmaciones
+
+Se armó el caso con los datos publicados y se enfrentó a las afirmaciones
+que el artículo hace de él. Las cotas no las publica; se toman las del
+modelo base, 114 y 1.250.
+
+**A las 13:00, con excedente de generación, se reproduce todo salvo una
+cosa:**
+
+| Afirmación del artículo | ¿Se reproduce? |
+|---|---|
+| Vendedores 1, 2, 3 y 5; compradores 4 y 6 | **Sí** |
+| Toda la demanda de la comunidad se suple dentro | **Sí**, 2,870 y 1,030 al milésimo |
+| Los generadores 1, 3 y 5 se despachan al máximo | **Sí** |
+| El generador 2, el más costoso, queda con exceso | **Sí**, coloca 1,820 de 2,140 |
+| El comprador 4, el de mayor demanda, paga más | **No**, paga 118,30 frente a 1.131,70 |
+| La recompensa de cada vendedor supera sus costos | **Sí** |
+
+**A las 19:00, con déficit, se reproduce el volumen pero no a quién se
+raciona:**
+
+| Afirmación del artículo | ¿Se reproduce? |
+|---|---|
+| Vendedores 2, 3 y 5; compradores 1, 4 y 6 | **Sí** |
+| Todos los vendedores se despachan en su totalidad | **Sí**, 2,030 kWh |
+| El comprador 1 cubre toda su demanda dentro | **No**, recibe 0,790 de 1,340 |
+| Los compradores 4 y 6 no la cubren | **No**, la cubren íntegra |
+| La recompensa de cada vendedor supera sus costos | **Sí** |
+
+### Lo que fallan las cuatro es siempre lo mismo
+
+**H-42 encontró la causa el mismo día, y no es la que este hallazgo suponía.**
+Lo que sigue describe correctamente el síntoma, pero la explicación buena
+está allí: las cuatro se deben a que la dinámica usaba una forma del término
+de competencia **sin precios**, y no la de la ecuación publicada. Con la
+forma publicada, las dos afirmaciones centrales sí se reproducen.
+
+Las cuatro discrepancias caen en la dimensión del precio y del reparto entre
+compradores, que es **exactamente la que H-33 y H-34 habían mostrado
+degenerada**. Las que se reproducen son las de volumen, despacho y
+cobertura de costos, que son las robustas.
+
+Y para las de las 19:00 se puede afirmar algo más fuerte que «difieren». Con
+banda uniforme el excedente de la comunidad es el ancho por el volumen, y el
+volumen es el lado corto en las dos asignaciones. Medido:
+
+| Reparto del déficit de 0,550 kWh | Excedente de la comunidad |
+|---|---:|
+| El del artículo: el comprador 1 pleno, se raciona a 4 y 6 | **2.306,08** |
+| El nuestro: 4 y 6 plenos, se raciona al comprador 1 | **2.306,08** |
+
+**Idénticos.** Las dos asignaciones son óptimas para la comunidad y lo que
+las separa es a quién le toca el racionamiento, que el problema de
+transporte deja indeterminado. No es que una esté bien y la otra mal.
+
+### La prueba de sensibilidad del artículo, en la dirección correcta
+
+El artículo sube el factor de competencia del agente 6 de 1 a 100 y publica
+que su precio sube en 25,22. Nuestra reproducción también lo sube, pero
+121,29, es decir unas cinco veces más, y sin que cambie la energía que ese
+agente recibe. La dirección se reproduce; la magnitud no.
+
+### Las discrepancias no vienen de las cotas que se eligieron
+
+Es la objeción obvia, porque el artículo arbitrado no publica las cotas, y
+se midió antes de concluir nada. Con tres bandas muy distintas el patrón
+sale **idéntico**:
+
+| Cotas | 13:00 | 19:00 |
+|---|---|---|
+| [114; 1.250] | comprador 4 a 118,3 · comprador 6 a 1.131,7 | comprador 1 cubre el 59,0 % |
+| [50; 1.650] | comprador 4 a 51,0 · comprador 6 a 1.599,0 | comprador 1 cubre el 59,0 % |
+| [280; 906] | comprador 4 a 289,4 · comprador 6 a 616,6 | comprador 1 cubre el 59,0 % |
+
+En los tres casos el comprador grande queda pegado al piso y el pequeño
+arriba, y **la cobertura del comprador racionado es exactamente la misma**,
+59,0 %, lo que vuelve a confirmar que el reparto no depende de las cotas. De
+modo que las cuatro discrepancias son estructurales y no un artefacto de la
+banda elegida.
+
+### De paso, la evidencia de CAL-48 sobre datos publicados
+
+El mismo barrido corrió la vía alternada con las cotas del modelo base, y el
+contraste es el que CAL-48 venía sosteniendo sobre datos propios, ahora
+sobre los del artículo:
+
+| Vía | 13:00 | 19:00 |
+|---|---|---|
+| Acoplada | 118,3 y 1.131,7, **las dos interiores** | 714,7 · 930,7 · 854,6, **las tres interiores** |
+| Alternada | **114,0 y 1.250,0**, las dos en una cota | **114,0** · 1.210,4 · **114,0** |
+
+La vía alternada clava cinco de los seis precios exactamente en una cota, y
+además deja un incumplimiento de restricción visible, con un comprador
+cubierto al 100,1 %. La acoplada no.
+
+---
+
+## H-42 · El modelo publicado y el modelo programado no son el mismo, y esta traducción seguía al programado
+
+**Estado: MEDIDO el 2026-09-06. Es el hallazgo de mayor alcance de la tanda,
+porque explica de una vez las cuatro discrepancias de H-41 y obliga a
+decidir qué se traduce.**
+
+El compromiso del trabajo era reproducir el modelo base tal como funciona y
+solo después adaptarlo. H-41 dejó cuatro afirmaciones del artículo sin
+reproducir, todas de precio y reparto. Buscando la causa apareció algo más
+grande.
+
+### Tres formas del mismo término, y las tres están en las fuentes
+
+El bienestar del comprador incluye un término que penaliza competir con los
+demás. Las fuentes del modelo base lo escriben de tres maneras distintas:
+
+| Nombre | Expresión | Dónde vive |
+|---|---|---|
+| Agregada | `media(β) · Σ_j P_ji` | lo que esta traducción usa, por defecto |
+| Del código | `(Σ_{k≠i} β_k) · Σ_j P_ji` | **la línea activa** de `JoinFinal.m` |
+| Publicada | `β_i · Σ_{k≠i} π_k Σ_j P_jk` | **la línea comentada** del mismo fichero, y la ecuación (11) de la versión arbitrada |
+
+La diferencia entre las dos primeras es un factor, y la diferencia con la
+tercera es de naturaleza: **en las dos primeras el término no contiene
+ningún precio**. Un comprador no puede responder al precio de los demás
+porque el precio de los demás no aparece en su aptitud.
+
+Eso importa porque el artículo arbitrado enuncia entre sus contribuciones,
+con estas palabras, «incluir un factor de competencia que permite a los
+consumidores responder a los precios establecidos por otros, según su
+necesidad energética». **En las dos primeras formas esa contribución no está
+implementada.**
+
+### Un error de traducción, medido, que no explica la inversión
+
+La forma del código no es la que esta traducción usa. El fichero en Matlab
+define el factor como un **vector fila**, de modo que `β · matriz` es un
+producto vector por matriz y da `Σ_{k≠i} β_k`, uniforme entre compradores.
+Con factor uniforme eso vale `β·(I−1)`, y la traducción usa `media(β)`, es
+decir **le falta el factor (I−1)**, con I compradores.
+
+De paso cae una afirmación que llevaba desde el 17 de abril en el registro
+de auditoría del módulo: decía que la indexación lineal de Matlab producía
+un término nulo para el primer comprador y `β` para los demás. **Es falso**:
+el factor es un vector fila y el producto es el ordinario.
+
+Corregido y medido sobre el caso publicado, **no cambia nada de fondo**:
+
+| Forma | 13:00 | 19:00 |
+|---|---|---|
+| Agregada | comprador 4 a 118,3 · comprador 6 a 1.131,7 | el comprador 1 cubre el 59,0 % |
+| Del código, con el factor corregido | **118,3 · 1.131,7**, idéntico | 701,0 · 941,6 · 857,5, y el 1 cubre **el mismo 59,0 %** |
+
+A las 13:00 coinciden al decimal, porque con dos compradores el factor vale
+uno. A las 19:00 los precios se mueven algo y **el reparto no se mueve**.
+
+### La forma publicada sí reproduce el artículo
+
+Y lo hace en las dos afirmaciones que H-41 había dejado caídas:
+
+| Forma | ¿El comprador grande paga más, a las 13:00? | ¿El comprador 1 se cubre entero, a las 19:00? |
+|---|---|---|
+| Agregada | **No**, 118,3 contra 1.131,7 | **No**, 59,0 % |
+| Del código | **No**, 118,3 contra 1.131,7 | **No**, 59,0 % |
+| **Publicada** | **Sí**, 1.136,0 contra 114,0 | **Sí**, 100,0 % |
+
+Contadas las doce afirmaciones que H-41 enfrenta, la forma publicada
+reproduce **once**, frente a las ocho de la forma agregada. La única que
+sigue cayendo es menor: el artículo dice que a las 19:00 el comprador 6 no
+cubre su demanda dentro de la comunidad, y aquí la cubre.
+
+### Pero la prueba de sensibilidad del artículo se invierte
+
+Y hay que decirlo, porque es lo que impide cerrar el asunto con la forma
+publicada sin más. El artículo sube el factor del agente 6 de 1 a 100 y
+publica que **ese agente sube su precio** en 25,22 y **recibe más energía**,
+de 0,2630 a 0,5316 kilovatios hora.
+
+| Forma | Precio del agente 6 | Energía que recibe |
+|---|---|---|
+| Agregada | sube 121,29 · dirección correcta, magnitud cinco veces mayor | no cambia |
+| **Publicada** | **baja 1.022,00** · dirección contraria | **baja** de 0,660 a 0,110 |
+
+Tiene explicación, y es que el factor entra en la ecuación publicada
+**multiplicando el castigo**: subirlo penaliza más a ese comprador, su
+aptitud cae y su precio con ella. La narración del artículo lo trata en
+cambio como una medida de urgencia, que debería empujar el precio hacia
+arriba. **La ecuación publicada y la narración del artículo no coinciden en
+el papel de ese factor.**
+
+De modo que ninguna de las tres formas reproduce el experimento de
+sensibilidad. Conviene llevarlo a la conversación con el asesor junto con lo
+demás.
+
+### Por qué las dos primeras invierten el resultado
+
+No es un accidente numérico. En las dos, el castigo es proporcional a **la
+energía propia** del comprador. Quien más compra recibe más castigo, su
+aptitud baja y su precio cae hacia el piso. De ahí sale exactamente lo que
+mide H-41: el comprador grande pegado al piso y el pequeño arriba.
+
+En la forma publicada el castigo depende del **precio y la energía de los
+demás**, no de la propia, y entonces el comprador con más necesidad puede
+pujar sin castigarse a sí mismo.
+
+### Lo que esto significa para el trabajo
+
+1. **El modelo publicado y el modelo programado no son el mismo modelo.** No
+   difieren en un coeficiente: difieren en si existe o no el mecanismo de
+   respuesta al precio ajeno.
+2. **Esta traducción venía siguiendo al programado**, y encima con un factor
+   de menos. De modo que la afirmación de que el proyecto «reproduce el
+   modelo base» hay que acotarla: reproduce el código, no el artículo.
+3. Las cuatro discrepancias de H-41 **tienen una sola causa**, y no son un
+   defecto de la traducción sino de qué fuente se tradujo.
+4. La función de bienestar que el proyecto **reporta** ya usa la forma
+   publicada, mientras la dinámica usa la agregada. Es decir, **hoy el
+   código informa de un bienestar que no corresponde al que su propia
+   dinámica persigue**. Adoptar la forma publicada alinea las dos.
+
+### La decisión, y la cautela que la condiciona
+
+**Se recomienda adoptar la forma publicada**, porque es la especificación
+arbitrada, es la única que reproduce el caso publicado y es la única que
+implementa una contribución que el artículo declara.
+
+**Pero hay una cautela que hay que resolver antes.** Con la forma publicada
+los precios del caso publicado cayeron en 1.136,0 · 114,0 · 1.250,0, es
+decir pegados a las cotas o muy cerca, que es justo el defecto que la vía
+acoplada venía a corregir. Podría cambiarse un problema por otro. La
+medición sobre las dos fronteras reales está en marcha y decide.
+
+La forma del código no es una alternativa: es la corrección de higiene de la
+agregada, conviene aplicarla, y ya está medido que no cambia ninguna
+conclusión.
+
+### Lo aplicado hasta ahora
+
+Las tres formas quedan disponibles en el solucionador acoplado, **con la
+histórica por defecto**, de modo que ninguna cifra publicada se mueve
+mientras no se decida. El bloque alternado ya tenía dos de las tres.
+
+---
+
+## Dónde queda cada hallazgo de la tanda de las recomendaciones (2026-09-05/06)
+
+Los siete salieron de revisar `Recomendaciones.txt` contra el código y los
+artefactos. Ninguno se descubrió leyendo: todos se midieron.
+
+**H-30 · Las cotas del juego son constantes escritas a mano.** Da origen a
+**CAL-47**. Declarado ya en el capítulo 5, en la caja de trampas ampliada
+por C-135, que ahora distingue cuatro papeles del «precio al que la red
+compra» en vez de tres. La corrección al código entra en la corrida
+canónica pendiente.
+
+**H-31 · El índice de desigualdad mide la dotación y no el mecanismo.**
+Toca el capítulo 12, que está por escribir, de modo que **no corrige nada
+publicado**: fija el encargo. El documento publicará dos medidas con
+papeles distintos, lo ganado por kWh aportado como principal y el índice
+sobre lo que cada mecanismo reparte para ordenar los siete.
+
+**H-32 · La condición inicial del bloque comprador.** **No entra en el
+documento.** Es un defecto latente que solo aparece con la banda estrecha,
+y como el documento aún no publica ningún resultado con banda estrecha, no
+hay nada que corregir. Queda aquí como condición previa de CAL-47 y como
+aviso para quien vuelva a tocar el solucionador.
+
+**H-33 · El excedente es el ancho de la banda por la energía.** Va al
+**capítulo 6**, donde se presenta el mecanismo, y no al de robustez. Es la
+propiedad que ordena el capítulo entero y la que explica por qué el
+ordenamiento entre mecanismos sobrevive al precio degenerado.
+
+**H-34 · Con datos reales el reparto es un programa lineal.** Va al mismo
+sitio que H-33 y al **capítulo 7**, donde vive la verificación del
+solucionador. Convierte el precio degenerado, el ciclo de período dos y la
+indiferencia del agregado al juego en una sola propiedad bien entendida en
+vez de tres rarezas.
+
+**H-35 · Ritmos semanales opuestos entre las dos fronteras.** Va al
+**capítulo 10**. Cumple un compromiso explícito de la Actividad 4.1 de la
+propuesta que estaba sin cumplir.
+
+**H-36 · La escala real de las instituciones.** Refuerza H-7 y va donde ya
+está declarado el asunto de la frontera, es decir el **capítulo 4** y el
+anexo de lo no representado. La ingesta completa de esos datos queda como
+trabajo futuro.
 
 ---
 

@@ -15,4 +15,71 @@
 \label{anx:preg}
 \justifying
 
-\placeholderfig{Anexo pendiente de redacción. Las decisiones que dependen de los asesores y su estado.}
+Este anexo reúne las decisiones que no corresponden a este trabajo y que se
+dejan planteadas con la evidencia reunida, para que quien decida lo haga
+sobre cifras y no sobre impresiones. Cada pregunta se enuncia, se acompaña
+de lo medido y termina con lo que cambiaría según la respuesta.
+
+\subsection{Las fuentes del modelo base y cuál manda}
+\label{sub:preg-competencia}
+
+Esta entrada nació como pregunta y dejó de serlo al aparecer la versión
+arbitrada del modelo. Se conserva porque el desacuerdo entre fuentes sigue
+existiendo y conviene que quede constancia de cuál se siguió.
+
+El bienestar del comprador incluye un término que penaliza competir con los
+demás, y un segundo término que recoge lo que paga por la energía. El guion
+en Python que acompaña al modelo escribe el primero multiplicando por la
+energía del comprador propio, mientras que la versión arbitrada, publicada
+en \emph{IEEE Latin America Transactions} en agosto de 2025, lo escribe
+multiplicando por la energía del comprador ajeno, igual que la formulación
+que aparece comentada en el código fuente en Matlab. Para el segundo, el
+documento extenso del modelo introduce un factor del precio de compra a la
+red que ni la versión arbitrada ni el guion contemplan.
+
+Las dos expresiones del primer término coinciden exactamente cuando todos
+los compradores adquieren la misma cantidad, que es el caso de las
+verificaciones sintéticas con que se validó la traducción en su momento, y
+se separan en cuanto las cantidades difieren. La magnitud de la separación
+se midió sobre cuatro compradores con cantidades distintas: la diferencia
+mayor asciende a \num{1755,95} unidades sobre valores del orden de
+\num{2500}.
+
+\textbf{Este trabajo sigue en los dos casos a la versión arbitrada}, que es
+la especificación publicada. La elección está además aislada: se comprobó
+que ninguna de las funciones que resuelven el mercado consulta esas
+expresiones, de modo que no mueve ni un flujo ni un precio. De los \num{672}
+valores que componen la huella de verificación de una jornada completa,
+cambiar de forma altera \num{25}, y los veinticinco son bienestar del
+comprador.
+
+Queda por confirmar, y es lo único que sigue abierto en este punto, si el
+guion en Python recoge una versión anterior del modelo o una corrección
+posterior que no llegó al artículo.
+
+\subsection{Las dos preguntas regulatorias}
+\label{sub:preg-regulatorias}
+
+Quedan planteadas y sin resolver desde el repositorio.
+
+La primera es si la exención de la contribución de solidaridad está
+efectivamente radicada para las cinco instituciones, o si es solo aplicable
+en derecho. El trabajo la aplica a las cinco, por tratarse de usuarios no
+regulados y de servicios de salud y educación, pero eso es una lectura de la
+norma y no la verificación de un trámite.
+
+La segunda es si la energía intercambiada dentro de la comunidad paga o no
+cargos por uso de redes. La respuesta gobierna el ancho de la banda de
+precios y, con él, el valor entero del mercado: sin exención la banda se
+vacía en la gran mayoría de las horas.
+
+Para esta segunda conviene llevar un antecedente del propio grupo. El
+trabajo sobre mercados entre pares en escenarios multimicrorred, publicado
+en \emph{TecnoLógicas} en 2024, modela explícitamente una penalización, o
+costo de transmisión, cuando un recurso envía energía a una microrred
+vecina. Es decir, el grupo ya ha modelado que el transporte entre zonas se
+cobra, lo que sitúa la pregunta en un terreno conocido en lugar de abrirla
+desde cero.
+
+\placeholderfig{Faltan por trasladar aquí las decisiones abiertas que hoy
+viven en el registro de correcciones.}

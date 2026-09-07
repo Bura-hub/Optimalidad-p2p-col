@@ -5869,6 +5869,443 @@ aplique además H-26 y P-21.
 
 ---
 
+## C-134 · El costo unitario medio aparecía con dos valores en el mismo capítulo
+
+**2026-09-05 · tipo: `cifra` · aplicada**
+
+El capítulo 5 imprimía **795,68 COP/kWh** en la nota de una figura y
+**792,06** dos párrafos más abajo, para la misma magnitud: el costo
+unitario medio de la categoría oficial en nivel de tensión 2. La segunda
+reaparecía además en el cierre del capítulo.
+
+**De dónde salía la diferencia.** El archivo de tarifas cubre trece meses,
+de abril de 2025 a abril de 2026, y el horizonte del estudio tiene nueve.
+Promediar el archivo entero da 792,06; promediar el horizonte da 795,68.
+Es la misma trampa que la puerta de datos ya declara para la serie de
+bolsa, donde el caché llega hasta enero de 2026 y hay que recortarlo antes
+de promediar.
+
+**Lo que hace que esto sea una corrección y no un descuido menor:** el
+generador de la figura **ya estaba arreglado**, y su propio comentario
+menciona las dos cifras. Lo que quedó viejo fue la prosa. El rastro de la
+figura de la banda dice 795,68 y el párrafo siguiente decía 792,06, de
+modo que el capítulo se contradecía consigo mismo a dos párrafos de
+distancia. Es precisamente lo que la norma de que ninguna cifra derivada
+se escriba a mano existe para evitar: la cifra estaba escrita a mano y
+sobrevivió al arreglo del generador.
+
+**Aplicado.** Las dos apariciones de 792,06 pasan a 795,68. La banda del
+capítulo queda entonces de 182,5 a 795,68 COP/kWh.
+
+**Aviso para la revisión final.** Conviene un barrido de las cifras de
+tarifa del documento contra el rastro de su figura, porque este caso
+prueba que arreglar el generador no arregla el texto.
+
+---
+
+## C-135 · La banda de precios estaba mal delimitada por abajo, y su ancho resulta ser el cargo de comercializar
+
+**2026-09-06 · tipo: `cifra` + `argumento` · aplicada**
+
+El capítulo 5 delimitaba la banda de ganancia mutua entre la media de bolsa
+y el costo unitario, y afirmaba que entre ambos «hay un factor superior a
+cuatro». **El principio estaba bien enunciado y la cifra estaba mal.**
+
+**Lo que el vendedor obtiene de la red no es el precio de bolsa.** La
+Resolución CREG 174 liquida el excedente en dos tramos: mientras la
+inyección acumulada del mes no supere el retiro, la permuta se valora a la
+tarifa menos el componente de comercialización, y solo lo que excede ese
+cruce va al mercado mayorista. Medido sobre el horizonte, la permuta absorbe
+el **100 %** del excedente de Mariana, la UCC, el hospital y el CESMAG, y el
+**61,9 %** del de Udenar, porque con una cobertura del 20 % ninguna
+institución inyecta en un mes más de lo que retira.
+
+**La identidad que aparece al corregirlo.** Si el comprador paga el costo
+unitario completo y el vendedor recibe ese mismo costo unitario menos la
+comercialización, la distancia entre ambos es exactamente ese componente:
+
+| | Con piso de bolsa, como decía | Con piso de permuta, corregido |
+|---|---:|---:|
+| Piso | 182,50 | **620,76** |
+| Techo | 795,68 | 795,68 |
+| Ancho | 613,18 | **174,92** |
+
+**El ancho de la banda es el cargo de comercializar.** Son 174,92 COP/kWh de
+media y notablemente estables, entre 171,95 y 181,03 en los nueve meses, un
+recorrido del 5,3 %. La versión anterior sobrestimaba el espacio del
+mercado en un factor de 3,5.
+
+**Comprobación cruzada que cierra el asunto.** El propio capítulo ya
+publicaba, en el desglose del costo unitario, una comercialización media de
+**174,9 COP/kWh**. Es la misma cifra a la que llega la identidad por otra
+vía. La banda estaba escrita en el capítulo desde el principio; nadie la
+había reconocido.
+
+**Aplicado.** El párrafo de la amplitud se sustituye por dos subsecciones,
+una que mide el reparto entre tramos y otra que enuncia la identidad con su
+ecuación, más una caja de lectura que traduce el resultado: el margen no
+viene de generar más barato ni de consumir menos, **viene de ahorrarse un
+intermediario**.
+
+**La caja de trampas gana un cuarto papel.** Antes distinguía tres cifras
+del «precio al que la red compra»: el piso de la dinámica, la serie de
+liquidación y el nominal de los barridos. Ahora son cuatro, porque el piso
+económico de la banda, que es la permuta, no coincide con el piso de la
+dinámica, que es la constante heredada. La caja declara la discrepancia y
+remite a la corrida canónica pendiente.
+
+**Lo que esto cambia aguas abajo.** El excedente del mercado es el ancho de
+la banda por la energía transada, es decir H-33, de modo que corregir el
+ancho **divide el excedente medido por 3,5**. Es el efecto más grande de
+toda esta tanda y va en contra de la tesis, lo que obliga a tomarlo en
+serio. Se aplicará con CAL-47 en la próxima corrida canónica.
+
+Ver H-30, H-33, H-34 y `docs/adr/0047-cal47-banda-de-precios-medida.md`.
+
+---
+
+## C-136 · Las dos correcciones quirúrgicas del solucionador
+
+**2026-09-06 · tipo: `codigo` · aplicada, con compuerta**
+
+Las dos nacen de medir el modelo con la banda estrecha de CAL-47, y ninguna
+puede tocar el agregado, porque el excedente es el ancho de la banda por la
+energía transada. Solo mueven el reparto.
+
+### Primera · el arranque se reparte sobre la banda y no sobre el techo
+
+El bloque comprador arrancaba en `techo · I/(I+1)`, con I compradores. Esa
+forma viene del modelo base y supone que el piso es despreciable frente al
+techo. Con la banda de permuta **nace por debajo del piso**, el recorte lo
+devuelve al borde, y allí el peso que mueve la dinámica vale prácticamente
+cero y el precio queda congelado.
+
+La corrección reparte **la banda** en lugar del techo, y **solo cuando la
+forma original cae fuera**. Comprobado en la compuerta:
+
+| Banda | Compradores | Arranque original | ¿Dispara? |
+|---|---:|---:|---|
+| Modelo base | 1 a 4 | 625,00 a 1.000,00 | **No**, en ninguno |
+| Canon | 1 a 4 | 453,14 a 725,02 | **No**, en ninguno |
+| Permuta | 1 | 398,97 | **Sí** |
+| Permuta | 2 | 531,96 | **Sí** |
+| Permuta | 3 | 598,46 | **Sí** |
+| Permuta | 4 | 638,35 | No, ya cae dentro |
+
+**El caso base y el canon quedan idénticos bit a bit**, que era la condición.
+
+### Segunda · el paso de integración se comprueba en vez de heredarse
+
+El paso estaba fijado por número de puntos sobre un horizonte, es decir
+heredado de una calibración hecha para otra banda. Medido con banda
+estrecha, partirlo en cuatro **más que duplica la tajada del vendedor**.
+
+Se añade una comprobación **opcional**, siguiendo el patrón de las decisiones
+previas del proyecto: por defecto desactivada y el comportamiento es
+exactamente el histórico. Cuando se activa, el bloque se integra con el paso
+heredado y con el paso partido; si la diferencia cae por debajo de la
+tolerancia se devuelve **la integración gruesa**, de modo que el resultado
+sigue siendo idéntico bit a bit siempre que el paso heredado sea suficiente.
+Cuando no lo es, se duplica hasta cumplir o agotar cuatro refinos.
+
+La corrida canónica debe activarla. El coste es el doble cuando el paso
+basta y hasta dieciséis veces cuando no.
+
+### Compuerta
+
+`tests/gate_cal47_solucionador.py`, en verde. Comprueba que el arranque
+usado siempre cae dentro de la banda, que las dos bandas anchas reproducen,
+y que la comprobación de paso con tolerancia holgada devuelve exactamente el
+resultado histórico.
+
+**Las dos pruebas doradas siguen pasando**, 8 de 8 y 7 de 7.
+
+**Límite de la compuerta, que hay que declarar.** El caso sintético prueba
+que las correcciones son inertes donde deben serlo, pero **no reproduce el
+fallo de exactitud**, que solo aparece con la rigidez de los datos reales.
+La validación de que la primera corrección hace lo que promete se hizo sobre
+el dato real, no sobre el sintético.
+
+Ver H-32, H-37 y `docs/adr/0047-cal47-banda-de-precios-medida.md`.
+
+---
+
+## C-137 · CAL-47 y CAL-48 pasan al código, y la clase del usuario deja de confundirse con la fila que se lee
+
+**2026-09-06 · tipo: `codigo` · aplicada, con compuerta**
+
+Cuatro cambios, todos **desactivados por defecto** para que ninguna cifra se
+mueva en silencio, y todos expuestos en la línea de órdenes.
+
+### 1 · Las cinco instituciones son usuarios NO REGULADOS
+
+**La corrección la señaló el autor y era conceptual, no de cifra.** El
+proyecto las clasificaba entre «oficial» y «comercial», que son **clases del
+mercado regulado**. Estas cinco no pertenecen a ninguna: compran por
+contrato bilateral. Poner las cinco en «oficial», como se hizo en un primer
+intento, daba el número correcto por el motivo equivocado.
+
+Ahora existe la clase `no_regulado` y una función que traduce **la clase del
+usuario** a **la fila que se lee como referencia**. Un usuario no regulado no
+tiene fila propia en una tabla de regulados, de modo que se le lee la fila
+sin contribución de solidaridad. El código dice ahora lo que se decidió, y
+no otra cosa que dé el mismo número.
+
+Comprobado: el costo unitario por agente pasa de `797,06 · 956,47 · 956,47 ·
+797,06 · 956,47` a **`797,06` para las cinco**.
+
+El fundamento normativo queda escrito junto al código: Decreto 3087 de 1997
+artículo 6, que no incluye al sector oficial entre los sujetos pasivos, y su
+parágrafo 1, que exime a hospitales y centros educativos sin ánimo de lucro
+**que así lo soliciten**; más la Ley 30 de 1992 artículo 98, que obliga a que
+toda universidad privada colombiana sea sin ánimo de lucro. **Queda
+declarado que la exención se supone solicitada.**
+
+### 2 · El mercado se puede resolver acoplado
+
+El motor gana el método y su horizonte. Con `acoplado` la hora se resuelve
+integrando precios y cantidades juntos, como hace el modelo base, en vez de
+alternar entre bloques. El residuo de convergencia se guarda donde el
+alternado guardaba el suyo, así que el diagnóstico de la corrida conserva
+una sola columna.
+
+Se añade además la comprobación de la bandera de éxito del integrador, que
+**no se estaba mirando**: una hora que el solver no logra resolver se marca
+ahora como sin mercado, igual que ya se hacía con las que producen valores
+no numéricos.
+
+### 3 · Las dos cotas admiten vector
+
+El techo por comprador y el piso por vendedor, en el bloque comprador, en la
+liquidación y en el límite económico de generación. Con escalares el
+resultado es idéntico bit a bit.
+
+### 4 · Las dos correcciones del solucionador
+
+El arranque del bloque comprador se reparte sobre la banda y no sobre el
+techo, y solo cuando la forma original cae fuera; y el paso de integración
+se puede comprobar en vez de heredarse. Ver C-136.
+
+### Compuerta
+
+`tests/gate_cal47_solucionador.py` en verde, con seis comprobaciones que
+incluyen la identidad bit a bit del escalar frente al vector constante. Las
+dos pruebas doradas siguen pasando, 8 de 8 y 7 de 7.
+
+### Lo que queda pendiente y hay que decir
+
+Nada de esto ha entrado todavía en una corrida canónica. Cuando entre,
+**invalida el canon**, junto con CAL-45, H-26 y P-21. Y cambiará **todo el
+reparto publicado**, aunque no el agregado, por la identidad del excedente.
+
+---
+
+## C-138 · La nota de auditoría del bienestar del comprador daba por buena una traducción que las fuentes contradicen
+
+**2026-09-06 · tipo: `registro` · aplicada, con compuerta**
+
+El módulo del bloque comprador llevaba desde 2026-04-17 una nota de
+auditoría que afirmaba que la función de bienestar «sí usa la forma
+matricial correcta» y que eso era «consistente con la definición de
+bienestar» del modelo base. La afirmación era incompleta en un punto que
+importa: la matriz sí era la correcta, pero **las fuentes del modelo base no
+coinciden en el índice de la energía que multiplica**, y la nota no lo decía
+porque nadie las había enfrentado.
+
+El artículo publicado y la línea comentada del MATLAB multiplican por la
+energía del comprador ajeno; el script en Python del modelo base multiplica
+por la propia. Coinciden solo cuando todos compran lo mismo. El detalle,
+las cifras y la decisión están en H-39.
+
+**Qué se corrige.** La nota pasa a decir lo que hay: que existen dos formas,
+cuál sigue el proyecto y por qué, y que la elección queda anotada para el
+asesor. Se añade la compuerta `tests/gate_c138_bienestar_comprador.py`, que
+fija la forma del artículo, comprueba que el script discrepa —de modo que la
+compuerta puede fallar y no es un adorno— y verifica sobre el árbol
+sintáctico que ninguna función de resolución llama al bienestar.
+
+**El código no cambia.** Se probó a adoptar la forma del script y se midió
+el efecto antes de descartarla: de los 672 números de la huella del día
+completo **difieren 25**, y los veinticinco son bienestar del comprador, las
+veinticuatro horas y el agregado. Ningún flujo, precio o valor de
+liquidación se mueve. El agregado del día habría pasado de −725,47 a
+−3.587,30 unidades.
+
+**Rectificación, que conviene dejar escrita.** Presenté primero esta
+discrepancia como un defecto de nuestra traducción y llegué a aplicarla como
+tal. Al comprobar la ecuación 14 del artículo y la línea comentada del
+MATLAB, la traducción resultó ser la que sigue a las dos fuentes publicadas,
+y la que discrepa es el script. El cambio se revirtió.
+
+Ver H-39.
+
+---
+
+## C-139 · El capítulo de verificación recibe la medida que al proyecto le faltaba
+
+**2026-09-06 · tipo: `documento` · aplicada**
+
+El capítulo estaba en esqueleto y su encargo no mencionaba ninguna medida de
+calidad de la solución, porque el proyecto no tenía ninguna. Se añaden sus
+dos primeras subsecciones y su primera figura.
+
+**Por qué no se adopta la medida del modelo de referencia.** Su error
+normalizado se calcula sobre el ahorro del comprador y la prima del
+vendedor, cuya suma es el ancho de la banda por la energía transada, y la
+energía está fijada por una restricción de igualdad. De modo que ese total
+vale lo mismo en todos los métodos y el número mide el reparto, no la
+eficiencia. El capítulo lo dice y explica por qué hace falta otra cosa.
+
+**La medida que entra.** Cuánto del ahorro alcanzable captura el mercado,
+tomando como referencia lo que la comunidad deja de pagarle a la red. Se
+parte en volumen y emparejamiento, porque las dos preguntas tienen
+respuestas muy distintas.
+
+**La figura.** `f7_01_eficiencia_emparejamiento`, panel doble por frontera.
+Cada hora es un segmento que va del peor reparto posible al óptimo, con dos
+marcas dentro: un círculo hueco para un reparto proporcional ciego y un
+rombo lleno para el mercado. Las horas van ordenadas por la ventaja del
+segundo sobre el primero, de modo que el signo recorra el eje una sola vez y
+la inversión entre fronteras se lea sin contar puntos. El tramo entre las
+dos marcas es continuo cuando el mercado gana y discontinuo cuando pierde,
+para que la distinción sobreviva impresa en gris.
+
+**Dos defectos de la primera versión, corregidos antes de publicarla.** La
+leyenda y el rótulo del eje salieron superpuestos, porque el ayudante de
+rótulo común llama al ajuste automático y la leyenda acababa encima; se
+colocan a mano en dos renglones propios. Y el recuadro elegido llevaba
+título fijo y no admitía argumento, de modo que el título que le pasé se
+habría impreso como texto corriente del cuerpo.
+
+**Cifras.** Volumen del \pct{100,0} en las sesenta horas medidas, las dos
+fronteras y las dos vías. Emparejamiento: M1 \pct{81,8} de media y
+\pct{94,0} ponderado, contra \pct{73,9} del reparto ciego, ganando en 22 de
+30 horas; M3 \pct{88,8} y \pct{90,9}, contra \pct{90,9} del reparto ciego,
+perdiendo en 17 de 30.
+
+**Un ajuste de herramienta, de paso.** El medidor de estilo solo recorría
+los capítulos 2 a 5 y ahora incluye el 7. La primera pasada delató un abuso
+de la glosa característica del autor, 5,85 por mil frente a 1,24 del perfil,
+que se corrigió hasta 2,36.
+
+Ver H-39.
+
+---
+
+## C-140 · Aparece la versión arbitrada del modelo base y obliga a rehacer tres pasajes
+
+**2026-09-06 · tipo: `registro` · aplicada, con compuerta**
+
+Dos artículos del grupo que no estaban en el árbol resultaron decisivos: la
+versión arbitrada del modelo base, publicada en *IEEE Latin America
+Transactions* en agosto de 2025, y su precedente multimicrorred de
+*TecnoLógicas* de 2024. Lo medido está en H-40; aquí queda lo que hubo que
+corregir.
+
+**Primero, dos preguntas del anexo dejan de serlo.** La subsección que
+planteaba al comité cuál de las dos formas del término de competencia era la
+buena, y lo mismo para el término del pago, se reescribe: la ecuación (11)
+de la versión arbitrada escribe las dos formas que el proyecto ya usaba. La
+entrada se conserva como nota documental, porque el desacuerdo entre fuentes
+sigue existiendo y conviene que conste cuál se siguió, y deja abierto lo
+único que sigue sin respuesta, que es si el guion en Python recoge una
+versión anterior o una corrección posterior.
+
+**Segundo, el capítulo de verificación afirmaba de menos.** Su primera
+subsección decía que la métrica del modelo de referencia mide el reparto y
+no la eficiencia. Eso vale para el documento extenso, que reporta
+\pct{0,316}, pero **no para la versión arbitrada, que mide sobre la suma de
+los bienestares y reporta \pct{0,23}**. La subsección se rehace para
+recoger las dos, y el argumento acaba siendo más fuerte: la segunda métrica
+tampoco discrimina, porque la suma de bienestares manda todos los precios al
+piso por una razón analítica. Medido en cinco horas de tres conjuntos de
+datos, la distancia al piso resulta exactamente nula.
+
+**Tercero, el código y la compuerta citaban la autoridad equivocada.** El
+comentario del módulo del bloque comprador y la compuerta nombraban «el
+artículo» sin distinguir cuál, cuando hay tres documentos que no coinciden.
+Pasan a citar la versión arbitrada con su referencia completa y a enumerar
+las cuatro fuentes con lo que dice cada una.
+
+**Una hipótesis mía descartada de paso.** Al ver que la versión arbitrada
+normaliza sobre el bienestar total, supuse que su \pct{0,23} salía pequeño
+porque el denominador está dominado por la utilidad de autoconsumo, que no
+depende del mercado. Lo medí antes de escribirlo y **es falso**: la parte
+sensible al mercado pesa entre el \pct{145} y el \pct{296} del total, porque
+el total es una diferencia pequeña entre términos grandes de signo opuesto.
+La explicación correcta es la degeneración en el precio.
+
+**Cuarto, un antecedente para la pregunta regulatoria abierta.** El trabajo
+de *TecnoLógicas* modela una penalización, o costo de transmisión, cuando un
+recurso envía energía a una microrred vecina. Se añade al anexo, junto a la
+pregunta de si la energía intercambiada dentro de la comunidad paga cargos
+por uso de redes, porque sitúa esa conversación en terreno conocido.
+
+Ver H-40.
+
+---
+
+## C-141 · La nota de auditoría del término de competencia afirmaba algo falso del código original
+
+**2026-09-06 · tipo: `codigo` · aplicada**
+
+El módulo del bloque comprador llevaba desde el 17 de abril una nota de
+auditoría que describía qué hace el fichero en Matlab con el término de
+competencia. Decía que el producto se resolvía por indexación lineal y que
+eso producía un término nulo para el primer comprador y el factor para los
+demás.
+
+**Es falso.** El factor se define en ese fichero como un vector fila de seis
+elementos, de modo que el producto es el ordinario entre vector y matriz y
+produce, para cada comprador, la suma de los factores de los demás. Con
+factor uniforme eso vale el factor por el número de compradores menos uno.
+
+La consecuencia práctica es que **la traducción se quedaba corta por ese
+factor**, con dos compradores en nada y con cuatro en tres veces.
+
+**Qué se corrige.** La nota pasa a describir lo que el fichero hace, y se
+añade la forma faltante al bloque comprador y al solucionador acoplado, que
+no tenía ninguna de las dos alternativas. Las tres formas quedan
+disponibles, **con la histórica por defecto**, de modo que ninguna cifra
+publicada se mueve mientras no se decida.
+
+Se añade también, en el mismo comentario, la incoherencia que el módulo
+arrastra y que conviene tener a la vista: la función que informa del
+bienestar usa la forma publicada mientras la dinámica usa la agregada, es
+decir, el módulo reporta un bienestar que no corresponde al que su propia
+dinámica persigue.
+
+**Efecto medido del arreglo del factor: ninguno de fondo.** Sobre el caso
+publicado, a las 13:00 los resultados coinciden al decimal, porque con dos
+compradores el factor vale uno; a las 19:00 los precios se mueven algo y el
+reparto no se mueve nada.
+
+Las pruebas doradas siguen pasando, 7 de 7, y las dos compuertas del núcleo
+siguen en verde.
+
+Ver H-42 y `docs/adr/0049-cal49-termino-de-competencia.md`.
+
+---
+
+## C-142 · El capítulo de verificación recibe la reproducción del caso publicado
+
+**2026-09-06 · tipo: `documento` · pendiente de la medición en curso**
+
+El capítulo tenía dos subsecciones, sobre con qué se mide la calidad y sobre
+cuánto del ahorro alcanzable se captura. Le falta la que ordena a las dos, y
+que ahora por fin se puede escribir: **la reproducción del caso publicado**.
+
+Hasta hoy no era posible, porque el fichero en Matlab carga un libro de
+cálculo que no está en el repositorio y los perfiles del proyecto son una
+reconstrucción sintética. La versión arbitrada trae sus datos de entrada
+completos.
+
+Queda por redactar hasta que cierre la medición sobre las dos fronteras, que
+es la que decide si se adopta la forma publicada. El material está en H-41 y
+H-42 y las sondas son `caso_publicado.py` y `competencia_real.py`.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

@@ -225,25 +225,88 @@ cobra por entregarla. Es, por tanto, un margen de origen regulatorio y no
 tecnológico, lo que condiciona su permanencia: una reforma tarifaria puede
 estrecharlo sin que cambie nada en las instalaciones.}
 
-La amplitud de esa banda es lo que hace viable el ejercicio, y su origen
-es enteramente regulatorio. Entre la media de bolsa
-(\uni{182.5}{COP/kWh}) y el costo unitario oficial, \uni{792.06}{}, hay un
-factor superior a cuatro. Cualquier precio intermedio deja a las dos
-partes en mejor posición que operar contra la red.
+La amplitud de esa banda es lo que hace viable el ejercicio, y su origen es
+enteramente regulatorio. Ahora bien, determinarla exige responder con
+precisión qué obtiene cada parte si no negocia, y la respuesta del lado del
+vendedor no es la que sugiere la intuición.
+
+\subsubsection{Lo que el vendedor obtiene de la red no es el precio de
+bolsa}
+
+La Resolución CREG 174 de 2021 liquida el excedente en dos tramos. Mientras
+la inyección acumulada del mes no supere el retiro, el excedente cierra una
+permuta y se valora a la tarifa menos el componente de comercialización;
+solo lo que excede ese cruce se vende al mercado mayorista. La distinción
+importa porque los dos tramos se pagan a precios que difieren en un factor
+de cinco.
+
+Medido sobre el horizonte, el reparto entre tramos no deja lugar a duda: la
+permuta absorbe el \pct{100} del excedente de la Universidad Mariana, la
+Universidad Cooperativa, el hospital y el CESMAG, y el \pct{61.9} del de la
+Universidad de Nariño. La razón es aritmética y viene del
+Capítulo~\ref{sec:frontera}: con una cobertura del \pct{20}, ninguna
+institución inyecta en un mes más energía de la que retira, de modo que su
+excedente nunca llega a cruzar el umbral que lo enviaría a bolsa.
+
+El piso de la banda es, por tanto, la permuta, \uni{620.76}{COP/kWh} de
+media en el horizonte, y no la media de bolsa, \uni{182.5}{}.
+
+\subsubsection{El ancho de la banda es el cargo de comercializar}
+
+De lo anterior se sigue una identidad que conviene enunciar porque ordena
+todo lo que viene después. Si el comprador paga a la red el costo unitario
+completo y el vendedor recibe ese mismo costo unitario menos el componente
+de comercialización, entonces la distancia entre ambos es exactamente ese
+componente:
+
+\begin{equation}
+\text{ancho de la banda} \;=\;
+\underbrace{\pi^{\mathrm{CU}}}_{\text{lo que paga el comprador}}
+\;-\;
+\underbrace{\left(\pi^{\mathrm{CU}} - \pi^{C}\right)}_{\text{lo que recibe el vendedor}}
+\;=\; \pi^{C}
+\label{eq:precios-ancho}
+\end{equation}
+
+Es decir, \textbf{todo el espacio económico de un mercado entre pares,
+frente a la alternativa individual que la regulación ya ofrece, es el cargo
+de comercializar}. Son \uni{174.92}{COP/kWh} de media, y llama la atención
+su estabilidad: entre \uni{171.95}{} y \uni{181.03}{} a lo largo de los
+nueve meses, un recorrido del \pct{5.3}.
+
+Calculada con la media de bolsa como piso, la banda mediría
+\uni{638.77}{COP/kWh}, es decir 3,7 veces más. Esa es la magnitud de la
+sobrestimación en que se incurre al tomar el mercado mayorista por la
+alternativa del vendedor.
+
+\begin{lecturabox}
+La lectura práctica de la ecuación~\ref{eq:precios-ancho} es que el margen
+del mercado entre pares no procede de generar más barato ni de consumir
+menos, sino de ahorrarse un intermediario. Eso acota de antemano cuánto
+puede valer el mecanismo y explica por qué el resultado es modesto en
+términos absolutos aun cuando el ordenamiento entre mecanismos sea claro.
+\end{lecturabox}
 
 \begin{trampabox}
 A lo largo del documento aparecen varias cifras asociadas al «precio al
 que la red compra», y la confusión se deshace de una vez, porque
 corresponden a papeles distintos de un mismo referente económico. El
-\emph{piso de la dinámica} del juego es una constante de
-\uni{280}{COP/kWh}, heredada de la calibración inicial, que acota
-inferiormente la búsqueda del equilibrio. La \emph{serie horaria de
+\emph{piso económico} de la banda es la permuta, \uni{620.76}{COP/kWh} de
+media, que es lo que la regulación vigente paga al vendedor por casi todo
+su excedente. El \emph{piso de la dinámica} del juego, en cambio, es una
+constante de \uni{280}{COP/kWh}, heredada de la calibración inicial, que
+acota inferiormente la búsqueda del equilibrio y que no coincide con
+ninguno de los demás. La \emph{serie horaria de
 bolsa}, con media de \uni{182.5}{COP/kWh}, no interviene en esa dinámica:
 es la que liquida los escenarios que la requieren y la exportación a red
 del excedente no vendido. Y el \emph{valor nominal} de los barridos de
 sensibilidad del Capítulo~\ref{sec:rob} es también \uni{280}{}, coherente
-con el piso del juego. Piso de la dinámica, serie de liquidación y nominal
-de barridos son tres papeles y no deben confundirse.
+con el piso del juego. Permuta, piso de la dinámica, serie de liquidación y
+nominal de barridos son cuatro papeles y no deben confundirse. Que el
+primero y el segundo no coincidan es una discrepancia reconocida: la
+corrección está decidida y pendiente de la próxima corrida canónica, de
+modo que hasta entonces el modelo negocia con el piso heredado y este
+capítulo lo declara aquí.
 \end{trampabox}
 
 \subsection{El costo de generar}
@@ -317,6 +380,6 @@ En síntesis, con este capítulo queda completo el insumo del modelo: a las
 dos matrices de energía del Capítulo~\ref{sec:prep} se suman ahora la
 serie horaria de bolsa, la matriz mensual de tarifa por institución y el
 costo nivelado de generar, junto con la banda de \uni{182.5}{} a
-\uni{792.06}{COP/kWh} dentro de la cual puede existir un intercambio que
+\uni{795.68}{COP/kWh} dentro de la cual puede existir un intercambio que
 convenga a las dos partes. El capítulo siguiente describe el mecanismo que
 busca un precio dentro de esa banda.

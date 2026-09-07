@@ -423,6 +423,39 @@ semántica de mejor respuesta; ausencia de programa de respuesta a la
 demanda con datos reales; invariancia del equilibrio que permite fijar dos
 de los parámetros de costo en cero.
 
+**La frase que ordena el capítulo, y que va aquí y no en robustez** (H-33 y
+H-34, medidos el 2026-09-06):
+
+> La optimización fija cuánta energía se mueve y cuánto vale el
+> intercambio; la dinámica y las cotas solo deciden **quién se lleva ese
+> valor**.
+
+Se apoya en tres piezas que hay que desarrollar en este orden:
+
+1. **La energía la fija el lado corto**, y es invariante a las cotas.
+   Medido en seis comparaciones de la sonda de la banda: mismos flujos y
+   mismos kWh al decimal con cotas completamente distintas.
+2. **El excedente total es el ancho de la banda por esa energía.** La prima
+   del vendedor y el ahorro del comprador se cancelan en el precio al
+   sumarlas. Es una identidad, no un resultado empírico, y está comprobada
+   al último decimal.
+3. **Sin curvatura en el costo el reparto es un programa lineal**, cuyo
+   valor óptimo es único pero cuyos duales, es decir los precios, forman un
+   poliedro. De ahí sale el precio degenerado, y **no es un defecto
+   numérico sino el comportamiento esperado de un mercado con costo
+   lineal**.
+
+Las dos cotas **no son un recorte**: son las raíces del peso que multiplica
+la dinámica del precio, de modo que los dos extremos son equilibrios
+absorbentes. Eso hay que decirlo donde se presenta el mecanismo, porque es
+lo que explica que el precio viva pegado a una cota en el 84 % de las
+transacciones.
+
+**Cómo enmarcarlo.** Que el aparato dinámico gobierne el reparto y no el
+agregado no es una debilidad del trabajo: es justamente lo que hace robusto
+el ordenamiento entre mecanismos. Escríbase así, en positivo, y no como una
+cautela.
+
 ### Capítulo 7 — Verificación del solucionador
 
 | Fig. | Qué muestra | Estado | Fuente |
@@ -433,11 +466,63 @@ de los parámetros de costo en cero.
 | 7.4 | El ciclo de período dos | N (MATLAB) | ídem |
 | 7.5 | Volumen reproducible, precio degenerado | N | ídem |
 | 7.6 | Sensibilidad al horizonte de integración | N | `t2_tspan_sensibilidad.py` |
+| 7.1 nueva | **Ahorro capturado frente al alcanzable**, M1 y M3 | **HECHA** | `sonda/eficiencia.py` y `sonda/cotas_excedente.py` |
+| 7.x | **El caso publicado, reproducido con sus datos** | pendiente | `sonda/caso_publicado.py` |
+| 7.x | **Las tres formas del término de competencia** | midiendo | `sonda/competencia_real.py` |
+
+**Reordenación del encargo, 2026-09-06.** El capítulo abre ahora con dos
+subsecciones que antes no existían y que ordenan a las demás: con qué se
+mide la calidad de una solución, y cuánto del ahorro alcanzable captura el
+mercado. La razón está en H-39 y H-40: **ninguna de las dos métricas del
+modelo base sirve aquí**, una porque mide el reparto y no la eficiencia, y
+la otra porque su óptimo manda todos los precios al piso y no puede
+discriminar mecanismos de precio.
+
+**Y hay un asunto que el capítulo tiene que abordar de frente**, porque es
+lo primero que un jurado va a preguntar (H-41 y H-42). El caso del modelo
+base **por fin es reproducible**, con los datos que la versión arbitrada
+trae en sus tablas, y de ahí salen dos cosas incómodas: que **lo que el
+proyecto llama caso base no es el caso publicado**, ni en perfiles ni en
+costos ni en el factor de competencia; y que **el modelo publicado y el
+modelo programado no son el mismo modelo**, porque el término de competencia
+de la ecuación publicada lleva el precio de los demás compradores y la línea
+que quedó activa en el código no lleva ninguno. Esta traducción venía
+siguiendo al código. Adoptar la forma publicada es la decisión de CAL-49 y
+está condicionada a la medición en curso.
 
 Justifica el resultado más incómodo y más honesto del capítulo: el volumen
 transado reproduce entre implementaciones con diferencia del orden de
 10⁻¹², pero el precio no, porque el equilibrio es degenerado dentro del
 ciclo. Es un resultado sobre el modelo, no un fallo de la traducción.
+
+**Y desde el 2026-09-06 hay por fin una explicación, no solo una
+constatación** (H-34). Con datos reales el coeficiente cuadrático del costo
+vale cero para las cinco instituciones, justificadamente porque un arreglo
+fotovoltaico no tiene costo de combustible. Sin curvatura el objetivo del
+vendedor es lineal y el reparto se vuelve **un problema de transporte
+lineal**, cuyo valor óptimo es único pero cuyos duales, es decir los
+precios, forman un poliedro. **El precio degenerado es el comportamiento
+esperado de un mercado con costo lineal**, no una rareza numérica. Conviene
+además decir que el modelo base sí tenía curvatura en dos de sus seis
+vendedores, de modo que la degeneración aparece al pasar a datos reales y no
+estaba en el original.
+
+Sobre la convexidad, por bloques y sin ambigüedad: el problema del vendedor
+dadas las cotas es convexo, y lineal en modo real, que es el caso límite; el
+bloque comprador **no optimiza**, su aptitud no es cóncava y es una dinámica
+de replicador; y el **problema conjunto no es convexo**, porque es de dos
+niveles resuelto por respuesta alternada, sin garantía de convergencia. El
+ciclo de período dos es lo típico cuando el nivel de abajo tiene óptimo
+plano y el de arriba salta entre vértices.
+
+**Añádase una subsección de exactitud numérica** (H-37). El bloque comprador
+se integra con Euler explícito de paso fijo, y el paso de producción queda
+justo por debajo del límite de estabilidad que el propio código documenta.
+Medido: alargar el horizonte o multiplicar las iteraciones del lazo externo
+no cambia nada, pero **afinar el paso cuatro veces más que duplica la tajada
+del vendedor**. Afecta al reparto y nunca al agregado, por la identidad del
+capítulo 6. Antes de la corrida canónica el paso debe fijarse por criterio
+de estabilidad y no por número de puntos.
 
 ### Capítulo 8 — Los escenarios como algoritmos
 
@@ -480,6 +565,31 @@ documenta lo que se creyó y resultó falso, con la prueba que lo refutó.
 Aquí sí aparecen los resultados, y en orden estrictamente ascendente: hora,
 día, mes, agregado. Casi todas las figuras son regeneración de siblings del
 canon; el detalle está en la tabla maestra de la sección 6.
+
+**Dos encargos nuevos de la tanda de las recomendaciones (2026-09-06):**
+
+- **Capítulo 10, el ritmo semanal** (H-35). Corte de día hábil y fin de
+  semana de la actividad del mercado, en las dos fronteras. Sale como
+  post-proceso del canon mapeando la hora k al 2025-04-04 más k horas.
+  Cumple un compromiso explícito de la Actividad 4.1 de la propuesta que
+  estaba sin cumplir. El resultado que hay que contar es que **las dos
+  fronteras tienen ritmos opuestos**, y que en la secundaria el mercado no
+  cierra los fines de semana porque la cobertura pasa del 100 % y **no queda
+  comprador**: es la prueba más directa de que un mercado entre pares
+  necesita heterogeneidad y no solo excedente. Declárese el límite: los
+  mecanismos de neteo mensual no admiten el corte sin una regla de
+  atribución inventada.
+
+- **Capítulo 12, la equidad** (H-31). **No** publicar el índice sobre el
+  beneficio absoluto, que está dominado por el autoconsumo y no distingue
+  los siete mecanismos, hasta el punto de que el mercado entre pares sale
+  peor que un escenario regulado. Publicar dos medidas con papeles
+  distintos: **lo ganado por kWh aportado** como principal, por
+  interpretable, y el índice sobre **lo que cada mecanismo reparte** para
+  ordenar los siete entre sí. El índice sobre el nivel se conserva solo
+  para explicar por qué se sustituyó. Y hay una frase que no necesita
+  índice ninguno: bajo el mercado entre pares ganan las cinco
+  instituciones, mientras que bajo el esquema colectivo alguna pierde.
 
 Las tres figuras que **no existen** y hay que crear:
 

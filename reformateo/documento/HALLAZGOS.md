@@ -2288,19 +2288,26 @@ siempre el lado corto. Es la forma medida de D-7.
 invierte entre fronteras.** Sobre 30 horas por frontera, contra un reparto
 proporcional ciego que mueve el mismo volumen:
 
-| Sobre 30 horas por frontera | M1 | M3 |
+**Cifras definitivas, medidas en el servidor sobre 120 horas por frontera.**
+Las de la primera tanda, con 30, decían lo mismo con más ruido.
+
+| Sobre 120 horas por frontera | M1 | M3 |
 |---|---:|---:|
-| Mecanismo acoplado, media | 81,8 % | 88,8 % |
-| Mecanismo acoplado, ponderado por excedente | **94,0 %** | **90,9 %** |
-| Reparto proporcional ciego, media | 73,9 % | 90,9 % |
-| Peor reparto del mismo volumen, media | 68,7 % | 79,4 % |
-| Horas en que el juego supera al ciego | **22** | **4** |
-| Horas en que empata | 6 | 9 |
-| Horas en que pierde | 2 | **17** |
+| Mecanismo acoplado, media | 80,0 % | 88,5 % |
+| Mecanismo acoplado, ponderado por excedente | **90,5 %** | **90,8 %** |
+| Reparto proporcional ciego, media | 74,8 % | 91,1 % |
+| Peor reparto del mismo volumen, media | 68,2 % | 76,1 % |
+| Horas en que el juego supera al ciego | **88** | **23** |
+| Horas en que empata | 18 | 43 |
+| Horas en que pierde | 14 | **54** |
 
 Descontando las horas de banda uniforme, donde el emparejamiento no puede
-decidir nada, quedan **27 horas en M1 con 79,8 % contra 71,0 %** y **23 en
-M3 con 85,4 % contra 88,1 %**.
+decidir nada, quedan **109 horas en M1 con 78,1 % contra 72,3 %** y **87 en
+M3 con 84,3 % contra 87,8 %**.
+
+**El volumen sale del 100,0 % en las 240 horas, con mínimo 100,0 %.** No es
+una media que oculte casos malos: no hay ni una hora en que el mercado deje
+energía sin mover.
 
 La figura `f7_01_eficiencia_emparejamiento` lo dibuja hora a hora: el
 segmento gris es el rango que el emparejamiento puede decidir, el círculo
@@ -2730,11 +2737,59 @@ pujar sin castigarse a sí mismo.
 arbitrada, es la única que reproduce el caso publicado y es la única que
 implementa una contribución que el artículo declara.
 
-**Pero hay una cautela que hay que resolver antes.** Con la forma publicada
-los precios del caso publicado cayeron en 1.136,0 · 114,0 · 1.250,0, es
-decir pegados a las cotas o muy cerca, que es justo el defecto que la vía
-acoplada venía a corregir. Podría cambiarse un problema por otro. La
-medición sobre las dos fronteras reales está en marcha y decide.
+**La cautela era que con la forma publicada los precios del caso publicado
+cayeron pegados a las cotas**, que es justo el defecto que la vía acoplada
+venía a corregir. Medido sobre 120 horas por frontera en el servidor,
+**la cautela se confirma**:
+
+| Frontera | Precios pegados a una cota, agregada | Publicada |
+|---|---:|---:|
+| M1 | 46,3 % | **55,6 %** |
+| M3 | 7,5 % | **24,2 %** |
+
+En M1 pega nueve puntos más y en M3 **más del triple**. Y no es un promedio
+que oculte compensaciones: en M3 hay 32 horas donde la publicada pega más y
+**ninguna** donde pegue menos.
+
+**Rectificación.** Con la primera de las dieciséis particiones, ocho horas,
+las dos formas daban 46,4 % y dije que la cautela no se materializaba. Era
+una coincidencia de esa muestra. Con las 120 horas no se sostiene.
+
+### Lo que la forma publicada no toca, y lo que sí
+
+| | M1 agregada | M1 publicada | M3 agregada | M3 publicada |
+|---|---:|---:|---:|---:|
+| Volumen transado | 498,71 | 498,71 | 329,61 | 329,61 |
+| Eficiencia | 80,1 % | 79,3 % | 88,6 % | 88,8 % |
+| Tajada del vendedor | 65,1 % | **75,9 %** | 19,8 % | **33,3 %** |
+| Precios pegados | 46,3 % | 55,6 % | 7,5 % | 24,2 % |
+
+El volumen coincide al orden de 10⁻⁷ y 10⁻¹⁰ kilovatios hora, y la
+eficiencia se mueve menos de un punto. **Lo que la forma decide es el
+reparto**, y lo mueve mucho: la tajada del vendedor sube once puntos en M1 y
+trece y medio en M3. Es exactamente lo que predice H-33.
+
+### La recomendación, con el argumento que la sostiene
+
+**Adoptar la forma publicada, y presentar el mayor pegado a las cotas como
+resultado y no como defecto.**
+
+El argumento es este. La razón por la que el pegado preocupaba es que un
+precio en una cota deja a una de las dos partes con cero excedente, y eso no
+parece un acuerdo negociado. Pero **la tabla III del artículo publica sus
+cuatro precios exactamente en las cotas** (H-40). De modo que pegarse a las
+cotas **es el comportamiento del modelo publicado**, y lo que hacía nuestra
+forma agregada era suavizarlo por accidente, al eliminar del término de
+competencia toda dependencia del precio.
+
+Dicho de otro modo: adoptar la forma publicada nos deja a la vez más fieles
+a la fuente arbitrada y con una explicación de por qué su propia tabla
+tiene los precios donde los tiene. Quedarnos con la agregada nos deja
+reproduciendo ocho de doce afirmaciones con un mecanismo que el artículo
+declara y que no está implementado.
+
+La decisión formal es de CAL-49 y le corresponde al asesor, porque es su
+modelo.
 
 La forma del código no es una alternativa: es la corrección de higiene de la
 agregada, conviene aplicarla, y ya está medido que no cambia ninguna
@@ -2745,6 +2800,68 @@ conclusión.
 Las tres formas quedan disponibles en el solucionador acoplado, **con la
 histórica por defecto**, de modo que ninguna cifra publicada se mueve
 mientras no se decida. El bloque alternado ya tenía dos de las tres.
+
+---
+
+## H-43 · Hay vendedores que salen perdiendo: el precio cae por debajo de su propio piso
+
+**Estado: MEDIDO el 2026-09-06 sobre 120 horas por frontera. Es un defecto
+del mecanismo, no de la traduccion, y no lo causa la forma del termino de
+competencia.**
+
+Apareció al mirar el reparto del excedente entre quien vende y quien compra.
+En algunas horas **la tajada del vendedor sale negativa**, lo que significa
+que el precio acordado quedó por debajo del piso de algún vendedor: ese
+vendedor habría ganado más exportando su energía a la red que vendiéndosela
+al vecino.
+
+| Frontera | Horas con vendedor bajo su piso | La peor |
+|---|---:|---:|
+| M1 | **7 de 120**, con la forma agregada | −168,9 % |
+| M1 | 3 de 120, con la forma publicada | −168,9 % |
+| M3 | **33 de 120**, con la forma agregada | −186,4 % |
+| M3 | 31 de 120, con la forma publicada | −186,4 % |
+
+En la frontera secundaria eso es **más de una hora de cada cuatro**.
+
+### No lo causa la forma del término de competencia
+
+Es lo primero que se comprobó, y queda descartado: de las horas afectadas,
+31 de 33 en M3 y 3 de 7 en M1 lo están con las dos formas, y **la publicada
+no añade ninguna**. Al contrario, arregla cuatro en M1 y dos en M3.
+
+### La causa es que el precio se acota con el piso de la comunidad
+
+El precio de cada comprador se recorta al intervalo entre **el menor de los
+pisos de los vendedores activos** y su propio techo. Cuando los vendedores
+tienen pisos distintos, un precio admisible para el de piso más bajo puede
+estar por debajo del piso de otro.
+
+Las horas afectadas lo confirman: todas tienen **muchos vendedores y pocos
+compradores**, J entre 3 y 4 con I entre 1 y 2. Con un solo comprador el
+precio es uno solo, y tiene que servir a la vez para vendedores con
+alternativas externas distintas.
+
+### Qué habría que hacer
+
+El proyecto ya tiene la pieza: `piso_por_vendedor` calcula el piso de cada
+uno por separado. Lo que falta es que el mecanismo lo respete, y hay dos
+salidas que conviene medir antes de elegir:
+
+1. **Filtrar la entrada.** Un vendedor cuyo piso quede por encima del precio
+   no participa esa hora. Es la restricción de participación en su forma
+   literal, y reduce el volumen.
+2. **Acotar por pareja.** El precio de la pareja se recorta al piso de ese
+   vendedor concreto y no al mínimo comunitario. Conserva el volumen pero
+   rompe el precio único por comprador.
+
+La segunda encaja mejor con lo que ya sabemos, porque el volumen es el lado
+corto y el excedente el ancho de la banda por la energía, de modo que
+tocar el volumen sería lo caro.
+
+**No invalida lo publicado**, porque el excedente agregado y el volumen no
+dependen de esto, pero **sí toca el reparto por agente**, que es lo que se
+usa para la deserción y para el índice de equidad.
 
 ---
 

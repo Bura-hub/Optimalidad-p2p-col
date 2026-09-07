@@ -82,10 +82,12 @@ movió frente a la que se podía mover, y cuánto vale en promedio cada
 kilovatio hora movido frente a lo que valdría bien emparejado. El producto
 de las dos es la eficiencia total.
 
-\textbf{El volumen no admite mejora.} Sobre las \num{60} horas medidas,
-treinta por frontera, el mercado mueve el lado corto en todas y alcanza el
-\pct{100,0} de lo que el reparto óptimo mueve, tanto por la vía acoplada
-como por la alternada. Todo el margen está, entonces, en el emparejamiento.
+\textbf{El volumen no admite mejora.} Sobre las \num{240} horas medidas,
+ciento veinte por frontera, el mercado mueve el lado corto en todas y
+alcanza el \pct{100,0} de lo que el reparto óptimo mueve, tanto por la vía
+acoplada como por la alternada. No es una media que oculte casos malos: el
+mínimo es también \pct{100,0}. Todo el margen está, entonces, en el
+emparejamiento.
 
 \begin{figure}[H]
  \centering
@@ -106,18 +108,19 @@ distribuye a prorrata sin mirar precios ni bandas. Esa comparación es la que
 decide si el juego aporta algo: un mecanismo que no supere al reparto ciego
 no está emparejando, está repartiendo.
 
-En la frontera principal el mercado captura el \pct{81,8} de media y el
-\pct{94,0} ponderando por el excedente en juego, frente al \pct{73,9} del
-reparto ciego y al \pct{68,7} del peor reparto posible. Supera al reparto
-ciego en \num{22} de las treinta horas, empata en seis y pierde en dos.
-Descontando las tres horas de banda uniforme, donde no hay nada que decidir,
-la comparación queda en \pct{79,8} contra \pct{71,0}.
+En la frontera principal el mercado captura el \pct{80,0} de media y el
+\pct{90,5} ponderando por el excedente en juego, frente al \pct{74,8} del
+reparto ciego y al \pct{68,2} del peor reparto posible. Supera al reparto
+ciego en \num{88} de las ciento veinte horas, empata en dieciocho y pierde
+en catorce. Descontando las once horas de banda uniforme, donde no hay nada
+que decidir, la comparación queda en \pct{78,1} contra \pct{72,3}.
 
 En la frontera secundaria el resultado se invierte. El mercado captura el
-\pct{88,8} de media y el \pct{90,9} ponderado, y el reparto ciego alcanza el
-\pct{90,9} de media. Supera al reparto ciego en solo cuatro horas, empata en
-nueve y \textbf{pierde en diecisiete}. Descontando las siete horas de banda
-uniforme, la comparación queda en \pct{85,4} contra \pct{88,1}.
+\pct{88,5} de media y el \pct{90,8} ponderado, y el reparto ciego alcanza el
+\pct{91,1} de media. Supera al reparto ciego en solo veintitrés horas,
+empata en cuarenta y tres y \textbf{pierde en cincuenta y cuatro}.
+Descontando las treinta y tres horas de banda uniforme, la comparación queda
+en \pct{84,3} contra \pct{87,8}.
 
 La inversión tiene una explicación estructural y no numérica. En la frontera
 principal hay un vendedor grande repartiendo entre compradores con techos
@@ -128,9 +131,10 @@ el aparato dinámico no tiene margen donde aportar.
 
 \begin{detallebox}
 \textbf{Qué sostiene esta medida y qué no.} Sostiene que el mercado \textbf{nunca deja energía sin mover}: el volumen es
-el lado corto en las sesenta horas medidas, y ninguna constante del
-solucionador puede cambiarlo. Sostiene también que el emparejamiento aporta
-en la frontera principal y no en la secundaria.
+el lado corto en las doscientas cuarenta horas medidas, sin una sola
+excepción, y ninguna constante del solucionador puede cambiarlo. Sostiene
+también que el emparejamiento aporta en la frontera principal y no en la
+secundaria.
 
 No sostiene una comparación contra el \pct{0,316} ni contra el \pct{0,23}
 del modelo de referencia, porque ninguna de las tres medidas mide lo mismo

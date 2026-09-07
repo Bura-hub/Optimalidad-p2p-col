@@ -810,17 +810,26 @@ def print_welfare_decomposition(cr: "ComparisonResult") -> None:
         print(f"    (no disponible — ejecutar con datos reales)")
 
     # ── Nivel 2: intangibles del mecanismo ───────────────────────────────
-    print(f"\n  NIVEL 2 — Bienestar de optimización P2P (unidades de optimización)")
+    print(f"\n  NIVEL 2 — Bienestar publicado, evaluado en el equilibrio")
     print(f"  {'(incluye: utilidad de autoconsumo λ/θ, aversión al riesgo η)'}")
     print(f"  {'-' * 60}")
     W_total = cr.W_sellers_total + cr.W_buyers_total
     print(f"    {'Bienestar vendedores  Σ W_j':<34} {cr.W_sellers_total:>12.4f} u.o.")
     print(f"    {'Bienestar compradores Σ W_i':<34} {cr.W_buyers_total:>12.4f} u.o.")
     print(f"    {'─' * 52}")
-    print(f"    {'Total W_opt (Wj + Wi)':<34} {W_total:>12.4f} u.o.")
-    print(f"\n    Nota: u.o. = unidades de optimización. Los valores W guían la")
-    print(f"    dinámica de replicador; no son COP pero reflejan la preferencia")
-    print(f"    de los agentes más allá del flujo de caja directo.")
+    print(f"    {'Suma, Wj + Wi':<34} {W_total:>12.4f} u.o.")
+    # H-44: la nota anterior decia que estos valores «guian la dinamica de
+    # replicador». Medido, es falso: la aptitud que mueve los precios es el
+    # gradiente del bienestar del documento extenso, no de la ecuacion que
+    # esta suma evalua, y las dos difieren por un factor de miles. Ademas la
+    # suma es degenerada como objetivo (H-40): su optimo manda todos los
+    # precios al piso. Decirlo aqui evita la unica lectura que hace dano.
+    print(f"\n    Nota: u.o. = unidades de optimización, no son COP. Es la")
+    print(f"    definición de bienestar de la versión arbitrada del modelo")
+    print(f"    base, evaluada en el equilibrio. NO es lo que la dinámica")
+    print(f"    maximiza ni una medida de calidad: su óptimo manda todos los")
+    print(f"    precios al piso. Ver H-40 y H-44. La medida de calidad del")
+    print(f"    trabajo es el ahorro capturado frente al alcanzable (H-39).")
 
     # ── Métricas sociales (componente intangible observable) ─────────────
     print(f"\n  NIVEL 2 — Métricas sociales del mecanismo P2P")

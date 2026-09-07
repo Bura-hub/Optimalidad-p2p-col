@@ -2872,6 +2872,83 @@ usa para la deserción y para el índice de equidad.
 
 ---
 
+## H-44 · La dinámica del modelo base no deriva de su bienestar publicado
+
+**Estado: MEDIDO el 2026-09-06, con compuerta. Es una propiedad del modelo de
+origen, no un defecto de esta traducción.**
+
+Salió al preguntarse por qué la función que informa del bienestar del
+comprador usa una forma del término de competencia y la dinámica usa otra.
+La respuesta resultó ser más de fondo que la pregunta.
+
+### Lo medido
+
+El bloque de precios mueve cada precio según una aptitud. Esa aptitud **sí
+es un gradiente**, pero no del bienestar que el proyecto reporta:
+
+| | Valor sobre cuatro compradores |
+|---|---|
+| Aptitud que mueve los precios | −2,9215 · −1,3158 · −1,9339 · −1,2173 |
+| Gradiente del bienestar del **documento extenso** | −2,9215 · −1,3158 · −1,9339 · −1,2173 |
+| Gradiente del bienestar de la **versión arbitrada** | −0,000376 · −0,000151 · −0,000213 · −0,000161 |
+
+La primera coincide con la segunda hasta la precisión del cálculo, y difiere
+de la tercera **por un factor de 7.778**.
+
+De modo que la aptitud se descompone así:
+
+    aptitud = gradiente del bienestar del documento extenso
+              − competencia            ← no es el gradiente de nada
+              + señal de restricción    ← tampoco
+
+### Y el término de competencia no entra en el gradiente, en ninguna forma
+
+Es el segundo hallazgo de la misma medición, y explica por qué el asunto de
+CAL-49 no tiene efecto por esta vía: **las tres formas dan exactamente el
+mismo gradiente**, porque en ninguna de las tres interviene el precio propio
+del comprador. El término aparece en la aptitud restado a mano, no derivado.
+
+### Qué significa
+
+**La dinámica del modelo base no maximiza su bienestar publicado.** No es que
+lo aproxime: persigue el gradiente de otra cosa, y encima le añade dos
+términos que no son gradientes. Está así en el fichero original de la
+autora, y esta traducción reproduce las dos piezas correctamente por
+separado: la compuerta del bienestar demuestra que reproduce la ecuación (11)
+al bit, y la huella del paso horario demuestra que la dinámica reproduce el
+Matlab.
+
+Lo que no existe, ni aquí ni en el original, es la correspondencia entre las
+dos.
+
+### Qué se hizo, y qué no
+
+**No se cambia ninguna fórmula.** Inventar una cuarta función de bienestar
+que sí case con la dinámica sería peor, porque no correspondería a ninguna
+fuente. Las dos piezas se quedan como están, fieles cada una a la suya.
+
+**Se cambió el rótulo de la salida.** La comparación imprimía esa suma bajo
+un encabezado de «bienestar de optimización» y una nota que afirmaba que
+«los valores W guían la dinámica de replicador». Eso es literalmente lo que
+esta medición desmiente. Ahora dice lo que es: la definición de bienestar de
+la versión arbitrada evaluada en el equilibrio, que no es lo que la dinámica
+maximiza ni una medida de calidad, con el reenvío a H-39 para la que sí lo
+es.
+
+**Se añadió la compuerta** `tests/gate_h44_aptitud_gradiente.py`, que fija
+las tres relaciones y además comprueba que la fórmula de la aptitud sigue
+siendo la que el núcleo tiene escrita. Si alguien «arregla» uno de los dos
+lados, la compuerta falla antes de que el documento quede afirmando algo
+falso.
+
+### Dónde va
+
+Al **capítulo del modelo**, donde se presentan el bienestar y la dinámica. Es
+del tipo de resultado que justifica un trabajo de validación: no se descubre
+leyendo el artículo, sino implementándolo y midiendo.
+
+---
+
 ## Dónde queda cada hallazgo de la tanda de las recomendaciones (2026-09-05/06)
 
 Los siete salieron de revisar `Recomendaciones.txt` contra el código y los

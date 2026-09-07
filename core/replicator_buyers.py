@@ -32,11 +32,23 @@ al precio ajeno, que el artículo declara como contribución, no existe en
 ellas. Medido: solo esa forma reproduce los resultados del caso publicado.
 Ver H-42.
 
-Nótese la incoherencia que eso deja hoy en pie: la función
-``buyer_welfare`` (abajo) **sí** usa la forma publicada, mientras la
-dinámica usa la agregada. Es decir, el módulo informa de un bienestar que
-no corresponde al que su propia dinámica persigue. Adoptar la forma
-publicada en la dinámica alinea las dos.
+H-44: y hay algo más de fondo que conviene saber al leer este módulo.
+La aptitud que mueve los precios **sí es un gradiente**, pero del
+bienestar tal como lo escribe el DOCUMENTO EXTENSO del modelo base, no
+del de la versión arbitrada que ``buyer_welfare`` reporta; los dos
+difieren por un factor de 7.778. Y el término de competencia **no entra
+en el gradiente en ninguna de las tres formas**, porque en ninguna
+interviene el precio propio del comprador: se resta a mano.
+
+    aptitud = grad(bienestar del documento extenso)
+              - competencia            <- no es gradiente de nada
+              + senal de restriccion   <- tampoco
+
+De modo que **la dinámica del modelo base no maximiza su bienestar
+publicado**, y eso está así en el fichero original. Este módulo
+reproduce las dos piezas correctamente por separado; lo que no existe,
+ni aquí ni en el original, es la correspondencia entre ellas. Fijado en
+``tests/gate_h44_aptitud_gradiente.py``.
 
 H-39 / H-40 (2026-09-06): **las fuentes del modelo base no coinciden**
 en el índice de la energía de ese término. La versión arbitrada (*IEEE

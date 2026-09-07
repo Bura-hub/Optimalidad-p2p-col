@@ -32,8 +32,19 @@ cambiando un defecto por otro.
 | Pieza | Tamaño | De dónde |
 |---|---|---|
 | Código del proyecto | ~15 MB | **GitHub**, rama `feature/cal43-depuracion-fase-a` |
-| `MedicionesMTE/` | 1,7 GB · 73 CSV | **Copiar a mano** (nunca se commitea, por diseño) |
+| `MedicionesMTE_v3/` | 1,7 GB · 73 CSV | **Copiar a mano** (nunca se commitea, por diseño). Va en la raíz y con ese nombre: es lo que los cargadores buscan por defecto |
+| `Documentos/copy/` | 208 KB · 17 ficheros | **Copiar a mano**. Solo lo necesitan dos compuertas, no las mediciones |
 | `data/ASC_pdfs/` | 1,8 MB | **Opcional**, y solo si se van a reextraer tarifas. El CSV derivado sí viene del repositorio |
+
+`Documentos/` está gitignorado por la política del repositorio público, de
+modo que no llega con el clon. Sin él, la prueba dorada **salta sus siete
+comprobaciones** y la compuerta del bienestar del comprador no puede
+verificar nada. Ninguna de las dos cosas impide medir, pero conviene copiarlo
+para que las compuertas sirvan de algo:
+
+```bash
+rsync -av Documentos/copy/ servidor:/home/…/sistemabl/Documentos/copy/
+```
 
 La acción `caso` no necesita nada de eso: el caso publicado trae sus propios
 datos, en las tablas del artículo. Si solo quieres la respuesta rápida,

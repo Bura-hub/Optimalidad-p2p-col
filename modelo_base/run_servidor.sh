@@ -49,12 +49,23 @@ corre() {
   local nombre="$1"; shift
   local log="$LOGS/${nombre}_$(marca).log"
   echo "  -> $nombre   (log: $log)"
-  if "$PY" -W ignore "$@" > "$log" 2>&1; then
-    echo "     ok"
+  local codigo=0
+  "$PY" -W ignore "$@" > "$log" 2>&1 || codigo=$?
+
+  # Un codigo de salida cero no basta para dar una compuerta por buena. Si
+  # pytest salta todas sus pruebas, porque falta el fichero de referencia,
+  # sale con cero y no ha verificado nada. Eso tiene que verse.
+  if [[ $codigo -ne 0 ]]; then
+    echo "     FALLA (codigo $codigo); mira el log"
+  elif grep -qE "^[0-9]+ skipped|= *[0-9]+ skipped" "$log" \
+       && ! grep -qE "[0-9]+ passed" "$log"; then
+    echo "     NO VERIFICA NADA: todas las pruebas saltaron."
+    echo "     Suele faltar Documentos/copy/, que esta gitignorado."
   else
-    echo "     FALLA (codigo $?); mira el log"
+    echo "     ok"
   fi
   tail -n 12 "$log" | sed 's/^/     /'
+  return 0
 }
 
 case "$ACCION" in

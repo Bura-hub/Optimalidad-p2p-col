@@ -80,6 +80,17 @@ def caso(semilla=7, J=3, I=4):
 
 
 def main() -> int:
+    if not ORIGEN.exists():
+        print(f"  NO SE PUEDE VERIFICAR: falta {ORIGEN.relative_to(RAIZ)}")
+        print("  Ese directorio está gitignorado por la política del")
+        print("  repositorio público, de modo que no llega con el clon.")
+        print("  Cópialo a mano; son 208 KB:")
+        print("    rsync -av Documentos/copy/ servidor:<repo>/Documentos/copy/")
+        print()
+        print("  La compuerta no falla ni pasa: no puede comprobar nada. Las")
+        print("  mediciones del modelo base NO dependen de esto y pueden correr.")
+        return 3
+
     fallos = []
     d = caso()
     I, J = len(d["pi_i"]), d["P_mat"].shape[0]

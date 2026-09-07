@@ -58,7 +58,7 @@ def _guarda(fig, nombre, datos, fuentes):
 
 
 def _pie(fig, texto=AVISO):
-    fig.text(0.5, -0.005, texto, ha="center", va="top", fontsize=7.5,
+    fig.text(0.5, -0.02, texto, ha="center", va="top", fontsize=7.5,
              color=E.TINTA, style="italic")
 
 
@@ -77,24 +77,41 @@ def v01_panorama(dia_txt, datos):
         axes[0, col].set_title(E.titulo_cobertura(cob, dos_lineas=True),
                                color=color, fontweight="bold", pad=8)
         # energía: lo que se ofrece, lo que se pide y lo que se mueve
-        axes[0, col].bar(x, tabla.demanda, color=E.APAGADO, label="demanda neta")
-        axes[0, col].bar(x, tabla.oferta, color=color, alpha=0.35,
+        axes[0, col].bar(x, tabla.demanda, color="none", edgecolor=E.TINTA,
+                         lw=0.8, label="demanda neta")
+        axes[0, col].bar(x, tabla.oferta, color=color, alpha=0.55,
                          label="oferta neta")
-        axes[0, col].plot(xa, act.volumen, "o-", color=E.TINTA, ms=3, lw=1.2,
+        axes[0, col].plot(xa, act.volumen, "o", color=E.TINTA, ms=3.5,
                           label="transado")
         axes[0, col].set_yscale("symlog", linthresh=1)
         if col == 0:
             axes[0, col].set_ylabel("Energía (kWh)")
-            axes[0, col].legend(fontsize=7, frameon=False, loc="upper left")
+            # la leyenda va fuera del eje: dentro rozaba las barras
+            axes[0, col].legend(fontsize=7, frameon=False, ncol=3,
+                                loc="lower left", bbox_to_anchor=(0, 1.14))
 
-        # precio dentro de su banda
-        axes[1, col].plot(xa, act.precio, "D-", color=color, ms=4, lw=1.2)
+        # DONDE cae el precio dentro de su banda, no su valor absoluto: en
+        # pesos el eje abarcaba un peso y hacia parecer dramatica una
+        # variacion que no lo es, ademas de no ser comparable entre fronteras.
+        horas = datos[cob]["horas"]
+        pos = []
+        for k in act.k:
+            h = horas[int(k)]
+            ancho = np.maximum(h.techo_i - h.piso_h, 1e-9)
+            pos.append(100.0 * float(np.mean((h.pi - h.piso_h) / ancho)))
+        axes[1, col].axhspan(0, 100, color=E.APAGADO, alpha=0.35, zorder=0)
+        axes[1, col].plot(xa, pos, "D-", color=color, ms=4, lw=1.2, zorder=3)
+        # cuantos precios quedaron pegados a una cota, solo donde los hay
         for i, r in zip(xa, act.itertuples()):
-            axes[1, col].annotate(f"{int(r.pegados)}/{int(r.n_precios)}",
-                                  (i, r.precio), fontsize=6, ha="center",
-                                  va="bottom", color=E.TINTA)
+            if int(r.pegados):
+                axes[1, col].annotate(f"{int(r.pegados)}", (i, 104),
+                                      fontsize=6.5, ha="center", va="bottom",
+                                      color=E.TINTA)
+        axes[1, col].set_ylim(-8, 118)
+        axes[1, col].set_yticks([0, 50, 100])
+        axes[1, col].set_yticklabels(["piso", "medio", "techo"], fontsize=7.5)
         if col == 0:
-            axes[1, col].set_ylabel("Precio medio (COP/kWh)")
+            axes[1, col].set_ylabel("Dónde cae el precio")
 
         # reparto entre quien vende y quien compra
         axes[2, col].axhline(50, color=E.TINTA, lw=0.8, ls="--")
@@ -183,11 +200,17 @@ def v03_factura(dia_txt, datos):
                            fontsize=8)
         ax.grid(axis="x", alpha=0.25)
         ax.set_xlabel("Lo que deja de pagar (COP)")
-    ax1.legend(fontsize=7.5, frameon=False, loc="lower right")
+    # La leyenda va fuera de los ejes: dentro pisaba la barra más larga, que
+    # es justo la que hay que poder leer.
+    from matplotlib.patches import Patch
+    fig.legend(handles=[Patch(color=E.VENDE, label="gana como vendedora"),
+                        Patch(color=E.COMPRA, label="gana como compradora")],
+               loc="lower center", ncol=2, frameon=False,
+               bbox_to_anchor=(0.5, -0.01), fontsize=8.5)
     fig.suptitle(f"Lo que cada institución gana con el mercado · {dia_txt}",
                  fontweight="bold")
-    fig.tight_layout(rect=(0, 0.03, 1, 0.94))
-    _pie(fig)
+    fig.tight_layout(rect=(0, 0.09, 1, 0.94))
+    _pie(fig, AVISO)
     _guarda(fig, f"v03_factura_{dia_txt}", pd.concat(todo),
             [f"validacion_horaria/factura_{c}_{dia_txt}.csv"
              for c in ("m1", "m3")])
@@ -235,8 +258,10 @@ def v06_hora(h, categoria, dia_txt):
     ax.bar(x + 0.2, h.demanda, 0.38, color=E.COMPRA, label="consume")
     ax.plot(x, h.g_klim, "_", color=E.TINTA, ms=14, mew=2, label="límite econ.")
     ax.set_xticks(x); ax.set_xticklabels(et, rotation=45, fontsize=6.5, ha="right")
-    ax.set_ylabel("kW"); ax.legend(fontsize=6, frameon=False)
-    ax.set_title("a · quién es quién", fontsize=8.5, loc="left")
+    ax.set_ylabel("kW")
+    ax.legend(fontsize=6, frameon=False, ncol=3, loc="lower left",
+              bbox_to_anchor=(0, 1.02))
+    ax.set_title("a · quién es quién", fontsize=8.5, loc="left", y=1.16)
 
     # (b) la banda y el acuerdo
     ax = axes[0, 1]
@@ -289,14 +314,27 @@ def v06_hora(h, categoria, dia_txt):
 
     # (e) dónde cae el mercado entre las cotas
     ax = axes[1, 1]
-    ax.barh(0, h.mejor, color=E.APAGADO, height=0.5)
-    ax.barh(0, h.peor, color="#DDDDDD", height=0.5)
-    ax.plot(h.ciego, 0, "o", mfc="white", mec=E.TINTA, ms=8, mew=1.2,
-            label="reparto ciego")
-    ax.plot(h.excedente, 0, "D", color=color, ms=8, label="el mercado")
-    ax.set_yticks([]); ax.set_xlabel("Excedente (COP)")
-    ax.legend(fontsize=6.5, frameon=False, loc="lower right")
-    ax.set_title(f"e · captura el {h.eficiencia:.1f} %", fontsize=8.5, loc="left")
+    # el recorrido que el emparejamiento puede decidir, del peor reparto al
+    # optimo, con las dos marcas dentro. Apilar barras confundia el peor con
+    # el mejor porque uno tapaba al otro.
+    ax.plot([h.peor, h.mejor], [0, 0], color=E.APAGADO, lw=9,
+            solid_capstyle="butt", zorder=1)
+    ax.plot(h.ciego, 0, "o", mfc="white", mec=E.TINTA, ms=9, mew=1.3,
+            zorder=3, label="reparto ciego")
+    ax.plot(h.excedente, 0, "D", color=color, ms=9, zorder=4,
+            label="el mercado")
+    ax.annotate("peor", (h.peor, 0), xytext=(0, -16),
+                textcoords="offset points", ha="center", fontsize=6.5,
+                color=E.TINTA)
+    ax.annotate("óptimo", (h.mejor, 0), xytext=(0, -16),
+                textcoords="offset points", ha="center", fontsize=6.5,
+                color=E.TINTA)
+    ax.set_ylim(-0.6, 0.6); ax.set_yticks([])
+    ax.set_xlabel("Excedente (COP)")
+    ax.legend(fontsize=6, frameon=False, ncol=2, loc="lower left",
+              bbox_to_anchor=(0, 1.02))
+    ax.set_title(f"e · captura el {h.eficiencia:.1f} %", fontsize=8.5,
+                 loc="left", y=1.16)
 
     # (f) contra la normativa base
     ax = axes[1, 2]
@@ -309,8 +347,10 @@ def v06_hora(h, categoria, dia_txt):
     ax.set_xticks(xs)
     ax.set_xticklabels([et[j] for j in h.sids], rotation=45, fontsize=6.5,
                        ha="right")
-    ax.set_ylabel("Lo que cobra (COP)"); ax.legend(fontsize=6.5, frameon=False)
-    ax.set_title("f · qué cobra el vendedor", fontsize=8.5, loc="left")
+    ax.set_ylabel("Lo que cobra (COP)")
+    ax.legend(fontsize=6, frameon=False, ncol=2, loc="lower left",
+              bbox_to_anchor=(0, 1.02))
+    ax.set_title("f · qué cobra el vendedor", fontsize=8.5, loc="left", y=1.16)
 
     for ax in axes.ravel():
         ax.grid(axis="y", alpha=0.2)

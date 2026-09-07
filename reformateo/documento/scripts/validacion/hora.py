@@ -158,7 +158,10 @@ def lee(dat: dict, k: int, cobertura: str = "m1") -> Hora:
 
     t0 = time.time()
     try:
-        r = resuelve(dat, int(k))
+        # se piden los multiplicadores: son los que dicen que restriccion
+        # esta mordiendo, y sin ellos la figura de convergencia enseña el
+        # precio deteniendose sin poder decir por que se detiene ahi
+        r = resuelve(dat, int(k), multiplicadores=True)
     except Exception as e:                      # el integrador puede reventar
         h.motivo = f"el solucionador falló: {type(e).__name__}"
         h.segundos = time.time() - t0

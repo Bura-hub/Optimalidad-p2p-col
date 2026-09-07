@@ -132,8 +132,14 @@ def testigos(tabla: pd.DataFrame, horas: dict) -> dict:
          [k for k in libres
           if float(horas[k].G_net.sum()) > float(horas[k].D_net.sum())],
          lambda k: float(horas[k].G_net.sum() - horas[k].D_net.sum()))
-    toma("patologica", [k for k in libres if horas[k].bajo_piso],
-         lambda k: len(horas[k].bajo_piso))
+    # La señal de la hora patológica es RETIRADOS, no `bajo_piso`. El paso a
+    # paso ya aplica la restricción de participación, de modo que después de
+    # aplicarla no queda por construcción ningún vendedor bajo su piso: usar
+    # `bajo_piso` como criterio no puede disparar nunca. Lo que sí queda
+    # registrado es a quién hubo que retirar para conseguirlo (H-43).
+    toma("patologica",
+         [k for k in libres if horas[k].retirados or horas[k].bajo_piso],
+         lambda k: len(horas[k].retirados) + len(horas[k].bajo_piso))
     return fuera
 
 

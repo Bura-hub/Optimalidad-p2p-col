@@ -132,8 +132,13 @@ def carga_base():
                 modo="base")
 
 
-def resuelve(dat: dict, k: int):
-    """Resuelve la hora por la via del modelo base, con las cotas medidas."""
+def resuelve(dat: dict, k: int, multiplicadores: bool = False):
+    """Resuelve la hora por la via del modelo base, con las cotas medidas.
+
+    `multiplicadores` pide al solucionador que devuelva los suyos, que son
+    los que dicen que restriccion esta mordiendo. Opt-in: con el valor por
+    defecto el resultado es identico bit a bit al historico.
+    """
     from core.coupled_ode_convergence import solve_coupled_for_hour
     from core.market_prep import classify_agents, compute_generation_limit
     from data.xm_prices import get_b_for_real_data
@@ -192,7 +197,8 @@ def resuelve(dat: dict, k: int):
             lam_i=lam[bids], theta_i=theta[bids], etha_i=etha[bids],
             pi_gs=float(np.max(techo_i)), pi_gb=piso_h,
             tau_sellers=0.001, tau_buyers=0.01,
-            t_span=(0.0, 0.05), n_points=500)
+            t_span=(0.0, 0.05), n_points=500,
+            devuelve_multiplicadores=multiplicadores)
         pi = np.clip(tr.pi_star, piso_h, techo_i)
         P = np.asarray(tr.P_star, float)
         # Un vendedor sobra si TODA su venta va por debajo de su alternativa

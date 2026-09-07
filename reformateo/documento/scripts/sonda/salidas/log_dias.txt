@@ -1,0 +1,29 @@
+    [CAL-45] Udenar: el guardia retira 3 muestras (0.001 % de las lecturas)
+    [CAL-45] Mariana: el guardia retira 116 muestras (0.039 % de las lecturas)
+    [CAL-45] UCC: el guardia retira 3 muestras (0.001 % de las lecturas)
+    [CAL-45] HUDN: el guardia retira 29 muestras (0.012 % de las lecturas)
+    [CAL-45] Cesmag: el guardia retira 17 muestras (0.006 % de las lecturas)
+    [CAL-45] Udenar: el guardia retira 10 muestras (0.003 % de las lecturas)
+    [CAL-45] Mariana: el guardia retira 116 muestras (0.039 % de las lecturas)
+    [CAL-45] HUDN: el guardia retira 3 muestras (0.001 % de las lecturas)
+    [CAL-45] Cesmag: el guardia retira 15 muestras (0.005 % de las lecturas)
+Días candidatos · activos en LAS DOS fronteras
+==============================================================================
+           dia  h M1  h M3    kWh M1    kWh M3    valor M1    valor M3
+
+  — por más horas activas en AMBAS —
+    2025-04-16    10    12     41.89      5.16        2758        2725
+    2025-04-17    11    10     47.55      6.28        3131        3352
+    2025-04-18    10    12     35.71      6.43        2351        3424
+    2025-04-13    10    10     32.98      4.32        2171        2312
+    2025-04-27    10    10     28.19      4.13        1856        2204
+
+  — por más energía transable en total —
+    2025-05-02     8    11     55.25     60.99        3699       32607
+    2025-04-29     5    10     25.82     81.28        1700       43546
+    2025-04-07     5     9     59.86     41.02        3941       21475
+    2025-05-06     2    10      5.01     89.15         335       47384
+    2025-04-04     3     8     32.15     54.58        2116       15741
+
+  días con actividad en las dos: 256
+FIN

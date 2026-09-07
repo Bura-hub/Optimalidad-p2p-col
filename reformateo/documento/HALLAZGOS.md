@@ -2392,6 +2392,17 @@ puntos. Lo que discrepa es el guion en Python que acompaña al modelo, y solo
 en el índice de la energía. **Las dos preguntas del anexo dejan de ser
 preguntas** y pasan a ser una nota documental.
 
+**Una cuarta discrepancia, hallada el mismo día al inventariar las
+figuras.** Las dos publicaciones tampoco comparten la recompensa del
+vendedor. La arbitrada la escribe negativa y con logaritmo en el
+denominador, que es lo que este proyecto implementa; el documento extenso la
+escribe como el producto del precio por la energía, que es lo natural. Y las
+barras de «costos frente a recompensa» que el artículo arbitrado dibuja para
+sus dos horas de ejemplo **no son ninguna de las dos**: su texto las define
+como la energía transada por su precio, que es la magnitud de la restricción
+de cobertura de costos. De modo que en el mismo artículo conviven dos
+recompensas distintas, la de la ecuación y la de la figura.
+
 ### Hay dos métricas distintas, no una
 
 H-39 afirmaba que la métrica del modelo base mide el reparto y no la
@@ -2494,14 +2505,40 @@ II y III. Con eso el caso se arma exactamente.
 | Coeficiente lineal | 1.243,8 · 194,8 · 286,1 · 225,2 · 0 · 0 | 52 · 58 · 40 · 37 · 32 · 0 |
 | Factor de competencia | 0,1 | **1** |
 
-**No coincide ninguna de las siete filas.** Los coeficientes de costo del
-repositorio son los publicados multiplicados por un factor de escala de
-6,0865, con factores adicionales de 4 y 3,93 sobre el primer agente y con un
-valor de 47 que no aparece en la tabla publicada. Nada de eso está
-justificado en el módulo que los define.
+**RECTIFICACIÓN del 2026-09-06, y es importante.** La tabla de arriba
+compara contra el artículo arbitrado, y **esa no era la comparación buena**.
+El modelo base tiene dos publicaciones con casos y parámetros distintos, y
+el repositorio sigue al **documento extenso**, no al arbitrado. Comprobado:
 
-De modo que la validación que el proyecto venía haciendo «contra el modelo
-base» se hacía contra una reconstrucción, no contra el caso publicado.
+| | Repositorio | Documento extenso |
+|---|---|---|
+| Coeficiente cuadrático | 2,1668 · 0,420 · 0 · 0 · 0 · 0 | **idéntico** |
+| Coeficiente lineal | 1.243,8 · 194,8 · 286,1 · 225,2 · 0 · 0 | **idéntico** |
+| Cotas de precio | 114 y 1.250 | **idénticas** |
+| Factor de competencia | 0,1 | **idéntico** |
+
+El escalado por 6,0865 con los factores de 4 y 3,93, que este hallazgo llamó
+injustificado, **es exactamente la forma en que el fichero en Matlab codifica
+la Tabla I del documento extenso**. La afirmación de que «no está
+justificado» era mía y era falsa.
+
+**Lo que sí se sostiene** es la última fila: los perfiles de demanda y
+generación del repositorio son una reconstrucción sintética y **no coinciden
+con ninguna de las dos publicaciones**. Medido a las 14:00, el límite de
+generación del repositorio da 2,844 · 3,303 · 2,308 · 1,193 frente al
+2,844 · 3,738 · 0,539 · 0,624 de la tabla del documento extenso, y los
+papeles salen distintos: el repositorio hace vendedores al 2 y al 3, y la
+publicación al 1 y al 2. El primer agente coincide porque su límite es la
+raíz de la ecuación de costos y no depende de la hora.
+
+De modo que la validación «contra el modelo base» se hace hoy con **los
+parámetros correctos y unos perfiles inventados**.
+
+**Y hay una consecuencia que abre trabajo**: el documento extenso publica
+sus resultados en tablas, con la matriz de flujos, los precios y la energía
+por comprador para las 14:00 y las 22:00. Eso permite una comparación
+**numérica**, no solo de afirmaciones cualitativas como la que este hallazgo
+hizo contra el artículo arbitrado.
 
 ### La reproducción: ocho de doce afirmaciones
 
@@ -2866,6 +2903,22 @@ La segunda encaja mejor con lo que ya sabemos, porque el volumen es el lado
 corto y el excedente el ancho de la banda por la energía, de modo que
 tocar el volumen sería lo caro.
 
+### Cuánto cuesta la primera salida, medido el 2026-09-07
+
+Al construir el lector único de hora apareció el número, y es grande. La
+sonda del paso a paso ya aplica la primera salida, la de filtrar la entrada,
+y la de eficiencia no. En la hora 37 de la frontera principal la
+participación **retira tres vendedores y el volumen cae de 3,902 a 1,424
+kilovatios hora**, un 63 %.
+
+**Consecuencia que hay que declarar:** las cifras de eficiencia de H-39, el
+80,0 % y el 88,5 %, están calculadas **sin** la restricción de
+participación. En las horas donde muerde, sobrestiman el volumen que el
+mercado movería si ningún vendedor aceptara vender por debajo de su
+alternativa. No invalida la comparación entre las dos vías del solucionador,
+que se hizo con el mismo criterio en las dos, pero sí acota lo que significa
+ese «100 % de volumen».
+
 **No invalida lo publicado**, porque el excedente agregado y el volumen no
 dependen de esto, pero **sí toca el reparto por agente**, que es lo que se
 usa para la deserción y para el índice de equidad.
@@ -2946,6 +2999,74 @@ falso.
 Al **capítulo del modelo**, donde se presentan el bienestar y la dinámica. Es
 del tipo de resultado que justifica un trabajo de validación: no se descubre
 leyendo el artículo, sino implementándolo y midiendo.
+
+---
+
+## H-45 · Tres de cada cuatro compradores pagan exactamente su techo, y su ahorro es cero
+
+**Estado: MEDIDO el 2026-09-07 sobre un día completo. Tiene causa
+identificada en el código y consecuencia directa sobre lo que el mercado
+reparte.**
+
+Salió al construir la factura comparada, que es lo que se pidió en la
+reunión: qué le liquida la normativa base a cada institución y qué le
+liquidaría el mercado. Sobre el 2 de mayo de 2025 en la frontera principal:
+
+| Institución | Compra dentro | Beneficio |
+|---|---:|---:|
+| Mariana | 16,84 kWh | **0,0 COP** |
+| UCC | 16,84 kWh | **0,0 COP** |
+| CESMAG | 15,15 kWh | 353,8 COP |
+
+Mariana y la UCC **participan del mercado y no ganan nada**. No es que no
+compren: compran casi diecisiete kilovatios hora cada una y su factura sale
+idéntica a la que tendrían sin mercado.
+
+### La causa está en el código, y es una que ya estaba señalada
+
+El precio de cada comprador, hora a hora:
+
+| Hora | Mariana | UCC | HUDN | CESMAG |
+|---|---|---|---|---|
+| 08:00 a 15:00 | 731,1 sobre techo 731,1 | 731,1 sobre 731,1 | 731,1 sobre 731,1 | 756,1 sobre **777,2** |
+
+Los tres primeros pagan **exactamente su techo**, en las ocho horas. El
+único que consigue precio interior es CESMAG, y la razón es que **tiene otro
+comercializador**: su techo es 777,2 en lugar de 731,1.
+
+El mecanismo es este. El solucionador acoplado recibe **un techo escalar**,
+el mayor de todos los compradores de esa hora, y el techo propio de cada uno
+se aplica **después, como recorte**. A los tres que comparten el techo más
+bajo el precio les sale por encima y el recorte los deja **justo encima de
+él**, que es donde el ahorro vale cero.
+
+Es la consecuencia práctica de algo que el inventario del proyecto ya había
+señalado: la vía alternada admite techo vectorial y la acoplada no.
+
+### Por qué importa
+
+1. **El mercado no les da nada a dos de las cinco instituciones**, y sin
+   embargo aparecen como participantes. En un análisis de deserción eso es
+   exactamente el caso que hay que detectar.
+2. **El excedente comunitario del día, 2.821 pesos en la frontera principal,
+   se lo llevan dos agentes**: Udenar 2.275 como vendedora y CESMAG 354 como
+   compradora. Los otros tres se reparten 192.
+3. **Que la única beneficiada del lado comprador sea la del otro
+   comercializador no es una casualidad**, es el efecto de tener dos techos.
+   Refuerza lo que CAL-47 estableció: la banda no es uniforme porque hay dos
+   comercializadores, y ahí es donde el emparejamiento decide algo.
+
+### Qué habría que hacer
+
+Pasar el techo por comprador **al solucionador acoplado**, en lugar de
+aplicarlo como recorte posterior. La vía alternada ya lo admite desde
+CAL-47; la acoplada, no. Mientras no se haga, cualquier hora con dos techos
+distintos deja a los compradores del techo bajo sin excedente, por
+construcción y no por competencia.
+
+**No invalida el agregado**, por la identidad de H-33: el excedente total es
+el ancho de la banda por la energía. Lo que cambia es **a quién le toca**, y
+eso es justo lo que la factura comparada existe para enseñar.
 
 ---
 

@@ -1609,8 +1609,13 @@ nivel se conserva solo para explicar por qué se sustituyó.
 
 ## H-32 · La condición inicial del bloque comprador está calibrada para una banda ancha
 
-**Estado: ABIERTO. Descubierto el 2026-09-06 al estrechar la banda en la
-sonda de CAL-47.**
+**Estado: CORREGIDO el 2026-09-06 por C-136, primera parte, con compuerta en
+verde. Descubierto el mismo día al estrechar la banda en la sonda de CAL-47.
+El arranque se reparte ahora sobre la banda y no sobre el techo, y solo
+cuando la forma original cae fuera, de modo que el caso base y el canon
+quedan idénticos bit a bit. AMPLIADO el 2026-09-07 por H-45: con techos
+distintos el arranque tiene que caer dentro de la banda de CADA comprador, no
+dentro de la del techo mayor; ver C-143.**
 
 El bloque comprador arranca con todos los precios en
 
@@ -1926,7 +1931,11 @@ media entre 1,1 y 2,5 kW, y las cinco venden en algún momento.
 
 ## H-37 · El paso de integración del bloque comprador es marginal, y con banda estrecha deja de bastar
 
-**Estado: MEDIDO el 2026-09-06. Afecta al reparto, nunca al agregado.**
+**Estado: CORREGIDO el 2026-09-06 por C-136, segunda parte, con compuerta en
+verde. Afecta al reparto, nunca al agregado. El paso de integración se
+comprueba en vez de heredarse: la comprobación es OPCIONAL y por defecto está
+desactivada, de modo que el comportamiento sin activarla es exactamente el
+histórico. **La corrida canónica debe activarla.****
 
 Al estrechar la banda quedaba por saber si el precio se queda abajo porque
 el mercado lo decide o porque no le da tiempo a moverse. Se probó con cinco
@@ -3004,9 +3013,10 @@ leyendo el artículo, sino implementándolo y midiendo.
 
 ## H-45 · Tres de cada cuatro compradores pagan exactamente su techo, y su ahorro es cero
 
-**Estado: MEDIDO el 2026-09-07 sobre un día completo. Tiene causa
-identificada en el código y consecuencia directa sobre lo que el mercado
-reparte.**
+**Estado: CORREGIDO el 2026-09-07 por C-143, con compuerta. La causa que
+este hallazgo daba por buena resultó ser un síntoma; la real está en el
+arranque y se explica abajo. Queda abierta la pregunta regulatoria de si el
+techo debe ser uno solo, que es del asesor y no del código.**
 
 Salió al construir la factura comparada, que es lo que se pidió en la
 reunión: qué le liquida la normativa base a cada institución y qué le
@@ -3067,6 +3077,167 @@ construcción y no por competencia.
 **No invalida el agregado**, por la identidad de H-33: el excedente total es
 el ancho de la banda por la energía. Lo que cambia es **a quién le toca**, y
 eso es justo lo que la factura comparada existe para enseñar.
+
+### CORREGIDO el 2026-09-07, y la causa no era la que aquí se dijo
+
+Al implementar el arreglo apareció que **el recorte posterior no era la
+causa**, sino un síntoma. La causa está un paso antes, en el arranque.
+
+El bloque comprador arranca repartiendo el presupuesto de los techos entre
+los compradores y el jugador virtual. Cuando esa forma cae fuera de la banda
+se aplica el respaldo de C-136, que reparte la banda del **techo mayor**.
+Con las cotas de permuta, en la hora de las diez de la frontera principal,
+eso da un arranque en 760,3 (COP/kWh) para una banda que empieza en 692,7 y
+termina en 731,1 para tres de los cuatro compradores. **Nacen por encima de
+su propio techo.** Ahí el peso de barrera vale cero, su precio no se mueve
+en toda la integración, y el recorte los deja exactamente en 731,1, que es
+donde el ahorro vale cero.
+
+Es la patología de H-32 por el extremo de arriba, y solo aparece cuando se
+juntan las dos cosas: la banda estrecha de CAL-47 y dos comercializadores.
+
+**El arreglo, en C-143:** el techo entra al solucionador como vector, y cada
+comprador arranca dentro de **su** banda. Con techos iguales las dos formas
+coinciden y el resultado es idéntico bit a bit.
+
+### Lo que cambia, medido
+
+Cuatro regímenes del techo sobre las mismas horas, evaluando el ahorro
+siempre contra el techo **real** de cada institución, que es lo único que
+los hace comparables. Muestra de 60 horas activas al azar por frontera.
+
+| Frontera | Régimen | Volumen (kWh) | Excedente (COP) | Horas-comprador sin ahorro | Con pérdida |
+|---|---|---:|---:|---:|---:|
+| M1 | escalar, lo de antes | 214,73 | 45.016,2 | **88** | 0 |
+| M1 | **techo propio** | 214,73 | **46.596,6** | **0** | 0 |
+| M1 | techo único bajo | 214,73 | 45.016,1 | 0 | 0 |
+| M1 | techo único alto | 214,73 | 45.016,2 | 88 | **88** |
+| M3 | escalar | 131,68 | 80.292,3 | 2 | 0 |
+| M3 | **techo propio** | 131,68 | 80.205,3 | **0** | 0 |
+| M3 | techo único bajo | 131,25 | 80.080,1 | 0 | 0 |
+| M3 | techo único alto | 131,68 | 80.292,3 | 2 | 2 |
+
+Tres cosas que conviene separar.
+
+**Primera, el volumen apenas se mueve, y no por el precio.** Sobre 60 horas
+la mayor diferencia entre regímenes era de 5,2·10⁻¹³ (kWh), es decir
+precisión de máquina. **Sobre 400 horas deja de serlo**: la frontera
+principal pasa de 779,23 (kWh) con el régimen anterior a 778,16 con el techo
+propio, un 0,14 %.
+
+La causa no es el precio sino la restricción de participación: al cambiar
+los precios, se retiran vendedores distintos. No contradice D-7, porque el
+volumen sigue siendo el mínimo de los dos lados **dado quién participa**; lo
+que cambia es quién participa. Ver H-43, con el que esto se enlaza.
+
+**Segunda, el arreglo elimina las horas sin ahorro.** Las 88 de la frontera
+principal y las 2 de la secundaria pasan a cero. Ese es el criterio que
+decide, porque un comprador que participa y no gana nada es un defecto del
+mecanismo, no un resultado.
+
+### Confirmado sobre 400 horas en el servidor, el 2026-09-07
+
+Doscientas horas activas al azar por frontera, con las mismas semillas y el
+mismo criterio de evaluación.
+
+| Frontera | Régimen | Volumen (kWh) | Excedente (COP) | Ahorro comprador | Sin ahorro | Con pérdida |
+|---|---|---:|---:|---:|---:|---:|
+| M1 | escalar, lo de antes | 779,23 | 199.307,4 | 93.281,6 | **283** | 0 |
+| M1 | **propio** | 778,16 | **204.318,8** | **110.904,7** | **0** | 0 |
+| M1 | único bajo | 777,72 | 198.827,9 | 110.382,6 | 0 | 0 |
+| M1 | único alto | 779,23 | 199.307,4 | 82.497,6 | 283 | **283** |
+| M3 | escalar | 483,52 | 294.492,5 | 210.001,5 | 6 | 0 |
+| M3 | **propio** | 483,02 | 294.478,5 | 216.683,4 | **0** | 0 |
+| M3 | único bajo | 483,02 | 294.605,3 | 216.760,1 | 0 | 0 |
+| M3 | único alto | 483,52 | 294.492,5 | 209.942,2 | 6 | **6** |
+
+**El hallazgo queda cerrado.** Las 283 horas-comprador sin ahorro de la
+frontera principal y las 6 de la secundaria pasan a cero, sin excepción. La
+factura comparada por institución se puede publicar.
+
+Contado por horas en vez de por horas-comprador, el defecto era más grave de
+lo que la primera cifra sugería: **109 de las 200 horas de la frontera
+principal tenían al menos un comprador con beneficio exactamente cero**, es
+decir más de la mitad. En la secundaria eran 4. Con el techo propio son cero
+en las dos.
+
+Por horas, el excedente mejora en 107, empeora en 22 y no se mueve en 71 en
+la principal, con mediana del 0,00 % y un máximo del +109,8 %. En la
+secundaria empeora más veces de las que mejora, 49 contra 20, con un rango
+del −4,5 al +16,1 %. **Confirma que el agregado no es el argumento**: lo que
+decide son los ceros.
+
+**El techo único alto queda descartado sin discusión:** 283 horas con
+pérdida, es decir compradores pagando por encima de lo que la red les cobra.
+
+Dos cifras más, que conviene tener a mano. El excedente sube un 2,5 % en la
+frontera principal y queda igual en la secundaria, con un 0,005 % de
+diferencia, de modo que **el agregado sigue sin ser el argumento**. Y el
+ahorro del lado comprador sube un 18,9 %, de 93.281,6 a 110.904,7 (COP), con
+la tajada del vendedor bajando del 67,8 al 55,0 %: el arreglo traslada
+excedente del vendedor al comprador.
+
+**Tercera, el efecto sobre el excedente es pequeño y no uniforme.** En la
+frontera principal el techo propio gana un 3,5 % en el agregado, pero por
+horas gana en 31, pierde en 10 y empata en 19, con mediana del 0,00 % y un
+rango del −3,5 % al +84,8 %. En la secundaria pierde un 0,1 %, ganando en 5
+horas y perdiendo en 23. **El agregado no es el argumento**; el argumento es
+que ningún comprador se quede en cero.
+
+### De dónde sale la ganancia, cuando la hay
+
+A las diez de la mañana del 2 de mayo, con 8,2381 (kWh) que mover en los
+cuatro regímenes:
+
+| Régimen | Institución | Techo | Precio | Compra (kWh) | Ahorro (COP) |
+|---|---|---:|---:|---:|---:|
+| escalar | Mariana, UCC, HUDN | 731,13 | 731,13 | 2,060 cada una | **0,00** |
+| escalar | CESMAG | 777,17 | 756,05 | 2,060 | 43,50 |
+| propio | Mariana, UCC, HUDN | 731,13 | 722,36 | 1,204 cada una | 10,55 |
+| propio | CESMAG | 777,17 | 746,62 | **4,626** | 141,34 |
+
+Con un techo común los cuatro compradores parecen iguales y la energía se
+reparte en partes iguales. Con el techo de cada uno, la energía escasa va a
+quien tiene la alternativa más cara, es decir a quien compra al otro
+comercializador. Eso desplaza la compra a red más costosa y el excedente de
+la hora sube de 411,4 a 529,6 (COP), un 28,7 %, sin mover un kilovatio hora
+más. No es un reparto distinto del mismo excedente, es una asignación mejor.
+
+### El techo único alto queda descartado
+
+Deja a las tres instituciones de ASC pagando 756,05 (COP/kWh) contra un
+techo propio de 731,13, es decir comprando más caro que en la red. Ahorro de
+−51,33 (COP) cada una. Ningún régimen que obligue a un participante a pagar
+por encima de su alternativa externa es admisible, y por eso las 88 horas
+con pérdida lo cierran.
+
+### Lo que sigue abierto, y es del asesor
+
+Quedan dos candidatos, y el criterio los separa. El techo propio da 46.596,6
+(COP) de excedente en la frontera principal y concentra el 82 % del ahorro
+del lado comprador en el CESMAG. El techo único bajo da 45.016,1 y reparte
+más parejo. **Gana en eficiencia y pierde en equidad.**
+
+La consulta a Pablo Fajardo de junio de 2026 no zanja esto, aunque lo
+parezca. Él afirma tres veces que el costo unitario base es el mismo para
+todos, pero está contestando por **clase de usuario**, es decir comercial
+frente a oficial dentro de un mismo comercializador, y eso ya se aplicó al
+quitar la contribución del 20 % en CAL-47. Lo que hoy parte el techo es el
+**comercializador**, y de ese eje no se le preguntó. Ver el anexo de
+preguntas al comité.
+
+**El cambio de código no depende de la respuesta.** Con techos iguales el
+vector se reduce al escalar bit a bit, de modo que si la respuesta es el
+techo único, el código ya la admite sin tocar nada.
+
+### Una corrección al propio hallazgo
+
+Este hallazgo decía que la vía alternada ya admitía techo vectorial desde
+CAL-47 y la acoplada no. Admitirlo lo admite, pero **en producción nadie le
+pasaba un vector a ninguna de las dos**, porque el parámetro viaja como
+número suelto desde los parámetros de red. El único sitio que arma el vector
+es la sonda. La liquidación sí lo usa, y esa asimetría entre el juego y la
+liquidación es lo que producía el cero exacto.
 
 ---
 
@@ -3142,3 +3313,479 @@ horario el arreglo es inerte, comprobado con `max|dif| = 0` sobre las
 diez series contra el caché, de modo que no hay nada que contar al lector:
 ninguna cifra publicada cambia y el defecto solo habría aparecido en una
 corrida subhoraria que todavía no existe.
+
+---
+
+## H-46 · El peso del jugador virtual no es el que usa el modelo base
+
+**Estado: ABIERTO, con la opción implementada y su compuerta en verde el
+2026-09-07. El defecto sigue siendo la forma de esta traducción; la del
+fichero original es opt-in. Falta la medición sobre muestra grande, que va
+al servidor. Una sonda de tres horas ya avisa de algo, y está abajo.**
+
+El bloque comprador es una dinámica de replicador sobre los precios, con una
+estrategia más que compradores: el jugador virtual, que absorbe el resto del
+presupuesto. Cada estrategia entra en la aptitud media con un peso, y ese
+peso es lo que mantiene el precio dentro de su banda, porque se anula en las
+dos cotas.
+
+En el fichero original el peso se arma en dos piezas. Para los compradores
+reales es el producto de barrera, es decir el techo menos el precio por el
+precio menos el piso. **Para el jugador virtual no**: es su propio precio.
+
+Esta traducción le aplica la barrera también a él, en las dos vías, la
+alternada y la acoplada.
+
+### Cuánto importa
+
+No es cosmético. Con las cotas del modelo base y un arranque en 1.000
+(COP/kWh), la barrera vale 221.500 y el precio vale 1.000, es decir un
+factor de 221. Con las cotas de permuta el factor baja pero sigue siendo de
+orden 5. El peso entra en la aptitud media, y la aptitud media entra en la
+deriva de **todos** los precios, de modo que la diferencia no se queda en el
+jugador virtual.
+
+### Por qué no se corrige todavía
+
+Tres razones. La primera es que cambiarlo dentro de C-143 rompería la
+identidad bit a bit que hace defendible esa corrección. La segunda es que la
+versión arbitrada del modelo base **no tiene jugador virtual**: resuelve el
+bloque comprador con un optimizador acotado, de modo que la fuente que zanja
+las discrepancias no zanja esta. La tercera es que hay que medirlo antes,
+como se midió todo lo demás.
+
+### Qué habría que hacer, y qué ya se hizo
+
+La opción está implementada en el solucionador acoplado, con la compuerta
+`tests/gate_h46_peso_virtual.py` en verde. Exige cuatro cosas: que el
+defecto siga siendo la forma de esta traducción bit a bit; que la otra forma
+sea alcanzable y distinta; que un valor desconocido se rechace en vez de
+caer en silencio en el defecto; y que el volumen no cambie entre las dos.
+
+Falta la medición sobre muestra grande. La sonda es `peso_virtual.py` y va
+al servidor con la tanda del 7 de septiembre.
+
+### Aviso de una sonda de tres horas, que no decide pero orienta
+
+Sobre tres horas activas de la frontera principal, con la banda de permuta:
+
+| Forma del peso | Volumen (kWh) | Excedente (COP) | Tajada del vendedor | Posición media en la banda | Precios pegados |
+|---|---:|---:|---:|---:|---:|
+| barrera, la de esta traducción | 7,212 | 738,5 | 41,2 % | 0,457 | **0** |
+| precio, la del fichero original | 7,212 | 730,8 | 11,6 % | 0,117 | **6** |
+
+El volumen no se mueve, con 2,3·10⁻¹⁴ (kWh) de diferencia, y el excedente
+apenas, como se esperaba. Pero **la forma del original deja seis precios
+pegados a una cota y hunde la posición media de 0,457 a 0,117**, es decir
+los empuja contra el piso.
+
+Eso importa mucho, porque el precio pegado a las cotas es justo el defecto
+que H-38 atribuyó al lazo alternado y que la vía acoplada venía a corregir.
+Adoptar la forma del original por fidelidad podría reintroducirlo.
+
+**No es concluyente**: son tres horas, y en el caso sintético con banda
+ancha la forma del original da precios interiores. La diferencia sugiere que
+el efecto aparece solo con la banda estrecha, igual que en H-32 y H-45. La
+muestra de doscientas horas lo decide.
+
+### Decidido sobre 400 horas en el servidor, el 2026-09-07
+
+| Frontera | Forma del peso | Volumen (kWh) | Excedente (COP) | Tajada del vendedor | Posición en la banda | Precios pegados | Vendedores retirados |
+|---|---|---:|---:|---:|---:|---:|---:|
+| M1 | barrera, la de esta traducción | 778,160 | 204.318,8 | 55,0 % | 0,644 | **9** | 66 |
+| M1 | precio, la del fichero original | 705,090 | 197.892,2 | 12,3 % | 0,150 | **489** | 85 |
+| M3 | barrera | 483,017 | 294.478,5 | 31,5 % | 0,346 | 17 | 67 |
+| M3 | precio | 481,980 | 294.094,7 | 31,9 % | 0,350 | 16 | 68 |
+
+La forma del original **no es adoptable**, y no por gusto sino por lo que
+hace:
+
+1. **Pega 489 precios a una cota, frente a 9.** Es cincuenta y cuatro veces
+   más, y la posición media en la banda se hunde de 0,644 a 0,150, es decir
+   los empuja contra el piso.
+2. **Cuesta el 9,4 % del volumen transado**, de 778,16 a 705,09 (kWh). No es
+   un efecto de precio: al empujar el precio contra el piso, diecinueve
+   vendedores más quedan por debajo de su alternativa externa y no entran.
+   Los retirados pasan de 66 a 85.
+3. **Hunde la tajada del vendedor del 55,0 al 12,3 %**, y en alguna hora el
+   excedente se desvanece casi entero: la mayor diferencia relativa medida es
+   del 97,2 %.
+
+El precio pegado a las cotas es justamente el defecto que H-38 atribuyó al
+lazo alternado y que la vía acoplada existe para corregir. Adoptar la forma
+del original por fidelidad sería cambiar un defecto por otro peor.
+
+### La frontera secundaria lo confirma por la vía negativa
+
+Y esta es la comprobación que cierra el asunto, porque **en la secundaria las
+dos formas dan prácticamente lo mismo**: el volumen difiere un 0,2 %, el
+excedente un 0,13 %, la posición media del precio es 0,346 contra 0,350 y los
+precios pegados 17 contra 16.
+
+El mismo código, el mismo modelo y los mismos agentes se rompen en una
+frontera y no en la otra. **Lo único que las distingue es el ancho de la
+banda**: 228,1 (COP/kWh) en la principal contra 598,7 en la secundaria, es
+decir 2,6 veces más. En la secundaria el piso es la bolsa, unos 108
+(COP/kWh) contra un techo de unos 740, de modo que el supuesto del modelo
+base, que el piso sea despreciable frente al techo, **sigue valiendo**. En la
+principal el piso es la permuta, unos 693 contra 740, y deja de valer.
+
+No es una conjetura sobre por qué falla: es la misma pieza medida en los dos
+regímenes, funcionando en uno y fallando en el otro, con el ancho de la banda
+como única diferencia.
+
+Y el contraste es aún más nítido contado por horas. En la principal, la forma
+de esta traducción pega algún precio en **8 de 200 horas** y la del original
+en **139**. En la secundaria las cifras se invierten: 16 contra 8, es decir
+que allí la del original es incluso marginalmente mejor.
+
+El costo en volumen tiene la misma forma. En la principal la del original
+mueve menos en 17 horas, con un caso extremo en que el mercado de esa hora se
+desvanece casi entero, un **−98,7 %**. En la secundaria ocurre en una sola
+hora.
+
+**Decisión: se conserva la forma de esta traducción**, y la discrepancia con
+el fichero original se declara en el documento en vez de resolverse a su
+favor. La opción queda implementada y con compuerta, de modo que la
+afirmación es verificable y no un dicho.
+
+### Y con esto son tres, que es lo que de verdad importa
+
+Este hallazgo cierra un patrón que ya no admite duda. **Tres piezas del
+modelo base suponen que el piso es despreciable frente al techo**, que es el
+régimen en el que fue calibrado, con 114 contra 1.250:
+
+| Pieza | Hallazgo | Qué pasa con la banda medida |
+|---|---|---|
+| La condición inicial del bloque comprador | H-32 | nace por debajo del piso |
+| El techo, tratado como escalar | H-45 | nace por encima del techo propio de tres compradores |
+| El peso del jugador virtual | H-46 | empuja el precio contra el piso |
+
+Las tres son inertes con banda ancha y las tres se rompen cuando la banda se
+estrecha al cargo de comercializar, que es lo que CAL-47 midió. **No es que
+el modelo base esté mal: es que no es transferible sin revisar sus supuestos
+de escala.** Esa es una conclusión metodológica del trabajo, y conviene que
+figure como tal y no repartida en tres notas.
+
+
+---
+
+## H-47 · El escenario que más excedente produce es el que peor factura deja
+
+**Estado: MEDIDO el 2026-09-07 sobre un día completo y sobre una muestra de
+veinte horas por frontera. Nace de la pregunta abierta de H-45 y la
+desborda: no es sobre el techo del juego, es sobre con qué se mide un
+escenario. Contiene la rectificación de una afirmación que el día solo
+sostenía y la muestra desmiente.**
+
+La pregunta de partida era institucional. Cuatro instituciones compran a un
+comercializador y la quinta a otro, de modo que cabe preguntarse qué pasaría
+si las cinco compraran al mismo. Se midió sustituyendo el **perfil
+tarifario** entero, no solo el número que entra al juego, con lo que el
+cambio viaja al techo, al piso de permuta, al límite económico de
+generación, a la clasificación en papeles y a la liquidación.
+
+### Lo que los dos comercializadores se intercambian
+
+Componentes del costo unitario en mayo de 2025, en (COP/kWh):
+
+| Escenario | Techo | Comercialización | Generación | Redes |
+|---|---:|---:|---:|---:|
+| real | 740,34 | 66,95 | 387,74 | 277,26 |
+| todas con ASC | 731,13 | **38,43** | 415,61 | 277,08 |
+| todas con CEDENAR | 777,17 | **181,03** | 276,27 | 277,96 |
+
+Los cargos de red coinciden en los tres, como debe ser, porque los fija el
+operador y no el comercializador. Eso valida que la sustitución hace lo que
+dice. Lo que los dos se intercambian es generación por comercialización: ASC
+compra la energía más cara y cobra mucho menos por comercializarla.
+
+### El ordenamiento invertido
+
+El 2 de mayo de 2025, ocho horas con mercado en la frontera principal:
+
+| Escenario | Banda | Excedente del mercado | Factura sin mercado | Factura con mercado |
+|---|---:|---:|---:|---:|
+| todas con ASC | 38,4 | 2.123,5 | 284.846,4 | **282.722,9** |
+| real | 50,9 | 3.195,4 | 286.737,1 | 283.541,7 |
+| todas con CEDENAR | 181,0 | **10.002,2** | 310.529,8 | 300.527,6 |
+
+**Por excedente del mercado gana CEDENAR, con 4,7 veces el de ASC. Por
+factura pagada pierde, con 17.804,7 (COP) más en ocho horas.** Los dos
+ordenamientos están exactamente invertidos, y el orden se repite en la
+frontera secundaria, de modo que no es casualidad de una.
+
+La razón está en la identidad de H-33 y en CAL-47 juntas. El excedente del
+mercado es el ancho de la banda por la energía transada, y el ancho de la
+banda **es** el cargo de comercializar. El mercado entre pares recupera ese
+cargo, pero solo sobre la energía que se transa, que es el lado corto. La
+comunidad lo paga sobre todo lo que compra.
+
+**La consecuencia metodológica, que es el hallazgo:** medir un escenario por
+lo que el mercado ahorra lleva a elegir el proveedor equivocado. Toda
+comparación entre escenarios tiene que informar la factura, no solo el
+excedente. Afecta a cómo se presentan los resultados frente a la regulación.
+
+Dicho en positivo, y así conviene decirlo en el documento: **el mercado
+entre pares vale más justamente donde el minorista es peor**, porque lo que
+ahorra es el cargo de comercializar que evita.
+
+### El volumen sí se mueve, y por una razón que no es el precio
+
+**Rectificación.** Con el día solo, este hallazgo afirmaba que el volumen no
+se movía en absoluto, con diferencias de 4,0·10⁻¹³ (kWh). Sobre la muestra
+de veinte horas por frontera resulta falso en la frontera principal: el
+volumen pasa de 58,21 (kWh) en el escenario real a 60,21 con todas en ASC y
+61,43 con todas en Cedenar. **El escenario real mueve menos energía que
+cualquiera de los dos uniformes.**
+
+La causa no es el precio ni el límite económico de generación, que
+efectivamente no muerde: con costos marginales del orden de 80 a 200
+(COP/kWh) contra techos de 731 a 777, ningún generador queda fuera por
+antieconómico. La causa es **la restricción de participación**, y con ella
+este hallazgo se enlaza con H-43.
+
+| Escenario | Vendedores retirados en 19 horas | Volumen (kWh) |
+|---|---:|---:|
+| todas con ASC | 4 | 60,21 |
+| todas con CEDENAR | 3 | 61,43 |
+| **real** | **9** | **58,21** |
+
+El escenario real retira más del doble de vendedores que cualquiera de los
+uniformes. La hora 4406 lo enseña en limpio: con tarifas uniformes no se
+retira nadie y se mueven 3,40 (kWh); con las tarifas reales se retiran dos
+de los tres vendedores y el volumen cae a 1,39, un 59 % menos.
+
+El mecanismo es el de H-43. El piso del juego es el menor de los pisos de
+los vendedores activos. Con dos comercializadores los pisos difieren, en esa
+hora 677,3 y 616,5 (COP/kWh), y un precio admisible para el vendedor de piso
+bajo queda por debajo del piso del otro, que entonces no entra. Con tarifas
+uniformes los pisos coinciden y el problema desaparece.
+
+**La heterogeneidad de comercializador es, por tanto, una de las causas de
+H-43**, y le cuesta energía a la comunidad. Es un tercer criterio, distinto
+del excedente y de la factura, y apunta en el mismo sentido que la factura.
+
+En la frontera secundaria el volumen sí es idéntico en los tres escenarios,
+sin una sola diferencia por encima de 10⁻⁹ (kWh), porque allí el piso es la
+bolsa y la bolsa es la misma para todos.
+
+### El orden se confirma sobre la muestra
+
+Veinte horas activas al azar por frontera, tomadas de todo el horizonte.
+
+| Frontera | Escenario | Volumen | Excedente | Factura con mercado |
+|---|---|---:|---:|---:|
+| M1 | todas con ASC | 60,21 | 15.348,8 | **320.471,5** |
+| M1 | real | 58,21 | 16.455,9 | 331.841,2 |
+| M1 | todas con CEDENAR | 61,43 | **22.872,7** | 352.284,0 |
+| M3 | todas con ASC | 36,43 | 21.529,4 | **14.882,6** |
+| M3 | real | 36,43 | 22.873,0 | 16.474,8 |
+| M3 | todas con CEDENAR | 36,43 | **24.134,4** | 18.168,0 |
+
+El ordenamiento invertido se sostiene en las cuatro mediciones, es decir las
+dos fronteras del día y las dos de la muestra: **por excedente gana siempre
+Cedenar y por factura gana siempre ASC**, sin una sola excepción.
+
+### Confirmado sobre 400 horas en el servidor, el 2026-09-07
+
+Doscientas horas activas al azar por frontera.
+
+| Frontera | Escenario | Volumen (kWh) | Banda | Excedente (COP) | Factura con mercado |
+|---|---|---:|---:|---:|---:|
+| M1 | todas con ASC | **803,26** | 205,3 | 186.027,5 | **2.728.480,4** |
+| M1 | real | 778,16 | 228,1 | 204.318,8 | 2.782.893,7 |
+| M1 | todas con CEDENAR | **810,00** | 316,0 | **281.493,8** | 3.028.777,0 |
+| M3 | todas con ASC | 483,02 | 563,2 | 272.832,8 | **169.718,8** |
+| M3 | real | 483,02 | 598,7 | 294.478,5 | 184.067,4 |
+| M3 | todas con CEDENAR | 483,52 | 634,0 | **306.382,6** | 202.105,1 |
+
+**El ordenamiento invertido queda establecido**: seis mediciones
+independientes, es decir las dos fronteras del día, las dos de la muestra
+local y las dos del servidor, y en las seis gana Cedenar por excedente y ASC
+por factura. Ni una excepción en el agregado.
+
+Hora a hora la constancia es desigual y conviene decirlo. El excedente ordena
+a favor de Cedenar en 197 de 200 horas en la principal y en **200 de 200** en
+la secundaria. La factura ordena a favor de ASC en 189 de 200 en la principal
+pero solo en **129 de 200** en la secundaria, donde el agregado sigue siendo
+claro porque las horas en que ASC gana pesan más. De modo que **la afirmación
+se sostiene sobre el total facturado y no sobre el recuento de horas**, y así
+hay que enunciarla.
+
+Las magnitudes ya no son marginales. En la frontera principal el excedente
+del mercado con Cedenar supera al de ASC en un **51,3 %**, y su factura es un
+**11,0 %** más cara. En la secundaria, un 12,3 % más de excedente contra un
+19,1 % más de factura.
+
+### El porcentaje de ahorro tampoco sirve como criterio
+
+Es la trampa en su forma más fina, y solo aparece con las dos fronteras
+delante. En la principal el ahorro relativo ordena Cedenar primero con el
+8,50 %, luego el reparto real con el 6,84 % y ASC último con el 6,38 %. En la
+secundaria **ordena al revés**: ASC primero con el 61,65 %, el real con el
+61,54 % y Cedenar último con el 60,25 %.
+
+Es decir que el ahorro relativo elige el proveedor equivocado en una frontera
+y el correcto en la otra, sin que nada avise de cuál es cuál. **Solo la
+factura ordena igual en las dos.** Cualquier comparación entre escenarios que
+se presente en porcentaje de ahorro y no en pesos pagados está expuesta a
+esto.
+
+### La heterogeneidad cuesta energía, y ahora se mide
+
+Sobre 400 horas el efecto es mucho mayor que el que se vio con veinte. En la
+frontera principal:
+
+| Escenario | Volumen (kWh) | Frente al real |
+|---|---:|---:|
+| real, dos comercializadores | 778,16 | — |
+| todas con ASC | 803,26 | **+3,2 %** |
+| todas con CEDENAR | 810,00 | **+4,1 %** |
+
+**El escenario real mueve entre un 3 y un 4 % menos energía que cualquiera de
+los dos uniformes.** No es el precio ni el límite económico de generación: es
+la restricción de participación de H-43.
+
+**Y está concentrado**, que es lo que hay que decir para no exagerarlo. De
+las 200 horas, el escenario real mueve menos que el uniforme en **8**, y en
+las 190 restantes el volumen coincide. Los 25,1 (kWh) de diferencia salen de
+esas ocho, a razón de unos tres cada una, de modo que no es una merma
+repartida sino un puñado de horas donde el mercado se rompe. Los vendedores
+retirados lo acompañan: 66 en el escenario real contra 52 con todas en ASC y
+40 con todas en Cedenar. Con dos comercializadores los pisos
+de los vendedores difieren, el piso del juego es el menor de ellos, y el
+vendedor de piso alto no entra.
+
+En la secundaria el volumen es prácticamente idéntico en los tres, porque
+allí el piso es la bolsa y la bolsa no depende del comercializador.
+
+**Ese 4 % es el costo de la heterogeneidad**, y es un tercer criterio,
+distinto del excedente y de la factura, que apunta en el mismo sentido que
+la factura.
+
+### Por qué la frontera secundaria apenas distingue
+
+Allí el piso no es la permuta sino la bolsa, 107,9 (COP/kWh) en los tres
+escenarios, porque sus vendedores inyectan más de lo que retiran en el mes.
+**El precio de bolsa no depende del comercializador.** Con un piso tan bajo
+la banda supera los 600 y el cargo de comercializar deja de gobernarla: los
+tres escenarios dan entre el 57,4 y el 57,8 % de ahorro y el orden por
+factura se sostiene solo por el techo.
+
+### Qué queda
+
+Confirmar el orden fuera de este día con una muestra, y decidir si el
+escenario de consolidación de comercializador entra en el documento o se
+queda como nota. La sonda es `escenario_comercializador.py` y el interruptor
+es la función que fuerza el comercializador en la capa de tarifas.
+
+
+---
+
+## H-48 · Los dos comercializadores no impiden la comunidad, y la norma lo dice en sus fórmulas
+
+**Estado: ESTABLECIDO el 2026-09-07 con fuente primaria. Responde por
+adelantado a una objeción previsible y cierra la pregunta que H-45 dejaba
+abierta para el comité.**
+
+Nace de una observación de Sofía Chacón: que al cambiar de transformador se
+cambia de zona de frontera comercial, que alguna resolución explica qué pasa
+con comercializadores distintos, y que si se cambia de zona no se podía
+hacer mercado, con lo que las comunidades energéticas tendrían que estar en
+la misma zona. De ser así, un mercado entre pares puramente virtual quedaría
+desvirtuado, porque cada par estaría atado al transformador por el que entra
+o sale su energía.
+
+**La restricción existe, pero no es la que se recuerda.** Y la diferencia
+decide si esta comunidad es admisible.
+
+### Lo que exige la norma
+
+La Resolución CREG 101 072 de 2025 recoge el límite de dispersión: la
+capacidad de generación y sus usuarios deben pertenecer al **mismo mercado
+de comercialización** y estar inmersos en el **mismo Sistema de Distribución
+Local**.
+
+Y «mercado de comercialización» está definido en la Resolución CREG 015 de
+2018 como el «conjunto de usuarios regulados y no regulados conectados a un
+mismo STR y/o SDL, **servido por un mismo OR**».
+
+**El mercado lo define el operador de red, no el comercializador.** No es el
+transformador ni la frontera comercial de cada usuario: es el área del
+operador.
+
+### La norma contempla expresamente varios comercializadores
+
+Es la prueba más fuerte y está en su propio articulado. Las fórmulas de
+liquidación del autogenerador colectivo indexan cada cantidad por tres
+cosas: el usuario, el mercado de comercialización y **el comercializador**.
+El porcentaje de distribución de excedentes se define «para el punto de
+conexión del usuario u, en el mercado de comercialización j y que es
+**atendido por el comercializador i**».
+
+Si un colectivo tuviera que compartir comercializador, ese índice sobraría.
+Está ahí porque la norma da por supuesto que puede no compartirlo.
+
+### Quién es quién, según el registro de XM
+
+Consultado el listado de agentes registrados ante el Mercado de Energía
+Mayorista:
+
+| Código | Actividad | Agente | NIT |
+|---|---|---|---|
+| ASCC | **COMERCIALIZADOR** | A.S.C. Ingeniería S.A. E.S.P. | 814.002.979-7 |
+| CDNC | COMERCIALIZADOR | Centrales Eléctricas de Nariño S.A. E.S.P. | 891.200.200-8 |
+| CDND | **OPERADOR DE RED** | Centrales Eléctricas de Nariño S.A. E.S.P. | 891.200.200-8 |
+| CDNG | GENERADOR | Centrales Eléctricas de Nariño S.A. E.S.P. | 891.200.200-8 |
+
+ASC está inscrita como comercializador desde el 14 de marzo de 2003 y **no
+tiene registro como operador de red**. Centrales Eléctricas de Nariño lo
+tiene bajo el mismo número de identificación con el que figura además como
+comercializador, que es la figura del comercializador integrado con el
+operador a la que se refiere la Resolución CREG 174 de 2021.
+
+De modo que las cinco instituciones, todas en Pasto y todas conectadas al
+sistema de distribución de Nariño, **están en el mismo mercado de
+comercialización y en el mismo sistema de distribución local**, con dos
+comercializadores distintos. Cumplen.
+
+### Tres confirmaciones más, por si la primera no bastara
+
+1. **La hoja tarifaria de ASC** se publica «en cumplimiento del inciso
+   segundo del artículo 125 de la Ley 142 de 1994», que es la obligación del
+   comercializador de dar a conocer sus tarifas, y se dirige a «los usuarios
+   regulados del Departamento de Nariño».
+2. **Su estructura de costos distingue la propiedad de los activos de red** y
+   trae una fila del operador, es decir que paga cargos de uso de red a un
+   tercero en vez de fijarlos.
+3. **Nuestra propia medición**: los cargos de red de las dos tablas
+   coinciden, 277,08 contra 277,96 (COP/kWh) en mayo de 2025. Es lo que se
+   espera si el operador es el mismo, porque los fija él. Lo que difiere es
+   generación y comercialización.
+
+### Lo contrario de lo que se temía
+
+La armonización de las comunidades energéticas introduce la **agregación
+virtual de fronteras** justamente para integrar usuarios dispersos
+geográficamente, con la condición de que estén en el mismo mercado de
+comercialización y el mismo sistema de distribución local. No desvirtúa el
+mercado virtual: lo habilita, y le pone por límite el área del operador de
+red en vez del transformador.
+
+### Qué se sigue para el modelo
+
+**El techo por comprador es la configuración correcta**, y ahora por tres
+razones y no por una: es lo que dice el dato, es lo que la norma permite de
+forma expresa, y es lo que elimina las horas con comprador sin beneficio.
+
+Los dos escenarios uniformes de H-47 **dejan de ser candidatos y quedan como
+análisis de sensibilidad**. Sirven para cifrar cuánto pesa la
+heterogeneidad, que es un 4 % de la energía transada y un 11 % de la
+factura, y para sostener el ordenamiento invertido. No son configuraciones
+alternativas.
+
+Y la caja de decisión pendiente sobre techo único frente a techo por agente
+**queda resuelta**, con norma y registro, en vez de quedar al criterio del
+comité.
+

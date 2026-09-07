@@ -6306,6 +6306,352 @@ H-42 y las sondas son `caso_publicado.py` y `competencia_real.py`.
 
 ---
 
+## C-143 · El techo de cada comprador entra al solucionador, y el arranque nace dentro de su banda
+
+**2026-09-07 · tipo: `codigo` · aplicada, con compuerta**
+
+Corrige H-45. El solucionador acoplado recibía el techo como un número
+suelto, el mayor de los compradores de la hora, y el techo propio se
+aplicaba después como recorte. Tres de los cuatro compradores pagaban
+exactamente su techo y su ahorro valía cero.
+
+### La causa no era el recorte
+
+Es lo primero que se comprobó al implementar, y obliga a rectificar lo que
+H-45 daba por bueno. Pasar el techo como vector **no arregla nada por sí
+solo**. El arranque del bloque comprador se calcula sobre el techo mayor, y
+con la banda estrecha de CAL-47 nace en 760,3 (COP/kWh) para compradores
+cuya banda termina en 731,1. Nacen **por encima de su propio techo**, donde
+el peso de barrera vale cero, y su precio no se mueve en toda la
+integración. El recorte solo los deja donde ya estaban.
+
+Es la patología de H-32 por el extremo de arriba. Aparece únicamente cuando
+coinciden la banda estrecha y dos comercializadores, y por eso no se había
+visto antes.
+
+### Qué se cambió
+
+En el solucionador acoplado, el techo pasa de escalar a admitir también un
+vector de compradores, con cinco sitios afectados: el presupuesto que
+reparte el jugador virtual, que es la suma de los techos; el arranque; el
+peso de barrera que multiplica la dinámica del precio; la proyección en la
+frontera superior; y el recorte de la trayectoria. El jugador virtual toma
+el mayor de los techos.
+
+El arranque se calcula **por comprador**: la forma original si cae dentro de
+su banda, y si no, el reparto de su propia banda. Con techos iguales las dos
+formas coinciden.
+
+En la sonda del paso a paso, el techo entra al solucionador en vez del
+máximo, y el recorte posterior queda como guarda inerte. La sonda gana
+además un selector de régimen, para poder medir la pregunta que sigue
+abierta con el asesor.
+
+### Fidelidad al modelo base, que hay que declarar
+
+**El techo por comprador no está en el modelo de origen.** La ecuación (5)
+del artículo publicado escribe las dos cotas como escalares globales, y el
+fichero original las fija a mano. Es una extensión de esta tesis, nacida de
+que la comunidad tiene dos comercializadores.
+
+Lo que sí ampara la forma es la versión arbitrada, que formula las cotas del
+precio como **vectores** de longitud igual al número de compradores, aunque
+los llene con el mismo valor. La generalización respeta esa forma.
+
+### Compuerta
+
+`tests/gate_h45_techo_por_comprador.py`, en verde. Exige que un vector
+constante dé un resultado idéntico bit a bit al escalar de ese valor, en las
+tres bandas de interés y con tres semillas cada una; que con techos
+distintos ningún precio salga de su propia banda; y que el comprador del
+techo bajo deje de estar pegado a él.
+
+Se comprobó además contra el fichero anterior extraído del control de
+versiones: **con techo escalar el resultado es idéntico bit a bit** en las
+nueve combinaciones de banda y semilla.
+
+### Lo que cambia en los resultados
+
+Medido sobre 60 horas activas al azar por frontera, en la tabla de H-45.
+Tres cosas: el volumen no se mueve en absoluto, con diferencias de orden
+10⁻¹³ (kWh); las 88 horas-comprador sin ahorro de la frontera principal y
+las 2 de la secundaria pasan a cero; y el excedente sube un 3,5 % en la
+principal y baja un 0,1 % en la secundaria, de modo que **el agregado no es
+el argumento**.
+
+Ver H-45 y H-32.
+
+---
+
+## C-144 · El paquete del servidor llevaba finales de línea de Windows
+
+**2026-09-07 · tipo: `codigo` · aplicada, comprobada sobre el paquete**
+
+El montaje en el servidor se detuvo en seco al arrancar el entorno, con este
+mensaje:
+
+    : invalid option namedor.sh: line 31: set: pipefail
+
+El mensaje parece corrupto y lo está, pero por una razón que es la propia
+causa: el intérprete lee un retorno de carro pegado a la última opción de la
+línea que fija el modo estricto, no la reconoce, y al imprimir el error ese
+mismo retorno de carro devuelve el cursor al principio de la línea y se come
+la primera mitad del mensaje.
+
+### La causa no era lo que parecía
+
+Lo primero que supuse es que la habían introducido mis ediciones, porque
+escribir un fichero de texto en Windows traduce los saltos de línea sin
+avisar. Al comprobarlo resultó más general: **el árbol entero está en CRLF**,
+incluidos ficheros que nadie ha tocado, porque así los deja el checkout. El
+empaquetador los metía tal cual en el archivo comprimido y llegaban así a
+Linux, donde el intérprete de guiones no los tolera.
+
+Que hubiera funcionado la vez anterior no contradice nada: entonces el guion
+llegó por el clon del repositorio, donde el control de versiones ya lo
+entrega con el final de línea del sistema de destino.
+
+### El arreglo, y por qué va en el empaquetador
+
+Se normaliza a un solo salto de línea **al armar el paquete**, no en el árbol
+de trabajo. Es el sitio correcto por dos razones: el árbol local se queda
+como el checkout lo dejó, y lo que viaja es siempre válido en el destino sea
+cual sea la máquina que empaqueta.
+
+La huella que el manifiesto publica pasa a calcularse sobre el contenido
+normalizado, es decir sobre lo que de verdad viaja, para que se pueda
+verificar en el destino. Y los guiones salen con el permiso de ejecución
+puesto.
+
+### Comprobación
+
+Sobre el paquete armado: **32 ficheros, ninguno con retorno de carro**. El
+guion extraído del propio archivo comprimido pasa la comprobación de sintaxis
+del intérprete, y la línea que fallaba se lee ya sin el carácter sobrante.
+
+### Un tropiezo de paso, que es la lección C-119 otra vez
+
+El primer intento de aplicar esta corrección se escribió desde un documento
+en línea del intérprete de órdenes, que **interpretó las barras invertidas** y
+dejó retornos de carro de verdad dentro de los literales del código, partiendo
+un comentario y una llamada en dos. El fichero dejó de compilar.
+
+Se reparó con un guion aparte que trabaja sobre bytes y construye los dos
+literales con la función que devuelve un carácter por su código, de modo que
+ningún intermediario pueda tocarlos. **Cualquier cosa con barras invertidas se
+edita con la herramienta de edición, nunca desde un documento en línea.**
+
+---
+
+## C-145 · Tres defectos que hacían que las mediciones tardaran de más
+
+**2026-09-07 · tipo: `codigo` · aplicada, comprobada en el servidor**
+
+Ninguno toca el modelo y ninguno cambia una cifra. Los tres falseaban el
+tiempo, y dos de ellos también la interpretación, porque una corrida que no
+termina se acaba cortando y entonces se concluye sobre media muestra.
+
+Salieron de que el autor preguntara si se estaban aprovechando los recursos.
+La respuesta era que no, y por tres motivos distintos.
+
+### Primero, los hilos de la biblioteca de álgebra lineal
+
+Las bibliotecas de álgebra lineal abren por defecto tantos hilos como
+núcleos ven. Cuando el trabajo se reparte además en tantos **procesos** como
+núcleos, eso multiplica: en un servidor de treinta y dos núcleos serían
+treinta y dos procesos por treinta y dos hilos peleando por treinta y dos
+núcleos, y el tiempo se va en esperas entre hilos que no tienen nada que
+calcular.
+
+Aquí no aportarían nada aunque no estorbaran. El sistema que el solucionador
+integra tiene del orden de treinta y siete estados, demasiado pequeño para
+que repartir una operación entre hilos compense.
+
+Se fija un hilo por proceso. **Tiene que hacerse antes de que numpy cargue su
+biblioteca**, de modo que el módulo que lo hace se importa en la primera
+línea de cada sonda, antes que ningún otro.
+
+### Segundo, el reparto de tareas en bloques
+
+El repartidor entregaba las tareas en bloques fijos al arrancar. Un
+trabajador al que le tocaban dos horas difíciles molía mientras los demás
+terminaban y se paraban. Medido el mismo día: dos procesos a pleno
+rendimiento, dos completamente parados, y el contador de avance detenido en
+diez de ochenta durante cuarenta y nueve minutos, porque los resultados se
+recogían en orden de envío y la primera hora lenta retenía toda la cuenta.
+
+Se pasa a entregar de una en una y a recoger por terminación. Y la unidad de
+trabajo deja de ser la hora entera para ser **la hora y el régimen**, con lo
+que las cuatrocientas tareas del régimen del techo pasan a mil seiscientas y
+el reparto se equilibra solo.
+
+Efecto medido: la misma medición que llevaba cuarenta y nueve minutos sin
+pasar de la décima tarea se completó entera en veintidós con el reparto
+nuevo.
+
+### Tercero, y es el sutil: `nproc` obedece al límite de hilos
+
+Su manual lo dice, aunque no es lo que uno espera: si la variable que limita
+los hilos está puesta, determina el valor **mínimo** que devuelve.
+
+El lanzador hacía dos cosas en este orden: contar los núcleos y exportar el
+límite de un hilo por proceso. Correcto mientras se ejecute una sola vez.
+Pero la acción que corre las tres sondas seguidas **vuelve a invocar el
+lanzador** para cada una, y en esa segunda invocación la variable ya venía
+puesta a uno desde la primera. La cuenta devolvía uno, y treinta procesos se
+quedaban en uno.
+
+En el servidor se vio con toda claridad: la cabecera anunciaba «32 núcleos ·
+30 procesos» y la sonda, invocada por ella, declaraba «1 procesos». Son dos
+invocaciones distintas y la segunda venía contaminada por la primera. La
+carga del sistema lo confirmaba en 1,17.
+
+Se cuenta con la variable limpiada para esa llamada concreta, y la cuenta se
+exporta para que las invocaciones anidadas la hereden en vez de rehacerla.
+
+**Y cada sonda declara ahora con cuántos procesos arranca**, que es lo que
+convierte un defecto invisible en uno que salta a la vista.
+
+### Comprobación
+
+Reproducido y verificado en las dos máquinas. Con el límite puesto la cuenta
+devuelve uno; limpiada, devuelve los doce de la máquina de trabajo y los
+treinta y dos del servidor. La invocación anidada hereda el mismo valor que
+la primera.
+
+En el servidor, tras la corrección: **1.600 tareas repartidas entre 30
+procesos**, treinta y un procesos vivos y carga del sistema subiendo a 25,3.
+Antes de ella, un proceso y carga 1,17.
+
+### La lección, que vale fuera de este proyecto
+
+Un lanzador que fija un límite de hilos y luego se invoca a sí mismo se
+cuenta un solo núcleo. No es un error de este código: es una interacción
+entre una herramienta del sistema y una convención de las bibliotecas
+numéricas, y muerde a cualquiera que las junte en ese orden.
+
+Ver C-144, que es del mismo día y de la misma familia: cosas que no tocan el
+modelo pero impiden medirlo.
+
+---
+
+## C-146 · El techo por agente llega al juego, no solo a la liquidación
+
+**2026-09-07 · tipo: `codigo` · aplicada, con compuerta**
+
+Propaga al camino de producción lo que C-143 había arreglado por hora. Es la
+segunda mitad de la corrección de H-45 y sin ella el arreglo no llegaba a
+ninguna cifra publicable.
+
+### La asimetría, ahora al nivel de la corrida
+
+El orquestador construía la matriz del costo unitario por agente y hora, y
+se la pasaba a **la liquidación, la comparación de escenarios, el informe
+mensual y la serie diaria**. Al juego le pasaba un único escalar comunitario.
+
+Como el ahorro de un comprador es su techo menos el precio, y el precio se
+resolvía contra un techo que no era el suyo, la resta salía cero para los del
+techo más bajo. La liquidación hacía bien su cuenta sobre un precio que el
+juego había formado mal.
+
+### Qué se cambió
+
+Los parámetros de red admiten ahora, además del escalar, **el techo de cada
+agente como matriz**. Con ella presente gobierna dos cosas: el límite
+económico de generación de cada agente y el precio de cada comprador. Sin
+ella, el escalar de siempre y el resultado es idéntico bit a bit.
+
+El orquestador arma esa matriz **antes** del mercado, no después, y más abajo
+la reutiliza en vez de recalcularla. Y anuncia por pantalla el rango de
+techos que el juego está usando, para que la asimetría no pueda volver
+inadvertida.
+
+Nada de lo que recibe el vector necesitaba tocarse: el bloque comprador y la
+liquidación lo admiten desde CAL-47, y el solucionador acoplado desde C-143.
+
+### Compuerta
+
+`tests/gate_c146_techo_en_el_juego.py`, en verde. Exige que una matriz
+constante reproduzca el escalar; que con techos distintos ningún precio
+supere el suyo; que ningún comprador quede con ahorro nulo; y que una matriz
+de forma equivocada se rechace en vez de deformarse en silencio.
+
+La prueba dorada sigue en 7 de 7 y el caso sintético completo no cambia.
+
+### Un límite que hay que declarar, y que la compuerta destapó
+
+La propiedad de que ningún comprador quede con ahorro nulo **solo se cumple
+sobre la vía acoplada**. Al escribir la compuerta la corrí primero por la
+alternada y falló con siete compradores en cero, lo que al principio parecí
+un defecto del cambio y no lo es: la vía alternada deja el precio pegado a
+una cota por razones ajenas, que son las de H-38.
+
+Importa porque **la corrida canónica va por la vía alternada**, ya que la
+acoplada cuesta unos 47 segundos por hora de mercado contra 5.160 horas por
+frontera. De modo que el canon heredará el techo por agente pero no la
+ausencia de ceros, y así hay que decirlo en el capítulo de resultados.
+
+Ver H-45, H-48 y `docs/adr/0050-cal50-configuracion-elegida.md`.
+
+---
+
+## C-147 · Tres sondas conservaban el defecto del techo, y sus cifras están registradas
+
+**2026-09-07 · tipo: `codigo` · aplicada**
+
+Salió de revisar carpeta por carpeta si la decisión de CAL-50 había llegado a
+todo lo que corre el modelo. No había llegado: **tres sondas seguían pasando
+al solucionador el mayor de los techos de la hora** y recortando después, que
+es exactamente el defecto de H-45.
+
+Importa porque no son sondas cualquiera. Son las que producen cifras que
+están en el registro:
+
+| Sonda | Qué produce | Dónde está citada |
+|---|---|---|
+| competencia real | el reparto y los precios pegados con las tres formas | H-42, decisión de CAL-49 |
+| eficiencia | el ahorro capturado frente al alcanzable | H-39, el 80,0 % y el 88,5 % |
+| error centralizado | la distancia al óptimo centralizado | H-39 |
+
+En las tres, el techo de cada comprador entra ahora al solucionador. El
+escalar se conserva únicamente como guarda para descartar la hora de banda
+vacía, que es lo que siempre fue.
+
+**Consecuencia que hay que asumir:** las cifras que esas tres sondas
+produjeron se calcularon bajo el régimen superado. No se sabe cuánto se
+mueven hasta volver a correrlas. Por la identidad de H-33 el agregado no
+debería moverse, pero **el emparejamiento sí**, y eso es justo lo que la
+sonda de eficiencia mide. Queda pendiente rehacerlas.
+
+### Lo que se revisó y está bien
+
+Para que la revisión sirva de algo, conviene decir también dónde NO había que
+tocar y por qué.
+
+- **Los escenarios regulatorios no rehacen el juego**: consumen el resultado
+  del mercado y ya recibían la matriz del costo unitario por agente. Nunca
+  tuvieron la asimetría.
+- **Las visualizaciones no corren el modelo.**
+- **Los análisis que reciben los parámetros de red de la corrida heredan la
+  matriz sin tocar nada**: el barrido del piso, los dos de generación y el de
+  sub-períodos. Se comprobó además que el de sub-períodos escala la demanda
+  sin cambiar el eje temporal, de modo que la matriz le sigue cuadrando.
+- **El barrido del techo conserva el escalar a propósito**, porque el techo es
+  justamente la variable que barre. **Pero su punto central ya no coincide con
+  el canon**, y eso hay que declararlo donde se publique.
+- **El análisis de sensibilidad global conserva el escalar**, por la misma
+  razón: muestrea el techo como parámetro incierto. Cambiarlo sería rediseñar
+  el análisis, no propagar una decisión.
+- **Las compuertas y las pruebas conservan el escalar**, que es la condición
+  para que sigan comprobando identidad bit a bit contra el modelo base.
+- **La sonda del arranque de banda y la del coste del acoplado** conservan el
+  escalar con razón: la primera barre bandas por diseño y la segunda mide
+  tiempo de convergencia, no economía.
+
+Ver H-45, C-143, C-146 y `docs/adr/0050-cal50-configuracion-elegida.md`.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

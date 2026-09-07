@@ -110,16 +110,35 @@ def prueba_lector() -> list:
     ef = pd.read_csv(tabla)
     dat = carga("m1")
     print("  2 · el lector devuelve lo mismo que las sondas")
-    for k in ef.k.head(3):
+    print("      (la sonda de eficiencia NO aplica la restricción de")
+    print("       participación y el lector sí; donde muerde, no son")
+    print("       comparables y lo que se exige es que el volumen BAJE)")
+    n_comp, n_part = 0, 0
+    for k in ef.k.head(8):
         h = H.lee(dat, int(k))
         fila = ef[ef.k == k].iloc[0]
         d_vol = abs(h.volumen - float(fila.vol_aco))
         d_ef = abs(h.eficiencia - float(fila.ef_aco))
-        ok = d_vol < 1e-6 and d_ef < 1e-3 and h.J == int(fila.J) and h.I == int(fila.I)
-        print(f"      hora {int(k):5d}  volumen {d_vol:.2e}  eficiencia "
-              f"{d_ef:.2e}   {'ok' if ok else 'FALLA'}")
-        if not ok:
-            fallos.append(f"el lector no reconcilia en la hora {int(k)}")
+        if h.retirados:
+            # la participación retiró a alguien: el lector mueve menos
+            n_part += 1
+            ok = h.volumen < float(fila.vol_aco) + 1e-9
+            print(f"      hora {int(k):5d}  participación retira "
+                  f"{len(h.retirados)}  volumen {h.volumen:8.3f} < "
+                  f"{float(fila.vol_aco):8.3f}   {'ok' if ok else 'FALLA'}")
+            if not ok:
+                fallos.append(f"con participación el volumen no baja en la hora {int(k)}")
+        else:
+            n_comp += 1
+            ok = (d_vol < 1e-6 and d_ef < 1e-3
+                  and h.J == int(fila.J) and h.I == int(fila.I))
+            print(f"      hora {int(k):5d}  volumen {d_vol:.2e}  eficiencia "
+                  f"{d_ef:.2e}   {'ok' if ok else 'FALLA'}")
+            if not ok:
+                fallos.append(f"el lector no reconcilia en la hora {int(k)}")
+    print(f"      {n_comp} horas comparables · {n_part} con participación activa")
+    if n_comp == 0:
+        fallos.append("ninguna hora comparable; la compuerta no vigila nada")
     return fallos
 
 

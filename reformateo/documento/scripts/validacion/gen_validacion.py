@@ -254,14 +254,14 @@ def v06_hora(h, categoria, dia_txt):
     # (a) quién es quién
     ax = axes[0, 0]
     x = np.arange(len(h.nombres))
-    ax.bar(x - 0.2, h.generacion, 0.38, color=E.VENDE, label="genera")
-    ax.bar(x + 0.2, h.demanda, 0.38, color=E.COMPRA, label="consume")
-    ax.plot(x, h.g_klim, "_", color=E.TINTA, ms=14, mew=2, label="límite econ.")
-    ax.set_xticks(x); ax.set_xticklabels(et, rotation=45, fontsize=6.5, ha="right")
+    ax.bar(x - 0.2, h.generacion, 0.38, color=E.VENDE)
+    ax.bar(x + 0.2, h.demanda, 0.38, color=E.COMPRA)
+    ax.plot(x, h.g_klim, "_", color=E.TINTA, ms=14, mew=2)
+    ax.set_xticks(x)
+    ax.set_xticklabels(et, rotation=40, fontsize=6, ha="right")
     ax.set_ylabel("kW")
-    ax.legend(fontsize=6, frameon=False, ncol=3, loc="lower left",
-              bbox_to_anchor=(0, 1.02))
-    ax.set_title("a · quién es quién", fontsize=8.5, loc="left", y=1.16)
+    # la leyenda se pliega al titulo: suelta invadia el panel vecino
+    ax.set_title("a · quién es quién", fontsize=8.5, loc="left")
 
     # (b) la banda y el acuerdo
     ax = axes[0, 1]
@@ -275,7 +275,7 @@ def v06_hora(h, categoria, dia_txt):
     ax.set_xticks(range(len(h.bids)))
     ax.set_xticklabels([et[i] for i in h.bids], rotation=45, fontsize=6.5,
                        ha="right")
-    ax.set_ylabel("COP/kWh"); ax.legend(fontsize=6, frameon=False)
+    ax.set_ylabel("COP/kWh")
     ax.set_title("b · la banda y el acuerdo", fontsize=8.5, loc="left")
 
     # (c) los flujos por pareja
@@ -291,7 +291,11 @@ def v06_hora(h, categoria, dia_txt):
                 ax.text(q, m, f"{h.P[m, q]:.2f}", ha="center", va="center",
                         fontsize=6,
                         color="white" if h.P[m, q] > h.P.max()*0.6 else E.TINTA)
-    fig.colorbar(im, ax=ax, label="kWh", fraction=0.046)
+    # sin desplazamiento: con offset, un flujo de 2,862 se leia «0,0009» y
+    # un «+2.862» suelto en una esquina
+    from matplotlib.ticker import ScalarFormatter
+    fmt = ScalarFormatter(useOffset=False)
+    fig.colorbar(im, ax=ax, label="kWh", fraction=0.046, format=fmt)
     ax.set_title("c · flujos por pareja", fontsize=8.5, loc="left")
 
     # (d) la convergencia, con los multiplicadores
@@ -307,6 +311,7 @@ def v06_hora(h, categoria, dia_txt):
             for q in range(tr.bet_filt_t.shape[0]):
                 ax2.plot(tr.t, tr.bet_filt_t[q], lw=0.8, ls=":",
                          color=E.COMPRA, alpha=0.8)
+            ax2.set_yscale("symlog", linthresh=1)
             ax2.set_ylabel("multiplicador", fontsize=7, color=E.COMPRA)
             ax2.tick_params(labelsize=6)
     ax.set_xlabel("tiempo (s)", fontsize=7); ax.set_ylabel("COP/kWh")
@@ -323,18 +328,24 @@ def v06_hora(h, categoria, dia_txt):
             zorder=3, label="reparto ciego")
     ax.plot(h.excedente, 0, "D", color=color, ms=9, zorder=4,
             label="el mercado")
-    ax.annotate("peor", (h.peor, 0), xytext=(0, -16),
-                textcoords="offset points", ha="center", fontsize=6.5,
-                color=E.TINTA)
-    ax.annotate("óptimo", (h.mejor, 0), xytext=(0, -16),
-                textcoords="offset points", ha="center", fontsize=6.5,
-                color=E.TINTA)
+    # las dos etiquetas solo cuando hay margen que etiquetar: con banda
+    # uniforme el peor coincide con el optimo y se superponian
+    if h.mejor - h.peor > 0.02 * max(abs(h.mejor), 1e-9):
+        ax.annotate("peor", (h.peor, 0), xytext=(0, -16),
+                    textcoords="offset points", ha="center", fontsize=6.5,
+                    color=E.TINTA)
+        ax.annotate("óptimo", (h.mejor, 0), xytext=(0, -16),
+                    textcoords="offset points", ha="center", fontsize=6.5,
+                    color=E.TINTA)
+    else:
+        ax.annotate("sin margen: el emparejamiento no decide",
+                    (h.mejor, 0), xytext=(0, -18),
+                    textcoords="offset points", ha="center", fontsize=6,
+                    color=E.TINTA)
     ax.set_ylim(-0.6, 0.6); ax.set_yticks([])
     ax.set_xlabel("Excedente (COP)")
-    ax.legend(fontsize=6, frameon=False, ncol=2, loc="lower left",
-              bbox_to_anchor=(0, 1.02))
     ax.set_title(f"e · captura el {h.eficiencia:.1f} %", fontsize=8.5,
-                 loc="left", y=1.16)
+                 loc="left")
 
     # (f) contra la normativa base
     ax = axes[1, 2]
@@ -342,22 +353,26 @@ def v06_hora(h, categoria, dia_txt):
     xs = np.arange(h.J)
     reg = np.array([h.piso_j[m] * h.P[m, :].sum() for m in range(h.J)])
     mod = np.array([float(np.sum(h.pi * h.P[m, :])) for m in range(h.J)])
-    ax.bar(xs - 0.2, reg, ancho, color=E.APAGADO, label="normativa base")
-    ax.bar(xs + 0.2, mod, ancho, color=E.VENDE, label="el mercado")
+    ax.bar(xs - 0.2, reg, ancho, color=E.APAGADO)
+    ax.bar(xs + 0.2, mod, ancho, color=E.VENDE)
     ax.set_xticks(xs)
-    ax.set_xticklabels([et[j] for j in h.sids], rotation=45, fontsize=6.5,
+    ax.set_xticklabels([et[j] for j in h.sids], rotation=40, fontsize=6,
                        ha="right")
     ax.set_ylabel("Lo que cobra (COP)")
-    ax.legend(fontsize=6, frameon=False, ncol=2, loc="lower left",
-              bbox_to_anchor=(0, 1.02))
-    ax.set_title("f · qué cobra el vendedor", fontsize=8.5, loc="left", y=1.16)
+    ax.set_title("f · qué cobra el vendedor", fontsize=8.5, loc="left")
 
     for ax in axes.ravel():
         ax.grid(axis="y", alpha=0.2)
     fig.suptitle(f"{categoria.upper()} · {h.ts.strftime('%Y-%m-%d %H:%M')} · "
                  f"{h.cobertura.upper()} · {h.J} vendedores y {h.I} compradores",
-                 fontweight="bold", fontsize=10)
-    fig.tight_layout(rect=(0, 0.03, 1, 0.95))
+                 fontweight="bold", fontsize=10, y=0.99)
+    # una sola linea de leyenda para todo el mosaico: repartida por paneles
+    # invadia los titulos vecinos
+    fig.text(0.5, 0.945,
+             "verde: vende o el mercado · vino: compra · gris: la normativa "
+             "base o el margen · rombo: el acuerdo · círculo: reparto ciego",
+             ha="center", va="top", fontsize=7, color=E.TINTA)
+    fig.tight_layout(rect=(0, 0.03, 1, 0.925))
     _pie(fig)
 
     det = [dict(vendedor=h.nombres[h.sids[m]], comprador=h.nombres[h.bids[q]],

@@ -140,6 +140,13 @@ reformateo/documento/*
 !reformateo/documento/CORRECCIONES.md
 !reformateo/documento/sections/
 !reformateo/documento/scripts/
+# El informe del aparato de validacion horaria es texto y es el
+# entregable legible, como los otros registros; las imagenes de esa
+# carpeta siguen fuera, como las de figuras/.
+!reformateo/documento/validacion_horaria/
+reformateo/documento/validacion_horaria/*
+!reformateo/documento/validacion_horaria/INFORME.md
+
 reformateo/documento/scripts/__pycache__/
 
 # === Local, no va al repositorio publico (2026-09-06) ===

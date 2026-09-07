@@ -245,6 +245,71 @@ def v04_ganancia(dia_txt, datos):
              for c in ("m1", "m3")])
 
 
+# ══ v05 · los dos días, uno contra otro ════════════════════════════════
+def v05_robustez(dias, datos_por_dia):
+    """Los dos dias sobre el mismo eje horario, para poder compararlos.
+
+    Responde a la objecion previsible: ¿y si hubieras elegido otro dia? Si
+    las dos curvas cuentan lo mismo, la conclusion no depende del dia.
+    """
+    fig, axes = plt.subplots(3, 2, figsize=(E.ANCHO_COMPLETO, 6.0),
+                             sharex=True)
+    marcas = ("o-", "s--")          # geometria, para que sobreviva en gris
+    filas = []
+    for col, cob in enumerate(("m1", "m3")):
+        color = E.COBERTURAS[cob]
+        axes[0, col].set_title(E.titulo_cobertura(cob, dos_lineas=True),
+                               color=color, fontweight="bold", pad=8)
+        for n, dia_txt in enumerate(dias):
+            d = datos_por_dia[dia_txt][cob]
+            tabla, horas = d["tabla"], d["horas"]
+            act = tabla[tabla.resuelta]
+            hh = [int(x[:2]) for x in act.hora]
+            pos, exc = [], []
+            for k in act.k:
+                h = horas[int(k)]
+                ancho = np.maximum(h.techo_i - h.piso_h, 1e-9)
+                pos.append(100.0 * float(np.mean((h.pi - h.piso_h) / ancho)))
+                exc.append(h.excedente)
+            alfa = 1.0 if n == 0 else 0.75
+            axes[0, col].plot(hh, act.volumen, marcas[n], color=color, ms=4,
+                              lw=1.3, alpha=alfa, label=dia_txt)
+            axes[1, col].plot(hh, pos, marcas[n], color=color, ms=4, lw=1.3,
+                              alpha=alfa)
+            axes[2, col].plot(hh, exc, marcas[n], color=color, ms=4, lw=1.3,
+                              alpha=alfa)
+            for k, hora, v, p, e in zip(act.k, hh, act.volumen, pos, exc):
+                filas.append(dict(dia=dia_txt, frontera=cob.upper(), k=int(k),
+                                  hora=hora, volumen=float(v),
+                                  posicion_banda=float(p), excedente=float(e)))
+        axes[1, col].axhspan(0, 100, color=E.APAGADO, alpha=0.3, zorder=0)
+        axes[1, col].set_ylim(-8, 112)
+        axes[1, col].set_yticks([0, 50, 100])
+        axes[1, col].set_yticklabels(["piso", "medio", "techo"], fontsize=7.5)
+        axes[2, col].set_xticks(range(0, 24, 3))
+        axes[2, col].set_xlabel("Hora del día")
+        if col == 0:
+            axes[0, col].set_ylabel("Energía transada (kWh)")
+            axes[1, col].set_ylabel("Dónde cae el precio")
+            axes[2, col].set_ylabel("Excedente (COP)")
+    for ax in axes.ravel():
+        ax.grid(alpha=0.25)
+    # la leyenda al pie: arriba pisaba el titulo de la frontera
+    from matplotlib.lines import Line2D
+    fig.legend(handles=[Line2D([], [], marker="o", ls="-", color=E.TINTA,
+                               ms=5, label=dias[0]),
+                        Line2D([], [], marker="s", ls="--", color=E.TINTA,
+                               ms=5, alpha=0.75, label=dias[1])],
+               loc="lower center", ncol=2, frameon=False,
+               bbox_to_anchor=(0.5, -0.005), fontsize=8.5)
+    fig.suptitle("Los dos días, hora a hora", fontweight="bold")
+    fig.tight_layout(rect=(0, 0.06, 1, 0.96))
+    _pie(fig)
+    _guarda(fig, "v05_robustez_dos_dias", pd.DataFrame(filas),
+            [f"validacion_horaria/cache/horas_{c}_{d}.pkl"
+             for d in dias for c in ("m1", "m3")])
+
+
 # ══ v06 · el mosaico de una hora testigo ════════════════════════════════
 def v06_hora(h, categoria, dia_txt):
     fig, axes = plt.subplots(2, 3, figsize=(E.ANCHO_COMPLETO, 5.4))
@@ -386,7 +451,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dia", default="2025-05-02")
     ap.add_argument("--solo", default=None,
-                    choices=["panorama", "papeles", "factura", "ganancia", "horas"])
+                    choices=["panorama", "papeles", "factura", "ganancia",
+                             "horas", "robustez"])
+    ap.add_argument("--otro-dia", default=None,
+                    help="segundo dia para el contraste de robustez")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     E.aplicar_estilo()
@@ -409,6 +477,14 @@ def main() -> None:
         v03_factura(args.dia, datos)
     if hacer in (None, "ganancia"):
         v04_ganancia(args.dia, datos)
+    if hacer in (None, "robustez") and args.otro_dia:
+        otros = {}
+        for cob in ("m1", "m3"):
+            dat = carga(cob)
+            t, hs = Dia.recorre(cob, args.otro_dia, dat=dat)
+            otros[cob] = dict(tabla=t, horas=hs)
+        v05_robustez([args.dia, args.otro_dia],
+                     {args.dia: datos, args.otro_dia: otros})
     if hacer in (None, "horas"):
         for cob in ("m1", "m3"):
             for cat, k in datos[cob]["testigos"].items():

@@ -56,6 +56,11 @@ def una_hora(dat, k, forma):
     techo_i = dat["techo"][bids, k]
     piso_j = dat["piso"][sids, k]
     piso_h = float(np.min(piso_j)); gs_esc = float(np.max(techo_i))
+    # C-147: el techo de CADA comprador, no el mayor de la hora.
+    # Pasar el maximo y recortar despues es el defecto de H-45:
+    # deja a los del techo bajo pagando exactamente el suyo, con
+    # ahorro cero por construccion. `gs_esc` queda solo de guarda.
+
     if gs_esc - piso_h < 1e-9:
         return None
 
@@ -63,7 +68,7 @@ def una_hora(dat, k, forma):
         G_net_j=G_net, D_net_i=D_net, a_j=a[sids], b_j=b[sids],
         lam_j=lam[sids], theta_j=theta[sids], G_klim_i=g[bids],
         lam_i=lam[bids], theta_i=theta[bids], etha_i=etha[bids],
-        pi_gs=gs_esc, pi_gb=piso_h, tau_sellers=0.001, tau_buyers=0.01,
+        pi_gs=techo_i, pi_gb=piso_h, tau_sellers=0.001, tau_buyers=0.01,
         t_span=(0.0, 0.05), n_points=500, buyer_competition=forma)
     P = np.asarray(tr.P_star, float)
     pi = np.clip(np.asarray(tr.pi_star, float), piso_h, techo_i)

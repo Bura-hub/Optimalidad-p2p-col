@@ -45,17 +45,27 @@ sys.path.insert(0, str(DOC / "scripts"))
 AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
-def carga(cobertura: str):
-    """Series, tarifas por agente, bolsa y estado de permuta."""
+def carga(cobertura: str, comercializador: str | None = None):
+    """Series, tarifas por agente, bolsa y estado de permuta.
+
+    `comercializador` es un CONTRAFACTUAL de H-45: pone a las cinco con el
+    mismo comercializador en vez de cuatro con ASC y una con Cedenar. A
+    diferencia de los regimenes de techo de `resuelve`, esto cambia el perfil
+    tarifario entero, de modo que el techo, el piso, el limite economico de
+    generacion y la clasificacion en papeles se mueven con el. El volumen
+    puede cambiar. Con None se lee el reparto real.
+    """
     from core.opciones_externas import piso_por_vendedor, tramo_permuta
     from data.cedenar_tariff import (INSTITUTION_PROFILE,
                                      aplicar_regimen_no_regulado,
                                      cu_components_per_agent_hourly,
+                                     forzar_comercializador,
                                      pi_gs_per_agent_hourly)
     from data.preprocessing import PAPER_METER_DEMAND_CONFIG
     from data.xm_data_loader import MTEDataLoader
 
     aplicar_regimen_no_regulado(True)          # CAL-47
+    forzar_comercializador(comercializador)    # None = el reparto real
     cfg = PAPER_METER_DEMAND_CONFIG if cobertura == "m3" else None
     loader = MTEDataLoader(os.environ.get("MTE_ROOT",
                                           str(RAIZ / "MedicionesMTE_v3")),
@@ -132,12 +142,30 @@ def carga_base():
                 modo="base")
 
 
-def resuelve(dat: dict, k: int, multiplicadores: bool = False):
+def resuelve(dat: dict, k: int, multiplicadores: bool = False,
+             techo: str = "propio", peso_virtual: str = "barrera"):
     """Resuelve la hora por la via del modelo base, con las cotas medidas.
 
     `multiplicadores` pide al solucionador que devuelva los suyos, que son
     los que dicen que restriccion esta mordiendo. Opt-in: con el valor por
     defecto el resultado es identico bit a bit al historico.
+
+    `techo` elige el regimen del limite superior, que es la decision abierta
+    de H-45. Cuatro instituciones compran a un comercializador y la quinta a
+    otro, de modo que sus techos difieren:
+
+      "propio"   el techo de CADA comprador entra al solucionador. Es lo
+                 correcto si dos comercializadores implican dos techos.
+      "escalar"  el mayor de los techos entra al solucionador y el propio se
+                 aplica despues como recorte. Es lo que se hacia hasta el
+                 2026-09-07, y deja sin excedente a los del techo bajo.
+      "minimo"   todos al techo mas bajo de la hora. Es el techo unico en su
+                 lectura conservadora.
+      "maximo"   todos al techo mas alto de la hora. Es el techo unico en su
+                 lectura generosa.
+
+    Los dos ultimos existen para medir la pregunta que sigue abierta con el
+    asesor, no para usarse en produccion.
     """
     from core.coupled_ode_convergence import solve_coupled_for_hour
     from core.market_prep import classify_agents, compute_generation_limit
@@ -169,6 +197,13 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False):
     # mas alto solo participan si el precio los cubre: esa es la restriccion
     # de participacion, que se comprueba al final.
     techo_i = dat["techo"][bids, k]
+    if techo == "minimo":
+        techo_i = np.full_like(techo_i, float(np.min(techo_i)))
+    elif techo == "maximo":
+        techo_i = np.full_like(techo_i, float(np.max(techo_i)))
+    elif techo not in ("propio", "escalar"):
+        raise ValueError(f"techo={techo!r}; use 'propio', 'escalar', "
+                         "'minimo' o 'maximo'")
     piso_j = dat["piso"][sids, k]
     piso_h = float(np.min(piso_j))
 
@@ -195,10 +230,16 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False):
             G_net_j=Gn, D_net_i=D_net, a_j=a[sa], b_j=b[sa],
             lam_j=lam[sa], theta_j=theta[sa], G_klim_i=g_klim[bids],
             lam_i=lam[bids], theta_i=theta[bids], etha_i=etha[bids],
-            pi_gs=float(np.max(techo_i)), pi_gb=piso_h,
+            # H-45: el techo de cada comprador entra AL SOLUCIONADOR. Antes
+            # entraba el mayor y el propio se aplicaba despues como recorte,
+            # con lo que los del techo bajo salian justo encima de el y su
+            # ahorro valia exactamente cero.
+            pi_gs=(float(np.max(techo_i)) if techo == "escalar" else techo_i),
+            pi_gb=piso_h,
             tau_sellers=0.001, tau_buyers=0.01,
             t_span=(0.0, 0.05), n_points=500,
-            devuelve_multiplicadores=multiplicadores)
+            devuelve_multiplicadores=multiplicadores,
+            peso_virtual=peso_virtual)          # H-46
         pi = np.clip(tr.pi_star, piso_h, techo_i)
         P = np.asarray(tr.P_star, float)
         # Un vendedor sobra si TODA su venta va por debajo de su alternativa

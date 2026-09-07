@@ -205,6 +205,11 @@ def main() -> None:
     ap.add_argument("--muestra", type=int, default=40)
     ap.add_argument("--cobertura", default="m1", choices=["m1", "m3"])
     ap.add_argument("--base", action="store_true")
+    ap.add_argument("--particion", default=None,
+                    help="k/n: este proceso toma una de cada n horas, "
+                         "empezando por la k. Sirve para repartir la muestra "
+                         "entre varios núcleos; la unión de las particiones "
+                         "es exactamente la muestra entera.")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -217,6 +222,13 @@ def main() -> None:
     rng = np.random.default_rng(42)
     sel = np.sort(rng.choice(cand, size=min(args.muestra, len(cand)),
                              replace=False))
+    marca = ""
+    if args.particion:
+        k_p, n_p = (int(x) for x in args.particion.split("/"))
+        if not (1 <= k_p <= n_p):
+            raise SystemExit(f"partición {args.particion} fuera de rango")
+        sel = sel[k_p - 1::n_p]
+        marca = f"_p{k_p}de{n_p}"
 
     etiqueta = "caso base de Chacón" if args.base else args.cobertura.upper()
     print(f"Eficiencia frente al reparto óptimo · {etiqueta} · "
@@ -248,7 +260,7 @@ def main() -> None:
               f"{r['ef_alt']:7.1f} % {r['efvol_alt']:5.1f} % "
               f"{r['efemp_alt']:5.1f} %", flush=True)
         # se guarda en cada paso, para que un corte no pierda lo hecho
-        pd.DataFrame(filas).to_csv(sal / f"eficiencia_{suf}.csv", index=False)
+        pd.DataFrame(filas).to_csv(sal / f"eficiencia_{suf}{marca}.csv", index=False)
 
     if not filas:
         print("  ninguna hora con excedente alcanzable")
@@ -274,7 +286,7 @@ def main() -> None:
     ex = max(max(f["exceso_aco"] for f in filas),
              max(f["exceso_alt"] for f in filas))
     print(f"  mayor incumplimiento de una restricción: {ex:.2e} kWh")
-    print(f"\n  detalle en salidas/eficiencia_{suf}.csv")
+    print(f"\n  detalle en salidas/eficiencia_{suf}{marca}.csv")
 
 
 if __name__ == "__main__":

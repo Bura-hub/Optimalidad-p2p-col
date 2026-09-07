@@ -135,6 +135,52 @@ case "$ACCION" in
     echo "=== Hecho. Ahora: bash modelo_base/run_servidor.sh recoger ==="
     ;;
 
+  reparto)
+    # Reparte una sonda entre N nucleos. Cada proceso toma una de cada N horas
+    # de LA MISMA muestra, de modo que la union es exactamente la muestra
+    # entera y no hay que reconciliar nada.
+    QUE="${2:?falta la sonda: competencia|eficiencia}"
+    COB="${3:-M1}"; N="${4:-60}"; PART="${5:-8}"
+    cob=$(echo "$COB" | tr 'A-Z' 'a-z')
+    case "$QUE" in
+      competencia) GUION="$SONDA/competencia_real.py" ;;
+      eficiencia)  GUION="$SONDA/eficiencia.py" ;;
+      *) echo "sonda desconocida: $QUE"; exit 2 ;;
+    esac
+    echo "$QUE · $COB · $N horas repartidas entre $PART procesos"
+    for k in $(seq 1 "$PART"); do
+      log="$LOGS/${QUE}_${COB}_p${k}de${PART}_$(marca).log"
+      nohup "$PY" -W ignore "$GUION" --cobertura "$cob" --muestra "$N" \
+            --particion "$k/$PART" > "$log" 2>&1 &
+      echo "  lanzado $k/$PART   pid $!   log $log"
+    done
+    echo
+    echo "  Sigue el avance con:  tail -f $LOGS/${QUE}_${COB}_p1de${PART}_*.log"
+    echo "  Cuando terminen:      bash $0 juntar"
+    ;;
+
+  juntar)
+    # Une las tablas parciales en una sola por sonda y frontera.
+    "$PY" - <<'PYFIN'
+from pathlib import Path
+import re, pandas as pd
+sal = Path("reformateo/documento/scripts/sonda/salidas")
+for base in ("competencia", "eficiencia"):
+    for cob in ("m1", "m3"):
+        trozos = sorted(sal.glob(f"{base}_{cob}_p*de*.csv"))
+        if not trozos:
+            continue
+        d = pd.concat([pd.read_csv(t) for t in trozos], ignore_index=True)
+        col = "k" if "k" in d.columns else d.columns[0]
+        orden = [col] + ([ "forma" ] if "forma" in d.columns else [])
+        d = d.sort_values(orden).reset_index(drop=True)
+        destino = sal / f"{base}_{cob}.csv"
+        d.to_csv(destino, index=False)
+        print(f"  {destino.name}: {len(trozos)} trozos -> {len(d)} filas")
+PYFIN
+    echo "  hecho"
+    ;;
+
   recoger)
     DEST="modelo_base/resultados_$(marca).tar.gz"
     tar czf "$DEST" "$SALIDAS" "$LOGS" 2>/dev/null || true

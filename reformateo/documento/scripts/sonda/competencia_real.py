@@ -95,6 +95,10 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--muestra", type=int, default=20)
     ap.add_argument("--cobertura", default="m1", choices=["m1", "m3"])
+    ap.add_argument("--particion", default=None,
+                    help="k/n: este proceso toma una de cada n horas, "
+                         "empezando por la k. Sirve para repartir la "
+                         "muestra entre varios nucleos.")
     args = ap.parse_args()
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -108,6 +112,16 @@ def main() -> None:
     rng = np.random.default_rng(42)
     sel = np.sort(rng.choice(cand, size=min(args.muestra, len(cand)),
                              replace=False))
+    # El reparto se hace SOBRE LA MISMA muestra, tomando una de cada n.
+    # Asi la union de las particiones es exactamente la muestra entera,
+    # y cada proceso escribe su propia tabla.
+    marca = ''
+    if args.particion:
+        k, n = (int(x) for x in args.particion.split('/'))
+        if not (1 <= k <= n):
+            raise SystemExit(f'particion {args.particion} fuera de rango')
+        sel = sel[k - 1::n]
+        marca = f'_p{k}de{n}'
 
     print(f"La forma del término de competencia · {args.cobertura.upper()} · "
           f"{len(sel)} horas", flush=True)
@@ -132,7 +146,7 @@ def main() -> None:
                   f"{r['eficiencia']:10.1f} % {r['volumen']:9.3f} "
                   f"{r['tajada_vendedor']:8.1f} %", flush=True)
             pd.DataFrame(filas).to_csv(
-                sal / f"competencia_{args.cobertura}.csv", index=False)
+                sal / f"competencia_{args.cobertura}{marca}.csv", index=False)
 
     if not filas:
         print("  ninguna hora resuelta"); return
@@ -152,7 +166,7 @@ def main() -> None:
     comun = va.index.intersection(vm.index)
     print(f"\n  el volumen no se mueve: máxima diferencia "
           f"{float((va[comun] - vm[comun]).abs().max()):.2e} kWh")
-    print(f"  detalle en salidas/competencia_{args.cobertura}.csv")
+    print(f"  detalle en salidas/competencia_{args.cobertura}{marca}.csv")
 
 
 if __name__ == "__main__":

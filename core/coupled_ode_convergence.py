@@ -75,6 +75,21 @@ class CoupledTrajectory:
     success:  bool = True
     message:  str  = ""
 
+    # Los multiplicadores. Se integran desde siempre como parte del estado y
+    # se descartaban al salir. Son los que dicen QUE RESTRICCION esta
+    # mordiendo, de modo que sin ellos se ve el precio detenerse sin poder
+    # decir por que se detiene ahi. Opt-in, con
+    # `devuelve_multiplicadores=True`, para que el comportamiento por defecto
+    # quede identico bit a bit.
+    #   lam_t : (J, n_t) capacidad del vendedor, sum_i P_ji <= G_net_j
+    #   bet_t : (I, n_t) necesidad del comprador, sum_j P_ji <= D_net_i
+    #   *_filt_t : sus versiones filtradas, que son las que entran en la
+    #              aptitud del vendedor
+    lam_t:      Optional[np.ndarray] = None
+    bet_t:      Optional[np.ndarray] = None
+    lam_filt_t: Optional[np.ndarray] = None
+    bet_filt_t: Optional[np.ndarray] = None
+
 
 def solve_coupled_for_hour(
     G_net_j:     np.ndarray,
@@ -97,6 +112,7 @@ def solve_coupled_for_hour(
     rtol:        float = 1e-6,
     atol:        float = 1e-9,
     buyer_competition: str = "aggregate",
+    devuelve_multiplicadores: bool = False,
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -338,6 +354,17 @@ def solve_coupled_for_hour(
     )
     W_t = Wj_t + Wi_t
 
+    # CAL-49 / validación horaria: los multiplicadores solo se extraen si se
+    # piden. El estado ya los lleva; aquí se rebanan del resultado.
+    mult = {}
+    if devuelve_multiplicadores:
+        mult = dict(
+            lam_t=sol.y[idx0_lam:idx0_bet, :],
+            bet_t=sol.y[idx0_bet:idx0_lamfilt, :],
+            lam_filt_t=sol.y[idx0_lamfilt:idx0_betfilt, :],
+            bet_filt_t=sol.y[idx0_betfilt:, :],
+        )
+
     return CoupledTrajectory(
         t=sol.t,
         pi_t=pi_t_real,
@@ -349,6 +376,7 @@ def solve_coupled_for_hour(
         P_star=P_star,
         success=bool(sol.success),
         message=str(sol.message),
+        **mult,
     )
 
 

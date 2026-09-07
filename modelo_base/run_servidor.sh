@@ -85,7 +85,7 @@ case "$ACCION" in
 
   compuertas)
     echo "Compuertas, antes de dar por buena ninguna medicion"
-    for t in golden_test_sofia gate_cal47_solucionador \
+    for t in gate_python310 golden_test_sofia gate_cal47_solucionador \
              gate_c138_bienestar_comprador; do
       corre "$t" "tests/$t.py"
     done

@@ -63,7 +63,7 @@ def medir(t: str) -> dict:
 todo = ""
 print(f"{'capítulo':<26} {'palabras':>8} {'—/1000':>8} {'pal/or':>7} "
       f"{'%>40':>6} {'pal/par':>8} {'or/par':>7} {'esdecir':>8} {';/1000':>7}")
-for f in sorted(BASE.glob("0[2345]-*.tex")):
+for f in sorted(BASE.glob("0[23457]-*.tex")):
     t = prosa(f.read_text(encoding="utf-8"))
     todo += t + "\n\n"
     m = medir(t)
@@ -86,7 +86,7 @@ print(f"{'BRAYAN (perfil 2026)':<26} {'20238':>8} "
 
 # Cómo refiero las figuras
 print("\n=== Referencia a figuras en mi texto ===")
-crudo = "\n".join(f.read_text(encoding="utf-8") for f in sorted(BASE.glob("0[2345]-*.tex")))
+crudo = "\n".join(f.read_text(encoding="utf-8") for f in sorted(BASE.glob("0[23457]-*.tex")))
 patrones = {
     "La Figura N + verbo (el suyo)": r"[Ll]a Figura~?\\ref\{[^}]*\}\s+[a-záéíóúñ]+",
     "(Figura N) pospuesto": r"\(Figura~?\\ref",

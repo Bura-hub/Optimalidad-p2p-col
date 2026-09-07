@@ -1,0 +1,7 @@
+Eficiencia frente al reparto óptimo · caso base de Chacón · 12 horas de 24
+  100 % es capturar todo el excedente alcanzable; se parte en volumen × emparejamiento
+  la marca «u» dice que la banda es uniforme esa hora, y entonces el emparejamiento no decide
+======================================================================================
+    hora  J  I      máx COP  aco tot     vol     emp   alt tot     vol     emp
+       1  2  4 u      931.5  100.0 % 100.0 % 100.0 %   100.0 % 100.0 % 100.0 %
+       2  2  4 u      931.5  100.0 % 100.0 % 100.0 %   100.0 % 100.0 % 100.0 %

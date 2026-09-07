@@ -1,0 +1,24 @@
+Las tres formas del termino de competencia, sobre el caso publicado
+El articulo dice: a las 13 el comprador 4 (el grande) paga MAS;
+                  a las 19 el comprador 1 se cubre ENTERO.
+==========================================================================
+
+  forma «aggregate»
+    t=13  c4:   118.3 (100.0 %)  c6:  1131.7 (100.0 %)
+          el comprador 4 paga mas que el 6: no
+    t=19  c1:   714.7 ( 59.0 %)  c4:   930.7 (100.0 %)  c6:   854.6 (100.0 %)
+          el comprador 1 se cubre entero: no
+
+  forma «matlab»
+    t=13  c4:   118.3 (100.0 %)  c6:  1131.7 (100.0 %)
+          el comprador 4 paga mas que el 6: no
+    t=19  c1:   701.0 ( 59.0 %)  c4:   941.6 (100.0 %)  c6:   857.5 (100.0 %)
+          el comprador 1 se cubre entero: no
+
+  forma «matrix»
+    t=13  c4:  1136.0 (100.0 %)  c6:   114.0 (100.0 %)
+          el comprador 4 paga mas que el 6: SI
+    t=19  c1:  1250.0 (100.0 %)  c4:   114.0 (  5.2 %)  c6:  1136.0 (100.0 %)
+          el comprador 1 se cubre entero: SI
+
+FIN

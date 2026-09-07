@@ -223,8 +223,11 @@ def informa(dat: dict, r: dict) -> bool:
     ts = pd.DatetimeIndex(dat["idx"])[k]
     ok = True
 
-    print(f"\nHORA {k} · {ts:%Y-%m-%d %H:%M} ({['lun','mar','mie','jue',
-          'vie','sab','dom'][ts.dayofweek]})")
+    # El nombre del día se saca aparte a propósito: una cadena formateada
+    # partida en dos líneas solo compila desde Python 3.12, y el servidor
+    # corre 3.10.
+    dias = ("lun", "mar", "mie", "jue", "vie", "sab", "dom")
+    print(f"\nHORA {k} · {ts:%Y-%m-%d %H:%M} ({dias[ts.dayofweek]})")
     print("=" * 78)
 
     print("\n1 · Quien es quien esa hora")

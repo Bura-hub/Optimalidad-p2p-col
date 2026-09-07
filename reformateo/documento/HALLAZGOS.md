@@ -2660,9 +2660,15 @@ Y lo hace en las dos afirmaciones que H-41 había dejado caídas:
 | **Publicada** | **Sí**, 1.136,0 contra 114,0 | **Sí**, 100,0 % |
 
 Contadas las doce afirmaciones que H-41 enfrenta, la forma publicada
-reproduce **once**, frente a las ocho de la forma agregada. La única que
-sigue cayendo es menor: el artículo dice que a las 19:00 el comprador 6 no
-cubre su demanda dentro de la comunidad, y aquí la cubre.
+reproduce **once**, frente a las ocho de la agregada y las ocho de la del
+código. La única que sigue cayendo es menor: el artículo dice que a las
+19:00 el comprador 6 no cubre su demanda dentro de la comunidad, y aquí la
+cubre.
+
+**Reproducido en otra máquina.** Las tres cuentas, 8, 8 y 11, salen iguales
+en un servidor Linux con Python 3.10 que en la máquina de trabajo con
+Windows y Python 3.13, y los valores del bienestar de la compuerta coinciden
+hasta el último decimal. La traducción no depende de la plataforma.
 
 ### Pero la prueba de sensibilidad del artículo se invierte
 
@@ -2673,8 +2679,13 @@ de 0,2630 a 0,5316 kilovatios hora.
 
 | Forma | Precio del agente 6 | Energía que recibe |
 |---|---|---|
-| Agregada | sube 121,29 · dirección correcta, magnitud cinco veces mayor | no cambia |
+| Agregada | sube 121,29 · dirección correcta, cinco veces la magnitud | no cambia |
+| Del código | sube 392,53 · dirección correcta, quince veces la magnitud | no cambia |
 | **Publicada** | **baja 1.022,00** · dirección contraria | **baja** de 0,660 a 0,110 |
+
+**Ninguna de las tres reproduce el 25,22 publicado.** Las dos que aciertan la
+dirección se pasan por un factor de cinco y de quince, y la que reproduce
+todo lo demás va al revés.
 
 Tiene explicación, y es que el factor entra en la ecuación publicada
 **multiplicando el castigo**: subirlo penaliza más a ese comprador, su

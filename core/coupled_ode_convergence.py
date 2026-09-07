@@ -102,7 +102,7 @@ def solve_coupled_for_hour(
     lam_i:       np.ndarray,
     theta_i:     np.ndarray,
     etha_i:      np.ndarray,
-    pi_gs:       float = PGS,
+    pi_gs:       object = PGS,   # escalar o (I,) por comprador — H-45
     pi_gb:       float = PGB,
     tau_sellers: float = 0.001,
     tau_buyers:  float = 0.01,
@@ -113,6 +113,7 @@ def solve_coupled_for_hour(
     atol:        float = 1e-9,
     buyer_competition: str = "aggregate",
     devuelve_multiplicadores: bool = False,
+    peso_virtual: str = "barrera",
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -128,7 +129,14 @@ def solve_coupled_for_hour(
     lam_i    : (I,) preferencia self-consumption buyer
     theta_i  : (I,) curvatura utilidad buyer
     etha_i   : (I,) factor competencia (β_i en eq 14)
-    pi_gs    : COP/kWh, precio venta a la red (limite superior π)
+    pi_gs    : COP/kWh, precio venta a la red (limite superior π). Admite
+               escalar o vector (I,) con el techo de cada comprador (H-45).
+               Con escalar el resultado es identico bit a bit al historico.
+    peso_virtual : con que peso entra el jugador virtual en la aptitud media
+               (H-46). "barrera" es el defecto de esta traduccion y aplica el
+               producto de barrera a las I+1 estrategias; "precio" reproduce
+               el fichero original, donde el jugador virtual entra con su
+               propio precio. Opt-in, para medir sin mover el defecto.
     pi_gb    : COP/kWh, precio compra a la red (limite inferior π)
     tau_sellers : tau filtro Lagrange (matching JoinFinal.m linea 132)
     tau_buyers  : tau3 filtro buyer (matching JoinFinal.m linea 133)
@@ -180,6 +188,33 @@ def solve_coupled_for_hour(
             message="No P2P market (simplex < 1e-10)",
         )
 
+    # ── El techo, por comprador ───────────────────────────────
+    # H-45: el techo es lo que CADA comprador le paga a la red, y en esta
+    # comunidad no es uno solo porque hay dos comercializadores. Hasta aqui
+    # el solucionador recibia un ESCALAR, el mayor de los techos de la hora,
+    # y el techo propio se aplicaba DESPUES como recorte. El resultado
+    # medido el 2026-09-07 es que los compradores del techo bajo salian
+    # justo encima de el, y como su ahorro es su techo menos el precio, les
+    # quedaba exactamente cero.
+    #
+    # Se generaliza igual que en core/replicator_buyers.py con CAL-47: el
+    # techo admite escalar o vector de compradores. El jugador virtual toma
+    # el mayor, que con un escalar es el propio escalar, de modo que el caso
+    # base y el canon quedan IDENTICOS BIT A BIT.
+    #
+    # Aviso de fidelidad: el modelo base no contempla esto. La ecuacion (5)
+    # del articulo publicado fija pi_gb <= pi_i <= pi_gs con las dos cotas
+    # escalares y globales, y el codigo original las escribe a mano. El
+    # techo por comprador es una extension de esta tesis.
+    if peso_virtual not in ("barrera", "precio"):
+        raise ValueError(f"peso_virtual={peso_virtual!r}; use 'barrera' "
+                         "(el defecto de esta traduccion) o 'precio' (H-46, "
+                         "la forma del fichero original)")
+
+    gs_i      = np.broadcast_to(np.asarray(pi_gs, dtype=float), (I,)).copy()
+    pi_gs_all = np.append(gs_i, float(np.max(gs_i)))
+    pi_gs_max = float(np.max(gs_i))
+
     # ── Indices del estado ────────────────────────────────────
     n_pi_all = I + 1
     idx0_gamma    = n_pi_all
@@ -192,7 +227,9 @@ def solve_coupled_for_hour(
     n_total       = idx0_betfilt + I
 
     # ── Condiciones iniciales (matching JoinFinal.m) ──────────
-    simple = pi_gs * I
+    # `simple` reparte el presupuesto de los techos entre los compradores y
+    # el jugador virtual; con techos iguales vale exactamente pi_gs * I.
+    simple = float(np.sum(gs_i))
     # CAL-47 / H-32: el arranque de JoinFinal.m reparte un presupuesto de
     # pi_gs*I entre los compradores y el jugador virtual. Esa forma supone
     # que el piso es despreciable frente al techo, que es el regimen del
@@ -208,9 +245,17 @@ def solve_coupled_for_hour(
     # resultado es identico bit a bit. Misma correccion que en
     # core/replicator_buyers.py.
     ci = simple / n_pi_all
-    if not (pi_gb < ci < pi_gs):
-        ci = pi_gb + (pi_gs - pi_gb) * I / n_pi_all
-    pi_all_0 = np.full(n_pi_all, ci)
+    # H-45: con techos distintos el arranque tiene que caer dentro de la
+    # banda de CADA comprador, no dentro de la del techo mayor. Si nace por
+    # ENCIMA de su propio techo, el peso de barrera vale cero justo ahi y su
+    # precio no se mueve nunca: es la misma patologia de H-32 por el otro
+    # extremo. Con techos iguales las dos formas coinciden y el arranque es
+    # el escalar de siempre, bit a bit.
+    ci_i = np.where((pi_gb < ci) & (ci < gs_i), ci,
+                    pi_gb + (gs_i - pi_gb) * I / n_pi_all)
+    ci_v = (ci if pi_gb < ci < pi_gs_max
+            else pi_gb + (pi_gs_max - pi_gb) * I / n_pi_all)
+    pi_all_0 = np.append(ci_i, ci_v)
     gamma_0  = 0.1 * np.ones(J)
     y_filt_0 = np.ones(J)
 
@@ -281,7 +326,15 @@ def solve_coupled_for_hour(
         dwi_real = pagos - compe + trestris
         dwi_all = np.append(dwi_real, simple - pi_p)
 
-        pi_hat = (pi_gs - pi_all) * (-pi_gb + pi_all)
+        # H-45: el peso de barrera lleva el techo de CADA comprador. Es lo
+        # que hace que el precio de un comprador se detenga en SU techo y no
+        # en el mayor de la hora.
+        pi_hat = (pi_gs_all - pi_all) * (-pi_gb + pi_all)
+        # H-46: en el fichero original el jugador virtual NO lleva la
+        # barrera, lleva su propio precio. Esta traduccion se la aplica a el
+        # tambien. Opt-in para medir la diferencia sin mover el defecto.
+        if peso_virtual == "precio":
+            pi_hat = np.concatenate((pi_hat[:I], pi_all[I:I + 1]))
         pi_hat = np.clip(pi_hat, 1e-12, None)
         sum_ph = float(np.sum(pi_hat))
         F_bar_buyers = float(np.dot(pi_hat, dwi_all)) / sum_ph if sum_ph > 1e-14 else 0.0
@@ -292,7 +345,7 @@ def solve_coupled_for_hour(
         # presencia de ruido numerico. La proyeccion garantiza que el
         # equilibrio del solver coupled coincida con el alternante en pi_i.
         at_low_real  = (pi_all[:I] <= pi_gb + 1e-9) & (d_pi_all[:I] < 0)
-        at_high_real = (pi_all[:I] >= pi_gs - 1e-9) & (d_pi_all[:I] > 0)
+        at_high_real = (pi_all[:I] >= gs_i - 1e-9) & (d_pi_all[:I] > 0)
         d_pi_all[:I] = np.where(at_low_real | at_high_real, 0.0, d_pi_all[:I])
 
         re = (P * pi_real[None, :]).sum(axis=1)
@@ -337,7 +390,7 @@ def solve_coupled_for_hour(
     )
 
     n_t = sol.y.shape[1]
-    pi_t_real = np.clip(sol.y[:I, :], pi_gb, pi_gs)
+    pi_t_real = np.clip(sol.y[:I, :], pi_gb, gs_i[:, None])
     P_t = np.clip(
         sol.y[idx0_P:idx0_lam, :].reshape(J, I, n_t),
         0.0, None,

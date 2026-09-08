@@ -45,7 +45,8 @@ sys.path.insert(0, str(DOC / "scripts"))
 AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
-def carga(cobertura: str, comercializador: str | None = None):
+def carga(cobertura: str, comercializador: str | None = None,
+          piso: str = "tramo"):
     """Series, tarifas por agente, bolsa y estado de permuta.
 
     `comercializador` es un CONTRAFACTUAL de H-45: pone a las cinco con el
@@ -85,9 +86,50 @@ def carga(cobertura: str, comercializador: str | None = None):
     if llaves.tz is not None:
         llaves = llaves.tz_localize(None)
     bolsa = b.set_index("ts")["Precio_COP_kWh"].reindex(llaves).to_numpy(float)
+    # C-154: la corrida le aplica a esta serie el techo de escasez de la
+    # Resolucion CREG 101 066 en su nivel superior, y la sonda no lo hacia.
+    # Muerde en 20 horas de 6.144 y ninguna de las veinte tiene vendedor, de
+    # modo que nada de lo medido cambia; se corrige porque una coincidencia
+    # que depende del dato no es una garantia. Ver H-54.
+    from data.xm_prices import apply_creg101066_ceiling
+    bolsa = apply_creg101066_ceiling(
+        bolsa, pd.Timestamp(llaves[0]).strftime("%Y-%m-%d"), level="PES")
 
     mes = pd.Series(idx).dt.strftime("%Y-%m").to_numpy()
+    # H-52: el regimen del piso, es decir con que alternativa externa negocia
+    # cada vendedor. El precio interno de la comunidad NO esta regulado: la
+    # Resolucion CREG 101 072 dice que «el precio de venta es pactado
+    # libremente» para quien atiende usuarios no regulados, y el reparto
+    # interno lo acuerdan los integrantes. De modo que los tres regimenes son
+    # admisibles y la pregunta es cual conviene, no cual permite la norma.
+    #
+    #   tramo    la alternativa REAL de cada vendedor segun la CREG 174:
+    #            permuta mientras su inyeccion acumulada no supere su retiro
+    #            del mes, y bolsa a partir de ahi. Es el defecto.
+    #   permuta  todos negocian con el piso de permuta, aunque alguno ya haya
+    #            pasado a bolsa.
+    #   bolsa    todos negocian con el piso de bolsa, que es la alternativa
+    #            mas baja y por tanto la que menos retira vendedores.
+    #
+    # AVISO: el piso NO es un precio que se elija, es lo que la red le pagaria
+    # al vendedor. Forzar permuta a quien ya esta en bolsa modela a un
+    # vendedor que rechaza dinero que aceptaria. Los dos regimenes forzados
+    # existen para MEDIR el efecto, no como configuracion.
+    #   residual el tramo REAL de la CREG 101 072 leida al pie de la letra:
+    #            se acumula sobre lo que de verdad cruza la frontera, es
+    #            decir el excedente menos lo colocado dentro. Ver H-53.
+    if piso not in ("tramo", "permuta", "bolsa", "residual"):
+        raise ValueError(f"piso={piso!r}; use 'tramo', 'permuta', 'bolsa' "
+                         f"o 'residual'")
     perm = tramo_permuta(G, D, mes)
+    if piso == "permuta":
+        perm = np.ones_like(perm, dtype=bool)
+    elif piso == "bolsa":
+        perm = np.zeros_like(perm, dtype=bool)
+    elif piso == "residual":
+        from tramo_residual import residual, tramo_sobre
+        iny_r, ret_r, _ = residual(G, D)
+        perm = tramo_sobre(iny_r, ret_r, mes)
     piso = piso_por_vendedor(techo, cvm, bolsa, perm)
 
     com = {n: INSTITUTION_PROFILE[n].comercializador for n in nombres}

@@ -830,9 +830,31 @@ def load_creg_ceiling(
         end=last_period,
         freq="M",
     )
-    serie = df[col].reindex(target_idx)
+    # H-50: la interpolacion se hace sobre la UNION del rango pedido con el
+    # indice del fichero, no sobre el rango pedido a secas.
+    #
+    # Con el rango a secas, el resultado dependia de la ventana: pedir de
+    # abril de 2025 a enero de 2026 devolvia 865,22 para mayo, rellenado
+    # hacia atras desde julio, que es el primer mes con dato; pedir solo
+    # mayo devolvia un unico valor no numerico, porque una serie de un solo
+    # hueco no tiene de donde interpolar. Y quien lo consume aplica el techo
+    # con un minimo, que propaga ese valor a la serie de bolsa entera sin
+    # avisar: la corrida terminaba con precios de bolsa no numericos.
+    #
+    # Sobre la union, el techo de un mes es el mismo se pida como se pida.
+    union = target_idx.union(df.index)
+    serie = df[col].reindex(union)
     if serie.isna().any():
         serie = serie.interpolate(method="linear", limit_direction="both")
+    serie = serie.reindex(target_idx)
+
+    if serie.isna().any():
+        faltan = [str(p) for p in serie.index[serie.isna()]]
+        raise ValueError(
+            f"El techo {level} queda sin valor para {faltan} y el fichero "
+            f"{path.name} no tiene ningun mes del que deducirlo. Antes esto "
+            f"devolvia valores no numericos que el minimo propagaba en "
+            f"silencio a la serie de bolsa. Ver H-50.")
 
     return serie
 
@@ -909,6 +931,15 @@ def apply_creg101066_ceiling(
         ceil_monthly.loc[ts.to_period("M")] if ts >= eff else np.inf
         for ts in idx
     ], dtype=float)
+
+    # H-50: el minimo propaga los valores no numericos sin avisar, y una
+    # serie de bolsa entera en ese estado atraviesa la corrida hasta el
+    # final sin que nada falle. Se comprueba antes de aplicarlo.
+    if not np.all(np.isfinite(ceil_per_hour) | np.isinf(ceil_per_hour)):
+        raise ValueError(
+            f"El techo horario {level} tiene valores no numericos en "
+            f"{int(np.isnan(ceil_per_hour).sum())} de {T} pasos. Aplicar el "
+            f"minimo los propagaria a toda la serie de bolsa. Ver H-50.")
 
     pi_pre = pi.copy()
     pi = np.minimum(pi, ceil_per_hour)

@@ -16,6 +16,11 @@
 #   bash modelo_base/run_servidor.sh tanda       200    <- las tres seguidas
 #   bash modelo_base/run_servidor.sh canonica           <- la corrida entera
 #
+#   --- la tanda del 2026-09-08: la decision del piso ---------------------
+#   bash modelo_base/run_servidor.sh tramo              <- H-53, barato, sin juego
+#   bash modelo_base/run_servidor.sh piso        200    <- H-52 + H-53, 4 regimenes
+#   bash modelo_base/run_servidor.sh decision    200    <- compuertas + tramo + piso
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
@@ -32,7 +37,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|canonica|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|reparto|juntar|recoger}"
 
 SONDA="reformateo/documento/scripts/sonda"
 SALIDAS="$SONDA/salidas"
@@ -135,7 +140,11 @@ case "$ACCION" in
   compuertas)
     echo "Compuertas, antes de dar por buena ninguna medicion"
     for t in gate_python310 golden_test_sofia gate_cal47_solucionador \
-             gate_c138_bienestar_comprador; do
+             gate_c138_bienestar_comprador gate_cal46_paso_horario \
+             gate_cal49_competencia gate_h45_techo_por_comprador \
+             gate_h46_peso_virtual gate_c146_techo_en_el_juego \
+             gate_c151_participacion_motor gate_h55_bienestar_precio \
+             gate_c156_plazo_por_tarea; do
       corre "$t" "tests/$t.py"
     done
     echo
@@ -265,6 +274,73 @@ PYFIN
     echo "  $NUCLEOS nucleos · $PROCS procesos"
     corre "pesovirtual_n${N}" "$SONDA/peso_virtual.py" \
           --muestra "$N" --procesos "$PROCS"
+    ;;
+
+  tramo)
+    # H-53. Barato y sin resolver el juego: cuanto cambia el tramo de permuta
+    # si se cuenta sobre el excedente RESIDUAL, es decir descontando lo que el
+    # vendedor coloca DENTRO de la comunidad, que es como el articulo 23 de la
+    # Resolucion CREG 101 072 cuenta los excedentes asignables.
+    #
+    # No hace falta punto fijo: por D-7 el volumen es el lado corto y no
+    # depende del precio, de modo que lo colocado dentro se calcula sin jugar.
+    #
+    # Tarda minutos, no horas. Correr esto ANTES que `piso`.
+    echo "Tramo sobre excedente residual, las dos fronteras, H-53"
+    corre "tramo_residual" "$SONDA/tramo_residual.py"
+    ;;
+
+  piso)
+    # H-52 + H-53. LA MEDICION QUE DECIDE. Cuatro regimenes del piso sobre la
+    # misma muestra de horas, que la semilla fija:
+    #
+    #   tramo     la alternativa REAL de cada vendedor segun la CREG 174. Es
+    #             lo que el modelo hace hoy.
+    #   permuta   todos con el piso de permuta. Contrafactual, para medir.
+    #   bolsa     todos con el piso de bolsa. Contrafactual, para medir.
+    #   residual  el tramo contado sobre lo que de verdad cruza la frontera.
+    #             Es la lectura del articulo 23, y la UNICA de las tres
+    #             alternativas que corresponde a algo que la comunidad podria
+    #             de verdad hacer.
+    #
+    # COMO SE LEE, y esto importa mas que la tabla:
+    #
+    #   FACTURA   manda. Esta en pesos y contiene lo que la red paga por el
+    #             excedente exportado, que es lo unico que el regimen cambia.
+    #             Se compara en PESOS, nunca en porcentaje por hora: en la
+    #             frontera secundaria la base ronda el cero y cambia de signo.
+    #   EQUIDAD   el indice de Chacon y el reparto entre las dos partes. Es la
+    #             metrica con la que el autor del modelo juzga su propio
+    #             trabajo, su Tabla VII, y se mueve con el piso.
+    #   bienestar NO arbitra. H-55 lo demuestra: los terminos de pago se
+    #             cancelan entre los dos lados y lo unico que le queda del
+    #             precio es la penalizacion de competencia, de modo que
+    #             prefiere el piso mas bajo POR CONSTRUCCION.
+    #   excedente ENGAÑA. Crece cuando la alternativa empeora, no cuando la
+    #             comunidad mejora. Ver H-47.
+    N="${2:-200}"
+    PT="${3:-6}"
+    echo "Regimen del piso, $N horas por frontera, 4 regimenes, H-52 y H-53"
+    echo "  $NUCLEOS nucleos, $PROCS procesos, plazo por tarea $PT min"
+    corre "piso_n${N}" "$SONDA/regimen_piso.py" \
+          --muestra "$N" --procesos "$PROCS" --plazo-tarea "$PT"
+    echo
+    echo "  Tabla emparejada:"
+    corre "piso_comparado" "$SONDA/compara_regimenes.py" --muestra "$N"
+    ;;
+
+  decision)
+    # Todo lo que hace falta para decidir el regimen del piso, en orden.
+    N="${2:-200}"
+    echo "=== La decision del piso, muestra de $N horas por frontera ==="
+    echo
+    bash "$0" compuertas
+    echo
+    bash "$0" tramo
+    echo
+    bash "$0" piso "$N"
+    echo
+    echo "=== Hecho. Ahora: bash modelo_base/run_servidor.sh recoger ==="
     ;;
 
   canonica)

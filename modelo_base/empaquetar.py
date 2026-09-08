@@ -35,6 +35,8 @@ NUCLEO = [
     "core/opciones_externas.py",         # permuta y pisos
     "data/cedenar_tariff.py",            # dos comercializadores, no regulados
     "data/tarifas_asc_mensual.csv",      # tarifas de ASC
+    "data/xm_prices.py",                 # H-50: el techo de escasez y su guarda
+    "data/precios_bolsa_xm_api.csv",     # la serie de bolsa, que el techo acota
     "main_simulation.py",
     # La corrida canonica toca ademas la comparacion y la liquidacion
     "scenarios/comparison_engine.py",
@@ -53,6 +55,13 @@ SONDAS = [
     "reformateo/documento/scripts/sonda/techo_regimen.py",           # H-45
     "reformateo/documento/scripts/sonda/escenario_comercializador.py",  # H-47
     "reformateo/documento/scripts/sonda/peso_virtual.py",            # H-46
+    "reformateo/documento/scripts/sonda/participacion.py",           # C-151
+    "reformateo/documento/scripts/sonda/banda_adaptativa.py",        # CAL-47
+    # La tanda del 2026-09-08: la decision del piso
+    "reformateo/documento/scripts/sonda/recoge.py",         # plazo POR TAREA
+    "reformateo/documento/scripts/sonda/regimen_piso.py",   # H-52, 4 regimenes
+    "reformateo/documento/scripts/sonda/tramo_residual.py", # H-53
+    "reformateo/documento/scripts/sonda/compara_regimenes.py",   # C-155
 ]
 COMPUERTAS = [
     "tests/gate_c138_bienestar_comprador.py",
@@ -62,6 +71,10 @@ COMPUERTAS = [
     "tests/gate_python310.py",
     "tests/gate_h45_techo_por_comprador.py",
     "tests/gate_h46_peso_virtual.py",
+    "tests/gate_c146_techo_en_el_juego.py",       # el techo llega al juego
+    "tests/gate_c151_participacion_motor.py",     # la restriccion de participar
+    "tests/gate_h55_bienestar_precio.py",         # el bienestar no arbitra
+    "tests/gate_c156_plazo_por_tarea.py",         # el plazo por tarea corta
     "tests/golden_test_sofia.py",
 ]
 LANZADOR = [
@@ -172,6 +185,7 @@ def main() -> None:
     print("    tar xzf paquete_modelo_base_*.tar.gz -C /ruta/al/repo")
     print("    bash modelo_base/run_servidor.sh entorno")
     print("    bash modelo_base/run_servidor.sh compuertas")
+    print("    bash modelo_base/run_servidor.sh decision 200   # H-52/H-53, LA QUE DECIDE")
     print("    bash modelo_base/run_servidor.sh tanda 200      # H-45, H-46, H-47")
     print("    bash modelo_base/run_servidor.sh canonica       # la corrida entera")
     print("    bash modelo_base/run_servidor.sh recoger")

@@ -213,6 +213,89 @@ motivos.
 
 ---
 
+## La tanda del 8 de septiembre — la decisión del piso
+
+Es la que motiva este paquete. **Una sola orden la corre entera:**
+
+```bash
+bash modelo_base/run_servidor.sh decision 200
+```
+
+Encadena las compuertas, la sonda barata del tramo y la medición de los
+cuatro regímenes con su tabla emparejada. Con doscientas horas por frontera
+son 1.600 tareas.
+
+### La pregunta
+
+El piso de cada vendedor depende de en qué tramo de la Resolución CREG 174
+está: permuta mientras su inyección acumulada del mes no supere su retiro, y
+bolsa a partir de ahí. **El modelo cuenta ese tramo sobre el excedente
+completo**, es decir como si todo cruzara la frontera comercial. El artículo
+23 de la Resolución CREG 101 072 lo cuenta sobre los excedentes *asignables*
+a cada usuario tras el reparto, y la energía que un vendedor coloca dentro de
+la comunidad no se la entregó al comercializador.
+
+Las dos lecturas son defendibles y la ambigüedad va al asesor. Lo que esta
+medición aporta es **el precio de cada una**.
+
+### Los cuatro regímenes
+
+| Régimen | Qué es |
+|---|---|
+| **tramo** | la alternativa real según la CREG 174. Es lo que el modelo hace hoy |
+| **permuta** | todos con el piso de permuta. Contrafactual, para medir |
+| **bolsa** | todos con el piso de bolsa. Contrafactual, para medir |
+| **residual** | el tramo contado sobre lo que de verdad cruza la frontera. Es la lectura del artículo 23, y **la única de las tres alternativas que corresponde a algo que la comunidad podría de verdad hacer** |
+
+### Cómo se lee la tabla, y esto importa más que la tabla
+
+**La factura manda.** Está en pesos y contiene lo que la red paga por el
+excedente exportado, que es lo único que el régimen cambia. Se compara **en
+pesos, nunca en porcentaje por hora**: en la frontera secundaria la base ronda
+el cero y cambia de signo, y el cociente da valores como −231,60 % sin
+contenido.
+
+**La equidad es la métrica del autor del modelo.** El índice de Chacón es la
+diferencia entre el ahorro de los compradores y el ingreso de los vendedores,
+sobre su suma. Cerca de cero es equitativo, hacia −1 favorece al vendedor y
+hacia +1 al comprador. Su Tabla VII da −0,8913 para el método centralizado, con
+un 94,56 % para el vendedor, y ese es el argumento de su artículo. **Se mueve
+con el piso**, porque el ingreso del vendedor se mide contra su piso.
+
+**El bienestar no arbitra.** Los términos de pago del vendedor y del comprador
+se cancelan al sumar los dos lados, de modo que lo único que le queda del
+precio es la penalización de competencia, negativa y proporcional al precio.
+Prefiere el piso más bajo **por construcción**. Se informa porque es la función
+del modelo base, no porque decida. La compuerta lo comprueba.
+
+**El excedente engaña.** Crece cuando la alternativa empeora, no cuando la
+comunidad mejora.
+
+### Lo que la medición local de 40 horas ya insinúa
+
+Para que el servidor confirme o desmienta, no para darlo por hecho:
+
+- en la frontera principal gana el **tramo**, es decir lo que el modelo ya
+  hace, y la lectura residual sería la peor de las tres;
+- en la secundaria gana la **permuta** con mucha diferencia;
+- y en la secundaria, pasar de un tramo a otro mueve unas **tres veces y media**
+  más dinero que la existencia misma del mercado entre pares.
+
+### El plazo por tarea, que es nuevo
+
+La vía acoplada no tiene cota por hora: unas pocas horas no resuelven nunca.
+Antes el plazo era **total**, de modo que tres horas atascadas costaron media
+hora con siete de diez procesos ociosos. Ahora corta cuando pasan seis minutos
+**sin que termine ninguna tarea**, que es lo que distingue «va lento» de «está
+atascado». Se ajusta con el tercer argumento:
+
+```bash
+bash modelo_base/run_servidor.sh piso 200 8      # ocho minutos por tarea
+```
+
+Una hora que no resuelve **es un dato**, queda anotada como no resuelta y la
+medición sigue.
+
 ## Lo que este paquete NO hace
 
 - **No decide por ti.** Las tres mediciones nuevas dejan cifras; la

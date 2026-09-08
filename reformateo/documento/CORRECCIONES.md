@@ -7187,3 +7187,34 @@ repite es que **un silenciador de errores necesita justificación escrita**, y
 ninguno de los dos la tenía.
 
 ---
+
+## C-159 · El plazo total no llegaba a la medición del piso, y la habría cortado por la mitad
+
+**Encontrado con la corrida ya lanzada en el servidor.**
+
+La acción del lanzador pasaba a la sonda el número de horas, los procesos y el
+plazo por tarea, **pero no el plazo total**. La sonda lo tiene por omisión en
+45 minutos, que era razonable para una muestra de cuarenta horas y absurdo para
+las 1.600 tareas de una muestra de doscientas: habría cortado la medición a la
+mitad, con el aviso correcto y el resultado incompleto.
+
+Corregido: el plazo total se pasa y queda en 1.440 minutos por omisión. Puede
+ser generoso porque **el guardia de verdad es el plazo por tarea** de C-156,
+que corta lo que está atascado sin castigar lo que va lento.
+
+### Y de paso, las dos palancas para usar la máquina entera
+
+Quedan escritas en el propio lanzador, porque el servidor tiene núcleos que la
+configuración por omisión no aprovecha:
+
+| Palanca | Qué hace |
+|---|---|
+| Fijar los procesos por variable de entorno | Sube de los núcleos menos dos a los que se quiera |
+| Pedir un tamaño de muestra mayor que las horas disponibles | Mide **todas** las horas activas |
+
+La segunda es la que importa. Las horas activas son 1.126 en la frontera
+principal y 1.811 en la secundaria, es decir **2.937 horas y 11.748 tareas**.
+Con eso **desaparece la cautela de que los resultados salen de una muestra**,
+que es la limitación más seria de todo lo medido hoy.
+
+---

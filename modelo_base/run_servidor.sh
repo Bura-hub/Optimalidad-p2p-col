@@ -20,6 +20,8 @@
 #   bash modelo_base/run_servidor.sh tramo              <- H-53, barato, sin juego
 #   bash modelo_base/run_servidor.sh piso        200    <- H-52 + H-53, 4 regimenes
 #   bash modelo_base/run_servidor.sh decision    200    <- compuertas + tramo + piso
+#   bash modelo_base/run_servidor.sh decision   3000    <- TODAS las horas activas
+#   PROCS=48 bash modelo_base/run_servidor.sh decision 3000   <- y con mas procesos
 #
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #
@@ -318,12 +320,19 @@ PYFIN
     #             prefiere el piso mas bajo POR CONSTRUCCION.
     #   excedente ENGAÑA. Crece cuando la alternativa empeora, no cuando la
     #             comunidad mejora. Ver H-47.
+    # EL PLAZO TOTAL HAY QUE PASARLO. La sonda lo tiene por omision en 45
+    # minutos, que era razonable para una muestra de cuarenta horas y absurdo
+    # para mil seiscientas tareas: cortaria la medicion por la mitad. Con el
+    # plazo POR TAREA haciendo de guardia, el total puede ser generoso.
     N="${2:-200}"
     PT="${3:-6}"
+    PTOT="${4:-1440}"
     echo "Regimen del piso, $N horas por frontera, 4 regimenes, H-52 y H-53"
-    echo "  $NUCLEOS nucleos, $PROCS procesos, plazo por tarea $PT min"
+    echo "  $NUCLEOS nucleos, $PROCS procesos"
+    echo "  plazo por tarea $PT min · plazo total $PTOT min"
     corre "piso_n${N}" "$SONDA/regimen_piso.py" \
-          --muestra "$N" --procesos "$PROCS" --plazo-tarea "$PT"
+          --muestra "$N" --procesos "$PROCS" \
+          --plazo-tarea "$PT" --plazo "$PTOT"
     echo
     echo "  Tabla emparejada:"
     corre "piso_comparado" "$SONDA/compara_regimenes.py" --muestra "$N"
@@ -331,6 +340,17 @@ PYFIN
 
   decision)
     # Todo lo que hace falta para decidir el regimen del piso, en orden.
+    #
+    # PARA USAR LA MAQUINA ENTERA hay dos palancas, y la segunda importa mas:
+    #
+    #   PROCS=48 bash modelo_base/run_servidor.sh decision 200
+    #     sube los procesos. Por omision son los nucleos menos dos.
+    #
+    #   bash modelo_base/run_servidor.sh decision 3000
+    #     mide TODAS las horas activas en vez de una muestra. Son 1.126 en la
+    #     frontera principal y 1.811 en la secundaria, es decir 2.937 horas y
+    #     11.748 tareas, y con eso desaparece la cautela de que los resultados
+    #     son de una muestra. Es lo que de verdad aprovecha un servidor.
     N="${2:-200}"
     echo "=== La decision del piso, muestra de $N horas por frontera ==="
     echo

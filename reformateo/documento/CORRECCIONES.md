@@ -6687,6 +6687,14 @@ Comprobado sobre el 2 de mayo de 2025: el juego pasa de un piso de 280,0
 constante a **un piso medido entre 107,9 y 692,7 (COP/kWh)**, que son
 exactamente los dos tramos, bolsa y permuta, que la sonda mide.
 
+> **Cómo hay que leer ese rango, y C-153 lo corrige.** Los dos extremos son
+> pisos de verdad **de ese día**, porque ese día hay cuatro horas-vendedor en
+> bolsa y el resto en permuta. Pero el aviso los sacaba de la matriz entera,
+> que guarda un valor también para las horas en que el agente **no vende**, y
+> ahí ese valor no es el piso de nadie. Sobre el horizonte completo el aviso
+> habría dicho «de 97,9 a 898,0», con un máximo por encima de todos los
+> techos, cuando los pisos que actúan van de 103,7 a 714,1. Ver C-153.
+
 El perfil diario promedio **no lo lleva**, y con razón: el tramo de permuta
 depende del mes y ese modo no tiene calendario. Ahí el piso sigue siendo el
 escalar, y la corrida lo declara por pantalla.
@@ -6977,3 +6985,180 @@ comprador y el piso con su restricción de participación.
 
 ---
 
+
+## C-153 · El aviso del piso medía la matriz entera, no los pisos que actúan
+
+**Lo destapó una pregunta del autor sobre el propio aviso: «¿por qué decimos
+que ahora vale entre 107,9 y 692,7?».**
+
+### Qué decía y qué medía
+
+El orquestador imprimía el rango del piso tomando el mínimo y el máximo de la
+matriz completa de vendedores por horas. Esa matriz guarda un valor **también
+para las horas en que el agente no vende**, y ahí el número no es el piso de
+nadie: es lo que la red le pagaría por un excedente que no tiene.
+
+En el día de prueba los dos extremos coincidían con pisos reales y el aviso
+parecía correcto. **Sobre el horizonte completo no lo es.**
+
+| Frontera principal, 6.144 horas | Rango del aviso (COP/kWh) |
+|---|---|
+| Matriz completa, que es lo que se imprimía | 97,9 a **898,0** |
+| Solo las 1.792 horas-vendedor, que son los pisos que actúan | 103,7 a **714,1** |
+
+El máximo de la matriz, 898,0, está **por encima de todos los techos**, que
+van de 731,1 a 777,2. Un lector razonable habría concluido que la banda estaba
+invertida durante el horizonte, cuando lo que ocurre es que ese valor sale de
+horas nocturnas sin excedente, donde el piso no llega a actuar.
+
+### La corrección
+
+El aviso pasa a medir sobre las horas en que el agente tiene excedente, y a
+decir cuántas son. Y se le añade una segunda línea que declara el supuesto de
+H-53, es decir que el tramo se evalúa sobre el excedente bruto, con el número
+de horas-vendedor que caen en bolsa por esa cuenta.
+
+**La norma general, que ya tiene dos apariciones en este registro:** un
+resumen se calcula sobre las celdas que el modelo usa, no sobre las que la
+matriz tiene. Es la misma familia del error de la sonda del escenario, donde
+promediar sobre celdas inertes sesgaba la comparación.
+
+Ver H-49, H-53 y C-148.
+
+---
+
+## C-154 · La sonda leía la bolsa sin el techo de escasez
+
+**Encontrado al comprobar C-153, comparando la serie de la sonda con la de
+producción.**
+
+Las dos leen el mismo fichero de precios de bolsa. La corrida le aplica
+después el techo de escasez de la Resolución CREG 101 066 en su nivel
+superior; **la sonda no**. De modo que la sonda negociaba, en las horas en que
+el techo muerde, con un piso más alto del que la corrida usa.
+
+### Cuánto pesa, medido antes de arreglarlo
+
+| | |
+|---|---|
+| Horas en que el techo muerde | **20** de 6.144 |
+| Bolsa sin techo | 97,9 a **2.224,0** (COP/kWh) |
+| Bolsa con techo | 97,9 a **898,0** (COP/kWh) |
+| De esas 20 horas, cuántas tienen algún vendedor | **cero**, en las dos fronteras |
+
+**El efecto sobre todo lo que la sonda ha medido es nulo**, y no por suerte:
+el techo muerde en horas de punta nocturna y el excedente fotovoltaico es
+diurno, de modo que los dos conjuntos no se cruzan. Se corrige igualmente,
+porque la coincidencia depende del dato y no de la construcción.
+
+Alcanza también al experimento del régimen del piso de H-52, cuyo régimen
+forzado a bolsa usa esa serie en **todas** las horas-vendedor. Como ninguna de
+las 20 tiene vendedor, el experimento no cambia.
+
+Ver H-50 y H-54.
+
+---
+
+## C-155 · La comparación de regímenes iba en porcentaje por hora, y ahí no significa nada
+
+**Lo destapó la propia medición de H-52 al imprimir «−231,60 %».**
+
+La sonda comparaba cada régimen contra el actual con la variación relativa por
+hora y su mediana. **Sobre la factura eso no es una medida.** En la frontera
+secundaria la factura de una hora ronda el cero y cambia de signo, de modo que
+el cociente se dispara sin que el numerador sea grande. Las medianas salían
+«+0,00 %» en casi todo y «−231,60 %» en un sitio, y ninguna de las dos cosas
+describía lo que pasaba.
+
+Lo que sí pasaba, en pesos: la permuta mueve la factura de la frontera
+secundaria en **−163.808,4 (COP)** sobre cuarenta horas, es decir diez veces la
+factura entera del régimen actual.
+
+### Las tres reglas que entran
+
+1. **En pesos, no en porcentaje**, siempre que la base pueda cruzar el cero.
+2. **Sobre horas emparejadas.** Solo entran las horas con todos los regímenes
+   resueltos. Una hora que no resolvió en un régimen sesgaría la suma de ese
+   régimen frente a los demás, y con la vía acoplada eso pasa.
+3. **Se dice en cuántas horas cambia algo.** Que la mediana por hora sea cero y
+   el total sea grande no es una contradicción: significa que el piso solo
+   muerde en una minoría de horas, y eso es información, no ruido.
+
+### Lo que se añade de paso
+
+Un juntador, `compara_regimenes.py`, y la posibilidad de correr **un régimen
+suelto**. La muestra la fija la semilla, de modo que una tanda nueva cae sobre
+exactamente las mismas horas y la comparación sigue emparejada sin repetir lo
+ya medido. Añadir el cuarto régimen costó 80 tareas en vez de 320.
+
+Ver H-52 y H-55.
+
+---
+
+## C-156 · El plazo de la recogida era total, y con eso una hora atascada cuesta media medición
+
+**Medido el 2026-09-08 sobre la propia tanda de H-52.**
+
+La vía acoplada no tiene cota por hora: unas pocas horas no resuelven nunca.
+La recogida ya lo contemplaba, pero con un plazo **total**. El resultado:
+
+| | |
+|---|---|
+| 240 tareas, de las que resolvieron | 237 |
+| Tiempo hasta la última hora sana | **26 minutos** |
+| Tiempo total de la medición | **55 minutos** |
+| Procesos ociosos durante los otros 29 | **siete de diez** |
+
+**Entra un plazo POR TAREA**, medido desde la última terminación, que es lo que
+distingue «va lento» de «está atascado»: mientras sigan llegando resultados hay
+trabajo sano en curso; en cuanto dejan de llegar, lo que queda no va a llegar.
+Con seis minutos, esa misma medición habría cerrado en 26.
+
+El mecanismo de corte es el mismo, porque es el único que funciona: un
+trabajador atascado está dentro del integrador, en código nativo, y no atiende
+la cancelación. Hay que terminar el proceso.
+
+### Y de paso, qué tienen esas horas
+
+Medido sobre las dos que se atascaron en la frontera principal. La hora 3394
+tiene la oferta y la demanda **casi empatadas**, con un 5,4 % de diferencia
+frente a una mediana del 78,4 % en la muestra: es la hora más ajustada del
+conjunto. Cuando el lado corto es casi un empate el reparto queda indeterminado
+y el integrador reduce el paso sin que haya nada que resolver. Es el mismo
+fenómeno que la batería de convergencia documentó.
+
+**La segunda no se explica con eso**, y no se le atribuye causa: su holgura es
+normal y se atascó en uno solo de los tres regímenes. Haría falta su
+trayectoria.
+
+### Verificación
+
+`tests/gate_c156_plazo_por_tarea.py`, en verde, con cuatro comprobaciones:
+
+| | Medido |
+|---|---|
+| Sin atascos, cierra sola | 8 filas en 1,5 s |
+| Con una atascada, corta por el plazo por tarea | a los 31,4 s, con un plazo total de 600 |
+| La atascada queda anotada | 6 resueltas y 1 sin resolver |
+| No sobrevive ningún trabajador | cero |
+
+---
+
+## C-157 · El juntador buscaba una muestra de cuarenta, y el servidor corre con doscientas
+
+**Lo destapó el ensayo de humo previo al empaquetado, que es para lo que
+sirve.**
+
+El juntador de tandas tenía el tamaño de la muestra escrito en el código.
+Habría salido en el servidor diciendo que no encuentra ninguna tanda, después
+de la medición y no antes. Pasa a recibirlo por argumento, y el lanzador se lo
+pasa.
+
+De paso entran en su tabla el índice de equidad y el reparto entre las dos
+partes, que sin ellos no estaban donde se lee el resultado.
+
+**La norma que esto confirma:** un ensayo de humo antes de empaquetar cuesta
+minuto y medio y encuentra los fallos que en el servidor cuestan una tanda
+entera. Es la tercera vez que lo hace en dos jornadas.
+
+---

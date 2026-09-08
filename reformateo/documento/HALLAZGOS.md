@@ -4129,3 +4129,600 @@ siquiera venía del modelo base; se escribió al traducir y nadie volvió a
 mirarlo. Conviene revisar si hay más constantes del solucionador en esa
 situación.
 
+
+---
+
+## H-52 · El precio interno de la comunidad no está regulado, pero el piso no se elige
+
+**Estado: PLANTEADO el 2026-09-08, con la norma comprobada y la predicción
+escrita ANTES de medir, para que se pueda desmentir. La medición va aparte.**
+
+La pregunta la puso el autor, y tiene tres partes que conviene separar porque
+se responden de forma distinta: qué permite la norma, qué significa
+económicamente, y si conviene medirlo.
+
+### Qué permite la norma, y es lo primero porque acota la pregunta
+
+Dos disposiciones importan, y las dos son favorables.
+
+**El precio interno no está regulado.** La Resolución CREG 101 072 de 2025
+establece, para la venta de excedentes a comercializadores que atienden
+usuarios no regulados, que **«el precio de venta es pactado libremente»**. Y
+las cinco instituciones son usuarias no reguladas desde CAL-47.
+
+**El reparto interno del colectivo tampoco.** El porcentaje de distribución de
+excedentes «será informado por el representante» y **«acordado por los
+integrantes»**. La norma exige que se declare, no fija su valor.
+
+**Conclusión: nada impide negociar el precio que se quiera.** La norma
+gobierna quién puede estar en la comunidad y cómo se liquida lo que cruza su
+frontera, no el precio de dentro. Los tres regímenes que se plantean abajo son
+admisibles, y la pregunta es cuál conviene, no cuál se permite.
+
+### Pero el piso no es una elección, es un dato
+
+El piso no es un precio que se fije: es **la alternativa externa del
+vendedor**, lo que la red le pagaría si no vendiera dentro.
+
+La condición que lo cambia está en los artículos 22 y 23 de la Resolución
+CREG 174, y es concreta. Dentro de **cada mes** se acumulan hora a hora la
+inyección, es decir lo que le sobra, y el retiro, lo que le falta. **En cuanto
+la inyección acumulada supera al retiro acumulado, el agente pasa a mercado
+mayorista para el resto del mes**, y el contador se reinicia el mes siguiente.
+
+Dicho en llano: la permuta es un trueque, y mientras haya consumo propio que
+descontar el excedente vale la tarifa menos el cargo de comercializar. Cuando
+ya se descontó todo lo consumido en el mes, no queda nada contra qué permutar,
+y lo que sobra es energía que se vende de verdad, a precio de bolsa.
+
+No es un umbral arbitrario: es el punto donde el agente deja de ser un
+consumidor que compensa y pasa a ser un generador que vende.
+
+**De ahí que forzar el piso de permuta a quien ya cruzó sea modelar a un
+vendedor que rechaza precios que aceptaría de buena gana.** Sobre el 2 de mayo
+eso significaría rechazar entre 110 y 692 (COP/kWh). No es un mercado más
+favorable: es un vendedor irracional.
+
+### Y lo que de verdad decide, que no es lo que parece
+
+**El precio interno no afecta al resultado agregado de la comunidad.**
+
+La cuenta de la comunidad es lo que paga menos lo que recibe. En una venta
+dentro, el comprador paga y el vendedor cobra **lo mismo**: se cancela. Es una
+transferencia entre miembros.
+
+    cuenta = suma(D_neta · techo) − suma(G_neta · piso) − suma(P · (techo − piso))
+
+Los dos primeros términos son la cuenta sin mercado, y el tercero es el
+excedente. **El precio no aparece.** Es la identidad de H-33 leída por el otro
+lado.
+
+Lo único que mueve la posición agregada es cuánta energía se mueve dentro en
+vez de cruzar la frontera, y los precios a los que cruza lo que sobra, que son
+el techo y el piso, y esos los fija la red.
+
+### Entonces, ¿el piso de bolsa beneficia?
+
+**Por la métrica del excedente, sí**, y es una trampa. Un piso más bajo
+ensancha la banda y el excedente sale mayor. Pero es **exactamente lo de
+H-47**: el excedente crece porque la alternativa empeora, no porque la
+comunidad esté mejor.
+
+**Hay un canal por el que sí importa de verdad.** Un piso más bajo hace que
+más vendedores acepten participar, porque su alternativa es peor y el mercado
+la bate con más facilidad. Y más participación es más volumen, y el volumen sí
+mueve la posición agregada.
+
+Ese canal es real, es medible y **no se ha medido**.
+
+### Lo que se va a medir
+
+Tres regímenes del piso, los tres admisibles porque el precio interno es
+libre:
+
+| Régimen | Qué representa |
+|---|---|
+| **tramo** | la alternativa real de cada vendedor según la CREG 174. Es lo actual |
+| **permuta** | todos negocian con el piso de permuta, ignorando que algunos ya cruzaron |
+| **bolsa** | todos negocian con el piso de bolsa, la alternativa más baja |
+
+Y **cuatro métricas informadas por separado**, porque esta jornada enseñó que
+se contradicen:
+
+| Métrica | Qué es |
+|---|---|
+| **Bienestar** | la suma del bienestar de vendedores y compradores. Es **la función que el modelo base maximiza**, y por tanto la métrica del autor del modelo |
+| **Factura** | lo que la comunidad paga de verdad |
+| **Volumen y retirados** | el canal por el que el piso puede mover la factura |
+| Excedente | la banda por la energía. **Engaña**, y se informa solo para enseñar que engaña |
+
+La primera entra por indicación del autor, y con razón: el modelo base no
+maximiza ni la factura ni el excedente, maximiza el bienestar comunitario.
+
+### La predicción, escrita antes de medir
+
+Para que se pueda desmentir:
+
+> La factura apenas se moverá salvo por el cambio de volumen, y el régimen de
+> bolsa moverá más energía porque retira menos vendedores. Si es así, **el
+> piso de bolsa sería mejor para la comunidad, pero por participación y no por
+> precio.**
+
+Si la medición la contradice, se anota la contradicción y no la predicción.
+
+### Lo que no se decide aquí
+
+Que el modelo **conserve** el régimen de tramo, que es el que describe la
+alternativa real. Los otros dos existen para medir cuánto pesa la regla de la
+CREG 174 sobre el resultado, no para sustituirla. Si la medición mostrara que
+otro régimen conviene, eso sería una **recomendación** sobre cómo debería
+negociar la comunidad, no un cambio en lo que el modelo describe. Es la misma
+distinción que H-48 estableció con el comercializador.
+
+
+---
+
+## H-53 · El tramo de permuta se calcula sobre el excedente bruto, y la norma lo calcula sobre lo asignado
+
+**Estado: PLANTEADO el 2026-09-08. Lo destapó una pregunta del autor: si la
+regla de la Resolución CREG 174 aplica dentro del mercado entre pares o solo
+cuando la energía sale de la comunidad. Aplica fuera, y nuestro cálculo la
+mete dentro.**
+
+### La regla es de la frontera, no del mercado interno
+
+La Resolución CREG 174 gobierna **la liquidación entre el agente y su
+comercializador**. Es una regla sobre lo que cruza el medidor, no sobre lo que
+dos miembros de la comunidad acuerdan entre ellos.
+
+La Resolución CREG 101 072 lo confirma para el colectivo. Su artículo 23 dice
+que los excedentes se tratan **asociando cada frontera comercial de forma
+independiente**, «con la misma forma en que se trata un AGPE». Y define el
+reparto en dos tramos **sobre lo asignado a cada usuario**:
+
+- **`Exc1`**: los excedentes del colectivo asignables al usuario **hasta el
+  valor de sus importaciones**, es decir la permuta.
+- **`Exc2`**: los que quedan **por encima** de esas importaciones, es decir la
+  bolsa.
+
+La palabra que decide es **asignables**. Los tramos se cuentan sobre lo que le
+toca a cada usuario tras el reparto del colectivo, no sobre su producción
+bruta.
+
+### Lo que hace nuestro código
+
+En los tres sitios que lo usan, el orquestador y dos sondas, el tramo se
+calcula así:
+
+    tramo_permuta(G, D, mes)
+
+Con la generación y la demanda **brutas**, como si todo el excedente fuera
+entregado al comercializador. **Ignora que parte de ese excedente se queda
+dentro de la comunidad.**
+
+### Qué implica, y por qué puede favorecer a la comunidad
+
+Si un vendedor coloca energía dentro de la comunidad, esa energía **no agota
+su permuta**, porque no se la entregó al comercializador. De modo que el
+vendedor **se queda en permuta más tiempo** del que el modelo supone.
+
+Eso sube su piso, y subir el piso cambia tres cosas a la vez: el ancho de la
+banda, el reparto entre vendedor y comprador, y quién participa. **No se sabe
+de qué tamaño es el efecto ni en qué dirección queda el neto.**
+
+### La circularidad, que es lo que hace el problema interesante
+
+**El tramo depende de cuánto se vendió dentro, y cuánto se vende dentro
+depende del piso, que depende del tramo.**
+
+Nuestro cálculo evita esa circularidad resolviéndola por el lado bruto, que es
+la respuesta que se obtiene si se supone que no hay mercado interno. **Es una
+simplificación, y nadie la había declarado.**
+
+Resolverla de verdad exige un punto fijo: calcular el tramo, resolver el
+mercado, recalcular el tramo con lo que quedó sin vender dentro, volver a
+resolver, y repetir hasta que el tramo deje de moverse. Como todo punto fijo,
+puede no converger, y hará falta una cota de vueltas y declarar qué se hace
+cuando se agota.
+
+### Una distinción que conviene no perder
+
+**Ninguna condición saca a un vendedor del mercado entre pares por el tramo.**
+El tramo solo cambia su piso, es decir cuánto vale su alternativa. Lo que lo
+saca del mercado es la **restricción de participación** de C-151: se retira si
+el mercado le paga menos que esa alternativa por el conjunto de lo que coloca.
+
+> **El tramo dice cuánto vale su alternativa. La participación dice si el
+> mercado la bate.**
+
+Son dos mecanismos distintos y confundirlos lleva a buscar la causa de un
+retiro en el sitio equivocado.
+
+### La circularidad se deshace sola, y eso abarata el arreglo
+
+La sospecha era que hacía falta un punto fijo caro. **No hace falta.** Por
+D-7, el volumen transado en una hora es el lado corto, el mínimo entre la
+oferta y la demanda netas, y **no depende del precio**. De modo que cuánto
+coloca la comunidad dentro se sabe sin jugar la partida: se reparte el lado
+corto entre los vendedores en proporción a su excedente.
+
+Queda un único lazo de verdad, y es de segundo orden: el piso decide quién se
+retira por la restricción de participación, y un retiro cambia el volumen. Ese
+canal vale del orden del 0,5 % del volumen, medido el 2026-09-07.
+
+### Las tres lecturas, porque no son dos
+
+Al medirlo aparece una distinción que la pregunta original no tenía. El piso
+no es un precio: es **el punto de amenaza**, lo que el vendedor obtiene si no
+negocia. Y la posición acumulada del mes es un hecho, no una hipótesis:
+
+1. **Bruto**, lo actual. Todo el excedente, pasado y presente, cuenta como
+   inyectado. Es la respuesta que sale si se supone que no hay mercado
+   interno.
+2. **Residual puro.** Solo cuenta lo que de verdad cruzó el medidor. Es lo que
+   la Resolución CREG 101 072 liquida.
+3. **Historia residual, margen bruto.** La posición acumulada es la real, es
+   decir la residual; y con esa posición se pregunta qué le pagarían por el
+   kWh de esta hora si no lo vendiera dentro. **Es el punto de amenaza
+   correcto**, y coincide con la contabilidad de la norma en todo salvo la
+   hora en curso, que sobre un acumulado mensual es despreciable.
+
+La tercera es la que este hallazgo defiende. La medición de abajo la estima.
+
+### Lo medido, y desmiente lo que este hallazgo suponía
+
+Se supuso que la lectura residual favorece a la comunidad. **En una frontera
+sí y en la otra no**, y por una razón que conviene entender.
+
+| Sobre el horizonte completo | Principal (M1) | Secundaria (M3) |
+|---|---:|---:|
+| Horas-vendedor | 1.792 | 8.968 |
+| En bolsa según el excedente **bruto** | 339 · 18,9 % | 7.733 · 86,2 % |
+| En bolsa según el excedente **residual** | **0 · 0,0 %** | **7.791 · 86,9 %** |
+| Horas-vendedor que cambian de tramo | 339 · 18,9 % | 294 · 3,3 % |
+| Piso medio ponderado por excedente, bruto | 506,5 | 210,8 |
+| Piso medio ponderado por excedente, residual | **684,2** | **203,8** |
+| Ancho de banda medio ponderado, bruto | 223,2 | 516,1 |
+| Ancho de banda medio ponderado, residual | **45,5** | **523,1** |
+| Bandas invertidas | 0 | 0 |
+
+Todo en (COP/kWh).
+
+**En la principal el cambio es enorme y va en un sentido; en la secundaria es
+pequeño y va en el contrario.** El motivo está en el lado corto. En la
+principal la oferta es escasa, de modo que casi todo el excedente se coloca
+dentro y **nadie llega a agotar su permuta**: ningún vendedor pisa la bolsa en
+todo el horizonte. En la secundaria la oferta sobra: el mercado interno agota
+el déficit mucho antes que el excedente, y como el retiro de la red también
+encoge, **el cruce llega antes**, no después.
+
+### Y la consecuencia que hay que leer con H-47 en la mano
+
+En la principal el ancho de banda cae de 223,2 a 45,5, es decir **un 80 %**. Y
+por la identidad de H-33, el excedente del mercado es el ancho por la energía
+transada. De modo que la lectura residual **recortaría el excedente medido del
+mercado entre pares a una quinta parte en la frontera principal**.
+
+Sería un error leer eso como que la comunidad pierde. Es justo lo que H-47
+advierte: **el excedente crece cuando la alternativa empeora, no cuando la
+comunidad mejora**. Bajo la lectura residual la red le paga permuta al
+vendedor por todo, en vez de pagarle bolsa el 19 % de las veces; la comunidad
+está mejor y el mercado aporta menos, porque queda menos que arreglar.
+
+Cuál de las dos cosas se reporta, y con qué palabras, es una decisión del
+documento y no del código.
+
+### Qué se decide y qué no
+
+**No se cambia el cálculo todavía.** Es una ambigüedad regulatoria de las que
+este proyecto manda consultar en vez de resolver por cuenta propia, y las dos
+primeras lecturas son defendibles: la bruta es la que el medidor registra,
+porque la energía del mercado entre pares **sí cruza físicamente la
+frontera**; la residual es la que la letra del artículo 23 sugiere, porque
+habla de excedentes **asignables** tras el reparto.
+
+**Va como pregunta al asesor**, con la tabla de arriba delante, que es lo que
+la vuelve una pregunta concreta. Mientras tanto queda declarada como
+simplificación, y el orquestador la imprime en cada corrida.
+
+**Coste de implementarla, ahora que se sabe que no hace falta punto fijo:** un
+paso más sobre los datos y ninguna partida de más. Se calcula el lado corto
+por hora, se reparte entre vendedores, se acumula sobre lo residual y se
+evalúa el tramo. Del orden de treinta líneas en el módulo de opciones
+externas y un cambio en los tres sitios que lo llaman. La versión exacta,
+la que usa el reparto verdadero en vez del proporcional, cuesta **una
+corrida completa de más**, porque necesita el reparto del mercado que solo
+existe después de jugarlo.
+
+Ver H-52, que mide los regímenes del piso, y H-47, que explica por qué el
+excedente engaña.
+
+---
+
+## H-54 · La sonda y la corrida no negociaban con el mismo precio de bolsa
+
+**Estado: CORREGIDO el 2026-09-08 por C-154, con el efecto medido antes de
+tocar nada: es nulo, y se explica por qué.**
+
+La sonda de paso a paso y el orquestador leen el mismo fichero de precios de
+bolsa. El orquestador le aplica después el techo de escasez de la Resolución
+CREG 101 066; la sonda no. Dos caminos que se creían equivalentes daban
+precios distintos en las horas de punta.
+
+**Medido:** el techo muerde en 20 horas de 6.144, y **ninguna de las veinte
+tiene un vendedor** en ninguna de las dos fronteras. La razón no es el azar:
+el techo muerde en punta nocturna y el excedente fotovoltaico es diurno.
+
+De modo que nada de lo que la sonda ha medido cambia, incluido el experimento
+del régimen del piso. Se corrige igual, porque una coincidencia que depende
+del dato no es una garantía.
+
+**Lo que conviene retener:** cuando dos caminos calculan lo mismo por
+separado, la comprobación no es que coincidan en el resultado publicado, sino
+que **coincidan en las entradas**. Aquí coincidían en el resultado por una
+propiedad del clima solar.
+
+---
+
+## H-55 · El bienestar del modelo base no puede arbitrar una pregunta sobre el piso
+
+**Estado: PROBADO el 2026-09-08, algebraicamente y a precisión de máquina. Lo
+abrió una pregunta del autor: «¿el bienestar en qué unidades lo estás
+midiendo?».**
+
+### Primero, las unidades, porque la respuesta es que no hay una
+
+La función que el modelo base maximiza suma términos de dimensiones distintas:
+
+| Término | Qué multiplica |
+|---|---|
+| dotación | un coeficiente adimensional por potencia |
+| cuadrático | potencia al cuadrado |
+| costo del vendedor | un costo nivelado (COP/kWh) por potencia |
+| competencia | un precio (COP/kWh) por potencia |
+| pago | **energía dividida por el logaritmo del precio** |
+
+El último es el que más llama la atención: el pago no es precio por energía,
+sino energía **dividida por el logaritmo del precio**, con el precio metido
+dentro del logaritmo como si fuera un número puro. De modo que el resultado
+**no está en pesos ni en kilovatios hora**: es un índice de utilidad en
+unidades mixtas, y no es comparable con la factura.
+
+Eso ya bastaría para no enfrentarlo a la factura en una misma tabla. Pero hay
+algo más.
+
+### El pago se cancela entre los dos lados
+
+El término de pago del vendedor es la energía que coloca dividida por el
+logaritmo del precio, **con signo negativo**; el del comprador es la energía
+que recibe dividida por el mismo logaritmo, **con signo positivo**. Sumados
+sobre las dos poblaciones son la misma suma con signo opuesto.
+
+Comprobado, también con precios distintos por comprador y reparto asimétrico:
+
+| Precios (COP/kWh) | Pago del vendedor | Pago del comprador | Suma |
+|---|---:|---:|---:|
+| 523,1 · 455,9 · 577,7 | −1,74578 | +1,74578 | −2,8·10⁻¹³ |
+| 121,2 · 879,3 · 352,8 | −1,54160 | +1,54160 | −2,6·10⁻¹³ |
+| 671,4 · 411,9 · 190,9 | −1,74866 | +1,74866 | −3,0·10⁻¹³ |
+
+Y reconstruyendo el bienestar total **sin** los términos de pago se obtiene el
+mismo número, con diferencia de 1,1·10⁻¹³.
+
+### Lo que queda, y por qué decide el resultado
+
+Cancelado el pago, la **única** dependencia del bienestar respecto del precio
+es la penalización de competencia, que es negativa y proporcional al precio.
+
+> **De donde se sigue que el bienestar total crece siempre que el precio baja,
+> y el precio baja siempre que el piso baja.**
+
+**El régimen de bolsa no gana en bienestar: gana por construcción.** Esa
+columna del experimento de H-52 no mide que la comunidad esté mejor, mide que
+el piso es más bajo.
+
+### Qué se hace con esto
+
+**El bienestar se sigue informando**, porque es la función que el modelo base
+maximiza y el lector la espera. Pero **no arbitra la elección del régimen del
+piso**, y la tabla tiene que decirlo donde se publique.
+
+Quien arbitra es la **factura**, que sí está en pesos y sí contiene lo que la
+red paga por el excedente que se exporta. Ver H-52 para el resultado y H-47
+para la misma trampa vista desde el excedente.
+
+### Verificacion
+
+`tests/gate_h55_bienestar_precio.py`, en verde, con las tres comprobaciones
+sobre casos al azar:
+
+| | Medido |
+|---|---|
+| Los pagos se cancelan, 200 casos con precios y repartos distintos | peor resto 7,5·10⁻¹³ |
+| El total reconstruido sin los pagos coincide | peor resto 1,8·10⁻¹² |
+| El bienestar baja al subir el precio, 50 casos × 40 precios | cero excepciones |
+
+**Alcance, y conviene acotarlo:** esto no invalida el modelo base ni los
+resultados publicados. El bienestar sigue sirviendo para lo que se usa en el
+resto del documento, que es comparar configuraciones **con la misma banda**.
+Deja de servir en cuanto la banda es lo que cambia entre las alternativas que
+se comparan, que es exactamente el caso de H-52 y de H-53.
+
+---
+
+## H-52 · MEDIDO el 2026-09-08: la predicción acierta la mitad
+
+La medición de los tres regímenes del piso, sobre una muestra de 40 horas por
+frontera sorteada con semilla fija, con la vía acoplada y la configuración de
+CAL-50. De 240 tareas resolvieron 237; las tres que no son la hora 3394 de la
+frontera principal en dos regímenes y la 2913 en el tercero, y quedan anotadas
+como no resueltas conforme a H-51.
+
+**Un aviso sobre cómo NO leerla.** La sonda imprime además variaciones por
+hora en porcentaje, y en la frontera secundaria no significan nada: allí la
+factura ronda el cero y cambia de signo, de modo que el cociente da valores
+como −231,60 % sin contenido. La comparación válida es en pesos y sobre horas
+emparejadas, que es la que sigue.
+
+### Frontera principal · 38 horas con los tres regímenes
+
+| Régimen | Piso medio | Bienestar | Factura (COP) | Dif. factura | Volumen (kWh) | Dif. vol. | Retirados | Excedente |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| tramo | 484,7 | 27.918,7 | **540.856,3** | — | 154,34 | — | 7 | 42.301,8 |
+| permuta | 674,5 | 25.968,3 | 545.115,7 | **+4.259,5** | 147,93 | −4,15 % | 4 | 9.962,9 |
+| bolsa | 168,5 | 35.523,1 | 541.282,8 | +426,5 | 155,59 | +0,81 % | 0 | 94.548,8 |
+
+### Frontera secundaria · 40 horas con los tres regímenes
+
+| Régimen | Piso medio | Bienestar | Factura (COP) | Dif. factura | Volumen (kWh) | Dif. vol. | Retirados | Excedente |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| tramo | 165,2 | 31.030,6 | −16.568,4 | — | 97,93 | — | 14 | 60.568,4 |
+| permuta | 673,9 | 29.732,5 | **−180.376,8** | **−163.808,4** | 96,73 | −1,23 % | 10 | 9.058,1 |
+| bolsa | 165,2 | 35.549,2 | −27.888,0 | −11.319,6 | 101,28 | +3,42 % | 0 | 62.368,1 |
+
+Los pisos medios de tramo y bolsa coinciden en la secundaria porque allí el
+89,1 % del excedente ya se liquida en bolsa, de modo que forzar el régimen
+cambia poco el piso y mucho quién participa.
+
+### La predicción, contrastada
+
+Decía: «la factura apenas se moverá salvo por el cambio de volumen, y el
+régimen de bolsa moverá más energía porque retira menos vendedores. Si es así,
+el piso de bolsa sería mejor para la comunidad, pero por participación y no por
+precio».
+
+| Parte | Veredicto |
+|---|---|
+| El régimen de bolsa no retira a nadie | **acierta**, cero retirados en las dos |
+| Y mueve más energía | **acierta**, +0,81 % y +3,42 % |
+| La factura apenas se moverá salvo por volumen | **falla** |
+| El piso de bolsa sería el mejor para la comunidad | **falla** |
+
+**Dónde falla el razonamiento, que es lo que hay que retener.** El argumento de
+que el precio se cancela es cierto para lo que se negocia dentro, y H-33 lo
+prueba. Pero el piso **no es solo el precio de dentro**: es además el precio al
+que la red compra lo que sobra, y eso no se cancela con nada. En la frontera
+secundaria ese canal mueve 163.808 (COP) en cuarenta horas, **diez veces la
+factura entera del régimen actual**.
+
+### Dos canales, y gana uno distinto en cada frontera
+
+**En la principal manda el volumen.** La oferta es escasa y casi no queda
+excedente que exportar, de modo que subir el piso no cobra casi nada de la red
+y en cambio estrecha la banda hasta cerrar el mercado en algunas horas: la
+permuta pierde un 4,15 % de energía y sale la peor de las tres, **aun teniendo
+menos vendedores retirados que el régimen actual**. Gana el tramo, que es lo
+que el modelo ya hace.
+
+**En la secundaria manda el precio.** Sobra excedente, se exporta mucho, y que
+la red lo pague a permuta en vez de a bolsa vale mucho más que cualquier cosa
+que el volumen pueda mover. Gana la permuta con diferencia.
+
+### El bienestar no arbitra, y eso está probado aparte
+
+El bienestar señala el régimen de bolsa en las dos fronteras. **No hay que
+hacerle caso aquí**, y no por desconfianza sino porque H-55 demuestra que la
+función solo depende del precio a través de la penalización de competencia, de
+modo que prefiere el piso más bajo por construcción. La columna se informa
+porque es la función del modelo base, no porque decida.
+
+### Qué se decide
+
+**El modelo conserva el régimen de tramo**, que ya era lo previsto y ahora
+tiene respaldo: es el mejor de los tres en la frontera principal y describe,
+además, la alternativa real de cada vendedor.
+
+Lo que la medición añade es una **recomendación para la comunidad**, que no es
+lo mismo que un cambio de modelo: en una frontera de cobertura alta, negociar
+con el piso de permuta valdría mucho dinero, y eso depende de la lectura del
+tramo que H-53 deja abierta.
+
+### Lo que le hace a H-53
+
+La lectura por excedente asignado deja a la frontera principal **sin ningún
+vendedor en bolsa**, es decir en el régimen de permuta, que aquí resulta ser
+**el peor de los tres**: costaría 4.259,5 (COP) en treinta y ocho horas, un
+0,79 % más de factura.
+
+**De modo que cambiar el cálculo del tramo no es gratis ni es obviamente
+mejor.** Sale a favor donde sobra excedente y en contra donde escasea. La
+pregunta al asesor sigue en pie, y ahora va con el precio puesto.
+
+---
+
+## H-56 · Contra qué mide su mejora el modelo base, y por qué importa aquí
+
+**Estado: REVISADO en la fuente el 2026-09-08, a petición del autor. No es un
+defecto: es el estándar con el que hay que juzgar las mediciones del piso, y
+no lo estábamos aplicando entero.**
+
+### Lo que el modelo maximiza
+
+El bienestar de la comunidad, es decir la suma del de vendedores y el de
+compradores. Eso es el objetivo de los tres algoritmos del artículo.
+
+### Lo que el artículo EVALÚA, que no es lo mismo
+
+De su apartado de conclusiones, tres perspectivas, y **ninguna es una
+factura**:
+
+1. **Autosuficiencia y autoconsumo**, con y sin el programa de respuesta a la
+   demanda. El resultado que reporta es físico: un 24 % menos de energía
+   vendida a la red y un 53 % menos comprada.
+2. **El bienestar frente a otro algoritmo**, el suyo contra el de referencia.
+   Es una comparación algorítmica, no regulatoria.
+3. **El índice de equidad y el reparto del bienestar**, contra el método
+   centralizado.
+
+**El modelo base no tiene una factura.** La comparación monetaria contra la
+regulación colombiana es aporte de esta tesis, no del modelo que traduce.
+
+### Las dos métricas, literales
+
+El índice de equidad global:
+
+> IE = (suma del ahorro de los compradores − suma del ingreso de los
+> vendedores) / (suma de los dos)
+
+Cerca de cero es equitativo; hacia −1 favorece desproporcionadamente a los
+vendedores y hacia +1 a los compradores. Y el reparto en porcentaje es cada
+sumando sobre el total.
+
+Su Tabla VII, que es el resultado que sostiene el artículo:
+
+| Método | Índice | % comprador | % vendedor |
+|---|---:|---:|---:|
+| Replicador | 0,0149 | 50,747 | 49,253 |
+| Lagrangiano | 0,0006 | 50,028 | 49,972 |
+| Centralizado | **−0,8913** | 5,436 | **94,564** |
+
+El argumento es ese: el centralizado entrega el 94,6 % al vendedor y
+desincentivaría la participación de los consumidores; los descentralizados
+reparten casi mitad y mitad.
+
+### Por qué esto cambia la lectura del experimento del piso
+
+**El ahorro del comprador y el ingreso del vendedor son exactamente los dos
+sumandos que en nuestro código forman el excedente.** Y el segundo se mide
+**contra el piso**. De modo que el índice de equidad **se mueve con el régimen
+del piso**: bajarlo ensancha el margen del vendedor sobre su alternativa y
+empuja el índice hacia su lado.
+
+Es decir, **la métrica con la que el autor del modelo juzgaría precisamente
+esta pregunta faltaba en el experimento**. La sonda guardaba la suma de los dos
+sumandos y no cada uno.
+
+Corregido: la sonda informa ahora el índice y el reparto, agregados sobre las
+sumas del periodo y no promediando cocientes por hora.
+
+### Y la advertencia que hay que llevar junta
+
+El índice de equidad **no es equidad distributiva entre agentes**: es un
+balance entre los dos bandos. Dos comunidades con el mismo índice pueden
+repartir de forma muy distinta entre sus miembros. Por eso este trabajo usa
+además el coeficiente de Gini, y por eso conviene no traducir «índice cercano a
+cero» por «reparto justo».
+
+Ver H-52 para el experimento, H-55 para por qué el bienestar no arbitra, y
+H-31, que queda pendiente sobre el índice.
+

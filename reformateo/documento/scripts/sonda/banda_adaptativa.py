@@ -85,6 +85,12 @@ def main() -> None:
     cu = np.tile(cu_k, (N, 1))
     cvm = np.tile(cvm_k, (N, 1))
 
+    # H-53: el tramo se evalua sobre el excedente BRUTO, es decir como si
+    # todo cruzara la frontera. La energia colocada DENTRO de la comunidad no
+    # se entrego al comercializador y no deberia agotar la permuta. Es una
+    # simplificacion declarada, y su tamano lo mide `tramo_residual.py`: en la
+    # frontera principal nadie pisaria la bolsa y el ancho de banda caeria un
+    # 80 %; en la secundaria el efecto se invierte y es pequeno.
     perm = tramo_permuta(G, D, mes)
     piso_nk = piso_por_vendedor(cu, cvm, bolsa, perm)
     piso_k = piso_comunitario(piso_nk, G, D)

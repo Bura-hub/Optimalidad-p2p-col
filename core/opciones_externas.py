@@ -52,6 +52,20 @@ def tramo_permuta(G: np.ndarray, D: np.ndarray,
     acumulada supera al retiro acumulado, el agente pasa a mercado
     mayorista para el resto del mes**.
 
+    **Supuesto declarado (H-53).** La acumulación se hace sobre el excedente
+    y el déficit BRUTOS, es decir como si todo cruzara la frontera comercial.
+    El artículo 23 de la Resolución CREG 101 072 cuenta los dos tramos sobre
+    los excedentes *asignables* a cada usuario tras el reparto, y la energía
+    que un vendedor coloca dentro de la comunidad no se la entregó al
+    comercializador, de modo que bajo esa lectura no agotaría su permuta.
+
+    Las dos lecturas son defendibles: la bruta es la que el medidor registra,
+    porque la energía del mercado entre pares sí cruza físicamente la
+    frontera. La ambigüedad va como consulta al asesor, y su tamaño lo mide
+    `reformateo/documento/scripts/sonda/tramo_residual.py`: en la frontera
+    principal ningún vendedor pisaría la bolsa y el ancho de banda caería un
+    80 %; en la secundaria el efecto se invierte y es pequeño.
+
     Parameters
     ----------
     G, D : (N, T) generación y demanda en kW.

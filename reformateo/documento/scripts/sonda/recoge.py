@@ -17,27 +17,53 @@ Son dos defectos distintos y los dos se corrigen aqui:
   2. **No hay escritura incremental.** Perder lo hecho porque falta lo ultimo
      es evitable con una linea.
 
-Este modulo da las dos: recoge por terminacion, escribe cada fila en cuanto
-llega, y cuando se agota el plazo devuelve lo que hay anotando las tareas que
-no llegaron. Nunca se pierde nada y nunca se espera indefinidamente.
+  3. **El plazo era TOTAL, y eso no basta.** Anadido el 2026-09-08 tras una
+     tanda de 240 tareas que resolvio 230 en 26 minutos y consumio otros 29
+     esperando por TRES, con siete de los diez procesos ociosos. Lo que hace
+     falta es un plazo POR TAREA, medido desde la ultima terminacion: mientras
+     sigan llegando resultados hay trabajo sano, y en cuanto dejan de llegar
+     lo que queda esta atascado. Con el, esa medicion habria cerrado en 26
+     minutos en vez de 55.
+
+Este modulo da las tres: recoge por terminacion, escribe cada fila en cuanto
+llega, y cuando se agota cualquiera de los dos plazos devuelve lo que hay
+anotando las tareas que no llegaron y diciendo cual de los dos corto. Nunca se
+pierde nada y nunca se espera indefinidamente.
 """
 from __future__ import annotations
 
 import time
-from concurrent.futures import ProcessPoolExecutor, TimeoutError, as_completed
+from concurrent.futures import FIRST_COMPLETED, ProcessPoolExecutor, wait
 from pathlib import Path
+from typing import Optional
 
 import pandas as pd
+
+LATIDO = 5.0   # cada cuanto se despierta el bucle a mirar los plazos
 
 
 def recoge(funcion, tareas, procesos: int, destino: Path,
            plazo_min: float = 45.0, cada: int = 10,
-           describe=lambda t: str(t)) -> pd.DataFrame:
+           describe=lambda t: str(t),
+           plazo_tarea_min: Optional[float] = None) -> pd.DataFrame:
     """Corre `funcion` sobre `tareas` y devuelve las filas que se obtuvieron.
 
-    `plazo_min` es el plazo TOTAL en minutos. Al agotarse, las tareas que no
-    hayan terminado se anotan con `resuelta=False` y motivo, y la medicion
-    sigue adelante con lo que tiene.
+    Hay DOS plazos y cortan por motivos distintos:
+
+    `plazo_min` es el plazo TOTAL de la medicion.
+
+    `plazo_tarea_min` corta cuando pasa ese tiempo **sin que termine ninguna
+    tarea**. Es el que de verdad importa con la via acoplada, y se mide desde
+    la ultima terminacion porque mientras sigan llegando resultados hay
+    trabajo sano en curso.
+
+    Sin el segundo, una sola hora atascada bloquea la medicion hasta el plazo
+    total con los demas procesos ociosos: el 2026-09-08 una tanda de 240
+    tareas resolvio 230 en 26 minutos y consumio otros 29 esperando por
+    TRES, con siete procesos parados.
+
+    En los dos casos, las tareas que no llegaron se anotan con
+    `resuelta=False` y la medicion sigue adelante con lo que tiene.
 
     `destino` recibe las filas segun llegan, de modo que un corte no cuesta
     mas que la ultima.
@@ -45,25 +71,43 @@ def recoge(funcion, tareas, procesos: int, destino: Path,
     destino.parent.mkdir(parents=True, exist_ok=True)
     filas, t0 = [], time.time()
     limite = plazo_min * 60.0
+    espera = plazo_tarea_min * 60.0 if plazo_tarea_min else float("inf")
+    hechas, motivo = 0, None
 
     with ProcessPoolExecutor(max_workers=procesos) as ex:
         pend = {ex.submit(funcion, t): t for t in tareas}
-        hechas = 0
-        try:
-            for fut in as_completed(pend, timeout=limite):
+        vivas, ultimo = set(pend), time.time()
+        while vivas:
+            ahora = time.time()
+            if ahora - t0 >= limite:
+                motivo = f"el plazo TOTAL de {plazo_min:.0f} min"
+                break
+            if ahora - ultimo >= espera:
+                motivo = (f"el plazo POR TAREA de {plazo_tarea_min:.1f} min "
+                          f"sin que termine ninguna")
+                break
+            listas, vivas = wait(vivas, timeout=LATIDO,
+                                 return_when=FIRST_COMPLETED)
+            if not listas:
+                continue
+            ultimo = time.time()
+            for fut in listas:
                 filas.extend(fut.result())
                 hechas += 1
                 if hechas % cada == 0 or hechas == len(tareas):
                     pd.DataFrame(filas).to_csv(destino, index=False)
                     seg = time.time() - t0
                     print(f"    {hechas}/{len(tareas)}  ({seg/60:.1f} min, "
-                          f"faltan ~{seg/hechas*(len(tareas)-hechas)/60:.0f})",
+                          f"faltan ~"
+                          f"{seg/hechas*(len(tareas)-hechas)/60:.0f})",
                           flush=True)
-        except TimeoutError:
-            colgadas = [pend[f] for f in pend if not f.done()]
+
+        if motivo:
+            colgadas = [pend[f] for f in vivas]
             print(flush=True)
-            print(f"  PLAZO AGOTADO a los {plazo_min:.0f} min con "
-                  f"{hechas} de {len(tareas)} tareas hechas.", flush=True)
+            print(f"  CORTE por {motivo}, a los "
+                  f"{(time.time()-t0)/60:.1f} min con {hechas} de "
+                  f"{len(tareas)} tareas hechas.", flush=True)
             print(f"  {len(colgadas)} no resolvieron. No es un fallo del "
                   f"sistema: la via acoplada no tiene cota de tiempo por hora "
                   f"y unas pocas horas se le atragantan.", flush=True)
@@ -83,8 +127,8 @@ def recoge(funcion, tareas, procesos: int, destino: Path,
             # 2026-09-07: once procesos sobrevivieron a la medicion y dos
             # seguian moliendo la misma hora cuarenta minutos despues.
             #
-            # Terminarlos es lo unico que funciona. Se toca la interioridad
-            # del ejecutor a proposito, porque no expone otra via.
+            # Se toca la interioridad del ejecutor a proposito, porque no
+            # expone otra via.
             for f in pend:
                 f.cancel()
             for proc in list(getattr(ex, "_processes", {}).values()):

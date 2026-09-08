@@ -2895,7 +2895,53 @@ compradores**, J entre 3 y 4 con I entre 1 y 2. Con un solo comprador el
 precio es uno solo, y tiene que servir a la vez para vendedores con
 alternativas externas distintas.
 
-### Qué habría que hacer
+### Cómo hay que implementarlo en el motor, con la trampa señalada
+
+**Estado de la implementación al 2026-09-07:** el criterio está corregido y
+medido en la sonda (C-149), el piso por vendedor ya llega al juego y a la
+liquidación (C-148), y **la restricción de participación sigue sin estar en
+el motor**. Lo que sigue es el diseño, con la trampa que se encontró al
+prepararlo.
+
+**La trampa.** La forma obvia de implementarlo es resolver con el conjunto
+reducido de vendedores, es decir quitar al retirado de la lista. **No se debe
+hacer así.** La liquidación calcula lo que cada vendedor exporta a la red
+recorriendo únicamente los vendedores de esa lista, de modo que un vendedor
+ausente de ella **desaparece de la cuenta**: su excedente no se exporta, se
+evapora.
+
+Es exactamente el mismo defecto que la auditoría encontró en la sonda del
+escenario, donde la factura sin mercado excluía a los retirados y sesgaba la
+comparación en un 76,8 %. Dos apariciones del mismo error en el mismo día
+bastan para darle nombre: **quien sale del mercado no sale de la
+contabilidad.**
+
+**La forma correcta.** Resolver con el conjunto reducido, y después
+**reincrustar el resultado en la matriz del tamaño original poniendo a cero
+las filas de los retirados**, conservando la lista de vendedores intacta.
+Así:
+
+- el retirado exporta todo su excedente a la red, que es lo que hace en la
+  realidad;
+- su prima sale cero, que es correcto porque no vendió;
+- y nada de lo que hay aguas abajo cambia de forma.
+
+**Por qué no hace falta hacerlo opcional.** Con un piso escalar, todos los
+vendedores tienen el mismo piso y el precio ya está acotado por debajo a ese
+valor, de modo que el ingreso ponderado nunca queda por debajo y **no se
+retira nadie jamás**. La restricción es automáticamente inerte cuando las
+cotas son uniformes, que es el caso del modelo base y del caso sintético. No
+necesita bandera: se activa sola cuando los pisos difieren, que es justo
+cuando hace falta.
+
+**Lo que hay que verificar al implementarlo**, y no es poco: que el caso
+sintético y el modelo base queden idénticos bit a bit; que la hora 2387 de la
+frontera principal reproduzca lo que la sonda mide, es decir un vendedor
+retirado, el mismo volumen y una prima de +994,6; y que la suma de lo
+exportado más lo transado siga cuadrando con el excedente neto de cada
+agente.
+
+### Las dos salidas que se consideraron
 
 El proyecto ya tiene la pieza: `piso_por_vendedor` calcula el piso de cada
 uno por separado. Lo que falta es que el mecanismo lo respete, y hay dos
@@ -3788,4 +3834,267 @@ alternativas.
 Y la caja de decisión pendiente sobre techo único frente a techo por agente
 **queda resuelta**, con norma y registro, en vez de quedar al criterio del
 comité.
+
+
+---
+
+## H-49 · El piso medido nunca llegó a la corrida, y sobrestimaría el excedente por un factor de doce
+
+**Estado: ESTABLECIDO el 2026-09-07 con el código en la mano. BLOQUEA LA
+CORRIDA CANÓNICA. Es el hallazgo de mayor consecuencia práctica de la
+jornada.**
+
+Salió de diagnosticar H-43, y lo desborda.
+
+### Lo que se creía
+
+CAL-47 estableció que las dos cotas del juego eran constantes escritas a
+mano y las sustituyó por cotas medidas: el techo es el costo unitario
+mensual de cada agente y el piso es la permuta, es decir el techo menos el
+cargo de comercializar, o la bolsa cuando el vendedor ya superó su retiro
+del mes. La corrección C-137 se registró como «CAL-47 pasa al código».
+
+### Lo que hay
+
+**El techo sí llegó**, primero a la liquidación y hoy al juego con C-146.
+
+**El piso no.** En la corrida de producción vale **280 (COP/kWh), constante
+para los cinco agentes y las 5.160 horas**. Es el promedio de bolsa de
+abril a diciembre de 2025 escrito a mano en la capa de datos, exactamente la
+constante que CAL-47 venía a sustituir. Nadie construye el piso por vendedor
+fuera de las sondas: la función que lo calcula existe en el módulo de
+opciones externas y **la llaman dos sondas y nadie más**. Ni el orquestador,
+ni el motor, ni los escenarios.
+
+### Lo que cuesta, y es lo que obliga a parar
+
+Por la identidad de H-33 el excedente del mercado es el ancho de la banda
+por la energía transada. Con el techo por agente que hoy sí entra:
+
+| | Banda que vería el juego | Banda que CAL-47 mide | Sobrestimación |
+|---|---:|---:|---:|
+| Agentes de ASC | 451,1 | 38,4 | **12 veces** |
+| El del otro comercializador | 497,2 | 181,0 | **2,7 veces** |
+
+**Lanzar hoy la corrida canónica produciría un excedente de mercado
+sobrestimado en un orden de magnitud en la frontera principal**, y encima
+con el techo ya corregido, que es la peor combinación posible: parecería más
+fiable que el canon viejo y sería igual de falsa por el otro extremo.
+
+### Por qué no se vio antes
+
+Porque las tres sondas de hoy y todo el aparato de validación horaria
+construyen sus cotas por su cuenta, con la función medida, y por eso sus
+cifras son correctas. La discrepancia solo aparece al comparar lo que mide
+el documento con lo que correría el canon, y eso no lo hacía nadie.
+
+### Una afirmación del registro que hay que corregir
+
+La corrección C-137, en su punto tercero, dice que las dos cotas admiten
+vector «el techo por comprador y el piso por vendedor, **en el bloque
+comprador**, en la liquidación y en el límite económico de generación».
+
+**La parte del piso en el bloque comprador es falsa.** Comprobado: el bloque
+comprador acepta un techo vectorial y **rechaza un piso vectorial**, tanto
+indexado por vendedor como por comprador. La liquidación sí lo acepta. De
+modo que lo que C-137 dejó hecho para el piso es la mitad de lo que dice.
+
+### Y no es un descuido, es estructural
+
+El precio tiene índice de **comprador** y el piso tiene índice de
+**vendedor**. No hay forma de meter un piso por vendedor en una dinámica
+cuyo estado es un precio por comprador sin cambiar el modelo. Por eso el
+piso comunitario del juego es el menor de los pisos activos, y por eso la
+única salida coherente es la restricción de participación: no acotar el
+precio por vendedor, sino decidir **quién entra**.
+
+Es exactamente lo que H-43 plantea, de modo que **H-43 y este hallazgo son
+el mismo trabajo en dos pasos**: primero llevar el piso medido al juego, que
+hoy no está, y después la participación.
+
+### Qué hay que hacer, en orden
+
+1. **El piso por vendedor entra a los parámetros de red**, como el techo con
+   C-146, y el orquestador lo construye antes del mercado. Hace falta subir
+   el cálculo del cargo de comercializar, que hoy se hace después del
+   mercado, y añadir el tramo de permuta, que en producción no se calcula.
+2. **El juego recibe el mínimo de los pisos activos** de la hora, que es lo
+   que ya hace la sonda, en vez de la constante.
+3. **La restricción de participación entra al motor**, con el criterio de
+   retiro por decidir. El de la sonda retira al vendedor cuyas ventas queden
+   TODAS por debajo de su piso, y conviene revisar si no debería ser que su
+   prima agregada resulte negativa.
+4. **La liquidación recibe el piso por vendedor**, que ya lo admite.
+
+**Hasta que esto esté, la corrida canónica no debe lanzarse.**
+
+
+---
+
+## H-50 · La corrida de un día devolvía una tabla entera de valores no numéricos, y salía con código cero
+
+**Estado: CORREGIDO el 2026-09-07 por C-148, con dos guardas. Es el fallo más
+silencioso que este proyecto ha encontrado.**
+
+Salió de perseguir el piso de H-49. Al llevarlo a la corrida, el aviso decía
+que el piso iba «de nan a nan». El piso no era el culpable.
+
+### Qué pasaba
+
+El techo de escasez de la Resolución CREG 101 066 se carga de una tabla
+mensual. **Esa tabla no tiene fila para abril, mayo ni junio de 2025**: la
+primera es julio. El cargador rellena los meses ausentes interpolando entre
+los que sí tienen valor, y ahí estaba el defecto: **interpolaba solo dentro
+de la ventana pedida**.
+
+- Pidiendo de abril de 2025 a enero de 2026, mayo se rellenaba desde julio y
+  valía 865,22 (COP/kWh). Correcto.
+- Pidiendo solo mayo, quedaba **un único hueco sin nada de donde
+  interpolar**, y devolvía un valor no numérico.
+
+Quien lo consume aplica el techo con un mínimo, y el mínimo **propaga el
+valor no numérico sin avisar**. La serie de bolsa entera quedaba inservible.
+
+### Hasta dónde llegaba
+
+Hasta el final, sin que nada fallara. La corrida de un día del 2 de mayo de
+2025 imprimió:
+
+    PGB=nan COP/kWh (promedio bolsa)
+    P2P (Stackelberg + RD)        $   nan   0.174   1.000   0.1296   nan
+    C1  Individual CREG 174/2021  $   nan   0.132   0.758   0.0000   nan
+    C2  Bilateral PPA             $   nan   0.132   0.758   0.0000   nan
+
+**Y terminó con código de salida cero.** Ciento sesenta y seis apariciones
+del valor no numérico en el registro de la corrida.
+
+### Qué alcanza y qué no
+
+**El canon está a salvo.** La corrida de horizonte completo pide de abril de
+2025 a enero de 2026, de modo que la ventana incluye julio y la
+interpolación funciona. Solo falla el modo de un día, y solo en los meses sin
+fila propia, que son los tres primeros del horizonte.
+
+Pero el modo de un día es el que se usa para diagnosticar, y **cualquier
+diagnóstico hecho sobre abril, mayo o junio de 2025 con ese modo no vale
+nada**. No hay forma de saber cuántos se hicieron.
+
+### El arreglo, en tres piezas
+
+1. **La interpolación se hace sobre la unión** del rango pedido con el índice
+   del fichero, de modo que el techo de un mes es el mismo se pida como se
+   pida. Comprobado: mayo vale 865,22 en las tres ventanas que antes daban
+   resultados distintos.
+2. **El cargador falla en voz alta** si aun así queda un mes sin valor.
+3. **El orquestador comprueba la serie de bolsa** antes de seguir, que es
+   donde se sabe, y se detiene en vez de producir una tabla de valores no
+   numéricos.
+
+### La lección, que ya estaba escrita y volvió a morder
+
+Es la de CAL-43: **mirar el código de salida equivocado**. Una corrida que
+termina no es una corrida que funcione. Aquí ni siquiera hacía falta leer el
+código de salida: bastaba mirar la tabla, y la tabla llevaba la respuesta en
+la cara.
+
+Conviene extraer la norma general: **cuando un valor ausente se rellena por
+interpolación, el resultado no puede depender de la ventana que se pida.** Si
+depende, hay dos respuestas distintas para la misma pregunta y una de las dos
+está mal.
+
+
+---
+
+## H-51 · La tolerancia del integrador no era la del modelo base, y de ahí salían las horas que no resolvían
+
+**Estado: CORREGIDO el 2026-09-07, medido sobre nueve horas. Rectifica lo que
+H-42 daba por establecido sobre el costo de la vía acoplada.**
+
+Lo señaló el autor: que Chacón le ponía un límite de tiempo para que la
+integración no se alargara. Buscarlo en el fichero original llevó a otra
+cosa, más simple y más grave.
+
+### La discrepancia
+
+El fichero original fija las dos tolerancias del integrador en el mismo
+valor:
+
+    options = odeset('RelTol',1e-6, 'AbsTol',1e-6);
+
+Esta traducción heredó la relativa y **escribió la absoluta mil veces más
+estricta**, en 10⁻⁹. No hay decisión detrás: es el valor que quedó escrito.
+
+Y hay una línea más, comentada justo debajo en el original, que prueba que
+allí se topó con el mismo asunto: fija las dos tolerancias en 10⁻⁹ y le añade
+una función de eventos, que es el mecanismo para detener la integración antes
+de tiempo. **Está comentada.** Es decir que probó las tolerancias estrictas,
+necesitó un freno para convivir con ellas, y acabó quedándose con las
+holgadas. Nosotros heredamos el problema sin heredar la respuesta.
+
+### Por qué manda la absoluta y no la relativa
+
+Porque gobierna cuando las variables son pequeñas, y el estado del sistema
+lleva cantidades de energía recortadas a 10⁻¹⁰. Con una tolerancia absoluta
+de 10⁻⁹, esas componentes obligan al integrador a achicar el paso sin que
+haya nada que resolver ahí. Con 10⁻⁶ dejan de gobernar.
+
+### Lo que se midió
+
+**En la hora que no resolvía**, la 4741 de la frontera principal, con un
+vendedor y cuatro compradores:
+
+| Tolerancia absoluta | Resultado |
+|---|---|
+| la nuestra, 10⁻⁹ | **no resuelve** en más de cuarenta minutos de procesador |
+| la del modelo base, 10⁻⁶ | **resuelve en 2,2 segundos**, con precios interiores |
+
+**En ocho horas al azar resueltas con las dos:**
+
+| Hora | Con 10⁻⁹ | Con 10⁻⁶ | Diferencia de volumen (kWh) | Diferencia de precio (COP/kWh) |
+|---:|---:|---:|---:|---:|
+| 182 | 0,3 s | 0,2 s | 3,7·10⁻¹⁴ | 6,0·10⁻⁴ |
+| 3445 | 61,5 | 60,8 | 4,2·10⁻¹⁴ | 1,6·10⁻⁹ |
+| 560 | 89,6 | 88,2 | 1,4·10⁻¹³ | 7,3·10⁻¹⁰ |
+| 2894 | 18,9 | 17,8 | 9,1·10⁻¹⁴ | 3,7·10⁻⁸ |
+| 2842 | 0,3 | 0,2 | 0 | 2,3·10⁻⁵ |
+| 4187 | 0,3 | 0,2 | 2,7·10⁻¹⁵ | 2,4·10⁻³ |
+| 537 | 1,6 | 0,2 | 6,7·10⁻¹⁶ | 3,6·10⁻⁴ |
+| 2462 | 36,3 | 19,7 | 2,0·10⁻¹⁴ | 6,6·10⁻³ |
+
+**No cambia la respuesta**: el volumen coincide dentro de 1,4·10⁻¹³ (kWh) y
+el precio dentro de 6,6·10⁻³ (COP/kWh) sobre precios del orden de 700.
+
+**Y no es una aceleración general.** Conviene decirlo así porque es fácil
+venderlo mal, y se vendió mal la primera vez: en seis de las ocho horas las
+dos tolerancias tardan lo mismo. Lo que hace es **rescatar las horas que se
+atascaban**, sin penalizar las demás.
+
+### Qué rectifica
+
+H-42 registró que la vía acoplada «cuesta 74 veces y **no tiene cota**». La
+segunda mitad hay que corregirla: **sí tenía cota, la del modelo base, y se
+había perdido al traducir**. Las horas que «no acababan en 3.500 segundos»
+que midió la sonda del costo son el mismo artefacto.
+
+Lo que sí se sostiene es que la vía acoplada es cara: la hora corriente de la
+frontera principal cuesta entre 60 y 90 segundos, no los 47 que estaban
+anotados.
+
+### Qué desbloquea
+
+La corrida canónica acoplada, decidida el mismo día, dejaba una duda
+razonable: sobre las 1.126 horas con mercado del horizonte cabía esperar del
+orden de catorce horas que no resolvieran y que la bloquearan sin cota. Con
+la tolerancia del modelo base **esa duda desaparece**.
+
+La cota de tiempo que C-150 llevó a las sondas se queda igualmente, pero
+pasa de ser la solución a ser lo que debe ser: una red de seguridad.
+
+### La lección
+
+Es una variante de la que ya lleva tres apariciones hoy: **un valor que nadie
+decidió gobierna un comportamiento que a todos sorprende**. Aquí el valor ni
+siquiera venía del modelo base; se escribió al traducir y nadie volvió a
+mirarlo. Conviene revisar si hay más constantes del solucionador en esa
+situación.
 

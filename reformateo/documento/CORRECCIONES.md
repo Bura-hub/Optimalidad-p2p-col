@@ -6652,6 +6652,223 @@ Ver H-45, C-143, C-146 y `docs/adr/0050-cal50-configuracion-elegida.md`.
 
 ---
 
+## C-148 · El piso medido llega al juego, y de camino aparece un fallo mudo
+
+**2026-09-07 · tipo: `codigo` · aplicada**
+
+Corrige H-49 y, al hacerlo, destapa H-50.
+
+### El piso, que era la mitad de CAL-47 que faltaba
+
+CAL-47 sustituyó las dos cotas escritas a mano por cotas medidas. El techo
+llegó, primero a la liquidación y con C-146 al juego. **El piso no había
+llegado nunca:** en la corrida valía 280 (COP/kWh), constante para los cinco
+agentes y las 5.160 horas, que es exactamente la constante que CAL-47 venía a
+sustituir.
+
+Los parámetros de red admiten ahora el piso de cada vendedor como matriz, y
+el orquestador la construye antes del mercado. Eso obligó a subir el cálculo
+del cargo de comercializar, que se hacía después, y a añadir el tramo de
+permuta, que en producción no se calculaba.
+
+**Cómo entra, que es lo que hay que entender.** El precio tiene índice de
+comprador y el piso tiene índice de vendedor. No cabe un piso por vendedor en
+una dinámica cuyo estado es un precio por comprador. De modo que **al juego
+entra el menor de los pisos de los vendedores activos**, que es lo que ya
+hacía la sonda, y **la liquidación recibe el vector entero**, que sí lo
+admite desde CAL-47. Con eso la prima de cada vendedor se mide contra su
+propio piso, que es lo único que hace visible a quien vende por debajo de su
+alternativa.
+
+Lo que ese mínimo **no** resuelve es que ese vendedor exista. Eso es H-43 y
+se resuelve decidiendo quién entra, no acotando el precio.
+
+Comprobado sobre el 2 de mayo de 2025: el juego pasa de un piso de 280,0
+constante a **un piso medido entre 107,9 y 692,7 (COP/kWh)**, que son
+exactamente los dos tramos, bolsa y permuta, que la sonda mide.
+
+El perfil diario promedio **no lo lleva**, y con razón: el tramo de permuta
+depende del mes y ese modo no tiene calendario. Ahí el piso sigue siendo el
+escalar, y la corrida lo declara por pantalla.
+
+### Y el fallo mudo que apareció al comprobarlo
+
+El aviso decía que el piso iba «de nan a nan». No era el piso: era la serie
+de bolsa, y la causa está en H-50. El techo de escasez se interpolaba **solo
+dentro de la ventana pedida**, de modo que un rango de un mes sin fila propia
+devolvía un valor no numérico que el mínimo propagaba a toda la serie.
+
+Tres piezas lo cierran: la interpolación pasa a hacerse sobre la unión del
+rango con el índice del fichero, de modo que el techo de un mes no dependa de
+la ventana; el cargador falla en voz alta si aun así queda un hueco; y el
+orquestador comprueba la serie de bolsa antes de seguir.
+
+**Efecto medido.** La misma corrida de un día que antes imprimía la tabla
+comparativa entera en valores no numéricos y salía con código cero, ahora da
+cifras: 168.194 el mercado entre pares, 153.956 el escenario individual,
+132.970 el bilateral y 143.279 el colectivo horario.
+
+### Las tres granularidades, comprobadas en producción
+
+El autor señaló que la permuta varía mes a mes y la bolsa hora a hora, y que
+había que asegurarse de que el camino de producción lo respetara. Comprobado
+sobre las 6.144 horas del horizonte:
+
+| | Medido |
+|---|---|
+| La permuta cambia de mes | 695,7 en abril, 692,7 en mayo, 714,1 en junio, 666,0 en julio, y constante dentro de cada mes |
+| La bolsa cambia de hora | 1.417 valores distintos, de 97,9 a 898,0, con desviación de 139,6 |
+| El tramo cambia dentro del mes | en junio y en julio, un agente de cinco pasa de permuta a bolsa sin esperar al mes siguiente |
+
+Lo tercero es la Resolución CREG 174 funcionando: el tramo depende de la
+inyección **acumulada** contra el retiro, de modo que un vendedor puede
+cambiar de alternativa externa a mitad de mes. El piso lo recoge.
+
+### La banda invertida, que se temía y no se da
+
+El precio de bolsa llega a 898,0 (COP/kWh), por encima de los techos, que van
+de 731,1 a 777,2. Con el piso ya dentro del juego, una hora así invertiría la
+banda y el peso de barrera cambiaría de signo.
+
+Medido sobre las **1.126 horas con mercado del horizonte: cero horas con la
+banda invertida**. Las 164 horas en que la bolsa supera al menor de los
+techos no coinciden con horas que tengan vendedor y comprador y cuyo piso
+comunitario venga de un vendedor en tramo de bolsa. La razón es que el piso
+del juego es el **menor** de los activos, y basta un vendedor en permuta o
+con bolsa baja para que la banda siga en pie.
+
+La cautela que el plan pedía declarar antes de mirar resultados **queda
+resuelta por medición y no por criterio**: no hace falta decidir qué hacer en
+esas horas porque no se dan. Si un horizonte futuro las trajera, el peso de
+barrera lo delataría, de modo que conviene dejar la comprobación escrita.
+
+### Lo que queda por hacer, y no es menor
+
+La restricción de participación **sigue sin estar en el motor**. Con el piso
+por vendedor en la liquidación, un vendedor que venda por debajo del suyo
+aparecerá ahora con prima negativa en vez de quedar oculto, que es una mejora
+de diagnóstico pero no una corrección del mecanismo. Ver H-43.
+
+Ver H-43, H-49, H-50 y `docs/adr/0050-cal50-configuracion-elegida.md`.
+
+---
+
+## C-149 · El criterio de participación miraba el mejor precio y no el ingreso
+
+**2026-09-07 · tipo: `codigo` · aplicada, medida sobre 80 horas**
+
+Un vendedor no entra al mercado si el mercado le paga menos que su
+alternativa de fuera. El criterio que decidía eso estaba mal planteado.
+
+### Qué hacía
+
+Retiraba a un vendedor solo si **todas** sus parejas quedaban bajo su piso,
+mirando el **mejor** de sus precios. Bastaba entonces con colocar una
+cantidad ínfima a un comprador que pagara bien para quedarse vendiendo el
+grueso a pérdida.
+
+Lo destapó una auditoría de las tablas del servidor: **16 filas con prima
+negativa y cero vendedores retirados**. La peor, la hora 2387 de la frontera
+principal, con una prima de −394 (COP) y una tajada del vendedor del
+−12,1 %, sin que la restricción de participación retirara a nadie.
+
+### Qué hace ahora
+
+Se retira si su **ingreso ponderado por energía** queda bajo su piso, que es
+lo mismo que exigir que su prima no sea negativa:
+
+    suma de P por precio, dividida por la energía colocada  <  su piso
+
+Es lo que decide un vendedor racional: comparar lo que el mercado le paga por
+el conjunto de lo que coloca contra lo que le pagaría la red. El criterio
+anterior queda alcanzable para contrastar.
+
+### Lo que cuesta, y es la sorpresa
+
+Las primeras cuatro horas que miré, que eran las patológicas que la auditoría
+había señalado, daban caídas de volumen del 77 al 92 %. Parecía que el
+criterio correcto iba a encoger el mercado.
+
+**Sobre 80 horas al azar no es así.**
+
+| Frontera | Criterio | Volumen (kWh) | Excedente (COP) | Retirados | Vendedores a pérdida |
+|---|---|---:|---:|---:|---:|
+| M1 | anterior | 167,33 | 42.823,9 | 6 | **1** |
+| M1 | **ingreso** | 167,30 | 42.822,8 | 7 | **0** |
+| M3 | anterior | 97,93 | 60.568,4 | 13 | 0 |
+| M3 | **ingreso** | 97,93 | 60.568,4 | 13 | 0 |
+
+**El criterio nuevo retira más en 1 de 38 horas en la principal y en ninguna
+de las 39 de la secundaria.** La mediana del efecto sobre el volumen es del
+0,0 % y el peor caso del −0,5 %.
+
+Es decir: **la corrección es prácticamente gratis.** Elimina el vendedor que
+vendía a pérdida y cuesta medio punto de volumen en la única hora donde
+muerde. Las caídas del 77 al 92 % eran de horas escogidas por ser
+patológicas, no la regla.
+
+Conviene decirlo así porque la conclusión contraria habría sido razonable a
+partir de las cuatro primeras, y habría sido falsa.
+
+### Una cautela que se declara
+
+Retirar a un vendedor cambia el precio, y ese precio puede volver no rentable
+a otro. El bucle itera hasta que nadie más se retira, con tope de tantas
+vueltas como vendedores, de modo que **siempre termina**. Pero eso no
+garantiza que el conjunto final sea un equilibrio del juego de participación:
+podría haber ciclos. La primera vuelta sin retiros es una respuesta
+razonable, no necesariamente la única.
+
+### Y falta lo principal
+
+Esto corrige el criterio **en la sonda**. La restricción de participación
+**sigue sin estar en el motor**, de modo que la corrida canónica no la tiene.
+Ver H-43.
+
+Ver H-43, H-49 y C-148.
+
+---
+
+## C-150 · Las sondas perdían la medición entera por una hora que no resuelve
+
+**2026-09-07 · tipo: `codigo` · aplicada, con la pieza compartida**
+
+Una medición de 160 tareas resolvió 158 en 17,7 minutos y se quedó bloqueada
+en las dos últimas, que consumieron **81 minutos de procesador cada una** sin
+acabar mientras los otros ocho procesos esperaban parados.
+
+Son dos defectos distintos y ninguno es de la máquina.
+
+**No había cota de tiempo.** La vía acoplada no la tiene, y eso ya estaba
+medido: sobre datos reales hay horas que resuelven en 47 segundos y horas que
+no acaban en 3.500. Una hora que el integrador no resuelve **es un dato**, no
+un motivo para perder la medición.
+
+**No había escritura incremental.** El fichero se escribía solo al final, de
+modo que cortar costaba las 158 horas ya resueltas.
+
+Los dos se corrigen en una pieza común que recoge por terminación, escribe
+cada fila según llega y, al agotarse el plazo, devuelve lo que hay anotando
+las tareas que no llegaron.
+
+Comprobado en la corrida siguiente: **158 de 160 en el plazo, y las dos que
+faltaron anotadas con su motivo.** Son la misma hora bajo los dos criterios,
+la 4741 de la frontera principal, lo que confirma que el problema es de esa
+hora y no del criterio.
+
+### Consecuencia para la corrida canónica, que hay que atender antes
+
+Sobre 80 horas al azar, **una no la resuelve la vía acoplada**, es decir un
+1,3 %. Sobre las 1.126 horas con mercado del horizonte serían del orden de
+**catorce horas rebeldes por frontera**.
+
+Con la corrida canónica en la vía alternada eso no importaba. Acoplada sí:
+sin cota, esas horas pueden bloquear indefinidamente una corrida de horas. El
+motor necesita la misma cota que ahora tienen las sondas, **y hay que
+ponérsela antes de lanzarla, no después**.
+
+---
+
 ## Pendientes
 
 | Id | Qué | Estado |

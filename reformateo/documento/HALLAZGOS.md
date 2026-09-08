@@ -4021,8 +4021,37 @@ valor:
 
     options = odeset('RelTol',1e-6, 'AbsTol',1e-6);
 
-Esta traducción heredó la relativa y **escribió la absoluta mil veces más
-estricta**, en 10⁻⁹. No hay decisión detrás: es el valor que quedó escrito.
+Esta traducción usa la relativa del original y **la absoluta mil veces más
+estricta**, en 10⁻⁹.
+
+**Rectificación, porque este hallazgo afirmaba que no había decisión detrás y
+sí la hubo.** La batería de validación de convergencia del 2026-07-22 probó
+la tolerancia del original y encontró que el integrador no completaba: tiempo
+agotado y valores no numéricos. Lo dejó escrito en el código, «con atol=1e-6,
+espejo de AbsTol de MATLAB, LSODA no completa», y en su informe, «atol
+corregido de 1e-6 a 1e-9 tras hallazgo de tiempo agotado». De modo que el
+valor no quedó escrito por descuido: se eligió, y con una razón medida.
+
+**Y esa razón no se sostiene, por dos motivos.**
+
+El primero lo dice el propio informe de julio dos párrafos más abajo: sobre
+el caso donde 10⁻⁶ fallaba, **10⁻⁹ también agota el tiempo sin converger**.
+Las dos fallaban allí, de modo que el cambio no consiguió lo que buscaba.
+
+El segundo se midió hoy sobre las horas del caso base, que es donde la
+objeción tendría que aparecer:
+
+| Hora del modelo base | Con 10⁻⁹ | Con 10⁻⁶ | Volumen |
+|---:|---|---|---:|
+| 13 | 7,7 s, éxito | 8,7 s, éxito | idéntico, 3,0326 |
+| 14 | 5,2 s, éxito | 5,4 s, éxito | idéntico, 3,0631 |
+| 19 | 0,2 s, éxito | 0,2 s, éxito | idéntico, 0,8776 |
+
+Las dos resuelven, sin valores no numéricos y con el mismo resultado.
+
+De modo que la conclusión es más matizada que la primera versión de este
+hallazgo: **10⁻⁶ nunca resultó peor y a veces es mucho mejor**, y la decisión
+de julio se tomó sobre un caso donde ninguna de las dos funcionaba.
 
 Y hay una línea más, comentada justo debajo en el original, que prueba que
 allí se topó con el mismo asunto: fija las dos tolerancias en 10⁻⁹ y le añade

@@ -294,7 +294,9 @@ def check_s3(tier, ds, results) -> CheckResult:
                   tau_sellers=sv.tau, tau_buyers=sv.tau_buyers,
                   t_span=(0.0, 0.04), n_points=50, method="LSODA")
         try:
-            base = _solve(rtol=1e-6, atol=1e-9, **kw)
+            # H-51: la base es la tolerancia del modelo base, que desde
+            # el 2026-09-07 es tambien el defecto del solucionador.
+            base = _solve(rtol=1e-6, atol=1e-6, **kw)
             if not base.success:
                 continue
             for rt, at in ((1e-8, 1e-9), (1e-6, 1e-12), (1e-8, 1e-12)):

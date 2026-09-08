@@ -3,7 +3,8 @@ test_fast_mode_equivalence.py
 ------------------------------
 Verifica que `core.replicator_sellers._fast_mode = True` (VEL_GRAD=1e3,
 rtol=0.5, atol=0.1, max_step=2e-4) produce el mismo equilibrio que el
-modo preciso por defecto (VEL_GRAD=1e6, rtol=1e-6, atol=1e-9).
+modo preciso por defecto (VEL_GRAD=1e6, rtol=1e-6, atol=1e-6; la
+absoluta paso de 1e-9 a 1e-6 con H-51, que es la del modelo base).
 
 Este test es prerrequisito BLOQUEANTE de la re-ejecucion del GSA
 Sobol-Saltelli sobre MedicionesMTE_v3 (Actividad 4.1 de la propuesta).

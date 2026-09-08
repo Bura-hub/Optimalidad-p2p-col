@@ -9,7 +9,7 @@ Durante la calibracion sobre datos reales, LSODA emite avisos del tipo
              r2 = NaN
 
 `tolsf` es el factor de escala de tolerancia de ODEPACK: `eps * ||y||_ewt`, con
-`ewt_i = rtol*|y_i| + atol`. Con rtol=1e-6 y atol=1e-9 los pesos no pueden ser
+`ewt_i = rtol*|y_i| + atol`. Con rtol=1e-6 y atol=1e-6 los pesos no pueden ser
 cero, de modo que **tolsf = NaN implica que el vector de estado ya contiene un
 NaN o un infinito**.
 

@@ -4723,6 +4723,41 @@ repartir de forma muy distinta entre sus miembros. Por eso este trabajo usa
 además el coeficiente de Gini, y por eso conviene no traducir «índice cercano a
 cero» por «reparto justo».
 
+### Y lo que el artículo NUNCA compara, que es lo que esta tesis aporta
+
+Revisado en la fuente. Sus tres comparaciones son estas, y ninguna enfrenta el
+mercado entre pares contra no tenerlo:
+
+| Compara | Contra | Con qué métrica |
+|---|---|---|
+| Su modelo **con** el programa de demanda | el mismo **sin** el programa | autosuficiencia y autoconsumo |
+| Su algoritmo de replicador | otro algoritmo de la literatura | bienestar |
+| Los descentralizados | el centralizado | índice de equidad |
+
+La primera es de donde salen sus dos cifras más citadas, el 24 % menos de
+energía vendida a la red y el 53 % menos comprada. **Miden el efecto del
+programa de demanda, no el del mercado**: en las dos ramas de esa comparación
+el mercado ya está funcionando.
+
+Las dos métricas son cocientes de energía:
+
+- **autoconsumo** = energía intercambiada dentro sobre demanda total;
+- **autosuficiencia** = energía intercambiada dentro sobre generación total.
+
+**No hay pesos en ninguna parte del artículo.**
+
+El resumen afirma que se logra mayor autosuficiencia «comparado con el enfoque
+tradicional de que los prosumidores vendan su excedente a la red», y eso suena
+a la comparación que falta. Pero es **tautológico**: si la comunidad
+intercambia por dentro, por definición vende menos a la red y su autoconsumo
+sube. El índice mide que el mercado existe, no que convenga.
+
+**De ahí que la factura sea aporte de esta tesis y no traducción.** Y no por
+descuido del autor: su banda de precios son dos escalares exógenos, y sin una
+tarifa detrás **no hay factura que calcular**. La comparación monetaria contra
+los cinco esquemas que la regulación colombiana ya ofrece es una pregunta que
+el modelo base no puede hacerse.
+
 Ver H-52 para el experimento, H-55 para por qué el bienestar no arbitra, y
 H-31, que queda pendiente sobre el índice.
 
@@ -4918,4 +4953,164 @@ En la frontera secundaria no hay artefacto: excluir sus dos meses activos mueve
 los cuatro índices por igual, de 0,50 a 0,48.
 
 Ver H-52, H-47 y H-56.
+
+---
+
+## H-52, H-53 y H-57 · Las cinco tablas del desglose
+
+Regenerables con `tablas_regimen.py`, que deja su CSV y su nota de fuente. Lo
+que sigue es el desglose de la corrida del horizonte completo, y cada tabla
+responde algo que el resumen no contesta.
+
+### Frontera principal · 1.126 horas
+
+**T1 · La factura, descompuesta (COP)**
+
+| Régimen | Sin mercado | Aporta el mercado | Con mercado | Dif. sin | Dif. aporte | Dif. con |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 17.850.127,9 | 1.124.150,8 | 16.725.977,1 | — | — | — |
+| permuta | 16.765.463,8 | 274.651,9 | 16.490.811,9 | −1.084.664,1 | −849.498,9 | **−235.165,2** |
+| bolsa | 19.500.831,8 | 2.738.188,7 | 16.762.643,0 | +1.650.703,9 | +1.614.037,9 | +36.665,9 |
+| residual | 16.765.463,8 | 274.651,9 | 16.490.811,9 | −1.084.664,1 | −849.498,9 | **−235.165,2** |
+
+**Es la tabla que explica el mecanismo.** La lectura residual hace que la red
+pague 1.084.664,1 más por lo exportado, pero el mercado aporta 849.498,9
+menos: **el 78 % de la mejora se compensa solo**, y el neto son 235.165,2. Es
+la identidad de H-33 vista por el lado de la factura, y de ella se sigue una
+propiedad general: **el mercado absorbe la mayor parte de cualquier mejora en
+la alternativa externa**, de modo que actúa como estabilizador y no como
+multiplicador.
+
+**T2 · Energía y participación**
+
+| Régimen | Piso medio | Precio medio | Volumen (kWh) | Dif. vol. | Retirados | Horas que cambian |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 504,4 | 639,0 | 4.182,83 | — | 348 | — |
+| permuta | 673,8 | 722,2 | 4.110,69 | −1,72 % | 170 | 338 |
+| bolsa | 151,4 | 468,1 | 4.592,75 | **+9,80 %** | **0** | 861 |
+| residual | 673,8 | 722,2 | 4.110,69 | −1,72 % | 170 | 338 |
+
+**Más volumen no es mejor factura**, y aquí está la prueba: el régimen de
+bolsa mueve un 9,80 % más de energía y **paga 36.665,9 más**. Quien use el
+volumen como criterio se equivocará de signo.
+
+Y los retiros los manda la **dispersión** del piso, no su nivel: 348 con
+pisos mezclados, 170 con pisos altos pero parecidos, y **cero** con un piso
+bajo pero uniforme.
+
+**T3 · Reparto entre las partes, que es la métrica del autor del modelo**
+
+| Régimen | Ahorro comprador | Ingreso vendedor | Suma | Índice | % compr. | % vend. |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 550.132,7 | 574.018,1 | 1.124.150,8 | −0,0212 | 48,94 | 51,06 |
+| permuta | 112.697,7 | 161.954,1 | 274.651,9 | −0,1793 | 41,03 | 58,97 |
+| bolsa | 1.387.306,0 | 1.350.882,7 | 2.738.188,7 | 0,0133 | 50,67 | 49,33 |
+| residual | 112.697,7 | 161.954,1 | 274.651,9 | −0,1793 | 41,03 | 58,97 |
+
+**El −0,0212 no hay que leerlo como equidad**, y H-57 explica por qué: lo
+dominan dos meses.
+
+**T4 · Mes a mes**
+
+| Mes | Horas | Factura tramo | Factura residual | Diferencia | Índice tramo | Índice residual | Retir. tramo | Retir. resid. |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2025-04 | 165 | 2.266.177,4 | 2.266.177,4 | 0,0 | −0,1709 | −0,1709 | 20 | 20 |
+| 2025-05 | 124 | 2.343.263,4 | 2.343.263,4 | 0,0 | −0,2901 | −0,2901 | 28 | 28 |
+| **2025-06** | 160 | 1.780.347,4 | 1.722.325,8 | **−58.021,5** | 0,0056 | −0,2372 | 114 | 52 |
+| **2025-07** | 218 | 2.433.879,7 | 2.256.736,0 | **−177.143,6** | 0,0112 | −0,1532 | 137 | 21 |
+| 2025-08 | 166 | 2.838.059,4 | 2.838.059,4 | 0,0 | −0,1311 | −0,1311 | 9 | 9 |
+| 2025-09 | 84 | 1.903.421,2 | 1.903.421,2 | 0,0 | −0,2142 | −0,2142 | 0 | 0 |
+| 2025-10 | 77 | 1.571.517,1 | 1.571.517,1 | 0,0 | −0,2251 | −0,2251 | 12 | 12 |
+| 2025-11 | 69 | 876.365,4 | 876.365,4 | 0,0 | −0,1960 | −0,1960 | 10 | 10 |
+| 2025-12 | 63 | 712.946,1 | 712.946,1 | 0,0 | −0,0631 | −0,0631 | 18 | 18 |
+
+**Siete meses de nueve dan diferencia exactamente cero.** Los dos regímenes
+son el mismo régimen mientras nadie cruce a bolsa.
+
+**T5 · Concentración**
+
+330 horas de 1.126 cambian, el 30,0 %. Cuartiles en pesos: mínimo −12.741,4,
+Q1 −712,9, mediana −48,3, Q3 −0,0, máximo **+10.249,9**.
+
+| Fracción de horas | Aporta |
+|---|---:|
+| el 1 % que más | 15,0 % |
+| el 5 % | 58,8 % |
+| el 10 % | **98,3 %** |
+| el 25 % | 143,1 % |
+
+**Ese 143,1 % dice que hay horas que van en contra.** El máximo es positivo:
+en esa hora la lectura residual **encarece** la factura. El resultado neto es
+una resta, no una suma.
+
+### Frontera secundaria · 1.811 horas
+
+**T1 · La factura, descompuesta (COP)**
+
+| Régimen | Sin mercado | Aporta el mercado | Con mercado | Dif. sin | Dif. aporte | Dif. con |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 4.140.652,7 | 2.753.228,6 | 1.387.424,2 | — | — | — |
+| permuta | −4.484.489,4 | 414.001,0 | −4.898.490,4 | −8.625.142,1 | −2.339.227,6 | −6.285.914,5 |
+| bolsa | 3.882.879,7 | 2.797.795,0 | 1.085.084,7 | −257.773,1 | +44.566,4 | −302.339,5 |
+| residual | 4.058.810,1 | 2.746.156,3 | 1.312.653,8 | −81.842,7 | −7.072,3 | **−74.770,4** |
+
+Aquí el mercado aporta el **66,5 %** de la factura sin mercado, contra el
+**6,3 %** de la frontera principal. **Diez veces.** Es la diferencia más
+grande entre las dos coberturas y ordena la interpretación de todo lo demás.
+
+**T2 · Energía y participación**
+
+| Régimen | Piso medio | Precio medio | Volumen (kWh) | Dif. vol. | Retirados | Horas que cambian |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 165,0 | 356,5 | 4.479,95 | — | 534 | — |
+| permuta | 677,7 | 714,3 | 4.380,07 | −2,23 % | 508 | 1.773 |
+| bolsa | 158,8 | 353,0 | 4.529,25 | +1,10 % | 0 | 439 |
+| residual | 166,3 | 357,5 | 4.492,99 | +0,29 % | 456 | 121 |
+
+**T3 · Reparto entre las partes**
+
+| Régimen | Ahorro comprador | Ingreso vendedor | Suma | Índice | % compr. | % vend. |
+|---|---:|---:|---:|---:|---:|---:|
+| tramo | 2.069.297,5 | 683.931,1 | 2.753.228,6 | 0,5032 | 75,16 | 24,84 |
+| permuta | 288.781,5 | 125.219,5 | 414.001,0 | 0,3951 | 69,75 | 30,25 |
+| bolsa | 2.101.771,7 | 696.023,3 | 2.797.795,0 | 0,5024 | 75,12 | 24,88 |
+| residual | 2.063.744,6 | 682.411,7 | 2.746.156,3 | 0,5030 | 75,15 | 24,85 |
+
+**Tres cuartas partes del excedente van al comprador**, contra la mitad justa
+en la frontera principal. Es el resultado de equidad más llamativo de la
+corrida, **no depende del régimen**, y merece explicación propia en el
+documento: con cobertura alta la oferta sobra, el precio se hunde hacia el
+piso y el vendedor captura poco.
+
+**T4 · Mes a mes**
+
+| Mes | Horas | Factura tramo | Factura residual | Diferencia | Índice tramo | Índice residual | Retir. tramo | Retir. resid. |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2025-04 | 232 | 229.095,3 | 217.290,7 | −11.804,6 | 0,5249 | 0,5243 | 16 | 13 |
+| 2025-05 | 260 | 535.082,1 | 535.082,1 | 0,0 | 0,4688 | 0,4688 | 11 | 11 |
+| 2025-06 | 158 | 13.445,0 | 13.445,0 | 0,0 | 0,3487 | 0,3487 | 0 | 0 |
+| 2025-07 | 173 | 124,3 | 124,3 | 0,0 | 0,3190 | 0,3190 | 65 | 65 |
+| **2025-08** | 229 | 94.008,5 | 28.685,1 | **−65.323,4** | 0,6123 | 0,6132 | 118 | 40 |
+| 2025-09 | 238 | 320.638,8 | 323.957,9 | **+3.319,2** | 0,5517 | 0,5517 | 114 | 116 |
+| 2025-10 | 218 | 236.888,2 | 235.926,6 | −961,6 | 0,4661 | 0,4639 | 204 | 205 |
+| 2025-11 | 215 | 90.776,2 | 90.776,2 | 0,0 | 0,5229 | 0,5229 | 6 | 6 |
+| 2025-12 | 88 | −132.634,2 | −132.634,2 | 0,0 | 0,4679 | 0,4679 | 0 | 0 |
+
+**Septiembre va en contra**: la lectura residual encarece 3.319,2. El efecto
+no tiene un signo único, y decirlo evita una generalización que la tabla
+agregada invitaría a hacer.
+
+**T5 · Concentración**
+
+121 horas de 1.811, el 6,7 %. Cuartiles: mínimo −7.418,2, Q1 −928,1, mediana
+−331,6, Q3 −56,0, máximo +2.169,0.
+
+| Fracción de horas | Aporta |
+|---|---:|
+| el 1 % que más | 9,9 % |
+| el 5 % | 31,7 % |
+| el 10 % | 47,9 % |
+| el 25 % | 81,1 % |
+
+Mucho menos concentrado que en la principal, donde un decil ponía el 98,3 %.
 

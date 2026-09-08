@@ -327,10 +327,15 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                                                 tramo_permuta)
             cvm_m = cvm_per_agent_hourly(agent_names, idx_piso)
             mes_m = pd.Series(idx_piso).dt.strftime("%Y-%m").to_numpy()
+            # H-53: se evalua sobre el excedente BRUTO, es decir como si todo
+            # el excedente cruzara la frontera. La energia que el vendedor
+            # coloca DENTRO de la comunidad no deberia agotar su permuta, de
+            # modo que esta cuenta manda a bolsa antes de tiempo. Queda
+            # declarado como simplificacion y va como consulta al asesor.
+            en_permuta_m = tramo_permuta(G, D, mes_m)
             pi_gb_agente = piso_por_vendedor(
                 np.asarray(pi_gs_arg, dtype=float), cvm_m,
-                np.asarray(pi_bolsa, dtype=float),
-                tramo_permuta(G, D, mes_m))
+                np.asarray(pi_bolsa, dtype=float), en_permuta_m)
 
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
@@ -344,10 +349,32 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   f"{grid_params['pi_gb']:.1f}: el perfil diario no tiene "
                   f"calendario y el tramo de permuta depende del mes")
         else:
+            # C-153: el rango se mide sobre las horas en que el agente es
+            # VENDEDOR de verdad, no sobre la matriz entera. Fuera de esas
+            # horas la matriz guarda un valor latente que no es el piso de
+            # nadie. Sobre el horizonte de la frontera principal la matriz
+            # entera va de 97,9 a 898,0 COP/kWh, con el maximo por encima de
+            # todos los techos, porque recoge el precio de bolsa de horas
+            # nocturnas sin excedente; las horas-vendedor van de 103,7 a
+            # 714,1, que son los dos tramos de verdad.
             _p = np.asarray(pi_gb_agente, dtype=float)
-            print(f"    [C-148] El juego usa el piso medido de cada vendedor: "
-                  f"{np.min(_p):.1f} a {np.max(_p):.1f} COP/kWh "
-                  f"(antes: {grid_params['pi_gb']:.1f} constante)")
+            _vende = np.maximum(G - D, 0.0) > 1e-9
+            if _vende.any():
+                _pv = _p[_vende]
+                print(f"    [C-148] El juego usa el piso medido de cada "
+                      f"vendedor: {np.min(_pv):.1f} a {np.max(_pv):.1f} "
+                      f"COP/kWh en las {int(_vende.sum())} horas-vendedor "
+                      f"(antes: {grid_params['pi_gb']:.1f} constante)")
+            else:
+                print(f"    [C-148] Ninguna hora con vendedor; el piso "
+                      f"medido no llega a actuar")
+            # H-53: el tramo se calcula sobre el excedente BRUTO, como si
+            # todo cruzara la frontera. La energia colocada dentro de la
+            # comunidad no deberia agotar la permuta. Es una simplificacion
+            # declarada, no una decision cerrada: va como consulta al asesor.
+            _en_b = int(np.sum(_vende & ~en_permuta_m))
+            print(f"    [H-53] El tramo se evalua sobre el excedente bruto; "
+                  f"{_en_b} horas-vendedor caen en bolsa por esa cuenta")
 
     # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro en modo --data real.
     # Equilibrio invariante en c_j (verificado por scripts/demo_invariancia_c_lambda.py).

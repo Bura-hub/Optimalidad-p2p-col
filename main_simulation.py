@@ -369,6 +369,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     ems    = EMSP2P(agents, grid, solver)
     p2p_results, G_klim, D_star = ems.run(D, G)
 
+    # C-151: la restriccion de participacion tiene que VERSE. Retira
+    # vendedores y con ellos su energia, y una corrida que lo hiciera en
+    # silencio seria justo el tipo de cambio invisible que este proyecto
+    # lleva un dia entero persiguiendo.
+    _ret = sum(len(getattr(r, "retirados", []) or []) for r in p2p_results)
+    if _ret:
+        _hr = sum(1 for r in p2p_results if getattr(r, "retirados", None))
+        _act = sum(1 for r in p2p_results if r.P_star is not None)
+        print(f"    [C-151] Participacion: {_ret} retiros de vendedor en "
+              f"{_hr} de {_act} horas con mercado. Un vendedor se retira "
+              f"cuando el mercado le paga menos que su alternativa de red "
+              f"por el conjunto de lo que coloca")
+    elif getattr(grid, "pi_gb_agente", None) is not None:
+        print(f"    [C-151] Participacion: ningun retiro; el mercado bate la "
+              f"alternativa de red de todos los vendedores en todas las horas")
+
     # Reportar impacto del DR (solo si hay flexibilidad activa)
     dr_active = np.any(agents.alpha > 1e-9)
     if dr_active:

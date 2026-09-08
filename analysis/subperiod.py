@@ -109,6 +109,22 @@ def run_subperiod_analysis(
         import copy
         grid_sp = copy.copy(grid)
         grid_sp.pi_gb = pgb
+        # H-49 / C-152: y HAY QUE ANULAR LA MATRIZ DEL PISO, o el escalar de
+        # arriba no surte efecto.
+        #
+        # Desde C-148 los parametros de red pueden llevar el piso de cada
+        # vendedor como matriz, y cuando la llevan **manda ella**. Como esta
+        # es una copia superficial, la matriz sobrevivia y los cuatro
+        # sub-periodos acababan corriendo con el mismo piso real: la
+        # distincion entre el nivel de julio y el de enero, que es lo unico
+        # que este analisis varia, se perdia sin que nada avisara.
+        #
+        # Este analisis es un supuesto estilizado, «que pasaria si la bolsa
+        # estuviera en el nivel de julio o en el de enero», y por eso usa un
+        # piso UNIFORME por construccion. Queda declarado aqui y hay que
+        # decirlo donde se publique: el corte por sub-periodos no lleva el
+        # piso medido por vendedor, a diferencia del resto de la corrida.
+        grid_sp.pi_gb_agente = None
 
         if verbose:
             surplus_h = int(np.sum(G_sp.sum(axis=0) > D_sp.sum(axis=0)))

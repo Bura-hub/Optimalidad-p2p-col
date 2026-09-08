@@ -293,6 +293,7 @@ PYFIN
       echo "  --- $COB  ->  $DIR"
       corre "canonica_${COB}" main_simulation.py \
             --data real --full --analysis --include-c5 --no-regulado \
+            --metodo acoplado \
             ${EXTRA:+$EXTRA} --out-dir "$DIR"
     done
     echo

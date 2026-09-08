@@ -4726,3 +4726,124 @@ cero» por «reparto justo».
 Ver H-52 para el experimento, H-55 para por qué el bienestar no arbitra, y
 H-31, que queda pendiente sobre el índice.
 
+---
+
+## H-52 y H-53 · CERRADOS el 2026-09-08 sobre el horizonte completo
+
+**Medido en el servidor con 32 procesos: las 2.937 horas activas de las dos
+fronteras, bajo los cuatro regímenes del piso, con la vía acoplada. 11.748
+partidas, todas resueltas, ninguna hora perdida y ninguna métrica no
+numérica.**
+
+Esto **sustituye** la medición de muestra del mismo día, y la contradice en lo
+principal. Se deja constancia de las dos porque la lección importa.
+
+### Frontera principal · 1.126 horas
+
+| Régimen | Piso | Bienestar | Factura (COP) | Dif. | Volumen (kWh) | Dif. | Retir. | Excedente | Equidad | % compr. |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tramo | 504,4 | 880.779,5 | 16.725.977,1 | — | 4.182,83 | — | 348 | 1.124.150,8 | **−0,0212** | 48,94 |
+| permuta | 673,8 | 817.109,9 | **16.490.811,9** | **−235.165,2** | 4.110,69 | −1,72 % | 170 | 274.651,9 | −0,1793 | 41,03 |
+| bolsa | 151,4 | 995.529,1 | 16.762.643,0 | +36.665,9 | 4.592,75 | +9,80 % | 0 | 2.738.188,7 | 0,0133 | 50,67 |
+| **residual** | 673,8 | 817.109,9 | **16.490.811,9** | **−235.165,2** | 4.110,69 | −1,72 % | 170 | 274.651,9 | −0,1793 | 41,03 |
+
+### Frontera secundaria · 1.811 horas
+
+| Régimen | Piso | Bienestar | Factura (COP) | Dif. | Volumen (kWh) | Dif. | Retir. | Excedente | Equidad | % compr. |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| tramo | 165,0 | 1.204.010,6 | 1.387.424,2 | — | 4.479,95 | — | 534 | 2.753.228,6 | 0,5032 | 75,16 |
+| permuta | 677,7 | 1.148.862,3 | −4.898.490,4 | −6.285.914,5 | 4.380,07 | −2,23 % | 508 | 414.001,0 | **0,3951** | 69,75 |
+| bolsa | 158,8 | 1.347.702,2 | 1.085.084,7 | −302.339,5 | 4.529,25 | +1,10 % | 0 | 2.797.795,0 | 0,5024 | 75,12 |
+| **residual** | 166,3 | 1.229.846,0 | **1.312.653,8** | **−74.770,4** | 4.492,99 | +0,29 % | 456 | 2.746.156,3 | 0,5030 | 75,15 |
+
+### H-53 confirmado: en la frontera principal nadie cruza
+
+**El régimen residual es idéntico al de permuta, cifra por cifra**, en la
+factura, el volumen, los retirados y el índice. Bajo la lectura por excedente
+asignado **ningún vendedor de la frontera principal llega a agotar su permuta
+en todo el horizonte**, que es exactamente lo que la sonda barata predijo sin
+resolver una sola partida.
+
+### La muestra se equivocaba, y en el sentido contrario
+
+| Frontera principal | Con 38 horas | Con 1.126 horas |
+|---|---|---|
+| Mejor factura | el **tramo**, es decir lo actual | el **residual**, por 235.165,2 (COP) |
+| Peor factura | la permuta | la bolsa |
+
+**Con la muestra se concluyó lo contrario de lo que sale con el horizonte.**
+No fue un error de método, fue tamaño: 38 horas de 1.126 no representan el
+reparto entre tramos a lo largo de nueve meses, porque el cruce a bolsa es un
+fenómeno **acumulativo dentro del mes** y depende de dónde caiga la hora.
+
+**La norma que se lleva de aquí:** una muestra al azar sirve para acotar el
+orden de magnitud de un efecto, **no para ordenar alternativas que difieren
+poco entre sí**. Los tres regímenes se separaban en la muestra por menos del
+1 % de la factura, y ese margen está por debajo de lo que 38 horas resuelven.
+
+### La factura prefiere la lectura residual en las DOS fronteras
+
+| | Ahorro de la lectura residual |
+|---|---|
+| Principal | **−235.165,2 (COP)**, un 1,41 % de la factura |
+| Secundaria | **−74.770,4 (COP)**, un 5,39 % |
+
+### Pero la equidad dice lo contrario en la principal, y hay que decirlo
+
+| Índice de equidad | tramo | permuta | bolsa | residual |
+|---|---:|---:|---:|---:|
+| Principal | **−0,0212** | −0,1793 | 0,0133 | −0,1793 |
+| Secundaria | 0,5032 | 0,3951 | 0,5024 | 0,5030 |
+
+**En la frontera principal el régimen actual es el más equitativo de los
+cuatro**, con un reparto de 48,94 contra 51,06 entre compradores y vendedores.
+Está prácticamente en el punto que el modelo base persigue: el método de
+replicador de Chacón da 0,0149 en su Tabla VII. La lectura residual lo
+desplaza a −0,1793, es decir hacia el vendedor.
+
+En la secundaria la equidad no distingue: 0,5032 frente a 0,5030.
+
+> **El dilema, con cifras: la lectura residual paga mejor y reparte peor.** En
+> la frontera principal gana 235.165 (COP) y pierde 0,158 de índice.
+
+**Eso es lo que va al asesor**, y ya no como pregunta abstracta.
+
+### Los seis millones de la permuta forzada no están disponibles
+
+Es la trampa de la tabla y conviene señalarla. En la secundaria la permuta
+forzada da −6.285.914,5, pero **no es alcanzable**: modela a un vendedor que
+rechaza el precio de bolsa cuando ya agotó su permuta.
+
+La única vía real a ese terreno es la lectura residual, y allí el tramo apenas
+se mueve, un 3,3 % de las horas-vendedor. **Lo que la comunidad puede capturar
+de verdad en la secundaria son 74.770 (COP), no seis millones.**
+
+### Tres cosas más que la tabla enseña
+
+**Los retiros los manda la DISPERSIÓN del piso, no su nivel.** En la principal
+el tramo retira 348 vendedores; la permuta, con un piso mucho más alto, solo
+170; y la bolsa, con el piso más bajo pero **uniforme**, no retira a ninguno.
+Confirma lo que C-151 anticipó al escribirla: la restricción es inerte cuando
+las cotas son uniformes por construcción.
+
+**Más volumen no es mejor factura.** En la principal el régimen de bolsa mueve
+un 9,80 % más de energía que el actual y aun así **paga más**: 36.665,9 (COP)
+de más. El volumen no es el objetivo, y quien lo use como tal se equivocará de
+signo.
+
+**En la secundaria el régimen del piso pesa más que el mercado entero.** El
+mercado aporta 2.753.228,6 y cambiar de régimen mueve 6.285.914,5. Son **2,3
+veces**, no las 3,5 que estimó la muestra. Sigue siendo una conclusión
+incómoda para el documento y hay que escribirla.
+
+### Qué se decide
+
+**El modelo conserva el régimen de tramo.** Describe la alternativa real de
+cada vendedor y es el más equitativo en la frontera principal.
+
+**La lectura del tramo va al asesor con la tabla delante**, porque su
+respuesta vale 235.165 (COP) en una frontera, 74.770 en la otra, y 0,158 de
+índice de equidad en contra.
+
+**Y el bienestar no participó en ninguna de estas decisiones**, por H-55.
+

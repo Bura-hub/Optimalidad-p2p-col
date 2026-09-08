@@ -243,6 +243,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             row  = tariff_matrix_diag[n]
             print(f"      {name:<10} {cat:<10} {nt:<4} "
                   f"{row.min():>5.0f} {row.max():>5.0f} {row.mean():>6.0f}")
+        # H-50: una serie de bolsa no numerica atraviesa la corrida entera sin
+        # que nada falle y produce una tabla comparativa de valores no
+        # numericos con codigo de salida cero. Paso el 2026-09-07 en modo dia,
+        # porque el techo de la CREG 101 066 no tenia fila para ese mes y el
+        # minimo lo propagaba. Se comprueba aqui, que es donde se sabe.
+        _b = np.asarray(pi_bolsa, dtype=float)
+        if not np.all(np.isfinite(_b)):
+            raise ValueError(
+                f"La serie de bolsa tiene {int(np.sum(~np.isfinite(_b)))} de "
+                f"{_b.size} valores no numericos. Seguir produciria una tabla "
+                f"de resultados no numericos con codigo de salida cero, que es "
+                f"lo que hay que evitar. Ver H-50.")
         print(f"    PGB={pi_bolsa.mean():.0f} COP/kWh (promedio bolsa)")
         print(f"    b calibrado: {b_cal.round(0)}")
 
@@ -291,12 +303,51 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     else:
         pi_gs_arg = grid_params["pi_gs"]
 
+    # ── Y el piso por vendedor, que tampoco llegaba ───────────────────────
+    # H-49 / C-148. CAL-47 sustituyo las dos cotas escritas a mano por cotas
+    # medidas. El techo llego, primero a la liquidacion y con C-146 al juego.
+    # El piso NO: en la corrida valia 280 COP/kWh constante para los cinco
+    # agentes y las 5.160 horas, que es justo la constante que CAL-47 venia a
+    # sustituir. Nadie lo construia fuera de las sondas.
+    #
+    # Por la identidad de H-33, el excedente del mercado es el ancho de la
+    # banda por la energia transada, de modo que con el techo corregido y el
+    # piso no, la corrida canonica habria sobrestimado el excedente doce
+    # veces en la frontera principal.
+    #
+    # El perfil diario promedio NO lo lleva, y con razon: el tramo de permuta
+    # depende del mes y ese modo no tiene calendario. Ahi el piso sigue
+    # siendo el escalar, y hay que declararlo donde se publique.
+    pi_gb_agente = None
+    if use_real_data:
+        idx_piso = index_full if full_horizon else (idx_day if single_day
+                                                    else None)
+        if idx_piso is not None:
+            from core.opciones_externas import (piso_por_vendedor,
+                                                tramo_permuta)
+            cvm_m = cvm_per_agent_hourly(agent_names, idx_piso)
+            mes_m = pd.Series(idx_piso).dt.strftime("%Y-%m").to_numpy()
+            pi_gb_agente = piso_por_vendedor(
+                np.asarray(pi_gs_arg, dtype=float), cvm_m,
+                np.asarray(pi_bolsa, dtype=float),
+                tramo_permuta(G, D, mes_m))
+
     grid = GridParams(**grid_params,
-                      pi_gs_agente=pi_gs_arg if use_real_data else None)
+                      pi_gs_agente=pi_gs_arg if use_real_data else None,
+                      pi_gb_agente=pi_gb_agente)
     if use_real_data:
         _t = np.atleast_2d(np.asarray(pi_gs_arg, dtype=float))
         print(f"    [C-146] El juego usa el techo de cada agente: "
               f"{np.min(_t):.1f} a {np.max(_t):.1f} COP/kWh entre agentes")
+        if pi_gb_agente is None:
+            print(f"    [H-49] El piso sigue siendo el escalar "
+                  f"{grid_params['pi_gb']:.1f}: el perfil diario no tiene "
+                  f"calendario y el tramo de permuta depende del mes")
+        else:
+            _p = np.asarray(pi_gb_agente, dtype=float)
+            print(f"    [C-148] El juego usa el piso medido de cada vendedor: "
+                  f"{np.min(_p):.1f} a {np.max(_p):.1f} COP/kWh "
+                  f"(antes: {grid_params['pi_gb']:.1f} constante)")
 
     # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro en modo --data real.
     # Equilibrio invariante en c_j (verificado por scripts/demo_invariancia_c_lambda.py).
@@ -1658,6 +1709,11 @@ if __name__ == "__main__":
                     help="CAL-48: 'acoplado' integra precios y cantidades "
                          "juntos como el modelo base; 'alternado' (defecto) "
                          "es el comportamiento historico")
+    ap.add_argument("--permitir-alternado", dest="permitir_alternado",
+                    action="store_true",
+                    help="CAL-48: permite el horizonte completo por la via "
+                         "alternada. Solo para comparar las dos vias; el "
+                         "canon va acoplado y hay que declararlo si se usa")
     ap.add_argument("--t-span-acoplado", type=float, default=0.05,
                     metavar="T",
                     help="CAL-48: horizonte del solucionador acoplado")
@@ -1691,6 +1747,28 @@ if __name__ == "__main__":
                  "--paper-meters/--day")
     if args.day and args.full:
         ap.error("--day y --full son mutuamente exclusivos")
+
+    # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
+    #
+    # El lazo alternado no resuelve el modelo base y deja el precio pegado a
+    # una cota en el 72 % de los casos, frente al 1,2 % del acoplado (H-38).
+    # Todo lo que el documento mide sale de la via acoplada, de modo que un
+    # canon alternado reportaria un objeto distinto del que el documento
+    # describe.
+    #
+    # Se exige explicito en vez de cambiar el defecto, para que ninguna
+    # corrida antigua cambie de comportamiento en silencio. Y se puede
+    # forzar, porque comparar las dos vias sobre el horizonte es una medicion
+    # legitima; lo que no es legitimo es hacerlo sin querer.
+    if args.full and args.metodo == "alternado" and not args.permitir_alternado:
+        ap.error(
+            "La corrida de horizonte completo va por la via ACOPLADA desde "
+            "CAL-48. Anada --metodo acoplado.\n"
+            "  Por que: el lazo alternado deja el precio pegado a una cota en "
+            "el 72 % de los casos y no resuelve el modelo base (H-38), y todo "
+            "lo que el documento mide sale de la via acoplada.\n"
+            "  Si de verdad quiere el horizonte alternado, para comparar las "
+            "dos vias, anada --permitir-alternado y declarelo donde publique.")
 
     if args.gsa:
         from analysis.global_sensitivity import (

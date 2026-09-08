@@ -162,6 +162,26 @@ class GridParams:
     # indexar sus formulas por comercializador. Ver H-48.
     pi_gs_agente: Optional[np.ndarray] = None
 
+    # H-49 / C-148: el piso de CADA vendedor, matriz (N, T), o None.
+    #
+    # Es la otra mitad de CAL-47 y no habia llegado nunca: en produccion el
+    # piso valia 280 COP/kWh constante para todos los agentes y todas las
+    # horas, la misma constante escrita a mano que CAL-47 venia a sustituir.
+    # Con el techo ya corregido, eso sobrestimaba el ancho de la banda hasta
+    # doce veces, y por la identidad de H-33 el excedente con el.
+    #
+    # ASIMETRIA QUE HAY QUE ENTENDER, y no es un descuido: el precio tiene
+    # indice de COMPRADOR y el piso tiene indice de VENDEDOR. No cabe un piso
+    # por vendedor en una dinamica cuyo estado es un precio por comprador sin
+    # cambiar el modelo. De modo que al juego entra **el menor de los pisos
+    # de los vendedores activos**, que es lo que ya hace la sonda, y la
+    # liquidacion recibe el vector entero, que si lo admite desde CAL-47.
+    #
+    # Lo que ese minimo NO resuelve es que un vendedor de piso alto venda por
+    # debajo del suyo. Eso es H-43 y se resuelve con la restriccion de
+    # participacion, que decide QUIEN ENTRA en vez de acotar el precio.
+    pi_gb_agente: Optional[np.ndarray] = None
+
 
 @dataclass
 class SolverParams:
@@ -304,12 +324,16 @@ def _run_hour_worker(args):
     args = tuple(args)
     if len(args) == 22:
         args = args + ("alternado", 0.05)
+    # H-49 anadio el piso por vendedor al final. Se acepta la longitud
+    # anterior para no romper a los llamadores que arman la tupla a mano.
+    if len(args) == 24:
+        args = args + (None,)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
      min_iter, tol, max_iter, ode_method, buyer_competition,
-     metodo, t_span_aco) = args
+     metodo, t_span_aco, pi_gb_j) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -411,7 +435,12 @@ def _run_hour_worker(args):
 
     res.SC = self_consumption_index(P_star, D_k, G_klim_k)
     res.SS = self_sufficiency_index(P_star, G_klim_k, D_k)
-    S_i, SR_j = compute_savings(P_star, pi_i, pi_gs, pi_gb)
+    # H-49: la prima de cada vendedor se mide contra SU piso, no contra el
+    # menor de la hora. Es lo unico que hace visible a un vendedor que vende
+    # por debajo de su alternativa, que es H-43. El juego usa el minimo; la
+    # liquidacion, el vector.
+    S_i, SR_j = compute_savings(P_star, pi_i, pi_gs,
+                                pi_gb if pi_gb_j is None else pi_gb_j)
     res.IE = equity_index(S_i, SR_j)
     dist   = welfare_distribution(S_i, SR_j)
     res.PS = dist["PS"]; res.PSR = dist["PSR"]
@@ -472,6 +501,17 @@ class EMSP2P:
             """El techo que rige la hora k: vector por agente o el escalar."""
             return gr.pi_gs if techo_m is None else techo_m[:, k]
 
+        # ── Y el piso, por vendedor si se dio (H-49) ──────────────────────
+        piso_m = gr.pi_gb_agente
+        if piso_m is not None:
+            piso_m = np.asarray(piso_m, dtype=float)
+            if piso_m.ndim == 1:
+                piso_m = np.tile(piso_m[:, None], (1, T))
+            if piso_m.shape != (N, T):
+                raise ValueError(
+                    f"pi_gb_agente tiene forma {piso_m.shape}; se esperaba "
+                    f"({N}, {T}) o ({N},)")
+
         # ── Algoritmo 1, pasos 1-14: límite de generación ────────────────
         G_klim = np.zeros((N, T))
         for k in range(T):
@@ -492,14 +532,24 @@ class EMSP2P:
             # bloque comprador, el solucionador acoplado y la liquidacion.
             techo_k = (gr.pi_gs if techo_m is None
                        else techo_m[bids, k] if bids else gr.pi_gs)
+            # H-49: al juego entra el MENOR de los pisos de los vendedores de
+            # la hora, porque por debajo de el no vende nadie. No es el piso
+            # de cada vendedor: eso no cabe en una dinamica indexada por
+            # comprador, y es lo que H-43 resuelve por otra via.
+            piso_k = (gr.pi_gb if piso_m is None
+                      else float(np.min(piso_m[sids, k])) if sids else gr.pi_gb)
             jobs.append((k, G_klim[:, k].copy(), D_star[:, k].copy(), G[:, k].copy(),
                          sids, bids,
                          ag.a, ag.b, ag.lam, ag.theta, ag.etha,
-                         techo_k, gr.pi_gb,
+                         techo_k, piso_k,
                          sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                          sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
                          sv.ode_method, sv.buyer_competition,
-                         sv.metodo, sv.t_span_acoplado))
+                         sv.metodo, sv.t_span_acoplado,
+                         # el vector por vendedor viaja aparte, solo para la
+                         # liquidacion: al juego entra el minimo, arriba
+                         None if (piso_m is None or not sids)
+                         else piso_m[sids, k].copy()))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -754,13 +804,26 @@ class EMSP2P:
         return conv_list
 
     def run_single_hour(self, k: int, D: np.ndarray, G: np.ndarray) -> HourlyResult:
+        """Una hora suelta, para diagnostico.
+
+        C-146 y C-148: honra las mismas cotas por agente que `run`. Si no se
+        hiciera, esta via daria un resultado distinto del de la corrida y el
+        diagnostico dejaria de diagnosticar la corrida.
+        """
         ag = self.agents; gr = self.grid; sv = self.solver
-        G_klim_k = compute_generation_limit(G[:, k], ag.a, ag.b, ag.c, gr.pi_gs)
+        te = (gr.pi_gs if gr.pi_gs_agente is None
+              else np.asarray(gr.pi_gs_agente, dtype=float)[:, k])
+        G_klim_k = compute_generation_limit(G[:, k], ag.a, ag.b, ag.c, te)
         _, sids, bids = classify_agents(G_klim_k, D[:, k])
+        pj = (None if gr.pi_gb_agente is None or not sids
+              else np.asarray(gr.pi_gb_agente, dtype=float)[sids, k].copy())
         return _run_hour_worker((k, G_klim_k, D[:, k].copy(), G[:, k].copy(),
                                   sids, bids, ag.a, ag.b, ag.lam, ag.theta, ag.etha,
-                                  gr.pi_gs, gr.pi_gb,
+                                  (gr.pi_gs if gr.pi_gs_agente is None or not bids
+                                   else np.asarray(gr.pi_gs_agente,
+                                                   dtype=float)[bids, k]),
+                                  (gr.pi_gb if pj is None else float(np.min(pj))),
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
                                   sv.ode_method, sv.buyer_competition,
-                         sv.metodo, sv.t_span_acoplado))
+                                  sv.metodo, sv.t_span_acoplado, pj))

@@ -4847,3 +4847,75 @@ respuesta vale 235.165 (COP) en una frontera, 74.770 en la otra, y 0,158 de
 
 **Y el bienestar no participó en ninguna de estas decisiones**, por H-55.
 
+---
+
+## H-57 · El índice de equidad global del régimen actual lo dominan dos meses
+
+**Estado: MEDIDO el 2026-09-08, al desglosar por mes la corrida del horizonte
+completo. Rectifica una lectura que se dio por buena horas antes en este mismo
+registro.**
+
+### Lo que se había concluido, y era falso
+
+Que en la frontera principal el régimen de tramo es «el más equitativo de los
+cuatro, prácticamente en el punto que el modelo base persigue», por su índice
+global de −0,0212 frente al −0,1793 de la lectura residual.
+
+### Lo que el desglose enseña
+
+**El efecto vive en dos meses de nueve.** En siete de los nueve meses la
+diferencia entre el tramo y la lectura residual es **exactamente cero**: nadie
+cruza a bolsa bajo la lectura bruta, de modo que los dos regímenes **son el
+mismo régimen**. Todo el ahorro de 235.165,2 (COP) sale de junio y julio, y el
+98,3 % lo aporta un decil de las horas.
+
+Y de ahí el artefacto:
+
+| Frontera principal | Índice global | Sin junio ni julio | Peso de esos dos meses |
+|---|---:|---:|---:|
+| tramo | **−0,0212** | **−0,1785** | **83,9 %** |
+| permuta | −0,1793 | −0,1785 | 34,1 % |
+| bolsa | 0,0133 | 0,0058 | 39,3 % |
+| residual | −0,1793 | −0,1785 | 34,1 % |
+
+**Fuera de esos dos meses los dos regímenes dan el mismo índice**, −0,1785,
+como tiene que ser. Lo que ocurre es que bajo el tramo esos dos meses
+concentran el **83,9 %** del excedente total, frente al 34,1 % bajo la lectura
+residual.
+
+### El mecanismo, que es el de siempre
+
+En junio y julio el tramo manda a un vendedor a bolsa. Su piso se desploma, la
+banda se ensancha y el excedente de esos dos meses se dispara. Como el índice
+es un cociente sobre la **suma** del ahorro y el ingreso, esos dos meses
+arrastran el agregado hacia su propio valor.
+
+> **El −0,0212 no describe un mercado más equitativo. Describe dos meses de
+> excedente enorme repartido a medias.**
+
+Es la trampa de H-47 aplicada al índice en vez de al excedente: **la métrica
+mejora cuando la alternativa externa empeora.**
+
+### La norma que se deriva, y este proyecto ya la tiene dos veces
+
+**Un índice que es cociente de sumas se pondera solo, y hay que preguntarle
+por qué.** Antes de comparar dos índices globales hay que mirar si sus
+denominadores pesan lo mismo. Aquí no lo hacían ni de lejos: 83,9 % contra
+34,1 %.
+
+Se suma a la lección de la frontera correcta y a la de los objetos distintos
+con el mismo rótulo. Las tres son la misma familia: **comparar cosas que no
+son comparables porque el agregado las hizo parecer así.**
+
+### Qué queda en pie
+
+El dilema entre factura y equidad **sigue existiendo pero acotado**: en junio y
+julio la lectura residual paga mejor y reparte peor. En los otros siete meses
+de la frontera principal **no hay nada que decidir**, porque los dos regímenes
+son idénticos.
+
+En la frontera secundaria no hay artefacto: excluir sus dos meses activos mueve
+los cuatro índices por igual, de 0,50 a 0,48.
+
+Ver H-52, H-47 y H-56.
+

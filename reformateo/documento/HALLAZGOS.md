@@ -2858,9 +2858,11 @@ mientras no se decida. El bloque alternado ya tenía dos de las tres.
 
 ## H-43 · Hay vendedores que salen perdiendo: el precio cae por debajo de su propio piso
 
-**Estado: MEDIDO el 2026-09-06 sobre 120 horas por frontera. Es un defecto
-del mecanismo, no de la traduccion, y no lo causa la forma del termino de
-competencia.**
+**Estado: CORREGIDO el 2026-09-07 por C-151, con compuerta y verificado
+contra la sonda. Es un defecto del mecanismo, no de la traduccion, y no lo
+causa la forma del termino de competencia. La causa resulto ser la
+heterogeneidad de comercializador, que da pisos dispares a los vendedores;
+ver H-47 y H-48.**
 
 Apareció al mirar el reparto del excedente entre quien vende y quien compra.
 En algunas horas **la tajada del vendedor sale negativa**, lo que significa

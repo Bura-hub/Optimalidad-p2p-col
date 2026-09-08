@@ -6897,3 +6897,83 @@ ponérsela antes de lanzarla, no después**.
 | P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |
+
+## C-151 · La restricción de participación entra al motor
+
+**2026-09-07 · tipo: `codigo` · aplicada, con compuerta y verificada contra
+la sonda**
+
+Cierra H-43. Hasta hoy la restricción solo existía en la sonda, de modo que
+el documento medía un mercado en el que ningún vendedor vende por debajo de
+su alternativa y **la corrida canónica producía otro en el que sí**.
+
+### Qué hace
+
+Retira al vendedor cuyo **ingreso ponderado por energía** queda por debajo de
+su propio piso, que es lo mismo que exigir que su prima no sea negativa. Es
+el criterio de C-149, ahora en el motor.
+
+Resuelve con el conjunto reducido y **reincrusta el resultado en la matriz
+del tamaño original poniendo a cero las filas de los retirados**, conservando
+la lista de vendedores intacta. La llamada anidada hace su propia vuelta, de
+modo que el bucle se cierra solo.
+
+### La trampa, que se señaló antes de escribir el código
+
+La forma obvia habría sido quitar al retirado de la lista de vendedores. **No
+se puede.** La liquidación recorre esa lista para calcular lo que cada
+vendedor exporta a la red, de modo que un vendedor ausente de ella no
+exportaría: su excedente se evaporaría.
+
+Es el mismo error que la auditoría encontró el mismo día en la sonda del
+escenario, donde sesgaba la comparación de facturas en un 76,8 %. Dos
+apariciones bastan para darle nombre, y queda escrito en H-43: **quien sale
+del mercado no sale de la contabilidad.**
+
+Haber escrito el diseño **antes** de programar, con la trampa dentro, es lo
+que evitó pisarla. Conviene repetir esa forma de trabajar donde el cambio
+toca el núcleo.
+
+### Por qué no lleva bandera
+
+Porque se activa sola. Con un piso escalar todos los vendedores tienen el
+mismo, el precio ya está acotado por debajo a ese valor, y el ingreso
+ponderado nunca queda por debajo: no se retira nadie. **La restricción es
+inerte cuando las cotas son uniformes por construcción, no por
+configuración**, y muerde solo cuando los pisos difieren, que es cuando hace
+falta.
+
+### Verificación
+
+`tests/gate_c151_participacion_motor.py`, en verde, con las tres
+comprobaciones que se dejaron especificadas en H-43 **antes** de escribir el
+código:
+
+| | |
+|---|---|
+| Con piso uniforme, idéntico y sin retiros | ok |
+| El retirado sigue exportando a la red | ok, 0,00 (kWh) evaporados |
+| Ningún vendedor por debajo de su piso | ok, cero |
+
+Y la que de verdad valía, contra la sonda, sobre la hora 2387 de la frontera
+principal, que era el caso patológico de la auditoría:
+
+| | Retirados | Volumen (kWh) | Prima (COP) | Ahorro (COP) |
+|---|---:|---:|---:|---:|
+| la sonda | 1 | 7,8000 | 994,6 | 3.643,6 |
+| el motor | 1 | 7,8000 | 994,6 | 3.643,6 |
+
+Dos implementaciones independientes, escritas con semanas de diferencia y por
+caminos distintos, dan lo mismo. Antes de la corrección esa hora daba una
+prima de −394 (COP) y una tajada del vendedor del −12,1 %.
+
+La prueba dorada sigue en 7 de 7.
+
+### Lo que desbloquea
+
+La corrida canónica. Sus cinco motivos quedan atendidos: la generación de
+Udenar, el guardia físico de atípicos, la banda medida, el techo por
+comprador y el piso con su restricción de participación.
+
+---
+

@@ -7218,3 +7218,41 @@ Con eso **desaparece la cautela de que los resultados salen de una muestra**,
 que es la limitación más seria de todo lo medido hoy.
 
 ---
+
+## C-160 · Una solución no finita se anotaba como hora resuelta
+
+**Lo destapó la corrida del servidor, al ver los avisos del integrador pasar
+por el registro.**
+
+El integrador emite dos avisos distintos y solo uno es benigno:
+
+| Aviso | Qué significa |
+|---|---|
+| «*t + h = t on the next step, solver will continue anyway*» | el paso se hizo tan pequeño que ya no mueve el reloj. **Continúa**, y el resultado sirve |
+| «*too much accuracy requested, tolsf = NaN*» | el factor de escala de la tolerancia **no es un número**, es decir el estado ya lo es |
+
+El segundo **no lanza excepción**. La sonda recogía la solución tal cual, la
+anotaba como **resuelta**, y sus métricas quedaban no numéricas.
+
+### Por qué eso sesga en silencio
+
+Las sumas de la biblioteca de datos **descartan los valores no numéricos sin
+avisar**. De modo que el régimen afectado saldría con menos horas dentro de su
+suma que los demás, y la tabla compararía objetos distintos con el mismo
+rótulo. Nada en la salida lo diría.
+
+Es la misma familia de H-50, el fallo más silencioso que este proyecto ha
+encontrado, y la misma norma: **una hora que no resuelve es un dato**, no una
+fila que se cuela.
+
+### Las dos guardas
+
+En la sonda, una solución no finita se anota como **no resuelta**, con su
+motivo, igual que una hora que agota el plazo.
+
+En el juntador, y esto importa porque actúa **sobre mediciones ya hechas**, se
+retira la **hora entera** de todos los regímenes, no solo la fila afectada: la
+comparación es emparejada y una hora a medias sesga igual. Y se dice en voz
+alta cuántas y cuáles.
+
+---

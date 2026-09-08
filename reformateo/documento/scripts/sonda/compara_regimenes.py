@@ -57,6 +57,23 @@ def main() -> int:
     ap.add_argument("--muestra", type=int, default=40)
     args = ap.parse_args()
     d = carga_tandas(args.muestra)
+
+    # C-160. Una fila con metricas no numericas se colaba como resuelta, y
+    # las sumas de pandas las descartan EN SILENCIO: ese regimen saldria con
+    # menos horas dentro de su suma que los demas. Se retira la hora ENTERA,
+    # porque la comparacion es emparejada y una hora a medias sesga igual.
+    CLAVE = ["factura_con", "volumen", "bienestar", "excedente"]
+    hay = [c for c in CLAVE if c in d.columns]
+    malas = d[~np.isfinite(d[hay].to_numpy(dtype=float)).all(axis=1)]
+    if len(malas):
+        fuera = set(zip(malas.cobertura, malas.hora))
+        print(f"  AVISO: {len(malas)} filas con metricas no numericas, en "
+              f"{len(fuera)} horas. Se retiran esas horas ENTERAS.",
+              flush=True)
+        for cob, k in sorted(fuera)[:10]:
+            print(f"    fuera: {cob} hora {k}", flush=True)
+        d = d[~d.set_index(["cobertura", "hora"]).index.isin(fuera)]
+
     presentes = [g for g in ORDEN if g in set(d.regimen)]
     n = d.groupby(["cobertura", "hora"]).regimen.nunique()
     completas = n[n == len(presentes)].index

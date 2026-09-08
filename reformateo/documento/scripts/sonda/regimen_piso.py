@@ -108,6 +108,16 @@ def _una(args):
 
     P = np.asarray(r["P"], float)
     pi = np.asarray(r["pi"], float)
+    # C-160: el integrador puede devolver una solucion NO FINITA sin lanzar
+    # excepcion. Su aviso lo dice, «too much accuracy requested ... tolsf =
+    # NaN», pero va a la salida de errores y la sonda no lo mira. Una fila asi
+    # se anotaba como RESUELTA con metricas no numericas, y las sumas de
+    # pandas descartan esos valores en silencio: el regimen afectado saldria
+    # con menos horas dentro de su suma que los demas, sesgado y sin aviso.
+    # Es la misma familia de H-50. Una hora que no resuelve es un dato.
+    if not (np.all(np.isfinite(P)) and np.all(np.isfinite(pi))):
+        return [dict(cobertura=cobertura, hora=int(k), regimen=regimen,
+                     resuelta=False, motivo="solucion no finita")]
     techo_i, piso_j = r["techo_i"], r["piso_j"]
     S_i, SR_j = compute_savings(P, pi, techo_i, piso_j)
 

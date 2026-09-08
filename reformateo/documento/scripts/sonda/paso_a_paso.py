@@ -143,7 +143,8 @@ def carga_base():
 
 
 def resuelve(dat: dict, k: int, multiplicadores: bool = False,
-             techo: str = "propio", peso_virtual: str = "barrera"):
+             techo: str = "propio", peso_virtual: str = "barrera",
+             criterio: str = "ingreso"):
     """Resuelve la hora por la via del modelo base, con las cotas medidas.
 
     `multiplicadores` pide al solucionador que devuelva los suyos, que son
@@ -166,7 +167,20 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
 
     Los dos ultimos existen para medir la pregunta que sigue abierta con el
     asesor, no para usarse en produccion.
+
+    `criterio` es el de la restriccion de participacion, es decir cuando se
+    retira un vendedor (C-149):
+
+      "ingreso"  si el mercado le paga menos que su alternativa por el
+                 CONJUNTO de lo que coloca, ponderando por energia. Es lo
+                 mismo que exigir prima no negativa, y es el defecto.
+      "maximo"   si TODAS sus parejas quedan bajo su piso, mirando el mejor
+                 de sus precios. Es el criterio anterior, que dejaba vender a
+                 perdida a quien colocara una cantidad infima a buen precio.
+                 Se conserva solo para contrastar.
     """
+    if criterio not in ("ingreso", "maximo"):
+        raise ValueError(f"criterio={criterio!r}; use 'ingreso' o 'maximo'")
     from core.coupled_ode_convergence import solve_coupled_for_hour
     from core.market_prep import classify_agents, compute_generation_limit
     from data.xm_prices import get_b_for_real_data
@@ -242,14 +256,31 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
             peso_virtual=peso_virtual)          # H-46
         pi = np.clip(tr.pi_star, piso_h, techo_i)
         P = np.asarray(tr.P_star, float)
-        # Un vendedor sobra si TODA su venta va por debajo de su alternativa
+        # C-149: un vendedor sobra si el mercado le paga MENOS QUE SU
+        # ALTERNATIVA por el conjunto de lo que coloca.
+        #
+        # El criterio anterior miraba el MEJOR de sus precios y retiraba solo
+        # si todas sus parejas quedaban bajo su piso. Bastaba entonces con
+        # colocar una cantidad infima a un comprador que pagara bien para
+        # quedarse vendiendo el grueso a perdida. Medido sobre 400 horas: 16
+        # casos con prima negativa y CERO vendedores retirados, el peor con
+        # −394 (COP) y una tajada del vendedor del −12,1 %.
+        #
+        # El criterio correcto es su ingreso ponderado por energia, que es lo
+        # mismo que exigir que su prima no sea negativa: un vendedor entra si
+        # y solo si el mercado bate su opcion de fuera sobre el total que
+        # coloca, que es lo que decide un vendedor racional.
         fuera = []
         for u, a_idx in enumerate(activos):
             vendido = P[u, :]
-            if vendido.sum() <= 1e-9:
+            total = float(vendido.sum())
+            if total <= 1e-9:
                 continue
-            mejor = float(np.max(pi[vendido > 1e-9]))
-            if mejor < piso_j[a_idx] - 1e-9:
+            if criterio == "maximo":          # el anterior, para contrastar
+                referencia = float(np.max(pi[vendido > 1e-9]))
+            else:
+                referencia = float(np.dot(vendido, pi)) / total
+            if referencia < piso_j[a_idx] - 1e-9:
                 fuera.append(a_idx)
         if not fuera:
             break

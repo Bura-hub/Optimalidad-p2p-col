@@ -110,7 +110,26 @@ def solve_coupled_for_hour(
     n_points:    int   = 500,
     method:      str   = "LSODA",
     rtol:        float = 1e-6,
-    atol:        float = 1e-9,
+    # H-51: la tolerancia absoluta del MODELO BASE, que es 1e-6 y no 1e-9.
+    #
+    # El fichero original fija `odeset('RelTol',1e-6,'AbsTol',1e-6)`. Esta
+    # traduccion heredo 1e-6 en la relativa y escribio 1e-9 en la absoluta,
+    # mil veces mas estricta, sin que nadie lo decidiera.
+    #
+    # La absoluta manda cuando las variables son pequenas, y el estado lleva
+    # cantidades recortadas a 1e-10: justo el rango donde 1e-9 obliga al
+    # integrador a achicar el paso sin necesidad. Medido sobre la hora 4741
+    # de la frontera principal: con 1e-9 no resuelve en cuarenta minutos de
+    # procesador; con 1e-6 resuelve en 2,2 segundos.
+    #
+    # No es una aceleracion general y conviene no venderla como tal: en la
+    # hora corriente las dos tolerancias tardan lo mismo. Lo que hace es
+    # RESCATAR las horas que se atascaban.
+    #
+    # Y no cambia la respuesta. Sobre ocho horas al azar resueltas con las
+    # dos, el volumen coincide dentro de 1,4e-13 (kWh) y el precio dentro de
+    # 6,6e-3 (COP/kWh), sobre precios del orden de 700.
+    atol:        float = 1e-6,
     buyer_competition: str = "aggregate",
     devuelve_multiplicadores: bool = False,
     peso_virtual: str = "barrera",

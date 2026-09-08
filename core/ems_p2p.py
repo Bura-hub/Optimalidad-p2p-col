@@ -303,6 +303,15 @@ class HourlyResult:
     G_klim_k:   Optional[np.ndarray] = None
     D_k:        Optional[np.ndarray] = None
 
+    # H-43 / C-151: vendedores que la restriccion de participacion dejo fuera
+    # de esta hora, por identificador de agente.
+    #
+    # NO salen de `seller_ids`: siguen ahi con su fila de energia a cero. Es
+    # la unica forma de que la liquidacion los siga contando, porque recorre
+    # los vendedores de esa lista para calcular lo que cada uno exporta a la
+    # red. Un vendedor ausente de la lista no exportaria: se evaporaria.
+    retirados:  list  = field(default_factory=list)
+
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
 
@@ -424,6 +433,72 @@ def _run_hour_worker(args):
     # net_benefit, W_sellers/buyers, etc.).
     if np.isnan(P_star).any() or np.isnan(pi_i).any():
         return res
+
+    # ── Restriccion de participacion (H-43 / C-151) ──────────────────────
+    #
+    # Un vendedor no entra si el mercado le paga MENOS QUE SU ALTERNATIVA por
+    # el conjunto de lo que coloca. El criterio es su ingreso ponderado por
+    # energia, que es lo mismo que exigir que su prima no sea negativa: es lo
+    # que decide un vendedor racional (C-149).
+    #
+    # SE ACTIVA SOLA, y por eso no lleva bandera. Con un piso escalar todos
+    # los vendedores tienen el mismo, el precio ya esta acotado por debajo a
+    # ese valor, y el ingreso ponderado nunca queda por debajo: no se retira
+    # nadie jamas. La restriccion es inerte cuando las cotas son uniformes,
+    # que es el caso del modelo base y del sintetico, y muerde solo cuando
+    # los pisos difieren, que es cuando hace falta.
+    #
+    # LA TRAMPA, señalada en H-43 antes de implementar esto: resolver con el
+    # conjunto reducido y quitar al retirado de `seller_ids` haria que la
+    # liquidacion **no lo contara**, porque recorre esa lista para calcular
+    # lo que cada vendedor exporta. Su excedente no se exportaria: se
+    # evaporaria. Es el mismo error que la auditoria encontro en la sonda del
+    # escenario, donde sesgaba la comparacion de facturas en un 76,8 %.
+    #
+    # De ahi que se resuelva con el conjunto reducido y **se reincruste el
+    # resultado en la matriz del tamaño original poniendo a cero las filas de
+    # los retirados**, conservando la lista intacta. Asi el retirado exporta
+    # todo a la red, su prima sale cero, y nada de lo que hay aguas abajo
+    # cambia de forma.
+    if pi_gb_j is not None and J > 1:
+        piso_v = np.asarray(pi_gb_j, dtype=float)
+        fuera = []
+        for u in range(J):
+            colocado = float(P_star[u, :].sum())
+            if colocado <= 1e-9:
+                continue
+            ingreso = float(np.dot(P_star[u, :], pi_i)) / colocado
+            if ingreso < piso_v[u] - 1e-9:
+                fuera.append(u)
+
+        if fuera and len(fuera) < J:
+            quedan = [u for u in range(J) if u not in fuera]
+            sub = _run_hour_worker(
+                (k, G_klim_k, D_k, G_raw_k,
+                 [seller_ids[u] for u in quedan], buyer_ids,
+                 a_all, b_all, lam_all, theta_all, etha_all,
+                 pi_gs, float(np.min(piso_v[quedan])),
+                 tau, tau_buyers, t_span, n_points,
+                 min_iter, tol, max_iter, ode_method, buyer_competition,
+                 metodo, t_span_aco, piso_v[quedan]))
+            # Si el conjunto reducido no resuelve, la hora se queda sin
+            # mercado, que es lo que esta funcion ya hace con las que no
+            # convergen. Mejor sin mercado que con uno que nadie aceptaria.
+            if sub.P_star is None:
+                return res
+            P_completo = np.zeros((J, I))
+            P_completo[quedan, :] = sub.P_star
+            P_star   = P_completo
+            pi_i     = sub.pi_star
+            iter_count = sub.iters_used
+            norm_rel = sub.norm_rel_final
+            # La llamada anidada hace su propia vuelta, de modo que el bucle
+            # se cierra solo. Sus retirados se suman a los de esta vuelta.
+            res.retirados = ([seller_ids[u] for u in fuera]
+                             + list(sub.retirados))
+        elif fuera:
+            # Todos a perdida: no hay mercado que valga esa hora.
+            return res
 
     res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
     res.norm_rel_final = float(norm_rel)

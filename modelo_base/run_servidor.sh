@@ -392,7 +392,19 @@ PYFIN
   recoger)
     DEST="modelo_base/resultados_$(marca).tar.gz"
     VALID="reformateo/documento/validacion_horaria"
-    tar czf "$DEST" "$SALIDAS" "$LOGS" \n        $([[ -d "$VALID" ]] && echo "$VALID") \n        $([[ -d SALIDAS_SERVIDOR ]] && echo SALIDAS_SERVIDOR) \n        2>/dev/null || true
+    # Se arma la lista ANTES, y se comprueba. La version anterior llevaba
+    # una barra con ene literal donde debia ir una continuacion de linea, de
+    # modo que tar recibia tres argumentos llamados «n» que no existen: con
+    # el error escondido y el «|| true» al final, la recogida salia bien
+    # aunque faltara una carpeta entera. Ver C-158.
+    QUE=("$SALIDAS" "$LOGS")
+    [[ -d "$VALID" ]] && QUE+=("$VALID")
+    [[ -d SALIDAS_SERVIDOR ]] && QUE+=(SALIDAS_SERVIDOR)
+    echo "  recogiendo: ${QUE[*]}"
+    for d in "${QUE[@]}"; do
+      [[ -d "$d" ]] || { echo "  AVISO: falta $d"; }
+    done
+    tar czf "$DEST" "${QUE[@]}"
     echo "  resultados en $DEST"
     echo "  $(tar tzf "$DEST" | wc -l) ficheros"
     echo

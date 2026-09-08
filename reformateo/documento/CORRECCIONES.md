@@ -7162,3 +7162,28 @@ minuto y medio y encuentra los fallos que en el servidor cuestan una tanda
 entera. Es la tercera vez que lo hace en dos jornadas.
 
 ---
+
+## C-158 · La recogida de resultados llevaba tres argumentos inexistentes y se callaba
+
+**Encontrado al repasar el paso a paso del servidor, antes de escribirlo.**
+
+La orden que arma el archivo de vuelta tenía **una barra con ene literal**
+donde debía ir una continuación de línea. El intérprete la convierte en el
+carácter «n» a secas, de modo que al empaquetador le llegaban tres argumentos
+llamados «n» que no son ninguna carpeta.
+
+**No fallaba, y eso es lo grave.** El error iba al vacío y la orden terminaba
+con un «o verdadero» al final, de modo que la recogida decía «hecho» y contaba
+sus ficheros aunque faltara una carpeta entera de resultados. Una medición de
+horas se habría perdido en el viaje de vuelta **sin un solo aviso**.
+
+Pasa a armar la lista antes, comprobar que cada carpeta existe, decir en voz
+alta cuáles recoge y avisar de la que falte. Probado: recoge las cuatro y 2.969
+ficheros.
+
+**Es la misma familia de C-149**, el aviso mudo del empaquetado: un carácter
+mal escapado que sobrevive porque el error está silenciado. La norma que se
+repite es que **un silenciador de errores necesita justificación escrita**, y
+ninguno de los dos la tenía.
+
+---

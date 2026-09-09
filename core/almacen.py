@@ -22,7 +22,14 @@ llave, de modo que se pueda pedir cualquier hora, dia o mes despues:
                 comprador, potencia por par, bienestar de los dos lados y
                 **los cuatro multiplicadores**, que son los que dicen que
                 restriccion esta mordiendo.
-  escenarios    una fila por hora, escenario y agente.
+  escenarios    una fila por hora, escenario y agente: lo que ese mecanismo
+                le liquida a ese agente en esa hora (C-165).
+  agentes       una fila por hora y agente (C-166): su demanda, su
+                generacion, su autoconsumo, lo que compra y vende a la RED,
+                su techo, su piso y **el papel que jugo** esa hora. Es lo que
+                la liquidacion por institucion necesita y lo unico que
+                permite dibujar un dia entero con quien entra y quien se
+                retira.
 
 CUANTO OCUPA, medido antes de escribir una linea: las trayectorias de las
 2.937 horas activas de las dos fronteras, con multiplicadores, son 95 MB en
@@ -51,7 +58,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
-TABLAS = ("horas", "flujos", "trayectorias", "escenarios")
+TABLAS = ("horas", "flujos", "trayectorias", "escenarios", "agentes")
 
 # Cada cuantas horas se vuelca una parte. Con 6.144 horas salen unas doce
 # partes por tabla, que es un compromiso entre no perder trabajo y no llenar
@@ -193,6 +200,56 @@ class Almacen:
                 self._empuja("escenarios",
                              dict(base, escenario=esc, agente=nombres[n],
                                   valor=float(v[n])))
+
+    def anota_agentes(self, k: int, nombres, D_k, G_k, techo_k, piso_k,
+                      sids=(), bids=(), retirados=(),
+                      compra_p2p=None, vende_p2p=None) -> None:
+        """Una fila por agente: su energia, su banda y su papel en esa hora.
+
+        POR QUE HACIA FALTA. Las otras tablas describen el MERCADO —quien
+        transo con quien, a que precio, como convergio—, pero ninguna describe
+        al AGENTE. Sin esto no se puede decir cuanto le cobra la red a una
+        institucion por lo que importa ni a cuanto le paga lo que exporta, que
+        es literalmente lo que el asesor pidio ver.
+
+        EL PAPEL se anota como texto porque es lo que se lee en una figura:
+        vendedor, comprador, retirado o inactivo. Un vendedor retirado por el
+        criterio de participacion NO es lo mismo que uno que no tenia
+        excedente, y confundirlos borra el efecto que ese criterio produce.
+        """
+        base = self._llave(k)
+        D_k = np.asarray(D_k, dtype=float)
+        G_k = np.asarray(G_k, dtype=float)
+        te = np.asarray(techo_k, dtype=float)
+        pi_ = np.asarray(piso_k, dtype=float)
+        cp = (np.zeros(len(D_k)) if compra_p2p is None
+              else np.asarray(compra_p2p, dtype=float))
+        vp = (np.zeros(len(D_k)) if vende_p2p is None
+              else np.asarray(vende_p2p, dtype=float))
+        sids, bids, retirados = set(sids), set(bids), set(retirados)
+
+        for n in range(len(D_k)):
+            auto = float(min(max(G_k[n], 0.0), max(D_k[n], 0.0)))
+            sobra = max(float(G_k[n]) - float(D_k[n]), 0.0)
+            falta = max(float(D_k[n]) - float(G_k[n]), 0.0)
+            if n in retirados:
+                papel = "retirado"
+            elif n in sids:
+                papel = "vendedor"
+            elif n in bids:
+                papel = "comprador"
+            else:
+                papel = "inactivo"
+            self._empuja("agentes", dict(
+                base, agente=nombres[n], papel=papel,
+                demanda=float(D_k[n]), generacion=float(G_k[n]),
+                autoconsumo=auto, sobrante=sobra, faltante=falta,
+                # Lo que de verdad cruza la frontera con la red, que es el
+                # sobrante o el faltante MENOS lo que se resolvio dentro.
+                vende_red=max(sobra - float(vp[n]), 0.0),
+                compra_red=max(falta - float(cp[n]), 0.0),
+                vende_p2p=float(vp[n]), compra_p2p=float(cp[n]),
+                techo=float(te[n]), piso=float(pi_[n])))
 
     # ── volcado ───────────────────────────────────────────────────────────
     def _empuja(self, tabla: str, fila: dict) -> None:

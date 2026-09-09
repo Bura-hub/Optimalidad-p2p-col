@@ -422,8 +422,31 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                       paso_horas=float(paso))
         te_m = (None if not use_real_data
                 else np.atleast_2d(np.asarray(pi_gs_arg, dtype=float)))
+        _piso_m = (None if pi_gb_agente is None
+                   else np.asarray(pi_gb_agente, dtype=float))
         for r in p2p_results:
             k = int(r.k)
+            # C-166: la tabla de agentes se llena SIEMPRE, tambien en las
+            # horas sin mercado. Una institucion que esa hora no transo sigue
+            # comprandole a la red, y la liquidacion tiene que verlo.
+            if te_m is not None and _piso_m is not None:
+                _te_k = (te_m[:, k] if te_m.shape[0] > 1
+                         else np.full(len(agent_names), float(te_m[0, k])))
+                _P = (np.asarray(r.P_star, dtype=float)
+                      if r.P_star is not None else None)
+                _cp = np.zeros(len(agent_names))
+                _vp = np.zeros(len(agent_names))
+                if _P is not None and r.seller_ids and r.buyer_ids:
+                    for _a, _j in enumerate(r.seller_ids):
+                        _vp[_j] = float(_P[_a, :].sum())
+                    for _b, _i in enumerate(r.buyer_ids):
+                        _cp[_i] = float(_P[:, _b].sum())
+                alm.anota_agentes(
+                    k, agent_names, D[:, k], G_klim[:, k], _te_k,
+                    _piso_m[:, k], sids=r.seller_ids or (),
+                    bids=r.buyer_ids or (),
+                    retirados=getattr(r, "retirados", ()) or (),
+                    compra_p2p=_cp, vende_p2p=_vp)
             if not r.seller_ids or not r.buyer_ids:
                 alm.sin_resolver(k, "sin mercado esa hora")
                 continue

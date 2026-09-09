@@ -222,13 +222,22 @@ definición, se reporta aparte para el mercado y para el contrato interno, y ah�
 sí son comparables el uno con el otro. Lo que sigue sin poder hacerse es leer
 una columna contra la otra.
 
-**Tres.** El coeficiente de Gini, el precio de la equidad y el cociente frente
-al colectivo **solo existen agregados al horizonte**. No hay versión mensual ni
-horaria, de modo que hoy no se puede decir en qué meses el mercado reparte mejor.
+**Tres.** ~~El coeficiente de Gini, el precio de la equidad y el cociente frente
+al colectivo solo existen agregados al horizonte.~~ **Cerrado** con C-165: cada
+mecanismo anota su dinero en la hora que lo genera, esa anotación suma
+exactamente el total publicado, y de ahí salen las tres métricas por mes, por
+día, por hora del día y por día de la semana.
 
 ---
 
-## Y un defecto menor, encontrado de paso
+## Y dos defectos menores, encontrados de paso · **los dos cerrados**
 
-En el corte por sub-períodos, un campo llamado como el índice de equidad guarda
-en realidad el coeficiente de Gini. Quien lo lea por su nombre leerá otra cosa.
+**El primero.** ~~En el corte por sub-períodos, un campo llamado como el índice de
+equidad guarda en realidad el coeficiente de Gini.~~ Cerrado con C-164: son dos
+campos, y de paso el índice de equidad entra por fin a ese corte, donde
+sencillamente no se guardaba.
+
+**El segundo.** ~~El autoconsumo y la autosuficiencia llevan el nombre del otro, y
+la capa de lectura del documento lo parchea al abrir el libro.~~ Cerrado con
+C-164: corregido en el origen, en las cuatro funciones. Aviso: los artefactos
+anteriores tienen las dos columnas intercambiadas.

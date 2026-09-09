@@ -7715,3 +7715,95 @@ partición global, y queda dicho.
 
 ---
 
+## C-166 · La liquidación por institución, que es lo que el asesor pidió ver
+
+**La pieza central de la ponencia, y la que no existía.** El asesor la pidió en
+la reunión preparatoria del foro con estas palabras:
+
+> «con lo regulatorio está saliéndole a 900 pesos, al usuario le están cobrando
+> 900 pesos, pero los excedentes se los están pagando a 200. Mientras que en el
+> óptimo, al vendedor le están pagando mucho más»
+>
+> «Así sea que tuvieras los resultados **para una entidad**, ¿cómo hacer esa
+> verificación?»
+
+El mínimo exigible era una sola institución. Están las cinco, y además la misma
+cuenta para los cinco mecanismos regulatorios y no solo para el mercado.
+
+### Lo que faltaba para poder hacerla
+
+**Una quinta tabla en el almacén.** Las cuatro que había describen el mercado
+—quién transó con quién, a qué precio, cómo convergió— pero **ninguna describe
+al agente**. Sin la energía, la banda y el papel de cada institución hora a
+hora, no hay con qué decir cuánto le cobra la red por lo que importa ni a cuánto
+le paga lo que exporta.
+
+La tabla nueva se llena **también en las horas sin mercado**, y eso importa: una
+institución que esa hora no transó sigue comprándole a la red, y la liquidación
+tiene que verlo.
+
+El papel se anota como palabra —vendedor, comprador, retirado o inactivo— porque
+es lo que se lee en una figura, y porque **un vendedor retirado por el criterio
+de participación no es lo mismo que uno que no tenía excedente**. Confundirlos
+borra el efecto que ese criterio produce.
+
+### Dos tasas de red, y no una
+
+Preguntan cosas distintas, y la distinción se ve en el primer día que se mira:
+
+- **la efectiva**, lo que la red le cobró y le pagó de verdad por la energía que
+  sí cruzó la frontera;
+- **la contrafáctica**, lo que le habría cobrado y pagado por todo su faltante y
+  todo su sobrante, es decir si no hubiera mercado.
+
+La que hay que comparar contra el precio de dentro es la segunda. Una
+institución que coloca **todo** su excedente dentro de la comunidad no le vende
+nada a la red y su tasa efectiva no existe; decir que no existe sería cierto y
+sería inútil. Lo que hay que decir es a cuánto se lo habrían pagado.
+
+Y las dos van ponderadas por energía, no por hora: la media simple del techo a
+lo largo del día pesa igual una hora en la que la institución mueve treinta
+kilovatios y una en la que no mueve ninguno, y sale un precio al que nadie
+compró ni vendió nada.
+
+### Lo que sale, sobre el 2 de mayo de 2025
+
+| Institución | le cobraría la red | le pagaría la red | compra dentro | vende dentro | se ahorra |
+|---|---:|---:|---:|---:|---:|
+| Cesmag | 777,2 | — | 683,7 | — | 1.620 |
+| HUDN | 731,1 | 692,7 | 573,4 | 724,9 | 1.036 |
+| Mariana | 731,1 | — | 666,8 | — | 1.036 |
+| UCC | 731,1 | — | 666,8 | — | 1.036 |
+| Udenar | 731,1 | **464,1** | — | **657,2** | 9.846 |
+
+Precios en (COP/kWh) y ahorro en (COP).
+
+**La última fila es la frase del asesor, medida.** A Udenar la red le pagaría su
+excedente a 464,1 y dentro de la comunidad lo coloca a 657,2. La diferencia no
+es un supuesto: es el ancho de su banda repartido por el juego.
+
+### Y la comparación que una ponencia necesita
+
+La segunda tabla pone al lado lo que cada mecanismo le dejaría a esa institución
+en ese período, y **no gana siempre el mismo**:
+
+| Institución | mejor mecanismo |
+|---|---|
+| Udenar | mercado entre pares |
+| HUDN | mercado entre pares |
+| Cesmag | contrato interno |
+| Mariana | colectivo |
+| UCC | colectivo |
+
+Eso es un resultado, no un defecto del modelo: **al vendedor grande le conviene
+el mercado y al comprador puro le conviene el colectivo**, que reparte el
+excedente por porcentaje acordado en vez de por negociación. Es exactamente la
+tensión que el capítulo de equidad tiene que explicar.
+
+### Lo que no hace
+
+**No vuelve a simular.** Cada cifra es una agregación de filas que la corrida
+escribió, de modo que no puede discrepar de la tabla publicada.
+
+---
+

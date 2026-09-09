@@ -2984,12 +2984,15 @@ usa para la deserción y para el índice de equidad.
 
 ## H-44 · La dinámica del modelo base no deriva de su bienestar publicado
 
-**Estado: MEDIDO el 2026-09-06, con compuerta. RECTIFICADO EL 2026-09-08 POR
-H-60: la medición se sostiene, pero su atribución era incorrecta. La aptitud
-sigue el gradiente del artículo **publicado**; lo que se desvía es nuestra
-función de informe, que traduce el MATLAB de la autora. El factor de 7.778 no
-separa dos documentos suyos: separa el bienestar del artículo del bienestar de
-su código. Léase este hallazgo con H-60 delante.**
+**Estado: MEDIDO el 2026-09-06, con compuerta. CONFIRMADO Y REFORZADO el
+2026-09-08 por H-61, que ademas lo deriva a mano.**
+
+> **Aviso sobre una rectificacion que se escribio y se retiro el mismo dia.**
+> H-60 sostuvo durante unas horas que la atribucion de este hallazgo era
+> incorrecta. **El equivocado era H-60**, por haber tomado el documento
+> extenso por el articulo de la revista: son dos textos distintos, y el fichero
+> que el proyecto guarda es el extenso. **Este hallazgo era correcto tal como
+> se escribio.** Ver H-61.
 
 Salió al preguntarse por qué la función que informa del bienestar del
 comprador usa una forma del término de competencia y la dinámica usa otra.
@@ -5132,9 +5135,14 @@ diferencia cae justo en la pieza que decide si transar sube el bienestar.
 
 ### El vendedor · tres diferencias, no una
 
-Ecuaciones (6) y (7) de la página 4 del artículo, leídas en el PDF:
+Ecuaciones (6) y (7) de la página 4 del **documento extenso**, leídas en el
+PDF. **Este hallazgo las rotuló «artículo publicado» y era un error mío**: el
+fichero que el proyecto guarda no es el artículo de la revista sino el
+documento extenso de la maestría, con otro título y otro orden de autores. El
+artículo publicado dice lo contrario y coincide con su código, como H-40 ya
+había establecido. Ver H-61.
 
-| | Artículo, ec. (6)-(7) | Su MATLAB y su Python | Nuestro código |
+| | Documento extenso, ec. (6)-(7) | Su MATLAB y su Python | Nuestro código |
 |---|---|---|---|
 | Recompensa | **Σ_i P_ji · π_i** | −Σ_i P_ji / ln(1+π_i) | como el suyo |
 | Coeficiente cuadrático | **θ_j / 2** | θ_j | θ_j |
@@ -5336,8 +5344,10 @@ Y el término de pago del artículo, derivado respecto del precio:
 
 ### De donde se siguen tres cosas
 
-**Primera: el juego de precios está bien planteado.** La dinámica asciende por
-el gradiente del bienestar **del artículo publicado**, con sus tres piezas: la
+**Primera: el juego de precios asciende por un gradiente coherente.** La
+dinámica sube por el gradiente del bienestar **del documento extenso** —este
+hallazgo lo llamó «artículo publicado» y era un error mío, ver H-61—, con sus
+tres piezas: la
 recompensa lineal en el precio, el factor del piso, y el logaritmo multiplicando
 en vez de dividiendo.
 
@@ -5352,19 +5362,15 @@ de H-59, no ha estropeado ni un precio ni un kilovatio hora transado.
 ecuaciones publicadas. Son ellas las que producen el sinsentido de que transar
 baje el bienestar.
 
-### La rectificación de H-44
+### Lo que este hallazgo dijo de H-44, y era falso
 
-H-44 concluyó que la aptitud sigue el gradiente del bienestar **del documento
-extenso** y no del publicado, con un factor de 7.778 entre ambos.
+Sostuvo que H-44 atribuía mal la diferencia y que la aptitud seguía al artículo
+publicado. **Falso, y el error era mío**: confundí el documento extenso con el
+artículo de la revista.
 
-Con la ecuación (14) leída en el PDF impreso, la lectura correcta es otra:
-**la aptitud sigue el gradiente del artículo publicado**, y lo que se desvía es
-**nuestra función de informe**, que sigue al MATLAB. El factor de 7.778 no
-separa dos documentos: separa **el bienestar del artículo del bienestar del
-código**, que es exactamente lo que H-58 documentó por otro camino.
-
-La medición de H-44 sigue siendo válida; lo que se rectifica es a qué se
-atribuye la diferencia.
+**H-44 era correcto.** La aptitud sigue el gradiente del **documento extenso**,
+exactamente como decía. Lo que este hallazgo sí aporta, y se mantiene, es la
+**derivación a mano** que lo eleva de medido a demostrado. Ver H-61.
 
 ### Qué se hace, y es mucho menos de lo que parecía
 
@@ -5380,4 +5386,138 @@ colombiana. Como no entra en el juego, esa decisión solo cambia el nivel del
 número informado.
 
 Ver H-40, H-44, H-55, H-58 y H-59.
+
+---
+
+## H-61 · Ni la forma publicada ni la extensa son un bienestar bien planteado, y el que sí lo es ya lo publicamos
+
+**Estado: RESUELTO el 2026-09-08 con análisis de la literatura y fuentes
+verificables. Corrige un error propio y cierra la línea abierta por H-58,
+H-59 y H-60.**
+
+### Primero, el error, porque lo demás no se entiende sin él
+
+H-58 y H-60 llamaron «artículo publicado» al fichero
+`Documentos/Modelo_Base_Sofía_Chacon.pdf`. **No lo es.** Ese fichero es el
+**documento extenso** de la maestría, con otro título y otro orden de autores.
+El artículo de la revista es otro y dice lo contrario.
+
+Y el registro **ya lo tenía bien**: H-40 cita la ecuación (11) de la versión
+publicada con la división por el logaritmo y la recompensa negativa de su
+ecuación (4), y concluye que «las dos formas que este proyecto había elegido
+son las publicadas». **Contradije un hallazgo propio que era correcto.**
+
+Queda restituido H-44 y acotados H-58 y H-60.
+
+### El mapa correcto, con las tres fuentes en su sitio
+
+| Fuente | Recompensa del vendedor | Pago del comprador |
+|---|---|---|
+| **Artículo publicado**, ec. (4) y (11) | −Σ P_ji / ln(1+π_i) | + Σ P_ji / ln(π_i+1) |
+| **Su código**, MATLAB y Python | igual | igual |
+| **Documento extenso**, ec. (6) y (14) | Σ P_ji·π_i | π_gb · Σ P_ji · ln(1/(π_i+1)) |
+
+> **Nosotros informamos la publicada y el juego optimiza la extensa.** Las dos
+> son suyas. Eso es H-44, y sigue en pie.
+
+### Y la conclusión que ninguna de las dos salva
+
+**Ninguna de las dos formas es un bienestar bien planteado**, y por razones
+distintas:
+
+**La publicada no tiene el dinero dentro.** Su término de pago es la misma
+suma con signo opuesto en los dos lados: **se cancela**, y lo que queda son
+costos crecientes. Por eso el bienestar se maximiza sin transar, y **ningún
+valor de los parámetros lo arregla**: la utilidad multiplica cantidades fijas
+y no entra en ninguna condición de primer orden.
+
+**La extensa crea o destruye dinero al transar.** El vendedor recibe precio por
+energía y el comprador paga el piso por el logaritmo del precio: **no son la
+misma cantidad**, de modo que la suma no es un excedente.
+
+**Y el logaritmo del precio no es dimensionalmente admisible** en ninguna de las
+dos. Exige que el precio sea adimensional, y el uno del logaritmo es
+implícitamente una unidad monetaria: el modelo daría equilibrios distintos
+corrido en pesos o en dólares. Con un precio de 750 pesos el logaritmo vale
+6,62; con el mismo precio en dólares, 0,17. **Una razón de 39 donde el pago
+real cambia por 3.950.**
+
+**La apelación a la aversión al riesgo no sostiene el logaritmo.** La aversión
+relativa es una propiedad de una utilidad sobre la **riqueza** y bajo
+**incertidumbre**. Aquí el argumento del logaritmo es el **precio**, y la
+transacción es determinista. Y las cuatro referencias que la propia autora
+invoca para el término de pago **lo modelan linealmente**, como su texto
+reconoce.
+
+### La forma correcta, según las fuentes que ella misma cita
+
+Bienestar **cuasilineal**, que es lo que hace que la suma sea un excedente bien
+definido porque las transferencias se cancelan y queda utilidad menos costo:
+
+    comprador   W_i = λ_i·q_i − (θ_i/2)·q_i² − π_i·q_i − β_i·competencia
+    vendedor    W_j = Σ_i π_i·P_ji − [ a_j(ΣP)² + b_j·ΣP + c_j ]
+
+con la utilidad sobre la **energía comprada**, no sobre el autoconsumo fijo.
+
+Verificado en las fuentes primarias: Samadi y otros (2010), que es el origen de
+la forma cuadrática, con su regla de que en el óptimo el beneficio marginal
+iguala al precio anunciado; Paudel y otros (2019), que es la referencia [6] del
+propio artículo, con la utilidad sobre el consumo **total** y el pago lineal; y
+Mao y otros (2023), su referencia [3], con el pago lineal y la preferencia
+calibrada **al precio de compra a la red**.
+
+### La calibración, con su fundamento
+
+Con esa forma la demanda es `q(π) = (λ − π)/θ`, y de ahí tres hechos:
+
+**λ es el precio de reserva**, en pesos por kilovatio hora. Con λ = 100 y un
+techo de 730, el modelo afirma que ninguna institución compraría a la red, cosa
+que hacen todos los días.
+
+**λ se ancla a la elasticidad:** `λ = π · (1 + 1/|ε|)`. Con las elasticidades
+disponibles para Colombia, de −0,38 a corto plazo en el estudio residencial del
+Valle de Aburrá y una industria descrita como casi inelástica, el rango
+defendible es **2.250 a 8.250 (COP/kWh)**, con centro cerca de **3.250**.
+
+**θ sale de la escala de demanda de cada agente:** `θ_i = (λ_i − techo_i)/D_i`,
+y por tanto **es heterogéneo**. Con λ de 3.250 va de 167 a 2.500 según la
+institución. El 0,5 uniforme heredado está tres órdenes de magnitud por debajo.
+
+**Contraste independiente** que respalda el orden de magnitud: los costos
+incrementales de racionamiento de la UPME, cuyo primer escalón es del orden de
+la tarifa y cuyo cuarto escalón, que aproxima el precio de reserva, la supera
+entre seis y siete veces.
+
+### Y aquí está lo que resuelve todo
+
+> **El excedente que este proyecto ya publica ES el bienestar cuasilineal.**
+
+La descomposición canónica —prima del vendedor `(π − piso)·q` más ahorro del
+comprador `(techo − π)·q`, cuya suma es el ancho de la banda por la energía, que
+es la identidad de H-33— **es exactamente** el bienestar cuasilineal con la
+preferencia del comprador igual a **su techo** y el costo de oportunidad del
+vendedor igual a **su piso**.
+
+De modo que **hoy optimizamos una función e informamos otra, teniendo ya
+calculada la correcta y sin llamarla por su nombre.**
+
+### Qué se hace
+
+**Nada en el juego.** La estructura de Stackelberg, el replicador, la
+relajación lagrangiana y las cotas no se tocan.
+
+**El excedente pasa a ser la métrica de bienestar**, con su nombre y su
+fundamento, y deja de presentarse solo como una cifra contable.
+
+**Las dos funciones heredadas se conservan** como compuerta de reproducción del
+caso publicado, declaradas como lo que son.
+
+**La calibración de la utilidad queda como sensibilidad opcional**, no como
+corrección: sirve para responder qué pasaría con una demanda elástica, y la
+respuesta previsible es poco, porque la variación del volumen a lo ancho de la
+banda es del 2 al 7 % con el piso de permuta. Es D-7 otra vez, y ahora con
+fundamento microeconómico: **la forma funcional no crea elasticidad donde la
+demanda no la tiene.**
+
+Ver H-33, H-40, H-44, H-55, H-58, H-59 y H-60.
 

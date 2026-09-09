@@ -86,12 +86,42 @@ def cobertura(t_inicio: str, t_fin: str,
                 maximo=float(v.max()) if v.size else float("nan"))
 
 
-def precio_horario(index, ruta: Optional[Path] = None) -> np.ndarray:
+def precio_horario(index, descuento: float = 1.0,
+                   ruta: Optional[Path] = None) -> np.ndarray:
     """Vector (T,) con el precio de contrato de cada hora del indice.
 
     Constante dentro del mes, que es la granularidad de la fuente. Mismo
     patron que la tarifa mensual por agente.
+
+    EL SUPUESTO QUE HAY QUE DECLARAR, y es el mas fragil de este modulo. La
+    serie es el promedio ponderado de **los contratos que se transan en el
+    mercado mayorista**, en su mayoria grandes generadores vendiendo a
+    comercializadores. Usarla como el precio que recibiria una instalacion
+    solar de escala institucional por su excedente es un supuesto, y
+    probablemente generoso: nadie le paga a un autogenerador pequeno el mismo
+    precio que a una central.
+
+    Medido sobre el horizonte, con el descuento en uno:
+
+        contrato   media 287,4   desviacion   3,6
+        bolsa      media 181,8   desviacion 139,6
+
+    y la bolsa solo supera al contrato en el 11,6 % de las horas. **El
+    contrato domina a la bolsa por partida doble**, paga mas y varia menos, lo
+    que deja el escenario de mercado mayorista trivialmente peor. Si
+    contratar fuera siempre mejor, nadie se expondria al mercado.
+
+    Por eso el `descuento` existe y por eso su valor **no se elige, se barre**:
+    es el factor por el que un autogenerador negocia por debajo de la
+    referencia del mercado. Con uno se usa la referencia tal cual, que es el
+    caso mas favorable al contrato y el que hay que declarar como tal.
+
+    **Va como consulta al asesor**, junto con la pregunta de si existe una
+    referencia publicada para autogeneradores de pequena escala.
     """
+    if not 0.0 < descuento <= 1.5:
+        raise ValueError(f"descuento={descuento}; se espera un factor "
+                         f"razonable sobre la referencia del mercado")
     idx = pd.DatetimeIndex(index)
     d = carga(ruta).set_index("mes")["no_regulado"]
     meses = idx.strftime("%Y-%m")
@@ -109,4 +139,4 @@ def precio_horario(index, ruta: Optional[Path] = None) -> np.ndarray:
             f"{malos.size} valores de contrato fuera de la banda de cordura "
             f"[{MINIMO:.0f}; {MAXIMO:.0f}] COP/kWh. Suele significar que la "
             f"fuente cambio de unidades o de columna.")
-    return v
+    return v * float(descuento)

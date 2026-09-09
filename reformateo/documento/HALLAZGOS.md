@@ -5610,3 +5610,73 @@ implícitamente su calibración correcta**.
 
 Ver H-61, D-7, CAL-2, CAL-5, CAL-32 y CAL-33.
 
+---
+
+## H-63 · El precio de contrato domina al de bolsa, y eso vuelve trivial la comparación
+
+**Estado: PLANTEADO el 2026-09-08. Lo destapó una observación del autor sobre la
+compuerta de CAL-51: «si igualas al precio de la bolsa, el escenario sería igual
+al de exposición al mercado».**
+
+La observación era sobre la prueba, y la prueba está bien: iguala los precios y
+comprueba que **no queda ninguna otra diferencia** entre los dos escenarios. Si
+con el mismo precio siguieran discrepando, habría una asimetría escondida.
+
+Pero de ahí sale una consecuencia que no se había mirado.
+
+### Lo medido sobre el horizonte
+
+| | Media (COP/kWh) | Desviación |
+|---|---:|---:|
+| Contrato | 287,4 | **3,6** |
+| Bolsa | 181,8 | **139,6** |
+
+Y la bolsa **solo supera al contrato en el 11,6 % de las horas**, 712 de 6.144.
+
+> **El contrato domina a la bolsa por partida doble: paga más y varía menos.**
+
+### Por qué eso es sospechoso
+
+Si contratar fuera siempre mejor en las dos dimensiones, **nadie se expondría al
+mercado mayorista**. La exposición existe porque quien la acepta espera cobrar
+una prima por el riesgo, o porque no consigue contraparte. Un modelo donde una
+alternativa domina a la otra sin contrapartida describe un mercado que no
+existe.
+
+### La causa, que es un supuesto no declarado
+
+La serie de XM es el promedio ponderado de **los contratos que se transan en el
+mercado mayorista**, en su mayoría grandes generadores vendiendo a
+comercializadores.
+
+**Usarla como el precio que recibiría una instalación solar de escala
+institucional por su excedente es un supuesto, y probablemente generoso.** Nadie
+le paga a un autogenerador de un megavatio el mismo precio que a una central.
+
+Lo verosímil es que un autogenerador negocie **por debajo** de esa referencia,
+en algún punto entre la bolsa y el promedio del mercado.
+
+### Qué se hace
+
+**Entra un factor de descuento declarado**, con su fundamento escrito en el
+módulo del precio. Con uno se usa la referencia tal cual, que es **el caso más
+favorable al contrato**, y así hay que presentarlo.
+
+**Su valor no se elige, se barre.** Es la única forma honesta de presentarlo
+mientras no haya una referencia publicada para autogeneradores pequeños.
+
+Con los tres puntos de barrido ya calculados: 288,0 al uno, 230,4 al 0,8 y 172,8
+al 0,6. Por debajo de 0,63 el contrato deja de dominar en media a la bolsa, y
+ahí la comparación **empieza a tener contenido**.
+
+### Y va como consulta al asesor
+
+Dos preguntas concretas, que él puede responder y nosotros no:
+
+1. ¿Existe una referencia publicada del precio al que se liquidan los
+   excedentes de autogeneradores de pequeña escala bajo el literal a?
+2. Si no la hay, ¿qué descuento sobre el promedio del mercado sería defendible
+   ante un jurado?
+
+Ver C-162, que separa los dos escenarios, y la ficha de los cinco.
+

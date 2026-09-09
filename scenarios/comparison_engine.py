@@ -121,7 +121,7 @@ def run_comparison(
     para el contrato bilateral. Bajo CAL-12 representaba solo G (caso
     consumidor regulado). Bajo CAL-13 representa **G + Cvm + COT** (caso
     comunidad MTE como usuario no-regulado agregado bajo Ley 143/1994 +
-    CREG 086/1996 + CREG 174/2021 art. 23.1.a). El parámetro mantiene
+    CREG 086/1996 + CREG 174/2021 art. 23 num. 2 lit. a). El parámetro mantiene
     su nombre histórico `pi_G` por compatibilidad. Acepta float, `(N,)`,
     `(T,)` o `(N, T)` — análogo a `pi_gs`. Si None y no se proveen los
     componentes descompuestos (CAL-16), C2 cae al comportamiento BTM

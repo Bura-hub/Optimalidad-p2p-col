@@ -17,7 +17,9 @@ jurídica común (asociación, cooperativa o comunidad energética con
 demanda agregada ≥ 55 MWh/mes o potencia conectada ≥ 100 kW)
 califican como **usuario no-regulado** y pueden firmar contratos
 bilaterales a precio libre con AGPE FNCER miembros bajo CREG 174/2021
-art. 23 num. 1.a.
+art. 23 num. 2 lit. a. El numeral 1 es el de los AGPE que NO usan FNCER;
+las cinco instalaciones son solares, de modo que les aplica el 2. Verificado
+en el texto oficial el 2026-09-08; la cita anterior decia num. 1.a.
 
 Bajo Res. CREG 119/2007 (arts. 6-14) el Costo Unitario CU se descompone:
 

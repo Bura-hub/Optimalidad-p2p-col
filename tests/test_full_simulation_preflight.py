@@ -105,7 +105,7 @@ def test_banner_CAL13_en_main_simulation():
     # Verificación adicional: banner cita las normas correctas
     assert "Ley 143/1994" in src
     assert "CREG 086/1996" in src
-    assert "CREG 174/2021 art. 23.1.a" in src
+    assert "CREG 174/2021 art. 23 num. 2 lit. a" in src
 
 
 def test_no_banners_legacy_pre_CAL13():

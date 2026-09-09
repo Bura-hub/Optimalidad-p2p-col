@@ -521,7 +521,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # CAL-13 (ADR-0013): rango negociable + ahorro de comercialización
     # = G + Cvm + COT, para C2 (PPA bilateral con comunidad como usuario
     # no-regulado agregado bajo Ley 143/1994 + CREG 086/1996 + CREG 174/2021
-    # art. 23 num. 1.a). El usuario no-regulado se ahorra Cvm + COT
+    # art. 23 num. 2 lit. a; el numeral 2 es el de FNCER, que es el caso de las
+    # cinco). El usuario no-regulado se ahorra Cvm + COT
     # (margen del comercializador minorista) además de poder negociar G.
     # Origen: columnas Gm + Cvm + COT del CSV Cedenar (PDFs CEDENAR).
     if use_real_data and full_horizon:
@@ -550,7 +551,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     else:
         pi_G_msg = f"escalar {pi_G_arg:.1f} COP/kWh (proxy 1.5·pi_bolsa)"
     print(f"    [CAL-13] C2 (Ley 143/1994 art. 41 + CREG 086/1996 + "
-          f"CREG 174/2021 art. 23.1.a): comunidad MTE como usuario "
+          f"CREG 174/2021 art. 23 num. 2 lit. a): comunidad MTE como usuario "
           f"no-regulado agregado; savings_cons sobre (G+Cvm+COT); "
           f"rango negociable = {pi_G_msg}.")
 

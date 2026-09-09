@@ -7447,3 +7447,126 @@ hallazgo». Se diseñó para reventar el día que dejaran de serlo.
 Ver la ficha de los cinco escenarios y H-40.
 
 ---
+## C-163 · El contrato bilateral pasa a ser interno, y con eso el escenario responde a la pregunta que importa
+
+**CAL-52. Sustituye en producción a C-162, que se conserva porque lo que midió
+sigue siendo válido y porque explica por qué había que llegar hasta aquí.**
+
+### La pregunta que el escenario anterior no contestaba
+
+C-162 le puso al contrato bilateral el precio que XM publica para los contratos
+del mercado mayorista, y con eso dejó de ser una copia del escenario de bolsa.
+Estaba bien y sigue en pie. Pero H-63, midiéndolo, encontró que ese precio
+**domina a la bolsa por partida doble**: paga más, con media de 287,4 frente a
+181,8, y varía menos, con desviación de 3,6 frente a 139,6. La bolsa solo lo
+supera en el 11,6 % de las horas.
+
+Un escenario cuyo resultado está decidido antes de correrlo no informa nada. Y
+peor: usar el promedio de los contratos entre grandes generadores y
+comercializadores como el precio que recibiría una instalación solar
+institucional es un supuesto generoso que nadie puede sostener con una fuente.
+
+### Lo que el autor decidió, y por qué reordena el escenario
+
+Consultado con las dos alternativas sobre la mesa, el autor eligió **el
+contrato interno**, pactado **en el punto medio de la banda**.
+
+Y eso cambia lo que el escenario mide. Ya no es «a cuánto vendo el excedente
+afuera», que es una pregunta de precio de mercado, sino:
+
+> **Los mismos vecinos, la misma energía, los mismos flujos. Lo único que
+> cambia es que el precio se pacta de antemano en vez de formarse en el juego.
+> ¿Qué aporta entonces el mecanismo dinámico?**
+
+Es la comparación que le faltaba a la tesis, porque es la única que aísla el
+mecanismo de todo lo demás.
+
+### El precio, y no tiene parámetros libres
+
+Cada pareja contrata en el punto medio de su propia banda:
+
+$$\pi_{ji} = \frac{\text{techo}_i + \text{piso}_j}{2}$$
+
+A mitad de camino entre lo que el comprador pagaría a la red y lo que la red le
+pagaría al vendedor. **Reparte la banda a la mitad**, de modo que el ahorro del
+comprador y la prima del vendedor son iguales por construcción.
+
+De ahí la propiedad que lo vuelve un patrón útil: **su índice de reparto vale
+cero exacto**. Es el reparto perfectamente equitativo, y el mercado entre pares
+se mide contra él.
+
+**El factor de reparto, que era el parámetro libre más atacable de la tesis, ya
+no existe.** No se calibra ni se barre: sale de la aritmética.
+
+### Y por la identidad de H-33, el excedente no cambia
+
+El ancho de la banda por la energía transada es el mismo se pacte el precio que
+se pacte. Lo que cambia es **quién se lo lleva**. De modo que la comparación
+mide si el mecanismo reparte mejor o peor que una regla fija, que es justo la
+pregunta que el modelo base plantea con su índice de equidad.
+
+### Lo que se midió, sobre el 2 de mayo de 2025 en producción
+
+| Escenario | Beneficio (COP) | Índice de equidad | Gini |
+|---|---:|---:|---:|
+| Mercado entre pares | 168.194 | −0,3465 | 0,1589 |
+| Autogeneración individual | 153.956 | −0,3019 | 0,1719 |
+| **Contrato interno** | **141.575** | −0,1840 | 0,2276 |
+| Mercado mayorista | 132.970 | −0,1917 | 0,2471 |
+| Colectivo horario | 143.279 | −0,1462 | 0,2846 |
+
+Y el reparto del excedente, que es lo que este escenario existe para contrastar:
+
+| | Compradores | Vendedores |
+|---|---:|---:|
+| Mercado entre pares | 34,62 % | 65,38 % |
+| **Contrato interno** | **50,00 %** | **50,00 %** |
+
+**El mercado desplaza 15,38 puntos porcentuales del excedente hacia los
+vendedores frente al reparto a la mitad.** Esa cifra es el aporte del mecanismo
+dinámico, dicho en la única unidad en que se puede decir.
+
+### El índice de equidad de la tabla NO es ese cero, y conviene decir por qué
+
+La columna de equidad de la tabla mide otra cosa: agrega el beneficio de cada
+agente, lo parte en dos grupos por su cobertura solar, y compara los grupos.
+Escribir el cero del contrato en esa columna dejaría **una celda que no
+significa lo mismo que sus vecinas**, que es justamente el defecto que la ficha
+de los escenarios ya tiene anotado.
+
+De modo que la columna se queda uniforme y la propiedad del contrato se reporta
+aparte, donde puede comprobarse sin contaminar la comparación.
+
+### La pareja que no firma
+
+Nada garantiza que el techo del comprador esté por encima del piso del
+vendedor: son dos agentes con dos tarifas. Con la banda invertida no hay precio
+que deje a los dos mejor que yendo a la red, y ese contrato no se firma; la
+energía se trata como la que el mercado no coloca y va a bolsa. Medido en
+H-64.
+
+### Las cinco comprobaciones
+
+`tests/gate_cal52_contrato_interno.py`, en verde:
+
+| | Medido |
+|---|---|
+| El reparto es exacto a la mitad | índice **6,1·10⁻¹⁷** |
+| El excedente es el ancho de la banda por la energía | dif **2,9·10⁻¹¹** |
+| La banda invertida no se firma | 6 de 104 parejas, forzadas a propósito |
+| El excedente no depende del precio pactado | dif **0,00e+00**; la cuota del vendedor sí se mueve 33,3 pp |
+| Nada se pierde ni se inventa | firmados + sin firmar = asignados |
+
+La cuarta es la que convence: movido el reparto a un tercio y a dos tercios de
+la banda, **el total no se mueve un solo dígito** y solo cambia quién se lo
+lleva. Es la comprobación directa de que este escenario mide reparto y no
+tamaño de la torta.
+
+### Qué queda del escenario anterior
+
+El precio de contrato de XM y su cargador **se conservan y siguen probados**.
+El escenario los acepta por parámetro y sin él reproduce lo de antes bit a bit.
+Queda disponible como variante, medido en H-63, y como consulta al asesor.
+
+---
+

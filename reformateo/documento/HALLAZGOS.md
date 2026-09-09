@@ -5680,3 +5680,66 @@ Dos preguntas concretas, que él puede responder y nosotros no:
 
 Ver C-162, que separa los dos escenarios, y la ficha de los cinco.
 
+## H-64 · La banda del mercado se invierte, y hoy no muerde por casualidad
+
+**Encontrado por una compuerta que se escribió para otra cosa.** La de CAL-52
+comprobaba que el precio pactado cae dentro de la banda de cada pareja, y falló
+sobre datos sintéticos: seis de ciento cuatro parejas quedaban fuera.
+
+### Qué es una banda invertida
+
+El techo y el piso de una pareja **no son del mismo agente**. El techo es lo que
+el comprador le paga a la red, y depende de su tarifa. El piso es lo que la red
+le paga al vendedor, y depende de la suya. Nada obliga a que el segundo esté por
+debajo del primero.
+
+Cuando el piso queda por encima del techo, **la banda tiene ancho negativo**: no
+hay ningún precio que deje a las dos partes mejor que yendo cada una a la red.
+Transar ahí no reparte excedente, lo destruye.
+
+### Medido sobre el horizonte completo
+
+| | Primera frontera | Segunda frontera |
+|---|---:|---:|
+| Parejas-hora con banda invertida | 55 de 153.600 | 2.918 de 153.600 |
+| | **0,036 %** | **1,900 %** |
+| Ancho mínimo (COP/kWh) | −161,59 | −182,72 |
+| **De las parejas con papeles compatibles** | **0 de 5.239** | **0 de 8.552** |
+
+La última fila es la que importa. **La banda se invierte, pero nunca en una
+pareja que pudiera transar**: en el instante en que uno tiene excedente y el
+otro déficit, sus cotas están siempre en el orden correcto.
+
+### Por qué no es una casualidad tranquilizadora
+
+Que hoy no muerda no es una propiedad del modelo: es una coincidencia de las
+tarifas de estas cinco instituciones en estos nueve meses. El techo es el costo
+unitario mensual de cada agente y el piso es su crédito de permuta; los dos se
+mueven con el calendario tarifario, y la separación entre el mayor de los pisos
+y el menor de los techos no está garantizada por ninguna regla.
+
+Con otra frontera, otra comercializadora u otro año, la inversión puede caer
+sobre una pareja activa, y entonces:
+
+- el excedente que la identidad de H-33 contabiliza sería **negativo** para esa
+  pareja, sin que nada lo señalara;
+- el precio pactado del contrato interno quedaría **fuera de las dos cotas**;
+- y el mercado entre pares estaría asignando energía a una pareja que ninguna
+  de las dos partes querría.
+
+### Qué se hizo
+
+El contrato interno **se niega a firmar** una banda invertida y devuelve esa
+energía al residual, que es el mismo trato que recibe la que el mercado no
+coloca. La compuerta de CAL-52 fuerza el caso a propósito sobre datos
+sintéticos, porque con los reales la guarda nunca se ejercitaría.
+
+### Lo que queda abierto
+
+**El mercado entre pares no tiene esa guarda.** Hoy no la necesita, y está
+medido. Queda anotado como cosa que hay que mirar si alguna vez entra una
+frontera nueva, y como argumento a favor de la regla de las once fronteras que
+el trabajo futuro ya contempla.
+
+---
+

@@ -1,6 +1,6 @@
 # Los cinco escenarios regulatorios, auditados contra la norma
 
-**Estado al 2026-09-08.** Una ficha por escenario: qué artículo lo sostiene, la
+**Estado al 2026-09-08**, con la ficha del contrato reescrita tras CAL-52. Una ficha por escenario: qué artículo lo sostiene, la
 fórmula tal como está programada, qué precios usa y con qué granularidad, y
 **qué supuestos no vienen de la norma**.
 
@@ -15,7 +15,7 @@ ficha escrita.** Compañero de `MODELO_DEFINITIVO.md` y de `PARAMETROS.md`.
 |---|---|
 | P2P | el mercado entre pares, que es lo que la tesis estudia |
 | C1 | autogeneración individual |
-| C2 | contrato bilateral |
+| C2 | contrato bilateral **interno**, a precio pactado |
 | C3 | exposición al mercado mayorista |
 | C4 | autogeneración colectiva, **en dos granularidades** |
 | C5 | autogeneración remota |
@@ -80,33 +80,53 @@ mide y lo eleva a consulta.
 
 ---
 
-## C2 · Contrato bilateral
+## C2 · Contrato bilateral interno
 
-**Norma.** Resolución CREG 174, artículo 23 **numeral 2 literal a**: venta a un
-tercero con destino a usuarios no regulados, **a precio pactado libremente**.
-Con la Ley 143 de 1994 y la Resolución CREG 086 de 1996 sosteniendo la
-condición de usuario no regulado.
+**Norma.** Resolución CREG 174, artículo 23 **numeral 2 literal a**: venta a
+precio **pactado libremente**. La comunidad es el destino de esa venta, y la
+condición de usuario no regulado la sostienen la Ley 143 de 1994 y la
+Resolución CREG 086 de 1996.
 
-**Qué debería modelar.** La venta del excedente bajo contrato, a un precio que
-**no es el de bolsa ni el crédito de permuta**: es el pactado.
+**Qué modela, y es la comparación que le faltaba a la tesis.** Los mismos
+vecinos intercambian **la misma energía** que intercambiarían en el mercado
+entre pares, pero a un precio pactado de antemano en vez de a uno formado por el
+juego. Es lo que un contrato de suministro hace: fijar el precio y quitar la
+incertidumbre.
 
-**Qué modela hoy, y es el defecto.** Nada de eso. En el caso real las cinco
-instituciones son prosumidoras y **no hay ningún consumidor puro**, de modo que
-la rama del contrato **nunca se ejecuta** y el escenario cae a una rama que
-calcula autoconsumo más excedente a bolsa horaria. **Que es literalmente C3.**
+Aísla exactamente lo que aporta el mecanismo dinámico. Mismos flujos, misma
+comunidad, misma energía: lo único que cambia es cómo se forma el precio. Si el
+contrato diera lo mismo, la dinámica de replicador y la relajación lagrangiana
+no estarían aportando nada, y eso hay que saberlo antes de que lo pregunte un
+jurado.
 
-Con la consecuencia de que **todos** sus parámetros quedan inertes: el precio
-del contrato, el factor de reparto y los cuatro componentes tarifarios.
+**El precio, y no tiene parámetros libres.** Cada pareja contrata en el punto
+medio de su propia banda, a mitad de camino entre lo que el comprador pagaría a
+la red y lo que la red le pagaría al vendedor. Reparte la banda a la mitad, de
+modo que el ahorro del comprador y la prima del vendedor son iguales por
+construcción.
 
-**Lo que falta, y no hay que postularlo.** El precio de contrato lo publica XM
-por tipo de mercado, el asesor lo señaló en acta con su ruta, y **el fichero
-lleva meses en el repositorio sin que ninguna línea de código lo lea**. La
-columna del mercado no regulado da entre 283 y 291 COP/kWh en el horizonte.
+De ahí la propiedad que lo vuelve un patrón útil: **su índice de reparto vale
+cero exacto**, y el mercado entre pares se mide contra él. Medido sobre el 2 de
+mayo de 2025, el mercado desplaza **15,38 puntos porcentuales** del excedente
+hacia los vendedores frente al reparto a la mitad.
 
-**Lo que NO debe entrar aquí.** Que la comunidad compre su déficit por contrato.
-Eso ya está en la capa tarifaria y aplica a **los seis mecanismos por igual**;
-meterlo otra vez aquí contaría dos veces el mismo beneficio y rompería la
-propiedad sobre la que descansa el capítulo de precios.
+**Granularidad: horaria**, y el precio cambia con la banda de cada pareja en
+cada hora.
+
+**Lo que NO entra aquí.** Que la comunidad compre su déficit por contrato. Eso
+ya está en la capa tarifaria y aplica a los seis mecanismos por igual; meterlo
+otra vez aquí contaría dos veces el mismo beneficio.
+
+**Y una guarda que hoy no muerde.** Cuando el piso del vendedor queda por encima
+del techo del comprador la banda está invertida y ese contrato no se firma; la
+energía va a bolsa con el resto del sobrante. Medido en H-64: pasa en el 0,036 %
+y el 1,900 % de las parejas-hora, pero en ninguna con papeles compatibles.
+
+**La variante que quedó medida y no adoptada.** Vender el excedente a un tercero
+al precio que XM publica para los contratos del mercado mayorista. H-63 encontró
+que ese precio domina a la bolsa por partida doble, con media de 287,4 frente a
+181,8 y desviación de 3,6 frente a 139,6, lo que dejaba el escenario de mercado
+mayorista trivialmente peor. El cargador y sus pruebas se conservan.
 
 ---
 
@@ -187,13 +207,20 @@ que pasa por la red.
 
 ## Los tres defectos que la auditoría deja abiertos
 
-**Uno.** La cita del artículo 23 está equivocada en cinco sitios y un test la
-exige. Se corrige con el cambio de C2.
+**Uno.** ~~La cita del artículo 23 está equivocada en cinco sitios y un test la
+exige.~~ **Cerrado** con C-162: la cita quedó en el numeral 2 y el test corregido.
 
 **Dos.** El índice de equidad tiene **dos definiciones distintas**: una por hora
 para el mercado entre pares y otra agregada para los escenarios, esta con una
 partición por la mediana del cociente entre generación y demanda. Comparar una
 con la otra no es comparar lo mismo.
+
+Acotado, no resuelto. La columna de la tabla usa **una sola** de las dos, la
+agregada, para los seis mecanismos, de modo que sus celdas son comparables entre
+sí. El reparto entre las dos partes de cada intercambio, que es la otra
+definición, se reporta aparte para el mercado y para el contrato interno, y ahí
+sí son comparables el uno con el otro. Lo que sigue sin poder hacerse es leer
+una columna contra la otra.
 
 **Tres.** El coeficiente de Gini, el precio de la equidad y el cociente frente
 al colectivo **solo existen agregados al horizonte**. No hay versión mensual ni

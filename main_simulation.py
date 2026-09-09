@@ -648,8 +648,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # excedente a la bolsa horaria y coincidia con el de mercado mayorista al
     # ultimo digito. El precio lo publica XM y el fichero ya estaba en el
     # repositorio sin que nada lo leyera.
+    # RETIRADO como definicion de C2 por decision del autor el 2026-09-08:
+    # C2 pasa a ser el contrato INTERNO de CAL-52. La venta a un tercero del
+    # literal a queda medida y registrada en H-63, con el hallazgo de que a
+    # precio de mercado domina a la bolsa en las dos dimensiones a la vez, lo
+    # que vuelve trivial esa comparacion. Se conserva alcanzable para el dia
+    # que el asesor resuelva la consulta.
     pi_contrato_arg = None
-    if use_real_data:
+    if False and use_real_data:
         idx_c = (index_full if full_horizon else
                  idx_day if single_day else None)
         if idx_c is not None:
@@ -673,7 +679,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
         pde=pde,
         pi_ppa=pi_ppa_default,
-        pi_contrato=pi_contrato_arg,                    # CAL-51
+        # CAL-52: C2 pasa a ser el contrato bilateral INTERNO, es decir los
+        # mismos flujos del mercado a precio pactado en el punto medio de la
+        # banda. Necesita el piso de cada vendedor.
+        piso_agente=pi_gb_agente,
+        pi_contrato=None,                               # CAL-51, ver H-63
         capacity=cap,
         month_labels=month_labels,
         component_c=component_c_arg,
@@ -1564,7 +1574,7 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
     esc_labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1": "C1 CREG 174/2021",
-        "C2": "C2 Bilateral PPA",
+        "C2": "C2 Contrato interno",
         "C3": "C3 Mercado spot",
         "C4": "C4 CREG 101 072 ★ (horario)",
         "C4_mensual": "C4 CREG 101 072 ★ (mensual)",

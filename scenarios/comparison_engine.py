@@ -71,6 +71,20 @@ class ComparisonResult:
     # intangibles del mecanismo P2P más allá de los flujos de caja.
     W_sellers_total: float = 0.0   # Σ_k W_j(k) sobre todas las horas activas
     W_buyers_total:  float = 0.0   # Σ_k W_i(k) sobre todas las horas activas
+    # ── El detalle propio del contrato interno (CAL-52) ─────────────────
+    #
+    # POR QUE VIAJA APARTE Y NO EN LA COLUMNA DE EQUIDAD. El contrato reparte
+    # la banda a la mitad, de modo que el ahorro del comprador y la prima del
+    # vendedor son iguales y su indice de reparto vale **cero exacto**. Pero la
+    # columna de equidad de la tabla mide otra cosa: agrega el beneficio de
+    # cada agente, lo parte en dos grupos por su cobertura solar, y compara los
+    # grupos. Escribir el cero del contrato en esa columna dejaria una celda
+    # que no significa lo mismo que sus vecinas, que es justamente el defecto
+    # que la ficha de los escenarios ya tiene anotado.
+    #
+    # De modo que la columna se queda uniforme y la propiedad del contrato se
+    # reporta aqui, donde puede comprobarse sin contaminar la comparacion.
+    contrato_c2: dict = field(default_factory=dict)
 
 
 def run_comparison(
@@ -111,6 +125,10 @@ def run_comparison(
     # CAL-51: precio pactado del contrato bilateral, (T,) o escalar.
     # Con None se conserva el comportamiento anterior bit a bit.
     pi_contrato:  Union[float, np.ndarray, None] = None,
+    # CAL-52: el piso de cada vendedor, matriz (N, T). Lo necesita el
+    # contrato interno para su punto medio. Con None, C2 se comporta como
+    # antes.
+    piso_agente:  Union[np.ndarray, None] = None,
     cobertura_contrato: float = 1.0,
 ) -> ComparisonResult:
     """
@@ -229,7 +247,64 @@ def run_comparison(
         cobertura_contrato=cobertura_contrato,
         dt=dt,
     )
-    c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])
+    # ── CAL-52: el contrato bilateral INTERNO ────────────────────────────
+    #
+    # Los mismos flujos que el mercado entre pares, pero a un precio PACTADO
+    # en el punto medio de la banda de cada pareja en vez de negociado. Es lo
+    # que un contrato de suministro hace: fijar el precio y quitar la
+    # incertidumbre.
+    #
+    # Aisla exactamente lo que aporta el mecanismo dinamico. Por la identidad
+    # de H-33 el excedente total no cambia, de modo que la comparacion mide
+    # **si el juego reparte mejor o peor que una regla fija**. Y el punto
+    # medio reparte la banda a la mitad, con lo que su indice de equidad es
+    # cero exacto: es el patron perfectamente equitativo.
+    if piso_agente is not None:
+        from scenarios._c2_interno import contrato_interno
+        flujos = [(r.k, r.seller_ids, r.buyer_ids, r.P_star)
+                  for r in p2p_results
+                  if r.P_star is not None and r.seller_ids and r.buyer_ids]
+        ci = contrato_interno(flujos, pi_gs_v, piso_agente, N, dt=dt)
+        # Mismo convenio que el mercado entre pares (CAL-30): autoconsumo a la
+        # tarifa propia, y el excedente no colocado a bolsa horaria.
+        c2_net = ci["ingreso_vendedor"] + ci["ahorro_comprador"]
+        for n in prosumer_ids:
+            for k in range(T):
+                c2_net[n] += min(G_klim[n, k], D[n, k]) * pi_gs_v[n, k] * dt
+        # El excedente no colocado, a bolsa horaria, igual que en el mercado
+        # entre pares (CAL-30). Se arma el mapa de lo colocado en UNA pasada:
+        # el bucle ingenuo recorre todas las horas por cada agente y cuesta
+        # cuadratico sobre el horizonte.
+        colocado = np.zeros((N, T))
+        for r in p2p_results:
+            if r.P_star is None or not r.seller_ids:
+                continue
+            Pk = np.asarray(r.P_star, dtype=float)
+            for a_, j in enumerate(r.seller_ids):
+                colocado[j, r.k] += float(Pk[a_, :].sum())
+        # Lo que el contrato no firma no esta colocado, y va a bolsa con el
+        # resto del sobrante. Sin esto se perderia de la contabilidad.
+        colocado = np.maximum(colocado - ci["sin_firmar"] / max(dt, 1e-12), 0.0)
+        pb_v = (np.full(T, float(pi_gb)) if pi_bolsa is None
+                else np.asarray(pi_bolsa, dtype=float).reshape(-1))
+        for n in prosumer_ids:
+            sob = np.maximum(G_klim[n, :] - D[n, :], 0.0)
+            c2_net[n] += float(np.sum(np.maximum(sob - colocado[n, :], 0.0)
+                                      * pb_v)) * dt
+        cr.net_benefit["C2"]           = float(np.sum(c2_net))
+        cr.net_benefit_per_agent["C2"] = c2_net
+        cr.contrato_c2 = dict(
+            equidad=float(ci["equidad"]),      # cero exacto por construccion
+            parejas_sin_firmar=int(ci["parejas_sin_firmar"]),
+            precio_medio=float(ci["precio_medio"]),
+            kwh=float(ci["kwh"]),
+            excedente=float(ci["excedente"]),
+            ingreso_vendedor=ci["ingreso_vendedor"],
+            ahorro_comprador=ci["ahorro_comprador"],
+        )
+    else:
+        c2_net = np.array([c2["per_agent"][n]["net_benefit"]
+                           for n in range(N)])
     cr.net_benefit["C2"]           = float(np.sum(c2_net))
     cr.net_benefit_per_agent["C2"] = c2_net
 
@@ -884,7 +959,8 @@ def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1":  "C1  CREG 174 — AGPE",
-        "C2":  "C2  Bilateral PPA (no regulado)",
+        "C2":  ("C2  Contrato interno (precio pactado)" if cr.contrato_c2
+                else "C2  Bilateral PPA (no regulado)"),
         "C3":  "C3  Mercado spot",
         "C4":  "C4  CREG 101 072 — AGRC",
         "C5":  "C5  CREG 101 099 — AGR",
@@ -941,7 +1017,13 @@ def print_comparison_report(cr: ComparisonResult) -> None:
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
         "C1":  "C1  Individual CREG 174/2021",
-        "C2":  f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)",
+        # CAL-52: el rotulo dice el precio MEDIO PACTADO cuando el contrato es
+        # el interno, que ya no tiene un precio unico: cada pareja contrata en
+        # el punto medio de su propia banda. Con el contrato externo, el de
+        # antes.
+        "C2":  (f"C2  Contrato interno (${cr.contrato_c2['precio_medio']:.0f}"
+                f"/kWh medio)" if cr.contrato_c2
+                else f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)"),
         "C3":  "C3  Spot (bolsa mayorista)",
         "C4":  "C4  Colectivo CREG 101 072 (horario)",
         "C4_mensual": "C4m Colectivo CREG 101 072 (mensual)",
@@ -984,4 +1066,18 @@ def print_comparison_report(cr: ComparisonResult) -> None:
     dominant = "compradores" if cr.ps_p2p > cr.psr_p2p else "vendedores"
     print(f"    → Asimetría: {psr_gap:.2f} pp a favor de {dominant}  "
           f"(IE={cr.equity_index.get('P2P', 0):.4f})")
+    # CAL-52: el patron contra el que se mide ese reparto. El contrato interno
+    # liquida los MISMOS flujos al punto medio de la banda, de modo que su
+    # reparto es 50/50 exacto. Puestos uno al lado del otro, la diferencia es
+    # lo que el mecanismo dinamico le quita a un lado y le da al otro.
+    if cr.contrato_c2:
+        d = cr.contrato_c2
+        print("-"*68)
+        print("  Y el mismo reparto bajo contrato interno a precio pactado:")
+        print(f"    reparto 50,00 % / 50,00 %  (índice {d['equidad']:+.2e}, "
+              f"cero por construcción)")
+        print(f"    precio medio pactado: {d['precio_medio']:,.2f} COP/kWh "
+              f"sobre {d['kwh']:,.1f} kWh")
+        print(f"    → el mercado desplaza {psr_gap/2:.2f} pp del excedente "
+              f"hacia {dominant} frente al reparto a la mitad")
     print("="*68)

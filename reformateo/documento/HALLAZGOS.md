@@ -5811,3 +5811,52 @@ Sobre una muestra amplia de horas con precio interior, y no sobre una:
 
 ---
 
+## H-66 · El término de rivalidad tampoco mueve nada, y esta vez sobre el parámetro que el modelo base barre
+
+**Es la extensión de H-62 al único parámetro del modelo que representa
+competencia entre agentes del mismo lado**, y se midió al reproducir la figura
+12 del modelo base.
+
+### Qué es y por qué se sospechaba de él
+
+El coeficiente de rivalidad mide cuánto le molesta a un comprador que otros
+compren dentro de la comunidad. Su valor de producción, 0,1, viene heredado del
+modelo base **sin justificación medida**, y era uno de los que quedaban abiertos
+en la ficha de parámetros.
+
+### Lo que se midió
+
+Sobre la hora 2363 de la primera frontera, seis valores de cero a 0,8:
+
+| Coeficiente | Precio acordado (COP/kWh) | Energía asignada (kWh) |
+|---|---:|---:|
+| 0,00 | 469,09 | 5,527 |
+| 0,05 | 469,09 | 5,527 |
+| 0,10 · producción | 469,09 | 5,527 |
+| 0,20 | 469,09 | 5,527 |
+| 0,40 | 469,09 | 5,527 |
+| 0,80 | 469,09 | 5,527 |
+
+**Idéntico en las seis.** El recorrido del precio sobre el barrido completo es
+0,00 (COP/kWh) y el de la energía, 0,000 (kWh).
+
+### Por qué importa para la defensa
+
+Es el argumento más directo contra la objeción que un jurado plantearía primero:
+que el resultado depende de una calibración que nadie justificó. Sobre el
+parámetro que el propio modelo base considera digno de una figura, **el
+ordenamiento no se mueve**.
+
+Se suma a lo ya medido en H-62 y al margen de setenta y ocho veces que A-6
+encontró en el análisis de sensibilidad global.
+
+### Una cautela, y es la misma de siempre
+
+Es **una hora**. La medición sobre una muestra amplia va al servidor con la
+corrida oficial. Y conviene decir que el barrido es costoso por una razón que
+conecta con H-65: para ciertos coeficientes el integrador se vuelve rígido y la
+hora tarda minutos en resolver, de modo que el barrido lleva su plazo por valor
+y anota los que no resuelven en vez de colgarse.
+
+---
+

@@ -7898,3 +7898,52 @@ sino el contrato interno de la comunidad al punto medio de la banda.
 
 ---
 
+## C-168 · Un plazo que estaba escrito y no mordía
+
+**Encontrado al construir el barrido del término de rivalidad**, y merece
+entrada propia porque el patrón se repite en todo el proyecto: **un plazo que no
+mata el trabajo no es un plazo**.
+
+### El primer intento
+
+Un ejecutor de procesos con un solo obrero, y una espera con plazo sobre cada
+tarea. Parece correcto y no lo es, por una razón que la documentación dice y que
+es fácil pasar por alto: **un ejecutor no puede cancelar una tarea que ya está
+corriendo**. Cancelar solo funciona sobre las que aún esperan en la cola.
+
+De modo que al vencer el plazo, la tarea seguía ocupando al único obrero, el
+valor siguiente quedaba en cola detrás de ella, y al cerrar el ejecutor la
+espera era infinita. El barrido llevaba quince minutos parado **sin decir en qué
+valor**, que es lo peor de las dos cosas.
+
+### El segundo intento, y por qué tampoco bastó
+
+Un proceso propio por valor, que sí se puede terminar. Correcto en la forma, y
+aun así **todos los valores agotaban el plazo**, incluidos los que un momento
+antes resolvían en segundos.
+
+La causa: en esta plataforma cada proceso hijo arranca de cero y reimporta el
+módulo entero, de modo que **volvía a cargar el conjunto completo de mediciones
+antes de integrar nada**. El plazo se consumía leyendo ficheros. Con el ejecutor
+esto no se notaba porque el obrero se reutilizaba y solo el primer valor pagaba
+la carga.
+
+### Lo que quedó
+
+Un proceso por valor, terminable, **y el dato cargado una vez en el padre y
+pasado al hijo**. Así el plazo mide lo que debe medir, que es la integración.
+
+Y el valor que no resuelve dentro del plazo **se anota como tal**: queda en la
+tabla de datos de la figura y se cuenta en su pie. Un hueco declarado es un
+resultado; un barrido que nunca termina, no.
+
+### Por qué se registra
+
+Porque la lección de C-156 —el plazo por tarea— se había aplicado en la
+recogida de las sondas y aquí se volvió a escribir mal. La regla, en una línea:
+
+> **Comprueba que el plazo mata el trabajo, y que lo que el plazo mide es el
+> trabajo y no el arranque.**
+
+---
+

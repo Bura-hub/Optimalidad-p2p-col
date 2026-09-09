@@ -57,8 +57,17 @@ def _plano(obj, prefijo="", salida=None):
     return salida
 
 
-def huella() -> dict:
-    """Corre el caso sintetico entero y devuelve su huella numerica."""
+def huella(dt=None) -> dict:
+    """Corre el caso sintetico entero y devuelve su huella numerica.
+
+    `dt` con None deja que cada modulo use su valor por defecto, que es el
+    camino historico. Con 1.0 el factor de duracion del paso viaja EXPLICITO
+    por toda la comparacion. La propiedad que CAL-46 exige es que las dos
+    huellas sean identicas bit a bit, y con este parametro la compuerta puede
+    comprobarla ella sola, sin fichero de referencia y sin depender de la
+    maquina: las dos mitades corren en el mismo proceso.
+    """
+    _dt = {} if dt is None else dict(dt=float(dt))
     D = np.asarray(get_demand_profiles(), float)
     G = np.asarray(get_generation_profiles(), float)
     N, T = D.shape
@@ -93,6 +102,7 @@ def huella() -> dict:
         g_component=300.0, cvm_component=60.0, cot_component=20.0,
         mem_costs=10.0, include_c5=True,
         pi_escasez=np.full(T, 900.0),
+        **_dt,
     )
 
     h = {}
@@ -110,10 +120,10 @@ def huella() -> dict:
         liq = residual_settlement(
             r0.P_star, G_klim[r0.seller_ids, 0], D[r0.buyer_ids, 0],
             G_klim[:, 0], D[:, 0], 797.0, pi_gb,
-            r0.seller_ids, r0.buyer_ids,
+            r0.seller_ids, r0.buyer_ids, **_dt,
         )
         _plano(liq, "liquidacion", h)
-        _plano(compute_savings(r0.P_star, r0.pi_star, 797.0, pi_gb),
+        _plano(compute_savings(r0.P_star, r0.pi_star, 797.0, pi_gb, **_dt),
                "ahorros", h)
 
     # Techo de escasez sobre la serie horaria.
@@ -143,6 +153,32 @@ def main() -> int:
     h = huella()
     print(f"huella con {len(h)} numeros")
 
+    # SIN NINGUNA BANDERA, LA COMPUERTA SE COMPRUEBA A SI MISMA (C-170).
+    #
+    # Antes no hacia nada: imprimia «nada que hacer» y **salia con codigo
+    # cero**, de modo que la lista de compuertas del servidor la daba por
+    # buena. Una compuerta que no verifica nada y ademas lo aparenta es peor
+    # que no tenerla, y este proyecto ya conocia la clase de fallo.
+    #
+    # La propiedad de CAL-46 se puede comprobar sin fichero de referencia y
+    # sin depender de la maquina: se corre la misma huella con el factor de
+    # duracion IMPLICITO y con el mismo factor EXPLICITO en uno, y las dos
+    # tienen que coincidir bit a bit. Las dos mitades corren en el mismo
+    # proceso, de modo que no hay nada que un servidor distinto pueda mover.
+    if not args.escribe and not args.compara:
+        print("sin fichero de referencia: se comprueba la propiedad de CAL-46")
+        e = huella(dt=1.0)
+        distintas = sorted(k for k in set(h) & set(e) if h[k] != e[k])
+        faltan = sorted(set(h) ^ set(e))
+        if distintas or faltan:
+            print("\nCOMPUERTA CAL-46 FALLA: el paso explicito mueve el resultado")
+            for k in (distintas + faltan)[:12]:
+                print(f"    {k}: {h.get(k)} -> {e.get(k)}")
+            return 1
+        print(f"\nPASO HORARIO EXPLICITO IDENTICO AL IMPLICITO "
+              f"({len(h)} numeros, bit a bit)")
+        return 0
+
     if args.escribe:
         Path(args.escribe).write_text(
             json.dumps(h, indent=0, sort_keys=True), encoding="utf-8")
@@ -166,7 +202,6 @@ def main() -> int:
         print(f"\nCAMINO HORARIO IDENTICO ({len(h)} numeros, bit a bit)")
         return 0
 
-    print("nada que hacer: use --escribe o --compara")
     return 0
 
 

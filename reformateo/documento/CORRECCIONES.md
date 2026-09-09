@@ -8018,3 +8018,59 @@ que hay que poder afirmar antes de cambiarlo.
 
 ---
 
+## C-170 · Una compuerta de la corrida oficial no verificaba nada, y lo aparentaba
+
+**Encontrado leyendo la salida de la corrida oficial en el servidor**, el 9 de
+septiembre, mientras pasaba. La compuerta del paso de tiempo imprimía:
+
+> `huella con 672 numeros`
+> `nada que hacer: use --escribe o --compara`
+
+y salía con **código cero**, de modo que el lanzador la daba por buena y
+escribía `ok` debajo.
+
+### Por qué estaba así
+
+Se escribió como herramienta de desarrollo, no como compuerta: compara la
+corrida de antes de un cambio contra la de después, y para eso necesita que
+alguien le pase un fichero de referencia. Al entrar en la lista del servidor se
+invocó sin argumentos, y entonces no hace nada.
+
+Es la misma clase de fallo que el proyecto ya conocía —el lanzador tiene un
+guardia para las pruebas que saltan todas y salen con cero— aplicada a un caso
+que ese guardia no cubría.
+
+### Lo que se hizo, y evita el fichero de referencia
+
+**La propiedad de la decisión se puede comprobar sin referencia y sin depender
+de la máquina.** Lo que se afirma es que con paso horario el resultado no se
+mueve ni un bit cuando el factor de duración viaja explícito. De modo que basta
+correr la misma huella dos veces en el mismo proceso —una con el factor
+implícito y otra con el mismo factor explícito— y exigir que coincidan.
+
+Las dos mitades corren en la misma máquina y en el mismo instante, así que no
+hay nada que un servidor distinto pueda mover.
+
+Y **sin banderas ya no sale con cero sin verificar**: hace esa comprobación.
+
+### Que la comprobación muerde, y se midió
+
+No basta con que pase: hay que saber que fallaría si tuviera que fallar. Con el
+factor de duración puesto en dos en vez de en uno, **79 de los 672 números
+cambian**. La comprobación tiene dientes.
+
+Y con el factor en uno, los 672 coinciden bit a bit.
+
+### Qué significa para la corrida del 9 de septiembre
+
+**La propiedad de CAL-46 no quedó verificada en esa corrida.** Las otras
+dieciséis compuertas sí corrieron y sí verificaron; esta no. No invalida las
+cifras —el paso horario es el que la corrida usa, y es el que la decisión
+declara conservador— pero la afirmación de que el camino explícito es idéntico
+al histórico se apoya, para esa corrida, en la medición del día en que se tomó
+la decisión y no en una comprobación de esa misma corrida.
+
+Queda verificada desde la siguiente.
+
+---
+

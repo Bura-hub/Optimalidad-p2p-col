@@ -12,9 +12,10 @@ Compañero de `MODELO_DEFINITIVO.md`, que dice qué es el modelo, y de
 ## El titular, y conviene abrir con él
 
 > **De los parámetros libres del modelo base, ninguno gobierna el resultado.
-> Cinco son inertes, invariantes o cero, y el único que mueve algo es un costo
-> medido. Lo que decide el resultado son las dos cotas, y las dos salen de la
-> regulación y del tarifario.**
+> Medido resolviendo la partida con valores extremos: tres dan cero exacto y
+> los otros tres se quedan por debajo de la tolerancia del integrador. Lo que
+> decide el resultado son las dos cotas y el lado corto, y las cotas salen de
+> la regulación y del tarifario.**
 
 Eso no es una defensa retórica: cada afirmación tiene su medición y está abajo.
 
@@ -153,16 +154,24 @@ hay.»
 
 ### El costo lineal de generación · entre 225 y 241, por institución
 
-**Qué es.** El costo marginal de generar. **Es el único parámetro que de verdad
-mueve el resultado**, porque entra en la aptitud del vendedor como su costo
+**Qué es.** El costo marginal de generar. **Es el que más peso tiene en la
+aptitud del vendedor**, porque entra en ella directamente como su costo
 marginal.
 
 **De dónde sale.** No es un supuesto: es el **costo nivelado de la energía
 solar medido por inversor**, con la corrección de irradiancia de Pasto. CAL-6.
 
-**Si lo preguntan.** «Es lo único del modelo base que gobierna el resultado, y
-por eso no lo heredamos: lo medimos. Sale del costo nivelado de cada
-instalación.»
+**Y sin embargo tampoco movió el resultado en la medición de H-62**: con la
+mitad y con el doble de su valor, la diferencia en el precio fue de 7·10⁻⁸ y en
+el volumen de 2·10⁻¹⁴. Es la observación que hace sospechar que en esa hora el
+precio está pegado a una cota, y la razón de que el barrido haya que repetirlo
+sobre horas de precio interior.
+
+**Si lo preguntan.** «Es el parámetro con más peso en la dinámica, y por eso no
+lo heredamos: lo medimos, del costo nivelado de cada instalación. Aun así, en
+la hora que barrimos ni él movió el resultado, porque el precio topaba en una
+cota. Repetir ese barrido sobre horas de precio interior está pendiente y
+declarado.»
 
 ### El costo fijo · vale cero
 

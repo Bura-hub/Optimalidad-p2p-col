@@ -7256,3 +7256,79 @@ comparación es emparejada y una hora a medias sesga igual. Y se dice en voz
 alta cuántas y cuáles.
 
 ---
+
+## C-161 · El almacén de la corrida, y la trayectoria que el motor tiraba
+
+**Fase 1 y 2 del plan del aparato de datos.**
+
+### Lo que se tiraba
+
+`core/ems_p2p.py` obtenía, para cada hora, la trayectoria completa de la
+integración con sus multiplicadores ya calculados, y **se quedaba con dos
+matrices y un escalar**. Todo lo demás moría al salir de la función.
+
+Con dos consecuencias que se arrastraban desde el principio:
+
+- **Ninguna figura de convergencia podía dibujarse sin volver a simular.** Y
+  las que existen no persisten ni el precio ni las potencias en el tiempo: la
+  única que exporta algo guarda cuatro columnas de bienestar de una sola hora.
+- **Ninguna vía de producción devolvía la trayectoria de una hora elegida.** La
+  que las guarda escoge las horas sola por heurística y solo dos; la que acepta
+  una hora devolvía escalares. Por eso toda figura de convergencia pasaba por
+  las sondas, **fuera del motor y de sus cotas**.
+
+### El almacén
+
+Cuatro tablas en parquet, con la cobertura, la hora y la fecha como llave:
+**horas**, **flujos**, **trayectorias** y **escenarios**. Se escribe **por
+partes**, un fichero cada tantas horas, por la lección que este proyecto ya
+pagó dos veces: una medición larga que solo escribe al final cuesta la tanda
+entera cuando algo se cae.
+
+**Tres cosas que ahora salen y antes no:** los retirados por hora, el piso y el
+techo de cada agente, y el estado del integrador.
+
+**Y los flujos entran sin filtrar los pares de energía casi nula**, que el
+desglose de producción descarta bajo un umbral. Con ellos se perdía la prueba
+de que el par existió y de que el mercado lo consideró.
+
+**Las dos guardas**, las dos de fallos reales: una hora que no resuelve se
+anota **como no resuelta con su motivo**, y una solución no finita **nunca**
+entra como resuelta, porque las sumas descartan esos valores en silencio
+(C-160).
+
+### Y la trayectoria, ahora a petición
+
+El resultado por hora puede traer la suya, **con los multiplicadores**, que son
+los que dicen qué restricción está mordiendo. Sin ellos una figura de
+convergencia enseña el precio deteniéndose sin poder decir por qué.
+
+Es **opt-in**, de modo que el comportamiento por omisión queda idéntico bit a
+bit.
+
+### La comprobación que de verdad prueba el almacén
+
+Un almacén que mienta pasa desapercibido para siempre: sus tablas se leen
+bonitas y nadie las compara contra lo que el modelo hace. La compuerta cruzada
+resuelve la misma hora **por el motor y por la sonda**, que son dos caminos
+escritos con semanas de diferencia:
+
+| | Medido |
+|---|---|
+| El precio coincide | **0,00e+00** |
+| El reparto coincide | **0,00e+00** |
+| La trayectoria se guarda entera | 150 de 150 pasos |
+| El último paso es el estacionario | 2,0·10⁻⁸ |
+| Los multiplicadores llegan | 10 columnas |
+
+### Una diferencia de convención que la compuerta destapó
+
+Las dos vías **no listan igual a un vendedor retirado**. El motor lo
+**conserva** en su lista con la fila a cero, que es lo que H-43 exige, «quien
+sale del mercado no sale de la contabilidad»; la sonda lo quita de la suya.
+
+Comparar por posición daba un desacuerdo del 100 % donde no lo había. **La
+compuerta compara por identidad de agente**, y queda escrito para que nadie
+vuelva a leerlo como un defecto.
+
+---

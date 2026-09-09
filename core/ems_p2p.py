@@ -311,6 +311,12 @@ class HourlyResult:
     # los vendedores de esa lista para calcular lo que cada uno exporta a la
     # red. Un vendedor ausente de la lista no exportaria: se evaporaria.
     retirados:  list  = field(default_factory=list)
+    # La trayectoria de la hora, opt-in. Hasta hoy el trabajador la obtenia
+    # entera, con sus multiplicadores ya integrados, y se quedaba con dos
+    # matrices y un escalar: todo lo demas moria al salir de la funcion. Sin
+    # ella no hay forma de dibujar la convergencia de una hora elegida sin
+    # volver a simular. Ver el almacen y la fase 2 del plan.
+    tr:         object = None
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
@@ -337,12 +343,17 @@ def _run_hour_worker(args):
     # anterior para no romper a los llamadores que arman la tupla a mano.
     if len(args) == 24:
         args = args + (None,)
+    # Y el almacen anade el ultimo: si se pide, la hora devuelve su
+    # trayectoria entera en vez de tirarla. Opt-in, para que el
+    # comportamiento por omision quede identico bit a bit.
+    if len(args) == 25:
+        args = args + (False,)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
      min_iter, tol, max_iter, ode_method, buyer_competition,
-     metodo, t_span_aco, pi_gb_j) = args
+     metodo, t_span_aco, pi_gb_j, guarda_tr) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -384,7 +395,11 @@ def _run_hour_worker(args):
                 # CAL-49: la via acoplada no recibia la forma del termino de
                 # competencia, de modo que elegirla no la afectaba y las dos
                 # vias podian correr con formas distintas sin avisar.
-                buyer_competition=buyer_competition)
+                buyer_competition=buyer_competition,
+                # Los multiplicadores dicen QUE RESTRICCION esta mordiendo.
+                # Sin ellos, la figura de convergencia enseña el precio
+                # deteniendose sin poder decir por que se detiene ahi.
+                devuelve_multiplicadores=bool(guarda_tr))
         except Exception:
             return res
         # El integrador avisa cuando no logra resolver. Antes de CAL-48 esa
@@ -405,6 +420,8 @@ def _run_hour_worker(args):
         rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
         iter_count = int(traj.shape[1])
         norm_rel = mov / rec if rec > 1e-12 else 0.0
+        if guarda_tr:
+            res.tr = tr
     else:
         iter_count = 0
         P_old = np.zeros_like(P_star)
@@ -878,12 +895,20 @@ class EMSP2P:
 
         return conv_list
 
-    def run_single_hour(self, k: int, D: np.ndarray, G: np.ndarray) -> HourlyResult:
+    def run_single_hour(self, k: int, D: np.ndarray, G: np.ndarray,
+                        devuelve_trayectoria: bool = False) -> HourlyResult:
         """Una hora suelta, para diagnostico.
 
         C-146 y C-148: honra las mismas cotas por agente que `run`. Si no se
         hiciera, esta via daria un resultado distinto del de la corrida y el
         diagnostico dejaria de diagnosticar la corrida.
+
+        Con `devuelve_trayectoria` el resultado trae ademas la trayectoria
+        entera de la hora, con sus multiplicadores. Hasta hoy **ninguna via de
+        produccion devolvia la trayectoria de una hora elegida**: la que las
+        guarda escoge las horas sola por heuristica y solo dos, y esta
+        devolvia escalares. Era la razon de que toda figura de convergencia
+        tuviera que pasar por las sondas, fuera del motor y de sus cotas.
         """
         ag = self.agents; gr = self.grid; sv = self.solver
         te = (gr.pi_gs if gr.pi_gs_agente is None
@@ -901,4 +926,5 @@ class EMSP2P:
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
                                   sv.ode_method, sv.buyer_competition,
-                                  sv.metodo, sv.t_span_acoplado, pj))
+                                  sv.metodo, sv.t_span_acoplado, pj,
+                                  bool(devuelve_trayectoria)))

@@ -567,20 +567,29 @@ def d1_liquidacion(destino, cobertura: str):
 
 
 def d2_mecanismos(destino, cobertura: str):
-    """Qué le deja cada mecanismo a cada institución, y por qué no gana el mismo.
+    """Cuánto pierde cada institución si le imponen el mecanismo equivocado.
 
-    Es la figura que impide la conclusión fácil. El mercado no es mejor para
-    todos: al que vende mucho le conviene, y al que solo compra puede
-    convenirle más el colectivo, que reparte por porcentaje acordado en vez de
-    por negociación. Decirlo antes de que lo pregunte un jurado es la
-    diferencia entre un resultado y una defensa.
+    POR QUE NO SE DIBUJA EL BENEFICIO ABSOLUTO, que es lo primero que uno hace.
+    Los seis mecanismos liquidan cifras muy parecidas para una misma
+    institucion, de modo que seis barras absolutas salen del mismo largo y la
+    figura no ensena nada: el titulo afirma que a cada quien le conviene algo
+    distinto y las barras no lo muestran. Desde la ultima fila de un auditorio,
+    peor todavia.
+
+    Lo que si se ve es **la distancia al mejor**, con el ganador en cero. Y en
+    porcentaje del beneficio de esa institucion, no en pesos, porque las cinco
+    son de tamanos muy distintos y una diferencia de doscientos mil pesos no
+    significa lo mismo para la mas grande que para la mas pequena.
+
+    Y asi aparece lo que en pesos absolutos quedaba escondido: **la discusion no
+    es simetrica**. Para el mayor generador, elegir mal cuesta la quinta parte
+    de su beneficio; para las demas, menos de la vigesima. Hay una institucion
+    con mucho mas en juego que las otras cuatro, y eso es justo lo que vuelve
+    dificil el acuerdo del que habla el asesor regulatorio.
     """
     from liquidacion import por_mecanismo
 
     m = por_mecanismo(destino, cobertura, "mes")
-    # El pie NO afirma «horizonte completo» sin mirarlo: lo lee del dato. Un
-    # almacen de un dia de prueba y uno de nueve meses producen la misma
-    # figura, y el pie es lo unico que los distingue.
     meses = sorted(str(x) for x in m["mes"].unique())
     tramo = (f"el mes de {meses[0]}" if len(meses) == 1
              else f"los {len(meses)} meses de {meses[0]} a {meses[-1]}")
@@ -588,39 +597,59 @@ def d2_mecanismos(destino, cobertura: str):
     t = m.groupby("agente", observed=True)[escs].sum()
     t = t.reindex([n for n in E.ORDEN_INSTITUCIONES if n in t.index])
 
-    fig, ax = E.figura(alto=3.6)
+    mejor_val = t.max(axis=1)
+    perdida = 100.0 * (mejor_val.values[:, None] - t.values) /         np.maximum(mejor_val.values[:, None], 1e-9)
+    perdida = pd.DataFrame(perdida, index=t.index, columns=escs)
+
+    fig, ax = E.figura(alto=3.5)
     y = np.arange(len(t))
-    alto = 0.8 / max(len(escs), 1)
+    alto = 0.78 / max(len(escs), 1)
     for i, e in enumerate(escs):
         off = (i - (len(escs) - 1) / 2) * alto
-        ax.barh(y + off, t[e] / 1e3, alto * 0.92,
+        ax.barh(y + off, perdida[e], alto * 0.9,
                 color=E.color_mecanismo(e), label=E.etiqueta_mecanismo(e))
+
     for j, n in enumerate(t.index):
-        mejor = t.loc[n, escs].idxmax()
-        ax.text(t.loc[n, escs].max() / 1e3 + 1.2, j,
-                f"mejor: {E.etiqueta_mecanismo(mejor)}", va="center",
-                fontsize=7, color=E.ALERTA, fontweight="bold")
+        gana = t.loc[n, escs].idxmax()
+        k = escs.index(gana)
+        off = (k - (len(escs) - 1) / 2) * alto
+        # El ganador esta en cero y por tanto no tiene barra que lo senale.
+        ax.plot(0, j + off, marker="o", markersize=6, color=E.ALERTA, zorder=5)
+        # EL ROTULO VA AL FINAL DE LA FILA Y A SU ALTURA MEDIA, no pegado a la
+        # marca. Junto a la marca caia sobre la barra del vecino de abajo y se
+        # leia como si fuera de la institucion siguiente.
+        ax.annotate(f"le conviene {E.etiqueta_mecanismo(gana)}",
+                    xy=(float(perdida.loc[n].max()), j), xytext=(8, 0),
+                    textcoords="offset points", va="center", fontsize=7.4,
+                    color=E.ALERTA, fontweight="bold")
+
     ax.set_yticks(y)
     ax.set_yticklabels([E.etiqueta_institucion(n) for n in t.index])
     ax.invert_yaxis()
-    ax.set_xlabel("Beneficio que le liquida el mecanismo (miles de COP)")
-    ax.set_title("A cada institución le conviene un mecanismo distinto", pad=8)
-    # Fuera del área de datos: dentro tapaba la fila de abajo, que es
-    # justamente la institución cuyo mejor mecanismo sorprende.
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.16), ncol=3,
-              fontsize=7.5, frameon=False)
-    E.eje_espanol(ax, "x", "miles", 0)
-    # Sitio a la derecha para el rótulo del mejor mecanismo, que si no queda
-    # cortado por el borde.
-    ax.set_xlim(right=float(t[escs].to_numpy().max()) / 1e3 * 1.55)
+    # Sitio a la derecha para el rotulo mas largo, que es el de la fila con la
+    # barra mas corta y por tanto el que mas se sale.
+    ax.set_xlim(-0.3, float(perdida.to_numpy().max()) * 1.55)
+    ax.set_xlabel("Lo que pierde frente al mejor mecanismo, en % de su beneficio")
+    ax.set_title("Elegir mal el mecanismo no cuesta lo mismo a todos", pad=8)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.155), ncol=6,
+              fontsize=7, frameon=False, columnspacing=1.1, handlelength=1.3)
+
+    peor = perdida.max(axis=1)
+    arriba, resto = peor.idxmax(), peor.drop(peor.idxmax())
     fig.text(0.01, 0.005,
-             f"Nota. Frontera {cobertura.upper()}, sobre {tramo}. Cada "
-             f"barra es lo que ese mecanismo le liquidaría a esa institución, "
-             f"agregado desde el desglose por hora que la corrida guardó.",
+             f"Nota. Frontera {cobertura.upper()}, sobre {tramo}. Cada barra es "
+             f"la distancia al mecanismo que más le conviene a esa institución, "
+             f"que va en cero y lleva marca. En pesos absolutos los seis "
+             f"mecanismos liquidan cifras muy parecidas y la comparación no se "
+             f"ve; en distancia al mejor sí. A {E.etiqueta_institucion(arriba)} "
+             f"elegir mal le cuesta hasta el {E.fmt_miles(peor.max(), 1)} % de "
+             f"su beneficio y a las demás menos del "
+             f"{E.fmt_miles(resto.max(), 1)} %.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.075, 1, 1))
-    return E.guardar(fig, f"foro_d2_mecanismos_{cobertura}",
-                     datos=t.reset_index(),
+    fig.tight_layout(rect=(0, 0.175, 1, 1))
+    datos = perdida.reset_index().assign(**{
+        "unidad": "% del beneficio de la institucion"})
+    return E.guardar(fig, f"foro_d2_mecanismos_{cobertura}", datos=datos,
                      procedencia=[f"{destino}/{cobertura}/escenarios"])
 
 

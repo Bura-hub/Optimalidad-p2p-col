@@ -655,11 +655,220 @@ def d2_mecanismos(destino, cobertura: str):
 
 # ══════════════════════════════════════════════════════════════════════════
 
+# ══════════════════════════════════════════════════════════════════════════
+#  Grupo E · el eje de la charla, que vive en el mes y no en la hora
+#
+#  El resto del aparato se diseño alrededor de HORAS y MECANISMOS. Estas tres
+#  son agregados MENSUALES, y no salian porque nadie las habia pedido. Son las
+#  que sostienen el eje: donde esta el valor, por que esta ahi, y como se
+#  reparte.
+# ══════════════════════════════════════════════════════════════════════════
+
+def _por_mes(destino, cobertura):
+    """La banda y el ahorro de cada mes, que es la mesa de las tres."""
+    from liquidacion import factura
+
+    f = factura(destino, cobertura, "mes")
+    g = (f.groupby("mes", observed=True)
+          .agg(ahorro=("ahorro", "sum"),
+               techo=("precio_compra_red", "mean"),
+               piso=("precio_venta_red", "mean"),
+               kwh=("kwh_vende_p2p", "sum"))
+          .reset_index())
+    g["banda"] = g["techo"] - g["piso"]
+    g["pct"] = 100.0 * g["ahorro"] / max(float(g["ahorro"].sum()), 1e-9)
+    return g
+
+
+def e1_piso(destino, cobertura: str):
+    """El piso mes a mes, y el desplome cuando se agota el crédito de permuta.
+
+    ES LA LAMINA 6, y explica todo lo demas. El techo apenas se mueve porque es
+    la tarifa; el piso tiene DOS REGIMENES dentro del mismo mes: mientras la
+    inyeccion no supere al retiro, el excedente es permuta y vale casi la
+    tarifa; pasado ese cruce, va a bolsa y vale una fraccion.
+
+    Se dibuja por institucion porque el cruce no le llega a todas a la vez: a
+    la que mas genera le llega en junio, y a las demas no le llega.
+    """
+    from liquidacion import factura
+
+    f = factura(destino, cobertura, "mes")
+    piv = f.pivot(index="mes", columns="agente",
+                  values="precio_venta_red").sort_index()
+    techo = f.groupby("mes", observed=True)["precio_compra_red"].mean()
+
+    fig, ax = E.figura(alto=3.4)
+    ax.plot(range(len(techo)), techo.values, linewidth=2.0, color=E.NEUTRO,
+            linestyle="--", label="techo: lo que le cobra la red")
+    # LAS QUE COINCIDEN SE DIBUJAN JUNTAS. Tres instituciones compran al mismo
+    # comercializador y por tanto tienen el mismo piso: dibujadas por separado,
+    # la ultima tapa a las otras dos y la leyenda promete cinco series donde se
+    # ven tres. El criterio de coincidencia es visual, cinco pesos por
+    # kilovatio hora sobre un eje que abarca seiscientos.
+    JUNTAS = 5.0
+    grupos = []
+    for n in [x for x in E.ORDEN_INSTITUCIONES if x in piv.columns]:
+        v = piv[n].to_numpy(dtype=float)
+        for quienes, ref in grupos:
+            if float(np.nanmax(np.abs(v - ref))) <= JUNTAS:
+                quienes.append(n)
+                break
+        else:
+            grupos.append(([n], v))
+    for quienes, serie in grupos:
+        ax.plot(range(len(piv)), serie, marker="o", markersize=4.5,
+                linewidth=2.0, color=E.color_institucion(quienes[0]),
+                label=" = ".join(E.etiqueta_institucion(x) for x in quienes))
+    ax.set_xticks(range(len(piv)))
+    ax.set_xticklabels([m[-2:] + chr(10) + m[:4] for m in piv.index],
+                       fontsize=7.5)
+    ax.set_xlabel("Mes")
+    ax.set_ylabel("Precio (COP/kWh)")
+    ax.set_title("El piso se desploma cuando se agota el crédito de permuta",
+                 pad=8)
+    ax.legend(loc="lower left", fontsize=7.2, ncol=2, framealpha=0.92)
+    E.eje_espanol(ax, "y", "miles", 0)
+
+    bajo = float(piv.min().min())
+    quien = piv.min().idxmin()
+    mes = piv[quien].idxmin()
+    fig.text(0.01, 0.005,
+             f"Nota. Frontera {cobertura.upper()}. El techo es el costo "
+             f"unitario y apenas se mueve. El piso vale casi lo mismo mientras "
+             f"el excedente se permuta, y cae al precio de bolsa cuando la "
+             f"inyección del mes supera al retiro. A "
+             f"{E.etiqueta_institucion(quien)} le pasa en {mes}, y su piso baja "
+             f"a {E.fmt_miles(bajo, 1)} (COP/kWh). Las instituciones que "
+             f"compran al mismo comercializador tienen el mismo piso y se "
+             f"dibujan juntas.",
+             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
+    fig.tight_layout(rect=(0, 0.135, 1, 1))
+    return E.guardar(fig, f"foro_e1_piso_{cobertura}",
+                     datos=piv.reset_index(),
+                     procedencia=[f"{destino}/{cobertura}/agentes"])
+
+
+def e2_donde_esta_el_valor(destino, cobertura: str):
+    """El ancho de la banda y el ahorro, mes a mes. ES LA LAMINA 7.
+
+    LA FIGURA QUE LLEVA EL TITULAR. Sin ella, que el ochenta y cuatro por
+    ciento del ahorro cae en dos meses es una frase; con ella es evidente,
+    porque las dos series suben y bajan juntas.
+
+    El ancho de la banda va en barras y el ahorro en linea sobre el eje gemelo:
+    la relacion entre las dos es lo que se viene a ver, y ponerlas en ejes
+    distintos es lo que permite verla sin que la mas grande aplaste a la otra.
+    """
+    g = _por_mes(destino, cobertura)
+
+    fig, ax = E.figura(alto=3.4)
+    ax2 = ax.twinx()
+    x = np.arange(len(g))
+    # Los meses donde la banda se abre llevan otro color. El umbral no se
+    # elige a ojo: es vez y media la mediana, y asi lo dice el pie.
+    corte = float(g["banda"].median()) * 1.5
+    colores = [E.ALERTA if b > corte else E.NEUTRO for b in g["banda"]]
+    ax.bar(x, g["banda"], 0.62, color=colores, zorder=2)
+    ax2.plot(x, g["ahorro"] / 1e3, marker="o", markersize=6, linewidth=2.6,
+             color=E.DESPUES, zorder=3)
+
+    for i, r in g.iterrows():
+        if r["banda"] > corte:
+            ax2.annotate(f"{E.fmt_miles(r['pct'], 1)} % del ahorro",
+                         xy=(i, r["ahorro"] / 1e3), xytext=(0, 9),
+                         textcoords="offset points", ha="center", fontsize=7.4,
+                         color=E.DESPUES, fontweight="bold")
+
+    ax.set_xticks(x)
+    ax.set_xticklabels([m[-2:] + chr(10) + m[:4] for m in g["mes"]],
+                       fontsize=7.5)
+    ax.set_xlabel("Mes")
+    ax.set_ylabel("Ancho de la banda (COP/kWh)")
+    ax2.set_ylabel("Ahorro (miles de COP)", color=E.DESPUES)
+    ax2.tick_params(axis="y", colors=E.DESPUES)
+    # Aire arriba para que el rotulo del mes mayor no choque con el titulo.
+    ax2.set_ylim(top=float(g["ahorro"].max()) / 1e3 * 1.28)
+    ax.set_ylim(top=float(g["banda"].max()) * 1.12)
+    ax.set_title("El valor está donde la banda se abre", pad=8)
+
+    dos = g.nlargest(2, "ahorro")
+    fig.text(0.01, 0.005,
+             f"Nota. Frontera {cobertura.upper()}. Las barras son el ancho de "
+             f"la banda de cada mes y la línea es lo que la comunidad se ahorra "
+             f"con el mercado. Van juntas: {', '.join(dos['mes'])} concentran "
+             f"el {E.fmt_miles(dos['pct'].sum(), 1)} % del ahorro de los nueve "
+             f"meses, y son los dos meses en que la banda pasa de una mediana "
+             f"de {E.fmt_miles(g['banda'].median(), 0)} a más de "
+             f"{E.fmt_miles(dos['banda'].min(), 0)} (COP/kWh). El color marca "
+             f"los meses que superan vez y media la mediana.",
+             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
+    fig.tight_layout(rect=(0, 0.145, 1, 1))
+    return E.guardar(fig, f"foro_e2_valor_{cobertura}", datos=g,
+                     procedencia=[f"{destino}/{cobertura}/agentes",
+                                  f"{destino}/{cobertura}/flujos"])
+
+
+def e3_reparto(destino, cobertura: str):
+    """Quién se queda con el excedente, agregado. ES LA LAMINA 12.
+
+    La del grupo A muestra el reparto de UNA hora, que sirve para explicar el
+    mecanismo y no para concluir. Esta agrega el horizonte entero y lo pone al
+    lado del patron: el contrato a precio pactado reparte a la mitad por
+    construccion, de modo que la distancia a ese reparto es el aporte del juego.
+    """
+    from core.almacen import lee
+
+    fl = lee(destino, cobertura, "flujos")
+    aho = float(fl["ahorro_comprador"].sum())
+    pri = float(fl["prima_vendedor"].sum())
+    tot = aho + pri
+    if tot <= 1e-9:
+        return None
+    pc, pv = 100 * aho / tot, 100 * pri / tot
+
+    fig, ax = E.figura(alto=2.5)
+    y = [1, 0]
+    izq, der = [50.0, pc], [50.0, pv]
+    ax.barh(y, izq, color=E.DESPUES, height=0.5, label="compradores")
+    ax.barh(y, der, left=izq, color=E.ALERTA, height=0.5, label="vendedores")
+    for yy, a_, b_ in zip(y, izq, der):
+        ax.text(a_ / 2, yy, E.fmt_miles(a_, 2) + " %", ha="center",
+                va="center", color="white", fontsize=10, fontweight="bold")
+        ax.text(a_ + b_ / 2, yy, E.fmt_miles(b_, 2) + " %", ha="center",
+                va="center", color="white", fontsize=10, fontweight="bold")
+    ax.annotate("", xy=(pc, 0.42), xytext=(50, 0.42),
+                arrowprops=dict(arrowstyle="<->", color=E.NEUTRO, lw=1.3))
+    ax.text((pc + 50) / 2, 0.53, f"{E.fmt_miles(abs(50 - pc), 2)} pp",
+            ha="center", fontsize=8, color=E.NEUTRO, fontweight="bold")
+    ax.set_yticks(y)
+    ax.set_yticklabels(["contrato a precio pactado", "mercado entre pares"])
+    ax.set_xlim(0, 100)
+    ax.set_xlabel("Reparto del excedente (%)")
+    ax.set_title("Lo que el mecanismo le mueve al reparto", pad=8)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=2,
+              fontsize=8, frameon=False)
+    fig.text(0.01, 0.005,
+             f"Nota. Frontera {cobertura.upper()}, horizonte completo. El "
+             f"excedente total es el mismo en las dos filas, porque es el ancho "
+             f"de la banda por la energía y no depende del precio; lo que "
+             f"cambia es quién se lo lleva. El contrato reparte a la mitad por "
+             f"construcción, de modo que la distancia a esa mitad es lo que "
+             f"aporta el juego.",
+             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
+    fig.tight_layout(rect=(0, 0.30, 1, 1))
+    datos = pd.DataFrame({"reparto": ["contrato", "mercado"],
+                          "compradores_pct": izq, "vendedores_pct": der,
+                          "excedente_COP": [tot, tot]})
+    return E.guardar(fig, f"foro_e3_reparto_{cobertura}", datos=datos,
+                     procedencia=[f"{destino}/{cobertura}/flujos"])
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("destino", help="carpeta del almacén de la corrida")
     ap.add_argument("--cobertura", default="m1")
-    ap.add_argument("--grupo", default="ACD", help="letras de los grupos: ACD")
+    ap.add_argument("--grupo", default="ACDE", help="letras de los grupos: A, C, D, E")
     ap.add_argument("--figuras", default=None,
                     help="carpeta de salida; por defecto la del documento")
     a = ap.parse_args()
@@ -681,6 +890,12 @@ def main() -> None:
             for f in (a1_acuerdo, a2_reparto, a3_potencias):
                 if f(a.destino, a.cobertura, r["hora"], cat, r["frase"]):
                     hechas += 1
+
+    if "E" in a.grupo.upper():
+        print("\nGrupo E · el eje, que vive en el mes")
+        for f in (e1_piso, e2_donde_esta_el_valor, e3_reparto):
+            if f(a.destino, a.cobertura):
+                hechas += 1
 
     if "C" in a.grupo.upper():
         dia = elige_dia(a.destino, a.cobertura)

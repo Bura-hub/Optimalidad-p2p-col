@@ -352,14 +352,25 @@ las dos dimensiones a la vez.
 **Ninguna se escribe a mano.** Todas salen de la corrida oficial, a través del
 almacén, y cada figura deja al lado su tabla de datos y su nota de procedencia.
 
-| Lámina | Fuente |
-|---|---|
-| 5, 6, 7 | la banda por agente y por hora, de la tabla de agentes |
-| 9, 10 | las trayectorias con multiplicadores, de la tabla de trayectorias |
-| 11 | la liquidación por institución |
-| 12 | el reparto del mercado frente al del contrato interno |
-| 13 | el beneficio por institución y mecanismo, de la tabla de escenarios |
-| 14 | las mismas tablas, sobre la segunda frontera |
+| Lámina | Figura | De qué tabla sale |
+|---|---|---|
+| 5 · el costo unitario | *falta*, y espera la descomposición tarifaria | — |
+| 6 · el piso y sus dos regímenes | el piso mes a mes por institución | agentes |
+| 7 · dónde está el valor | el ancho de la banda y el ahorro, mes a mes | agentes y flujos |
+| 9 · el mecanismo | el acuerdo en la hora típica | trayectorias |
+| 10 · converge y no se pega | el acuerdo en la hora patológica | trayectorias |
+| 11 · la factura | la liquidación por institución | agentes y flujos |
+| 12 · el reparto | el reparto agregado frente al contrato | flujos |
+| 13 · a quién le conviene qué | la distancia al mejor mecanismo | escenarios |
+| 14 · los límites | las mismas tablas, sobre la segunda frontera | *pendiente* |
+| respaldo | las otras nueve del grupo de la hora, y las dos del filtro y la rivalidad | trayectorias |
+
+**Por qué hubo que añadir un grupo de figuras.** El aparato se diseñó alrededor
+de **horas y mecanismos**, y las láminas 6, 7 y 12 son **agregados mensuales**.
+No salían porque nadie las había pedido, y son justamente las tres que sostienen
+el eje de la charla. La de la lámina 7 es la que lleva el titular: sin ella, que
+el ochenta y cuatro por ciento del ahorro cae en dos meses es una frase; con
+ella se ve, porque las dos series suben y bajan juntas.
 
 **Toda cifra del cuerpo se lee sobre la frontera de cobertura baja.** Es una
 regla y no una preferencia: este proyecto ya pagó una vez el precio de comparar

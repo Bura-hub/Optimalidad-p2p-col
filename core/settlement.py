@@ -110,6 +110,50 @@ def compute_savings(P_star, pi_star, pi_gs, pi_gb, dt: float = 1.0):
     return S_i, SR_j
 
 
+def bienestar_cuasilineal(S_i, SR_j) -> float:
+    """El bienestar de la comunidad, bien planteado (H-61).
+
+    Es la suma del ahorro de los compradores y la prima de los vendedores, es
+    decir **el excedente**, que este proyecto ya calculaba sin llamarlo por su
+    nombre. Vale la pena escribir por que ES un bienestar y no una cifra
+    contable.
+
+    QUE ES. Para el par (j, i) que intercambia un kilovatio hora al precio pi:
+
+        ahorro del comprador   (techo_i - pi)      lo que deja de pagarle a la red
+        prima del vendedor     (pi - piso_j)       lo que cobra de mas que la red
+        suma                   (techo_i - piso_j)  el ANCHO DE LA BANDA
+
+    El precio **se cancela**, porque es una transferencia entre dos miembros de
+    la misma comunidad. Es la identidad de H-33.
+
+    POR QUE ES EL BIENESTAR CORRECTO. La forma cuasilineal `U(q) - pi*q` es la
+    que hace que la suma de bienestares sea un excedente bien definido: las
+    transferencias se cancelan y queda utilidad menos costo. Y esta suma **es
+    exactamente esa forma**, con la disposicion a pagar del comprador igual a
+    **su techo**, que es su alternativa de red, y el costo de oportunidad del
+    vendedor igual a **su piso**, que es la suya.
+
+    Es la formulacion de las fuentes que el propio modelo base cita para su
+    utilidad cuadratica, y la unica de las tres que **sube al transar**.
+
+    POR QUE NO SIRVEN LAS DOS DE LA AUTORA (H-58, H-59, H-61). La publicada no
+    tiene el dinero dentro: su termino de pago se cancela entre los dos lados y
+    solo quedan costos crecientes, de modo que se maximiza sin transar. La
+    extensa crea o destruye dinero, porque el vendedor cobra precio por energia
+    y el comprador paga el piso por el logaritmo del precio, que no es la misma
+    cantidad. Y el logaritmo de un precio **no es dimensionalmente admisible**:
+    el modelo daria equilibrios distintos corrido en pesos o en dolares.
+
+    Las dos se conservan en `replicator_sellers` y `replicator_buyers` porque
+    reproducen el caso publicado y sostienen la prueba de fidelidad. Para
+    **comparar algoritmos entre si**, que es lo que la autora hace, sirven: el
+    sesgo es el mismo en todas las columnas. Para responder si a la comunidad
+    le conviene el mercado, que es lo que esta tesis pregunta, no.
+    """
+    return float(np.sum(S_i) + np.sum(SR_j))
+
+
 def equity_index(S_i, SR_j) -> float:
     num   = float(np.sum(S_i) - np.sum(SR_j))
     denom = float(np.sum(S_i) + np.sum(SR_j))

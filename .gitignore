@@ -139,6 +139,7 @@ reformateo/documento/*
 !reformateo/documento/HALLAZGOS.md
 !reformateo/documento/CORRECCIONES.md
 !reformateo/documento/MODELO_DEFINITIVO.md
+!reformateo/documento/PARAMETROS.md
 !reformateo/documento/sections/
 !reformateo/documento/scripts/
 # El informe del aparato de validacion horaria es texto y es el

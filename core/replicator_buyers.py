@@ -298,7 +298,8 @@ def solve_buyers(
     return pi_star
 
 
-def buyer_welfare(pi_i, P_mat, G_klim_i, lam_i, theta_i, etha_i) -> float:
+def buyer_welfare(pi_i, P_mat, G_klim_i, lam_i, theta_i, etha_i,
+                  forma: str = "publicada", pi_gb: float = PGB) -> float:
     """
     W_i total (fiel a Welfarei de Bienestar6p.py):
     Wi = lam*Gi - theta*Gi^2 + sum_j(P_ji)/log(|pi_i|+1) - etha*compe
@@ -319,23 +320,48 @@ def buyer_welfare(pi_i, P_mat, G_klim_i, lam_i, theta_i, etha_i) -> float:
 
     El termino del pago sigue tambien a la version arbitrada, que lo escribe
     como `sum_j P_ji / ln(pi_i + 1)`, division sin factor del piso. El
-    documento extenso introduce ahi un factor `pi_gb` que ni el articulo
-    publicado ni el guion contemplan.
+    documento extenso introduce ahi un factor `pi_gb`, y ademas escribe el
+    logaritmo MULTIPLICANDO sobre una fraccion. Esa segunda forma es
+    alcanzable con `forma="extensa"`.
+
+    POR QUE IMPORTA LA SEGUNDA (H-44, H-60). El termino de pago de la APTITUD
+    que mueve los precios es `-pi_gb*sum_j P_ji/(pi_i+1)`, que **es
+    exactamente la derivada** del termino de la extensa respecto del precio.
+    De modo que el juego optimiza la extensa mientras el informe da la
+    publicada.
+
+    Y NINGUNA DE LAS DOS es un bienestar bien planteado (H-61). El bienestar
+    bien planteado es el cuasilineal, y este proyecto ya lo calcula: es el
+    excedente de `core.settlement`.
 
     Compuerta en `tests/gate_c138_bienestar_comprador.py`.
 
     La eleccion no toca la dinamica, porque esta funcion solo informa: ni el
     bloque de precios ni el de reparto la llaman.
     """
+    if forma not in ("publicada", "extensa"):
+        raise ValueError(f"forma={forma!r}; use 'publicada' o 'extensa'")
     I = len(pi_i)
-    J = P_mat.shape[0]
     matriz = np.ones((I, I)) - np.eye(I)
     compe = [sum(matriz[i][k] * pi_i[k] * float(np.sum(P_mat[:, k]))
                  for k in range(I))
              for i in range(I)]
+
+    if forma == "publicada":
+        Wi = [
+            lam_i[i] * G_klim_i[i] - theta_i[i] * G_klim_i[i]**2
+            + float(np.sum(P_mat[:, i])) / (np.log(abs(pi_i[i]) + 1) + 1e-12)
+            - compe[i] * etha_i[i]
+            for i in range(I)
+        ]
+        return sum(Wi)
+
+    # La ecuacion (14) del documento extenso: el factor del piso, y el
+    # logaritmo MULTIPLICANDO sobre una fraccion en vez de dividiendo.
     Wi = [
-        lam_i[i] * G_klim_i[i] - theta_i[i] * G_klim_i[i]**2
-        + float(np.sum(P_mat[:, i])) / (np.log(abs(pi_i[i]) + 1) + 1e-12)
+        lam_i[i] * G_klim_i[i] - 0.5 * theta_i[i] * G_klim_i[i]**2
+        + pi_gb * float(np.sum(P_mat[:, i]))
+        * float(np.log(1.0 / (abs(pi_i[i]) + 1.0)))
         - compe[i] * etha_i[i]
         for i in range(I)
     ]

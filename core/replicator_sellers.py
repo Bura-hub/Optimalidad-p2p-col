@@ -172,19 +172,67 @@ def solve_sellers(
     return P_star
 
 
-def seller_welfare(P, G_j, a_j, b_j, lam_j, theta_j, pi_i) -> float:
-    """W_j total (fiel a Welfarejgen de ConArtLatin.m).
+def seller_welfare(P, G_j, a_j, b_j, lam_j, theta_j, pi_i,
+                   forma: str = "publicada", D_auto=None, c_j=None) -> float:
+    """W_j total. DOS FORMAS, porque la autora tiene dos (H-40, H-58, H-61).
 
-    G_j[j] = excedente neto del vendedor j: G_klim[j] - D[j].
-    Revenue: -sum_i P_ji/log(1+pi_i)  (alineado con Welfarei de compradores).
+    ``publicada`` (POR OMISION, bit a bit lo de siempre) sigue la ecuacion (4)
+    del articulo arbitrado, que es lo que su MATLAB y su Python implementan:
+
+        W_j = lam_j*G_j - theta_j*G_j^2
+              - sum_i P_ji/log(1+pi_i)          <- ni precio ni energia
+              - a_j*(sum P)^2 - b_j*sum P
+
+    ``extensa`` sigue las ecuaciones (6) y (7) del documento extenso, que es
+    OTRO texto suyo y dice lo contrario:
+
+        W_j = lam_j*D_auto - (theta_j/2)*D_auto^2
+              + sum_i P_ji*pi_i                 <- precio por energia
+              - a_j*(sum P)^2 - b_j*sum P - c_j
+
+    POR QUE IMPORTA LA SEGUNDA aunque no sea la que se informa: la aptitud que
+    mueve a los vendedores es `pi_i - 2*a_j*sum P - b_j` menos los
+    multiplicadores, y eso **es exactamente su gradiente**. De modo que el
+    juego optimiza la extensa mientras el informe da la publicada. Ver H-44,
+    que lo midio, y H-60, que lo deriva.
+
+    Y NINGUNA DE LAS DOS es un bienestar bien planteado (H-61): en la
+    publicada el pago se cancela entre los dos lados y solo quedan costos; en
+    la extensa el vendedor cobra precio por energia y el comprador paga otra
+    cosa, de modo que la suma no es un excedente. El bienestar bien planteado
+    es el cuasilineal, y este proyecto ya lo calcula: es el excedente de
+    `core.settlement`.
+
+    Parameters
+    ----------
+    G_j : (J,) excedente neto del vendedor. Lo usa la forma ``publicada``.
+    D_auto : (J,) energia consumida internamente, min(G_klim, D). La pide la
+        forma ``extensa``; si falta, cae a ``G_j``.
+    c_j : (J,) termino independiente del costo. Cero por omision.
     """
+    if forma not in ("publicada", "extensa"):
+        raise ValueError(f"forma={forma!r}; use 'publicada' o 'extensa'")
+    J = len(a_j)
+    pi = np.asarray(pi_i, dtype=float)
+
+    if forma == "publicada":
+        total = 0.0
+        log_pi = np.log1p(pi)
+        log_pi = np.where(log_pi < 1e-12, 1e-12, log_pi)   # evitar div/0
+        for j in range(J):
+            sumP = float(np.sum(P[j, :]))
+            revenue = -float(np.sum(P[j, :] / log_pi))
+            total += (lam_j[j] * G_j[j] - theta_j[j] * G_j[j]**2
+                      + revenue
+                      - a_j[j] * sumP**2 - b_j[j] * sumP)
+        return total
+
+    U = np.asarray(G_j if D_auto is None else D_auto, dtype=float)
+    cc = np.zeros(J) if c_j is None else np.asarray(c_j, dtype=float)
     total = 0.0
-    log_pi = np.log1p(np.asarray(pi_i, dtype=float))
-    log_pi = np.where(log_pi < 1e-12, 1e-12, log_pi)   # evitar div/0
-    for j in range(len(a_j)):
+    for j in range(J):
         sumP = float(np.sum(P[j, :]))
-        revenue = -float(np.sum(P[j, :] / log_pi))
-        total += (lam_j[j] * G_j[j] - theta_j[j] * G_j[j]**2
-                  + revenue
-                  - a_j[j] * sumP**2 - b_j[j] * sumP)
+        total += (lam_j[j] * U[j] - 0.5 * theta_j[j] * U[j]**2
+                  + float(np.sum(P[j, :] * pi))
+                  - a_j[j] * sumP**2 - b_j[j] * sumP - cc[j])
     return total

@@ -5743,3 +5743,71 @@ el trabajo futuro ya contempla.
 
 ---
 
+## H-65 · El filtro sobre los multiplicadores no estabiliza: retarda
+
+**Contradice la figura 3 del modelo base, y se encontró al intentar
+reproducirla.** Los parámetros del filtro llevaban en esta traducción desde el
+primer día y nadie los había puesto a prueba.
+
+### Qué es el filtro
+
+Un paso bajo de primer orden sobre los multiplicadores de las dos restricciones
+del vendedor. Lo que entra en su dinámica no es el multiplicador crudo sino su
+versión suavizada. De ahí que **la constante de tiempo tendiendo a cero sea el
+sistema sin filtrar**: la suavizada persigue a la cruda instantáneamente.
+
+### Lo que la autora afirma
+
+Que el sistema **sin filtrar oscila de forma permanente alrededor del óptimo** en
+vez de converger, y que el filtro es lo que lo estabiliza. Es el argumento que
+justifica que el filtro exista.
+
+### Lo que se midió
+
+Sobre la hora 2363 de la primera frontera, con el horizonte de integración de
+producción:
+
+| Constante del filtro | Recorrido del último tercio (COP/kWh) | Precio final (COP/kWh) |
+|---|---:|---:|
+| **0,001 · producción** | **53,294** | **137,45** |
+| 0,0001 | 0,0016 | 112,87 |
+| 0,00001 | 0,00019 | 112,87 |
+| 0,000001 | 0,00020 | 112,87 |
+
+**Sale al revés.** Con la constante de producción la trayectoria **no ha
+terminado de asentarse** al final del horizonte: sigue cayendo. Con el filtro
+mil veces más rápido se asienta casi de inmediato. Y no oscila en ningún caso:
+lo que se ve es un decaimiento monótono, más lento cuanto más lento el filtro.
+
+### Y una consecuencia que hay que mirar antes de la corrida oficial
+
+**El precio final difiere en un 22 %** entre la configuración de producción y la
+asentada: 137,45 frente a 112,87 (COP/kWh). Si en esta hora la integración de
+producción termina antes de que el precio se asiente, la cifra que se publicaría
+no es el equilibrio sino un punto del transitorio.
+
+### Las tres cautelas, y son importantes
+
+**Una.** Es **una hora**. Un decaimiento lento en una hora no dice nada del
+horizonte, y la medición amplia va al servidor con la corrida oficial.
+
+**Dos.** La vía de producción **itera el criterio de participación por encima de
+esta integración**, de modo que el precio publicado no es sin más el último
+punto de una sola integración.
+
+**Tres.** No se ha cambiado ningún valor. Esta entrada mide y registra; la
+decisión sobre la constante del filtro y sobre el horizonte de integración
+**queda abierta y va como consulta al asesor**, junto con las de H-53 y H-63.
+
+### Qué habría que medir en el servidor
+
+Sobre una muestra amplia de horas con precio interior, y no sobre una:
+
+- en qué fracción de las horas el precio no se ha asentado al final del
+  horizonte de producción;
+- cuánto se movería el resultado agregado con la constante rápida;
+- y si esa diferencia cambia el ordenamiento de los mecanismos, que es lo único
+  que decidiría si hay que volver a correr.
+
+---
+

@@ -186,7 +186,8 @@ def carga_base():
 
 def resuelve(dat: dict, k: int, multiplicadores: bool = False,
              techo: str = "propio", peso_virtual: str = "barrera",
-             criterio: str = "ingreso", params: dict = None):
+             criterio: str = "ingreso", params: dict = None,
+             solucionador: dict = None):
     """Resuelve la hora por la via del modelo base, con las cotas medidas.
 
     `multiplicadores` pide al solucionador que devuelva los suyos, que son
@@ -220,6 +221,13 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
                  de sus precios. Es el criterio anterior, que dejaba vender a
                  perdida a quien colocara una cantidad infima a buen precio.
                  Se conserva solo para contrastar.
+
+    `solucionador` sustituye las constantes de tiempo del filtro y el
+    horizonte de integracion. Existe para UNA cosa: reproducir la figura del
+    modelo base que compara el sistema con filtro y sin el. El filtro es un
+    paso bajo sobre los multiplicadores, de modo que su constante de tiempo
+    tendiendo a cero ES el sistema sin filtrar; con None se usan las de
+    produccion, bit a bit.
     """
     if criterio not in ("ingreso", "maximo"):
         raise ValueError(f"criterio={criterio!r}; use 'ingreso' o 'maximo'")
@@ -295,6 +303,12 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
     # sumo cinco vueltas. Sin esto la primera medicion sobre dato real daba a
     # Mariana una prima negativa, porque el piso agregado tomaba el del CESMAG,
     # que compra a otro comercializador y por eso tiene una alternativa peor.
+    _sol = dict(solucionador or {})
+    _validos_sol = ("tau_sellers", "tau_buyers", "t_span", "n_points")
+    for _k in _sol:
+        if _k not in _validos_sol:
+            raise ValueError(f"solucionador {_k!r}; hay {_validos_sol}")
+
     activos = list(range(len(sids)))
     retirados = []
     for _ in range(len(sids) + 1):
@@ -314,8 +328,10 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
             # ahorro valia exactamente cero.
             pi_gs=(float(np.max(techo_i)) if techo == "escalar" else techo_i),
             pi_gb=piso_h,
-            tau_sellers=0.001, tau_buyers=0.01,
-            t_span=(0.0, 0.05), n_points=500,
+            tau_sellers=float(_sol.get("tau_sellers", 0.001)),
+            tau_buyers=float(_sol.get("tau_buyers", 0.01)),
+            t_span=tuple(_sol.get("t_span", (0.0, 0.05))),
+            n_points=int(_sol.get("n_points", 500)),
             devuelve_multiplicadores=multiplicadores,
             peso_virtual=peso_virtual)          # H-46
         pi = np.clip(tr.pi_star, piso_h, techo_i)

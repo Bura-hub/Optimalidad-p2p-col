@@ -39,7 +39,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|reparto|juntar|recoger}"
 
 SONDA="reformateo/documento/scripts/sonda"
 SALIDAS="$SONDA/salidas"
@@ -146,7 +146,10 @@ case "$ACCION" in
              gate_cal49_competencia gate_h45_techo_por_comprador \
              gate_h46_peso_virtual gate_c146_techo_en_el_juego \
              gate_c151_participacion_motor gate_h55_bienestar_precio \
-             gate_c156_plazo_por_tarea; do
+             gate_c156_plazo_por_tarea gate_almacen gate_almacen_cruzado \
+             gate_cal51_contrato gate_cal52_contrato_interno \
+             gate_c164_autoconsumo_autosuficiencia \
+             gate_c165_desglose_horario; do
       corre "$t" "tests/$t.py"
     done
     echo
@@ -367,9 +370,10 @@ PYFIN
     # La corrida canonica. Acumula CAL-44, CAL-45, CAL-47 y C-143, cada uno
     # de los cuales invalida el canon por su cuenta.
     #
-    # Va por la via ALTERNADA a proposito. La acoplada cuesta unos 47 s por
-    # hora de mercado y el horizonte son 5.160 horas por frontera: ni con
-    # dieciseis nucleos es viable. Ver H-42 y CAL-48.
+    # Va por la via ACOPLADA, que desde CAL-48 es la canonica. La objecion de
+    # que no era viable venia de ANTES de arreglar la tolerancia del
+    # integrador (H-51) y ya no se sostiene: medido aqui, 13,9 s por hora de
+    # mercado con 32 procesos, es decir unos 89 minutos las dos fronteras.
     #
     # ANTES DE LANZARLA, dos cosas que no se pueden dar por supuestas:
     #   1. las compuertas en verde, TODAS;
@@ -396,6 +400,87 @@ PYFIN
     echo "  Comprueba las dos compuertas del canon antes de citar nada."
     ;;
 
+  oficial)
+    # LA CORRIDA OFICIAL. Es la que produce las cifras publicables y, sobre
+    # todo, el ALMACEN del que sale cualquier figura de cualquier hora sin
+    # volver a simular.
+    #
+    # AQUI NO SE ENSAYA. En la maquina de trabajo solo se hacen humos de
+    # minuto y medio antes de empaquetar; esta accion existe para correrse en
+    # el servidor y en ningun otro sitio.
+    #
+    # Encadena en orden y PARA en el primer fallo, que es lo que distingue una
+    # corrida oficial de una tanda de pruebas:
+    #
+    #   1. las compuertas, todas;
+    #   2. la corrida acoplada de las dos fronteras CON EL ALMACEN;
+    #   3. la liquidacion por institucion y la equidad por periodo;
+    #   4. las figuras del foro, los cuatro grupos;
+    #   5. la recogida.
+    #
+    # Medido aqui: 13,9 s por hora de mercado con 32 procesos, de modo que las
+    # dos fronteras del horizonte completo son unos 89 minutos.
+    set -e
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    ALM="SALIDAS_SERVIDOR/almacen"
+    FIGS="SALIDAS_SERVIDOR/figuras_foro"
+    echo "=== CORRIDA OFICIAL ==="
+    echo "    $NUCLEOS nucleos · $PROCS procesos"
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    almacen  = $ALM"
+    echo
+
+    echo "--- 1/5 · compuertas"
+    bash "$0" compuertas
+
+    echo
+    echo "--- 2/5 · la corrida acoplada de las dos fronteras, con almacen"
+    for par in "M1:" "M3:--paper-meters"; do
+      COB="${par%%:*}"; EXTRA="${par#*:}"
+      DIR="SALIDAS_SERVIDOR/oficial_$(echo "$COB" | tr 'A-Z' 'a-z')"
+      mkdir -p "$DIR"
+      echo
+      echo "  --- $COB  ->  $DIR"
+      corre "oficial_${COB}" main_simulation.py \
+            --data real --full --analysis --include-c5 --no-regulado \
+            --metodo acoplado --almacen "$ALM" \
+            ${EXTRA:+$EXTRA} --out-dir "$DIR"
+    done
+
+    echo
+    echo "--- 3/5 · la liquidacion por institucion y la equidad por periodo"
+    for COB in m1 m3; do
+      corre "liquidacion_${COB}" \
+            reformateo/documento/scripts/liquidacion.py "$ALM" \
+            --cobertura "$COB" --periodo mes
+      for P in mes hora_del_dia dia_semana; do
+        corre "equidad_${COB}_${P}" analysis/equidad_periodo.py "$ALM" \
+              --cobertura "$COB" --periodo "$P"
+      done
+    done
+
+    echo
+    echo "--- 4/5 · las figuras del foro"
+    mkdir -p "$FIGS"
+    for COB in m1 m3; do
+      corre "foro_acd_${COB}" reformateo/documento/scripts/gen_foro.py \
+            "$ALM" --cobertura "$COB" --figuras "$FIGS"
+      corre "foro_b_${COB}" reformateo/documento/scripts/gen_foro_b.py \
+            --cobertura "$COB" --figuras "$FIGS"
+    done
+
+    echo
+    echo "--- 5/5 · la recogida"
+    bash "$0" recoger
+    echo
+    echo "=== CORRIDA OFICIAL COMPLETA ==="
+    echo "  Comprueba las dos compuertas del canon antes de citar nada."
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -419,7 +504,15 @@ PYFIN
     # aunque faltara una carpeta entera. Ver C-158.
     QUE=("$SALIDAS" "$LOGS")
     [[ -d "$VALID" ]] && QUE+=("$VALID")
+    # SALIDAS_SERVIDOR ya contiene el almacen y las figuras del foro, porque la
+    # corrida oficial los escribe dentro. No hay que nombrarlos aparte, pero si
+    # comprobar que estan: un almacen ausente pasaria desapercibido hasta que
+    # alguien intentara dibujar una figura de vuelta en casa, y para entonces
+    # la maquina que lo produjo ya no tiene el dato.
     [[ -d SALIDAS_SERVIDOR ]] && QUE+=(SALIDAS_SERVIDOR)
+    for esperado in SALIDAS_SERVIDOR/almacen SALIDAS_SERVIDOR/figuras_foro; do
+      [[ -d "$esperado" ]] || echo "  AVISO: no esta $esperado"
+    done
     echo "  recogiendo: ${QUE[*]}"
     for d in "${QUE[@]}"; do
       [[ -d "$d" ]] || { echo "  AVISO: falta $d"; }

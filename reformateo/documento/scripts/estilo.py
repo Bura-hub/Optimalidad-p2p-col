@@ -69,7 +69,9 @@ MECANISMOS = {
 ETIQUETAS = {
     "P2P":        "P2P",
     "C1":         "C1 · individual",
-    "C2":         "C2 · PPA",
+    # CAL-52: ya no es un contrato con un tercero a precio de mercado, sino el
+    # contrato INTERNO de la comunidad al punto medio de la banda.
+    "C2":         "C2 · contrato interno",
     "C3":         "C3 · bolsa",
     "C4":         "C4 · colectivo (horario)",
     "C4_mensual": "C4 · colectivo (mensual)",

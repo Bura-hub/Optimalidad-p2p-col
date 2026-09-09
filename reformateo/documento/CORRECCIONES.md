@@ -7807,3 +7807,94 @@ escribió, de modo que no puede discrepar de la tabla publicada.
 
 ---
 
+## C-167 · El aparato de figuras del foro, y la regla que lo gobierna
+
+**Para proyectar en una ponencia, no para imprimir en un artículo.** De ahí el
+diseño: una idea por figura, pocas series, rótulos grandes. Una figura que se
+entiende en veinte segundos de pie desde la última fila.
+
+### La regla, y es la que le da valor
+
+**Ninguna vuelve a simular y ninguna cifra se escribe a mano.** Todas leen del
+almacén, que es lo que la corrida oficial escribió, y cada una deja su tabla de
+datos y su nota de procedencia al lado. Una figura de este conjunto se puede
+auditar sin ejecutar el proyecto: el fichero hermano dice literalmente de qué
+tabla salió.
+
+### Las horas protagonistas se eligen por criterio medido
+
+No por conveniencia narrativa. Cuatro categorías fijadas de antemano, que el
+almacén resuelve solo y que **cada figura declara en su pie**:
+
+| Categoría | Criterio |
+|---|---|
+| típica | la mediana por volumen de las horas con al menos dos vendedores y tres compradores |
+| escasez de oferta | la de menor cociente entre oferta y demanda netas |
+| exceso de oferta | la de mayor cociente |
+| patológica | precio pegado a una cota de su banda, u oferta y demanda casi empatadas |
+
+Y la frase del pie **la genera el mismo código que aplicó el criterio**, no el
+pie. Así la figura no puede afirmar un criterio distinto del que se usó.
+
+El día del grupo C se elige igual: el de mayor recorrido del precio acordado
+entre sus horas de mercado.
+
+### Los grupos
+
+**A · cómo se acuerda el precio.** La trayectoria con la banda medida de cada
+agente y el multiplicador de la restricción del vendedor en el eje gemelo; el
+reparto del excedente frente al patrón del contrato interno; y las potencias por
+pareja a lo largo de la integración, que muestran que **la energía se reparte
+antes que el precio**.
+
+**C · la discusión de precios en un día.** Las veinticuatro horas con su banda,
+su acuerdo, y abajo cuántos venden, cuántos compran y **cuántos se retiraron**,
+que es lo que el criterio de participación produce y que ninguna figura del
+proyecto mostraba.
+
+**D · la comparación regulatoria.** Lo que le cuesta a cada institución la
+energía que compra, dentro y fuera; y qué le deja cada mecanismo, con el mejor
+señalado. Esta última es la que impide la conclusión fácil: **no gana el mismo
+mecanismo para todos**.
+
+**El grupo B no vive aquí** —el sistema sin filtrar y el barrido del término de
+rivalidad— porque no se puede leer del almacén: exige correr el modelo con otros
+parámetros. Va en su propio guion, para que la regla de esta carpeta siga siendo
+cierta sin excepciones.
+
+### Cuatro defectos de lectura que el primer ensayo destapó
+
+Se anotan porque son la clase de cosa que sobrevive impresa si nadie mira la
+figura terminada:
+
+**Uno.** Los rótulos de techo se imprimían uno por agente, y como tres
+instituciones comparten comercializador, tres rótulos caían sobre el mismo píxel
+y no se leía ninguno. Ahora se dibuja **una línea por techo distinto**, rotulada
+con quiénes lo comparten.
+
+**Dos.** Dos compradores con el mismo techo acuerdan el mismo precio, y la
+última curva dibujada tapaba a las anteriores: **la leyenda prometía cuatro
+series donde solo se veían dos**. Ahora las que nunca se separan más de medio
+peso por kilovatio hora se dibujan juntas y la leyenda lo dice. El criterio es
+visual y no exacto a propósito: exigir igualdad al bit dejaría el defecto intacto
+por diferencias que nadie puede ver.
+
+**Tres.** La tabla de trayectorias es la unión de todas las horas, y los papeles
+cambian de una a otra. Una institución que compra a las once y vende a las doce
+aporta columnas de las dos clases, y en la hora en que no juega ese papel su
+columna está vacía. Dibujarla no pintaba nada pero **sí añadía una entrada a la
+leyenda**, y una leyenda que promete una serie que no está es peor que una serie
+de menos: el lector la busca.
+
+**Cuatro.** El pie afirmaba «horizonte completo» sin haberlo mirado. Ahora lo
+**lee del dato**: un almacén de un día de prueba y uno de nueve meses producen la
+misma figura, y el pie es lo único que los distingue.
+
+### Y un rótulo que había quedado atrás
+
+El mecanismo del contrato seguía apareciendo como «C2 · PPA» en la paleta común
+después de CAL-52, cuando ya no es un contrato con un tercero a precio de mercado
+sino el contrato interno de la comunidad al punto medio de la banda.
+
+---
+

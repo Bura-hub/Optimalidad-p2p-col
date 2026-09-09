@@ -20,6 +20,48 @@ Eso no es una defensa retórica: cada afirmación tiene su medición y está aba
 
 ---
 
+## Probado resolviendo, no leyendo firmas (H-62)
+
+La primera versión de este documento se apoyaba en leer las firmas de las
+rutinas. **Leer una firma no es una prueba.** El 2026-09-08 se volvió a jugar
+la partida entera con cada parámetro sustituido por valores extremos:
+
+| Parámetro | Rango probado | Peor dif. precio | Peor dif. volumen |
+|---|---|---:|---:|
+| preferencia de autoconsumo | de 1 a 10.000 | **0** | **0** |
+| saciedad | de 0,01 a 2.500 | **0** | **0** |
+| competencia | de 0 a 50 | 3,1·10⁻³ | 8·10⁻¹⁵ |
+| costo fijo | de 1 a 1.000 | **0** | **0** |
+| costo cuadrático | de 0,01 a 10 | 2,3·10⁻⁹ | 8·10⁻¹⁵ |
+| costo lineal | de la mitad al doble | 7,2·10⁻⁸ | 1,9·10⁻¹⁴ |
+
+**Tres dan cero binario**, con factores de variación de hasta diez mil. Cero
+exacto significa que **no participan en el cálculo**, no que su efecto sea
+pequeño.
+
+**Cautela que hay que decir si se presenta esta tabla:** está medida sobre
+**una hora**, y que ni el costo lineal la mueva apunta a que en esa hora el
+precio está pegado a una cota. Repetirlo sobre una muestra con precios
+interiores está pendiente y va al servidor.
+
+## Dónde SÍ tienen efecto, y es la pregunta fina
+
+El modelo base tiene **dos solucionadores**, y el matiz importa:
+
+**En su dinámica de replicador no tienen efecto.** Comprobado en su fichero:
+los calcula y **no vuelve a usarlos**. Lo que aparece en la aptitud es el
+multiplicador de Lagrange, que se llama parecido y es otra cosa.
+
+**En su solucionador estático sí.** Ese maximiza directamente la suma de
+bienestares, y sus parámetros están dentro de la función objetivo.
+
+> **Si lo preguntan:** «Gobiernan el óptimo centralizado de referencia. No
+> gobiernan el mercado descentralizado, que es lo que esta tesis simula. Y
+> nosotros usamos como referencia centralizada el problema de transporte, que
+> **es** el óptimo del bienestar cuasilineal con la disposición a pagar igual
+> al techo y el costo de oportunidad igual al piso. De modo que la calibración
+> correcta está elegida, aunque no la escribiéramos como parámetros.»
+
 ## Quién entra en el juego y quién no
 
 Comprobado en las firmas de las dos rutinas de la dinámica:

@@ -5521,3 +5521,92 @@ demanda no la tiene.**
 
 Ver H-33, H-40, H-44, H-55, H-58, H-59 y H-60.
 
+---
+
+## H-62 · Ningún parámetro heredado mueve el resultado, y el que menos es el que más se temía
+
+**Estado: MEDIDO el 2026-09-08 RESOLVIENDO la partida, no leyendo firmas. Con
+una cautela seria que se declara abajo y que obliga a repetirlo en el
+servidor.**
+
+`PARAMETROS.md` afirmaba que de los parámetros libres del modelo base ninguno
+gobierna el resultado. Se apoyaba en leer las firmas de las rutinas y en
+barridos antiguos. **Leer una firma no es una prueba.** Aquí se vuelve a jugar
+la partida entera con cada parámetro sustituido por valores extremos.
+
+### Lo medido, sobre una hora de la frontera principal
+
+| Parámetro | Rango probado | Peor dif. precio | Peor dif. volumen | Veredicto |
+|---|---|---:|---:|---|
+| preferencia de autoconsumo | de 1 a 10.000 | **0** | **0** | sin efecto |
+| saciedad | de 0,01 a 2.500 | **0** | **0** | sin efecto |
+| competencia | de 0 a 50 | 3,1·10⁻³ | 8·10⁻¹⁵ | mueve el precio |
+| costo fijo | de 1 a 1.000 | **0** | **0** | sin efecto |
+| costo cuadrático | de 0,01 a 10 | 2,3·10⁻⁹ | 8·10⁻¹⁵ | sin efecto |
+| costo lineal | de la mitad al doble del medido | 7,2·10⁻⁸ | 1,9·10⁻¹⁴ | sin efecto |
+
+### Los tres ceros exactos, que son lo más fuerte
+
+La preferencia, la saciedad y el costo fijo dan **cero binario** en las cuatro
+métricas, con factores de variación de diez mil, cinco mil y mil.
+
+**Cero exacto es más fuerte que «efecto despreciable»**: significa que el
+parámetro **no participa en el cálculo**, no que su efecto sea pequeño. No
+puede cambiar con otros datos, porque no entra.
+
+### La competencia mueve el precio y nada más
+
+Con quinientas veces su valor mueve el precio un 0,3 % y **el volumen ni un
+10⁻¹⁵**. Es D-7 otra vez: afecta al reparto del margen, no a cuánta energía se
+mueve. Confirma resolviendo lo que CAL-2 midió por otra vía.
+
+### Y una propiedad del bienestar cuasilineal que conviene decir
+
+Es el ancho de la banda por la energía, de modo que **el precio se cancela
+dentro de él**. Por tanto **es inmune a la indeterminación del precio** que
+este modelo arrastra, esa por la que entre el 83 y el 89 % de los flujos
+cierran pegados a una cota.
+
+Con su contrapartida honesta: por eso mismo esa columna **no aporta
+información independiente** de la del reparto.
+
+### LA CAUTELA, y es seria
+
+**Esto está medido sobre UNA hora.** Y que ni siquiera el costo lineal la
+mueva —el único parámetro que sí entra en la aptitud del vendedor y que, con
+el doble de su valor, debería desplazar el costo marginal— apunta a que **en
+esa hora el precio está pegado a una cota**. Si topa, empujar la aptitud no lo
+mueve.
+
+De modo que el barrido, tal como está, **puede estar subestimando la
+sensibilidad**. Antes de publicarlo hay que repetirlo sobre una muestra que
+incluya horas con **precio interior**, que son minoría pero existen.
+
+**Va al servidor.** Con treinta y dos procesos el barrido completo sobre una
+muestra amplia sale en minutos; aquí cada resolución cuesta dos o tres.
+
+### Y la precisión que el autor pidió sobre estos parámetros
+
+Preguntó si en el modelo original no tenían efecto, y la respuesta exacta
+importa:
+
+**En su dinámica de replicador no lo tienen.** Comprobado en su fichero: los
+calcula y **no vuelve a usarlos**. Lo que sí aparece en la aptitud es el
+multiplicador de Lagrange, que se llama parecido y es otra cosa.
+
+**En su solucionador estático sí.** Ese resuelve el problema maximizando
+directamente la suma de bienestares, y ahí sus parámetros están dentro de la
+función objetivo.
+
+> **Gobiernan el óptimo centralizado de referencia. No gobiernan el mercado
+> descentralizado, que es lo que esta tesis simula.**
+
+Y eso cierra un círculo con H-61: si la disposición a pagar del comprador es su
+techo y el costo de oportunidad del vendedor es su piso, **maximizar el
+bienestar cuasilineal es exactamente el problema de transporte** que el
+proyecto ya usa como referencia centralizada. No es que ignoráramos esos
+parámetros: es que al plantear la referencia como transporte **elegimos
+implícitamente su calibración correcta**.
+
+Ver H-61, D-7, CAL-2, CAL-5, CAL-32 y CAL-33.
+

@@ -186,7 +186,7 @@ def carga_base():
 
 def resuelve(dat: dict, k: int, multiplicadores: bool = False,
              techo: str = "propio", peso_virtual: str = "barrera",
-             criterio: str = "ingreso"):
+             criterio: str = "ingreso", params: dict = None):
     """Resuelve la hora por la via del modelo base, con las cotas medidas.
 
     `multiplicadores` pide al solucionador que devuelva los suyos, que son
@@ -238,6 +238,28 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
     else:
         b = get_b_for_real_data(N, dat["nombres"])
         lam = np.full(N, 100.0); theta = np.full(N, 0.5); etha = np.full(N, 0.1)
+
+    # Sustitucion de parametros para MEDIR su efecto. No es configuracion: la
+    # sonda `parametros_efecto.py` la usa para comprobar, RESOLVIENDO de
+    # verdad, cuales de los parametros heredados mueven el resultado y cuales
+    # no. Con None se usan los del modelo, bit a bit.
+    if params:
+        _validos = ("a", "b", "c", "lam", "theta", "etha")
+        for _k in params:
+            if _k not in _validos:
+                raise ValueError(f"parametro {_k!r}; hay {_validos}")
+        if "a" in params:
+            a = np.full(N, float(params["a"]))
+        if "b" in params:
+            b = np.full(N, float(params["b"]))
+        if "c" in params:
+            c = np.full(N, float(params["c"]))
+        if "lam" in params:
+            lam = np.full(N, float(params["lam"]))
+        if "theta" in params:
+            theta = np.full(N, float(params["theta"]))
+        if "etha" in params:
+            etha = np.full(N, float(params["etha"]))
 
     # El limite economico usa el techo de cada agente
     g_klim = compute_generation_limit(G[:, k], a, b, c, dat["techo"][:, k])

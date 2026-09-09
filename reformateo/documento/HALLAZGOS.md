@@ -2984,8 +2984,12 @@ usa para la deserción y para el índice de equidad.
 
 ## H-44 · La dinámica del modelo base no deriva de su bienestar publicado
 
-**Estado: MEDIDO el 2026-09-06, con compuerta. Es una propiedad del modelo de
-origen, no un defecto de esta traducción.**
+**Estado: MEDIDO el 2026-09-06, con compuerta. RECTIFICADO EL 2026-09-08 POR
+H-60: la medición se sostiene, pero su atribución era incorrecta. La aptitud
+sigue el gradiente del artículo **publicado**; lo que se desvía es nuestra
+función de informe, que traduce el MATLAB de la autora. El factor de 7.778 no
+separa dos documentos suyos: separa el bienestar del artículo del bienestar de
+su código. Léase este hallazgo con H-60 delante.**
 
 Salió al preguntarse por qué la función que informa del bienestar del
 comprador usa una forma del término de competencia y la dinámica usa otra.
@@ -5113,4 +5117,267 @@ agregada invitaría a hacer.
 | el 25 % | 81,1 % |
 
 Mucho menos concentrado que en la principal, donde un decil ponía el 98,3 %.
+
+---
+
+## H-58 · Las ecuaciones publicadas del bienestar y las tres implementaciones de la autora no coinciden
+
+**Estado: MEDIDO el 2026-09-08 contra el PDF impreso, no contra una extracción
+a texto. Lo abrió una pregunta del autor: «el bienestar entonces no está bien
+modelado, revisa cómo lo hace Chacón».**
+
+Es la ampliación de H-40 a la propia función de bienestar. Ya se sabía que el
+modelo publicado y el programado no son el mismo; ahora se sabe **dónde**, y la
+diferencia cae justo en la pieza que decide si transar sube el bienestar.
+
+### El vendedor · tres diferencias, no una
+
+Ecuaciones (6) y (7) de la página 4 del artículo, leídas en el PDF:
+
+| | Artículo, ec. (6)-(7) | Su MATLAB y su Python | Nuestro código |
+|---|---|---|---|
+| Recompensa | **Σ_i P_ji · π_i** | −Σ_i P_ji / ln(1+π_i) | como el suyo |
+| Coeficiente cuadrático | **θ_j / 2** | θ_j | θ_j |
+| Argumento de la utilidad | **la energía consumida internamente** | el excedente neto | el excedente neto |
+
+Las tres se verificaron en `Documentos/copy/ConArtLatin.m:244-247` y en
+`Documentos/copy/Bienestar6p.py:84`, que son dos implementaciones distintas de
+la autora y **coinciden entre sí**.
+
+### El comprador · el factor del piso sí está, y el logaritmo no divide
+
+Ecuación (14) de la página 5, leída en el PDF:
+
+> W_i = U_i(G_lim) + **π_gb** · Σ_j P_ji · **ln( 1 / (π_i + 1) )** − β_i · Σ_{ℓ≠i} π_ℓ Σ_j P_jℓ
+
+Nuestro código escribe ese término como **Σ_j P_ji / ln(|π_i| + 1)**, es decir
+**dividiendo y sin el factor del piso**.
+
+**Y hay que rectificar una afirmación nuestra.** El comentario de
+`core/replicator_buyers.py` sostiene que el factor del piso «ni el artículo
+publicado ni el guion contemplan». **Es falso: está impreso en la ecuación
+(14).** Lo que ocurre es que ninguna de las tres implementaciones de la autora
+lo lleva.
+
+### Por qué esto explica que el bienestar se maximice sin transar
+
+Con la forma **del código**, la recompensa del vendedor y el pago del comprador
+son la misma suma con signo opuesto: **se cancelan exactamente**, y lo que
+queda son costos y rivalidad, ambos crecientes con lo transado. Es lo que H-55
+probó a precisión de máquina.
+
+Con la forma **del artículo** no se cancelan: el vendedor cobra lineal en el
+precio y el comprador paga logarítmico. **El signo del efecto de transar deja
+de estar decidido por construcción.**
+
+### Una sospecha que hay que medir, no afirmar
+
+El logaritmo **no es invariante de escala**, y las dos versiones del modelo
+trabajan en escalas distintas: el caso publicado usa precios del orden de la
+unidad, y aquí se usan cientos.
+
+En la escala del artículo, el término del vendedor domina al del comprador y
+transar sube el bienestar. En la nuestra, con el precio en cientos y su
+logaritmo en unidades, la relación **podría invertirse**. Si se confirma,
+significa que **la forma funcional del modelo base no sobrevive al cambio de
+unidades**, y eso es un resultado por derecho propio.
+
+**No se afirma todavía.** Se mide en la Fase 0 con las dos formas
+implementadas, como se hizo con las tres formas del término de competencia.
+
+### Lo que no cambia
+
+Nuestra traducción es **fiel al código de la autora**, y las compuertas lo
+prueban. El problema no es la traducción: es que el original no es un solo
+modelo.
+
+Ver H-39, H-40, H-44 y H-55.
+
+---
+
+## H-59 · El bienestar no falla por su forma sino por su escala
+
+**Estado: MEDIDO el 2026-09-08 con `sonda/bienestar_formas.py`, sobre horas ya
+resueltas y sin volver a jugar ninguna partida.**
+
+Continúa H-58, que enfrentó las ecuaciones publicadas con las tres
+implementaciones de la autora. Aquí se mide cuál describe un mercado que tenga
+sentido.
+
+### El método
+
+Se toma una hora ya resuelta, con su precio y su reparto de equilibrio, y se
+evalúa el bienestar **escalando lo transado de cero a uno**. Si el bienestar
+baja al subir el factor, esa forma describe un mercado que conviene cerrar.
+No hace falta resolver de nuevo, porque **ninguna dinámica llama a la función
+de bienestar**, y eso está probado con compuerta.
+
+### Lo medido, en tres formas
+
+| Forma | Qué es |
+|---|---|
+| código | la de su MATLAB y su Python, que es la que traducimos |
+| artículo | la de las ecuaciones (6), (7) y (14) del PDF |
+| completo | la del artículo con la utilidad del comprador evaluada sobre la energía que **de verdad consume**, es decir la propia más la comprada |
+
+En **siete horas de siete**, tres del caso publicado y cuatro reales, **las tres
+formas bajan al transar**, y el máximo está en cero.
+
+### La prueba de la escala, que es la que explica
+
+La misma hora con el precio dividido por un factor. Caso publicado, hora 3:
+
+| Factor | Precio medio | Forma del código | Forma del artículo |
+|---|---:|---:|---:|
+| 1,000 | 937,3 | −463,78 | −212,06 |
+| 0,500 | 468,7 | −231,89 | −73,72 |
+| **0,100** | **93,7** | −46,38 | **+0,17** |
+| 0,050 | 46,9 | −23,19 | **+3,24** |
+| 0,010 | 9,4 | −4,64 | **+2,04** |
+| 0,001 | 0,9 | −0,46 | **+0,36** |
+
+**La forma del código nunca cambia de signo, en ninguna escala.** Su columna es
+exactamente proporcional al factor, de −463,78 a −0,46 al dividir por mil: como
+los pagos se cancelan, lo único que depende de lo transado son términos
+negativos que escalan linealmente. **Es estructural, no de unidades.**
+
+**La forma del artículo sí cambia de signo**, alrededor de un precio medio de
+unos **90**. Y ahí está el problema: la Tabla V del artículo reporta precios de
+0,1 a 0,6, **donde su fórmula funciona**; su propio código usa de 114 a 1.250,
+**donde no**; y nosotros trabajamos en cientos de pesos, **donde tampoco**.
+
+### Y la causa de fondo no es la forma, son los parámetros
+
+Añadir la utilidad del comprador por la energía comprada **apenas mejora**:
+la caída pasa de **−5.039,8 a −4.911,7**, un 2,5 %. Suma unos 100 por kilovatio
+hora contra un término de pago del orden de 4.500.
+
+> **La utilidad marginal de consumir vale 100 y el techo tarifario 730. El
+> modelo dice que un comprador valora la energía en 100 mientras la red se la
+> cobra a 730. Con esos números ningún comprador debería comprar nada, y eso es
+> exactamente lo que la función responde.**
+
+Los parámetros de utilidad se heredaron del modelo base **sin recalibrar a la
+escala de precios colombiana**.
+
+### Lo que esto NO cambia, y es lo que lo vuelve manejable
+
+**Ninguna dinámica llama a la función de bienestar.** No es un motor, es una
+métrica de informe. Cambiarla **no altera ni un precio ni un kilovatio hora
+transado**, de modo que se puede elegir la correcta sin tocar el modelo ni
+invalidar nada de lo medido.
+
+### Y una definición bien formada que ya está en el artículo
+
+La **ecuación (4)**, la del programa de respuesta a la demanda, que este
+trabajo **desactiva**:
+
+> W_k = ln( 1 + Σ_n D_k^n ) − π_k · ( Σ_n D_k^n − Σ_n G_klim^n )
+
+Utilidad de lo consumido menos el costo de la posición neta frente a la red.
+Esa **sí** es una función de bienestar social: la utilidad depende de lo que se
+consume y el costo de lo que hay que importar, de modo que intercambiar dentro
+reduce la posición neta y **sube el bienestar por construcción**.
+
+**El artículo cambia de definición a mitad de camino:** la de la etapa de
+demanda mide bienestar; la de la etapa de mercado mide otra cosa. Y nosotros
+nos quedamos con la segunda.
+
+### Qué queda por decidir
+
+**Acotado por H-60, del mismo día.** La utilidad cuadrática **no entra en la
+dinámica**: ni λ ni θ son argumentos de las dos rutinas del juego. De modo que
+su calibración solo cambia el nivel del número informado, no el resultado del
+mercado.
+
+Y la corrección principal resulta ser otra y más simple: la dinámica ya
+optimiza el bienestar del artículo, de modo que basta informar ese mismo. La
+calibración de la utilidad queda como **mejora opcional**, en consulta con
+fundamento en la literatura que el propio artículo cita.
+
+Ver H-40, H-44, H-55 y H-58.
+
+---
+
+## H-60 · El juego optimiza el bienestar del artículo; la función que informamos es la que se desvía
+
+**Estado: PROBADO analíticamente el 2026-09-08, leyendo las dos aptitudes del
+núcleo y derivando a mano las ecuaciones del PDF. Rectifica H-44 y acota H-58 y
+H-59 a una corrección de coherencia interna.**
+
+Lo abrió una pregunta del autor: si el bienestar no está bien definido, cómo es
+que el juego de precios funciona.
+
+### La aptitud del vendedor es el gradiente de la ecuación (6)
+
+En el núcleo:
+
+    F_ji = π_i − H_j − λ_filt_j − β_filt_i     con  H_j = 2·a_j·ΣP_ji + b_j
+
+Y la recompensa menos los costos del artículo, derivada respecto de lo
+transado:
+
+    ∂ [ Σ_i P_ji·π_i − a_j(ΣP_ji)² − b_j·ΣP_ji ] / ∂P_ji  =  π_i − 2a_j·ΣP_ji − b_j
+
+**Son la misma expresión**, más los dos multiplicadores de las restricciones de
+capacidad y de necesidad.
+
+### La aptitud del comprador es el gradiente de la ecuación (14)
+
+En el núcleo:
+
+    pagos_i = − π_gb · ΣP_ji / (π_i + 1)
+
+Y el término de pago del artículo, derivado respecto del precio:
+
+    ∂ [ π_gb · Σ_j P_ji · ln( 1/(π_i+1) ) ] / ∂π_i  =  − π_gb · ΣP_ji / (π_i + 1)
+
+**Son la misma expresión, con el factor del piso incluido.**
+
+### De donde se siguen tres cosas
+
+**Primera: el juego de precios está bien planteado.** La dinámica asciende por
+el gradiente del bienestar **del artículo publicado**, con sus tres piezas: la
+recompensa lineal en el precio, el factor del piso, y el logaritmo multiplicando
+en vez de dividiendo.
+
+**Segunda: la utilidad cuadrática no entra en el juego.** Comprobado en las
+firmas de las dos rutinas: el vendedor recibe los costos, los precios y las
+potencias netas; el comprador recibe los costos, la rivalidad y las dos cotas.
+**Ni λ ni θ son argumentos de ninguna de las dos.** Su calibración heredada, la
+de H-59, no ha estropeado ni un precio ni un kilovatio hora transado.
+
+**Tercera: lo que se desvía es la función de informe.** `seller_welfare` y
+`buyer_welfare` traducen el MATLAB de la autora, que discrepa de sus propias
+ecuaciones publicadas. Son ellas las que producen el sinsentido de que transar
+baje el bienestar.
+
+### La rectificación de H-44
+
+H-44 concluyó que la aptitud sigue el gradiente del bienestar **del documento
+extenso** y no del publicado, con un factor de 7.778 entre ambos.
+
+Con la ecuación (14) leída en el PDF impreso, la lectura correcta es otra:
+**la aptitud sigue el gradiente del artículo publicado**, y lo que se desvía es
+**nuestra función de informe**, que sigue al MATLAB. El factor de 7.778 no
+separa dos documentos: separa **el bienestar del artículo del bienestar del
+código**, que es exactamente lo que H-58 documentó por otro camino.
+
+La medición de H-44 sigue siendo válida; lo que se rectifica es a qué se
+atribuye la diferencia.
+
+### Qué se hace, y es mucho menos de lo que parecía
+
+**No hay que tocar el juego, ni recalibrar nada, ni volver a correr.** Basta
+sustituir la función que informa por la que la dinámica ya está optimizando.
+
+Deja de ser una decisión de calibración y pasa a ser una **corrección de
+coherencia interna**: hoy el modelo optimiza una cosa e informa otra.
+
+**Lo que sigue abierto**, y ahora es una mejora y no una corrección, es si
+conviene además calibrar la utilidad cuadrática a la escala de precios
+colombiana. Como no entra en el juego, esa decisión solo cambia el nivel del
+número informado.
+
+Ver H-40, H-44, H-55, H-58 y H-59.
 

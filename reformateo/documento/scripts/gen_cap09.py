@@ -161,10 +161,16 @@ def f95_reproducibilidad():
 
     Dos cosas que la versión anterior de la figura no decía:
 
-    1. **C2 y C3 son el mismo resultado por construcción** (se comprueba
-       aquí mismo, antes de dibujar). Ocupaban dos columnas y se leían
-       como dos comprobaciones independientes; ahora ocupan una,
-       rotulada ``C2 = C3``.
+    1. **Si el contrato y la bolsa coinciden, ocupan una sola columna.**
+       Ocupaban dos y se leían como dos comprobaciones independientes.
+       La coincidencia **se mide aquí mismo antes de dibujar**, y no se
+       supone: en los dos canon históricos se cumple, porque el escenario
+       del contrato aún no tenía precio propio y valoraba su excedente a
+       la bolsa horaria. Desde CAL-51 y CAL-52 lo tiene, de modo que un
+       canon posterior los separará; cuando eso pase la figura los dibuja
+       **en dos columnas y lo dice**, en vez de detenerse. La versión
+       anterior lo exigía con una afirmación dura que habría detenido la
+       generación de figuras el día previsto.
     2. **Una barra de altura cero no se ve.** Los cinco mecanismos que
        reproducen exactamente no dejaban ninguna marca en el papel, de
        modo que la afirmación central de la figura vivía solo en el texto
@@ -177,8 +183,17 @@ def f95_reproducibilidad():
     reproducibilidad del código.
     """
     fig, ax = E.figura(alto=3.3)
-    grupos = [("P2P", ["P2P"]), ("C1", ["C1"]), ("C2 = C3", ["C2", "C3"]),
-              ("C4", ["C4"]), ("C5", ["C5"])]
+    # ¿Coinciden el contrato y la bolsa en ESTE canon? Se mide, no se
+    # supone. Coinciden mientras el contrato no tenga precio propio;
+    # desde CAL-51 y CAL-52 lo tiene, y entonces son dos columnas.
+    _g = {c: D.resumen(c).set_index("mecanismo")["ganancia_COP"]
+          for c in ("m1", "m3")}
+    coinciden = all(abs(float(v["C2"]) - float(v["C3"])) < 1e-6
+                    for v in _g.values())
+    grupos = ([("P2P", ["P2P"]), ("C1", ["C1"]), ("C2 = C3", ["C2", "C3"]),
+               ("C4", ["C4"]), ("C5", ["C5"])] if coinciden else
+              [("P2P", ["P2P"]), ("C1", ["C1"]), ("C2", ["C2"]),
+               ("C3", ["C3"]), ("C4", ["C4"]), ("C5", ["C5"])])
     filas = []
     ancho = 0.38
     difs_por_cob = {}
@@ -186,9 +201,6 @@ def f95_reproducibilidad():
     for cob in ("m1", "m3"):
         jun = _resumen_junio(cob).set_index("mecanismo")["ganancia_COP"]
         ago = D.resumen(cob).set_index("mecanismo")["ganancia_COP"]
-        # C2 == C3 por construccion: se comprueba, no se supone.
-        assert abs(float(ago["C2"]) - float(ago["C3"])) < 1e-6, \
-            f"C2 y C3 dejaron de coincidir en {cob}: eso es un hallazgo"
         difs = []
         for etiqueta, claves in grupos:
             a, b = float(jun[claves[0]]), float(ago[claves[0]])
@@ -232,8 +244,11 @@ def f95_reproducibilidad():
     E.eje_espanol(ax, "y", "miles", 1)
 
     ax.text(0.025, 0.72,
-            "P2P, C1, C2 = C3 y C5 reproducen exactamente:\n"
-            "los archivos de flujos del P2P son idénticos byte a byte",
+            ("P2P, C1, C2 = C3 y C5 reproducen exactamente:\n"
+             "los archivos de flujos del P2P son idénticos byte a byte")
+            if coinciden else
+            ("el contrato ya no coincide con la bolsa: desde que tiene\n"
+             "precio pactado son dos mecanismos y no uno con dos rótulos"),
             transform=ax.transAxes, fontsize=7.2, color=E.NEUTRO, ha="left",
             va="center")
     ax.text(0.985, 0.055,

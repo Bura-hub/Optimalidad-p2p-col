@@ -96,11 +96,43 @@ aparece en la lámina de límites como cota superior.
 
 ### Bloque 2 · La banda · 4 min
 
-**5. El costo unitario, y qué cambia entre comercializadores.** Qué componentes
-fija la regulación igual para todos y cuáles dependen de quién vende. Con el
-dato concreto: cuatro instituciones compran a un comercializador y la quinta a
-otro, y por eso sus techos difieren. Es lo que obliga a que el techo entre al
-modelo **por agente** y no como un número único de la comunidad.
+**5. El costo unitario, y qué cambia entre comercializadores.** La comunidad
+tiene **dos**: cuatro instituciones contratan con una comercializadora y la
+quinta con el operador de red. Sus costos unitarios, en abril de 2025 y a nivel
+de tensión 2, en (COP/kWh):
+
+| Componente | Comercializadora | Operador de red | Diferencia |
+|---|---:|---:|---:|
+| Generación | 415,10 | 289,90 | −125,20 |
+| **Transmisión** | **62,20** | **62,20** | **0,00** |
+| **Distribución** | **153,46** | **153,46** | **0,00** |
+| **Comercialización** | **38,62** | **174,69** | **+136,07** |
+| Pérdidas | 25,86 | 20,60 | −5,26 |
+| Restricciones | 39,07 | 53,52 | +14,45 |
+| Otros | 0,00 | 40,27 | +40,27 |
+| **Costo unitario** | **734,30** | **794,62** | **+60,32** |
+
+**Transmisión y distribución coinciden al céntimo**, porque las fija el operador
+de red y no el comercializador. Es la respuesta directa a qué está fijo pase lo
+que pase.
+
+Lo que cambia de verdad es **el cargo de comercializar: 38,62 frente a 174,69,
+más de cuatro veces**.
+
+> **Y aquí la lámina deja de ser contexto tarifario.** Comprobado contra la
+> liquidación de abril, la banda de la universidad mide 734,3 menos 695,7, es
+> decir 38,6; y la de la institución que compra al operador de red mide 794,6
+> menos 619,9, es decir 174,7.
+>
+> **El ancho de la banda de cada institución es, exactamente, el cargo de
+> comercializar de su comercializador.**
+>
+> De modo que esta lámina explica **por qué existe la franja que el mercado
+> reparte**, y explica de paso por qué la institución que paga cuatro veces más
+> por comercializar tiene cuatro veces más banda que repartir. Es lo que enlaza
+> la explicación tarifaria con el resultado, y sin ella la lámina 7 llega sin
+> preparar.
+
 
 **6. Y el piso, es decir a cuánto le pagan lo que exporta.** Dos regímenes
 dentro del mismo mes. Mientras la inyección no supere al retiro, el excedente es
@@ -462,7 +494,7 @@ almacén, y cada figura deja al lado su tabla de datos y su nota de procedencia.
 
 | Lámina | Figura | De qué tabla sale |
 |---|---|---|
-| 5 · el costo unitario | *falta*, y espera la descomposición tarifaria | — |
+| 5 · el costo unitario | la tabla de componentes de los dos comercializadores | tarifas mensuales |
 | 6 · el piso y sus dos regímenes | el piso mes a mes por institución | agentes |
 | 7 · dónde está el valor | el ancho de la banda y el ahorro, mes a mes | agentes y flujos |
 | 9 · el mecanismo | el acuerdo en la hora típica | trayectorias |

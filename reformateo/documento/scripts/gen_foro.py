@@ -912,7 +912,10 @@ def e2_donde_esta_el_valor(destino, cobertura: str):
              f"meses, y son los dos meses en que la banda pasa de una mediana "
              f"de {E.fmt_miles(g['banda'].median(), 0)} a más de "
              f"{E.fmt_miles(dos['banda'].min(), 0)} (COP/kWh). El color marca "
-             f"los meses que superan vez y media la mediana.",
+             f"los meses que superan vez y media la mediana. El ancho está "
+             f"promediado sobre las instituciones, que no comparten "
+             f"comercializador y por tanto no comparten banda: la de cada una "
+             f"es su propio cargo de comercializar.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
     fig.tight_layout(rect=(0, 0.145, 1, 1))
     return E.guardar(fig, f"foro_e2_valor_{cobertura}", datos=g,

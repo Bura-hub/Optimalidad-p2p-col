@@ -5871,3 +5871,48 @@ y anota los que no resuelven en vez de colgarse.
 
 ---
 
+## H-67 · Tres cifras distintas para la capacidad instalada, y una de ellas es imposible
+
+**Encontrado al armar la lámina del proyecto para la ponencia**, buscando un
+dato que parecía trivial. El repositorio da tres respuestas.
+
+| Cifra | De dónde sale |
+|---|---|
+| **87,75 (kWp)** | el Informe 4 del asesor regulatorio, del 2026-05-27, citado en el escenario de autogeneración remota |
+| 9,9 (kW) | un guion de presentación, **sin fuente** |
+| **70,5 (kW)** | la suma de los máximos de generación medidos, del propio dato |
+
+### La de 9,9 no puede ser cierta
+
+Los máximos medidos por institución sobre el horizonte completo son 16,5 para la
+universidad, 15,1, 14,7, 14,0 y 10,1 (kW). **Solo la primera supera esa cifra**,
+de modo que 9,9 no puede ser la capacidad de las cinco.
+
+Probablemente sea una cifra de una sola institución, o de una versión anterior
+del conjunto de datos, que quedó rotulada como el total. Es el mismo patrón que
+este proyecto ya persiguió dos veces: **una magnitud que no es lo que su rótulo
+dice**.
+
+### Las otras dos son consistentes entre sí
+
+70,5 sobre 87,75 es el **80 por ciento**, que es lo que una instalación real
+entrega frente a su placa. Las dos se sostienen y describen cosas distintas: una
+es lo instalado y la otra lo que de verdad se ha visto salir.
+
+### Qué se hace
+
+La ponencia usa **las dos**, cada una con su nombre, y no usa la tercera. Y se
+anota aquí para que la cifra de 9,9 no vuelva a viajar: **está en un guion que
+construye una presentación**, de modo que si esa presentación se mostró alguna
+vez, se mostró con un dato que contradice a las mediciones por un factor de
+siete.
+
+### Lo que queda abierto
+
+No se ha comprobado **de dónde salió** la cifra de 9,9 ni si alguna presentación
+la llegó a proyectar. No afecta a ningún resultado del modelo, porque el modelo
+lee las series medidas y no la capacidad de placa; afecta solo a la descripción
+del proyecto.
+
+---
+

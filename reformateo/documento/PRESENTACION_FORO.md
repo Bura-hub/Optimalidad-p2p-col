@@ -71,14 +71,34 @@ Ochenta segundos cada una. El reparto por bloques es 4, 4, 4, 5 y 3 minutos.
 
 **1. Portada.** Título, foro, fecha, afiliación.
 
-**2. Esto no es un piloto simulado.** Las cinco instituciones de Pasto con su
-capacidad fotovoltaica instalada, los medidores bidireccionales y la red de
-recolección. La frase que abre: *ya existen, ya generan y ya miden*.
+**2. Esto no es un piloto simulado.** Cinco instituciones de Pasto, ya
+construidas y ya midiendo:
 
-**3. Qué se mide y con qué se decide.** Importación, exportación y generación,
-cada dos minutos, agregadas a la hora. Y la regla de la hora incompleta, que se
-estima con la media porque hay 718 cortes que prueban que el equipo sigue
-integrando.
+| | |
+|---|---|
+| Capacidad fotovoltaica instalada | **87,75 (kWp)** |
+| Máximo de generación medido, sumando instituciones | **70,5 (kW)**, el 80 por ciento de la placa |
+| Medidores | **20**, cuatro por institución |
+| Cadencia de registro | cada **2 minutos** |
+| Horizonte | **9 meses**, de abril a diciembre de 2025 |
+
+La frase que abre: *ya existen, ya generan y ya miden*.
+
+> **De dónde sale cada cifra**, porque en este punto conviene decirlo. La
+> capacidad instalada está en el informe del asesor regulatorio; el máximo
+> medido sale del propio dato y es el 80 por ciento de la placa, que es lo que
+> una instalación real entrega; y el inventario de medidores establece cuántos
+> hay y qué mide cada uno.
+
+**3. Qué se mide y con qué se decide.** Los veinte medidores son de cuatro hilos
+y registran en una red propia sobre protocolo de red. De cada uno se toman
+importación, exportación y generación, y se agregan a la hora, que es la
+granularidad a la que la tarifa liquida.
+
+Y la regla de la hora incompleta: **se estima con la media**, porque hay 718
+cortes que prueban que el equipo sigue integrando durante la interrupción. No es
+una interpolación de conveniencia: es lo que el contador hace.
+
 
 **4. Lo que no se sabe del medidor, y qué se hizo con eso.** El inventario
 prueba que en tres de las cinco el medidor principal no es el totalizador del

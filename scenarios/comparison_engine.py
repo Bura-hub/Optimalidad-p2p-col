@@ -108,6 +108,10 @@ def run_comparison(
     # CAL-46 el factor estaba implícito en 1 hora y no se escribía en ninguna
     # parte. El default 1.0 deja el camino horario idéntico bit a bit.
     dt:            float = 1.0,
+    # CAL-51: precio pactado del contrato bilateral, (T,) o escalar.
+    # Con None se conserva el comportamiento anterior bit a bit.
+    pi_contrato:  Union[float, np.ndarray, None] = None,
+    cobertura_contrato: float = 1.0,
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -218,6 +222,11 @@ def run_comparison(
         pi_G=pi_G_v,
         # CAL-37: excedente no colocado a bolsa HORARIA (fix artefacto §7.5)
         pi_bolsa=pi_bolsa,
+        # CAL-51: el precio pactado del contrato, articulo 23 numeral 2
+        # literal a. Sin el, este escenario valoraba su excedente a la bolsa
+        # y coincidia con C3 al ultimo digito.
+        pi_contrato=pi_contrato,
+        cobertura_contrato=cobertura_contrato,
         dt=dt,
     )
     c2_net = np.array([c2["per_agent"][n]["net_benefit"] for n in range(N)])

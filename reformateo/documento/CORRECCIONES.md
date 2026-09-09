@@ -7352,3 +7352,98 @@ compuerta compara por identidad de agente**, y queda escrito para que nadie
 vuelva a leerlo como un defecto.
 
 ---
+
+## C-162 · El contrato bilateral recibe su precio, y deja de ser una copia del mercado mayorista
+
+**CAL-51. El defecto más viejo de los escenarios y el que peor se veía, porque
+se presentaba como una propiedad.**
+
+### Lo que pasaba
+
+Los dos escenarios daban **el mismo resultado al último dígito**, y el registro
+lo daba por bueno: «son idénticos por construcción». Pero la causa no era una
+propiedad, era **una ausencia**.
+
+En el caso real las cinco instituciones son prosumidoras y **no hay ningún
+consumidor puro**, de modo que la rama del contrato **nunca se ejecutaba** y el
+escenario caía a una rama que calcula autoconsumo más excedente a bolsa
+horaria. Que es literalmente el otro escenario.
+
+Con la consecuencia de que **todos** sus parámetros quedaban inertes: el precio
+del contrato, el factor de reparto y los cuatro componentes tarifarios. La
+tesis tenía **cinco mecanismos con una etiqueta de seis**.
+
+### La norma, verificada en el texto oficial
+
+El artículo 23 de la Resolución CREG 174, tal como quedó modificado por el
+artículo 27 de la Resolución CREG 101 072 de 2025, distingue:
+
+> **Numeral 1**, para los AGPE que **no** usan fuentes no convencionales.
+> **Numeral 2**, para los que **sí**. Su literal a: venta a un tercero con
+> destino a usuarios no regulados, **«el precio de venta es pactado
+> libremente»**. Su literal b: el crédito de energía del artículo 25.
+
+Las cinco instalaciones son solares. **El repositorio citaba el numeral 1 en
+cinco sitios, y un test lo exigía.** Corregido.
+
+Y de ahí la estructura que faltaba: **el primer escenario es el literal b y el
+segundo es el literal a. Son los dos destinos alternativos del mismo excedente
+de la misma planta.**
+
+### El precio no se postula
+
+Lo publica XM como promedio ponderado de los contratos por tipo de mercado. El
+asesor lo señaló en la reunión con su ruta exacta, y **el fichero llevaba meses
+en el repositorio sin que ninguna línea lo leyera**.
+
+Cubre el horizonte **entero, los nueve meses, sin huecos**, contra lo que se
+temía. Va de 283,3 a 295,2 (COP/kWh), con media de 287,4.
+
+Eso **sustituye el postulado del factor de reparto**, que era el parámetro
+libre más atacable de la tesis, por una serie pública, mensual y citable.
+
+### Lo que se midió al separarlos
+
+Sobre el 2 de mayo de 2025, en producción:
+
+| | Contrato | Bolsa |
+|---|---:|---:|
+| Beneficio (COP) | **142.768** | 132.970 |
+| Índice de equidad | −0,2472 | −0,1917 |
+| Coeficiente de Gini | 0,2070 | 0,2471 |
+
+**No solo cambia el beneficio: cambian las dos métricas de reparto.** Antes las
+dos columnas eran el mismo objeto con dos rótulos.
+
+### Las cinco comprobaciones
+
+`tests/gate_cal51_contrato.py`, en verde:
+
+| | Medido |
+|---|---|
+| Sin precio de contrato, idéntico a lo de siempre | dif **0,00e+00** |
+| Con el precio igualado al de bolsa, los dos coinciden | dif **0,00e+00** |
+| La separación es el excedente por la diferencia de precios | dif **1,1·10⁻¹⁰** |
+| El escenario de bolsa no se mueve | igualdad de matrices |
+| La serie cubre el horizonte | 9 de 9 meses |
+
+La segunda es la que convierte **la igualdad de antes en una propiedad
+demostrada de un caso límite**, en vez de un accidente que había que explicar.
+
+Y la tercera es una **identidad, no un umbral**: la diferencia entre los dos
+escenarios es exactamente el excedente por la diferencia de precios, al último
+decimal. Es el mismo estilo de la identidad de H-33.
+
+### Qué se rompe
+
+Solo las cifras del escenario del contrato. Los otros cinco mecanismos **no se
+mueven ni un dígito**, y eso está demostrado por igualdad de matrices, no
+argumentado.
+
+**Y reventará una compuerta a propósito:** hay un generador de figuras que
+afirma hoy que los dos escenarios son iguales, con el mensaje «eso es un
+hallazgo». Se diseñó para reventar el día que dejaran de serlo.
+
+Ver la ficha de los cinco escenarios y H-40.
+
+---

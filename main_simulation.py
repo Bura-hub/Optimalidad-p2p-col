@@ -641,6 +641,30 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         except Exception as _e:                          # noqa: BLE001
             print(f"    [CAL-37] PES no cargado ({_e}) → LBC sin trigger")
 
+    # ── CAL-51: el precio pactado del contrato bilateral ─────────────────
+    # Articulo 23 numeral 2 literal a de la Resolucion CREG 174: la venta a un
+    # tercero con destino a usuarios no regulados se hace «a precio pactado
+    # libremente». Sin ese precio, el escenario del contrato valoraba su
+    # excedente a la bolsa horaria y coincidia con el de mercado mayorista al
+    # ultimo digito. El precio lo publica XM y el fichero ya estaba en el
+    # repositorio sin que nada lo leyera.
+    pi_contrato_arg = None
+    if use_real_data:
+        idx_c = (index_full if full_horizon else
+                 idx_day if single_day else None)
+        if idx_c is not None:
+            from data.precios_contratos import cobertura as _cob_contrato
+            from data.precios_contratos import precio_horario as _pc_h
+            pi_contrato_arg = _pc_h(idx_c)
+            _c = _cob_contrato(str(idx_c[0].date()), str(idx_c[-1].date()))
+            print(f"    [CAL-51] C2 coloca su excedente bajo contrato: "
+                  f"{np.mean(pi_contrato_arg):.1f} COP/kWh de media, serie "
+                  f"mensual de XM, {len(_c['cargados'])}/{len(_c['meses'])} "
+                  f"meses (art. 23 num. 2 lit. a)")
+        else:
+            print(f"    [CAL-51] El perfil diario promedio no lleva contrato: "
+                  f"su precio es mensual y ese modo no tiene calendario")
+
     cr = run_comparison(
         D=D, G_klim=G_klim, G_raw=G,
         p2p_results=p2p_results,
@@ -649,6 +673,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
         pde=pde,
         pi_ppa=pi_ppa_default,
+        pi_contrato=pi_contrato_arg,                    # CAL-51
         capacity=cap,
         month_labels=month_labels,
         component_c=component_c_arg,

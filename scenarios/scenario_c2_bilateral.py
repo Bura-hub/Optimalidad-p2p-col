@@ -122,6 +122,20 @@ def run_c2_bilateral(
     # del paso (kW) y los precios COP/kWh; con paso horario dt = 1.0 y el
     # resultado es idéntico al de antes de CAL-46.
     dt: float = 1.0,
+    # ── CAL-51: el precio pactado del contrato ──────────────────────────
+    # Articulo 23 numeral 2 literal a de la Resolucion CREG 174: la venta a
+    # un tercero con destino a usuarios no regulados se hace «a precio
+    # pactado libremente». Ese precio lo publica XM como promedio ponderado
+    # de los contratos del mercado no regulado, de modo que no hay que
+    # postularlo: ver `data/precios_contratos.py`.
+    #
+    # Con None se conserva el comportamiento anterior BIT A BIT, en el que el
+    # excedente se valoraba a la bolsa horaria y este escenario coincidia con
+    # el de mercado mayorista.
+    pi_contrato: Union[float, np.ndarray, None] = None,
+    # Que fraccion del excedente se coloca bajo contrato. Uno por omision:
+    # el literal a no pone limite de cantidad.
+    cobertura_contrato: float = 1.0,
 ) -> dict:
     """
     Lógica:
@@ -197,6 +211,12 @@ def run_c2_bilateral(
     mem_costs_arr = np.zeros(N)    # egresos MEM no-regulado (FAZNI+4%+rep)
     grid_cost     = np.zeros(N)    # costo energía aún comprada a red
     grid_revenue  = np.zeros(N)    # ingresos por venta excedente a red
+    # CAL-51: el ingreso por el excedente colocado bajo CONTRATO, al precio
+    # pactado. Es lo unico que distingue este escenario del de bolsa: el
+    # articulo 23 numeral 2 literal a dice que ahi «el precio de venta es
+    # pactado libremente». Sin este acumulador, el excedente se valoraba a la
+    # bolsa horaria y los dos escenarios daban lo mismo al ultimo digito.
+    revenue_contrato = np.zeros(N)
 
     if pi_bolsa is not None:
         pi_bolsa = np.asarray(pi_bolsa, dtype=float).reshape(-1)
@@ -204,6 +224,14 @@ def run_c2_bilateral(
     for k in range(T):
         # CAL-37: precio horario para el excedente no colocado (fallback pi_gb).
         pb_k = float(pi_bolsa[k]) if pi_bolsa is not None else pi_gb
+        # El precio del contrato de esa hora. Sin serie, el escenario se
+        # comporta como antes: todo el excedente a bolsa.
+        if pi_contrato is None:
+            pc_k, cob_k = pb_k, 0.0
+        else:
+            pc_k = (float(pi_contrato[k]) if np.ndim(pi_contrato)
+                    else float(pi_contrato))
+            cob_k = float(cobertura_contrato)
         gen_surplus = np.maximum(G[:, k] - D[:, k], 0.0)
         deficits    = np.maximum(D[:, k] - G[:, k], 0.0)
         total_surplus = float(np.sum(gen_surplus[prosumer_ids]))
@@ -243,21 +271,29 @@ def run_c2_bilateral(
                 grid_revenue[n] += max(0.0,
                                         gen_surplus[n] - ppa_sold) * pb_k
         else:
+            # ESTA es la rama que se ejecuta con datos reales, porque las
+            # cinco instituciones son prosumidoras y no hay consumidores
+            # puros. Hasta CAL-51 hacia exactamente lo mismo que el escenario
+            # de bolsa, y de ahi que los dos coincidieran.
             for n in prosumer_ids:
-                grid_revenue[n] += gen_surplus[n] * pb_k
+                e_c = gen_surplus[n] * cob_k
+                revenue_contrato[n] += e_c * pc_k
+                grid_revenue[n] += (gen_surplus[n] - e_c) * pb_k
             for i in consumer_ids:
                 grid_cost[i] += deficits[i] * pi_gs_v[i, k]
 
     # CAL-46: de potencia a energía. Un solo sitio, antes de componer.
     if dt != 1.0:
         for _arr in (savings_gen, savings_G, savings_Cvm, savings_COT,
-                     savings_CXC, mem_costs_arr, grid_cost, grid_revenue):
+                     savings_CXC, mem_costs_arr, grid_cost, grid_revenue,
+                     revenue_contrato):
             _arr *= dt
 
     # CAL-16: savings_ppa es la suma neta descompuesta. CAL-23 agrega CXC.
     savings_ppa = (savings_G + savings_Cvm + savings_COT + savings_CXC
                     - mem_costs_arr)
-    net_benefit = savings_gen + savings_ppa + grid_revenue
+    net_benefit = (savings_gen + savings_ppa + revenue_contrato
+                   + grid_revenue)
 
     results_per_agent = {
         n: {

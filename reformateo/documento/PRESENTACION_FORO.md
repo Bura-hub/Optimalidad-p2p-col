@@ -194,25 +194,33 @@ gana sobre la autogeneración individual, 165.000 son de una sola institución.
 
 ### Bloque 5 · Lo que todavía no se sabe · 3 min
 
-**14. Tres límites.** El volumen lo decide el lado corto y no el juego. Hay una
-decisión de calibración abierta, en consulta con el asesor regulatorio. Y la
-cobertura del medidor es incierta, de modo que aquí entra el segundo escenario
-como cota.
+**14. Tres límites, y el tercero es el que importa.** El volumen lo decide el
+lado corto y no el juego. Hay una decisión de calibración abierta, en consulta
+con el asesor regulatorio. Y la cobertura del medidor es incierta, de modo que
+aquí entra el segundo escenario, **que invierte el resultado principal**:
 
-> **Y aquí hay una obligación que no se puede eludir.** El segundo escenario no
-> es solo un número más grande: **invierte los papeles de los agentes**, porque
-> en uno la universidad vende la mayor parte y en el otro es una de las otras
-> instituciones la que compra la mayor parte. Está medido, además, que en
-> granularidad mensual el mecanismo colectivo puede superar al mercado entre
-> pares, y que el coeficiente de desigualdad puede cambiar de sentido.
+> **Con poca cobertura gana el mercado; con mucha, gana el colectivo liquidado
+> mes a mes. La respuesta depende de cuánta generación vea el medidor, y por eso
+> este trabajo reporta las dos.**
+
+Con las cifras: en la frontera de cobertura baja el mercado supera al colectivo
+mensual por un 2 por ciento; en la de cobertura alta el colectivo lo supera por
+un 13,4. Y el reparto se da la vuelta: los compradores pasan de capturar el
+44,40 por ciento del excedente al 75,32.
+
+**Lo único que no se invierte es el aprovechamiento.** El mercado sube el
+autoconsumo en las dos fronteras, de 0,906 a 0,970 en una y de 0,459 a 0,529 en
+la otra.
+
+> **La obligación se cumplió, y lo que se temía era cierto.** Comprobado contra
+> la corrida oficial del 2026-09-09: el segundo escenario **invierte el
+> resultado principal**, invierte quién captura el excedente y le cambia el
+> signo al índice de equidad. Las tres cosas se nombran en esta lámina.
 >
-> **Cualquier conclusión que el segundo escenario invierta se nombra en esta
-> lámina, no se omite.** Presentar solo el escenario favorable y mostrar el otro
-> como un rango sin decir qué cambia sería, con el operador del mercado en la
-> sala, la forma más rápida de perder la charla en las preguntas.
->
-> Qué se invierte exactamente se comprueba contra la corrida oficial antes de
-> escribir la lámina. No se da por supuesto aquí.
+> Presentar solo el escenario favorable y mostrar el otro como un rango sin
+> decir qué cambia sería, con el operador del mercado en la sala, la forma más
+> rápida de perder la charla en las preguntas. Nombrarlo es lo que convierte una
+> objeción previsible en un resultado.
 
 **15. Qué falta para que esto opere, y el puente.** La figura regulatoria, el
 acuerdo con el comercializador y la infraestructura de medición avanzada. Se
@@ -353,6 +361,55 @@ conviene un mecanismo distinto, la comunidad tiene que **acordar** uno, y ese
 acuerdo tiene ganadores y perdedores. El resultado técnico crea exactamente la
 necesidad del instrumento jurídico del que él habla después del café.
 
+### La segunda frontera, y lo que invierte
+
+**Medido el 2026-09-09 sobre el horizonte completo.** Es lo que la lámina 14
+tiene que decir, y es la parte de la charla que más credibilidad compra.
+
+| Mecanismo | Cobertura baja | Cobertura alta |
+|---|---:|---:|
+| Mercado entre pares | **45.422.019** | 29.603.732 |
+| Colectivo mensual | 44.523.607 | **33.557.975** |
+| Contrato interno | 43.450.343 | 28.908.115 |
+| Autogeneración individual | 45.139.785 | 28.766.345 |
+| Autogeneración remota | 44.278.078 | 27.737.121 |
+| Colectivo horario | 43.694.366 | 27.302.385 |
+| Mercado mayorista | 42.947.571 | 26.855.001 |
+
+En (COP) sobre nueve meses.
+
+**Se invierten tres cosas.**
+
+**Uno, y es de fondo: cambia quién gana.** Con cobertura baja el mercado supera
+al colectivo mensual por 898.412 (COP), es decir un 2 por ciento. Con cobertura
+alta **el colectivo mensual supera al mercado por 3.954.243, es decir un 13,4
+por ciento**.
+
+**Dos: se invierte quién captura el excedente.** Los compradores pasan del 44,40
+al **75,32 por ciento**. Donde había una comunidad con un vendedor grande y
+cuatro compradores hay otra con mucha generación repartida, y el poder cambia de
+lado de la mesa.
+
+**Tres: el índice de equidad cambia de signo**, de −0,1697 a +0,3560.
+
+**Y algo que no se invierte, y por eso vale más.** El autoconsumo sube con el
+mercado en las dos fronteras: de 0,906 a 0,970 en una y de 0,459 a 0,529 en la
+otra. El mercado siempre aprovecha más generación dentro de la comunidad, y esa
+es la única afirmación que no depende de cuánto vea el medidor.
+
+### La frase de la lámina
+
+> **Con poca cobertura gana el mercado; con mucha, gana el colectivo liquidado
+> mes a mes. La respuesta depende de cuánta generación vea el medidor, y por eso
+> este trabajo reporta las dos.**
+
+**Esto hace la lámina más fuerte, no más débil.** Un jurado, o alguien que
+conoce el mercado, confía mucho más en eso que en «el mercado siempre gana». Y
+le entrega al asesor regulatorio una pregunta todavía mejor que la anterior:
+**qué figura conviene depende del tamaño de la comunidad**, que es exactamente
+su terreno.
+
+
 ### La equidad, mes a mes
 
 | | |
@@ -380,7 +437,7 @@ almacén, y cada figura deja al lado su tabla de datos y su nota de procedencia.
 | 11 · la factura | la liquidación por institución | agentes y flujos |
 | 12 · el reparto | el reparto agregado frente al contrato | flujos |
 | 13 · a quién le conviene qué | la distancia al mejor mecanismo | escenarios |
-| 14 · los límites | las mismas tablas, sobre la segunda frontera | *pendiente* |
+| 14 · los límites | la comparación de las dos fronteras | escenarios de las dos |
 | respaldo | las otras nueve del grupo de la hora, y las dos del filtro y la rivalidad | trayectorias |
 
 **Por qué hubo que añadir un grupo de figuras.** El aparato se diseñó alrededor

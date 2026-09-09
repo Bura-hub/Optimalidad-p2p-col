@@ -10,6 +10,7 @@ llenan desde la corrida oficial; aquí van marcadas y no escritas a mano.
 | Ponente | Brayan S. López Méndez |
 | Título | Energía transactiva y regulación en Colombia: la evidencia de cinco instituciones de Pasto, Nariño |
 | Reparto | 20 minutos de exposición y 10 de preguntas |
+| Frontera | la de cobertura baja en el cuerpo; la alta, en la lámina de límites |
 
 ---
 
@@ -83,8 +84,11 @@ integrando.
 prueba que en tres de las cinco el medidor principal no es el totalizador del
 campus, y que en el hospital el segundo medidor corresponde a la respaldo de
 ginecología. Como no se sabe con exactitud qué ve cada uno, la respuesta se
-acota con **dos escenarios de cobertura**, y todo resultado se reporta en los
-dos.
+acota con **dos escenarios de cobertura**, del orden del 20 y del 95 por ciento.
+
+Y se anuncia aquí la convención que gobierna el resto de la charla: **el cuerpo
+va sobre el escenario de cobertura baja**, que es el conservador, y el otro
+aparece en la lámina de límites como cota superior.
 
 > **Por qué esta lámina va en el minuto cuatro y no al final.** Es la que
 > desarma la primera pregunta hostil. Puesta al principio, una limitación del
@@ -157,9 +161,25 @@ negociación.
 
 ### Bloque 5 · Lo que todavía no se sabe · 3 min
 
-**14. Tres límites.** El volumen lo decide el lado corto y no el juego. La
-cobertura del medidor es incierta, y por eso todo va en dos escenarios. Y hay
-una decisión de calibración abierta, en consulta con el asesor regulatorio.
+**14. Tres límites.** El volumen lo decide el lado corto y no el juego. Hay una
+decisión de calibración abierta, en consulta con el asesor regulatorio. Y la
+cobertura del medidor es incierta, de modo que aquí entra el segundo escenario
+como cota.
+
+> **Y aquí hay una obligación que no se puede eludir.** El segundo escenario no
+> es solo un número más grande: **invierte los papeles de los agentes**, porque
+> en uno la universidad vende la mayor parte y en el otro es una de las otras
+> instituciones la que compra la mayor parte. Está medido, además, que en
+> granularidad mensual el mecanismo colectivo puede superar al mercado entre
+> pares, y que el coeficiente de desigualdad puede cambiar de sentido.
+>
+> **Cualquier conclusión que el segundo escenario invierta se nombra en esta
+> lámina, no se omite.** Presentar solo el escenario favorable y mostrar el otro
+> como un rango sin decir qué cambia sería, con el operador del mercado en la
+> sala, la forma más rápida de perder la charla en las preguntas.
+>
+> Qué se invierte exactamente se comprueba contra la corrida oficial antes de
+> escribir la lámina. No se da por supuesto aquí.
 
 **15. Qué falta para que esto opere, y el puente.** La figura regulatoria, el
 acuerdo con el comercializador y la infraestructura de medición avanzada. Se
@@ -198,6 +218,12 @@ almacén, y cada figura deja al lado su tabla de datos y su nota de procedencia.
 | 11 | la liquidación por institución |
 | 12 | el reparto del mercado frente al del contrato interno |
 | 13 | el beneficio por institución y mecanismo, de la tabla de escenarios |
+| 14 | las mismas tablas, sobre la segunda frontera |
+
+**Toda cifra del cuerpo se lee sobre la frontera de cobertura baja.** Es una
+regla y no una preferencia: este proyecto ya pagó una vez el precio de comparar
+objetos distintos con el mismo rótulo, y las dos fronteras son objetos
+distintos.
 
 Las cifras que hoy circulan en las conversaciones de trabajo son de **un solo
 día de prueba** y no se pueden proyectar. La estructura de la charla no depende

@@ -444,8 +444,16 @@ def _run_c4_creg174_inheritance(
     surplus   = (excedente_t2 * pi_bolsa[None, :]).sum(axis=1)  # (N,)
     grid_cost = (grid_buy     * pi_gs_v).sum(axis=1)            # (N,)
 
+    # C-165: el beneficio a la hora que lo genera, con los mismos factores
+    # antes de sumar por filas. Aqui es exacto porque toda la valoracion de
+    # esta rama es horaria.
+    neto_horario = (autoconsumo * pi_gs_v
+                    + permuta_t1 * (pi_gs_v - pi_C)
+                    + excedente_t2 * pi_bolsa[None, :])
+
     # CAL-46: de potencia a energía.
     if dt != 1.0:
+        neto_horario = neto_horario * dt
         savings = savings * dt
         pde_t1 = pde_t1 * dt
         surplus = surplus * dt
@@ -469,8 +477,12 @@ def _run_c4_creg174_inheritance(
             "pde_weight":      float(pde[n]),
         }
 
+    # C-165: matriz (N, T); su suma por filas es el beneficio por agente.
+    # Aqui es exacta porque la valoracion de esta rama es horaria en sus tres
+    # componentes.
     return {
         "per_agent": results_per_agent,
+        "neto_horario": neto_horario,
         "aggregate": {
             "total_savings":         float(savings.sum()),
             "total_pde_credits":     float(pde_t1.sum()),
@@ -629,6 +641,10 @@ def _run_c4_monthly_hx(
             "pde_weight":      float(pde[n]),
         }
 
+    # C-165: esta rama NO devuelve desglose horario, y es a proposito. Su
+    # dinero se valora contra promedios MENSUALES, de modo que repartirlo entre
+    # las horas del mes seria inventar una granularidad que la liquidacion no
+    # tiene. Su desglose natural es el mes, y asi lo declara quien la consume.
     return {
         "per_agent": results_per_agent,
         "aggregate": {
@@ -680,6 +696,7 @@ def _run_c4_legacy(
     credits_pde   = np.zeros(N)
     grid_cost     = np.zeros(N)
     surplus_sell  = np.zeros(N)
+    neto_horario  = np.zeros((N, T))          # C-165
     hourly_community_surplus = np.zeros(T)
     hourly_distribution      = np.zeros((N, T))
 
@@ -700,6 +717,10 @@ def _run_c4_legacy(
             savings[n]      += autoconsumo_k[n] * pi_gs_v[n, k]
             credits_pde[n]  += min(credits_k[n], deficit_k[n]) * pi_gs_v[n, k]
             grid_cost[n]    += deficit_after_pde[n] * pi_gs_v[n, k]
+            # C-165: el mismo dinero, a su hora.
+            neto_horario[n, k] += (autoconsumo_k[n] * pi_gs_v[n, k]
+                                   + min(credits_k[n], deficit_k[n])
+                                   * pi_gs_v[n, k])
 
         if mode == "pde_plus_residual_export":
             total_deficit_k = float(np.sum(deficit_k))
@@ -707,9 +728,12 @@ def _run_c4_legacy(
             if residual_export > 0:
                 for n in range(N):
                     surplus_sell[n] += pde[n] * residual_export * pi_bolsa[k]
+                    neto_horario[n, k] += (pde[n] * residual_export
+                                           * pi_bolsa[k])
 
     # CAL-46: de potencia a energía.
     if dt != 1.0:
+        neto_horario = neto_horario * dt
         savings = savings * dt
         credits_pde = credits_pde * dt
         surplus_sell = surplus_sell * dt
@@ -729,6 +753,7 @@ def _run_c4_legacy(
         }
     return {
         "per_agent": results_per_agent,
+        "neto_horario": neto_horario,   # C-165
         "aggregate": {
             "total_savings":         float(np.sum(savings)),
             "total_pde_credits":     float(np.sum(credits_pde)),

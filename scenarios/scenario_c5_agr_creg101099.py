@@ -119,9 +119,16 @@ def run_c5_agr_creg101099(
     comp_generador = gen_val.sum(axis=1)
     residual_bolsa = (residual * np.maximum(pb[None, :] - mem_v, 0.0)).sum(axis=1)
 
+    # C-165: el beneficio a la hora que lo genera, con los mismos cuatro
+    # sumandos antes de agregar por filas. Exacto: toda la valoracion de este
+    # escenario es horaria.
+    neto_horario = (auto * pi_gs_v + rec_val + gen_val
+                    + residual * np.maximum(pb[None, :] - mem_v, 0.0))
+
     # CAL-46: de potencia a energía. La compensación y su reparto son
     # homogéneos, de modo que basta escalar el dinero ya compuesto.
     if dt != 1.0:
+        neto_horario = neto_horario * dt
         savings_auto = savings_auto * dt
         comp_receptor = comp_receptor * dt
         comp_generador = comp_generador * dt
@@ -159,6 +166,7 @@ def run_c5_agr_creg101099(
     }
     return {
         "per_agent": per_agent,
+        "neto_horario": neto_horario,   # C-165
         "aggregate": {
             "total_net_benefit":    float(net.sum()),
             "total_autoconsumo":    float(savings_auto.sum()),

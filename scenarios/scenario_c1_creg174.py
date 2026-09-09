@@ -162,6 +162,13 @@ def run_c1_creg174(
     total_e_tipo2         = 0.0
     total_e_auto          = 0.0
 
+    # C-165: el desglose por hora y agente del beneficio, para poder decir en
+    # QUE meses y en QUE horas cada mecanismo reparte mejor. Se llena con los
+    # mismos vectores con los que ya se calcula el total, antes de sumarlos, de
+    # modo que no puede derivar: la compuerta comprueba que cada fila suma
+    # exactamente el total que este mismo modulo reporta.
+    neto_horario = np.zeros_like(np.asarray(D, dtype=float))
+
     for n in agent_ids:
         savings_n     = 0.0
         surplus_n     = 0.0
@@ -231,6 +238,11 @@ def run_c1_creg174(
             # Bajo CREG 174 esta energía se factura completa al pi_gs (incluye C).
             grid_cost_m = max(0.0, E_deficit - E_surplus) * pi_gs_period
 
+            # C-165: el mismo dinero, repartido a la hora que lo genera.
+            neto_horario[n, hours] = (auto_h * pi_gs_period
+                                      + surplus_t1 * pi_eff_t1
+                                      + surplus_t2 * pb_h)
+
             savings_n     += savings_m
             surplus_n     += revenue_m
             grid_cost_n   += grid_cost_m
@@ -243,6 +255,7 @@ def run_c1_creg174(
         # como las energías de diagnóstico se multiplican por la duración.
         # La búsqueda de la hora de cruce es homogénea y no se toca.
         if dt != 1.0:
+            neto_horario[n, :] *= dt
             savings_n *= dt
             surplus_n *= dt
             grid_cost_n *= dt
@@ -279,6 +292,9 @@ def run_c1_creg174(
         "total_E_permuted_t1":   total_e_permuted_t1,
         "total_E_tipo2":         total_e_tipo2,
     }
+    # C-165: matriz (N, T) del beneficio a la hora que lo genera. Su suma por
+    # filas es el beneficio neto por agente, al ultimo digito.
+    results["neto_horario"] = neto_horario
 
     return results
 

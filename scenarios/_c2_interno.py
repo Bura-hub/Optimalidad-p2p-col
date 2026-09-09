@@ -89,6 +89,9 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
     # cuenta como colocada; para el contrato no lo esta, y hay que devolverla
     # al residual o se perderia de la contabilidad.
     sin_firmar = np.zeros((N, T))
+    # C-165: el excedente del contrato a la hora que lo genera, repartido
+    # entre las dos partes de cada intercambio.
+    neto_horario = np.zeros((N, T))
     val, kwh, parejas_rotas = 0.0, 0.0, 0
 
     for k, sids, bids, P in flujos_por_hora:
@@ -112,6 +115,8 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
                 precio = 0.5 * (te + pi_)
                 ingreso[j] += (precio - pi_) * e
                 ahorro[i] += (te - precio) * e
+                neto_horario[j, k] += (precio - pi_) * e
+                neto_horario[i, k] += (te - precio) * e
                 energia[j] += e
                 val += precio * e
                 kwh += e
@@ -121,6 +126,7 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
         ahorro *= dt
         energia *= dt
         sin_firmar *= dt
+        neto_horario *= dt
         val *= dt
         kwh *= dt
 
@@ -132,6 +138,7 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
         excedente=total,
         kwh=float(kwh),
         sin_firmar=sin_firmar,
+        neto_horario=neto_horario,
         parejas_sin_firmar=int(parejas_rotas),
         precio_medio=(float(val / kwh) if kwh > 1e-12 else float("nan")),
         # Cero exacto por construccion: el punto medio reparte la banda a la

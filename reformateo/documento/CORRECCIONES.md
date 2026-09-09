@@ -7643,3 +7643,75 @@ cruzados**:
 
 ---
 
+## C-165 · El beneficio se anota en la hora que lo genera, y de ahí salen las métricas por período
+
+**El defecto que dejaba muda a media tesis.** El beneficio de cada mecanismo
+solo existía **agregado al horizonte entero**. De modo que se podía decir que el
+mercado reparte de tal manera en nueve meses, pero no en cuáles: ni en qué meses
+reparte mejor, ni a qué horas del día, ni si el reparto de un lunes se parece al
+de un domingo.
+
+Es media pregunta del capítulo de equidad y toda la de la discusión de precios.
+Y era también la razón por la que **la cuarta tabla del almacén llevaba días
+declarada y vacía**: no había de dónde llenarla.
+
+### Cómo se hizo, y por qué así
+
+Cada escenario anota su dinero **en la hora que lo genera**, con los mismos
+vectores con los que ya calculaba el total, **antes de sumarlos**. No hay una
+segunda implementación que pueda derivar de la primera: hay una sola cuenta que
+además guarda el paso intermedio.
+
+Es la diferencia entre añadir una capacidad y añadir un riesgo.
+
+### La que falta a propósito
+
+La segunda granularidad del colectivo valora contra promedios **mensuales**.
+Repartir su dinero entre las horas del mes sería inventar una precisión que la
+liquidación no tiene, de modo que **no tiene desglose horario**, lo declara, y
+la compuerta comprueba que no lo finge.
+
+### La comprobación, y es la que convence
+
+`tests/gate_c165_desglose_horario.py`: para cada mecanismo, la matriz suma por
+filas **exactamente** el beneficio por agente que el motor publica.
+
+| Mecanismo | Diferencia relativa |
+|---|---:|
+| Mercado entre pares | 3,7·10⁻¹⁶ |
+| Autogeneración individual | 1,1·10⁻¹⁶ |
+| Contrato interno | 2,6·10⁻¹⁶ |
+| Mercado mayorista | 1,3·10⁻¹⁶ |
+| Colectivo horario | 1,2·10⁻¹⁶ |
+
+Es decir, al último bit que la aritmética de coma flotante permite.
+
+Y en producción, sobre el 2 de mayo de 2025, el agregado del día reconstruido
+desde el almacén reproduce la tabla publicada **al peso y el coeficiente de Gini
+al cuarto decimal**: 168.194 y 0,1589 para el mercado, 153.956 y 0,1719 para la
+autogeneración individual, 141.575 y 0,2276 para el contrato, 132.970 y 0,2471
+para el mercado mayorista, 143.279 y 0,2846 para el colectivo.
+
+### Lo que ahora se puede decir y antes no
+
+`analysis/equidad_periodo.py` agrega esa tabla por mes, por día, por hora del día
+o por día de la semana, y calcula para cada período el coeficiente de Gini, el
+cociente frente al colectivo y el precio de la equidad.
+
+Un ejemplo del mismo día, que da idea de para qué sirve: a las once de la mañana
+el mecanismo más eficiente es el mercado y el más equitativo es la
+autogeneración individual, con un precio de la equidad de 0,0253; **al mediodía y
+hasta las tres de la tarde el mercado es a la vez el más eficiente y el más
+equitativo**, y el precio de la equidad se anula. Esa distinción entre horas no
+se podía formular antes.
+
+### Una cautela declarada
+
+El índice de equidad de los escenarios parte a los agentes en dos grupos por su
+cobertura solar, y esa partición se calcula **una sola vez sobre el horizonte
+entero**. Cambiarla en cada mes haría que el índice de enero y el de julio
+hablaran de grupos distintos y dejarían de ser comparables. Se conserva la
+partición global, y queda dicho.
+
+---
+

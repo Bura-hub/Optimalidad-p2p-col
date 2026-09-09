@@ -85,6 +85,21 @@ class ComparisonResult:
     # De modo que la columna se queda uniforme y la propiedad del contrato se
     # reporta aqui, donde puede comprobarse sin contaminar la comparacion.
     contrato_c2: dict = field(default_factory=dict)
+    # ── El desglose por hora y agente de cada mecanismo (C-165) ─────────
+    #
+    # {escenario: matriz (N, T)} con el beneficio anotado en la hora que lo
+    # genera. Es lo que permite decir en QUE meses y en QUE horas cada
+    # mecanismo reparte mejor, que hasta ahora solo existia agregado al
+    # horizonte entero.
+    #
+    # NO ESTAN TODOS, y es a proposito. La segunda granularidad del colectivo
+    # valora contra promedios MENSUALES, de modo que repartir su dinero entre
+    # las horas del mes seria inventar una precision que la liquidacion no
+    # tiene. Su desglose natural es el mes y por eso no aparece aqui.
+    #
+    # La compuerta comprueba que cada matriz suma por filas EXACTAMENTE el
+    # beneficio por agente que este mismo motor reporta.
+    neto_horario: dict = field(default_factory=dict)
 
 
 def run_comparison(
@@ -218,6 +233,7 @@ def run_comparison(
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
     cr.net_benefit["C1"]           = float(np.sum(c1_net))
+    cr.neto_horario["C1"] = c1.get("neto_horario")          # C-165
     cr.net_benefit_per_agent["C1"] = c1_net
 
     # ── C2 ──────────────────────────────────────────────────────────────
@@ -268,9 +284,15 @@ def run_comparison(
         # Mismo convenio que el mercado entre pares (CAL-30): autoconsumo a la
         # tarifa propia, y el excedente no colocado a bolsa horaria.
         c2_net = ci["ingreso_vendedor"] + ci["ahorro_comprador"]
+        # C-165: la matriz del contrato trae SOLO el excedente del acuerdo.
+        # El autoconsumo y el residual a bolsa se le suman aqui, igual que se
+        # le suman al total, o el desglose no cuadraria con lo publicado.
+        c2_horario = np.array(ci["neto_horario"], dtype=float)
         for n in prosumer_ids:
             for k in range(T):
-                c2_net[n] += min(G_klim[n, k], D[n, k]) * pi_gs_v[n, k] * dt
+                auto = min(G_klim[n, k], D[n, k]) * pi_gs_v[n, k] * dt
+                c2_net[n] += auto
+                c2_horario[n, k] += auto
         # El excedente no colocado, a bolsa horaria, igual que en el mercado
         # entre pares (CAL-30). Se arma el mapa de lo colocado en UNA pasada:
         # el bucle ingenuo recorre todas las horas por cada agente y cuesta
@@ -289,10 +311,12 @@ def run_comparison(
                 else np.asarray(pi_bolsa, dtype=float).reshape(-1))
         for n in prosumer_ids:
             sob = np.maximum(G_klim[n, :] - D[n, :], 0.0)
-            c2_net[n] += float(np.sum(np.maximum(sob - colocado[n, :], 0.0)
-                                      * pb_v)) * dt
+            resid = np.maximum(sob - colocado[n, :], 0.0) * pb_v * dt
+            c2_net[n] += float(np.sum(resid))
+            c2_horario[n, :] += resid
         cr.net_benefit["C2"]           = float(np.sum(c2_net))
         cr.net_benefit_per_agent["C2"] = c2_net
+        cr.neto_horario["C2"] = c2_horario                   # C-165
         cr.contrato_c2 = dict(
             equidad=float(ci["equidad"]),      # cero exacto por construccion
             parejas_sin_firmar=int(ci["parejas_sin_firmar"]),
@@ -313,6 +337,7 @@ def run_comparison(
                      consumer_ids, dt=dt)
     c3_net = np.array([c3["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C3"]           = float(np.sum(c3_net))
+    cr.neto_horario["C3"] = c3.get("neto_horario")          # C-165
     cr.net_benefit_per_agent["C3"] = c3_net
 
     # ── C4 ──────────────────────────────────────────────────────────────
@@ -327,6 +352,7 @@ def run_comparison(
                             component_c=component_c, tolls=tolls, dt=dt)
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
+    cr.neto_horario["C4"] = c4.get("neto_horario")          # C-165
     cr.net_benefit_per_agent["C4"] = c4_net
 
     # CAL-42: C4 en su GRANULARIDAD MENSUAL. El art. 25 liquida «al cierre de
@@ -363,6 +389,7 @@ def run_comparison(
         c5_net = np.array([c5["per_agent"][n]["net_benefit"]
                            for n in range(N)])
         cr.net_benefit["C5"]           = float(np.sum(c5_net))
+        cr.neto_horario["C5"] = c5.get("neto_horario")          # C-165
         cr.net_benefit_per_agent["C5"] = c5_net
 
     # ── P2P ─────────────────────────────────────────────────────────────
@@ -370,12 +397,13 @@ def run_comparison(
     # revenue completo del trade + residual surplus a pi_bolsa horario,
     # simétrico con C1/C2/C3/C4. Para reproducir resultados pre-CAL-30
     # (modo premium incremental) pasar mode="premium" explícitamente.
-    p2p_net = _p2p_monetary_benefit(
+    p2p_net, p2p_horario = _p2p_monetary_benefit(
         p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids,
-        pi_bolsa=pi_bolsa, mode="canonical", dt=dt,
+        pi_bolsa=pi_bolsa, mode="canonical", dt=dt, devuelve_horario=True,
     )
     cr.net_benefit["P2P"]           = float(np.sum(p2p_net))
     cr.net_benefit_per_agent["P2P"] = p2p_net
+    cr.neto_horario["P2P"]          = p2p_horario          # C-165
 
     # ── SC / SS ─────────────────────────────────────────────────────────
     # PUNTO 3 — SS unificada: misma definición para todos los escenarios.
@@ -645,7 +673,8 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                            prosumer_ids,
                            pi_bolsa: Optional[np.ndarray] = None,
                            mode: str = "canonical",
-                           dt: float = 1.0) -> np.ndarray:
+                           dt: float = 1.0,
+                           devuelve_horario: bool = False):
     """
     Convierte resultados P2P a flujos monetarios netos por agente.
 
@@ -703,6 +732,10 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
     net = np.zeros(N)
+    # C-165: el mismo dinero, anotado en la hora que lo genera. Se llena en
+    # paralelo con `net` y no lo sustituye: la compuerta comprueba que sus
+    # filas suman exactamente el vector que este calculo ya devolvia.
+    neto_horario = np.zeros((N, T))
 
     if mode not in ("canonical", "premium"):
         raise ValueError(
@@ -753,11 +786,13 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             if mode == "canonical":
                 # Revenue completo del trade
                 net[j] += income
+                neto_horario[j, k_local] += income
                 P_sold_n_k[j, k_local] = sold
             else:
                 # Premium: prima sobre venta a bolsa
                 baseline = sold * pi_gb
                 net[j] += income - baseline
+                neto_horario[j, k_local] += income - baseline
 
         # Compradores: ahorro por pagar pi_star en vez de comprar todo a la
         # red. La tarifa de referencia es la del agente en la hora del mercado.
@@ -770,6 +805,7 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             else:
                 paid = received * pi_ref
             net[i] += received * pi_ref - paid
+            neto_horario[i, k_local] += received * pi_ref - paid
 
     # Autoconsumo propio de prosumidores a su pi_gs[n, k] (tarifa temporal).
     # Idéntico en ambos modos (todas las horas, no solo activas).
@@ -777,6 +813,7 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
         for k in range(T):
             auto = min(G_klim[n, k], D[n, k])
             net[n] += auto * pi_gs_v[n, k]
+            neto_horario[n, k] += auto * pi_gs_v[n, k]
 
     # Residual surplus exportado a la red (solo modo canonical).
     if mode == "canonical":
@@ -787,11 +824,15 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 surplus_total_nk = max(G_nk - D_nk, 0.0)
                 residual_nk = max(surplus_total_nk - P_sold_n_k[n, k], 0.0)
                 net[n] += residual_nk * float(pi_bolsa_v[k])
+                neto_horario[n, k] += residual_nk * float(pi_bolsa_v[k])
 
     # CAL-46: de potencia a energía.
     if dt != 1.0:
         net = net * dt
+        neto_horario = neto_horario * dt
 
+    if devuelve_horario:
+        return net, neto_horario
     return net
 
 

@@ -406,6 +406,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # casi nula que el desglose descarta, y la trayectoria entera de cada
     # hora con sus multiplicadores. Sin esto, ninguna figura de convergencia
     # puede dibujarse sin volver a simular.
+    alm = None
     if almacen:
         from core.almacen import Almacen
         if metodo != "acoplado":
@@ -449,9 +450,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             if getattr(r, "tr", None) is not None:
                 alm.anota_trayectoria(k, r.tr, r.seller_ids, r.buyer_ids,
                                       agent_names)
-        partes = alm.cierra()
-        print(f"    [C-161] almacen en {almacen}: " +
-              " · ".join(f"{t} {n} partes" for t, n in partes.items()))
+        # C-165: el almacen NO se cierra aqui. Le falta la cuarta tabla, la de
+        # los escenarios regulatorios, y esa se llena mas abajo porque la
+        # comparacion todavia no ha corrido. Cerrarlo aqui era la razon por la
+        # que esa tabla llevaba dias declarada y vacia.
 
     # C-151: la restriccion de participacion tiene que VERSE. Retira
     # vendedores y con ellos su energia, y una corrida que lo hiciera en
@@ -703,6 +705,38 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         # tests/gate_cal46_paso_horario.py).
         dt=paso,
     )
+
+    # ── La cuarta tabla del almacen: los escenarios (C-165) ──────────────
+    #
+    # Estaba declarada desde el primer dia y nadie la llenaba, porque el
+    # desglose por hora de cada mecanismo no existia: el beneficio solo se
+    # conocia agregado al horizonte entero. Con C-165 cada escenario anota su
+    # dinero en la hora que lo genera, y esa anotacion suma exactamente el
+    # total publicado (compuerta en tests/gate_c165_desglose_horario.py).
+    #
+    # De aqui salen las metricas por mes y por hora sin volver a simular, que
+    # es lo que el capitulo de equidad necesita para poder decir EN QUE MESES
+    # un mecanismo reparte mejor que otro.
+    if alm is not None:
+        _falta = []
+        for _esc in ("P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"):
+            if _esc not in cr.net_benefit:
+                continue
+            _m = cr.neto_horario.get(_esc)
+            if _m is None:
+                _falta.append(_esc)
+                continue
+            _m = np.asarray(_m, dtype=float)
+            for _k in range(_m.shape[1]):
+                alm.anota_escenarios(_k, {_esc: _m[:, _k]}, agent_names)
+        if _falta:
+            # La granularidad mensual del colectivo no tiene desglose horario
+            # a proposito: su dinero se valora contra promedios del mes.
+            print(f"    [C-165] sin desglose horario, por diseno: "
+                  f"{', '.join(_falta)}")
+        partes = alm.cierra()
+        print(f"    [C-161] almacen en {almacen}: " +
+              " · ".join(f"{t} {n} partes" for t, n in partes.items()))
 
     # ── 4. Reporte ───────────────────────────────────────────────────────
     print("\n[4/5] Reporte:")

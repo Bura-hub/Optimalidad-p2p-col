@@ -51,6 +51,8 @@ def run_c3_spot(
     grid_cost = np.zeros(N)   # compras a red
 
     hourly_exposure = np.zeros(T)  # exposición horaria a precio spot
+    # C-165: el beneficio a la hora que lo genera, con la misma aritmetica.
+    neto_horario = np.zeros((N, T))
 
     for k in range(T):
         for n in prosumer_ids:
@@ -60,6 +62,7 @@ def run_c3_spot(
             savings[n]  += auto * pi_gs_v[n, k]
             surplus = gen - auto
             revenues[n] += surplus * pi_bolsa[k]
+            neto_horario[n, k] = auto * pi_gs_v[n, k] + surplus * pi_bolsa[k]
             deficit = max(0.0, dem - gen)
             grid_cost[n] += deficit * pi_gs_v[n, k]
 
@@ -73,6 +76,7 @@ def run_c3_spot(
     # CAL-46: de potencia a energía. Un solo sitio, porque todo el dinero de
     # este escenario es lineal en la energía.
     if dt != 1.0:
+        neto_horario *= dt
         savings *= dt
         revenues *= dt
         grid_cost *= dt
@@ -99,6 +103,8 @@ def run_c3_spot(
 
     return {
         "per_agent": results_per_agent,
+        # C-165: matriz (N, T); su suma por filas es el beneficio por agente.
+        "neto_horario": neto_horario,
         "aggregate": {
             "total_net_benefit":  float(np.sum(net_benefit)),
             "total_savings":      float(np.sum(savings)),

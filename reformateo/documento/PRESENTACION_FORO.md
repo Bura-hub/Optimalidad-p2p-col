@@ -112,10 +112,16 @@ bolsa, que paga mucho menos.
 > separadas. No son dos modelos: son dos tramos del mismo mes. Presentarlos como
 > uno solo es más fiel y ahorra tres minutos.
 
-**7. El ancho de la banda resulta ser el cargo de comercializar.** Es el
-resultado que ordena todo lo demás, y del que sale el titular de la charla: lo
-que la red le pagaría a una institución por su excedente frente a lo que esa
-institución obtiene colocándolo dentro de la comunidad.
+**7. La banda no siempre mide lo mismo, y ahí está el resultado.** En siete de
+los nueve meses su ancho es de unos 66 (COP/kWh), que es el cargo de
+comercializar. En junio y julio se abre a 183 y 174, porque el crédito de
+permuta se agota y el piso cae al precio de bolsa.
+
+> **El mercado vale poco cuando la regulación paga bien, y vale mucho cuando la
+> regulación deja de pagar.**
+
+Con la cifra que lo sostiene: **el 83,7 por ciento del ahorro de nueve meses cae
+en esos dos.**
 
 ### Bloque 3 · Qué hace el modelo dentro de la banda · 4 min
 
@@ -144,20 +150,29 @@ que importa, a cuánto le pagaría lo que exporta, a cuánto compra y vende dent
 de la comunidad, y la diferencia. Es la lámina que el asesor pidió ver y la que
 un rector entiende sin traducción.
 
-**12. El reparto.** El mercado reparte el excedente de una manera y un contrato
-a precio fijo lo repartiría a la mitad. La diferencia en puntos porcentuales es
-el aporte del mecanismo dinámico, dicho en la única unidad en que se puede
-decir.
+**12. El reparto.** Los compradores capturan el 44,40 por ciento del excedente y
+los vendedores el 55,60. Un contrato a precio pactado lo repartiría a la mitad
+por construcción, de modo que **el mercado desplaza 5,6 puntos porcentuales hacia
+los vendedores**. Es el aporte del mecanismo dinámico, dicho en la única unidad
+en que se puede decir.
 
-**13. A quién no le conviene.** No gana el mismo mecanismo para todas. Al
-vendedor grande le conviene el mercado entre pares; al comprador puro puede
-convenirle más el colectivo, que reparte por porcentaje acordado en vez de por
-negociación.
+**13. A quién le conviene qué.** Cinco instituciones y **tres mecanismos
+ganadores distintos**: a dos les conviene el mercado, a dos el colectivo y a una
+la autogeneración remota. El mercado gana para la comunidad como un todo y gana
+individualmente solo para dos de las cinco.
 
-> **Esta es el centro de la charla.** Con el operador del mercado en la sala,
-> traer el caso que sale mal compra más credibilidad que las otras doce
-> láminas juntas. Y no es una concesión: es un resultado, y el coinvestigador ya
-> lo cuenta así en las reuniones.
+Y la ganancia agregada no está repartida: de los 283.000 (COP) que el mercado
+gana sobre la autogeneración individual, 165.000 son de una sola institución.
+
+> **Esta es el centro de la charla, y ahora se sabe por qué.** Con el operador
+> del mercado en la sala, traer el caso que sale mal compra más credibilidad que
+> las otras doce láminas juntas. Y no es una concesión: es un resultado, y el
+> coinvestigador ya lo cuenta así en las reuniones.
+>
+> **Además es la entrega perfecta al asesor regulatorio.** Si a cada institución
+> le conviene un mecanismo distinto, la comunidad tiene que **acordar** uno, y
+> ese acuerdo tiene ganadores y perdedores. El resultado técnico crea justamente
+> la necesidad del instrumento jurídico del que él habla después del café.
 
 ### Bloque 5 · Lo que todavía no se sabe · 3 min
 
@@ -203,6 +218,132 @@ alguien pregunte, y existen porque estas cuatro preguntas van a llegar:
 > base y otra a las modificaciones. Con veinte minutos y esta sala, eso es
 > cocina interna: se lo agradece un jurado de tesis, no un foro. Queda en una
 > frase de la lámina nueve y en dos láminas de respaldo.
+
+---
+
+---
+
+## Las cifras medidas
+
+**De la corrida oficial del 2026-09-09, frontera de cobertura baja, horizonte
+completo de nueve meses.** No se escriben a mano: salen del almacén y se
+regeneran con la liquidación por institución y la equidad por período.
+
+### La comparación regulatoria
+
+| Mecanismo | Beneficio (COP) | Autoconsumo | Equidad | Gini |
+|---|---:|---:|---:|---:|
+| **Mercado entre pares** | **45.422.019** | **0,970** | −0,1697 | 0,1133 |
+| Autogeneración individual | 45.139.785 | 0,906 | −0,1060 | 0,1127 |
+| Colectivo mensual | 44.523.607 | 0,906 | −0,0556 | 0,1197 |
+| Autogeneración remota | 44.278.078 | 0,906 | −0,0659 | 0,1149 |
+| Colectivo horario | 43.694.366 | 0,906 | −0,0490 | 0,1231 |
+| Contrato interno | 43.450.343 | 0,906 | −0,0670 | 0,1125 |
+| Mercado mayorista | 42.947.571 | 0,906 | −0,0689 | 0,1121 |
+
+El margen del mercado sobre la autogeneración individual es de **282.234 COP,
+es decir el 0,63 por ciento**. Sobre nueve meses, el mercado gana por poco.
+
+**Y eso no debilita la ponencia: la vuelve creíble.** Un resultado de dos
+dígitos con estos datos sería sospechoso, y con el operador del mercado en la
+sala, más.
+
+Lo que sí se mueve mucho es el aprovechamiento: **el 97,0 por ciento de la
+generación se usa dentro, frente al 90,6 sin mercado.** Seis puntos y medio de
+energía solar que dejan de salir a la red a precio de bolsa.
+
+### Dónde está el valor, y es lo que ordena la charla
+
+| Mes | Ancho de la banda (COP/kWh) | Ahorro (COP) | % del total |
+|---|---:|---:|---:|
+| abril | 65,8 | 48.832 | 4,5 |
+| mayo | 67,0 | 27.151 | 2,5 |
+| **junio** | **182,7** | **373.702** | **34,1** |
+| **julio** | **174,1** | **544.242** | **49,6** |
+| agosto | 65,7 | 55.319 | 5,0 |
+| septiembre | 65,8 | 17.715 | 1,6 |
+| octubre | 65,4 | 10.315 | 0,9 |
+| noviembre | 65,6 | 8.416 | 0,8 |
+| diciembre | 65,0 | 11.324 | 1,0 |
+
+**El 83,7 por ciento del ahorro de nueve meses cae en dos.** Y son exactamente
+los dos meses en que la banda se abre: 183 y 174 frente a una mediana de 66.
+
+La causa es la de la lámina 6. En junio y julio la inyección de la universidad
+supera su retiro del mes, **el crédito de permuta se agota y el piso se desploma
+al precio de bolsa**, de 693 a 130 (COP/kWh). La franja se multiplica por tres y
+es ahí donde el mercado tiene algo que repartir.
+
+> **El mercado vale poco cuando la regulación paga bien, y vale mucho cuando la
+> regulación deja de pagar.**
+
+Esa frase es el titular de la lámina 7. El margen del 0,63 por ciento sobre el
+horizonte deja de ser el resultado y pasa a ser un promedio que esconde lo que
+importa: hay meses en que no cambia nada y meses en que cambia todo, y la
+diferencia la marca un umbral regulatorio concreto.
+
+### La frase del asesor, medida
+
+| Institución | Le pagaría la red | Vende dentro | Le cobraría la red | Compra dentro |
+|---|---:|---:|---:|---:|
+| Udenar | **469,2** | **600,9** | 722,3 | 692,7 |
+| HUDN | 687,2 | 730,7 | 722,9 | 610,1 |
+| UCC | 684,0 | 714,8 | 723,1 | 537,8 |
+| Mariana | 680,4 | 715,6 | 722,6 | 620,2 |
+| Cesmag | 624,4 | 681,2 | 796,3 | 699,2 |
+
+En (COP/kWh), ponderados por energía sobre el horizonte completo.
+
+La primera fila es la lámina 11: **a la universidad la red le pagaría su
+excedente a 469,2 y dentro de la comunidad lo coloca a 600,9.** Y la última
+columna dice lo otro: la universidad más cara compra afuera a 796,3 y dentro a
+699,2.
+
+### El reparto del excedente
+
+Los compradores capturan el **44,40 por ciento** y los vendedores el 55,60. El
+contrato a precio pactado repartiría 50 y 50 por construcción, de modo que **el
+mercado desplaza 5,6 puntos porcentuales hacia los vendedores**.
+
+### A quién le conviene qué, que es la lámina 13
+
+| Institución | P2P | Individual | Contrato | Bolsa | Colectivo | Remota | Le conviene |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Udenar | **10,280** | 10,269 | 8,685 | 8,655 | 8,201 | 8,944 | mercado |
+| Mariana | 9,099 | 9,067 | 9,073 | 8,987 | **9,303** | 9,123 | colectivo |
+| UCC | 11,276 | 11,111 | 11,196 | 11,007 | 11,473 | **11,557** | remota |
+| HUDN | 9,335 | 9,337 | 9,168 | 9,093 | **9,379** | 9,284 | colectivo |
+| Cesmag | **5,432** | 5,355 | 5,329 | 5,206 | 5,338 | 5,370 | mercado |
+| **Comunidad** | **45,422** | 45,140 | 43,450 | 42,948 | 43,694 | 44,278 | mercado |
+
+En millones de COP, horizonte completo.
+
+**Cinco instituciones y tres mecanismos ganadores distintos.** El mercado gana
+para la comunidad como un todo y gana individualmente solo para dos de las
+cinco.
+
+Y tres cosas que se dicen con esa tabla delante:
+
+**La ganancia agregada no está repartida.** De los 283.000 COP que el mercado
+gana sobre la autogeneración individual, 165.000 son de una sola institución.
+
+**Para el hospital los dos mecanismos son indistinguibles**, con una diferencia
+del 0,02 por ciento a favor de estar solo. El mercado no mejora a todos.
+
+**Y de ahí sale la entrega al asesor regulatorio.** Si a cada institución le
+conviene un mecanismo distinto, la comunidad tiene que **acordar** uno, y ese
+acuerdo tiene ganadores y perdedores. El resultado técnico crea exactamente la
+necesidad del instrumento jurídico del que él habla después del café.
+
+### La equidad, mes a mes
+
+| | |
+|---|---|
+| junio y julio | el mercado es **a la vez el más eficiente y el más equitativo**, y el precio de la equidad se anula |
+| los otros siete meses | la autogeneración individual rinde algo más y el mercado sigue siendo el más equitativo, a un costo de entre 0,5 y 3,2 por ciento |
+
+Es el mismo hallazgo por otra vía: cuando la banda se abre, el mercado domina en
+las dos dimensiones a la vez.
 
 ---
 

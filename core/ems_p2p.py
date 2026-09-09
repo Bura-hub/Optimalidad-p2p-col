@@ -530,8 +530,10 @@ def _run_hour_worker(args):
                                   seller_ids, buyer_ids)
     res.P_int = settle["P_int"]; res.P_ext = settle["P_ext"]
 
-    res.SC = self_consumption_index(P_star, D_k, G_klim_k)
-    res.SS = self_sufficiency_index(P_star, G_klim_k, D_k)
+    # C-164: los dos indices llevaban el nombre del otro. El autoconsumo se
+    # mide contra la generacion y la autosuficiencia contra la demanda.
+    res.SC = self_consumption_index(P_star, G_klim_k, D_k)
+    res.SS = self_sufficiency_index(P_star, D_k, G_klim_k)
     # H-49: la prima de cada vendedor se mide contra SU piso, no contra el
     # menor de la hora. Es lo unico que hace visible a un vendedor que vende
     # por debajo de su alternativa, que es H-43. El juego usa el minimo; la

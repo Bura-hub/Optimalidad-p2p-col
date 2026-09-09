@@ -49,9 +49,22 @@ def residual_settlement(
     }
 
 
-def self_consumption_index(P_star, D_k, G_klim_k=None) -> float:
-    """
-    SC = (autoconsumo_local + intercambio_P2P) / D_total
+def self_sufficiency_index(P_star, D_k, G_klim_k=None) -> float:
+    """La autosuficiencia: que fraccion de LA DEMANDA se cubre sin la red.
+
+        SS = (autoconsumo local + intercambio entre pares) / demanda total
+
+    C-164. Esta funcion se llamaba `self_consumption_index` y devolvia esto
+    mismo. El nombre estaba cruzado: dividir por la demanda mide **cuanta
+    demanda se cubre**, que es la autosuficiencia; dividir por la generacion
+    mide **cuanta generacion se aprovecha**, que es el autoconsumo. Es la
+    convencion estandar de la literatura de fotovoltaica en edificios.
+
+    Se comprobaba por fisica y por eso se detecto: con una cobertura solar del
+    20 % la fraccion de demanda cubierta con generacion propia no puede valer
+    0,98. La capa de lectura del documento lo venia parcheando al abrir el
+    libro; el parche sube aqui y desaparece de alli.
+
     Si G_klim_k se provee, incluye el autoconsumo local de cada nodo.
     """
     p2p_energy = float(np.sum(P_star))
@@ -68,10 +81,14 @@ def self_consumption_index(P_star, D_k, G_klim_k=None) -> float:
     return numerator / denom if denom > 1e-10 else 0.0
 
 
-def self_sufficiency_index(P_star, G_klim_k, D_k=None) -> float:
-    """
-    SS = (autoconsumo_local + intercambio_P2P) / G_total
-    Incluye autoconsumo para ser comparable con C1–C4 (punto 3).
+def self_consumption_index(P_star, G_klim_k, D_k=None) -> float:
+    """El autoconsumo: que fraccion de LA GENERACION se aprovecha en sitio.
+
+        SC = (autoconsumo local + intercambio entre pares) / generacion total
+
+    C-164, ver la nota de la funcion anterior: los dos nombres estaban
+    cruzados. Incluye el autoconsumo local para ser comparable con los
+    escenarios sin mercado.
     """
     p2p_energy = float(np.sum(P_star))
     G_arr = np.maximum(G_klim_k, 0)

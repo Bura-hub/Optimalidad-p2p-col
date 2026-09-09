@@ -385,12 +385,12 @@ def run_comparison(
     #   SS = (autoconsumo_local + energía_P2P_recibida) / G_total
     #
     # Para C1–C4: no hay mercado P2P → energía_P2P = 0
-    #   SC_C1 = sum(min(G,D)) / sum(D)
-    #   SS_C1 = sum(min(G,D)) / sum(G)
+    #   SC_C1 = sum(min(G,D)) / sum(G)      ← C-164: contra la GENERACION
+    #   SS_C1 = sum(min(G,D)) / sum(D)      ← C-164: contra la DEMANDA
     #
     # Para P2P: se suma el autoconsumo local más lo intercambiado en mercado
-    #   SC_P2P = (sum_k [autoconsumo_k + P2P_k]) / D_total
-    #   SS_P2P = (sum_k [autoconsumo_k + P2P_k]) / G_total
+    #   SC_P2P = (sum_k [autoconsumo_k + P2P_k]) / G_total
+    #   SS_P2P = (sum_k [autoconsumo_k + P2P_k]) / D_total
     #
     # Esto corrige la paradoja SS_P2P < SS_C1 que aparecía porque la versión
     # anterior solo contaba energía del mercado, ignorando el autoconsumo local.
@@ -425,8 +425,10 @@ def run_comparison(
         p2p_k = float(np.sum(r.P_star)) if r.P_star is not None else 0.0
         energia_util_total += autoconsumo_k + p2p_k
 
-    cr.self_consumption["P2P"] = energia_util_total / D_total if D_total > 1e-10 else 0.0
-    cr.self_sufficiency["P2P"] = energia_util_total / G_total if G_total > 1e-10 else 0.0
+    # C-164: el autoconsumo se mide contra la generacion y la autosuficiencia
+    # contra la demanda. Estaban al reves.
+    cr.self_consumption["P2P"] = energia_util_total / G_total if G_total > 1e-10 else 0.0
+    cr.self_sufficiency["P2P"] = energia_util_total / D_total if D_total > 1e-10 else 0.0
 
     # ── Equidad (IE) ─────────────────────────────────────────────────────
     #
@@ -994,19 +996,23 @@ def print_flow_breakdown(cr: "ComparisonResult", currency: str = "COP") -> None:
 
 
 def _sc_index_static(G_klim, D) -> float:
-    """SC de autoconsumo individual sin mercado: min(G,D) / sum(D)."""
-    used  = float(np.sum(np.minimum(
-        np.maximum(G_klim, 0), np.maximum(D, 0))))
-    total = float(np.sum(np.maximum(D, 0)))
-    return used / total if total > 1e-10 else 0.0
+    """El autoconsumo sin mercado: min(G,D) / sum(G).
 
-
-def _ss_index_static(G_klim, D) -> float:
-    """SS de autoconsumo individual sin mercado: min(G,D) / sum(G)."""
+    C-164: esta funcion dividia por la demanda, que es la autosuficiencia. Los
+    dos nombres estaban cruzados aqui y en el modulo de liquidacion.
+    """
     used = float(np.sum(np.minimum(
         np.maximum(G_klim, 0), np.maximum(D, 0))))
     gen  = float(np.sum(np.maximum(G_klim, 0)))
     return used / gen if gen > 1e-10 else 0.0
+
+
+def _ss_index_static(G_klim, D) -> float:
+    """La autosuficiencia sin mercado: min(G,D) / sum(D). Ver C-164."""
+    used  = float(np.sum(np.minimum(
+        np.maximum(G_klim, 0), np.maximum(D, 0))))
+    total = float(np.sum(np.maximum(D, 0)))
+    return used / total if total > 1e-10 else 0.0
 
 
 def print_comparison_report(cr: ComparisonResult) -> None:

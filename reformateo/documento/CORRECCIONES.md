@@ -7570,3 +7570,76 @@ Queda disponible como variante, medido en H-63, y como consulta al asesor.
 
 ---
 
+## C-164 · El autoconsumo y la autosuficiencia llevaban el nombre del otro
+
+**En tres sitios del núcleo, y parcheado en un cuarto.** Es el defecto que la
+auditoría de escenarios había anotado como menor y que resultó ser sistémico.
+
+### La convención, que es la estándar
+
+| | Se divide entre | Responde a |
+|---|---|---|
+| Autoconsumo | la **generación** | qué fracción de lo que genero se aprovecha |
+| Autosuficiencia | la **demanda** | qué fracción de lo que consumo cubro sin la red |
+
+Es la convención de la literatura de fotovoltaica en edificios, y la que el
+lector de una tesis va a suponer.
+
+### Lo que había
+
+Las dos funciones del módulo de liquidación y las dos del motor de comparación
+dividían al revés, y el resultado por hora heredaba el cruce. La capa de lectura
+del documento **lo parcheaba al abrir el libro**, renombrando las columnas al
+vuelo, de modo que el texto salía bien y el código seguía mal.
+
+Ese parche llevaba una nota que decía exactamente por qué se sabía: con una
+cobertura solar del 20 %, la fracción de demanda cubierta con generación propia
+**no puede valer 0,98**. Se sabía y se rodeaba, en vez de corregirse.
+
+### Y un cuarto sitio, en el corte por sub-períodos
+
+Un campo llamado como el índice de equidad guardaba en realidad el
+**coeficiente de Gini**. Quien lo leyera por su nombre leería otra cosa. Ahora
+son dos campos, cada uno con lo suyo, y de paso **el índice de equidad entra por
+fin al corte por sub-períodos**, donde antes sencillamente no se guardaba. Los
+dos salen ya en la tabla.
+
+### Lo que cambia en los números
+
+Nada de fondo: las dos cantidades se calculaban bien, con el nombre cambiado.
+Lo que cambia es **qué columna lleva cuál**. Sobre el 2 de mayo de 2025:
+
+| | Antes | Ahora |
+|---|---:|---:|
+| Autoconsumo del escenario individual | 0,132 | **0,758** |
+| Autosuficiencia del escenario individual | 0,758 | **0,132** |
+| Autoconsumo del mercado entre pares | 0,174 | **1,000** |
+| Autosuficiencia del mercado entre pares | 1,000 | **0,174** |
+
+Y ahora se leen solas: el mercado entre pares **aprovecha toda la generación**,
+que es lo que un mercado hace, y cubre el 17,4 % de la demanda, que es lo que
+una cobertura solar de ese tamaño permite.
+
+### El aviso que hay que llevar puesto
+
+**Los artefactos anteriores a esta corrección tienen las dos columnas
+intercambiadas.** Compararlos con una corrida nueva exige cambiarlas de sitio
+antes, o las dos saldrán discrepantes sin que nada esté mal. Queda escrito en la
+capa de lectura, que es donde alguien va a tropezar con ello.
+
+### La comprobación
+
+`tests/gate_c164_autoconsumo_autosuficiencia.py`, cinco en verde, y las dos
+primeras son las que importan porque **no se pueden satisfacer con los nombres
+cruzados**:
+
+| | Medido |
+|---|---|
+| Con generación escasa, autoconsumo alto y autosuficiencia baja | 1,0000 y 0,1727 |
+| Con generación abundante, al revés | 0,2227 y 1,0000 |
+| Los dos viven entre cero y uno | sí |
+| Autoconsumo × generación = autosuficiencia × demanda | dif 0,00e+00 |
+| Liquidación y comparación coinciden sin mercado | dif 0,00e+00 |
+
+---
+

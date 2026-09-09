@@ -143,18 +143,23 @@ def resumen(cobertura: str) -> pd.DataFrame:
     """
     Hoja ``Resumen`` con los rótulos SC/SS **ya corregidos**.
 
-    El artefacto trae intercambiadas las dos columnas respecto a su
-    semántica en ``core/settlement.py``. Se comprueba por física: en M1,
-    con 20,0 % de cobertura, la fracción de demanda cubierta con
-    generación propia no puede ser 0,98. Aquí se devuelven con nombre
-    explícito para que el texto no pueda equivocarse.
+    Las dos columnas venían intercambiadas respecto de su semántica estándar.
+    Se comprobaba por física: con 20,0 % de cobertura, la fracción de demanda
+    cubierta con generación propia no puede ser 0,98. **El cruce se corrigió
+    en el origen (C-164)** y aquí solo se traducen los rótulos.
+
+    AVISO PARA LOS ARTEFACTOS ANTERIORES A ESA CORRECCIÓN: en ellos las dos
+    columnas siguen intercambiadas, de modo que compararlos con una corrida
+    nueva exige cambiarlas de sitio antes.
     """
     df = pd.read_excel(ruta_salida(cobertura, "resultados_comparacion.xlsx"),
                        sheet_name="Resumen")
     df = df.rename(columns={
         "Ganancia_neta_COP": "ganancia_COP",
-        "SC": "autosuficiencia",   # rotulada SC en el libro, es SS
-        "SS": "autoconsumo",       # rotulada SS en el libro, es SC
+        # C-164: el cruce se corrigio en el origen. Las columnas del libro ya
+        # dicen lo que son, y aqui solo se traducen al castellano.
+        "SC": "autoconsumo",
+        "SS": "autosuficiencia",
         "IE": "ie",
         "Escenario": "mecanismo",
     })

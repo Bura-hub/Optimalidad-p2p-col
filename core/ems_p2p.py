@@ -226,6 +226,11 @@ class SolverParams:
                                       # tercios de las horas llegan a
                                       # estacionario y la corrida cuesta
                                       # 1,4 h con once procesos
+    # C-161: si se pide, cada hora conserva su trayectoria con los
+    # multiplicadores en vez de tirarla. Es lo que llena el almacen y lo que
+    # permite dibujar la convergencia de cualquier hora sin volver a simular.
+    # Opt-in: por omision la corrida queda identica bit a bit.
+    guarda_trayectorias: bool = False
 
 
 @dataclass
@@ -641,7 +646,12 @@ class EMSP2P:
                          # el vector por vendedor viaja aparte, solo para la
                          # liquidacion: al juego entra el minimo, arriba
                          None if (piso_m is None or not sids)
-                         else piso_m[sids, k].copy()))
+                         else piso_m[sids, k].copy(),
+                         # El almacen: si se pide, cada hora devuelve su
+                         # trayectoria con multiplicadores en vez de tirarla.
+                         # Opt-in, para que la corrida sin almacen quede
+                         # identica bit a bit. Ver C-161.
+                         bool(getattr(sv, "guarda_trayectorias", False))))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}

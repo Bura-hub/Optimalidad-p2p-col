@@ -7321,6 +7321,26 @@ escritos con semanas de diferencia:
 | El último paso es el estacionario | 2,0·10⁻⁸ |
 | Los multiplicadores llegan | 10 columnas |
 
+### Cableado al orquestador, y probado sobre un día
+
+Con la bandera del almacén, la corrida lo llena sola. Probado sobre el 2 de
+mayo de 2025 por la vía acoplada:
+
+| | |
+|---|---|
+| Horas anotadas | 24, de las cuales **8 resueltas** y el resto sin mercado, cada una con su motivo |
+| Flujos | 36 filas, **con los pares de energía casi nula** |
+| Trayectorias | **1.200 pasos**, es decir 150 por hora resuelta |
+| Columnas de precio y multiplicadores en una hora | 16 |
+
+Y la comprobación que da sentido a todo: **cualquier hora se recupera de la
+carpeta con su trayectoria, sus multiplicadores y sus flujos, sin volver a
+simular**. La hora de más volumen del día, con dos vendedores y tres
+compradores, sale con sus seis pares, su prima y su ahorro por pareja.
+
+La tabla de escenarios queda vacía a propósito: se llena en la fase que audita
+los cinco mecanismos, y hasta entonces es mejor que se note que falta.
+
 ### Una diferencia de convención que la compuerta destapó
 
 Las dos vías **no listan igual a un vendedor retirado**. El motor lo

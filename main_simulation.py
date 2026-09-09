@@ -64,6 +64,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          include_c5: bool = False, out_dir: str = None,
          paso: float = 1.0, desde: str = None, hasta: str = None,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
+         almacen: str = None,
          exencion_contribucion: bool = False,
          buyer_competition: str = "aggregate"):
     t_total_start = time.time()
@@ -389,12 +390,68 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
                           n_points=150, stackelberg_iters=2, parallel=True,
                           metodo=metodo, t_span_acoplado=t_span_acoplado,
-                          buyer_competition=buyer_competition)   # CAL-49
+                          buyer_competition=buyer_competition,   # CAL-49
+                          # C-161: con almacen, cada hora conserva su
+                          # trayectoria con multiplicadores en vez de tirarla.
+                          guarda_trayectorias=bool(almacen))
     if metodo == "acoplado":
         print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
               f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
     ems    = EMSP2P(agents, grid, solver)
     p2p_results, G_klim, D_star = ems.run(D, G)
+
+    # ── El almacen de la corrida (C-161) ─────────────────────────────────
+    # Todo lo que hasta hoy se tiraba: los retirados por hora, el piso y el
+    # techo de cada agente, el estado del integrador, los pares de energia
+    # casi nula que el desglose descarta, y la trayectoria entera de cada
+    # hora con sus multiplicadores. Sin esto, ninguna figura de convergencia
+    # puede dibujarse sin volver a simular.
+    if almacen:
+        from core.almacen import Almacen
+        if metodo != "acoplado":
+            print(f"    [C-161] AVISO: el almacen guarda trayectorias y la "
+                  f"via alternada no las produce; solo se llenaran las "
+                  f"tablas de horas y flujos")
+        idx_alm = (index_full if full_horizon
+                   else idx_day if single_day else None)
+        alm = Almacen(almacen,
+                      cobertura=("m3" if paper_meters else "m1"),
+                      inicio=(str(idx_alm[0].date()) if idx_alm is not None
+                              else "2025-04-04"),
+                      paso_horas=float(paso))
+        te_m = (None if not use_real_data
+                else np.atleast_2d(np.asarray(pi_gs_arg, dtype=float)))
+        for r in p2p_results:
+            k = int(r.k)
+            if not r.seller_ids or not r.buyer_ids:
+                alm.sin_resolver(k, "sin mercado esa hora")
+                continue
+            P = np.asarray(r.P_star, dtype=float)
+            pi = np.asarray(r.pi_star, dtype=float)
+            alm.anota_hora(
+                k, resuelta=True, vendedores=len(r.seller_ids),
+                compradores=len(r.buyer_ids), retirados=len(r.retirados),
+                volumen=float(np.sum(P)),
+                precio_medio=float(np.mean(pi)) if pi.size else float("nan"),
+                iteraciones=int(r.iters_used),
+                residuo=float(r.norm_rel_final),
+                W_vendedor=float(r.Wj_total), W_comprador=float(r.Wi_total),
+                SC=float(r.SC), SS=float(r.SS), equidad=float(r.IE),
+                reparto_comprador=float(r.PS),
+                reparto_vendedor=float(r.PSR))
+            alm.anota_flujos(
+                k, P, pi, r.seller_ids, r.buyer_ids, agent_names,
+                techo_i=(None if te_m is None or te_m.shape[0] == 1
+                         else te_m[r.buyer_ids, k]),
+                piso_j=(None if pi_gb_agente is None
+                        else np.asarray(pi_gb_agente,
+                                        dtype=float)[r.seller_ids, k]))
+            if getattr(r, "tr", None) is not None:
+                alm.anota_trayectoria(k, r.tr, r.seller_ids, r.buyer_ids,
+                                      agent_names)
+        partes = alm.cierra()
+        print(f"    [C-161] almacen en {almacen}: " +
+              " · ".join(f"{t} {n} partes" for t, n in partes.items()))
 
     # C-151: la restriccion de participacion tiene que VERSE. Retira
     # vendedores y con ellos su energia, y una corrida que lo hiciera en
@@ -1747,6 +1804,12 @@ if __name__ == "__main__":
                     help="CAL-46: inicio de la ventana acotada")
     ap.add_argument("--hasta", type=str, default=None, metavar="YYYY-MM-DD",
                     help="CAL-46: fin de la ventana acotada, excluido")
+    ap.add_argument("--almacen", default=None, metavar="CARPETA",
+                    help="C-161: vuelca la corrida al almacen, con las "
+                         "trayectorias de cada hora y sus multiplicadores, "
+                         "para poder dibujar cualquier hora sin volver a "
+                         "simular. Requiere --metodo acoplado para las "
+                         "trayectorias")
     ap.add_argument("--metodo", choices=["alternado", "acoplado"],
                     default="alternado",
                     help="CAL-48: 'acoplado' integra precios y cantidades "
@@ -1841,6 +1904,7 @@ if __name__ == "__main__":
              single_day=args.day, paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             almacen=args.almacen,
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)
     else:
@@ -1851,5 +1915,6 @@ if __name__ == "__main__":
              include_c5=args.include_c5, out_dir=args.out_dir,
              paso=args.paso, desde=args.desde, hasta=args.hasta,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             almacen=args.almacen,
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)

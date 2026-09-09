@@ -427,22 +427,36 @@ def c1_dia(destino, cobertura: str, dia: str):
     h = h.merge(b, on="hora_del_dia", how="left").sort_values("hora_del_dia")
 
     fig, (ax, ax2) = plt.subplots(
-        2, 1, figsize=(E.ANCHO_COMPLETO, 4.6), sharex=True,
+        2, 1, figsize=(E.ANCHO_COMPLETO, 5.0), sharex=True,
         gridspec_kw=dict(height_ratios=[2.1, 1.0], hspace=0.12))
 
+    # LAS DOS COTAS COMO LINEAS, y no solo como relleno. Con el relleno solo,
+    # una banda ancha se come la figura y no se ve DONDE esta cada cota, que es
+    # justo lo que hay que leer: el techo apenas se mueve y el piso se desploma.
     ax.fill_between(h["hora_del_dia"], h["piso"], h["techo"],
-                    color=E.NEUTRO, alpha=0.16, linewidth=0,
-                    label="banda entre el piso y el techo")
-    act = h[h["resuelta"].astype(bool)]
-    ax.plot(act["hora_del_dia"], act["precio_medio"], marker="o",
-            markersize=4.5, linewidth=2.4, color=E.DESPUES,
+                    color=E.NEUTRO, alpha=0.13, linewidth=0)
+    ax.plot(h["hora_del_dia"], h["techo"], linewidth=1.4, color=E.NEUTRO,
+            linestyle="--", label="techo: lo que paga a la red")
+    ax.plot(h["hora_del_dia"], h["piso"], linewidth=1.4, color=E.ALERTA,
+            linestyle="--", label="piso: lo que la red le paga")
+
+    # EL PRECIO SOLO DONDE HUBO MERCADO, y sin unir horas que no son
+    # contiguas. Unirlas dibuja un mercado continuo que no existio: en las
+    # horas sin acuerdo no hay precio, y una linea recta entre las once de la
+    # manana y las cuatro de la tarde afirma que si lo hubo.
+    serie = h.set_index("hora_del_dia")["precio_medio"].reindex(range(24))
+    serie[~h.set_index("hora_del_dia")["resuelta"].astype(bool)
+           .reindex(range(24), fill_value=False)] = np.nan
+    ax.plot(serie.index, serie.values, marker="o", markersize=5,
+            linewidth=2.6, color=E.DESPUES,
             label="precio acordado dentro de la comunidad")
     ax.set_ylabel("Precio (COP/kWh)")
     ax.set_title(f"Un día de mercado · {dia}", pad=8)
-    # La leyenda va FUERA del area de datos: dentro tapaba justo el tramo de
-    # la tarde, que es donde el precio cambia de regimen.
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.02), ncol=2,
-              fontsize=8, frameon=False)
+    # DENTRO, arriba a la izquierda. Encima del titulo se lo comia, y debajo
+    # del eje se solapaba con el panel de los papeles, que empieza pegado. El
+    # hueco de la manana esta vacio de datos y es donde cabe.
+    ax.legend(loc="upper left", fontsize=7.5, framealpha=0.92,
+              borderpad=0.5, labelspacing=0.35)
     E.eje_espanol(ax, "y", "miles", 0)
 
     pap = (ag.groupby(["hora_del_dia", "papel"], observed=True).size()
@@ -456,18 +470,28 @@ def c1_dia(destino, cobertura: str, dia: str):
     ax2.set_xlabel("Hora del día")
     ax2.set_ylabel("Agentes")
     ax2.set_xticks(range(0, 24, 2))
-    ax2.set_ylim(-0.4, float(pap.to_numpy().max()) + 1.6)
-    ax2.legend(loc="upper center", fontsize=7.5, frameon=False, ncol=3)
+    ax2.set_ylim(-0.4, float(pap.to_numpy().max()) + 2.2)
+    ax2.legend(loc="upper center", fontsize=7.5, frameon=False, ncol=3,
+               columnspacing=1.4, handlelength=1.6)
 
+    # EL PIE DESCRIBE LO QUE ESTA FIGURA MUESTRA, y se calcula. La version
+    # anterior afirmaba que la banda se ensancha al mediodia porque ahi se
+    # agota el credito de permuta. Eso era cierto del dia con el que se probo
+    # y falso de este, donde el credito ya venia agotado y la banda es ancha
+    # desde la primera hora. Un pie que afirma en vez de describir sobrevive
+    # impreso hasta que alguien mira la figura al lado del texto.
+    _anchos = (h["techo"] - h["piso"])
+    _hay = h["resuelta"].astype(bool).sum()
     fig.text(0.01, 0.005,
              f"Nota. Frontera {cobertura.upper()}. El día se eligió por "
-             f"criterio medido: el de mayor recorrido del precio acordado "
-             f"entre sus horas de mercado. La banda es la de la comunidad, "
-             f"entre el piso más bajo y el techo más alto de cada hora; se "
-             f"ensancha al mediodía porque ahí el crédito de permuta se agota "
-             f"y el piso pasa a ser el precio de bolsa.",
+             f"criterio medido: el de mayor recorrido del precio entre sus "
+             f"horas de mercado. Hubo acuerdo en {_hay} de las 24 horas y el "
+             f"precio solo se dibuja en esas. La banda va del piso "
+             f"al techo y ese día mide entre "
+             f"{E.fmt_miles(_anchos.min(), 0)} y "
+             f"{E.fmt_miles(_anchos.max(), 0)} (COP/kWh).",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.115, 1, 1))
+    fig.tight_layout(rect=(0, 0.165, 1, 1))
     return E.guardar(fig, f"foro_c1_dia_{cobertura}",
                      datos=h[["hora_del_dia", "piso", "techo", "precio_medio",
                               "vendedores", "compradores", "retirados",

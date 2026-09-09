@@ -135,6 +135,8 @@ class Almacen:
     _buf: dict = field(default_factory=lambda: {t: [] for t in TABLAS})
     _partes: dict = field(default_factory=lambda: {t: 0 for t in TABLAS})
     _t0: Optional[pd.Timestamp] = None
+    # Las horas que ya tienen fila. El invariante es una por hora.
+    _vistas: set = field(default_factory=set)
 
     def __post_init__(self):
         self.destino = Path(self.destino)
@@ -154,12 +156,40 @@ class Almacen:
 
     # ── las cuatro anotaciones ────────────────────────────────────────────
     def anota_hora(self, k: int, **campos) -> None:
-        self._empuja("horas", dict(self._llave(k), **campos))
+        """Una hora, UNA fila. Y ninguna hora no finita como resuelta.
+
+        C-173. La guarda de C-160 vivia en la anotacion de los FLUJOS, y la
+        corrida llama antes a esta: cuando la guarda saltaba, la fila que dice
+        «resuelta» ya estaba escrita. El resultado eran DOS filas para la misma
+        hora, una afirmando que resolvio con el volumen y el precio vacios y
+        otra diciendo que no. Doce horas de 6.144 en la corrida oficial.
+
+        Quien contara horas resueltas las contaba dos veces, y quien promediara
+        arrastraba los huecos. Aqui la guarda esta donde tiene que estar.
+        """
+        numeros = [v for v in campos.values()
+                   if isinstance(v, (int, float, np.floating, np.integer))
+                   and not isinstance(v, (bool, np.bool_))]
+        if campos.get("resuelta") and not _finito(*numeros):
+            return self.sin_resolver(k, "solucion no finita")
+        self._anota_una(k, campos)
 
     def sin_resolver(self, k: int, motivo: str) -> None:
         """Una hora que no resuelve ES UN DATO. Se anota con su motivo."""
-        self._empuja("horas", dict(self._llave(k), resuelta=False,
-                                   motivo=motivo))
+        self._anota_una(k, dict(resuelta=False, motivo=motivo))
+
+    def _anota_una(self, k: int, campos: dict) -> None:
+        """Escribe la fila de esa hora si no hay ya una.
+
+        El invariante de la tabla de horas es **una fila por hora**. Sin el,
+        cualquier recuento y cualquier promedio salen mal, y salen mal en
+        silencio: una tabla con filas de mas se lee igual de bien que una
+        correcta.
+        """
+        if k in self._vistas:
+            return
+        self._vistas.add(int(k))
+        self._empuja("horas", dict(self._llave(k), **campos))
 
     def anota_flujos(self, k: int, P, pi, sids, bids, nombres,
                      techo_i=None, piso_j=None) -> None:
@@ -332,7 +362,28 @@ def lee(destino, cobertura: str, tabla: str) -> pd.DataFrame:
     partes = sorted(carpeta.glob("parte_*.parquet"))
     if not partes:
         raise FileNotFoundError(f"no hay partes en {carpeta}")
-    return pd.concat([pd.read_parquet(p) for p in partes], ignore_index=True)
+    d = pd.concat([pd.read_parquet(p) for p in partes], ignore_index=True)
+
+    # C-173: los almacenes escritos ANTES de esta correccion pueden traer dos
+    # filas para la misma hora, una diciendo «resuelta» con los numeros vacios
+    # y otra diciendo que no resolvio. Aqui se normaliza al leer, y **se avisa**.
+    #
+    # Se conserva la fila que NO dice resuelta, porque es la verdadera: si la
+    # solucion no era finita, esa hora no resolvio. Quedarse con la otra seria
+    # contar como buena una hora sin volumen ni precio.
+    #
+    # Esto es un remiendo de lectura y esta declarado como tal. Existe porque la
+    # corrida oficial de nueve meses ya estaba escrita cuando se encontro el
+    # defecto, y volver a correrla cuesta horas. En cuanto haya una corrida
+    # posterior a C-173, esta rama no encuentra nada que hacer.
+    if tabla == "horas" and "hora" in d.columns and d["hora"].duplicated().any():
+        antes = len(d)
+        d = (d.sort_values("resuelta", na_position="first")
+               .drop_duplicates("hora", keep="first")
+               .sort_values("hora").reset_index(drop=True))
+        print(f"    [C-173] el almacen de {cobertura} traia {antes - len(d)} "
+              f"hora(s) con dos filas; se conserva la que dice que no resolvio")
+    return d
 
 
 def hora(destino, cobertura: str, k: int) -> dict:

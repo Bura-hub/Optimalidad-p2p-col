@@ -8220,3 +8220,69 @@ corrida de horas para ahorrar doce minutos no sale a cuenta.
 
 ---
 
+## C-173 · La tabla de horas admitía dos filas para la misma hora
+
+**Encontrado al dibujar la primera figura con los datos de la corrida oficial**,
+porque el guion falló diciendo que no podía indexar por una etiqueta repetida.
+Doce horas de 6.144 tenían **dos filas**: una diciendo que resolvió, con el
+volumen y el precio vacíos, y otra diciendo «solución no finita».
+
+### Por qué pasaba, y es una cuestión de orden
+
+La guarda de C-160 —que una solución no finita nunca se anote como resuelta—
+vivía en la anotación de los **flujos**. Y la corrida llama antes a la de la
+**hora**:
+
+1. se escribe la fila de la hora, con `resuelta` en cierto;
+2. se llama a los flujos, la guarda salta y escribe su fila de «no resuelta».
+
+Cuando la guarda actúa, la otra fila ya está escrita. La guarda protegía la
+tabla que le tocaba y llegaba tarde para la de al lado.
+
+### Qué se rompía
+
+Quien contara horas resueltas las contaba dos veces. Quien promediara arrastraba
+los huecos. Y quien pidiera una hora concreta recibía dos registros
+contradictorios sin nada que dijera cuál vale.
+
+Es un fallo silencioso de manual: **una tabla con filas de más se lee igual de
+bien que una correcta**.
+
+### Lo que se hizo
+
+**El invariante se declara y se hace cumplir: una fila por hora, y solo una.**
+La tabla lleva ahora la cuenta de las horas que ya escribió y una segunda
+anotación no entra. Y la guarda de lo no finito pasa a estar también en la
+anotación de la hora, que es donde tenía que estar.
+
+La compuerta del almacén lo comprueba forzando el mismo orden que usa
+producción: primero la hora como resuelta con un valor vacío, después los
+flujos. Sin la corrección salen cuatro filas donde debe haber dos.
+
+### Y un remiendo de lectura, declarado como tal
+
+La corrida oficial de nueve meses **ya estaba escrita** cuando esto apareció, y
+volver a correrla cuesta horas. De modo que la lectura normaliza las tablas
+antiguas y **avisa por pantalla de cuántas horas venían duplicadas**.
+
+Se conserva la fila que dice que **no** resolvió, porque es la verdadera: si la
+solución no era finita, esa hora no resolvió. Quedarse con la otra sería contar
+como buena una hora sin volumen ni precio.
+
+En cuanto haya una corrida posterior a esta corrección, esa rama no encuentra
+nada que hacer.
+
+### Qué cifras afecta, y conviene ser preciso
+
+**Ninguna de las publicadas.** La liquidación por institución se construye sobre
+las tablas de agentes y de flujos; la equidad y la comparación por mecanismo,
+sobre la de escenarios. Las tres son ajenas a este defecto, y las horas
+afectadas no tienen filas de flujos porque la guarda sí impidió escribirlas.
+
+Lo único que tocaba era el recuento de horas con mercado y la elección de las
+horas protagonistas de las figuras. Con la normalización, la tabla da **1.114
+horas resueltas**, que es exactamente lo que reporta el barrido de sensibilidad
+por otra vía.
+
+---
+

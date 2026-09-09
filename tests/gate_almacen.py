@@ -110,6 +110,36 @@ def main() -> int:
         if 102 in set(f.hora):
             fallos.append("una solucion no finita entro como flujo")
 
+        # 3b · UNA FILA POR HORA, y ninguna no finita como resuelta (C-173).
+        #
+        # La corrida oficial escribio DOS filas para doce horas: una que decia
+        # «resuelta» con el volumen y el precio vacios, y otra que decia que no
+        # resolvia. Pasaba porque la guarda vivia en la anotacion de los flujos
+        # y la corrida llama antes a la de la hora. Quien contara horas
+        # resueltas las contaba dos veces.
+        #
+        # Se fuerza aqui el mismo orden que usa produccion: primero la hora
+        # como resuelta con un valor no finito, y despues los flujos.
+        alm2 = Almacen(tmp / "inv", cobertura="m1", inicio="2025-04-04")
+        alm2.anota_hora(200, resuelta=True, vendedores=2, compradores=3,
+                        volumen=float("nan"), precio_medio=700.0)
+        alm2.anota_flujos(200, np.array([[float("nan")]]), np.array([700.0]),
+                          [0], [1], NOMBRES)
+        alm2.anota_hora(201, resuelta=True, vendedores=2, compradores=3,
+                        volumen=5.0, precio_medio=700.0)
+        alm2.anota_hora(201, resuelta=True, vendedores=9, compradores=9,
+                        volumen=99.0, precio_medio=1.0)
+        alm2.cierra()
+        h2 = lee(tmp / "inv", "m1", "horas")
+        rep = int(h2["hora"].duplicated().sum())
+        mala = h2[(h2["resuelta"].fillna(False))
+                  & (~np.isfinite(h2["volumen"].astype(float)))]
+        ok3b = rep == 0 and len(mala) == 0 and len(h2) == 2
+        print(f"  3b· una fila por hora   {len(h2)} filas, {rep} repetidas, "
+              f"{len(mala)} resueltas con hueco   {'ok' if ok3b else 'FALLA'}")
+        if not ok3b:
+            fallos.append("la tabla de horas admite filas repetidas o huecos")
+
         # 4 · los multiplicadores llegan
         cols = set(t.columns)
         esperadas = {"lam_Udenar", "bet_UCC", "lam_filt_Mariana",

@@ -149,8 +149,14 @@ def _razon_gd() -> dict:
         p = (Path(__file__).resolve().parent.parent
              / "datos_cache" / f"preproceso_{c}.npz")
         if not p.exists():
+            # C-171: la ruta que este aviso daba no existe. El guion vive en
+            # esta misma carpeta, y quien leyera el aviso en el servidor lo
+            # buscaba donde no está.
             print(f"  AVISO estilo: falta {p.name}; la razón G/D de {c.upper()} "
-                  "sale del respaldo. Correr scripts/cache_crudo.py")
+                  "sale del respaldo. No es un fallo: la figura sale igual y "
+                  "solo esa razón viene de un valor de reserva. Para "
+                  "calcularla, correr "
+                  "reformateo/documento/scripts/cache_crudo.py")
             salida[c] = _GD_RESPALDO[c]
             continue
         z = np.load(p, allow_pickle=True)

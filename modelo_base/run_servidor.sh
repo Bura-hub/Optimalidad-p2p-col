@@ -117,6 +117,24 @@ corre() {
     echo "     ok"
   fi
   tail -n 12 "$log" | sed 's/^/     /'
+
+  # C-171: DEVUELVE EL CODIGO, no cero.
+  #
+  # Hasta hoy devolvia cero siempre, de modo que la parada en el primer fallo
+  # de la corrida oficial **nunca podia dispararse**: se anuncio y no era
+  # cierto. La corrida del 9 de septiembre siguio adelante con quince pasos
+  # caidos y termino diciendo «completa».
+  #
+  # Solo PARA cuando quien llama lo pide, poniendo la variable de abajo. Las
+  # tandas de sondas siguen queriendo lo contrario: que una sonda que falla no
+  # se lleve por delante a las que faltan, porque cada una mide algo distinto y
+  # se comparan al final.
+  if [[ "${PARA_EN_FALLO:-0}" == "1" && $codigo -ne 0 ]]; then
+    echo
+    echo "  === DETENIDO EN $nombre ==="
+    echo "  El log completo esta en $log"
+    return "$codigo"
+  fi
   return 0
 }
 
@@ -424,7 +442,9 @@ PYFIN
     #
     # Medido aqui: 13,9 s por hora de mercado con 32 procesos, de modo que las
     # dos fronteras del horizonte completo son unos 89 minutos.
+    # La parada en el primer fallo, que hasta C-171 se anunciaba y no ocurria.
     set -e
+    export PARA_EN_FALLO=1
     if [[ -z "${MTE_ROOT:-}" ]]; then
       echo "  MTE_ROOT no esta definido. Exportalo antes:"
       echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"

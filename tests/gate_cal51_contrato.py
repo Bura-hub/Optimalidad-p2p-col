@@ -135,6 +135,23 @@ def main() -> int:
               f"{cob['maximo']:.1f} COP/kWh   {'ok' if ok5 else 'FALLA'}")
         if not ok5:
             fallos.append("la serie de contratos no cubre el horizonte")
+    except FileNotFoundError as exc:
+        # C-171: LA QUINTA ES DE DATO, NO DE CODIGO, y no puede tumbar a las
+        # cuatro anteriores.
+        #
+        # La serie de precios de contratos es un fichero de hoja de calculo que
+        # el repositorio publico NO lleva, por su politica de solo codigo. En
+        # una maquina que no lo tenga, esta comprobacion no puede correr, y
+        # hasta hoy hacia caer la compuerta entera: las cuatro propiedades de
+        # codigo quedaban sin verificar por la ausencia de un fichero que
+        # **desde CAL-52 ya no gobierna el escenario**.
+        #
+        # No se salta en silencio, que seria el remedio peor: se declara.
+        print(f"  5 · la serie de contratos   NO SE PUDO COMPROBAR")
+        print(f"      falta el fichero en esta maquina, y el repositorio no lo")
+        print(f"      lleva por su politica de solo codigo. Copialo a mano si")
+        print(f"      se quiere comprobar la cobertura del horizonte.")
+        print(f"      {exc}")
     except Exception as exc:                      # noqa: BLE001
         print(f"  5 · la serie de contratos   FALLA: {exc}")
         fallos.append(f"no se pudo cargar la serie: {exc}")
@@ -144,7 +161,8 @@ def main() -> int:
         for x in fallos:
             print(f"  FALLA: {x}")
         return 1
-    print("  CAL-51 EN VERDE. El escenario del contrato tiene precio propio,")
+    print("  CAL-51 EN VERDE en lo que se pudo comprobar. El escenario del")
+    print("  contrato tiene precio propio,")
     print("  se separa del de bolsa por una identidad exacta, y con el precio")
     print("  igualado vuelve a coincidir: la igualdad de antes queda demostrada")
     print("  como caso limite y no como accidente.")

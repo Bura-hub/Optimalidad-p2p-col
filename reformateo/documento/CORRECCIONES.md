@@ -8081,3 +8081,72 @@ Queda verificada desde la siguiente.
 
 ---
 
+## C-171 · La corrida oficial se perdió entera por una dependencia que faltaba, y dijo que estaba completa
+
+**El 9 de septiembre, en el servidor.** La corrida terminó anunciando «CORRIDA
+OFICIAL COMPLETA» con **quince de sus treinta y dos pasos caídos**, y la causa
+de fondo era una sola línea que faltaba en el fichero de requisitos.
+
+### La causa
+
+El almacén de la corrida escribe en formato parquet, y la biblioteca que sabe
+escribirlo **no estaba en el fichero de requisitos**, de modo que el entorno del
+servidor no la tenía.
+
+### Por qué costó una corrida entera y no un segundo
+
+**El fallo no apareció al arrancar: apareció trece minutos después**, cuando el
+primer volcado por partes intentó escribir. Para entonces el mercado ya había
+resuelto un tramo del horizonte, y todo eso se perdió.
+
+Y detrás cayó lo demás en cascada, porque leen del almacén: la corrida de las
+dos fronteras, la liquidación por institución, las seis tablas de equidad por
+período y las figuras de los grupos A, C y D. Las del grupo B pasaron, y eso es
+justamente lo que las distingue: no tocan el almacén.
+
+### Tres arreglos, y el segundo es el que importa
+
+**Uno.** La biblioteca entra en el fichero de requisitos, con la razón escrita
+al lado.
+
+**Dos, y es donde tenía que haber estado desde el principio.** El almacén
+comprueba **al nacer** que puede escribir parquet: escribe una tabla de una fila
+en memoria y la lee de vuelta. Cuesta milisegundos y ahorra una corrida entera.
+Comprueba también la compresión y no solo el motor, porque descubrir que falta
+un compresor al volcar cuesta lo mismo que descubrir que falta el motor.
+
+El mensaje de fallo trae la orden exacta que lo arregla, y dice por qué existe
+esa comprobación.
+
+**Tres.** La cadena **para de verdad** en el primer fallo. Hasta hoy el ayudante
+que ejecuta cada paso devolvía cero siempre, de modo que la parada que la acción
+anunciaba **nunca podía dispararse**. Se dijo que paraba y no era cierto.
+
+Ahora para solo cuando quien la invoca lo pide, porque las tandas de sondas
+quieren lo contrario: que una sonda caída no se lleve por delante a las que
+faltan, ya que cada una mide algo distinto y se comparan al final.
+
+### Y dos defectos menores que la misma salida destapó
+
+**La compuerta del contrato caía por un fichero de datos.** Sus cuatro
+comprobaciones de código son sobre datos sintéticos y no dependen de nada
+externo; la quinta lee una hoja de cálculo que el repositorio público **no
+lleva**, por su política de solo código. En una máquina sin ese fichero, la
+ausencia del dato tumbaba las cuatro propiedades de código, y encima de un
+fichero que **desde CAL-52 ya no gobierna el escenario**. Ahora la quinta se
+declara como no comprobada, con su motivo, y no se salta en silencio.
+
+**Un aviso apuntaba a una ruta que no existe.** El de la caché de preproceso
+mandaba a un guion que vive en otra carpeta. Quien lo leyera en el servidor lo
+buscaría donde no está. Corregido, y de paso el aviso ahora dice que no es un
+fallo: la figura sale igual y solo una razón viene de un valor de reserva.
+
+### Lo que esta corrida deja claro sobre el método
+
+Una comprobación de entorno que cuesta milisegundos vale una corrida de dos
+horas. Y **un mensaje de éxito que no se gana es peor que un fallo**: si la
+salida no hubiera dicho «completa», nadie habría tenido que ir a contar los
+quince fallos entre cuatrocientas líneas para descubrir que no había resultados.
+
+---
+

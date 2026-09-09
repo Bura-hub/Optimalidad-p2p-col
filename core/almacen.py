@@ -66,6 +66,42 @@ TABLAS = ("horas", "flujos", "trayectorias", "escenarios", "agentes")
 POR_PARTE = 500
 
 
+def _comprueba_motor(comprimir: str = "zstd") -> None:
+    """Que se puede escribir parquet, ANTES de calcular nada (C-171).
+
+    POR QUE EXISTE. En el servidor faltaba la biblioteca que escribe parquet, y
+    el fallo no se descubrio al arrancar: se descubrio **trece minutos
+    despues**, cuando el primer volcado por partes intento escribir. La corrida
+    entera se perdio, y con ella se cayeron en cascada la liquidacion, la
+    equidad y las figuras que leen del almacen.
+
+    Una comprobacion que cuesta milisegundos y que ahorra una corrida entera no
+    es una precaucion: es donde tenia que estar desde el principio. Escribe una
+    tabla de una fila en memoria y la lee de vuelta.
+
+    Se comprueba tambien la COMPRESION, y no solo el motor: no todas las
+    instalaciones traen el mismo juego de compresores, y descubrir eso al
+    volcar cuesta lo mismo que descubrir que falta el motor.
+    """
+    import io as _io
+
+    try:
+        b = _io.BytesIO()
+        pd.DataFrame({"x": [1.0]}).to_parquet(b, index=False,
+                                              compression=comprimir)
+        b.seek(0)
+        pd.read_parquet(b)
+    except Exception as exc:                              # noqa: BLE001
+        raise RuntimeError(
+            "el almacen no puede escribir parquet con compresion "
+            f"{comprimir!r}: {exc}" + chr(10) +
+            "Instalalo antes de correr, o la corrida entera se perdera al "
+            "primer volcado:" + chr(10) +
+            "    .venv/bin/pip install pyarrow" + chr(10) +
+            "Esta comprobacion existe porque eso ya paso una vez, y costo una "
+            "corrida de las dos fronteras. Ver C-171.") from exc
+
+
 def _finito(*arrays) -> bool:
     """Cierto solo si TODO lo que se le pasa es numerico y finito."""
     for a in arrays:
@@ -103,6 +139,7 @@ class Almacen:
     def __post_init__(self):
         self.destino = Path(self.destino)
         self._t0 = pd.Timestamp(self.inicio)
+        _comprueba_motor(self.comprimir)
         for t in TABLAS:
             (self.destino / self.cobertura / t).mkdir(parents=True,
                                                       exist_ok=True)

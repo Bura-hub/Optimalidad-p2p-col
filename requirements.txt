@@ -2,6 +2,10 @@ numpy
 pandas
 scipy
 openpyxl
+# C-171: el almacen de la corrida escribe parquet, y pandas necesita un
+# motor para eso. Sin esta linea el servidor calcula el mercado entero y
+# muere al escribir la primera parte.
+pyarrow
 tqdm
 matplotlib
 pydataxm

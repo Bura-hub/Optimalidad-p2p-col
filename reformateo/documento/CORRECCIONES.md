@@ -8150,3 +8150,73 @@ quince fallos entre cuatrocientas líneas para descubrir que no había resultado
 
 ---
 
+## C-172 · El barrido de cobertura calculaba dos veces el mismo punto
+
+**Encontrado leyendo la tabla de la corrida oficial mientras corría**, porque
+dos filas seguidas decían exactamente lo mismo y daban resultados distintos:
+
+```
+1.00     20%  45.523.145  44.009.460  -0,170  1114  4104,7
+1.00     20%  45.564.297  44.037.967  -0,168  1118  4133,5
+```
+
+Ver dos filas idénticas con cifras distintas obliga a descartar primero lo
+grave, que sería que la corrida no reproduce. **No lo es**, y conviene dejar
+escrito por qué, porque el susto se va a repetir.
+
+### Qué pasaba
+
+El barrido recorre seis objetivos de cobertura solar: 11, 20, 33, 50, 75 y 100
+por ciento. Para cada uno calcula por cuánto hay que multiplicar la generación
+actual, y **recortaba a uno** los factores menores que uno en vez de
+descartarlos.
+
+Como la comunidad ya tiene cerca del 20 por ciento de cobertura, el objetivo del
+11 se queda por debajo y se recortaba a factor 1,0000; y el objetivo del 20 daba
+1,0025. Son el mismo punto con un cuarto de por ciento de diferencia, y la
+función que quita duplicados no los junta porque difieren en el tercer decimal.
+
+De ahí las dos filas: no son la misma corrida dos veces, son **dos puntos que
+difieren en un 0,25 % de generación**, y por eso sus resultados difieren en un
+0,09 %. La pantalla redondea el factor a dos decimales y la cobertura a entero,
+con lo que **el lector de la tabla no puede distinguirlos**.
+
+### Lo que costaba
+
+Una resolución completa del horizonte, es decir unos doce minutos por frontera,
+en recalcular un punto que ya se tenía. Y el barrido **anunciaba seis niveles de
+cobertura entregando cinco**.
+
+### Lo que se hizo
+
+Los objetivos por debajo de la cobertura actual **se descartan y se dice cuántos
+son**, en vez de recortarse. Y el punto de referencia, es decir el estado actual
+de la comunidad, entra siempre, porque es contra lo que se lee el barrido.
+
+| Cobertura de la comunidad | Puntos antes | Puntos ahora |
+|---|---:|---:|
+| 20 % | 6, uno repetido | 5 |
+| 11 % | 6 | 6 |
+| 95 % | varios repetidos | 2 |
+
+La última fila importa: en la frontera de cobertura alta, **cinco de los seis
+objetivos quedan por debajo de lo que la comunidad ya tiene**. Preguntar qué
+pasaría con un 11 por ciento de cobertura a quien ya tiene el 95 no es una
+pregunta de este estudio, y hasta hoy se respondía repitiendo el punto de
+partida.
+
+### Por qué descartar es además lo correcto
+
+El barrido existe para contestar qué pasaría si la comunidad **instalara más**
+solar. Reducirla por debajo de lo que ya tiene es otra pregunta, y la función de
+la biblioteca lo decía en un comentario que el llamador no respetaba: la
+biblioteca filtraba, el llamador recortaba.
+
+### Lo que no cambia
+
+**La corrida en marcha no se toca.** El punto repetido no ensucia ningún
+resultado: es un punto de más, no un punto mal. Solo cuesta tiempo, y cortar una
+corrida de horas para ahorrar doce minutos no sale a cuenta.
+
+---
+

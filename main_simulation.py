@@ -975,10 +975,36 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
         # SA-2: variación cobertura PV
         print(f"\n  SA-2: Ejecutando barrido de cobertura PV...")
+        # C-172: los objetivos por DEBAJO de la cobertura actual se descartan,
+        # no se recortan.
+        #
+        # La version anterior los recortaba a factor uno exacto. Como la
+        # comunidad ya tiene cerca del 20 % de cobertura, el objetivo del 11 %
+        # caia por debajo y se convertia en un factor 1,0000, mientras que el
+        # del 20 % daba 1,0025: dos puntos casi identicos que la funcion de
+        # duplicados no junta porque difieren en el tercer decimal.
+        #
+        # El barrido anunciaba seis niveles de cobertura y entregaba cinco, con
+        # dos filas que la pantalla redondea al mismo «1.00  20%» y que nadie
+        # puede distinguir leyendo la tabla. Y costaba una resolucion completa
+        # del horizonte, es decir unos doce minutos por frontera, en recalcular
+        # un punto que ya se tenia.
+        #
+        # Descartar es ademas lo que la intencion pedia: el barrido existe para
+        # ver que pasa si la comunidad instala MAS solar, y reducirla por
+        # debajo de lo que ya tiene no es una pregunta de este estudio.
         base_cov = float(G.mean() / max(D.mean(), 1e-6))
         targets  = [0.11, 0.20, 0.33, 0.50, 0.75, 1.00]
-        pv_factors = np.unique(np.clip(
-            [t / max(base_cov, 0.01) for t in targets], 1.0, 10.0))
+        # El estado ACTUAL entra siempre, porque es la referencia contra la que
+        # se lee el barrido; los objetivos por encima entran cada uno una vez.
+        _brutos = [t / max(base_cov, 0.01) for t in targets]
+        _arriba = [f for f in _brutos if f >= 1.005]
+        pv_factors = np.unique(np.round(np.clip([1.0] + _arriba, 1.0, 10.0), 3))
+        _fuera = len(targets) - len(_arriba)
+        if _fuera:
+            print(f"    [C-172] {_fuera} objetivo(s) de cobertura quedan por "
+                  f"debajo del {base_cov*100:.1f} % que la comunidad ya tiene; "
+                  f"se descartan en vez de repetir el punto de referencia")
         sa_pv = run_sensitivity_pv(
             D=D, G_base=G, agents=agents, grid=grid, solver=solver,
             pv_factors=pv_factors, pde=pde,

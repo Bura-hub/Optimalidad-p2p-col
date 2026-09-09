@@ -142,6 +142,127 @@ Tráelo y descomprímelo en la raíz del repositorio, en tu máquina.
 
 ---
 
+## La corrida oficial — 9 de septiembre
+
+Es la que produce las cifras publicables y, sobre todo, **el almacén del que
+sale cualquier figura de cualquier hora sin volver a simular**. Sustituye a la
+acción canónica: hace lo mismo y cuatro cosas más.
+
+### Antes de nada, traer el código nuevo
+
+El repositorio ya está clonado de la tanda anterior, de modo que solo hay que
+avanzar la rama:
+
+```bash
+cd /home/brayan_lopez/sistemabl
+git fetch origin
+git checkout feature/cal43-depuracion-fase-a
+git pull --ff-only origin feature/cal43-depuracion-fase-a
+git log --oneline -1        # debe decir C-169
+```
+
+**Con avance rápido a propósito.** Si el tirón falla porque la rama del
+servidor tiene algo encima, no se fuerza: se mira qué es. Un `pull` que
+fusiona en silencio es la forma más cómoda de correr un código que no es el
+que se revisó.
+
+Y comprobar que la variable de las mediciones sigue puesta, porque la corrida
+se detiene si falta:
+
+```bash
+echo "$MTE_ROOT"
+ls "$MTE_ROOT" | head -3
+```
+
+### La corrida
+
+```bash
+bash modelo_base/run_servidor.sh oficial
+```
+
+Una sola orden. Encadena en este orden y **para en el primer fallo**:
+
+| | Qué hace | Cuánto |
+|---|---|---|
+| 1 | las diecisiete compuertas | ~2 min |
+| 2 | la corrida acoplada de las dos fronteras, con el almacén | ~89 min |
+| 3 | la liquidación por institución y la equidad por mes, hora del día y día de la semana | ~2 min |
+| 4 | las figuras del foro, los cuatro grupos | ~10 min |
+| 5 | la recogida en un solo fichero comprimido | ~1 min |
+
+Conviene lanzarla dentro de una sesión que sobreviva a la desconexión, porque
+son cerca de dos horas:
+
+```bash
+tmux new -s oficial
+bash modelo_base/run_servidor.sh oficial 2>&1 | tee modelo_base/logs/oficial.txt
+```
+
+y se sale con `Ctrl-b d`; se vuelve con `tmux attach -t oficial`.
+
+### Qué mirar en los primeros treinta segundos
+
+Al arrancar imprime la máquina que va a usar. **Son cuatro cifras y hay que
+mirarlas**, porque son las que contestan si se está usando todo el servidor:
+
+```
+=== CORRIDA OFICIAL ===
+    nucleos que la maquina declara : 32
+    nucleos UTILES (afinidad)      : 32
+    procesos del mercado           : 32
+    hilos de algebra por proceso   : 1
+```
+
+Si la segunda fila fuera menor que la primera, la afinidad está restringiendo
+la máquina y el mercado se ajusta solo, avisando. Y si se quiere dejar holgura
+para entrar por consola mientras corre:
+
+```bash
+PROCS_PEDIDO=1 PROCS=30 bash modelo_base/run_servidor.sh oficial
+```
+
+Después, las compuertas. **Si alguna falla, para ahí**: la corrida se detiene
+sola y ninguna cifra posterior vale.
+
+### Qué mirar al terminar
+
+Tres cosas, en este orden:
+
+**Una, que la recogida no avisó de nada.** Si dice que falta el almacén o las
+figuras, algo se cayó por el camino sin detener la corrida. Ese aviso importa
+más de lo que parece: un almacén ausente no se notaría hasta intentar dibujar
+una figura de vuelta acá, y para entonces la máquina que lo produjo ya no tiene
+el dato.
+
+**Dos, las dos compuertas del canon**, que imprimen su «intacto».
+
+**Tres, el ordenamiento de la tabla regulatoria**, y con una advertencia: **ya
+no gana el mismo mecanismo para todas las instituciones**. Al vendedor grande
+le conviene el mercado y al comprador puro puede convenirle el colectivo. Eso
+es un resultado, no un fallo.
+
+### Traerlo de vuelta
+
+La acción deja el fichero comprimido y dice su nombre. Desde tu máquina:
+
+```bash
+scp servidor:/home/brayan_lopez/sistemabl/modelo_base/resultados_*.tar.gz .
+tar xzf resultados_*.tar.gz
+```
+
+Se descomprime en la raíz del repositorio. Dentro viene, además de lo de
+siempre, la carpeta del almacén y la de las figuras del foro.
+
+### Lo que esta corrida deja abierto
+
+**H-65.** Si en más horas la integración termina antes de que el precio se
+asiente, la cifra publicada sería un punto del transitorio y no el equilibrio.
+En la hora medida la diferencia fue del 22 %. Esta misma corrida da con qué
+medirlo a escala, y la decisión sobre la constante del filtro va como consulta
+al asesor, junto con las de H-53 y H-63.
+
+---
+
 ## La tanda del 7 de septiembre
 
 Se añaden tres mediciones y la corrida canónica. Las tres primeras son

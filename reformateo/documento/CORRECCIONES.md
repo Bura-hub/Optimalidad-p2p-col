@@ -8061,6 +8061,13 @@ cambian**. La comprobación tiene dientes.
 
 Y con el factor en uno, los 672 coinciden bit a bit.
 
+### Y las otras diecisiete, auditadas
+
+Si una salía con cero sin verificar, había que mirar el resto antes de volver a
+correr. **Era la única.** Las diecisiete restantes devuelven código de fallo de
+verdad: o acumulan sus fallos y salen con uno si hay alguno, o lo hacen con la
+prueba dorada, que declara sus siete comprobaciones una por una.
+
 ### Qué significa para la corrida del 9 de septiembre
 
 **La propiedad de CAL-46 no quedó verificada en esa corrida.** Las otras

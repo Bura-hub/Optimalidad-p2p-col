@@ -59,12 +59,35 @@ from data.cedenar_tariff import (
 )
 
 
+def _procesos_pedidos(args):
+    """Cuantos procesos se piden: la bandera manda, el entorno respalda.
+
+    C-169. El lanzador del servidor calcula su cuenta de nucleos con cuidado
+    —esquivando una trampa por la que `nproc` obedece a la variable de hilos y
+    devolvia uno— y la exporta. Sin esta lectura esa cuenta **no llegaba al
+    mercado**, y el ejecutor abria los procesos por su cuenta con un numero que
+    no respeta la afinidad.
+
+    Con None, el motor toma todos los nucleos utiles.
+    """
+    import os as _os
+
+    if getattr(args, "procesos", None):
+        return int(args.procesos)
+    v = _os.environ.get("PROCS", "").strip()
+    if v.isdigit() and int(v) > 0:
+        print(f"    [C-169] procesos tomados del entorno: {v}")
+        return int(v)
+    return None
+
+
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
          single_day: str = None, paper_meters: bool = False,
          include_c5: bool = False, out_dir: str = None,
          paso: float = 1.0, desde: str = None, hasta: str = None,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
          almacen: str = None,
+         procesos: int = None,
          exencion_contribucion: bool = False,
          buyer_competition: str = "aggregate"):
     t_total_start = time.time()
@@ -393,7 +416,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
-                          guarda_trayectorias=bool(almacen))
+                          guarda_trayectorias=bool(almacen),
+                          # C-169: cuantos procesos abre el mercado. Con None
+                          # se toman todos los nucleos UTILES, que no son los
+                          # que la maquina declara sino los que la afinidad
+                          # permite. La variable del entorno la pone el
+                          # lanzador del servidor.
+                          procesos=procesos)
     if metodo == "acoplado":
         print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
               f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
@@ -1903,6 +1932,12 @@ if __name__ == "__main__":
                          "para poder dibujar cualquier hora sin volver a "
                          "simular. Requiere --metodo acoplado para las "
                          "trayectorias")
+    ap.add_argument("--procesos", type=int, default=None, metavar="N",
+                    help="C-169: cuantos procesos abre el mercado. Sin la "
+                         "bandera se usan TODOS los nucleos utiles, que son "
+                         "los que la afinidad permite y no los que la maquina "
+                         "declara. Tambien se lee de la variable de entorno "
+                         "del lanzador del servidor.")
     ap.add_argument("--metodo", choices=["alternado", "acoplado"],
                     default="alternado",
                     help="CAL-48: 'acoplado' integra precios y cantidades "
@@ -1998,6 +2033,7 @@ if __name__ == "__main__":
              include_c5=args.include_c5, out_dir=args.out_dir,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
              almacen=args.almacen,
+             procesos=_procesos_pedidos(args),
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)
     else:
@@ -2009,5 +2045,6 @@ if __name__ == "__main__":
              paso=args.paso, desde=args.desde, hasta=args.hasta,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
              almacen=args.almacen,
+             procesos=_procesos_pedidos(args),
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion)

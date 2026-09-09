@@ -7947,3 +7947,74 @@ recogida de las sondas y aquí se volvió a escribir mal. La regla, en una líne
 
 ---
 
+## C-169 · La cuenta de núcleos del servidor no llegaba al mercado
+
+**La pregunta «¿estamos usando toda la máquina?» se ha hecho varias veces en
+este proyecto y la salida no daba con qué contestarla.** Ahora sí, y de paso
+había un defecto real detrás.
+
+### Lo que pasaba
+
+El lanzador del servidor calcula su cuenta de núcleos con cuidado, esquivando
+incluso una trampa por la que el contador del sistema obedece a la variable de
+hilos y devolvía uno. La exporta, y **ninguna línea del mercado la leía**.
+
+El ejecutor de procesos se abría sin decir cuántos obreros quería, de modo que
+tomaba su valor por defecto: el número de núcleos que la máquina declara.
+
+### Por qué eso no es lo mismo que los núcleos utilizables
+
+El número que la máquina declara **no respeta la afinidad ni los límites del
+contenedor**. En un servidor compartido, dentro de un cgroup, o con la afinidad
+restringida, los dos números difieren. Y abrir más procesos que núcleos útiles
+no acelera nada: los hace pelearse por el mismo tiempo de procesador.
+
+De modo que la corrida podía estar sobresuscribiendo la máquina sin que nada lo
+dijera, o quedándose corta, y en ninguno de los dos casos había forma de
+saberlo mirando la salida.
+
+### Lo que se hizo
+
+**Tres cosas, y la tercera es la que contesta la pregunta.**
+
+**Una.** El mercado acepta cuántos procesos abrir. La bandera manda; si no
+está, se lee del entorno, que es donde el lanzador la deja; y si tampoco, se
+toman **todos los núcleos útiles**.
+
+**Dos.** Los núcleos útiles se cuentan con la afinidad del proceso, que es lo
+único que refleja una restricción real, y solo si eso no existe se recurre a lo
+que la máquina declara. Un número pedido por encima de los útiles **se recorta
+y se avisa**, en vez de sobresuscribir en silencio.
+
+**Tres.** La corrida **imprime lo que eligió y por qué**: cuántos procesos,
+sobre cuántos útiles, y cuántos hilos de álgebra lleva cada uno. Un número que
+no se imprime no se puede comprobar.
+
+### Y la corrida oficial toma toda la máquina
+
+Para las sondas se reservan dos núcleos, para que el servidor siga respondiendo
+mientras se mide. **La corrida oficial no**: es lo único que corre y es la que
+se quiere lo más corta posible, de modo que toma todos. Quien quiera dejar
+holgura la pide de forma explícita, y entonces la acción no la pisa.
+
+Sin este cambio habría pasado lo contrario de lo que se busca: al empezar a leer
+la variable del entorno, la corrida oficial habría usado **dos núcleos menos**
+que antes.
+
+### La comprobación
+
+Sobre el 2 de mayo de 2025, en producción, con cinco procesos y con seis:
+
+| | Cinco procesos | Seis procesos |
+|---|---:|---:|
+| Mercado entre pares | 168.194 | 168.194 |
+| Autogeneración individual | 153.956 | 153.956 |
+| Contrato interno | 141.575 | 141.575 |
+| Mercado mayorista | 132.970 | 132.970 |
+| Colectivo horario | 143.279 | 143.279 |
+
+**Idénticas.** El número de obreros mueve el reloj y no el resultado, que es lo
+que hay que poder afirmar antes de cambiarlo.
+
+---
+

@@ -33,6 +33,7 @@ elección de implementación en la sección de Métodos de la tesis.
 Ver también `Documentos/notas_modelo_tesis.md §7 CAL-7`.
 """
 
+import os
 import sys
 import time
 import numpy as np
@@ -210,6 +211,16 @@ class SolverParams:
     stackelberg_tol:   float = 1e-3  # tolerancia relativa ||P_new - P_old|| / (||P_old|| + ε)
     stackelberg_max:   int   = 10    # iteraciones máximas (red de seguridad)
     parallel:          bool  = True
+    # C-169: CUANTOS OBREROS. Con None el ejecutor toma su valor por defecto,
+    # que es el numero de nucleos que `os.cpu_count` declara. Y ese numero
+    # **no respeta la afinidad ni los limites del contenedor**: en una maquina
+    # compartida o dentro de un cgroup puede ser mayor que los nucleos que de
+    # verdad se pueden usar, y entonces los procesos se pelean; o el operador
+    # puede querer dejar holgura y no tiene como pedirla.
+    #
+    # Con un entero se fija. El lanzador del servidor lo pasa desde su propia
+    # cuenta, que si mira la afinidad.
+    procesos:          object = None
     ode_method:        str   = "LSODA"   # solver de scipy para solve_sellers
     # ADR-0038 (campaña de smokes): forma del término de competencia de
     # compradores. "aggregate" (default) = histórico bit a bit; "matrix" =
@@ -325,6 +336,54 @@ class HourlyResult:
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
+
+def nucleos_disponibles() -> int:
+    """Los nucleos que este proceso PUEDE usar de verdad.
+
+    POR QUE NO BASTA `os.cpu_count`. Devuelve los nucleos que la maquina
+    declara, no los que este proceso tiene permitido usar. En un servidor
+    compartido, dentro de un contenedor, o con la afinidad restringida, los
+    dos numeros difieren, y lanzar mas procesos que nucleos utiles no acelera
+    nada: los hace pelearse por el mismo tiempo de procesador.
+
+    Se prefieren, en este orden:
+
+      1. la afinidad del proceso, que es lo unico que refleja una restriccion
+         real y solo existe en sistemas de tipo Unix;
+      2. la cuenta que el sistema declara;
+      3. ocho, que es un valor prudente si ninguna de las dos responde.
+    """
+    try:
+        return len(os.sched_getaffinity(0))          # solo en Unix
+    except AttributeError:
+        pass
+    return os.cpu_count() or 8
+
+
+def _cuantos_obreros(pedidos) -> Optional[int]:
+    """Cuantos procesos abrir, avisando en voz alta de lo que se elige.
+
+    Un numero que no se imprime no se puede comprobar, y la pregunta de si la
+    corrida esta usando toda la maquina se ha hecho ya varias veces sin que la
+    salida diera con que contestarla.
+    """
+    hay = nucleos_disponibles()
+    if pedidos is None:
+        n = hay
+        motivo = "todos los disponibles"
+    else:
+        n = max(1, int(pedidos))
+        if n > hay:
+            motivo = (f"pedidos {n}, pero solo hay {hay} utiles; se abren "
+                      f"{hay} para no sobresuscribir")
+            n = hay
+        else:
+            motivo = f"pedidos de los {hay} utiles"
+    hilos = os.environ.get("OMP_NUM_THREADS", "sin fijar")
+    print(f"    [C-169] {n} procesos ({motivo}) · {hilos} hilo(s) de álgebra "
+          f"por proceso", flush=True)
+    return n
+
 
 def _run_hour_worker(args):
     """
@@ -693,7 +752,8 @@ class EMSP2P:
             # el ritmo de sometimiento. Medido: M1 480 s vs 471,8 s de junio
             # (+1,7 %) y M3 320 s vs 323,5 s (-1 %) — dentro del ruido.
             with _make_bar(total=T, desc=desc) as bar:
-                with ProcessPoolExecutor() as ex:
+                with ProcessPoolExecutor(
+                        max_workers=_cuantos_obreros(sv.procesos)) as ex:
                     ventana = max(4 * (getattr(ex, "_max_workers", 0) or 1), 64)
                     pendientes = iter(jobs)
                     activos = set()

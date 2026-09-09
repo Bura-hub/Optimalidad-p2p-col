@@ -75,6 +75,10 @@ if [[ -z "${NUCLEOS:-}" ]]; then
 fi
 if [[ -z "${PROCS:-}" ]]; then
   PROCS=$(( NUCLEOS > 2 ? NUCLEOS - 2 : 1 ))
+else
+  # El operador la fijo a mano: se respeta, y la accion oficial no la pisa.
+  PROCS_PEDIDO=1
+  export PROCS_PEDIDO
 fi
 export NUCLEOS PROCS
 
@@ -428,10 +432,39 @@ PYFIN
     fi
     ALM="SALIDAS_SERVIDOR/almacen"
     FIGS="SALIDAS_SERVIDOR/figuras_foro"
+
+    # TODA LA MAQUINA, y no la de las sondas.
+    #
+    # Para las sondas se reservan dos nucleos, para que el servidor siga
+    # respondiendo mientras se mide. La corrida oficial es lo unico que corre y
+    # es la que se quiere lo mas corta posible, de modo que toma TODOS los
+    # nucleos utiles. Quien quiera dejar holgura la pide: PROCS=30 bash ...
+    #
+    # UTILES, y no los que la maquina declara. Dentro de un contenedor o con la
+    # afinidad restringida los dos numeros difieren, y abrir mas procesos que
+    # nucleos utiles no acelera: los hace pelearse.
+    if [[ -z "${PROCS_PEDIDO:-}" ]]; then
+      PROCS="$NUCLEOS"
+      export PROCS
+    fi
+    UTILES="$("$PY" -c 'import os
+try:
+    print(len(os.sched_getaffinity(0)))
+except AttributeError:
+    print(os.cpu_count() or 8)' 2>/dev/null || echo "$NUCLEOS")"
+
     echo "=== CORRIDA OFICIAL ==="
-    echo "    $NUCLEOS nucleos · $PROCS procesos"
+    echo "    nucleos que la maquina declara : $NUCLEOS"
+    echo "    nucleos UTILES (afinidad)      : $UTILES"
+    echo "    procesos del mercado           : $PROCS"
+    echo "    hilos de algebra por proceso   : $OMP_NUM_THREADS"
+    if [[ "$UTILES" -lt "$NUCLEOS" ]]; then
+      echo "    AVISO: la afinidad restringe la maquina. El mercado se ajusta"
+      echo "           solo a $UTILES y lo dice al arrancar."
+    fi
     echo "    MTE_ROOT = $MTE_ROOT"
     echo "    almacen  = $ALM"
+    echo "    Para dejar holgura:  PROCS_PEDIDO=1 PROCS=30 bash $0 oficial"
     echo
 
     echo "--- 1/5 · compuertas"

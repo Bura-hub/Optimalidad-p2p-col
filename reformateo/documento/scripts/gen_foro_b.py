@@ -311,18 +311,25 @@ def b2_rivalidad(cobertura: str, k: int | None = None,
     # saberlo.
     plano = (rp_prev := float(d_ok["precio_medio"].max()
                               - d_ok["precio_medio"].min())) <= 1e-6
-    ax.set_title("La rivalidad entre compradores no mueve el resultado"
+    ax.set_title("La rivalidad separa a los compradores, no mueve el agregado"
                  if plano else
                  "Cuánto mueve la rivalidad entre compradores", pad=8)
     E.eje_espanol(ax, "y", "miles", 0)
 
     rp = (d_ok["precio_medio"].max() - d_ok["precio_medio"].min())
     re = (d_ok["energia_kwh"].max() - d_ok["energia_kwh"].min())
+    # La media y la energia no se mueven; la DISPERSION entre compradores si,
+    # y decir «no mueve nada» a secas seria pasarse. La cifra la da el propio
+    # barrido.
+    disp = ((d_ok["precio_maximo"] - d_ok["precio_minimo"]).max()
+            - (d_ok["precio_maximo"] - d_ok["precio_minimo"]).min())
     veredicto = (
-        f"Sobre el barrido completo el precio acordado NO se mueve —recorre "
-        f"{E.fmt_miles(rp, 2)} (COP/kWh)— y la energía asignada tampoco, con "
-        f"{E.fmt_miles(re, 3)} (kWh). Es la misma conclusión de H-62 medida "
-        f"sobre el parámetro que el modelo base barre en su figura 12."
+        f"Sobre el barrido completo el precio medio acordado NO se mueve "
+        f"—recorre {E.fmt_miles(rp, 2)} (COP/kWh)— y la energía asignada "
+        f"tampoco, con {E.fmt_miles(re, 3)} (kWh). Lo que sí se mueve es la "
+        f"separación ENTRE compradores, que se abre "
+        f"{E.fmt_miles(disp, 1)} (COP/kWh): el término los separa entre sí "
+        f"pero no toca el agregado, que lo fija el lado corto."
         if rp <= 1e-6 and re <= 1e-6 else
         f"El precio acordado recorre {E.fmt_miles(rp, 2)} (COP/kWh) y la "
         f"energía asignada {E.fmt_miles(re, 3)} (kWh).")

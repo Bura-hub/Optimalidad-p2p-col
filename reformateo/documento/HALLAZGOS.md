@@ -5811,7 +5811,7 @@ Sobre una muestra amplia de horas con precio interior, y no sobre una:
 
 ---
 
-## H-66 · El término de rivalidad tampoco mueve nada, y esta vez sobre el parámetro que el modelo base barre
+## H-66 · El término de rivalidad separa a los compradores, y no mueve el agregado
 
 **Es la extensión de H-62 al único parámetro del modelo que representa
 competencia entre agentes del mismo lado**, y se midió al reproducir la figura
@@ -5837,8 +5837,19 @@ Sobre la hora 2363 de la primera frontera, seis valores de cero a 0,8:
 | 0,40 | 469,09 | 5,527 |
 | 0,80 | 469,09 | 5,527 |
 
-**Idéntico en las seis.** El recorrido del precio sobre el barrido completo es
-0,00 (COP/kWh) y el de la energía, 0,000 (kWh).
+**Idéntico en las seis** hasta el décimo decimal.
+
+### Y una precisión que el fichero de datos obliga a hacer
+
+**No es cierto que no mueva nada.** El precio *medio* y la energía no se mueven,
+pero la **dispersión entre compradores sí**: el precio del más barato baja de
+138,8 a 129,5 y el del más caro sube de 644,1 a 649,2, de modo que la separación
+entre ellos se abre 14,5 (COP/kWh) sobre el barrido completo.
+
+Es un efecto pequeño y es real, y decir «no mueve nada» a secas sería pasarse.
+La afirmación exacta es más útil, además, porque confirma lo que ya se sabía:
+**el término separa a los compradores entre sí y no toca el agregado, que lo
+fija el lado corto.** Hace justo lo que dice hacer, y no alcanza al resultado.
 
 ### Por qué importa para la defensa
 

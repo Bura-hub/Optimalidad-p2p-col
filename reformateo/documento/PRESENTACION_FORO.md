@@ -123,6 +123,18 @@ permuta se agota y el piso cae al precio de bolsa.
 Con la cifra que lo sostiene: **el 83,7 por ciento del ahorro de nueve meses cae
 en esos dos.**
 
+> **Y la formulación que cubre las dos fronteras**, comprobada contra la
+> segunda: el valor aparece cuando el crédito de permuta se agota. Con poca
+> cobertura eso pasa dos meses al año y el 84 por ciento del valor está ahí; con
+> mucha cobertura pasa **todo** el año, el piso nunca vuelve a la permuta, y el
+> valor se reparte, con los dos meses mayores concentrando solo el 42 por
+> ciento.
+>
+> Es un mecanismo único explicando dos comportamientos distintos, y es más
+> fuerte que cualquiera de los dos por separado. **El umbral de permuta es la
+> palanca regulatoria**, y dónde se ponga decide cuánto vale organizarse como
+> comunidad. Eso es lo que se le entrega al asesor.
+
 ### Bloque 3 · Qué hace el modelo dentro de la banda · 4 min
 
 **8. La pregunta, bien formulada.**
@@ -396,6 +408,27 @@ lado de la mesa.
 mercado en las dos fronteras: de 0,906 a 0,970 en una y de 0,459 a 0,529 en la
 otra. El mercado siempre aprovecha más generación dentro de la comunidad, y esa
 es la única afirmación que no depende de cuánto vea el medidor.
+
+### Y por institución también cambia
+
+| Institución | Cobertura baja | Cobertura alta |
+|---|---|---|
+| Udenar | mercado | mercado |
+| Mariana | colectivo | individual |
+| UCC | remota | individual |
+| HUDN | colectivo | mercado |
+| Cesmag | mercado | mercado |
+
+Con cobertura baja ganan **tres** mecanismos distintos; con cobertura alta,
+**dos**, y el mercado le conviene a tres de las cinco en vez de a dos.
+
+**Una limitación que hay que declarar aquí.** El colectivo liquidado mes a mes,
+que es el que gana en agregado con cobertura alta, **no aparece en esa tabla**.
+Su dinero se valora contra promedios del mes y por eso no tiene desglose por
+hora ni, en consecuencia, por institución. Está declarado desde el diseño del
+desglose y no es un descuido: repartir entre las horas del mes un dinero que se
+liquidó contra el promedio del mes sería inventar una precisión que la
+liquidación no tiene.
 
 ### La frase de la lámina
 

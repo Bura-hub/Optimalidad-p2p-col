@@ -381,6 +381,117 @@ def a3_potencias(destino, cobertura: str, k: int, cat: str, frase: str):
                      procedencia=[f"{destino}/{cobertura}/trayectorias"])
 
 
+def a4_los_cuatro_casos(destino, cobertura: str, horas: dict):
+    """Los cuatro casos en una sola lámina: dónde cae el precio y quién gana.
+
+    ES LA LAMINA QUE ENSENA EL MECANISMO SIN ECUACIONES, y la que mejor
+    responde a un operador de mercado, porque muestra que el precio **responde
+    a la escasez en la direccion correcta**:
+
+      cuando falta oferta, sube hacia el techo y el vendedor se lleva el
+      excedente; cuando sobra, baja hacia el piso y se lo lleva el comprador.
+
+    POR QUE NO SON CUATRO TRAYECTORIAS EN DOS POR DOS. Serian cuatro graficas
+    pequenas, con sus ejes y sus leyendas, ilegibles desde la ultima fila de un
+    auditorio. Aqui cada caso es UNA banda horizontal con una marca: la
+    comparacion entre los cuatro se lee de un vistazo, que es lo unico que esta
+    lamina viene a hacer.
+
+    La posicion se dibuja NORMALIZADA, del piso al techo, porque las cuatro
+    horas tienen bandas distintas y compararlas en pesos absolutos mediria la
+    banda y no el acuerdo.
+    """
+    from core.almacen import lee
+
+    h = lee(destino, cobertura, "horas")
+    ag = lee(destino, cobertura, "agentes")
+    fl = lee(destino, cobertura, "flujos")
+
+    filas = []
+    for cat in CATEGORIAS:
+        r = horas.get(cat)
+        if r is None:
+            continue
+        k = r["hora"]
+        a, f, hh = ag[ag.hora == k], fl[fl.hora == k], h[h.hora == k]
+        if hh.empty or not bool(hh["resuelta"].iloc[0]):
+            continue
+        te, pi_ = float(a["techo"].max()), float(a["piso"].min())
+        pr = float(hh["precio_medio"].iloc[0])
+        aho, pri = float(f["ahorro_comprador"].sum()), \
+            float(f["prima_vendedor"].sum())
+        filas.append(dict(
+            caso=cat, hora=k, techo=te, piso=pi_, precio=pr,
+            posicion=(pr - pi_) / max(te - pi_, 1e-9),
+            vendedores=int(hh["vendedores"].iloc[0]),
+            compradores=int(hh["compradores"].iloc[0]),
+            kwh=float(hh["volumen"].iloc[0]),
+            compradores_pct=100 * aho / max(aho + pri, 1e-9)))
+    if not filas:
+        return None
+    d = pd.DataFrame(filas)
+
+    fig, ax = E.figura(alto=3.0)
+    y = np.arange(len(d))[::-1]
+    for (_, r), yy in zip(d.iterrows(), y):
+        # La banda, normalizada del piso al techo.
+        ax.plot([0, 1], [yy, yy], linewidth=20, color=E.NEUTRO, alpha=0.20,
+                solid_capstyle="butt", zorder=1)
+        ax.plot(r["posicion"], yy, marker="o", markersize=13,
+                color=E.DESPUES, zorder=4)
+        ax.text(r["posicion"], yy, f"{r['precio']:,.0f}".replace(",", " "),
+                ha="center", va="center", color="white", fontsize=6.6,
+                fontweight="bold", zorder=5)
+        # Quien se lleva el excedente, al lado derecho.
+        gana = ("compradores" if r["compradores_pct"] > 50 else "vendedores")
+        cuanto = max(r["compradores_pct"], 100 - r["compradores_pct"])
+        ax.annotate(f"{E.fmt_miles(cuanto, 1)} % para los {gana}",
+                    xy=(1.03, yy), va="center", fontsize=8,
+                    color=(E.DESPUES if gana == "compradores" else E.ALERTA),
+                    fontweight="bold", annotation_clip=False)
+
+    ax.set_yticks(y)
+    ax.set_yticklabels([f"{ROTULO[c]}\n{v} vende{'n' if v > 1 else ''}, "
+                        f"{cp} compra{'n' if cp > 1 else ''}"
+                        for c, v, cp in zip(d["caso"], d["vendedores"],
+                                            d["compradores"])], fontsize=8)
+    ax.set_xlim(-0.03, 1.03)
+    ax.set_xticks([0, 0.25, 0.5, 0.75, 1.0])
+    ax.set_xticklabels(["piso\n(lo que paga la red)", "", "mitad de la banda",
+                        "", "techo\n(lo que cobra la red)"], fontsize=7.6)
+    ax.set_xlabel("")
+    ax.set_title("El precio responde a quién falta en la mesa", pad=8)
+    for lim in (0.0, 1.0):
+        ax.axvline(lim, color=E.NEUTRO, linewidth=1.0, linestyle=":")
+    ax.axvline(0.5, color=E.NEUTRO, linewidth=0.8, linestyle=":", alpha=0.6)
+
+    esc = d[d["caso"] == "escasez"]
+    exc = d[d["caso"] == "exceso"]
+    extra = ""
+    if not esc.empty and not exc.empty:
+        extra = (f" Con escasez de oferta el precio sube al "
+                 f"{E.fmt_miles(esc['posicion'].iloc[0] * 100, 0)} % de la "
+                 f"banda y con exceso baja al "
+                 f"{E.fmt_miles(exc['posicion'].iloc[0] * 100, 0)} %.")
+    chico = d.nsmallest(1, "kwh")
+    fig.text(0.01, 0.005,
+             f"Nota. Frontera {cobertura.upper()}. Cada barra es la banda de esa "
+             f"hora, del piso al techo, y la marca es el precio acordado con su "
+             f"valor en (COP/kWh). Las cuatro horas se eligieron por criterio "
+             f"medido y no por conveniencia.{extra} Los dos casos extremos "
+             f"transan poco —el menor, {E.fmt_miles(chico['kwh'].iloc[0], 2)} "
+             f"(kWh)— precisamente porque en ellos falta casi por completo uno "
+             f"de los dos lados: ilustran el mecanismo, no pesan en el "
+             f"resultado.",
+             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
+    ax.set_ylim(-0.55, len(d) - 0.45)
+    fig.tight_layout(rect=(0, 0.215, 0.99, 1))
+    return E.guardar(fig, f"foro_a4_casos_{cobertura}", datos=d,
+                     procedencia=[f"{destino}/{cobertura}/horas",
+                                  f"{destino}/{cobertura}/agentes",
+                                  f"{destino}/{cobertura}/flujos"])
+
+
 # ══════════════════════════════════════════════════════════════════════════
 #  Grupo C · la discusión de precios en un día
 # ══════════════════════════════════════════════════════════════════════════
@@ -890,6 +1001,9 @@ def main() -> None:
             for f in (a1_acuerdo, a2_reparto, a3_potencias):
                 if f(a.destino, a.cobertura, r["hora"], cat, r["frase"]):
                     hechas += 1
+        # La comparacion de los cuatro casos, que es una sola lamina.
+        if horas and a4_los_cuatro_casos(a.destino, a.cobertura, horas):
+            hechas += 1
 
     if "E" in a.grupo.upper():
         print("\nGrupo E · el eje, que vive en el mes")

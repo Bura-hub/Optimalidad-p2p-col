@@ -137,11 +137,29 @@ la torta: la reparte. Decirlo antes que nadie es lo que protege el resultado.
 
 **9. El mecanismo, sin ecuaciones.** Cada comprador con su techo, cada vendedor
 con su piso, y un precio que se busca dentro de esa franja. Con la trayectoria
-de convergencia y el multiplicador de la restricción, que es lo que explica por
-qué el precio se detiene donde se detiene.
+de convergencia de una hora y el multiplicador de la restricción, que es lo que
+explica por qué el precio se detiene donde se detiene. Y de paso contesta la
+duda de si converge y de si se pega a las cotas.
 
-**10. Converge, y no se pega a las cotas.** Es la duda que el autor planteó
-explícitamente, contestada con la figura y no con una afirmación.
+**10. El precio responde a quién falta en la mesa.** Los cuatro casos en una
+sola lámina, cada uno con su banda y con la marca de dónde cayó el acuerdo:
+
+| Caso | En la mesa | Dónde cae el precio | Quién se lleva el excedente |
+|---|---|---:|---|
+| típica | 2 venden, 3 compran | 32 % de la banda | 65,3 % los compradores |
+| **escasez de oferta** | **1 vende, 4 compran** | **53 %** | **64,6 % los vendedores** |
+| **exceso de oferta** | **4 venden, 1 compra** | **17 %** | **65,0 % los compradores** |
+| patológica | 3 venden, 2 compran | 46 % | 65,3 % los compradores |
+
+> **Es la lámina que convence a quien conoce el mercado.** No dice que el
+> mecanismo reparta mejor: dice que **responde a la escasez en la dirección
+> correcta**. Cuando falta oferta el precio sube hacia el techo y el vendedor se
+> queda con el excedente; cuando sobra, baja hacia el piso y se lo lleva el
+> comprador. Un mecanismo que no hiciera eso no sería un mercado.
+
+Y una cautela que va en el pie: **los dos casos extremos transan muy poco**,
+0,02 y 0,14 (kWh), precisamente porque en ellos falta casi por completo uno de
+los dos lados. Ilustran el mecanismo y no pesan en el resultado.
 
 ### Bloque 4 · Qué le queda a cada institución · 5 min
 
@@ -358,7 +376,7 @@ almacén, y cada figura deja al lado su tabla de datos y su nota de procedencia.
 | 6 · el piso y sus dos regímenes | el piso mes a mes por institución | agentes |
 | 7 · dónde está el valor | el ancho de la banda y el ahorro, mes a mes | agentes y flujos |
 | 9 · el mecanismo | el acuerdo en la hora típica | trayectorias |
-| 10 · converge y no se pega | el acuerdo en la hora patológica | trayectorias |
+| 10 · el precio responde a la escasez | los cuatro casos en una lámina | horas, agentes y flujos |
 | 11 · la factura | la liquidación por institución | agentes y flujos |
 | 12 · el reparto | el reparto agregado frente al contrato | flujos |
 | 13 · a quién le conviene qué | la distancia al mejor mecanismo | escenarios |

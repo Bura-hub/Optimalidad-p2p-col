@@ -162,3 +162,9 @@ referencias de estilo/
 # PDF de tarifas publicados por terceros. El CSV derivado si se versiona,
 # que es lo que el codigo lee; los PDF quedan fuera por prudencia.
 data/ASC_pdfs/
+
+# Depuracion 2026-09-13
+data/ASC_comparativos_2024-2026/
+
+# Depuracion 2026-09-13
+_cuarentena/

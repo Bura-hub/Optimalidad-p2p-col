@@ -22,10 +22,10 @@ y es contra él que se verificó esta corrida.
 
 Prohibido leer desde aquí
 -------------------------
-``_retirado_2026-08-07/``            cuarentena
+``_cuarentena/2026-08-07/``            cuarentena
 ``outputs/`` de la raíz             lo sobrescribe ``pytest tests/``
 ``Presentacion/tesis_p2p/datos/``   copia del canon de JUNIO
-``Documentos/auditoria_2026-08-06/caso2_c4/``  validado y retirado
+``_cuarentena/2026-09-13/Documentos/auditoria_2026-08-06/caso2_c4/``  validado y retirado
 
 Tres trampas documentadas
 -------------------------

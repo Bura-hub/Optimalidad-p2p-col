@@ -58,6 +58,27 @@ import matplotlib.pyplot as plt  # noqa: E402
 TAUS = (0.001, 1e-4, 1e-5, 1e-6)
 
 
+
+# ── El pie «Nota.» sale de las figuras ────────────────────────────────────
+#
+# Decision del autor el 2026-09-09: la lamina ya lleva su propio pie, y el de
+# la figura lo repetia en un cuerpo que no se lee proyectado. El texto NO se
+# borra, se deja de dibujar: volver a activarlo es cambiar esta linea, y asi
+# el mismo generador sirve para el documento, donde la nota si tiene sentido.
+CON_NOTA = False
+
+
+def _nota(fig, *a, **k):
+    """El pie de la figura, solo si estan activados."""
+    if CON_NOTA:
+        fig.text(0.01, 0.005, *a, **k)
+
+
+def _hueco(x):
+    """El margen inferior que reservaba la nota. Sin nota, no hace falta."""
+    return x if CON_NOTA else 0.0
+
+
 def _hora_activa(dat: dict) -> int:
     """Una hora con mercado de verdad: al menos dos de cada lado."""
     D, G = dat["D"], dat["G"]
@@ -150,7 +171,7 @@ def b1_filtro(cobertura: str, k: int | None = None):
     # amplitud: la de mayor amplitud resulto ser la de produccion, de modo que
     # el pie se comparaba consigo mismo y anunciaba dos veces la misma cifra.
     rapido = d.loc[d["tau"].idxmin()]
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Hora {k} de la frontera {cobertura.upper()}. El filtro es "
              f"un paso bajo sobre los multiplicadores del vendedor, de modo "
              f"que acortar su constante de tiempo equivale a quitarlo. La "
@@ -164,7 +185,7 @@ def b1_filtro(cobertura: str, k: int | None = None):
              f"base, donde el sistema sin filtrar oscila de forma permanente, "
              f"no se reproduce aquí.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.215, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.215), 1, 1))
     return E.guardar(fig, f"foro_b1_filtro_{cobertura}", datos=d,
                      procedencia=[f"mediciones MTE, frontera {cobertura}, "
                                   f"hora {k}; núcleo del modelo"])
@@ -212,7 +233,7 @@ def _envuelve(cola, dat: dict, k: int, v: float) -> None:
 
 def b2_rivalidad(cobertura: str, k: int | None = None,
                  valores=(0.0, 0.05, 0.1, 0.2, 0.4, 0.8),
-                 plazo: float = 240.0):
+                 plazo: float = 240.0, datos=None):
     """El barrido del término de rivalidad entre compradores.
 
     Mide qué le hace al precio acordado y a la energía asignada. El valor de
@@ -220,6 +241,16 @@ def b2_rivalidad(cobertura: str, k: int | None = None,
     que saber cuánto mueve el resultado es parte de poder defenderlo.
     """
     from paso_a_paso import carga, resuelve
+
+    if datos is not None:
+        # REDIBUJAR NO DEBERIA COSTAR UNA CORRIDA. El barrido ya está en el
+        # fichero hermano de la figura; con el dato hecho, ajustar la maqueta
+        # es inmediato en vez de diez minutos de integración. El resto del
+        # aparato tampoco vuelve a simular para redibujar.
+        d0 = pd.read_csv(datos) if isinstance(datos, str) else datos
+        return _b2_dibuja(d0[d0["resuelta"]].reset_index(drop=True),
+                          int((~d0["resuelta"]).sum()), cobertura,
+                          k if k is not None else -1)
 
     dat = carga(cobertura)
     if k is None:
@@ -279,78 +310,7 @@ def b2_rivalidad(cobertura: str, k: int | None = None,
     sin = int((~d["resuelta"]).sum())
     d_ok = d[d["resuelta"]].reset_index(drop=True)
 
-    fig, ax = E.figura(alto=3.2)
-    ax2 = ax.twinx()
-    ax.plot(d_ok["rivalidad"], d_ok["precio_medio"], marker="o", markersize=5,
-            linewidth=2.2, color=E.DESPUES, label="precio acordado")
-    ax.fill_between(d_ok["rivalidad"], d_ok["precio_minimo"],
-                    d_ok["precio_maximo"],
-                    color=E.DESPUES, alpha=0.14, linewidth=0)
-    ax2.plot(d_ok["rivalidad"], d_ok["energia_kwh"], marker="s", markersize=4.5,
-             linewidth=2.0, color=E.ALERTA, linestyle="--",
-             label="energía asignada")
-    ax.axvline(0.1, color=E.NEUTRO, linewidth=1.0, linestyle=":")
-    ax.annotate("valor de producción", xy=(0.1, ax.get_ylim()[0]), fontsize=7,
-                color=E.NEUTRO, ha="left", va="bottom", rotation=90,
-                xytext=(3, 4), textcoords="offset points")
-    ax.set_xlabel("Coeficiente de rivalidad entre compradores")
-    ax.set_ylabel("Precio (COP/kWh)")
-    ax2.set_ylabel("Energía asignada (kWh)", color=E.ALERTA)
-    ax2.tick_params(axis="y", colors=E.ALERTA)
-    # EL EJE DERECHO NO SE DEJA AUTOESCALAR, y es la diferencia entre una
-    # figura honesta y una enganosa. Con la serie plana, el escalado
-    # automatico abre un rango de 10^-11 alrededor del valor y saca un factor
-    # comun en la esquina: la linea recta aparece con estructura y el lector
-    # ve variacion donde no la hay. Se ancla un rango con sentido fisico.
-    e0 = float(d_ok["energia_kwh"].mean())
-    margen = max(0.05 * abs(e0), 0.5)
-    ax2.set_ylim(e0 - margen, e0 + margen)
-    ax2.ticklabel_format(axis="y", useOffset=False, style="plain")
-    # Y el titulo dice el RESULTADO, no la pregunta. La figura contesta que no
-    # mueve nada, y un titulo interrogativo obligaria a leer el pie para
-    # saberlo.
-    plano = (rp_prev := float(d_ok["precio_medio"].max()
-                              - d_ok["precio_medio"].min())) <= 1e-6
-    ax.set_title("La rivalidad separa a los compradores, no mueve el agregado"
-                 if plano else
-                 "Cuánto mueve la rivalidad entre compradores", pad=8)
-    E.eje_espanol(ax, "y", "miles", 0)
-
-    rp = (d_ok["precio_medio"].max() - d_ok["precio_medio"].min())
-    re = (d_ok["energia_kwh"].max() - d_ok["energia_kwh"].min())
-    # La media y la energia no se mueven; la DISPERSION entre compradores si,
-    # y decir «no mueve nada» a secas seria pasarse. La cifra la da el propio
-    # barrido.
-    disp = ((d_ok["precio_maximo"] - d_ok["precio_minimo"]).max()
-            - (d_ok["precio_maximo"] - d_ok["precio_minimo"]).min())
-    veredicto = (
-        f"Sobre el barrido completo el precio medio acordado NO se mueve "
-        f"—recorre {E.fmt_miles(rp, 2)} (COP/kWh)— y la energía asignada "
-        f"tampoco, con {E.fmt_miles(re, 3)} (kWh). Lo que sí se mueve es la "
-        f"separación ENTRE compradores, que se abre "
-        f"{E.fmt_miles(disp, 1)} (COP/kWh): el término los separa entre sí "
-        f"pero no toca el agregado, que lo fija el lado corto."
-        if rp <= 1e-6 and re <= 1e-6 else
-        f"El precio acordado recorre {E.fmt_miles(rp, 2)} (COP/kWh) y la "
-        f"energía asignada {E.fmt_miles(re, 3)} (kWh).")
-    hueco = ("" if sin == 0 else
-             f" Quedan {sin} valores fuera: el integrador no resuelve en "
-             f"{plazo:.0f} s para ese coeficiente, y así consta en la tabla "
-             f"de datos.")
-    fig.text(0.01, 0.005,
-             f"Nota. Hora {k} de la frontera {cobertura.upper()}, sobre "
-             f"{len(d_ok)} de {len(d)} valores del barrido. {veredicto} La "
-             f"banda azul es el intervalo entre el precio del comprador más "
-             f"barato y el del más caro, y no una incertidumbre: mide la "
-             f"dispersión ENTRE compradores, no el efecto del barrido. El eje "
-             f"de la derecha lleva un rango fijo a propósito, porque el "
-             f"automático abriría una escala de milmillonésimas y haría "
-             f"parecer que hay variación.{hueco}",
-             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.245, 1, 1))
-    return E.guardar(fig, f"foro_b2_rivalidad_{cobertura}", datos=d,
-                     procedencia=[f"mediciones MTE, frontera {cobertura}, "
-                                  f"hora {k}; núcleo del modelo"])
+    return _b2_dibuja(d_ok, sin, cobertura, k)
 
 
 def main() -> None:
@@ -374,3 +334,115 @@ if __name__ == "__main__":
 
     _mp.freeze_support()          # obligatorio en Windows
     main()
+
+
+
+def _b2_dibuja(d_ok, sin, cobertura, k):
+    """La maqueta de b2, separada del barrido.
+
+    Existe para poder REDIBUJAR sin volver a integrar: el barrido deja su
+    fichero de datos y ajustar la figura no deberia costar diez minutos.
+    """
+    # ── DOS PANELES, PORQUE SON DOS AFIRMACIONES DE ESCALAS DISTINTAS ─────
+    #
+    # La version anterior metia todo en un panel y dibujaba la dispersion
+    # entre compradores como una BANDA de quinientos pesos de ancho. El
+    # barrido la mueve 14,5, o sea el 2,9 % de esa banda: invisible. El titulo
+    # afirmaba una separacion que la figura no ensenaba.
+    #
+    # Aqui la izquierda ensena que el agregado no se mueve, y la derecha
+    # ensena la dispersion como serie propia, con su escala. Las dos mitades
+    # del titulo quedan sostenidas por lo que se ve.
+    disp_serie = d_ok["precio_maximo"] - d_ok["precio_minimo"]
+
+    fig, (ax, axd) = plt.subplots(
+        1, 2, figsize=(E.ANCHO_COMPLETO, 3.4),
+        gridspec_kw={"width_ratios": [1.15, 1.0], "wspace": 0.30})
+    ax2 = ax.twinx()
+
+    ax.plot(d_ok["rivalidad"], d_ok["precio_medio"], marker="o", markersize=5,
+            linewidth=2.2, color=E.DESPUES, label="precio medio acordado")
+    ax2.plot(d_ok["rivalidad"], d_ok["energia_kwh"], marker="s", markersize=4.5,
+             linewidth=2.0, color=E.ALERTA, linestyle="--",
+             label="energía asignada")
+    ax.set_xlabel("Coeficiente de rivalidad")
+    ax.set_ylabel("Precio (COP/kWh)")
+    ax2.set_ylabel("Energía asignada (kWh)", color=E.ALERTA)
+    ax2.tick_params(axis="y", colors=E.ALERTA)
+    ax.set_title("El agregado no se mueve", fontsize=9.8, pad=6)
+    # EL EJE DERECHO NO SE DEJA AUTOESCALAR, y es la diferencia entre una
+    # figura honesta y una enganosa. Con la serie plana, el escalado
+    # automatico abre un rango de 10^-11 alrededor del valor y saca un factor
+    # comun en la esquina: la linea recta aparece con estructura y el lector
+    # ve variacion donde no la hay. Se ancla un rango con sentido fisico.
+    e0 = float(d_ok["energia_kwh"].mean())
+    ax2.set_ylim(e0 - max(0.05 * abs(e0), 0.5), e0 + max(0.05 * abs(e0), 0.5))
+    ax2.ticklabel_format(axis="y", useOffset=False, style="plain")
+    p0 = float(d_ok["precio_medio"].mean())
+    ax.set_ylim(p0 - max(0.10 * abs(p0), 5.0), p0 + max(0.10 * abs(p0), 5.0))
+    h1, e1 = ax.get_legend_handles_labels()
+    h2, e2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, e1 + e2, loc="upper center", fontsize=7.8,
+              framealpha=0.94)
+
+    axd.plot(d_ok["rivalidad"], disp_serie, marker="o", markersize=5,
+             linewidth=2.4, color="#37474F")
+    axd.set_xlabel("Coeficiente de rivalidad")
+    # El eje del panel derecho se pasa a SU derecha. Los dos paneles llevan
+    # rotulo vertical en el canal de en medio y se rozaban; separandolos por
+    # los extremos, el canal queda limpio sin ensanchar la figura.
+    axd.yaxis.tick_right()
+    axd.yaxis.set_label_position("right")
+    axd.set_ylabel("Dispersión (COP/kWh)", fontsize=9)
+    axd.set_title("La dispersión entre compradores sí", fontsize=9.8, pad=6)
+    axd.annotate(f"+{E.fmt_miles(float(disp_serie.max() - disp_serie.min()), 1)}"
+                 f" (COP/kWh)",
+                 xy=(float(d_ok['rivalidad'].iloc[-1]), float(disp_serie.iloc[-1])),
+                 xytext=(-8, -26), textcoords="offset points", ha="right",
+                 fontsize=8.6, color="#37474F", fontweight="bold")
+
+    for eje in (ax, axd):
+        eje.axvline(0.1, color=E.NEUTRO, linewidth=1.0, linestyle=":")
+        eje.annotate("valor de producción", xy=(0.1, eje.get_ylim()[0]),
+                     fontsize=7, color=E.NEUTRO, ha="left", va="bottom",
+                     rotation=90, xytext=(3, 4), textcoords="offset points")
+
+    fig.suptitle("La rivalidad separa a los compradores, "
+                 "y no mueve el agregado", y=1.0, fontsize=11)
+    E.eje_espanol(ax, "y", "miles", 0)
+
+    rp = (d_ok["precio_medio"].max() - d_ok["precio_medio"].min())
+    re = (d_ok["energia_kwh"].max() - d_ok["energia_kwh"].min())
+    # La media y la energia no se mueven; la DISPERSION entre compradores si,
+    # y decir «no mueve nada» a secas seria pasarse. La cifra la da el propio
+    # barrido.
+    disp = ((d_ok["precio_maximo"] - d_ok["precio_minimo"]).max()
+            - (d_ok["precio_maximo"] - d_ok["precio_minimo"]).min())
+    veredicto = (
+        f"Sobre el barrido completo el precio medio acordado NO se mueve "
+        f"—recorre {E.fmt_miles(rp, 2)} (COP/kWh)— y la energía asignada "
+        f"tampoco, con {E.fmt_miles(re, 3)} (kWh). Lo que sí se mueve es la "
+        f"separación ENTRE compradores, que se abre "
+        f"{E.fmt_miles(disp, 1)} (COP/kWh): el término los separa entre sí "
+        f"pero no toca el agregado, que lo fija el lado corto."
+        if rp <= 1e-6 and re <= 1e-6 else
+        f"El precio acordado recorre {E.fmt_miles(rp, 2)} (COP/kWh) y la "
+        f"energía asignada {E.fmt_miles(re, 3)} (kWh).")
+    hueco = ("" if sin == 0 else
+             f" Quedan {sin} valores fuera: el integrador no resuelve en "
+             f"{plazo:.0f} s para ese coeficiente, y así consta en la tabla "
+             f"de datos.")
+    _nota(fig,
+             f"Nota. Hora {k} de la frontera {cobertura.upper()}, sobre "
+             f"{len(d_ok)} de {len(d_ok) + sin} valores del barrido. {veredicto} La "
+             f"banda azul es el intervalo entre el precio del comprador más "
+             f"barato y el del más caro, y no una incertidumbre: mide la "
+             f"dispersión ENTRE compradores, no el efecto del barrido. El eje "
+             f"de la derecha lleva un rango fijo a propósito, porque el "
+             f"automático abriría una escala de milmillonésimas y haría "
+             f"parecer que hay variación.{hueco}",
+             fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
+    fig.tight_layout(rect=(0, _hueco(0.245), 1, 0.91))
+    return E.guardar(fig, f"foro_b2_rivalidad_{cobertura}", datos=d_ok,
+                     procedencia=[f"mediciones MTE, frontera {cobertura}, "
+                                  f"hora {k}; núcleo del modelo"])

@@ -42,6 +42,10 @@ import pandas as pd
 
 # ── Geometría ────────────────────────────────────────────────────────────────
 ANCHO_COMPLETO = 6.5    # in — ancho de caja del documento (article 12pt, 1in)
+# El ancho util de una lamina de 13,33 pulgadas con sus margenes. Las
+# figuras que se PROYECTAN se generan con este, y no con el del documento:
+# con 6,5 ocupaban poco mas de la mitad de la lamina y se veian pequenas.
+ANCHO_LAMINA = 9.6      # in
 ANCHO_MEDIO    = 3.15   # in — media caja
 ALTO_ESTANDAR  = 3.4
 ALTO_BAJO      = 2.4

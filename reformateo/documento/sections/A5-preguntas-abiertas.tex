@@ -124,5 +124,65 @@ La implementación admite las dos respuestas. Cuando los techos coinciden, la
 formulación por comprador se reduce exactamente a la de techo único, de
 manera que la decisión del comité no obliga a reescribir nada.
 
+\subsection{Cómo se liquida un mercado horario con un crédito mensual}
+\label{sub:preg-liquidacion}
+
+Esta entrada nació como pregunta y la resolvió el propio texto regulatorio. El
+Anexo~4 de la Resolución CREG 101 072 de 2025, que aplica el artículo 26 de la
+Resolución CREG 174 durante el periodo de transición, liquida el crédito con
+las cantidades del mes y valora a la bolsa de cada hora lo que lo supera, a
+partir de una hora de corte que define como aquella en que los excedentes
+horarios acumulados desde el inicio del mes igualan o sobrepasan la
+importación total del mes. El cupo se fija con el total mensual, la hora del
+corte con el acumulado horario, y el dinero se liquida al cierre del período.
+
+Un mercado entre pares encaja en esa misma estructura: los intercambios se
+registran por hora, se liquidan al cierre del mes junto con la factura, y el
+piso de cada vendedor es la permuta antes de su hora de corte y el precio de
+bolsa de la hora a partir de ella. Como la hora de corte depende de la
+importación total, solo se conoce al cerrar el mes; en una liquidación hecha
+sobre datos medidos eso equivale a suponer conocidos los totales del mes, y
+así se declara. En la frontera principal ningún mes alcanza la hora de corte;
+en la secundaria, el reparto del exceso entre las horas apenas altera su
+valor.
+
+\subsection{El precio del excedente que supera el crédito}
+\label{sub:preg-mcm}
+
+Tampoco queda abierta. La regla definitiva de la Resolución CREG 101 072 de
+2025 valora ese excedente a la variable MCm, el costo promedio ponderado de los
+contratos con destino al mercado regulado. Pero el parágrafo del artículo 25
+de la Resolución CREG 174, en la redacción que le dio la Resolución CREG 101 087
+de 2025, mantiene el precio de bolsa hasta que la Comisión expida la
+metodología de traslado, y los conceptos CREG 3018 y 3023 de abril de 2026
+confirman que la transición sigue vigente. En todo el horizonte del trabajo el
+excedente sobrante se valora, por tanto, al precio de bolsa de cada hora. Es lo
+que hace la autogeneración individual del modelo; el colectivo usaba la media
+mensual de la bolsa, que sobrevalora ese excedente porque las horas solares son
+las de bolsa más barata, y debe corregirse.
+
+\subsection{Con qué porcentaje reparte el colectivo}
+\label{sub:preg-pde}
+
+El artículo 19 de la Resolución CREG 101 072 deja el porcentaje de
+distribución de los excedentes a lo que acuerden los integrantes. El modelo
+lo calcula en proporción a la generación medida, que en la frontera
+principal depende de lo que cada medidor alcanza a ver; con las placas
+idénticas, repartir por capacidad instalada daría la misma proporción a las
+cinco. Según la respuesta cambian las cuotas de cada institución y, con
+ellas, a quién le conviene el colectivo.
+
+\subsection{Si la autogeneración remota se modela como compensación}
+\label{sub:preg-agr}
+
+La Resolución CREG 101 099 de 2026 no compensa. La generación se entrega al
+mercado mayorista a través de un agente generador, el consumo se atiende
+como usuario no regulado con un contrato registrado ante el ASIC, y el
+reparto horario con porcentaje fijo sirve solo para devolver el cargo por
+confiabilidad. El escenario la modela como una compensación horaria entre
+fronteras. Queda por decidir si se reescribe con esos artículos, se conserva
+como referencia prospectiva o se retira, teniendo presente que la revisión
+externa consideró el régimen cerrado a esta comunidad.
+
 \placeholderfig{Faltan por trasladar aquí las decisiones abiertas que hoy
 viven en el registro de correcciones.}

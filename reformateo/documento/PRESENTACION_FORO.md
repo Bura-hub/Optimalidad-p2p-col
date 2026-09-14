@@ -1,7 +1,26 @@
 # La ponencia del Foro de Energía Transactiva
 
-**Estado al 2026-09-09.** Estructura aprobada por el autor. Las cifras se
-llenan desde la corrida oficial; aquí van marcadas y no escritas a mano.
+**Estado al 2026-09-10. La estructura de esta ficha quedó superada.** El mazo
+que se proyecta son **doce láminas** y su especificación vive en el cuaderno de
+la ponencia, junto al guion hablado. Lo que sigue conserva su valor y por eso
+no se retira: el análisis de la sala y de la agenda, el eje de la charla, las
+preguntas previsibles y las cifras medidas con su procedencia.
+
+| | |
+|---|---|
+| Estructura vigente | `Presentacion/foro_2026-09/CONTENIDO_FORO.md`, doce láminas, 17:40 |
+| Guion hablado | `Presentacion/foro_2026-09/Guion_Foro.md` |
+| Tamaño de cada figura en su lámina | `Presentacion/foro_2026-09/Images/MANIFIESTO.md` |
+
+**Qué cambió respecto de las quince láminas de más abajo.** Sale todo lo
+relativo a las dos fronteras de medición, y la exposición trabaja con un solo
+escenario, el de cobertura baja. Entra una lámina de curvas de generación y
+consumo antes del mercado. El modelo base pasa de ecuaciones a un diagrama de
+flujo que termina en la comparación contra las dos normas, de modo que la
+lámina de flujo del ejercicio, que decía lo mismo con otro dibujo, se retira.
+El colectivo horario se retira por completo y el ejercicio se acota a tres
+mecanismos. El desglose del costo unitario sale, y en su lugar van los dos
+precios de la liquidación.
 
 | | |
 |---|---|
@@ -63,7 +82,11 @@ exacto: él explica qué figura regulatoria permite quedarse con esa franja.
 
 ---
 
-## Las quince láminas
+## Las quince láminas, que son las de la versión anterior
+
+**No es el mazo que se proyecta.** Se conserva porque el reparto por
+bloques y el razonamiento de cada lámina explican de dónde viene el mazo
+de doce, y porque varias láminas sobreviven con el mismo contenido.
 
 Ochenta segundos cada una. El reparto por bloques es 4, 4, 4, 5 y 3 minutos.
 

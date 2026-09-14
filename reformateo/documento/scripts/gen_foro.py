@@ -73,6 +73,45 @@ ROTULO = {
 #  La elección de las horas, que es lo primero que hay que poder defender
 # ══════════════════════════════════════════════════════════════════════════
 
+
+# ── El pie «Nota.» sale de las figuras ────────────────────────────────────
+#
+# Decision del autor el 2026-09-09: la lamina ya lleva su propio pie, y el de
+# la figura lo repetia en un cuerpo que no se lee proyectado. El texto NO se
+# borra, se deja de dibujar: volver a activarlo es cambiar esta linea, y asi
+# el mismo generador sirve para el documento, donde la nota si tiene sentido.
+CON_NOTA = False
+
+
+
+# ── El color de un grupo de instituciones que coinciden ───────────────────
+#
+# Cuando varias curvas se superponen se dibuja UNA sola y se rotula el grupo.
+# Pero pintarla del color de la primera del grupo enganha: en las demas
+# figuras ese color identifica a esa institucion y solo a ella, de modo que
+# el ojo lee «Mariana» donde el rotulo dice «Mariana = UCC = HUDN».
+#
+# Un grupo no es una institucion, asi que no lleva color de institucion: va
+# en pizarra oscuro, que no es de ninguna.
+COLOR_GRUPO = "#4E5A62"
+
+
+def color_de_grupo(quienes):
+    return (E.color_institucion(quienes[0]) if len(quienes) == 1
+            else COLOR_GRUPO)
+
+
+def _nota(fig, *a, **k):
+    """El pie de la figura, solo si estan activados."""
+    if CON_NOTA:
+        fig.text(0.01, 0.005, *a, **k)
+
+
+def _hueco(x):
+    """El margen inferior que reservaba la nota. Sin nota, no hace falta."""
+    return x if CON_NOTA else 0.0
+
+
 def elige_horas(destino, cobertura: str) -> dict:
     """Las cuatro horas protagonistas, con el criterio que las eligió.
 
@@ -260,23 +299,33 @@ def a1_acuerdo(destino, cobertura: str, k: int, cat: str, frase: str):
     for quienes, serie in grupos:
         nom = " = ".join(E.etiqueta_institucion(x) for x in quienes)
         ax.plot(t["t"], serie, linewidth=2.2,
-                color=E.color_institucion(quienes[0]), label=nom, zorder=3)
+                color=color_de_grupo(quienes), label=nom, zorder=3)
 
     lam = [c for c in _columnas(t, "lam_")
            if not c.startswith("lam_filt")]
     if lam:
         m = t[lam].abs().max(axis=1)
-        ax2.plot(t["t"], m, linewidth=1.6, color=E.ALERTA, linestyle="--",
+        # EL MULTIPLICADOR NO PUEDE LLEVAR EL COLOR DE UNA INSTITUCION. Iba
+        # en el mismo naranja que la curva de precio de Mariana, en otro eje
+        # y con otra unidad: dos cosas distintas con el mismo canal visual.
+        # Va en pizarra oscuro: no es el color de ninguna institucion (el
+        # lavanda ya es del hospital) ni el gris claro de las cotas. Un
+        # cantidad matematica no debe parecer un agente.
+        MULT = "#37474F"
+        ax2.plot(t["t"], m, linewidth=1.8, color=MULT, linestyle="--",
+                 label="multiplicador del vendedor",
                  zorder=2)
-        ax2.set_ylabel("multiplicador del vendedor", color=E.ALERTA)
-        ax2.tick_params(axis="y", colors=E.ALERTA)
+        ax2.set_ylabel("multiplicador del vendedor", color=MULT)
+        ax2.tick_params(axis="y", colors=MULT)
 
     ax.set_xlabel("Tiempo de integración")
     ax.set_ylabel("Precio acordado (COP/kWh)")
     ax.set_title(f"Cómo se acuerda el precio · {ROTULO[cat]}", pad=8)
-    ax.legend(loc="center left", fontsize=8, frameon=False)
+    h1, e1 = ax.get_legend_handles_labels()
+    h2, e2 = ax2.get_legend_handles_labels()
+    ax.legend(h1 + h2, e1 + e2, loc="center left", fontsize=8, frameon=False)
     E.eje_espanol(ax, "y", "miles", 0)
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Hora {k} de la frontera {cobertura.upper()}, elegida por "
              f"criterio medido: {frase}. Las líneas punteadas son la banda "
              f"medida de cada agente y la discontinua es el multiplicador de "
@@ -285,7 +334,7 @@ def a1_acuerdo(destino, cobertura: str, k: int, cat: str, frase: str):
              f"mismo precio; cuando eso pasa, sus curvas se dibujan juntas y "
              f"la leyenda lo dice.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.145, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.145), 1, 1))
     datos = t[["t"] + cols + lam].copy()
     return E.guardar(fig, f"foro_a1_acuerdo_{cat}_{cobertura}", datos=datos,
                      procedencia=[f"{destino}/{cobertura}/trayectorias",
@@ -331,13 +380,13 @@ def a2_reparto(destino, cobertura: str, k: int, cat: str, frase: str):
     ax.set_title(f"Quién se queda con el excedente · {ROTULO[cat]}", pad=8)
     ax.legend(loc="lower center", bbox_to_anchor=(0.5, -0.55), ncol=2,
               fontsize=8, frameon=False)
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Hora {k} de la frontera {cobertura.upper()}: {frase}. El "
              f"excedente total es el mismo en las dos filas, porque es el "
              f"ancho de la banda por la energía y no depende del precio; lo "
              f"que cambia es quién se lo lleva.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.24, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.24), 1, 1))
     datos = pd.DataFrame({"reparto": ["contrato", "mercado"],
                           "compradores_pct": izq, "vendedores_pct": der,
                           "excedente_COP": [tot, tot]})
@@ -371,11 +420,11 @@ def a3_potencias(destino, cobertura: str, k: int, cat: str, frase: str):
     ax.set_ylabel("Energía de la pareja (kWh)")
     ax.set_title(f"Cómo se reparte la energía · {ROTULO[cat]}", pad=8)
     ax.legend(loc="best", fontsize=7.5, frameon=False, ncol=2)
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Hora {k} de la frontera {cobertura.upper()}: {frase}. Una "
              f"línea por pareja que intercambió energía.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.105, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.105), 1, 1))
     return E.guardar(fig, f"foro_a3_potencias_{cat}_{cobertura}",
                      datos=t[["t"] + cols],
                      procedencia=[f"{destino}/{cobertura}/trayectorias"])
@@ -383,6 +432,13 @@ def a3_potencias(destino, cobertura: str, k: int, cat: str, frase: str):
 
 def a4_los_cuatro_casos(destino, cobertura: str, horas: dict):
     """Los cuatro casos en una sola lámina: dónde cae el precio y quién gana.
+
+    ADVERTENCIA (H-75, 2026-09-13). Lo que sigue es lo que la figura pretendia,
+    y los datos no lo sostienen. El reparto que muestra lo deciden las tarifas
+    de los dos comercializadores y el poco ancho de banda: la hora de escasez
+    transa 0,02 kWh, en la de exceso se retiran tres de los cuatro vendedores,
+    y la posicion se normaliza contra la banda del CESMAG, cuatro veces y media
+    mas ancha que la de las otras cuatro. NO REUTILIZAR SIN REHACERLA.
 
     ES LA LAMINA QUE ENSENA EL MECANISMO SIN ECUACIONES, y la que mejor
     responde a un operador de mercado, porque muestra que el precio **responde
@@ -474,7 +530,7 @@ def a4_los_cuatro_casos(destino, cobertura: str, horas: dict):
                  f"banda y con exceso baja al "
                  f"{E.fmt_miles(exc['posicion'].iloc[0] * 100, 0)} %.")
     chico = d.nsmallest(1, "kwh")
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}. Cada barra es la banda de esa "
              f"hora, del piso al techo, y la marca es el precio acordado con su "
              f"valor en (COP/kWh). Las cuatro horas se eligieron por criterio "
@@ -485,7 +541,7 @@ def a4_los_cuatro_casos(destino, cobertura: str, horas: dict):
              f"resultado.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
     ax.set_ylim(-0.55, len(d) - 0.45)
-    fig.tight_layout(rect=(0, 0.215, 0.99, 1))
+    fig.tight_layout(rect=(0, _hueco(0.215), 0.99, 1))
     return E.guardar(fig, f"foro_a4_casos_{cobertura}", datos=d,
                      procedencia=[f"{destino}/{cobertura}/horas",
                                   f"{destino}/{cobertura}/agentes",
@@ -593,7 +649,7 @@ def c1_dia(destino, cobertura: str, dia: str):
     # impreso hasta que alguien mira la figura al lado del texto.
     _anchos = (h["techo"] - h["piso"])
     _hay = h["resuelta"].astype(bool).sum()
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}. El día se eligió por "
              f"criterio medido: el de mayor recorrido del precio entre sus "
              f"horas de mercado. Hubo acuerdo en {_hay} de las 24 horas y el "
@@ -602,7 +658,7 @@ def c1_dia(destino, cobertura: str, dia: str):
              f"{E.fmt_miles(_anchos.min(), 0)} y "
              f"{E.fmt_miles(_anchos.max(), 0)} (COP/kWh).",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.165, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.165), 1, 1))
     return E.guardar(fig, f"foro_c1_dia_{cobertura}",
                      datos=h[["hora_del_dia", "piso", "techo", "precio_medio",
                               "vendedores", "compradores", "retirados",
@@ -664,13 +720,13 @@ def d1_liquidacion(destino, cobertura: str):
     ax.set_title("Lo que le cuesta a cada institución la energía que compra",
                  pad=8)
     ax.legend(loc="lower right", fontsize=8, frameon=False)
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}. Los dos precios están "
              f"ponderados por energía. El de la red es el contrafáctico, es "
              f"decir lo que le cobraría por todo lo que le falta si no hubiera "
              f"mercado.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.075, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.075), 1, 1))
     return E.guardar(fig, f"foro_d1_liquidacion_{cobertura}",
                      datos=tot.reset_index(),
                      procedencia=[f"{destino}/{cobertura}/agentes",
@@ -747,7 +803,7 @@ def d2_mecanismos(destino, cobertura: str):
 
     peor = perdida.max(axis=1)
     arriba, resto = peor.idxmax(), peor.drop(peor.idxmax())
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}, sobre {tramo}. Cada barra es "
              f"la distancia al mecanismo que más le conviene a esa institución, "
              f"que va en cero y lleva marca. En pesos absolutos los seis "
@@ -757,7 +813,7 @@ def d2_mecanismos(destino, cobertura: str):
              f"su beneficio y a las demás menos del "
              f"{E.fmt_miles(resto.max(), 1)} %.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.175, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.175), 1, 1))
     datos = perdida.reset_index().assign(**{
         "unidad": "% del beneficio de la institucion"})
     return E.guardar(fig, f"foro_d2_mecanismos_{cobertura}", datos=datos,
@@ -829,7 +885,7 @@ def e1_piso(destino, cobertura: str):
             grupos.append(([n], v))
     for quienes, serie in grupos:
         ax.plot(range(len(piv)), serie, marker="o", markersize=4.5,
-                linewidth=2.0, color=E.color_institucion(quienes[0]),
+                linewidth=2.0, color=color_de_grupo(quienes),
                 label=" = ".join(E.etiqueta_institucion(x) for x in quienes))
     ax.set_xticks(range(len(piv)))
     ax.set_xticklabels([m[-2:] + chr(10) + m[:4] for m in piv.index],
@@ -838,13 +894,15 @@ def e1_piso(destino, cobertura: str):
     ax.set_ylabel("Precio (COP/kWh)")
     ax.set_title("El piso se desploma cuando se agota el crédito de permuta",
                  pad=8)
-    ax.legend(loc="lower left", fontsize=7.2, ncol=2, framealpha=0.92)
+    # A la izquierda abajo caia justo encima del desplome, que es lo que
+    # la figura viene a ensenar. A la derecha en el centro no hay nada.
+    ax.legend(loc="center right", fontsize=7.2, framealpha=0.92)
     E.eje_espanol(ax, "y", "miles", 0)
 
     bajo = float(piv.min().min())
     quien = piv.min().idxmin()
     mes = piv[quien].idxmin()
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}. El techo es el costo "
              f"unitario y apenas se mueve. El piso vale casi lo mismo mientras "
              f"el excedente se permuta, y cae al precio de bolsa cuando la "
@@ -854,7 +912,7 @@ def e1_piso(destino, cobertura: str):
              f"compran al mismo comercializador tienen el mismo piso y se "
              f"dibujan juntas.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.135, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.135), 1, 1))
     return E.guardar(fig, f"foro_e1_piso_{cobertura}",
                      datos=piv.reset_index(),
                      procedencia=[f"{destino}/{cobertura}/agentes"])
@@ -887,9 +945,14 @@ def e2_donde_esta_el_valor(destino, cobertura: str):
     for i, r in g.iterrows():
         if r["banda"] > corte:
             ax2.annotate(f"{E.fmt_miles(r['pct'], 1)} % del ahorro",
-                         xy=(i, r["ahorro"] / 1e3), xytext=(0, 9),
+                         xy=(i, r["ahorro"] / 1e3), xytext=(0, 11),
                          textcoords="offset points", ha="center", fontsize=7.4,
-                         color=E.DESPUES, fontweight="bold")
+                         color=E.DESPUES, fontweight="bold",
+                         # La linea pasa justo por donde cae el rotulo del mes
+                         # que sube: un fondo opaco lo despega sin moverlo de
+                         # su punto, que es lo que lo hace legible.
+                         bbox=dict(boxstyle="round,pad=0.22", facecolor="white",
+                                   edgecolor="none", alpha=0.88))
 
     ax.set_xticks(x)
     ax.set_xticklabels([m[-2:] + chr(10) + m[:4] for m in g["mes"]],
@@ -904,7 +967,7 @@ def e2_donde_esta_el_valor(destino, cobertura: str):
     ax.set_title("El valor está donde la banda se abre", pad=8)
 
     dos = g.nlargest(2, "ahorro")
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}. Las barras son el ancho de "
              f"la banda de cada mes y la línea es lo que la comunidad se ahorra "
              f"con el mercado. Van juntas: {', '.join(dos['mes'])} concentran "
@@ -917,7 +980,7 @@ def e2_donde_esta_el_valor(destino, cobertura: str):
              f"comercializador y por tanto no comparten banda: la de cada una "
              f"es su propio cargo de comercializar.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.145, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.145), 1, 1))
     return E.guardar(fig, f"foro_e2_valor_{cobertura}", datos=g,
                      procedencia=[f"{destino}/{cobertura}/agentes",
                                   f"{destino}/{cobertura}/flujos"])
@@ -962,7 +1025,7 @@ def e3_reparto(destino, cobertura: str):
     ax.set_title("Lo que el mecanismo le mueve al reparto", pad=8)
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.32), ncol=2,
               fontsize=8, frameon=False)
-    fig.text(0.01, 0.005,
+    _nota(fig,
              f"Nota. Frontera {cobertura.upper()}, horizonte completo. El "
              f"excedente total es el mismo en las dos filas, porque es el ancho "
              f"de la banda por la energía y no depende del precio; lo que "
@@ -970,7 +1033,7 @@ def e3_reparto(destino, cobertura: str):
              f"construcción, de modo que la distancia a esa mitad es lo que "
              f"aporta el juego.",
              fontsize=6.6, color=E.NEUTRO, ha="left", va="bottom", wrap=True)
-    fig.tight_layout(rect=(0, 0.30, 1, 1))
+    fig.tight_layout(rect=(0, _hueco(0.30), 1, 1))
     datos = pd.DataFrame({"reparto": ["contrato", "mercado"],
                           "compradores_pct": izq, "vendedores_pct": der,
                           "excedente_COP": [tot, tot]})

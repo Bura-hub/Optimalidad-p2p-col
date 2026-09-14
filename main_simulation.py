@@ -89,7 +89,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          almacen: str = None,
          procesos: int = None,
          exencion_contribucion: bool = False,
-         buyer_competition: str = "aggregate"):
+         buyer_competition: str = "aggregate",
+         excluir_agente: str = None,
+         factor_generacion: float = 1.0, factor_demanda: float = 1.0,
+         escala_agente: str = None, neto_cero: bool = False,
+         factor_cv: float = 1.0):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -130,6 +134,23 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 D_full, G_full, index_full, _d, _h)
             print(f"    [CAL-46] Ventana {_d} -> {_h}: "
                   f"{D_full.shape[1]} pasos de {paso * 60:.0f} min")
+        # Retirar un miembro de la comunidad, para medir que le pasa al resto
+        # cuando el que mas excedente aporta se va. Se recorta aqui, antes de
+        # que de estas series cuelguen el reparto, la tarifa y las cotas.
+        if excluir_agente:
+            _todos = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"][
+                :D_full.shape[0]]
+            _fuera = [n.strip() for n in excluir_agente.split(",")
+                      if n.strip()]
+            _malos = [n for n in _fuera if n not in _todos]
+            if _malos:
+                raise SystemExit(
+                    f"--excluir-agente: {_malos} no esta entre {_todos}")
+            _quedan = [i for i, n in enumerate(_todos) if n not in _fuera]
+            D_full, G_full = D_full[_quedan], G_full[_quedan]
+            print(f"    [C-176] Comunidad reducida: sale {', '.join(_fuera)}; "
+                  f"quedan {len(_quedan)} de {len(_todos)}")
+
         print_validation_report(validate_load(D_full, G_full, index_full))
 
         # CAL-47: la clase tarifaria se decide ANTES de armar nada, porque
@@ -142,12 +163,43 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   "contribucion; comparten costo unitario y por tanto techo")
 
         from scenarios.scenario_c4_creg101072 import compute_pde_weights
-        pde = compute_pde_weights(np.maximum(G_full.mean(axis=1), 0))
-        cap = np.maximum(G_full.mean(axis=1), 0)
+        from data.capacidad_instalada import capacidad_instalada
         N   = D_full.shape[0]
+        # D5: el reparto del colectivo es igual para todas como base. Antes se
+        # calculaba con la generacion media medida bajo un rotulo de
+        # capacidad (H-71).
+        pde = compute_pde_weights(np.ones(N), method="equal")
 
-        agent_names = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"][:N]
+        agent_names = [n for n in ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
+                       if not excluir_agente
+                       or n not in [x.strip()
+                                    for x in excluir_agente.split(",")]][:N]
         currency    = "COP"
+
+        # Spec 4.11 (D10 a D12): el escalado controlado de la comunidad. Va
+        # aqui, antes de que de estas series cuelguen la tarifa, las cotas,
+        # los porcentajes y los casos del art. 20. El informe de validacion
+        # de arriba describe la medicion, sin escalar, a proposito.
+        from data.escalado import escala_comunidad, lee_escala_agente
+        _por_agente = lee_escala_agente(escala_agente)
+        D_full, G_full, factores_g = escala_comunidad(
+            D_full, G_full, agent_names,
+            factor_generacion=factor_generacion,
+            factor_demanda=factor_demanda,
+            generacion_por_agente=_por_agente, neto_cero=neto_cero)
+        if (factor_generacion != 1.0 or factor_demanda != 1.0
+                or _por_agente or neto_cero):
+            print(f"    [C-180] Escalado: generacion "
+                  f"x{np.round(factores_g, 3).tolist()}, demanda "
+                  f"x{factor_demanda:.4g}")
+
+        # Spec 4.11: la capacidad instalada real, 17,55 kWp por planta (H-67).
+        # Decide el numeral del art. 25 y el caso del art. 20. Antes se pasaba
+        # la generacion media como aproximacion.
+        cap = capacidad_instalada(agent_names, factores_g)
+        print(f"    [C-180] Capacidad instalada {np.round(cap, 1).tolist()} kW; "
+              f"numeral 2 del art. 25 para "
+              f"{[n for n, c in zip(agent_names, cap) if c > 100.0] or 'ninguna'}")
 
         # ── pi_gs Cedenar (CAL-9): matriz (N, T) mes a mes en C1-C4 ──────
         # El escalar `pi_gs_eff` y el vector `pi_gs_per_agent` se conservan
@@ -347,19 +399,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         idx_piso = index_full if full_horizon else (idx_day if single_day
                                                     else None)
         if idx_piso is not None:
-            from core.opciones_externas import (piso_por_vendedor,
-                                                tramo_permuta)
-            cvm_m = cvm_per_agent_hourly(agent_names, idx_piso)
+            from core.opciones_externas import deduccion_art25, piso_residual
+            from data.cedenar_tariff import cu_components_per_agent_hourly
+            # D7: el componente de comercializar publicado por un factor, que
+            # aproxima el «costo pactado» del no regulado; 1 es la base.
+            cvm_m = cvm_per_agent_hourly(agent_names, idx_piso) * factor_cv
+            _cu_p = cu_components_per_agent_hourly(agent_names, idx_piso)
+            tolls_m = _cu_p["T"] + _cu_p["D"] + _cu_p["PR"] + _cu_p["R"]
             mes_m = pd.Series(idx_piso).dt.strftime("%Y-%m").to_numpy()
-            # H-53: se evalua sobre el excedente BRUTO, es decir como si todo
-            # el excedente cruzara la frontera. La energia que el vendedor
-            # coloca DENTRO de la comunidad no deberia agotar su permuta, de
-            # modo que esta cuenta manda a bolsa antes de tiempo. Queda
-            # declarado como simplificacion y va como consulta al asesor.
-            en_permuta_m = tramo_permuta(G, D, mes_m)
-            pi_gb_agente = piso_por_vendedor(
-                np.asarray(pi_gs_arg, dtype=float), cvm_m,
-                np.asarray(pi_bolsa, dtype=float), en_permuta_m)
+            # C-177: el corte hx se calcula sobre las series RESIDUALES, es
+            # decir tras colocar dentro el lado corto de cada hora (lectura
+            # comercial, D3), y lo que se cobra sobre la permuta lo decide la
+            # capacidad instalada (art. 25, numerales 1 y 2). Cierra H-53.
+            ded_m = deduccion_art25(cvm_m, tolls_m, cap)
+            pi_gb_agente, en_permuta_m = piso_residual(
+                G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
+                np.asarray(pi_bolsa, dtype=float), mes_m)
 
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
@@ -392,13 +447,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             else:
                 print(f"    [C-148] Ninguna hora con vendedor; el piso "
                       f"medido no llega a actuar")
-            # H-53: el tramo se calcula sobre el excedente BRUTO, como si
-            # todo cruzara la frontera. La energia colocada dentro de la
-            # comunidad no deberia agotar la permuta. Es una simplificacion
-            # declarada, no una decision cerrada: va como consulta al asesor.
+            # C-177: el corte hx de cada vendedor se calcula sobre las series
+            # RESIDUALES, es decir tras colocar dentro el excedente que la
+            # comunidad ya coloco (excedente menos lo vendido dentro, deficit
+            # menos lo comprado dentro; lectura comercial, D3). La deduccion
+            # sobre lo permutado sigue la capacidad instalada (art. 25,
+            # numerales 1 y 2). Cierra H-53.
             _en_b = int(np.sum(_vende & ~en_permuta_m))
-            print(f"    [H-53] El tramo se evalua sobre el excedente bruto; "
-                  f"{_en_b} horas-vendedor caen en bolsa por esa cuenta")
+            print(f"    [C-177] El corte hx se evalua sobre el excedente "
+                  f"residual (H-53 cerrado); {_en_b} horas-vendedor caen en "
+                  f"bolsa por esa cuenta")
 
     # CAL-32 (apendice 2026-05-06b): c_j=0 para PV puro en modo --data real.
     # Equilibrio invariante en c_j (verificado por scripts/demo_invariancia_c_lambda.py).
@@ -564,6 +622,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     else:
         component_c_arg = "auto"
 
+    # D7: el mismo factor sobre Cv en la autogeneracion individual, el
+    # colectivo, el residual del mercado y el del contrato. No toca la tarifa
+    # (el techo) ni la tasa de la autogeneracion remota: se declara.
+    if factor_cv != 1.0:
+        if not isinstance(component_c_arg, np.ndarray):
+            raise SystemExit("--factor-cv necesita datos reales con calendario "
+                             "(--full o --day): con el modo 'auto' no hay Cv "
+                             "publicado que escalar")
+        component_c_arg = component_c_arg * factor_cv
+        print(f"    [D7] Componente de comercializar x{factor_cv:g} en el piso, "
+              f"C1, C4, el residual del mercado y el del contrato")
+
     if isinstance(component_c_arg, np.ndarray):
         c_source = "C = Cvm,i,j real desde CSV Cedenar (CREG 119/2007 art. 11)"
     else:
@@ -695,6 +765,21 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         except Exception as _e:                          # noqa: BLE001
             print(f"    [CAL-37] PES no cargado ({_e}) → LBC sin trigger")
 
+    # ── C-179: el precio del contrato de la autogeneracion remota ─────────
+    # Art. 16 ii de la CREG 101 099: el consumo se atiende como no regulado
+    # por contrato. El precio es la serie mensual de XM de contratos con
+    # destino al mercado no regulado; falla en voz alta si falta un mes.
+    pi_contrato_c5_arg = None
+    if include_c5 and use_real_data:
+        idx_c5 = (index_full if full_horizon else
+                  idx_day if single_day else None)
+        if idx_c5 is not None:
+            from data.precios_contratos import precio_horario as _pc_c5
+            pi_contrato_c5_arg = np.asarray(_pc_c5(idx_c5), dtype=float)
+            print(f"    [C-179] C5 con precio de contrato de XM: "
+                  f"{np.mean(pi_contrato_c5_arg):.1f} COP/kWh de media; "
+                  f"CERE omitido (serie no disponible)")
+
     # ── CAL-51: el precio pactado del contrato bilateral ─────────────────
     # Articulo 23 numeral 2 literal a de la Resolucion CREG 174: la venta a un
     # tercero con destino a usuarios no regulados se hace «a precio pactado
@@ -752,6 +837,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         # CAL-37: escenario C5 AGR (CREG 101 099/2026)
         include_c5=include_c5,
         pi_escasez=pi_escasez_arr,
+        pi_contrato_c5=pi_contrato_c5_arg,                # C-179
         # CAL-46: duracion del paso. Con 1.0 no se ejecuta ninguna operacion
         # nueva y el camino horario queda identico bit a bit (compuerta en
         # tests/gate_cal46_paso_horario.py).
@@ -771,7 +857,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # un mecanismo reparte mejor que otro.
     if alm is not None:
         _falta = []
-        for _esc in ("P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"):
+        for _esc in ("P2P", "P2P_colectivo", "C1", "C2", "C3", "C4",
+                     "C4_mensual", "C5"):
             if _esc not in cr.net_benefit:
                 continue
             _m = cr.neto_horario.get(_esc)
@@ -799,12 +886,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # Nota: en la propuesta de tesis, el escenario "Individual" = C1 (CREG 174),
     # y los escenarios "C1"→"C3" de la propuesta corresponden a C2→C4 del código.
     # Los encabezados ya reflejan esto: "C1 Individual", "C4 Colectivo", etc.
-    esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+    esc = [e for e in ["P2P", "P2P_colectivo", "C1", "C2", "C3", "C4",
+                        "C4_mensual", "C5"]
            if e in cr.net_benefit]                       # CAL-37: C5 opcional
     esc_labels = {                                       # CAL-42: C4_mensual
-        "P2P": "P2P", "C1": "C1-Indiv", "C2": "C2-Bilat",
-        "C3": "C3-Spot", "C4": "C4-Colect", "C4_mensual": "C4-Colect-mes",
-        "C5": "C5-AGR",
+        "P2P": "P2P", "P2P_colectivo": "P2P-Colectivo", "C1": "C1-Indiv",
+        "C2": "C2-Bilat", "C3": "C3-Spot", "C4": "C4-Colect",
+        "C4_mensual": "C4-Colect-mes", "C5": "C5-AGR",
     }
     print(f"\n  Ganancia neta por agente ({currency}/período):")
     print(f"  {'Institución':<12}" + "".join(f"{esc_labels[e]:>14}" for e in esc))
@@ -816,6 +904,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
 
     print(f"\n  Gini por escenario (0=equitativo, 1=concentrado):")
     print(f"  " + "  ".join(f"{esc_labels[e]}: {cr.gini.get(e, 0):.4f}" for e in esc))
+
+    if cr.coincidencia:
+        # D20: 1 = todo lo acreditado coincidio en la hora con la importacion
+        # contra la que se acredita; C3 no acredita nada (nan).
+        print(f"\n  Factor de coincidencia (D20):")
+        print(f"  " + "  ".join(
+            f"{esc_labels.get(e, e)}: {cr.coincidencia.get(e, float('nan')):.3f}"
+            for e in esc))
+        print(f"  Simultaneidad de los picos de importacion: "
+              f"{cr.simultaneidad:.3f}")
 
     print(f"\n  Ventaja P2P vs C4 (Colectivo CREG 101 072):")
     for n in range(N):
@@ -852,6 +950,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             cot_alpha=cot_alpha_default,
             include_c5=include_c5,
             pi_escasez=pi_escasez_arr,
+            pi_contrato_c5=pi_contrato_c5_arg,          # C-179
+            # I-5: los meses salen del desglose horario, asi suman el total
+            # en todas las columnas, C2 incluido, y entra P2P_colectivo.
+            neto_horario=cr.neto_horario,
         )
         print_monthly_table(monthly_data, currency=currency)
 
@@ -873,13 +975,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     if use_real_data and full_horizon and D.shape[1] >= 48:
         import datetime as _dt
         print("    Calculando series diarias para bootstrap estadístico...")
-        daily_series = _compute_daily_series(
-            D=D, G_klim=G_klim, p2p_results=p2p_results,
-            pi_gs=pi_gs_arg, pi_gb=grid_params["pi_gb"],
-            pi_bolsa=pi_bolsa, pde=pde, cap=cap,
-            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-            component_c=component_c_arg, tolls=tolls_arg,   # CAL-41
-        )
+        daily_series = _compute_daily_series(cr, D.shape[1], paso)
         os.makedirs(os.path.join(base_dir, "outputs"), exist_ok=True)
         ts_str = _dt.datetime.now().strftime("%Y%m%d_%H%M")
         csv_path = os.path.join(base_dir, "outputs", f"daily_series_{ts_str}.csv")
@@ -971,6 +1067,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             g_component=g_arg, cvm_component=cvm_arg,
             cot_component=cot_arg, mem_costs=mem_arg,
             cot_alpha=cot_alpha_default,
+            capacity=cap,                               # I-2: numeral real
         )
 
         # SA-2: variación cobertura PV
@@ -1016,6 +1113,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             g_component=g_arg, cvm_component=cvm_arg,
             cot_component=cot_arg, mem_costs=mem_arg,
             cot_alpha=cot_alpha_default,
+            capacity=cap,                               # I-2: cap * factor
         )
 
         # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)
@@ -1027,6 +1125,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             month_labels=month_labels,                  # CAL-9 fix
             # No pasamos component_c: pgs varía sintéticamente y el dato
             # real Cvm,i,j (CAL-10b.2) no aplica a un sweep hipotético del CU.
+            # I-2: pero si la capacidad real y los peajes, para que el
+            # numeral del art. 25 sea el mismo de la tabla principal.
+            capacity=cap,
+            tolls=tolls_arg,
         )
 
         # Umbrales de dominancia
@@ -1112,7 +1214,6 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         from analysis.feasibility import (analyze_withdrawal_risk,
                                           analyze_scaling_risk)
         print(f"\n  FA-3/FA-4: Robustez regulatoria C4...")
-        cap_arr = np.array([float(G[n].max()) for n in range(D.shape[0])])
         wr_report = analyze_withdrawal_risk(
             D=D, G=G, G_klim=G_klim,
             pi_gs=pi_gs_arg,            # CAL-9: matriz (N, T) mes a mes en --full
@@ -1123,10 +1224,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             agent_names=agent_names,
             net_benefit_p2p=cr.net_benefit_per_agent["P2P"],
             net_benefit_c4_full=cr.net_benefit_per_agent["C4"],
-            capacity=cap_arr,
+            # I-6: la capacidad instalada real y el calendario de la corrida
+            # principal (antes el maximo de generacion y un C4 horario).
+            capacity=cap,
             component_c=component_c_arg,  # CAL-15: hereda Cvm a C4
             tolls=tolls_arg,              # CAL-41: y los peajes si aplica Caso 2
             verbose=True,
+            month_labels=month_labels,
         )
         sc_risk = analyze_scaling_risk(
             G=G, prosumer_ids=prosumer_ids, agent_names=agent_names,
@@ -1167,6 +1271,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pi_bolsa=pi_bolsa,
             prosumer_ids=prosumer_ids,
             consumer_ids=consumer_ids,
+            # I-6: el colectivo mensual hora a hora del motor (C-165).
+            c4_horario=cr.neto_horario.get("C4"),
         )
         print_optimality_report(opt_summary, agent_names=agent_names, currency=currency)
         p = plot_optimality(opt_summary, out_dir=plots_dir, currency=currency)
@@ -1183,6 +1289,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
             pi_gs=grid_params["pi_gs"], capacity=cap,
             agent_names=agent_names, currency=currency, verbose=True,
+            # C-1: los mismos peajes, Cv y calendario que la comparacion
+            # principal; el sub-periodo no recorta el horizonte.
+            month_labels=month_labels,
+            component_c=component_c_arg,
+            tolls=tolls_arg,
         )
         print_subperiod_table(sp_results, currency=currency)
         p = plot_subperiod(sp_results, out_dir=plots_dir, currency=currency)
@@ -1295,7 +1406,8 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
     # (antes el hardcode C1-C4 lo omitía de resultados_comparacion.xlsx).
     # CAL-42: C4_mensual entra igual, para que la base que el artículo publica
     # como principal salga de la corrida y no de un recálculo externo.
-    esc  = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+    esc  = [e for e in ["P2P", "P2P_colectivo", "C1", "C2", "C3", "C4",
+                        "C4_mensual", "C5"]
             if e in cr.net_benefit]
     N, T = G_klim.shape
     with pd.ExcelWriter(path, engine="openpyxl") as w:
@@ -1385,75 +1497,49 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
             pd.DataFrame(curve).to_excel(w, sheet_name="PoF_Fairness", index=False)
         if daily_series is not None and not daily_series.empty:
             daily_series.to_excel(w, sheet_name="Series_diarias", index=True)
+        # I-3 (revision final): los contrafacticos del colectivo (D5, D11),
+        # una fila por contrafactico, con el mismo rotulo de agente que la
+        # hoja Por_agente.
+        if getattr(cr, "contrafacticos", None):
+            pd.DataFrame([{
+                "contrafactico": nombre,
+                f"total_{currency}": d["total"],
+                "caso_art20": d["caso_art20"],
+                **{f"A{n+1}": float(d["por_agente"][n])
+                   for n in range(cr.n_agents)},
+            } for nombre, d in cr.contrafacticos.items()]
+            ).to_excel(w, sheet_name="Contrafacticos", index=False)
+        # D20: el factor de coincidencia por escenario y la simultaneidad.
+        if getattr(cr, "coincidencia", None):
+            pd.DataFrame({
+                "escenario": list(cr.coincidencia) + ["simultaneidad_picos"],
+                "valor": list(cr.coincidencia.values()) + [cr.simultaneidad],
+            }).to_excel(w, sheet_name="Coincidencia", index=False)
     return path
 
 
 # ── Series diarias para bootstrap estadístico ─────────────────────────────────
 
-def _compute_daily_series(
-    D, G_klim, p2p_results,
-    pi_gs, pi_gb, pi_bolsa, pde, cap, prosumer_ids, consumer_ids,
-    component_c="auto", tolls=None,          # CAL-41
-):
+def _compute_daily_series(cr, T: int, paso: float = 1.0):
     """
-    Agrega beneficio neto comunitario por día para P2P y C4.
-    Llama solo a las funciones de liquidación (NO re-corre el EMS).
+    Beneficio comunitario por dia del mercado y del colectivo, en COP/dia.
 
-    Retorna DataFrame(n_days, 2) con columnas ['nb_p2p', 'nb_c4'] en COP/día.
+    C-177: un dia no es un periodo de facturacion, de modo que reliquidar
+    cada dia por separado romperia el cupo del mes. Se suma el desglose por
+    hora del horizonte (C-165), que da exactamente el total publicado. Desde
+    C-178 el colectivo es el mensual; el bootstrap deja de compararse contra
+    el horario del articulo WEEF, y hay que declararlo donde se publique.
+
     Actividad 4.2 — soporte para bootstrap por bloques.
     """
-    from scenarios.comparison_engine import _p2p_monetary_benefit
-    from scenarios.scenario_c4_creg101072 import run_c4_creg101072
-    from scenarios._pi_gs import as_pi_gs_array
-
-    T      = D.shape[1]
-    N      = D.shape[0]
-    n_days = T // 24
-
-    # CAL-9: normalizar pi_gs a matriz (N, T) y slicear por día. Cada día
-    # liquida con la tarifa Cedenar del mes que contiene esas 24 horas.
-    pi_gs_full = as_pi_gs_array(pi_gs, N, T)
-
-    rows = []
-    for d in range(n_days):
-        sl = slice(d * 24, (d + 1) * 24)
-        D_d = D[:, sl]
-        G_d = G_klim[:, sl]
-        pi_gs_d = pi_gs_full[:, sl]   # (N, 24) — tarifa del día
-
-        nb_p2p = _p2p_monetary_benefit(
-            p2p_results[d * 24 : (d + 1) * 24],
-            D_d, G_d, pi_gs_d, pi_gb, prosumer_ids,
-            pi_bolsa=pi_bolsa[sl],   # CAL-30: residual surplus horario
-        ).sum()
-
-        # CAL-41: el slice diario se liquida con la MISMA deducción que la
-        # tabla agregada. Antes usaba component_c="auto" (proporcional
-        # 13,85 %) porque el slice no lleva calendario mensual; pero la
-        # matriz Cvm sí es recortable por índice horario, y usar el fallback
-        # dejaba la suma de la serie 0,22 % por encima del total de la
-        # comparación — desfase que contaminaba el bootstrap.
-        cc_d = (component_c[:, sl]
-                if isinstance(component_c, np.ndarray) and component_c.ndim == 2
-                else component_c)
-        tl_d = (tolls[:, sl]
-                if isinstance(tolls, np.ndarray) and tolls.ndim == 2
-                else tolls)
-        # CAL-43: el bootstrap liquida C4 en base HORARIA a proposito, y no
-        # en la mensual de CAL-42. La razon es metodologica, no un olvido:
-        # la serie es DIARIA y un dia no es un periodo de facturacion, de
-        # modo que no hay permuta mensual que cruzar dentro del bloque.
-        # Consecuencia util: el bootstrap de esta corrida es directamente
-        # comparable con el que publica el articulo, que tambien se
-        # remuestrea contra el C4 Caso 2 horario (CANON.md §3.2).
-        c4 = run_c4_creg101072(
-            D_d, G_d, pi_gs_d, pi_bolsa[sl], pde, cap,
-            component_c=cc_d, tolls=tl_d,
-        )
-        nb_c4 = sum(c4["per_agent"][n]["net_benefit"] for n in range(N))
-
-        rows.append({"dia": d, "nb_p2p": float(nb_p2p), "nb_c4": float(nb_c4)})
-
+    por_dia = int(round(24.0 / paso))
+    n_days = T // por_dia
+    p2p = np.asarray(cr.neto_horario["P2P"], dtype=float).sum(axis=0)
+    c4 = np.asarray(cr.neto_horario["C4"], dtype=float).sum(axis=0)
+    rows = [{"dia": d,
+             "nb_p2p": float(p2p[d * por_dia:(d + 1) * por_dia].sum()),
+             "nb_c4": float(c4[d * por_dia:(d + 1) * por_dia].sum())}
+            for d in range(n_days)]
     return pd.DataFrame(rows).set_index("dia")
 
 
@@ -1588,8 +1674,8 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
     from datetime import datetime
     now   = datetime.now().strftime("%Y-%m-%d %H:%M")
     N, T  = G_klim.shape
-    esc   = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual",   # CAL-43
-                         "C5"] if e in cr.net_benefit]
+    esc   = [e for e in ["P2P", "P2P_colectivo", "C1", "C2", "C3", "C4",
+                         "C4_mensual", "C5"] if e in cr.net_benefit]   # CAL-43
 
     active = [r for r in p2p_results
               if r.P_star is not None and np.sum(r.P_star) > 1e-4]
@@ -1685,11 +1771,12 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
     # informe de progreso justifica.
     esc_labels = {
         "P2P": "P2P (Stackelberg + RD)",
+        "P2P_colectivo": "P2P por la via del colectivo",
         "C1": "C1 CREG 174/2021",
         "C2": "C2 Contrato interno",
         "C3": "C3 Mercado spot",
-        "C4": "C4 CREG 101 072 ★ (horario)",
-        "C4_mensual": "C4 CREG 101 072 ★ (mensual)",
+        "C4": "C4 CREG 101 072 ★ (mensual)",
+        "C4_mensual": "C4 CREG 101 072 (alias de C4)",
         "C5": "C5 AGR CREG 101 099/2026",
     }
     for e in esc:
@@ -1919,6 +2006,8 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
 # ── Punto de entrada ──────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
+    from data.escalado import lee_factor
+
     # CRÍTICO en Windows: freeze_support evita que ProcessPoolExecutor
     # re-ejecute este script en cada worker (produce banner duplicado).
     import multiprocessing
@@ -1937,6 +2026,20 @@ if __name__ == "__main__":
                     help="Ejecutar análisis de sensibilidad global Sobol/Saltelli")
     ap.add_argument("--n-base", type=int, default=64, metavar="N",
                     help="Tamaño base muestra Saltelli (default 64 → 1024 eval.)")
+    ap.add_argument("--excluir-agente", default=None, metavar="NOMBRE",
+                    help="retira uno o varios miembros de la comunidad, "
+                         "separados por coma, antes de armar nada")
+    ap.add_argument("--factor-generacion", default="1", metavar="F",
+                    help="C-180: multiplica la generacion de todas (acepta 1/7)")
+    ap.add_argument("--factor-demanda", default="1", metavar="F",
+                    help="C-180: multiplica la demanda de todas (acepta 1/7)")
+    ap.add_argument("--escala-agente", default=None, metavar="NOMBRE:F",
+                    help="C-180: factor de generacion de una institucion, o "
+                         "'neto_cero'; varias separadas por coma")
+    ap.add_argument("--neto-cero", action="store_true",
+                    help="C-180: cada institucion a su consumo anual neto cero")
+    ap.add_argument("--factor-cv", default="1", metavar="F",
+                    help="D7: factor sobre el componente de comercializar")
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
@@ -2061,7 +2164,12 @@ if __name__ == "__main__":
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              buyer_competition=args.buyer_competition,
-             exencion_contribucion=args.exencion_contribucion)
+             exencion_contribucion=args.exencion_contribucion,
+             excluir_agente=args.excluir_agente,
+             factor_generacion=lee_factor(args.factor_generacion),
+             factor_demanda=lee_factor(args.factor_demanda),
+             escala_agente=args.escala_agente, neto_cero=args.neto_cero,
+             factor_cv=lee_factor(args.factor_cv))
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
@@ -2073,4 +2181,9 @@ if __name__ == "__main__":
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              buyer_competition=args.buyer_competition,
-             exencion_contribucion=args.exencion_contribucion)
+             exencion_contribucion=args.exencion_contribucion,
+             excluir_agente=args.excluir_agente,
+             factor_generacion=lee_factor(args.factor_generacion),
+             factor_demanda=lee_factor(args.factor_demanda),
+             escala_agente=args.escala_agente, neto_cero=args.neto_cero,
+             factor_cv=lee_factor(args.factor_cv))

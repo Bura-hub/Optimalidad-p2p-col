@@ -1,6 +1,12 @@
 """
 Sonda del régimen del piso (H-52).
 
+AVISO (tarea 13, C-177): desde que la producción liquida el piso sobre las
+residuales, el régimen "residual" es un alias de "tramo" en
+`paso_a_paso.carga`, de modo que la diferencia entre los dos vale cero por
+construcción. Las cifras de esta sonda son del criterio anterior; para medir
+el efecto de H-53 hay que comparar "bruto" con "tramo".
+
 La pregunta la planteó el autor: si el mercado entre pares de una comunidad
 energética tiene que regirse por el tramo de la Resolución CREG 174, que
 manda al vendedor a bolsa en cuanto su inyección acumulada supera su retiro

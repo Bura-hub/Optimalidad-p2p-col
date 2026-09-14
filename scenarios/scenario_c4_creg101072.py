@@ -55,22 +55,10 @@ ALCANCE — Art. 13 CREG 101 072 (Informe 4 MTE, Fajardo 2026-05-27):
   materialización plena en factura está supeditada a la reglamentación
   del Art. 13. Ver auditoría Capa 2.6 y Capa 5.
 
-Algoritmo (hora a hora, mode="creg174_inheritance"):
-    autoconsumo[n,k]  = min(G[n,k], D[n,k])              # local
-    surplus_ind[n,k]  = max(G[n,k] - D[n,k], 0)          # al pool
-    deficit_ind[n,k]  = max(D[n,k] - G[n,k], 0)          # de la red
-    inyeccion_total[k] = sum_n surplus_ind[n,k]
-    credit[n,k]        = pde[n] * inyeccion_total[k]
-    permuta_t1[n,k]    = min(credit[n,k], deficit_ind[n,k])
-    excedente_t2[n,k]  = max(credit[n,k] - deficit_ind[n,k], 0)
-    grid_buy[n,k]      = max(deficit_ind[n,k] - credit[n,k], 0)
-
-    savings_auto[n] = sum_k autoconsumo[n,k]  * pi_gs[n,k]
-    savings_t1[n]   = sum_k permuta_t1[n,k]   * (pi_gs[n,k] - pi_C[n,k])
-    revenue_t2[n]   = sum_k excedente_t2[n,k] * pi_bolsa[k]
-    grid_cost[n]    = sum_k grid_buy[n,k]     * pi_gs[n,k]   (diagnóstico)
-
-    net_benefit[n] = savings_auto[n] + savings_t1[n] + revenue_t2[n]
+El modo horario (mode="creg174_inheritance") queda como opción no
+normativa que el orquestador ya no invoca (D4); el modo que rige es
+`monthly_hx` (arts. 19 a 21, cruce Hx del Anexo 4 por agente, ver
+`_run_c4_monthly_hx`).
 
 Referencia regulatoria (numeración verificada 2026-05-03 vs gestornormativo.creg.gov.co):
     Decreto 2236 de 2023 art. 4 (marco AGRC, hereda AGPE).
@@ -90,6 +78,8 @@ Historico:
     Tipo 1 / Tipo 2, modo `pde_only` por defecto silenciaba la
     exportación a bolsa. CAL-15 (2026-05-01) corrige a la lectura
     legalmente consistente.
+
+Actividad 2.2.
 """
 
 import warnings as _warnings
@@ -97,6 +87,7 @@ import numpy as np
 from typing import Literal, Optional, Union
 
 from ._pi_gs import as_pi_gs_array, as_component_c_array
+from core.opciones_externas import reparto_anexo4
 
 
 def validate_pde(
@@ -229,6 +220,45 @@ def compute_excedentes_acumulados(
     return surplus.sum(axis=1)
 
 
+def pde_por_regla(regla: str, G: np.ndarray, D: np.ndarray,
+                  month_labels: Optional[np.ndarray] = None) -> dict:
+    """Porcentaje de distribucion de cada mes segun una regla (spec 4.6, D5).
+
+    El articulo 19 de la Resolucion CREG 101 072 deja el porcentaje a lo que
+    acuerden los miembros, con suma cien y cambiable cada mes. La base es el
+    reparto igual; estas son las alternativas del analisis:
+
+      igual       un N-esimo a cada una.
+      consumo     la demanda del mes.
+      aporte      el excedente del mes; un mes sin excedente cae al igual.
+      generacion  la generacion media medida del horizonte, constante.
+
+    Devuelve {etiqueta de mes como int: (N,)}; sin etiquetas, la clave es 0.
+    """
+    G = np.maximum(np.asarray(G, dtype=float), 0.0)
+    D = np.maximum(np.asarray(D, dtype=float), 0.0)
+    N, T = G.shape
+    etiquetas = (np.zeros(T, dtype=int) if month_labels is None
+                 else np.asarray(month_labels))
+    gen = G.mean(axis=1)
+    out = {}
+    for mes in np.unique(etiquetas):
+        idx = np.flatnonzero(etiquetas == mes)
+        if regla == "igual":
+            out[int(mes)] = compute_pde_weights(np.ones(N), method="equal")
+            continue
+        if regla == "consumo":
+            m = D[:, idx].sum(axis=1)
+        elif regla == "aporte":
+            m = np.maximum(G[:, idx] - D[:, idx], 0.0).sum(axis=1)
+        elif regla == "generacion":
+            m = gen
+        else:
+            raise ValueError(f"regla de porcentaje desconocida: {regla!r}")
+        out[int(mes)] = compute_pde_weights(m, method="excedentes_proportional")
+    return out
+
+
 def run_c4_creg101072(
     D: np.ndarray,              # (N, T) demanda [kWh]
     G: np.ndarray,              # (N, T) generación bruta [kWh]
@@ -249,6 +279,8 @@ def run_c4_creg101072(
     # del paso (kW) y los precios COP/kWh. La prueba del artículo 20 compara
     # capacidad instalada y porcentajes, de modo que es invariante al paso.
     dt: float = 1.0,
+    # C-178: porcentaje distinto en cada mes (art. 19). Solo en modo mensual.
+    pde_mensual: Optional[dict] = None,
 ) -> dict:
     """
     Simula el esquema AGRC (CREG 101 072) con distribución PDE.
@@ -313,7 +345,15 @@ def run_c4_creg101072(
     # Se pliegan aquí, una sola vez, y las tres implementaciones reciben la
     # deducción ya completa: `as_component_c_array` deja pasar una (N, T)
     # tal cual, de modo que ninguna de ellas necesita cambiar.
-    caso_res = (resolve_caso_art20(pde, capacity, max_capacity_kw)
+    if pde_mensual is not None and mode != "monthly_hx":
+        raise ValueError("pde_mensual solo tiene sentido en mode='monthly_hx'")
+    # Con un porcentaje por mes, el caso se resuelve con el mayor porcentaje
+    # que tuvo cada miembro en el horizonte: si algun mes alguno llega al 10 %,
+    # la comunidad esta en el caso 2 ese mes, y se declara para todo el
+    # horizonte. Con cinco miembros no cambia nada: siempre es el caso 2.
+    pde_caso = (pde if pde_mensual is None
+                else np.max(np.vstack(list(pde_mensual.values())), axis=0))
+    caso_res = (resolve_caso_art20(pde_caso, capacity, max_capacity_kw)
                 if caso == "auto" else int(caso))
     if caso_res not in (1, 2):
         raise ValueError(f"caso debe ser 1, 2 o 'auto'; se recibió {caso!r}")
@@ -342,6 +382,7 @@ def run_c4_creg101072(
         res = _run_c4_monthly_hx(
             D, G, pi_gs, pi_bolsa, pde, capacity,
             max_capacity_kw, ded, month_labels, dt=dt,
+            pde_mensual=pde_mensual,
         )
     else:
         res = _run_c4_creg174_inheritance(
@@ -512,40 +553,33 @@ def _run_c4_creg174_inheritance(
 
 def _run_c4_monthly_hx(
     D, G, pi_gs, pi_bolsa, pde, capacity,
-    max_capacity_kw, component_c, month_labels, dt=1.0,
+    max_capacity_kw, component_c, month_labels, dt=1.0, pde_mensual=None,
 ):
     """
-    Implementación CAL-27 (ADR-0027): C4 con agregación mensual + cruce Hx
-    por agente sobre los créditos PDE acumulados.
+    El colectivo liquidado como lo manda la norma (CAL-27, C-178).
 
-    A diferencia de ``_run_c4_creg174_inheritance`` (CAL-15) que clasifica
-    Tipo 1 / Tipo 2 hora a hora, este modo:
+    Articulos 19 a 21 de la Resolucion CREG 101 072: cada mes el fondo comun
+    es la inyeccion de todos, y a cada miembro le corresponde su porcentaje.
+    Esa asignacion se clasifica como la de un autogenerador (art. 25 de la
+    CREG 174): credito hasta igualar la importacion del mes del miembro, y lo
+    que la supera a la bolsa de cada hora desde el corte hx del Anexo 4.
 
-      1. Agrega los excedentes individuales sobre el mes para construir el
-         pool comunitario mensual.
-      2. Asigna créditos PDE a cada agente (estáticos o dinámicos según el
-         vector ``pde``).
-      3. Aplica el cruce Hx mensual: la permuta Tipo 1 absorbe el déficit
-         hasta el monto del crédito; el remanente clasifica como Tipo 2.
+    Supuesto declarado: la norma asigna con cantidades mensuales y el Anexo 4
+    pide horas. El perfil horario de la asignacion de cada miembro es su
+    porcentaje por la inyeccion horaria del colectivo. Antes (CAL-27) el
+    exceso se valoraba a la media mensual de la bolsa, lo que lo sobrevaloraba
+    un 12,5 % en la frontera secundaria (H-73).
 
-    Hipótesis verificable: ``total_net_benefit(monthly_hx) ≥
-    total_net_benefit(creg174_inheritance)`` porque la agregación
-    mensual permite saldar más permutas Tipo 1 (valoradas a
-    ``pi_gs - Cvm > pi_bolsa`` en regímenes habituales).
-
-    Si ``month_labels is None``, todo el horizonte se trata como un único
-    período (similar a perfil diario).
+    Devuelve tambien `neto_horario` (N, T): autoconsumo a la tarifa de su
+    hora, credito a la tarifa media del mes menos la deduccion media, y
+    exceso a la bolsa de su hora. Su suma por filas es el total por agente.
     """
     from collections import defaultdict
 
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
     pi_C    = as_component_c_array(component_c, pi_gs_v, N, T)
-
-    if not validate_pde(pde):
-        raise ValueError(
-            f"PDE inválido: debe sumar 1.0, suma={np.sum(pde):.4f}"
-        )
+    pb      = np.asarray(pi_bolsa, dtype=float).reshape(-1)
 
     _validate_capacity(capacity, max_capacity_kw)
     _warnings.warn(
@@ -555,7 +589,6 @@ def _run_c4_monthly_hx(
         stacklevel=3,
     )
 
-    # ── Construir índice de períodos (igual que C1 CAL-10) ──────────────
     if month_labels is None:
         period_hours: dict[int, list[int]] = {0: list(range(T))}
     else:
@@ -563,103 +596,83 @@ def _run_c4_monthly_hx(
         for k, m in enumerate(month_labels):
             period_hours[int(m)].append(k)
 
-    # ── Flujos individuales hora a hora (mismas matrices que CAL-15) ────
     G_pos       = np.maximum(G, 0.0)
     D_pos       = np.maximum(D, 0.0)
-    autoconsumo = np.minimum(G_pos, D_pos)              # (N, T)
-    surplus_ind = np.maximum(G_pos - D_pos, 0.0)        # (N, T) al pool
-    deficit_ind = np.maximum(D_pos - G_pos, 0.0)        # (N, T) de la red
+    autoconsumo = np.minimum(G_pos, D_pos)
+    surplus_ind = np.maximum(G_pos - D_pos, 0.0)
+    deficit_ind = np.maximum(D_pos - G_pos, 0.0)
 
-    # ── Liquidación mensual con cruce Hx ────────────────────────────────
-    savings_per_agent       = np.zeros(N)
-    pde_credits_per_agent   = np.zeros(N)
-    surplus_revenue_agent   = np.zeros(N)
-    grid_cost_per_agent     = np.zeros(N)
-    permuta_t1_total        = 0.0
-    excedente_t2_total      = 0.0
+    savings = np.zeros(N)
+    pde_t1 = np.zeros(N)
+    surplus_rev = np.zeros(N)
+    grid_cost = np.zeros(N)
+    neto_horario = np.zeros((N, T))
+    permuta_t1_total = 0.0
+    excedente_t2_total = 0.0
+    pesos_usados = {}
 
-    for _m, hours in period_hours.items():
-        h_arr = np.asarray(hours, dtype=int)
-        # Pool comunitario del mes
-        surplus_pool_m = float(surplus_ind[:, h_arr].sum())
-        # Crédito PDE mensual por agente
-        credit_m = pde * surplus_pool_m                 # (N,)
+    for mes, hours in period_hours.items():
+        h = np.asarray(hours, dtype=int)
+        pde_m = np.asarray(pde if pde_mensual is None else pde_mensual[mes],
+                           dtype=float)
+        if not validate_pde(pde_m):
+            raise ValueError(
+                f"PDE inválido en el mes {mes}: suma={np.sum(pde_m):.4f}")
+        pesos_usados[mes] = pde_m
+        asign = pde_m[:, None] * surplus_ind[:, h].sum(axis=0)[None, :]
+        credito, exceso, _ = reparto_anexo4(asign, deficit_ind[:, h])
+        pi_gs_mes = pi_gs_v[:, h].mean(axis=1)
+        precio = pi_gs_mes - pi_C[:, h].mean(axis=1)
+        auto_v = autoconsumo[:, h] * pi_gs_v[:, h]
+        cred_v = credito * precio[:, None]
+        exc_v = exceso * pb[None, h]
+        neto_horario[:, h] = auto_v + cred_v + exc_v
+        savings += auto_v.sum(axis=1)
+        pde_t1 += cred_v.sum(axis=1)
+        surplus_rev += exc_v.sum(axis=1)
+        grid_cost += np.maximum(deficit_ind[:, h].sum(axis=1)
+                                - credito.sum(axis=1), 0.0) * pi_gs_mes
+        permuta_t1_total += float(credito.sum())
+        excedente_t2_total += float(exceso.sum())
 
-        # Cruce Hx mensual por agente
-        deficit_acum_m = deficit_ind[:, h_arr].sum(axis=1)   # (N,)
-        permuta_t1_m   = np.minimum(credit_m, deficit_acum_m)
-        excedente_t2_m = np.maximum(credit_m - deficit_acum_m, 0.0)
-        grid_buy_m     = np.maximum(deficit_acum_m - credit_m, 0.0)
-
-        # Promedios mensuales para valoración
-        pi_gs_mes  = pi_gs_v[:, h_arr].mean(axis=1)     # (N,)
-        pi_C_mes   = pi_C[:, h_arr].mean(axis=1)        # (N,)
-        pi_bol_mes = float(pi_bolsa[h_arr].mean())
-
-        # Autoconsumo: hora a hora valorado a pi_gs[n,k] (igual que CAL-15)
-        autoconsumo_m_per_agent = (autoconsumo[:, h_arr]
-                                    * pi_gs_v[:, h_arr]).sum(axis=1)  # (N,)
-
-        # Permuta Tipo 1: mensual a (pi_gs - Cvm) promedio mensual
-        pde_t1_m_per_agent = permuta_t1_m * (pi_gs_mes - pi_C_mes)
-
-        # Excedente Tipo 2: mensual a precio de bolsa promedio mensual
-        # (simplificación; CAL-N futuro puede hacer hora a hora)
-        surplus_m_per_agent = excedente_t2_m * pi_bol_mes
-
-        # Costo residual de red (Filosofía A: no se resta al net_benefit;
-        # se conserva como diagnóstico)
-        grid_cost_m_per_agent = grid_buy_m * pi_gs_mes
-
-        savings_per_agent     += autoconsumo_m_per_agent
-        pde_credits_per_agent += pde_t1_m_per_agent
-        surplus_revenue_agent += surplus_m_per_agent
-        grid_cost_per_agent   += grid_cost_m_per_agent
-        permuta_t1_total      += float(permuta_t1_m.sum())
-        excedente_t2_total    += float(excedente_t2_m.sum())
-
-    # CAL-46: de potencia a energía. La reliquidación mensual es homogénea.
     if dt != 1.0:
-        savings_per_agent = savings_per_agent * dt
-        pde_credits_per_agent = pde_credits_per_agent * dt
-        surplus_revenue_agent = surplus_revenue_agent * dt
-        grid_cost_per_agent = grid_cost_per_agent * dt
+        savings = savings * dt
+        pde_t1 = pde_t1 * dt
+        surplus_rev = surplus_rev * dt
+        grid_cost = grid_cost * dt
+        neto_horario = neto_horario * dt
         permuta_t1_total *= dt
         excedente_t2_total *= dt
 
-    net_benefit = (savings_per_agent + pde_credits_per_agent
-                    + surplus_revenue_agent)
-
-    results_per_agent = {}
-    for n in range(N):
-        results_per_agent[n] = {
-            "savings":         float(savings_per_agent[n]),
-            "pde_credits":     float(pde_credits_per_agent[n]),
-            "surplus_revenue": float(surplus_revenue_agent[n]),
-            "grid_cost":       float(grid_cost_per_agent[n]),
+    net_benefit = savings + pde_t1 + surplus_rev
+    pde_ref = np.asarray(pde, dtype=float)
+    results_per_agent = {
+        n: {
+            "savings":         float(savings[n]),
+            "pde_credits":     float(pde_t1[n]),
+            "surplus_revenue": float(surplus_rev[n]),
+            "grid_cost":       float(grid_cost[n]),
             "net_benefit":     float(net_benefit[n]),
-            "pde_weight":      float(pde[n]),
-        }
-
-    # C-165: esta rama NO devuelve desglose horario, y es a proposito. Su
-    # dinero se valora contra promedios MENSUALES, de modo que repartirlo entre
-    # las horas del mes seria inventar una granularidad que la liquidacion no
-    # tiene. Su desglose natural es el mes, y asi lo declara quien la consume.
+            "pde_weight":      float(pde_ref[n]),
+        } for n in range(N)
+    }
     return {
         "per_agent": results_per_agent,
+        "neto_horario": neto_horario,
         "aggregate": {
-            "total_savings":         float(savings_per_agent.sum()),
-            "total_pde_credits":     float(pde_credits_per_agent.sum()),
-            "total_surplus_revenue": float(surplus_revenue_agent.sum()),
-            "total_grid_cost":       float(grid_cost_per_agent.sum()),
+            "total_savings":         float(savings.sum()),
+            "total_pde_credits":     float(pde_t1.sum()),
+            "total_surplus_revenue": float(surplus_rev.sum()),
+            "total_grid_cost":       float(grid_cost.sum()),
             "total_net_benefit":     float(net_benefit.sum()),
             "total_E_permuta_t1":    permuta_t1_total,
             "total_E_excedente_t2":  excedente_t2_total,
         },
         "regulatory": {
-            "pde_weights":          pde,
-            "static_mechanism":     True,
-            "monthly_hx_inheritance": True,        # CAL-27
+            "pde_weights":            pde_ref,
+            "pde_por_mes":            pesos_usados,
+            "static_mechanism":       pde_mensual is None,
+            "monthly_hx_inheritance": True,
         },
         "params": {
             "mode":            "monthly_hx",

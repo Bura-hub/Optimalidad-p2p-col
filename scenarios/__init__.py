@@ -5,6 +5,7 @@ from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights,
     regulatory_risk_c4, static_spread_c4_vs_p2p,
 )
+from .scenario_p2p_colectivo import run_p2p_colectivo
 from .comparison_engine import (
     run_comparison, ComparisonResult, print_comparison_report,
     print_welfare_decomposition, print_flow_breakdown,

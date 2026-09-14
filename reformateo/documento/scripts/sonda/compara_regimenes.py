@@ -1,6 +1,12 @@
 """
 Junta las tandas del régimen del piso y produce la tabla emparejada (H-52).
 
+AVISO (tarea 13, C-177): desde que la producción liquida el piso sobre las
+residuales, el régimen "residual" es un alias de "tramo" en
+`paso_a_paso.carga`, de modo que la diferencia entre los dos vale cero por
+construcción. Las cifras de esta sonda son del criterio anterior; para medir
+el efecto de H-53 hay que comparar "bruto" con "tramo".
+
 POR QUE HACE FALTA UN JUNTADOR. La muestra la fija la semilla, de modo que
 correr un régimen suelto da exactamente las mismas horas que la tanda
 anterior. Eso permite añadir un régimen sin repetir los ya medidos, pero

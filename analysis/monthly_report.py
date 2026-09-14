@@ -7,10 +7,15 @@ Usado únicamente con --full (horizonte 5160 h, ~7 meses Jul 2025–Feb 2026).
 Para el modo perfil diario (24 h) no aplica: month_labels es None.
 
 Lógica:
-  - P2P: métricas agregadas desde los HourlyResult ya calculados (sin re-simular).
-  - C1 : run_c1_creg174 sobre el slice del mes (una sola period = todo el mes).
+  - P2P: se liquida con la misma función del motor que la corrida completa,
+    y su residual con el artículo 25 (C-177), no con un agregado aparte de
+    los HourlyResult.
+  - C1 : run_c1_creg174 sobre el slice del mes (una sola period = todo el
+    mes), con la capacidad instalada y los peajes ya conectados.
   - C3 : run_c3_spot sobre el slice.
-  - C4 : run_c4_creg101072 sobre el slice.
+  - C4 : run_c4_creg101072 sobre el slice, en modo mensual. La columna «C4»
+    es el colectivo mensual (C-178); «C4_mensual» queda como su alias.
+  - C5 (si include_c5): recibe el precio de contrato del mes (C-179).
 
 Retorna lista de dicts (uno por mes) con las claves:
   month           : int   YYYYMM
@@ -32,7 +37,7 @@ import numpy as np
 from collections import defaultdict
 from typing import Optional, Union
 
-from scenarios._pi_gs import as_pi_gs_array
+from scenarios._pi_gs import as_pi_gs_array, as_component_c_array
 
 _MONTHS_ES = {
     1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr",
@@ -71,6 +76,13 @@ def compute_monthly_metrics(
     include_c5:    bool = False,
     pi_escasez:    Optional[np.ndarray] = None,   # (T,) PES→horario
     f_split_c5:    float = 0.5,
+    pi_contrato_c5: Optional[np.ndarray] = None,   # C-179, (T,)
+    # I-5 (revision final): el desglose horario del motor, {escenario:
+    # (N, T)} (C-165). Con el, cada mes de cada escenario presente es la
+    # suma de su matriz sobre las horas del mes: C2 es entonces el contrato
+    # interno y no el PPA de CAL-37, y entra P2P_colectivo. Con None, el
+    # comportamiento anterior.
+    neto_horario:  Optional[dict] = None,
 ) -> list[dict]:
     """
     Calcula métricas de comparación mes a mes.
@@ -119,12 +131,6 @@ def compute_monthly_metrics(
                 ps_m  = float(np.dot(ps_arr,  kwh_arr) / tot_kwh)
                 psr_m = float(np.dot(psr_arr, kwh_arr) / tot_kwh)
 
-        # Beneficio monetario P2P — misma lógica que comparison_engine
-        # CAL-30: pasa pb_m (slice mensual de pi_bolsa) para residual surplus.
-        net_p2p = _p2p_benefit_month(active_m, D_m, G_klim_m, pi_gs_m, pi_gb,
-                                      prosumer_ids, idx,
-                                      pi_bolsa_m=pb_m)
-
         # SC / SS P2P: autoconsumo local + P2P transado
         D_total_m = float(np.sum(np.maximum(D_m, 0)))
         G_total_m = float(np.sum(np.maximum(G_klim_m, 0)))
@@ -145,10 +151,26 @@ def compute_monthly_metrics(
             tolls_m = tolls[:, idx_arr]
         else:
             tolls_m = tolls
+
+        # ── P2P con la MISMA liquidacion que el motor (C-177) ────────────
+        # El mes es un periodo de facturacion, de modo que el cupo del
+        # residual se calcula igual que en el total.
+        from scenarios.comparison_engine import _p2p_monetary_benefit
+        from core.opciones_externas import deduccion_art25
+        ded_m = deduccion_art25(
+            as_component_c_array(cc_m, pi_gs_m, N, T_m),
+            None if tolls_m is None else as_component_c_array(
+                tolls_m, pi_gs_m, N, T_m, rellena_nan=False),
+            capacity)
+        net_p2p = float(_p2p_monetary_benefit(
+            res_m, D_m, G_klim_m, pi_gs_m, pi_gb, prosumer_ids,
+            pi_bolsa=pb_m, deduccion=ded_m).sum())
+
         c1 = run_c1_creg174(
             D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids,
             month_labels=None,   # mes completo = un único período de facturación
             component_c=cc_m,
+            capacidad_kw=capacity, tolls=tolls_m,
         )
         net_c1 = sum(c1[n]["net_benefit"] for n in prosumer_ids)
 
@@ -173,17 +195,14 @@ def compute_monthly_metrics(
                 )
             return r, r["aggregate"]["total_net_benefit"]
 
-        c4, net_c4 = _c4()
-
         # CAL-42: la GRANULARIDAD MENSUAL de C4, que es la que corresponde al
         # régimen (art. 25: «al cierre de cada período de facturación»).
-        # Asimetría que esto corrige: C1 ya se liquidaba aquí con el mes
-        # completo como período único (`month_labels=None` sobre un mes), pero
-        # C4 se quedaba en el modo horario, de modo que la tabla mensual
-        # comparaba dos granularidades distintas sin decirlo. El vector de
-        # etiquetas es constante porque el slice YA es un solo mes.
+        # Desde C-178 ya no se calcula la horaria por separado: "C4" pasa a
+        # ser la columna mensual, y "C4_mensual" queda como su alias (D4). El
+        # vector de etiquetas es constante porque el slice YA es un solo mes.
         _lab_m = np.full(T_m, int(yyyymm), dtype=int)
         c4m, net_c4m = _c4(mode="monthly_hx", month_labels=_lab_m)
+        net_c4 = net_c4m          # D4: la columna del colectivo es la mensual
 
         # SC/SS regulatorios (sin mercado P2P): min(G,D)/sum(D|G)
         sc_reg = auto_m / D_total_m if D_total_m > 1e-10 else 0.0
@@ -221,21 +240,34 @@ def compute_monthly_metrics(
                 cot_alpha=cot_alpha, f_split=f_split_c5,
                 pi_escasez=(pi_escasez[idx_arr]
                             if pi_escasez is not None else None),
+                pi_contrato=(pi_contrato_c5[idx_arr]
+                             if pi_contrato_c5 is not None else None),
             )
             nb_extra["C5"] = c5["aggregate"]["total_net_benefit"]
+
+        nb_mes = {
+            "P2P": net_p2p,
+            "C1":  net_c1,
+            "C3":  net_c3,
+            "C4":  net_c4,
+            "C4_mensual": net_c4m,               # CAL-42
+            **nb_extra,
+        }
+        # I-5: el mes sale del desglose horario del motor, sin volver a
+        # liquidar. Las filas de cada matriz suman el total por agente
+        # (C-165), de modo que los meses suman el total publicado.
+        if neto_horario is not None:
+            for esc_h, m_h in neto_horario.items():
+                if m_h is None:
+                    continue
+                nb_mes[esc_h] = float(
+                    np.asarray(m_h, dtype=float)[:, idx_arr].sum())
 
         monthly.append({
             "month":        yyyymm,
             "month_label":  _month_label(yyyymm),
             "T_month":      T_m,
-            "net_benefit": {
-                "P2P": net_p2p,
-                "C1":  net_c1,
-                "C3":  net_c3,
-                "C4":  net_c4,
-                "C4_mensual": net_c4m,           # CAL-42
-                **nb_extra,
-            },
+            "net_benefit": nb_mes,
             "ie_p2p":      ie_m,
             "ps_p2p":      ps_m,
             "psr_p2p":     psr_m,
@@ -250,91 +282,11 @@ def compute_monthly_metrics(
     return monthly
 
 
-def _p2p_benefit_month(
-    active_results: list,
-    D_m:          np.ndarray,
-    G_klim_m:     np.ndarray,
-    pi_gs:        Union[float, np.ndarray],
-    pi_gb:        float,
-    prosumer_ids: list,
-    global_idx:   list,
-    pi_bolsa_m:   Optional[np.ndarray] = None,
-) -> float:
-    """
-    Beneficio monetario neto P2P para el mes: misma lógica que
-    comparison_engine._p2p_monetary_benefit() en modo canónico (CAL-30).
-    pi_gs admite escalar, vector (N,) o matriz (N, T_m) — CAL-9.
-
-    CAL-30: añade revenue completo del trade + residual surplus a
-    ``pi_bolsa_m[k]`` horario. Si pi_bolsa_m es None, usa pi_gb escalar
-    como aproximación (compatibilidad con callers pre-CAL-30).
-    """
-    N, T_m = D_m.shape
-    pi_gs_v = as_pi_gs_array(pi_gs, N, T_m)   # (N, T_m)
-    net = np.zeros(N)
-
-    if pi_bolsa_m is None:
-        pi_bolsa_v = np.full(T_m, float(pi_gb))
-    else:
-        pi_bolsa_v = np.asarray(pi_bolsa_m, dtype=float).reshape(-1)
-        if pi_bolsa_v.size != T_m:
-            raise ValueError(
-                f"pi_bolsa_m size {pi_bolsa_v.size} != T_m={T_m}"
-            )
-
-    # Acumulador kWh vendidos por agente y hora local del mes (residual).
-    P_sold_n_k = np.zeros((N, T_m))
-
-    # Mapear índice global → posición local en el slice
-    global_to_local = {g: l for l, g in enumerate(global_idx)}
-
-    for r in active_results:
-        if r.P_star is None:
-            continue
-        k_local = global_to_local.get(r.k)
-        if k_local is None:
-            continue
-
-        # Vendedores: revenue completo (CAL-30 canonical)
-        for idx_j, j in enumerate(r.seller_ids):
-            if r.pi_star is not None:
-                income = float(np.dot(r.pi_star, r.P_star[idx_j, :]))
-            else:
-                income = float(np.sum(r.P_star[idx_j, :])) * pi_gb
-            sold = float(np.sum(r.P_star[idx_j, :]))
-            net[j] += income           # revenue completo
-            P_sold_n_k[j, k_local] = sold
-
-        # Compradores: cada uno a su pi_gs[i, k_local] del mes
-        for idx_i, i in enumerate(r.buyer_ids):
-            received = float(np.sum(r.P_star[:, idx_i]))
-            pi_ref = float(pi_gs_v[i, k_local])
-            paid = (r.pi_star[idx_i] * received if r.pi_star is not None
-                    else received * pi_ref)
-            net[i] += received * pi_ref - paid
-
-    # Autoconsumo propio de prosumidores a pi_gs[n, t] del mes
-    for n in prosumer_ids:
-        for t in range(T_m):
-            net[n] += min(max(G_klim_m[n, t], 0.0),
-                           max(D_m[n, t], 0.0)) * pi_gs_v[n, t]
-
-    # Residual surplus exportado a la red (CAL-30 canonical)
-    for n in prosumer_ids:
-        for t in range(T_m):
-            G_nt = max(float(G_klim_m[n, t]), 0.0)
-            D_nt = max(float(D_m[n, t]), 0.0)
-            surplus_total_nt = max(G_nt - D_nt, 0.0)
-            residual_nt = max(surplus_total_nt - P_sold_n_k[n, t], 0.0)
-            net[n] += residual_nt * float(pi_bolsa_v[t])
-
-    return float(np.sum(net))
-
-
 def print_monthly_table(monthly: list[dict], currency: str = "COP") -> None:
     """Imprime la tabla resumen mensual en consola."""
     # CAL-37: columnas dinámicas según escenarios presentes (C2/C5 opcionales)
-    canon = ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+    canon = ["P2P", "P2P_colectivo", "C1", "C2", "C3", "C4", "C4_mensual",
+             "C5"]                                       # I-5
     presentes = monthly[0]["net_benefit"].keys() if monthly else []
     esc = [e for e in canon if e in presentes]
     col_w = 14

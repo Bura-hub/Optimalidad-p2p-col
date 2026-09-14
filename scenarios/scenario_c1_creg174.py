@@ -10,13 +10,16 @@ residuo "arts. 22-23" corregido 2026-06-11 — y Decreto 2469/2014):
                                           (la energía nunca pasó por la
                                           red; no se factura C sobre esos
                                           kWh).
-  2. Inyección a la red dentro del mes → se permuta con la energía retirada
-     (Excedentes Tipo 1) hasta el punto donde la inyección acumulada cruza
-     al consumo acumulado. Cada kWh permutado vale (pi_gs − pi_C):
-     el comercializador sigue cobrando el componente C porque la energía
-     sí circuló por su red y por su sistema de medición/facturación.
-  3. Cualquier inyección posterior al cruce (Excedentes Tipo 2) se liquida
-     hora a hora al precio de bolsa horario pi_bolsa[k] (precio mayorista).
+  2. Inyección a la red dentro del mes → crédito de energía hasta igualar la
+     importación del MES ENTERO (art. 25, texto del art. 28 de la CREG 101 072;
+     C-175). Cada kWh permutado vale (pi_gs − deducción): el componente de
+     comercializar si la planta tiene hasta 100 kW, y T+D+Cv+PR+R entre 100 kW
+     y 1 MW (numerales 1 y 2 del art. 25).
+  3. La inyección posterior al corte hx del Anexo 4 de la CREG 101 072 (la hora
+     en que la inyección acumulada alcanza la importación total del mes) se
+     liquida a la bolsa de cada hora, que es la regla transitoria vigente
+     mientras el MCm no aplique (parágrafo del art. 25; Conceptos CREG 3018 y
+     3023 de 2026).
 
 Diferencia estructural con C3:
   C1 (este módulo):  liquidación en el período de facturación (mes).
@@ -53,9 +56,11 @@ month_labels : array (T,) de enteros con etiqueta del período de facturación
 
 Referencia regulatoria:
     CREG 174 de 2021 - Artículo 5  (pequeña escala ≤ 1 MW)
-    CREG 174 de 2021 - Arts. 22-23 (mecánica Excedentes Tipo 1 vs Tipo 2)
+    CREG 174 de 2021 - Art. 25, numerales 1 y 2; CREG 101 072 de 2025 - Anexo 4 (corte hx)
     Decreto MinEnergía 2469 de 2014 - art. 2.2.3.2.4.1
     CREG 119 de 2007 - estructura del Costo Unitario (CU = G+T+D+C+PR+otros)
+
+Actividad 2.2.
 """
 
 from __future__ import annotations
@@ -65,6 +70,7 @@ from collections import defaultdict
 from typing import Optional, Union
 
 from ._pi_gs import as_pi_gs_array, as_component_c_array
+from core.opciones_externas import deduccion_art25, reparto_anexo4
 
 
 def run_c1_creg174(
@@ -76,6 +82,8 @@ def run_c1_creg174(
     month_labels: Optional[np.ndarray] = None,  # (T,) etiqueta de período (ej. YYYYMM)
     component_c:  Union[str, float, np.ndarray, None] = "auto",  # CAL-10
     dt:           float = 1.0,               # CAL-46: duración del paso en horas
+    capacidad_kw: Optional[np.ndarray] = None,  # (N,) kW; decide el numeral
+    tolls:        Union[float, np.ndarray, None] = None,  # T+D+PR+R (num. 2)
 ) -> dict:
     """
     Simula el esquema CREG 174 con balance por período de facturación,
@@ -87,7 +95,8 @@ def run_c1_creg174(
         deficit_h[k] = max(D[n,k] - G[n,k], 0)   ← retirado de la red
         auto_h[k]    = min(G[n,k], D[n,k])       ← autoconsumo directo
 
-    Búsqueda de hora Hx (mecánica derivada de CREG 174 art. 25):
+    Clasificación al cierre del período (CREG 174 art. 25, texto del art. 28
+    de la CREG 101 072 de 2025; corrección C-175):
     -- NOTA TERMINOLÓGICA (CAL-31, 2026-05-03): "Tipo 1", "Tipo 2" y
        "hora Hx" son denominaciones DIDÁCTICAS del sector (EDEQ, Solsta,
        etc.), NO cita literal de CREG 174/2021. El art. 25 habla de
@@ -95,23 +104,9 @@ def run_c1_creg174(
        horaria del residual" (excedentes > importación). El algoritmo
        implementa esa mecánica con etiquetas internas.
 
-        inyección_acum, retiro_acum = 0, 0
-        for k_local, k_global in enumerate(hours):
-            inyección_acum += surplus_h[k]
-            retiro_acum    += deficit_h[k]
-            si inyección_acum > retiro_acum y hx aún no se fijó:
-                # La parte de surplus_h[k] que cruza el balance acumulado
-                # es Tipo 2; el resto cierra la permuta como Tipo 1.
-                cruce            = inyección_acum - retiro_acum
-                surplus_tipo2[k] = min(surplus_h[k], cruce)
-                surplus_tipo1[k] = surplus_h[k] - surplus_tipo2[k]
-                hx = k_local
-            si k_local > hx:
-                surplus_tipo2[k] = surplus_h[k]   # 100% Tipo 2
-                surplus_tipo1[k] = 0
-            si no:
-                surplus_tipo1[k] = surplus_h[k]   # 100% Tipo 1
-                surplus_tipo2[k] = 0
+        credito, exceso = reparto_anexo4(surplus_h, deficit_h)   # Anexo 4
+        # hx: primera hora del mes en que la inyección acumulada alcanza la
+        # importación TOTAL del mes; la inyección de esa hora se parte.
 
     Liquidación del período:
 
@@ -134,7 +129,7 @@ def run_c1_creg174(
 
     Notas
     -----
-    - Si la inyección acumulada del mes no cruza al retiro acumulado,
+    - Si la inyección acumulada del mes no alcanza la importación del mes,
       hx = None y todo el surplus se permuta como Tipo 1.
     - Si la inyección supera al retiro desde la primera hora, hx=0 y
       surplus_tipo1 puede ser 0 para todo el mes.
@@ -144,6 +139,13 @@ def run_c1_creg174(
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)              # (N, T) — CAL-9
     pi_C_v  = as_component_c_array(component_c, pi_gs_v, N, T)  # (N, T) — CAL-10
+
+    # Numeral del art. 25 por capacidad instalada (spec 4.11): hasta 100 kW
+    # se cobra Cv; entre 100 kW y 1 MW, T+D+Cv+PR+R.
+    tolls_v = (None if tolls is None
+               else as_component_c_array(tolls, pi_gs_v, N, T,
+                                         rellena_nan=False))
+    pi_C_v = deduccion_art25(pi_C_v, tolls_v, capacidad_kw)
 
     # ── Construir índice de períodos ─────────────────────────────────────────
     if month_labels is None:
@@ -189,29 +191,12 @@ def run_c1_creg174(
             surplus_h  = G_h - auto_h            # inyectado a la red  (≥0)
             deficit_h  = D_h - auto_h            # retirado de la red  (≥0)
 
-            # ── Búsqueda de hora Hx y separación Tipo 1 / Tipo 2 ─────────
-            n_h = len(hours)
-            surplus_t1 = np.zeros(n_h, dtype=float)
-            surplus_t2 = np.zeros(n_h, dtype=float)
-            iny_acum = 0.0
-            ret_acum = 0.0
-            hx = None
-            for k_local in range(n_h):
-                iny_acum += surplus_h[k_local]
-                ret_acum += deficit_h[k_local]
-                if hx is None:
-                    if iny_acum > ret_acum:
-                        # Hora del cruce: parte queda Tipo 1, parte Tipo 2.
-                        cruce = iny_acum - ret_acum
-                        s_t2 = min(surplus_h[k_local], cruce)
-                        surplus_t2[k_local] = s_t2
-                        surplus_t1[k_local] = surplus_h[k_local] - s_t2
-                        hx = k_local
-                    else:
-                        surplus_t1[k_local] = surplus_h[k_local]
-                else:
-                    surplus_t2[k_local] = surplus_h[k_local]
-
+            # ── Corte hx del Anexo 4 (C-175, C-177) ─────────────────────
+            credito, exceso, _ = reparto_anexo4(surplus_h[None, :],
+                                                deficit_h[None, :])
+            surplus_t1, surplus_t2 = credito[0], exceso[0]
+            con_exceso = np.flatnonzero(surplus_t2 > 0.0)
+            hx = int(con_exceso[0]) if con_exceso.size else None
             hx_history_n.append(hx)
 
             # ── Totales del período ──────────────────────────────────────

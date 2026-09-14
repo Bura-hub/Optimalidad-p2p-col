@@ -46,7 +46,7 @@ AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
 def carga(cobertura: str, comercializador: str | None = None,
-          piso: str = "tramo"):
+          piso: str = "tramo", factor_generacion: float | None = None):
     """Series, tarifas por agente, bolsa y estado de permuta.
 
     `comercializador` es un CONTRAFACTUAL de H-45: pone a las cinco con el
@@ -55,8 +55,16 @@ def carga(cobertura: str, comercializador: str | None = None,
     tarifario entero, de modo que el techo, el piso, el limite economico de
     generacion y la clasificacion en papeles se mueven con el. El volumen
     puede cambiar. Con None se lee el reparto real.
+
+    `factor_generacion` (I-8 b, revision final) escala la generacion de las
+    cinco con `data.escalado.escala_comunidad` justo despues de cargarla, como
+    el orquestador (spec 4.11), antes del tramo, el piso y el techo. La
+    capacidad instalada sigue al factor y decide el numeral del art. 25 del
+    piso, igual que en produccion. Con None todo queda identico al bit.
     """
-    from core.opciones_externas import piso_por_vendedor, tramo_permuta
+    from core.opciones_externas import (deduccion_art25, piso_por_vendedor,
+                                        residual_proporcional, tramo_permuta)
+    from data.capacidad_instalada import capacidad_instalada
     from data.cedenar_tariff import (INSTITUTION_PROFILE,
                                      aplicar_regimen_no_regulado,
                                      cu_components_per_agent_hourly,
@@ -74,6 +82,11 @@ def carga(cobertura: str, comercializador: str | None = None,
     D, G, idx = loader.load(verbose=False)
     N = D.shape[0]
     nombres = AGENTES[:N]
+    factores = None
+    if factor_generacion is not None and float(factor_generacion) != 1.0:
+        from data.escalado import escala_comunidad
+        D, G, factores = escala_comunidad(
+            D, G, nombres, factor_generacion=float(factor_generacion))
 
     techo = pi_gs_per_agent_hourly(nombres, idx)          # (N, T)
     comp = cu_components_per_agent_hourly(nombres, idx)
@@ -103,9 +116,10 @@ def carga(cobertura: str, comercializador: str | None = None,
     # interno lo acuerdan los integrantes. De modo que los tres regimenes son
     # admisibles y la pregunta es cual conviene, no cual permite la norma.
     #
-    #   tramo    la alternativa REAL de cada vendedor segun la CREG 174:
-    #            permuta mientras su inyeccion acumulada no supere su retiro
-    #            del mes, y bolsa a partir de ahi. Es el defecto.
+    #   tramo    la alternativa REAL, como produccion (C-177): el corte hx
+    #            de cada vendedor calculado sobre lo que de verdad cruza la
+    #            frontera, es decir el excedente menos lo colocado dentro.
+    #            Es el defecto.
     #   permuta  todos negocian con el piso de permuta, aunque alguno ya haya
     #            pasado a bolsa.
     #   bolsa    todos negocian con el piso de bolsa, que es la alternativa
@@ -115,22 +129,25 @@ def carga(cobertura: str, comercializador: str | None = None,
     # al vendedor. Forzar permuta a quien ya esta en bolsa modela a un
     # vendedor que rechaza dinero que aceptaria. Los dos regimenes forzados
     # existen para MEDIR el efecto, no como configuracion.
-    #   residual el tramo REAL de la CREG 101 072 leida al pie de la letra:
-    #            se acumula sobre lo que de verdad cruza la frontera, es
-    #            decir el excedente menos lo colocado dentro. Ver H-53.
-    if piso not in ("tramo", "permuta", "bolsa", "residual"):
-        raise ValueError(f"piso={piso!r}; use 'tramo', 'permuta', 'bolsa' "
-                         f"o 'residual'")
-    perm = tramo_permuta(G, D, mes)
+    #   residual alias de tramo, que se conserva para no romper llamadores.
+    #   bruto    el corte sobre el excedente bruto, el criterio anterior a
+    #            C-177.
+    if piso not in ("tramo", "permuta", "bolsa", "residual", "bruto"):
+        raise ValueError(f"piso={piso!r}; use 'tramo', 'permuta', 'bolsa', "
+                         f"'residual' o 'bruto'")
+    iny_r, ret_r = residual_proporcional(G, D)
+    perm = tramo_permuta(G, D, mes, iny=iny_r, ret=ret_r)
     if piso == "permuta":
         perm = np.ones_like(perm, dtype=bool)
     elif piso == "bolsa":
         perm = np.zeros_like(perm, dtype=bool)
-    elif piso == "residual":
-        from tramo_residual import residual, tramo_sobre
-        iny_r, ret_r, _ = residual(G, D)
-        perm = tramo_sobre(iny_r, ret_r, mes)
-    piso = piso_por_vendedor(techo, cvm, bolsa, perm)
+    elif piso == "bruto":
+        perm = tramo_permuta(G, D, mes)
+    # I-8 b: lo que el comercializador cobra sobre lo permutado sigue la
+    # capacidad instalada, como en produccion (main_simulation, bloque del
+    # piso). Con plantas de 17,55 kW es Cv tal cual (numeral 1).
+    ded = deduccion_art25(cvm, peaje, capacidad_instalada(nombres, factores))
+    piso = piso_por_vendedor(techo, ded, bolsa, perm)
 
     com = {n: INSTITUTION_PROFILE[n].comercializador for n in nombres}
     return dict(D=D, G=G, idx=idx, nombres=nombres, techo=techo, cvm=cvm,
@@ -227,7 +244,8 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
     modelo base que compara el sistema con filtro y sin el. El filtro es un
     paso bajo sobre los multiplicadores, de modo que su constante de tiempo
     tendiendo a cero ES el sistema sin filtrar; con None se usan las de
-    produccion, bit a bit.
+    produccion, bit a bit. Acepta tambien `rtol` y `atol`, las tolerancias
+    del integrador, para la sonda de la tarea 15.
     """
     if criterio not in ("ingreso", "maximo"):
         raise ValueError(f"criterio={criterio!r}; use 'ingreso' o 'maximo'")
@@ -304,7 +322,8 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
     # Mariana una prima negativa, porque el piso agregado tomaba el del CESMAG,
     # que compra a otro comercializador y por eso tiene una alternativa peor.
     _sol = dict(solucionador or {})
-    _validos_sol = ("tau_sellers", "tau_buyers", "t_span", "n_points")
+    _validos_sol = ("tau_sellers", "tau_buyers", "t_span", "n_points",
+                    "rtol", "atol")
     for _k in _sol:
         if _k not in _validos_sol:
             raise ValueError(f"solucionador {_k!r}; hay {_validos_sol}")
@@ -332,6 +351,11 @@ def resuelve(dat: dict, k: int, multiplicadores: bool = False,
             tau_buyers=float(_sol.get("tau_buyers", 0.01)),
             t_span=tuple(_sol.get("t_span", (0.0, 0.05))),
             n_points=int(_sol.get("n_points", 500)),
+            # T15: las tolerancias del integrador, para medir si el reparto
+            # depende de ellas. Por defecto las de produccion (H-51), de modo
+            # que sin pedirlas el resultado es identico bit a bit.
+            rtol=float(_sol.get("rtol", 1e-6)),
+            atol=float(_sol.get("atol", 1e-6)),
             devuelve_multiplicadores=multiplicadores,
             peso_virtual=peso_virtual)          # H-46
         pi = np.clip(tr.pi_star, piso_h, techo_i)

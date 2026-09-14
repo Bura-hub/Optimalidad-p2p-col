@@ -41,7 +41,8 @@ encima del piso del vendedor: son dos agentes distintos con dos tarifas
 distintas. Cuando el piso queda por encima del techo **la banda esta invertida**
 y no hay precio que deje a los dos mejor que yendo a la red; el punto medio
 caeria fuera de las dos cotas. Ese contrato no se firma, y la energia se trata
-como la que el mercado no coloca: va a bolsa.
+como la que el mercado no coloca: vuelve al residual del vendedor, que se
+liquida por el articulo 25 (D9), y el comprador la importa.
 
 Medido sobre el horizonte (H-64): la banda se invierte en el 0,036 % de las
 parejas-hora de la primera frontera y en el 1,900 % de la segunda, pero **en
@@ -92,11 +93,22 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
     # C-165: el excedente del contrato a la hora que lo genera, repartido
     # entre las dos partes de cada intercambio.
     neto_horario = np.zeros((N, T))
+    # H-78: lo que el vendedor COBRA por la energia que entrega, precio por
+    # energia, y lo que el comprador deja de importar sin firmar. Sin el cobro
+    # el contrato solo contaba la prima sobre el piso, y lo que vale la
+    # energia vendida no aparecia en ninguna parte.
+    sin_firmar_c = np.zeros((N, T))
+    cobro = np.zeros(N)
+    cobro_horario = np.zeros((N, T))
     val, kwh, parejas_rotas = 0.0, 0.0, 0
 
     for k, sids, bids, P in flujos_por_hora:
         P = np.asarray(P, dtype=float)
         if P.size == 0:
+            continue
+        if np.isnan(P).any():
+            # Misma guarda NaN que el mercado (_p2p_monetary_benefit): sin
+            # ella el contrato y el mercado verian horas distintas.
             continue
         for a, j in enumerate(sids):
             for b, i in enumerate(bids):
@@ -109,6 +121,7 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
                     # Banda invertida: no hay precio que deje a los dos
                     # mejor que la red. Nadie firma eso.
                     sin_firmar[j, k] += e
+                    sin_firmar_c[i, k] += e
                     parejas_rotas += 1
                     continue
                 # El punto medio de la banda de ESA pareja. Sin parametros.
@@ -117,6 +130,9 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
                 ahorro[i] += (te - precio) * e
                 neto_horario[j, k] += (precio - pi_) * e
                 neto_horario[i, k] += (te - precio) * e
+                cobro[j] += precio * e
+                cobro_horario[j, k] += precio * e
+                cobro_horario[i, k] += (te - precio) * e
                 energia[j] += e
                 val += precio * e
                 kwh += e
@@ -126,6 +142,9 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
         ahorro *= dt
         energia *= dt
         sin_firmar *= dt
+        sin_firmar_c *= dt
+        cobro *= dt
+        cobro_horario *= dt
         neto_horario *= dt
         val *= dt
         kwh *= dt
@@ -139,6 +158,9 @@ def contrato_interno(flujos_por_hora, techo, piso, N: int,
         kwh=float(kwh),
         sin_firmar=sin_firmar,
         neto_horario=neto_horario,
+        cobro_vendedor=cobro,
+        cobro_horario=cobro_horario,
+        sin_firmar_comprador=sin_firmar_c,
         parejas_sin_firmar=int(parejas_rotas),
         precio_medio=(float(val / kwh) if kwh > 1e-12 else float("nan")),
         # Cero exacto por construccion: el punto medio reparte la banda a la

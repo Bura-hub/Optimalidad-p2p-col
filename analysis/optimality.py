@@ -93,6 +93,7 @@ def analyze_hourly_dominance(
     prosumer_ids: list,
     consumer_ids: list,
     threshold_cop: Optional[float] = None,  # umbral |Delta| en COP para clasificar como "neutral"
+    c4_horario:   Optional[np.ndarray] = None,  # (N, T) cr.neto_horario["C4"]
 ) -> OptimalitySummary:
     """
     Clasifica cada hora según dominancia P2P vs C4 y calcula GDR.
@@ -102,6 +103,12 @@ def analyze_hourly_dominance(
     threshold_cop : float, optional
         Umbral en COP por debajo del cual se considera empate (neutral).
         Si None, se usa el 5% del beneficio P2P promedio por hora activa.
+    c4_horario : (N, T), optional
+        I-6 (revision final): el desglose horario del colectivo mensual que
+        liquida el motor (C-165, C-178). Con el, B_C4_k es la suma de su
+        columna k, con el credito a la tarifa media del mes menos Cv y el
+        exceso a la bolsa de su hora. Con None se conserva la reconstruccion
+        ligera de abajo, que valora el credito a la tarifa completa.
 
     Returns
     -------
@@ -133,6 +140,9 @@ def analyze_hourly_dominance(
         B_c4_k = (float(np.sum(auto_k)) * pi_gs
                   + float(np.sum(credits_eff)) * pi_gs
                   + float(np.sum(surplus_income_k)))
+        if c4_horario is not None:
+            # I-6: el C4 hora a hora del motor, en vez de reconstruirlo.
+            B_c4_k = float(np.sum(np.asarray(c4_horario, dtype=float)[:, k]))
 
         # ── Beneficio P2P en la hora k ────────────────────────────────────
         active = (res.P_star is not None and float(np.sum(res.P_star)) > 1e-6)

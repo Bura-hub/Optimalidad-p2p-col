@@ -1,6 +1,7 @@
 # Los cinco escenarios regulatorios, auditados contra la norma
 
-**Estado al 2026-09-08**, con la ficha del contrato reescrita tras CAL-52. Una ficha por escenario: qué artículo lo sostiene, la
+**Estado al 2026-09-13**, con la revisión contra la forma de liquidar al final
+del documento. La ficha del contrato se reescribió tras CAL-52. Una ficha por escenario: qué artículo lo sostiene, la
 fórmula tal como está programada, qué precios usa y con qué granularidad, y
 **qué supuestos no vienen de la norma**.
 
@@ -65,18 +66,26 @@ Resolución CREG 119 de 2007.
 frontera, sin agregación. Tres flujos con valoraciones distintas: el
 autoconsumo, la permuta y el excedente que cruza el umbral.
 
-**La fórmula.** Dentro de cada mes se acumulan inyección y retiro hora a hora.
-Mientras la inyección no supere al retiro, el excedente es **permuta** y vale la
-tarifa menos el componente de comercialización. En la hora del cruce se parte, y
-a partir de ahí todo va a **bolsa horaria**.
+**La fórmula, corregida el 2026-09-13 (C-175).** Al cierre de cada mes se
+comparan el excedente acumulado y la importación **del mes completo**. Lo que no
+la supera es **permuta** y vale la tarifa menos el componente de comercializar;
+lo que la supera se liquida a la bolsa de cada hora desde el corte, que es la
+regla transitoria vigente. Es la liquidación del Anexo 4 de la Resolución CREG
+101 072 para el autogenerador de hasta 100 kW, que es el tramo de las cinco
+plantas. El corte es la hora en que la inyección acumulada desde el primer día
+alcanza la importación total del mes.
 
-**Granularidad: mixta.** La permuta se valora a la media mensual de la tarifa;
-el excedente posterior al cruce, a la bolsa de su hora; y la búsqueda del cruce
-es horaria acumulada dentro del mes.
+Antes se comparaba contra el retiro acumulado hasta cada hora, y un adelanto
+momentáneo mandaba a bolsa el resto del mes (H-69).
 
-**Supuesto declarado que no viene de la norma.** El tramo se cuenta sobre el
-**excedente bruto**, es decir como si todo cruzara la frontera. Ver H-53, que lo
-mide y lo eleva a consulta.
+**Granularidad: mensual con corte horario.** El cupo y el crédito son del mes;
+la hora del corte se determina con el acumulado horario, y el exceso se valora
+a la bolsa de cada hora desde ella. MCm aplicará cuando la CREG expida la
+metodología de traslado (H-73).
+
+**Supuesto declarado.** El tramo se cuenta sobre el excedente bruto. Aquí es
+correcto, porque sin mercado interno todo el excedente se entrega al
+comercializador; la discusión de H-53 es propia del mercado entre pares.
 
 ---
 
@@ -164,8 +173,15 @@ ciento para el caso favorable. Con cinco fronteras es imposible: harían falta
 permuta se liquida contra el agregado de peajes y no solo contra el cargo de
 comercializar.
 
-**Granularidad: dos versiones publicadas**, horaria y mensual. Las dos son
-legítimas y no se fusionan.
+**Granularidad: dos versiones publicadas**, horaria y mensual.
+
+**Revisión del 2026-09-13.** La mensual ya compara contra la importación del mes,
+como manda el artículo 25. **La horaria no corresponde a la norma**, que liquida
+al cierre del período, y queda pendiente decidir si se retira o se conserva como
+cota declarada. El porcentaje de reparto se calcula con la generación medida y
+no con la capacidad que dice su rótulo (H-71). Y el excedente sobrante se valora
+a la bolsa media del mes, cuando la regla vigente es la bolsa de cada hora: en la
+frontera secundaria lo sobrevalora un 12,5 % (H-73).
 
 ---
 
@@ -184,6 +200,51 @@ días y **solo diagnóstico**: no afecta al beneficio.
 vinculación económica entre sus miembros, según la revisión externa. Se modela
 como vía prospectiva, no como opción disponible hoy.
 
+**Revisión del 2026-09-13.** La Resolución CREG 101 099 no compensa: vende la
+generación al mercado mayorista y atiende el consumo por contrato, y su reparto
+horario con porcentaje fijo es solo para devolver el cargo por confiabilidad.
+Ver H-72, pendiente de decisión.
+
+---
+
+## El mercado por la vía del colectivo · escenario nuevo (D8, H-76)
+
+**Norma.** Resolución CREG 101 072, artículos 19 a 21, por la arquitectura de
+dos niveles que describe la presentación del asesor regulatorio en el foro
+(H-76): en el primer nivel la comunidad es un autogenerador colectivo que
+liquida con la 101 072; en el segundo, el mercado entre pares decide hora a
+hora quién recibe qué energía y a qué precio, y el dinero se ajusta entre los
+miembros por contrato.
+
+**Qué modela.** Cuánto del valor del mercado entre pares sobrevive si se lleva
+a la práctica por la única vía legal disponible hoy, en vez de suponer que el
+intercambio entre pares no paga los cargos del comercializador.
+
+**Cómo se liquida**, copiado del docstring de `scenarios/scenario_p2p_colectivo.py`:
+
+1. El porcentaje de cada miembro en cada mes es la energía que termina siendo
+   suya dentro del fondo común: la comprada dentro más la exportada sin
+   colocar, sobre el total exportado por la comunidad. Suma cien por
+   construcción y se puede reportar cada mes (artículo 19).
+2. La liquidación regulatoria es la del colectivo mensual con ese porcentaje,
+   contra la importación que registra el medidor de cada miembro, con lo que
+   el artículo 20 cobre sobre lo permutado.
+3. El ajuste por contrato son los pagos internos del mercado, al precio de
+   cada intercambio con el techo del comprador (CAL-35). Suman cero: no
+   cambian el total, reparten.
+
+**Granularidad: mensual con corte horario**, igual que el colectivo del que
+hereda la liquidación (4.6).
+
+**Lo que se espera, y la corrida debe confirmarlo o desmentirlo.** Con la
+misma tarifa y sin cupos agotados, reasignar créditos entre miembros no crea
+valor, porque un kWh permutado vale lo mismo lo reciba quien lo reciba; con
+cinco fronteras el caso caro debería dejarlo por debajo de la autogeneración
+individual.
+
+**Dónde.** `scenarios/scenario_p2p_colectivo.py` (especificación del motor,
+apartado 4.10).
+
 ---
 
 ## Lo que hace comparables a los seis
@@ -195,9 +256,12 @@ declararlas:
 residual a la red**. Es una decisión avalada por la asesoría y declarada en
 cinco módulos.
 
-**La segunda.** Al excedente que el mercado entre pares **no coloca** se le da
-el mismo trato que los demás mecanismos dan al suyo: precio de bolsa horario.
-Sin eso, el mercado se compararía consigo mismo y no con ellos.
+**La segunda, revisada el 2026-09-13 por decisión del autor.** Al excedente
+que el mercado entre pares **no coloca** se le da el trato que la norma da al
+excedente de un autogenerador: crédito de energía hasta el cupo del mes y la
+bolsa de cada hora desde el corte, igual que su piso. Antes iba a bolsa horaria, lo que castigaba al
+mercado con el mismo disparo que C-175 corrigió en la autogeneración
+individual.
 
 **Y la base física común:** el autoconsumo es idéntico en los seis, porque no
 depende del mecanismo. Lo que varía es el valor que cada uno asigna a la energía
@@ -241,3 +305,58 @@ sencillamente no se guardaba.
 la capa de lectura del documento lo parchea al abrir el libro.~~ Cerrado con
 C-164: corregido en el origen, en las cuatro funciones. Aviso: los artefactos
 anteriores tienen las dos columnas intercambiadas.
+
+---
+
+## La revisión del 2026-09-13, contra la forma de liquidar
+
+La pregunta que la ordena es del autor: **cómo liquida de verdad cada norma**, y
+no solo qué artículo la sostiene. Tres textos la deciden. El artículo 26 de la
+Resolución CREG 174, en la redacción del artículo 29 de la Resolución CREG
+101 072 de 2025, liquida al autogenerador con cantidades del mes. Su literal c
+liquida hora a hora el precio pactado. Y los artículos 16 y 18 de la Resolución
+CREG 101 099 venden y atienden por contrato.
+
+| Mecanismo | Qué se corrigió o se decidió | Qué queda abierto |
+|---|---|---|
+| C1 | el cupo es la importación del mes completo y el corte es la hora en que la inyección acumulada la alcanza (C-175); el exceso, a bolsa horaria, que es la regla transitoria vigente | nada nuevo |
+| C2 | hereda el piso corregido; el literal c del artículo 26 confirma que el precio pactado se liquida por hora | nada nuevo |
+| C3 | contrafáctico declarado, sin cambio | nada |
+| C4 | la versión mensual ya compara contra la importación del mes | la horaria, el porcentaje de reparto (H-71) y el exceso, a bolsa horaria y no a la media del mes (H-73) |
+| C5 | nada todavía | la norma no compensa (H-72) |
+| P2P | el piso usa el cupo del mes (C-175); el residual se valora por el artículo 25, igual que el piso | programar el corte sobre el residual del mercado (H-74, resuelto en lo normativo) |
+
+**Y la transición que sigue vigente.** La norma definitiva valora el exceso a
+MCm, pero el parágrafo del artículo 25 lo mantiene a bolsa hasta que la CREG
+expida el traslado, y los conceptos CREG 3018 y 3023 de abril de 2026 confirman
+que no se ha expedido. Los Anexos 3 y 4 de la Resolución CREG 101 072 son, por
+tanto, la regla que se modela: crédito con el total del mes, corte horario y
+exceso a la bolsa de cada hora.
+
+**Regla que se añade:** ningún escenario se liquida con una granularidad
+distinta de la de su norma sin declararlo en su ficha.
+
+**Y una lección sobre las pruebas.** Ninguna de las que había distinguía las dos
+lecturas del cupo, porque ninguno de sus casos tenía un adelanto que después se
+revirtiera. La compuerta de C-175 incluye ese caso.
+
+### Lo que el motor hace desde el plan del 2026-09-13
+
+Con las correcciones C-177 a C-182 (`CORRECCIONES.md`), sin corrida oficial
+todavía:
+
+- **C1**: el corte hx y la deducción por capacidad del artículo 25 pasan por
+  la función única del Anexo 4, y la capacidad instalada que decide su tramo
+  es la real de cada planta, escalable (C-177, C-180).
+- **C2**: hereda el mismo piso que C1 y cobra el precio completo de la energía
+  que vende, no solo la prima sobre su alternativa (C-177, C-181).
+- **C3**: sin cambios; sigue siendo el contrafáctico declarado de exposición
+  íntegra a la bolsa de cada hora.
+- **C4**: es solo la versión mensual, con el exceso valorado a la bolsa de la
+  hora del corte y el reparto igual como base (C-178).
+- **C5**: el contrato despachado cada hora es el mínimo entre la inyección y
+  la importación agregadas, con el precio de contrato de XM (C-179).
+- **El mercado por la vía del colectivo**: escenario nuevo, que liquida el
+  mercado entre pares con la arquitectura de dos niveles del asesor
+  regulatorio (especificación del motor, apartado 4.10).
+

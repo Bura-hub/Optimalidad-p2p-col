@@ -29,9 +29,12 @@ AGENTS_REAL = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 COLORS_AGT  = ["#378ADD", "#1D9E75", "#D85A30", "#7F77DD", "#BA7517", "#D4537E"]
 COLORS_ESC  = {"P2P": "#534AB7", "C1": "#1D9E75", "C2": "#BA7517",
                 "C3": "#D85A30", "C4": "#D4537E",
-                # CAL-43: la base mensual de C4 comparte familia cromática con
-                # su cota horaria (es el mismo régimen, otra granularidad);
-                # C5 es un régimen distinto y lleva color propio.
+                # Desde C-178, "C4" ya es el colectivo mensual y
+                # "C4_mensual" es su alias de una versión (mismo objeto);
+                # el color propio de esta clave solo se usa con resultados
+                # de corridas anteriores donde aún difieren (ver
+                # `_c4_es_alias`). C5 es un régimen distinto y lleva color
+                # propio.
                 "C4_mensual": "#8C3355", "C5": "#3F6E8C"}
 
 plt.rcParams.update({
@@ -71,6 +74,37 @@ def _save(fig, path: str, dpi: int | None = None) -> str:
             pass
     plt.close(fig)
     return path
+
+
+def _c4_es_alias(cr) -> bool:
+    """True si «C4_mensual» es el mismo colectivo que «C4» (C-178, tarea 7).
+
+    Desde la tarea 7, `run_comparison` deja `net_benefit["C4"]` como el
+    colectivo MENSUAL y `net_benefit["C4_mensual"]` (y sus contrapartes por
+    agente) como alias de una versión: el mismo objeto. Dibujarlos como dos
+    series repetiría una barra idéntica y sugeriría una comparación
+    horario-vs-mensual que ya no existe.
+
+    Resultados de corridas anteriores a la tarea 7 (pickles, barridos ya
+    calculados) pueden traer todavía dos valores genuinamente distintos:
+    esta función devuelve False en ese caso y las figuras siguen dibujando
+    ambas series como antes.
+
+    Acepta un `ComparisonResult` (compara identidad de los arreglos por
+    agente si están disponibles), un objeto con solo `.net_benefit`
+    agregado (p. ej. `SensitivityResult`), o directamente un dict de
+    beneficios agregados (p. ej. una entrada de `monthly_report`).
+    """
+    per_agent = getattr(cr, "net_benefit_per_agent", None)
+    if (isinstance(per_agent, dict) and "C4" in per_agent
+            and "C4_mensual" in per_agent):
+        return per_agent["C4_mensual"] is per_agent["C4"]
+    nb = getattr(cr, "net_benefit", None)
+    if nb is None and isinstance(cr, dict):
+        nb = cr
+    if isinstance(nb, dict) and "C4" in nb and "C4_mensual" in nb:
+        return float(nb["C4_mensual"]) == float(nb["C4"])
+    return False
 
 
 # ── Fig 1 ─────────────────────────────────────────────────────────────────────
@@ -373,14 +407,20 @@ def plot_regulatory_comparison(cr, out_dir, currency="COP"):
     # mensual (CAL-42) y C5 AGR (CAL-37)—, de modo que la figura que compara
     # regímenes omitía justo el régimen vigente y la granularidad que el
     # artículo publica como principal.
+    # C-178 (tarea 7, fix 1): "C4_mensual" es alias de una version de "C4"
+    # (mismo objeto); si lo son, no se dibuja dos veces la misma barra.
+    _c4m_alias = _c4_es_alias(cr)
     esc = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
-           if e in cr.net_benefit]
+           if e in cr.net_benefit
+           and not (e == "C4_mensual" and _c4m_alias)]
     labels_short = {
         "P2P": "P2P\n(Stackelberg+RD)",
         "C1":  "C1\nCREG 174/2021",
         "C2":  "C2\nBilateral PPA",
         "C3":  "C3\nMercado spot",
-        "C4":  "C4\nCREG 101 072\n(horario)",
+        "C4":  "C4\nCREG 101 072\n(mensual)",
+        # Solo se usa si la corrida trae un "C4_mensual" que aun difiere de
+        # "C4" (caso legado, ver `_c4_es_alias`).
         "C4_mensual": "C4\nCREG 101 072\n(mensual)",
         "C5":  "C5\nAGR\nCREG 101 099",
     }
@@ -504,14 +544,19 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
 
     Panel A: barras agrupadas (escenarios presentes × N agentes) en absolutos.
     Panel B: ventaja P2P − C4 por agente — visualización directa de la
-    racionalidad individual frente al régimen colectivo vigente. Cuando la
-    corrida trae la base mensual de C4 (CAL-42), se dibujan las DOS: la
-    horaria, que es cota inferior, y la mensual, que es la que corresponde al
-    régimen y la que publica el artículo.
+    racionalidad individual frente al régimen colectivo vigente. Desde C-178
+    "C4" ya es el colectivo MENSUAL y "C4_mensual" es su alias de una
+    versión (mismo objeto): se dibuja una sola serie. Solo si el resultado
+    viene de una corrida anterior donde ambas claves aún difieren (caso
+    legado, ver `_c4_es_alias`) se dibujan las DOS: la horaria, que era cota
+    inferior, y la mensual, que es la que corresponde al régimen.
     """
     # CAL-43 (A4): lista dinámica, misma razón que en fig5 y fig12.
+    # C-178 (tarea 7, fix 1): sin duplicar "C4_mensual" cuando es alias.
+    _c4m_alias = _c4_es_alias(cr)
     esc   = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
-             if e in cr.net_benefit_per_agent]
+             if e in cr.net_benefit_per_agent
+             and not (e == "C4_mensual" and _c4m_alias)]
     N     = cr.n_agents
     x     = np.arange(N)
     w     = 0.80 / max(len(esc), 1)
@@ -550,7 +595,10 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     # ── Panel B: ventaja P2P − C4 por agente ────────────────────────────────
     delta = np.array([float(cr.net_benefit_per_agent["P2P"][n] -
                             cr.net_benefit_per_agent["C4"][n]) for n in range(N)])
-    hay_mes = "C4_mensual" in cr.net_benefit_per_agent
+    # C-178: segunda serie solo si "C4_mensual" no es alias de "C4"
+    # (corrida legada donde de verdad difieren; ver `_c4_es_alias`).
+    hay_mes = ("C4_mensual" in cr.net_benefit_per_agent
+               and not _c4m_alias)
     delta_m = (np.array([float(cr.net_benefit_per_agent["P2P"][n] -
                                cr.net_benefit_per_agent["C4_mensual"][n])
                          for n in range(N)]) if hay_mes else None)
@@ -655,10 +703,12 @@ def plot_sensitivity_pgb(sa_results, out_dir, currency="COP"):
     pgb    = [r.param_value for r in sa_results]
     # CAL-39: C5 condicional — entra solo si el barrido lo computó.
     # CAL-43: y C4_mensual con el mismo criterio.
+    # C-178 (tarea 7, fix 1): sin duplicar C4_mensual cuando es alias de C4.
     esc    = ["P2P", "C1", "C2", "C3", "C4"]
     _tiene = sa_results[0].net_benefit if sa_results else {}
+    _c4m_alias_sa = bool(sa_results) and _c4_es_alias(sa_results[0])
     for _e in ("C4_mensual", "C5"):
-        if _e in _tiene:
+        if _e in _tiene and not (_e == "C4_mensual" and _c4m_alias_sa):
             esc.append(_e)
     colors = {e: COLORS_ESC.get(e, "#8C564B") for e in esc}
 
@@ -1201,7 +1251,14 @@ def plot_monthly_comparison(monthly: list, out_dir: str,
     # calculaban mes a mes y no llegaban a la figura.
     _orden  = ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
     _pres   = monthly[0]["net_benefit"].keys() if monthly else []
-    esc     = [e for e in _orden if e in _pres]
+    # C-178 (tarea 10): `analysis/monthly_report.py` asigna a "C4" el mismo
+    # valor que calcula para "C4_mensual" (`net_c4 = net_c4m`), de modo que
+    # desde entonces coinciden siempre. Se comprueba igual, en vez de darlo
+    # por hecho, para no repetir barra si alguna corrida legada trae los dos
+    # valores genuinamente distintos.
+    _c4m_alias_mes = bool(monthly) and _c4_es_alias(monthly[0]["net_benefit"])
+    esc     = [e for e in _orden if e in _pres
+               and not (e == "C4_mensual" and _c4m_alias_mes)]
     colors  = {e: COLORS_ESC[e] for e in esc}
     w       = 0.80 / max(len(esc), 1)
 
@@ -1712,6 +1769,13 @@ def plot_c1_vs_c4(
 
     # B_C4_k (aproximado a nivel comunitario)
     b_c4_k = auto_k * pi_gs + credits_k * pi_gs + surp_k * pi_bolsa
+    # I-6 (revision final): el colectivo mensual hora a hora que liquida el
+    # motor (C-165, C-178), con el credito a la tarifa media del mes menos
+    # Cv; la aproximacion de arriba lo valoraba a la tarifa completa. Queda
+    # solo para resultados que no traen el desglose.
+    _c4_h = getattr(cr, "neto_horario", {}).get("C4")
+    if _c4_h is not None and np.shape(_c4_h)[-1] == T:
+        b_c4_k = np.asarray(_c4_h, dtype=float).sum(axis=0)
 
     # B_C1_k: asignamos el delta total mensual/uniforme como proxy per-hora
     # La lógica C1 acumula el mes — per-hora solo tiene el autoconsumo

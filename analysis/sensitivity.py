@@ -64,6 +64,10 @@ def run_sensitivity_pgb(
     f_split_c5: float = 0.5,
     g_component=None, cvm_component=None, cot_component=None,
     mem_costs=None, cot_alpha: float = 1.0,
+    # I-2 (revision final): la capacidad instalada real, que decide el
+    # numeral del art. 25. Con None se conserva el proxy viejo de H-71 (la
+    # generacion media), bit a bit.
+    capacity: Optional[np.ndarray] = None,
 ) -> list:
     """
     SA-1: Varía PGB entre pi_gb_range y recalcula los escenarios C1-C4
@@ -105,7 +109,8 @@ def run_sensitivity_pgb(
             pi_bolsa=pi_bolsa,
             prosumer_ids=prosumer_ids, consumer_ids=[],
             pde=pde_v, pi_ppa=pgb + 0.5*(grid_base.pi_gs - pgb),
-            capacity=np.maximum(G.mean(axis=1), 0),
+            capacity=(np.maximum(G.mean(axis=1), 0) if capacity is None
+                      else capacity),                   # I-2
             month_labels=month_labels,                 # CAL-9 fix
             component_c=component_c,                    # CAL-10b fix
             tolls=tolls,                                # CAL-41
@@ -170,11 +175,20 @@ def run_sensitivity_pv(
     f_split_c5: float = 0.5,
     g_component=None, cvm_component=None, cot_component=None,
     mem_costs=None, cot_alpha: float = 1.0,
+    # I-2 (revision final): la capacidad instalada real de la corrida; en
+    # cada punto del barrido es capacity * factor. Con None se conserva el
+    # proxy viejo de H-71, bit a bit.
+    capacity: Optional[np.ndarray] = None,
 ) -> list:
     """
     SA-2: Escala la generación G multiplicando por pv_factors.
     Con include_c5, añade la serie C5/AGR en cada punto del barrido.
     Simula qué pasaría si las instituciones instalan más capacidad solar.
+
+    Con `capacity`, un punto cuya planta mayor o cuya suma de capacidades
+    supere 1 MW se omite con aviso: deja de ser autogeneracion a pequena
+    escala (art. 25 de la CREG 174) y el colectivo cae en el caso 3 del
+    art. 20 de la CREG 101 072, que el motor no modela (spec 4.11).
 
     pv_factors: factores de escala sobre G_base (1.0 = actual)
                 [1.0, 2.0, 3.0, 4.5, 9.1] → coberturas [11%,22%,33%,50%,100%]
@@ -206,6 +220,20 @@ def run_sensitivity_pv(
     ems = EMSP2P(agents, grid, solver)
 
     for factor in pv_factors:
+        # I-2: el punto fuera del regimen AGPE se omite antes de resolver el
+        # mercado, en vez de detener el barrido entero con el error del
+        # art. 25 o del art. 20.
+        if capacity is not None:
+            from core.opciones_externas import LIMITE_AGPE_KW
+            cap_f = np.asarray(capacity, dtype=float) * float(factor)
+            if (float(cap_f.max()) > LIMITE_AGPE_KW
+                    or float(cap_f.sum()) > LIMITE_AGPE_KW):
+                if verbose:
+                    print(f"  {factor:>7.2f}  omitido: planta mayor "
+                          f"{cap_f.max():.1f} kW, suma {cap_f.sum():.1f} kW; "
+                          f"supera {LIMITE_AGPE_KW:.0f} kW y sale del regimen "
+                          f"que el motor modela")
+                continue
         G_scaled = G_base * factor
         G_klim_s = np.zeros((N, T))
         for k in range(T):
@@ -228,7 +256,10 @@ def run_sensitivity_pv(
             month_labels=month_labels,                  # CAL-9 fix
             component_c=component_c,                     # CAL-10b fix
             tolls=tolls,                                 # CAL-41
-            capacity=np.maximum(G_scaled.mean(axis=1), 0),
+            capacity=(np.maximum(G_scaled.mean(axis=1), 0)
+                      if capacity is None
+                      else np.asarray(capacity, dtype=float) * float(factor)),
+                                                         # I-2
             g_component=g_component, cvm_component=cvm_component,
             cot_component=cot_component, mem_costs=mem_costs,
             cot_alpha=cot_alpha,
@@ -784,6 +815,11 @@ def run_sensitivity_pgs(
     pi_gs_range:  Optional[np.ndarray] = None,
     verbose: bool = True,
     month_labels: Optional[np.ndarray] = None,        # CAL-9 fix
+    # I-2 (revision final): la capacidad instalada real y los peajes del
+    # numeral 2 del art. 25. Con None se conservan el proxy viejo de H-71 y
+    # la liquidacion sin peajes, bit a bit.
+    capacity: Optional[np.ndarray] = None,
+    tolls = None,
 ) -> list:
     """
     SA-3: Varía π_gs (precio al usuario / tarifa retail) y re-ejecuta el EMS completo.
@@ -861,7 +897,9 @@ def run_sensitivity_pgs(
             prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
             pde=pde_v,
             pi_ppa=pi_gb + 0.5 * (float(pgs) - pi_gb),
-            capacity=np.maximum(G.mean(axis=1), 0),
+            capacity=(np.maximum(G.mean(axis=1), 0) if capacity is None
+                      else capacity),                   # I-2
+            tolls=tolls,                                # I-2
             month_labels=month_labels,                  # CAL-9 fix
             # component_c queda en "auto" porque pi_gs es escalar sintético
             # en este barrido — el dato real Cvm,i,j (CAL-10b.2) no aplica

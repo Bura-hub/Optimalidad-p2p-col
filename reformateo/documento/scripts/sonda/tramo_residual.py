@@ -2,8 +2,9 @@
 Sonda del tramo de permuta sobre el excedente residual (H-53).
 
 LA PREGUNTA. El tramo de la Resolucion CREG 174 manda al vendedor a bolsa en
-cuanto su inyeccion acumulada del mes supera su retiro acumulado. Nuestro
-codigo lo evalua sobre el excedente BRUTO, como si todo cruzara la frontera.
+cuanto su inyeccion acumulada del mes supera la importacion del mes entero
+(C-175). Nuestro codigo lo evalua sobre el excedente BRUTO, como si todo
+cruzara la frontera.
 Pero la energia que un vendedor coloca DENTRO de la comunidad no se la
 entrego al comercializador, de modo que no deberia agotar su permuta. La
 Resolucion CREG 101 072 lo dice para el colectivo: sus articulos 21 a 23
@@ -28,7 +29,8 @@ LAS TRES LECTURAS, y no son dos:
             coincide con la contabilidad de la norma salvo en la hora en
             curso. Es lo que esta sonda estima.
 
-LO QUE SALE, y desmiente la suposicion de que la lectura residual siempre
+LO QUE SALE. Medido con el criterio viejo de C-175; hay que volver a
+correrla. Y desmiente la suposicion de que la lectura residual siempre
 favorece a la comunidad: en la frontera principal ningun vendedor llega a
 pisar la bolsa, y el ancho de la banda cae un 80 %; en la secundaria el
 cruce llega ANTES, no despues, porque alli el mercado interno agota el
@@ -56,49 +58,13 @@ import numpy as np   # noqa: E402
 import pandas as pd  # noqa: E402
 
 
-def tramo_sobre(iny: np.ndarray, ret: np.ndarray,
-                etiqueta_mes: np.ndarray) -> np.ndarray:
-    """El tramo de la CREG 174 sobre las series que se le den.
-
-    Igual que `core.opciones_externas.tramo_permuta`, pero recibe inyeccion
-    y retiro en vez de deducirlos de la generacion y la demanda. Asi la
-    misma mecanica sirve para el excedente bruto y para el residual.
-    """
-    N, T = iny.shape
-    en = np.ones((N, T), dtype=bool)
-    for mes in np.unique(etiqueta_mes):
-        sel = etiqueta_mes == mes
-        idx = np.flatnonzero(sel)
-        for n in range(N):
-            cruza = np.cumsum(iny[n, sel]) > np.cumsum(ret[n, sel])
-            if cruza.any():
-                en[n, idx[int(np.argmax(cruza)):]] = False
-    return en
-
-
-def residual(G: np.ndarray, D: np.ndarray):
-    """Inyeccion y retiro que quedan tras colocar el lado corto dentro.
-
-    El reparto entre vendedores es PROPORCIONAL a su excedente. Es una
-    aproximacion del reparto verdadero, que solo existe despues de jugar la
-    partida; el agregado, en cambio, es exacto por D-7.
-    """
-    exc = np.maximum(G - D, 0.0)
-    dfc = np.maximum(D - G, 0.0)
-    oferta, demanda = exc.sum(axis=0), dfc.sum(axis=0)
-    corto = np.minimum(oferta, demanda)
-    with np.errstate(invalid="ignore", divide="ignore"):
-        fv = np.where(oferta > 1e-9, corto / oferta, 0.0)
-        fc = np.where(demanda > 1e-9, corto / demanda, 0.0)
-    return exc * (1.0 - fv)[None, :], dfc * (1.0 - fc)[None, :], exc
-
-
 SALIDA = AQUI.parents[1] / "validacion_horaria"
 
 
 def main() -> int:
     from paso_a_paso import carga
-    from core.opciones_externas import piso_por_vendedor
+    from core.opciones_externas import (piso_por_vendedor,
+                                        residual_proporcional, tramo_permuta)
 
     filas = []
     for cob in ("m1", "m3"):
@@ -106,9 +72,10 @@ def main() -> int:
         G, D = d["G"], d["D"]
         mes = pd.Series(pd.DatetimeIndex(d["idx"])
                         ).dt.strftime("%Y-%m").to_numpy()
-        iny_r, ret_r, exc = residual(G, D)
-        bruto = tramo_sobre(exc, np.maximum(D - G, 0.0), mes)
-        resid = tramo_sobre(iny_r, ret_r, mes)
+        iny_r, ret_r = residual_proporcional(G, D)
+        exc = np.maximum(G - D, 0.0)
+        bruto = tramo_permuta(G, D, mes)
+        resid = tramo_permuta(G, D, mes, iny=iny_r, ret=ret_r)
         vende = exc > 1e-9
         pb = piso_por_vendedor(d["techo"], d["cvm"], d["bolsa"], bruto)
         pr = piso_por_vendedor(d["techo"], d["cvm"], d["bolsa"], resid)

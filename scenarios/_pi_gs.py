@@ -103,6 +103,7 @@ def as_component_c_array(
     pi_gs_arr: np.ndarray,
     N: int,
     T: int,
+    rellena_nan: bool = True,
 ) -> np.ndarray:
     """
     Normaliza el componente C de Comercialización a matriz (N, T) en COP/kWh.
@@ -183,8 +184,11 @@ def as_component_c_array(
         # CAL-10b: si el helper Cedenar marcó celdas con NaN (mes ausente
         # del CSV o Cvm/COT NaN), rellenamos con la aproximación proporcional
         # CAL-10 — pi_gs[n, k] * C_FRACTION — para no romper la corrida.
+        # Revision final: `rellena_nan=False` deja los NaN donde estan. Lo
+        # usan los peajes del numeral 2 del art. 25, que `deduccion_art25`
+        # rechaza en voz alta en vez de aceptar el respaldo de Cv.
         nan_mask = np.isnan(out)
-        if nan_mask.any():
+        if nan_mask.any() and rellena_nan:
             from data.xm_prices import C_FRACTION
             out[nan_mask] = pi_gs_arr[nan_mask] * float(C_FRACTION)
         return out

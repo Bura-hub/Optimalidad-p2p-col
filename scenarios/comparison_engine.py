@@ -16,12 +16,15 @@ import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional, Union
 
-from ._pi_gs import as_pi_gs_array
+from ._pi_gs import as_pi_gs_array, as_component_c_array
+from core.opciones_externas import (deduccion_art25, precio_permuta_por_periodo,
+                                    reparto_anexo4)
 from .scenario_c1_creg174    import run_c1_creg174
 from .scenario_c2_bilateral  import run_c2_bilateral
 from .scenario_c3_spot       import run_c3_spot
 from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights, static_spread_c4_vs_p2p,
+    pde_por_regla,
 )
 from core.settlement import gini_index, compute_net_benefit
 from analysis.fairness import FairnessResult, compute_pof, print_pof_report
@@ -92,14 +95,27 @@ class ComparisonResult:
     # mecanismo reparte mejor, que hasta ahora solo existia agregado al
     # horizonte entero.
     #
-    # NO ESTAN TODOS, y es a proposito. La segunda granularidad del colectivo
-    # valora contra promedios MENSUALES, de modo que repartir su dinero entre
-    # las horas del mes seria inventar una precision que la liquidacion no
-    # tiene. Su desglose natural es el mes y por eso no aparece aqui.
+    # Desde C-178 estan todos: el colectivo mensual anota su credito a la
+    # tarifa media del mes y su exceso a la bolsa de su hora, igual que C1.
     #
     # La compuerta comprueba que cada matriz suma por filas EXACTAMENTE el
     # beneficio por agente que este mismo motor reporta.
     neto_horario: dict = field(default_factory=dict)
+    # ── Contrafacticos del colectivo (spec 4.6, D5) ──────────────────────
+    # El mismo colectivo mensual con otra regla de porcentaje, o en el caso
+    # favorable del art. 20 como si hubiera 11 fronteras, y el mercado por la
+    # via del colectivo en ese mismo caso (I-4). No son columnas de la
+    # tabla: miden cuanto pesa cada supuesto. {nombre: {"total",
+    # "por_agente", "caso_art20"}}.
+    contrafacticos: dict = field(default_factory=dict)
+    # ── El factor de coincidencia (D20) ─────────────────────────────────
+    # {escenario: [0, 1]}: de lo que cada mecanismo acredita como si
+    # sustituyera importacion, que fraccion coincidio en la hora con esa
+    # importacion (analysis/coincidencia.py). C3 no acredita: NaN.
+    coincidencia: dict = field(default_factory=dict)
+    # El pico de importacion neta de la comunidad entre la suma de los picos
+    # de cada miembro. Es de la comunidad, no del mecanismo.
+    simultaneidad: Optional[float] = None
 
 
 def run_comparison(
@@ -145,6 +161,10 @@ def run_comparison(
     # antes.
     piso_agente:  Union[np.ndarray, None] = None,
     cobertura_contrato: float = 1.0,
+    # C-179: precio del contrato de la autogeneracion remota, (T,), de la
+    # serie de XM del mercado no regulado; y el CERE del art. 18, (T,).
+    pi_contrato_c5: Union[float, np.ndarray, None] = None,
+    cere_c5:        Union[float, np.ndarray, None] = None,
 ) -> ComparisonResult:
     """
     Todos los escenarios operan sobre D (real, fijo) y G_klim.
@@ -196,6 +216,16 @@ def run_comparison(
     # Normalizar pi_gs a matriz (N, T) — CAL-9: tarifa temporal mes a mes.
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
 
+    # C-177: lo que el comercializador cobra sobre cada kWh permutado, por
+    # agente y hora, con el numeral del art. 25 que decide la capacidad
+    # instalada. La usan el residual del mercado, el del contrato interno y
+    # el mercado por la via del colectivo.
+    tolls_v = (None if tolls is None
+               else as_component_c_array(tolls, pi_gs_v, N, T,
+                                         rellena_nan=False))
+    ded_v = deduccion_art25(as_component_c_array(component_c, pi_gs_v, N, T),
+                            tolls_v, capacity)
+
     # CAL-12: normalizar pi_G a matriz (N, T) o caer a BTM legacy.
     if pi_G is None:
         pi_G_v = pi_gs_v          # Comportamiento BTM legacy pre-CAL-12.
@@ -204,8 +234,10 @@ def run_comparison(
 
     # Valores por defecto
     if pde is None:
-        cap = np.maximum(np.mean(G_raw, axis=1), 0)
-        pde = compute_pde_weights(cap)
+        # D5: la base es el reparto igual. Con placas identicas coincide con
+        # la capacidad; la generacion media medida era lo que el rotulo viejo
+        # llamaba capacidad (H-71).
+        pde = compute_pde_weights(np.ones(N), method="equal")
     cr.pde = pde
 
     if pi_ppa is None:
@@ -229,7 +261,8 @@ def run_comparison(
     # Ver scenarios/scenario_c1_creg174.py y data/cedenar_tariff.py.
     c1 = run_c1_creg174(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
                         month_labels=month_labels,
-                        component_c=component_c, dt=dt)
+                        component_c=component_c, dt=dt,
+                        capacidad_kw=capacity, tolls=tolls)
     c1_net = np.array([c1[n]["net_benefit"] if n in c1 else 0.0
                        for n in range(N)])
     cr.net_benefit["C1"]           = float(np.sum(c1_net))
@@ -281,39 +314,46 @@ def run_comparison(
                   for r in p2p_results
                   if r.P_star is not None and r.seller_ids and r.buyer_ids]
         ci = contrato_interno(flujos, pi_gs_v, piso_agente, N, dt=dt)
-        # Mismo convenio que el mercado entre pares (CAL-30): autoconsumo a la
-        # tarifa propia, y el excedente no colocado a bolsa horaria.
-        c2_net = ci["ingreso_vendedor"] + ci["ahorro_comprador"]
+        # Mismo convenio que el mercado entre pares: autoconsumo a la tarifa
+        # propia, y lo que no firma sigue el articulo 25 (D9), no la bolsa.
+        # H-78: el vendedor cobra el precio por la energia que entrega, igual
+        # que en el mercado entre pares; el comprador ahorra su techo menos
+        # el precio. Antes solo se contaba la prima sobre el piso.
+        c2_net = ci["cobro_vendedor"] + ci["ahorro_comprador"]
         # C-165: la matriz del contrato trae SOLO el excedente del acuerdo.
-        # El autoconsumo y el residual a bolsa se le suman aqui, igual que se
-        # le suman al total, o el desglose no cuadraria con lo publicado.
-        c2_horario = np.array(ci["neto_horario"], dtype=float)
+        # El autoconsumo y el residual del articulo 25 se le suman aqui,
+        # igual que se le suman al total, o el desglose no cuadraria con lo
+        # publicado.
+        c2_horario = np.array(ci["cobro_horario"], dtype=float)
         for n in prosumer_ids:
             for k in range(T):
                 auto = min(G_klim[n, k], D[n, k]) * pi_gs_v[n, k] * dt
                 c2_net[n] += auto
                 c2_horario[n, k] += auto
-        # El excedente no colocado, a bolsa horaria, igual que en el mercado
-        # entre pares (CAL-30). Se arma el mapa de lo colocado en UNA pasada:
-        # el bucle ingenuo recorre todas las horas por cada agente y cuesta
-        # cuadratico sobre el horizonte.
-        colocado = np.zeros((N, T))
+        # Lo firmado, por agente y hora, en UNA pasada. Lo que el contrato no
+        # firma vuelve al residual del vendedor y a la importacion del
+        # comprador (D9), y se liquida por el articulo 25 como el del mercado.
+        vendido = np.zeros((N, T))
+        comprado = np.zeros((N, T))
         for r in p2p_results:
             if r.P_star is None or not r.seller_ids:
                 continue
             Pk = np.asarray(r.P_star, dtype=float)
+            if np.isnan(Pk).any():
+                continue
             for a_, j in enumerate(r.seller_ids):
-                colocado[j, r.k] += float(Pk[a_, :].sum())
-        # Lo que el contrato no firma no esta colocado, y va a bolsa con el
-        # resto del sobrante. Sin esto se perderia de la contabilidad.
-        colocado = np.maximum(colocado - ci["sin_firmar"] / max(dt, 1e-12), 0.0)
+                vendido[j, r.k] += float(Pk[a_, :].sum())
+            for b_, i in enumerate(r.buyer_ids):
+                comprado[i, r.k] += float(Pk[:, b_].sum())
+        paso = max(dt, 1e-12)
+        vendido = np.maximum(vendido - ci["sin_firmar"] / paso, 0.0)
+        comprado = np.maximum(comprado - ci["sin_firmar_comprador"] / paso, 0.0)
         pb_v = (np.full(T, float(pi_gb)) if pi_bolsa is None
                 else np.asarray(pi_bolsa, dtype=float).reshape(-1))
-        for n in prosumer_ids:
-            sob = np.maximum(G_klim[n, :] - D[n, :], 0.0)
-            resid = np.maximum(sob - colocado[n, :], 0.0) * pb_v * dt
-            c2_net[n] += float(np.sum(resid))
-            c2_horario[n, :] += resid
+        resid = _residual_art25(G_klim, D, vendido, comprado, pi_gs_v, ded_v,
+                                pb_v, month_labels, prosumer_ids) * dt
+        c2_net += resid.sum(axis=1)
+        c2_horario += resid
         cr.net_benefit["C2"]           = float(np.sum(c2_net))
         cr.net_benefit_per_agent["C2"] = c2_net
         cr.neto_horario["C2"] = c2_horario                   # C-165
@@ -325,6 +365,11 @@ def run_comparison(
             excedente=float(ci["excedente"]),
             ingreso_vendedor=ci["ingreso_vendedor"],
             ahorro_comprador=ci["ahorro_comprador"],
+            cobro_vendedor=ci["cobro_vendedor"],
+            # D20: lo que no se firma, en las unidades de P_star (kW del
+            # paso), para el factor de coincidencia.
+            sin_firmar=ci["sin_firmar"] / paso,
+            sin_firmar_comprador=ci["sin_firmar_comprador"] / paso,
         )
     else:
         c2_net = np.array([c2["per_agent"][n]["net_benefit"]
@@ -340,36 +385,56 @@ def run_comparison(
     cr.neto_horario["C3"] = c3.get("neto_horario")          # C-165
     cr.net_benefit_per_agent["C3"] = c3_net
 
-    # ── C4 ──────────────────────────────────────────────────────────────
-    # CAL-15: C4 hereda CREG 174 art. 25 vía Decreto 2236/2023 art. 4 +
-    # CREG 101 072/2025 art. 19 (PDE) + art. 20. component_c reusa el helper
-    # Cvm de CAL-10b.2 (mismo argumento que C1).
-    # CAL-41: CUÁL numeral del art. 25 aplica lo decide el art. 20 y lo
-    # deriva `resolve_caso_art20` a partir del PDE; si sale el Caso 2, la
-    # permuta se liquida contra T+D+Cvm+PR+Rm y no solo contra Cvm. Por eso
-    # `tolls` viaja hasta aquí: sin él C4 quedaría sobrestimado.
+    # ── C4: el colectivo MENSUAL, que es el que rige (D4, C-178) ─────────
+    # Arts. 19 a 21 de la CREG 101 072 con el art. 25 de la CREG 174 por
+    # remision; el caso del art. 20 lo resuelve el porcentaje y la capacidad
+    # por usuario, y con el caso 2 la permuta paga T+D+Cv+PR+R (CAL-41). El
+    # modo horario queda en el modulo como opcion no normativa y ya no se
+    # invoca. Sin calendario, todo el horizonte es un periodo.
     c4 = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
-                            component_c=component_c, tolls=tolls, dt=dt)
+                           component_c=component_c, tolls=tolls,
+                           mode="monthly_hx", month_labels=month_labels,
+                           dt=dt)
     c4_net = np.array([c4["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C4"]           = float(np.sum(c4_net))
-    cr.neto_horario["C4"] = c4.get("neto_horario")          # C-165
+    cr.neto_horario["C4"]          = c4["neto_horario"]
     cr.net_benefit_per_agent["C4"] = c4_net
+    # Alias de una version, para los consumidores que piden la clave vieja.
+    cr.net_benefit["C4_mensual"]           = cr.net_benefit["C4"]
+    cr.net_benefit_per_agent["C4_mensual"] = c4_net
+    cr.neto_horario["C4_mensual"]          = c4["neto_horario"]
 
-    # CAL-42: C4 en su GRANULARIDAD MENSUAL. El art. 25 liquida «al cierre de
-    # cada período de facturación» y el art. 21 subscribe cada variable por mes,
-    # de modo que la base mensual es la que corresponde al régimen; la horaria de
-    # arriba se conserva como cota inferior declarada. Antes de esto la columna
-    # mensual venía de un recálculo externo, lo que partía el canon en dos
-    # (CANON.md §3). Requiere las DOS cosas: mode="monthly_hx" y month_labels.
-    if month_labels is not None:
-        c4m = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, pde, capacity,
-                                component_c=component_c, tolls=tolls,
-                                mode="monthly_hx", month_labels=month_labels,
-                                dt=dt)
-        c4m_net = np.array([c4m["per_agent"][n]["net_benefit"]
-                            for n in range(N)])
-        cr.net_benefit["C4_mensual"]           = float(np.sum(c4m_net))
-        cr.net_benefit_per_agent["C4_mensual"] = c4m_net
+    # Los contrafacticos del colectivo (D5).
+    _base_c4 = dict(component_c=component_c, tolls=tolls, mode="monthly_hx",
+                    month_labels=month_labels, dt=dt)
+    _igual = compute_pde_weights(np.ones(N), method="equal")
+    # Con 11 fronteras iguales cada una tendria 1/11 < 10 %: caso 1, salvo
+    # que alguna planta supere los 100 kW (art. 20 num. 2 ii).
+    _caso_11 = (1 if capacity is None
+                or float(np.max(capacity)) <= 100.0 else 2)
+    _r = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, _igual, capacity,
+                           caso=_caso_11, **_base_c4)
+    _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])
+    cr.contrafacticos["C4_11_fronteras"] = dict(
+        total=float(_pa.sum()), por_agente=_pa, caso_art20=_caso_11)
+    for _regla in ("consumo", "aporte", "generacion"):
+        _pm = pde_por_regla(_regla, G_klim, D, month_labels)
+        _r = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, _igual, capacity,
+                               pde_mensual=_pm, **_base_c4)
+        _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])
+        cr.contrafacticos[f"C4_regla_{_regla}"] = dict(
+            total=float(_pa.sum()), por_agente=_pa,
+            caso_art20=int(_r["caso_art20"]))
+    # I-4 (revision final): el mercado por la via del colectivo en el mismo
+    # caso favorable de 11 fronteras (spec 4.10, paso 3, y tabla de 4.11).
+    from .scenario_p2p_colectivo import run_p2p_colectivo as _pc11
+    _r = _pc11(p2p_results, D, G_klim, pi_gs_v, pi_bolsa,
+               month_labels=month_labels, component_c=component_c,
+               tolls=tolls, capacity=capacity, caso=_caso_11, dt=dt)
+    _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])
+    cr.contrafacticos["P2P_colectivo_11_fronteras"] = dict(
+        total=float(_pa.sum()), por_agente=_pa,
+        caso_art20=int(_r["caso_art20"]))
 
     # ── C5 (CAL-37, ADR-0037): AGR CREG 101 099/2026 ────────────────────
     c5 = None
@@ -385,6 +450,7 @@ def run_comparison(
             mem_costs=mem_costs if mem_costs is not None else 0.0,
             cot_alpha=cot_alpha, f_split=f_split_c5, pi_escasez=pi_escasez,
             prosumer_ids=prosumer_ids, dt=dt,
+            pi_contrato=pi_contrato_c5, cere=cere_c5,
         )
         c5_net = np.array([c5["per_agent"][n]["net_benefit"]
                            for n in range(N)])
@@ -393,13 +459,12 @@ def run_comparison(
         cr.net_benefit_per_agent["C5"] = c5_net
 
     # ── P2P ─────────────────────────────────────────────────────────────
-    # CAL-30 (ADR-0030): default mode="canonical" — net_benefit incluye
-    # revenue completo del trade + residual surplus a pi_bolsa horario,
-    # simétrico con C1/C2/C3/C4. Para reproducir resultados pre-CAL-30
-    # (modo premium incremental) pasar mode="premium" explícitamente.
+    # C-177: el residual del mercado se liquida por el art. 25 sobre las
+    # series residuales, igual que su piso (D2); ya no va a bolsa.
     p2p_net, p2p_horario = _p2p_monetary_benefit(
         p2p_results, D, G_klim, pi_gs_v, pi_gb, prosumer_ids,
         pi_bolsa=pi_bolsa, mode="canonical", dt=dt, devuelve_horario=True,
+        month_labels=month_labels, deduccion=ded_v,
     )
     cr.net_benefit["P2P"]           = float(np.sum(p2p_net))
     cr.net_benefit_per_agent["P2P"] = p2p_net
@@ -505,31 +570,11 @@ def run_comparison(
     _c4m = ([("C4_mensual", cr.net_benefit_per_agent["C4_mensual"])]
             if "C4_mensual" in cr.net_benefit_per_agent else [])
 
-    if len(consumer_ids) > 0:
-        # Comunidad mixta (prosumidores + consumidores puros): fórmula original
-        for esc, net in ([("C1", c1_net), ("C2", c2_net),
-                          ("C3", c3_net), ("C4", c4_net)] + _c4m
-                         + ([("C5", c5_net)] if include_c5 else [])):
-            s_gen  = float(np.sum(net[prosumer_ids]))
-            s_cons = float(np.sum(net[consumer_ids]))
-            total  = abs(s_gen) + abs(s_cons)
-            cr.equity_index[esc] = (s_cons - s_gen) / total if total > 1e-10 else 0.0
-    else:
-        # Comunidad 100% prosumidores: clasificar por cobertura PV (G/D ratio)
-        g_mean = np.mean(G_raw, axis=1)                       # (N,)
-        d_mean = np.mean(D,     axis=1)                       # (N,)
-        gd_ratio = g_mean / np.maximum(d_mean, 1e-9)         # cobertura individual
-        gd_median = np.median(gd_ratio)
-        high_cov = [n for n in prosumer_ids if gd_ratio[n] >= gd_median]  # vendedores natos
-        low_cov  = [n for n in prosumer_ids if gd_ratio[n] <  gd_median]  # compradores natos
-
-        for esc, net in ([("C1", c1_net), ("C2", c2_net),
-                          ("C3", c3_net), ("C4", c4_net)] + _c4m
-                         + ([("C5", c5_net)] if include_c5 else [])):
-            s_alta = float(np.sum(net[high_cov])) if high_cov else 0.0
-            s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
-            total  = abs(s_alta) + abs(s_baja)
-            cr.equity_index[esc] = (s_baja - s_alta) / total if total > 1e-10 else 0.0
+    for esc, net in ([("C1", c1_net), ("C2", c2_net),
+                      ("C3", c3_net), ("C4", c4_net)] + _c4m
+                     + ([("C5", c5_net)] if include_c5 else [])):
+        cr.equity_index[esc] = _indice_equidad_agregado(
+            net, prosumer_ids, consumer_ids, G_raw, D)
 
     # ── Gini (Índice de desigualdad, propuesta §VI.C Nivel 2) ───────────────
     # Se calcula sobre beneficios netos por agente para todos los escenarios.
@@ -645,12 +690,72 @@ def run_comparison(
     # ── Spread de ineficiencia estática C4 ───────────────────────────────
     cr.static_spread_24h = static_spread_c4_vs_p2p(D, G_klim, pde)
 
+    # ── El mercado liquidado por la via del colectivo (D8) ───────────────
+    # Va al final a proposito: es una columna nueva y no debe alterar la
+    # equidad ni el precio de la equidad que ya se calcularon para las demas.
+    from .scenario_p2p_colectivo import run_p2p_colectivo
+    _pc = run_p2p_colectivo(p2p_results, D, G_klim, pi_gs_v, pi_bolsa,
+                            month_labels=month_labels, component_c=component_c,
+                            tolls=tolls, capacity=capacity, dt=dt)
+    _pc_net = np.array([_pc["per_agent"][n]["net_benefit"] for n in range(N)])
+    cr.net_benefit["P2P_colectivo"]           = float(_pc_net.sum())
+    cr.net_benefit_per_agent["P2P_colectivo"] = _pc_net
+    cr.neto_horario["P2P_colectivo"]          = _pc["neto_horario"]
+    cr.self_consumption["P2P_colectivo"] = cr.self_consumption["P2P"]
+    cr.self_sufficiency["P2P_colectivo"] = cr.self_sufficiency["P2P"]
+    cr.gini["P2P_colectivo"] = gini_index(_pc_net)
+    # Tarea 16: su indice de equidad, con la formula de los regulados. Sin
+    # el, la tabla imprimia 0.0000 por el respaldo de una clave ausente.
+    cr.equity_index["P2P_colectivo"] = _indice_equidad_agregado(
+        _pc_net, prosumer_ids, consumer_ids, G_raw, D)
+
+    # ── El factor de coincidencia (D20) ──────────────────────────────────
+    from analysis.coincidencia import (coincidencia_por_mecanismo,
+                                       simultaneidad_picos)
+    _c2 = cr.contrato_c2 or {}
+    cr.coincidencia = coincidencia_por_mecanismo(
+        D, G_klim, p2p_results, month_labels=month_labels, pde=pde,
+        pde_colectivo=_pc["pde_por_mes"],
+        sin_firmar=_c2.get("sin_firmar"),
+        sin_firmar_comprador=_c2.get("sin_firmar_comprador"),
+        include_c5=include_c5)
+    if "C4_mensual" in cr.net_benefit:
+        cr.coincidencia["C4_mensual"] = cr.coincidencia["C4"]   # alias C-178
+    cr.simultaneidad = simultaneidad_picos(D, G_klim)
+
     return cr
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _indice_equidad_agregado(net, prosumer_ids, consumer_ids, G_raw, D) -> float:
+    """Indice de equidad agregado de un escenario sin mercado horario.
+
+    Es la formula que run_comparison aplicaba en linea a C1-C5, en un solo
+    sitio para que la columna del mercado por la via del colectivo use la
+    misma (tarea 16).
+    """
+    net = np.asarray(net, dtype=float)
+    if len(consumer_ids) > 0:
+        # Comunidad mixta (prosumidores + consumidores puros): formula original
+        s_gen  = float(np.sum(net[prosumer_ids]))
+        s_cons = float(np.sum(net[consumer_ids]))
+        total  = abs(s_gen) + abs(s_cons)
+        return (s_cons - s_gen) / total if total > 1e-10 else 0.0
+    # Comunidad 100 % prosumidores: clasificar por cobertura PV (G/D)
+    g_mean = np.mean(G_raw, axis=1)
+    d_mean = np.mean(D,     axis=1)
+    gd_ratio = g_mean / np.maximum(d_mean, 1e-9)
+    gd_median = np.median(gd_ratio)
+    high_cov = [n for n in prosumer_ids if gd_ratio[n] >= gd_median]
+    low_cov  = [n for n in prosumer_ids if gd_ratio[n] <  gd_median]
+    s_alta = float(np.sum(net[high_cov])) if high_cov else 0.0
+    s_baja = float(np.sum(net[low_cov]))  if low_cov  else 0.0
+    total  = abs(s_alta) + abs(s_baja)
+    return (s_baja - s_alta) / total if total > 1e-10 else 0.0
+
 
 def _effective_buyer_prices(pi_star, buyer_ids, pi_gs_v, k_local):
     """CAL-35 (ADR-0035): precio efectivo por comprador en el settlement.
@@ -669,12 +774,38 @@ def _effective_buyer_prices(pi_star, buyer_ids, pi_gs_v, k_local):
     return np.minimum(np.asarray(pi_star, dtype=float), caps)
 
 
+def _residual_art25(G_klim, D, vendido, comprado, pi_gs_v, deduccion,
+                    pi_bolsa_v, month_labels, ids):
+    """Dinero (N, T) del excedente que el mercado no coloca (D2, D3, C-177).
+
+    Se liquida como el de un autogenerador, sobre las series RESIDUALES: la
+    inyeccion menos lo vendido dentro, contra la importacion menos lo comprado
+    dentro (lectura comercial). Credito hasta el cupo del mes, valorado a la
+    tarifa media del periodo menos la deduccion del articulo 25, y exceso a la
+    bolsa de cada hora desde el corte hx del Anexo 4. No multiplica por `dt`.
+    """
+    N, T = D.shape
+    Gp = np.maximum(np.asarray(G_klim, dtype=float), 0.0)
+    Dp = np.maximum(np.asarray(D, dtype=float), 0.0)
+    iny = np.maximum(np.maximum(Gp - Dp, 0.0) - vendido, 0.0)
+    ret = np.maximum(np.maximum(Dp - Gp, 0.0) - comprado, 0.0)
+    credito, exceso, _ = reparto_anexo4(iny, ret, month_labels)
+    precio = precio_permuta_por_periodo(pi_gs_v, deduccion, month_labels)
+    valor = credito * precio + exceso * np.asarray(pi_bolsa_v)[None, :]
+    fuera = np.ones(N, dtype=bool)
+    fuera[list(ids)] = False
+    valor[fuera, :] = 0.0
+    return valor
+
+
 def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                            prosumer_ids,
                            pi_bolsa: Optional[np.ndarray] = None,
                            mode: str = "canonical",
                            dt: float = 1.0,
-                           devuelve_horario: bool = False):
+                           devuelve_horario: bool = False,
+                           month_labels=None,
+                           deduccion=None):
     """
     Convierte resultados P2P a flujos monetarios netos por agente.
 
@@ -728,6 +859,10 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
         de modo que el dinero lleva el factor de duración. Todo lo que este
         cálculo acumula es lineal en la energía y por eso basta escalarlo al
         final. Con paso horario dt = 1.0 y no se ejecuta ninguna operación.
+    month_labels, deduccion : con `deduccion` (N, T) el residual se liquida
+        por el articulo 25 sobre las series residuales (D2, C-177), con el
+        corte hx por periodo de `month_labels`. Con None se conserva el
+        residual a bolsa horaria de CAL-30, que solo usan llamadores viejos.
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)
@@ -754,6 +889,7 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
                 )
         # Acumulador kWh vendidos por agente y hora (para residual surplus).
         P_sold_n_k = np.zeros((N, T))
+        P_bought_n_k = np.zeros((N, T))
 
     # Indexación por POSICIÓN en la lista, no por r.k. El caller debe pasar
     # results alineado con D (mismas T columnas, mismo orden). Esto permite
@@ -799,6 +935,8 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
         # Idéntico en ambos modos.
         for idx_i, i in enumerate(r.buyer_ids):
             received = float(np.sum(r.P_star[:, idx_i]))
+            if mode == "canonical":
+                P_bought_n_k[i, k_local] += received
             pi_ref = float(pi_gs_v[i, k_local])
             if pi_eff is not None:
                 paid = pi_eff[idx_i] * received
@@ -815,8 +953,14 @@ def _p2p_monetary_benefit(results, D, G_klim, pi_gs, pi_gb,
             net[n] += auto * pi_gs_v[n, k]
             neto_horario[n, k] += auto * pi_gs_v[n, k]
 
-    # Residual surplus exportado a la red (solo modo canonical).
-    if mode == "canonical":
+    # Residual del mercado (solo modo canonical).
+    if mode == "canonical" and deduccion is not None:
+        resid = _residual_art25(G_klim, D, P_sold_n_k, P_bought_n_k, pi_gs_v,
+                                np.asarray(deduccion, dtype=float), pi_bolsa_v,
+                                month_labels, prosumer_ids)
+        net += resid.sum(axis=1)
+        neto_horario += resid
+    elif mode == "canonical":
         for n in prosumer_ids:
             for k in range(T):
                 G_nk = max(float(G_klim[n, k]), 0.0)
@@ -1059,10 +1203,12 @@ def _ss_index_static(G_klim, D) -> float:
 def print_comparison_report(cr: ComparisonResult) -> None:
     # CAL-37: C5 aparece si fue calculado (include_c5 en run_comparison)
     # CAL-42: y C4_mensual cuando hay calendario de facturación.
-    scenarios = [e for e in ["P2P", "C1", "C2", "C3", "C4", "C4_mensual", "C5"]
+    scenarios = [e for e in ["P2P", "P2P_colectivo", "C1", "C2", "C3", "C4",
+                              "C4_mensual", "C5"]
                  if e in cr.net_benefit]
     labels = {
         "P2P": "P2P (Stackelberg + RD)",
+        "P2P_colectivo": "P2P  por la via del colectivo (dos niveles)",
         "C1":  "C1  Individual CREG 174/2021",
         # CAL-52: el rotulo dice el precio MEDIO PACTADO cuando el contrato es
         # el interno, que ya no tiene un precio unico: cada pareja contrata en
@@ -1072,7 +1218,7 @@ def print_comparison_report(cr: ComparisonResult) -> None:
                 f"/kWh medio)" if cr.contrato_c2
                 else f"C2  Bilateral PPA (${cr.pi_ppa:.0f}/kWh)"),
         "C3":  "C3  Spot (bolsa mayorista)",
-        "C4":  "C4  Colectivo CREG 101 072 (horario)",
+        "C4":  "C4  Colectivo CREG 101 072 (mensual)",
         "C4_mensual": "C4m Colectivo CREG 101 072 (mensual)",
         "C5":  "C5  AGR CREG 101 099/2026",
     }
@@ -1127,4 +1273,13 @@ def print_comparison_report(cr: ComparisonResult) -> None:
               f"sobre {d['kwh']:,.1f} kWh")
         print(f"    → el mercado desplaza {psr_gap/2:.2f} pp del excedente "
               f"hacia {dominant} frente al reparto a la mitad")
+    # I-3 (revision final): los contrafacticos del colectivo (D5, D11), una
+    # linea cada uno. Se calculaban en cada corrida y no llegaban a ninguna
+    # salida.
+    if cr.contrafacticos:
+        print("-"*68)
+        print("  Contrafacticos del colectivo (D5, D11):")
+        for nombre, d in cr.contrafacticos.items():
+            print(f"    {nombre:<28} ${d['total']:>13,.0f}  "
+                  f"caso art. 20: {d['caso_art20']}")
     print("="*68)

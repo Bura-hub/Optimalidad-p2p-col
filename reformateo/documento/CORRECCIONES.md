@@ -8286,3 +8286,544 @@ por otra vía.
 
 ---
 
+## C-174 · Las figuras de la ponencia se generaban al ancho del documento
+
+**Encontrado al rehacer el manifiesto de imágenes**, que calcula el tamaño de
+cada figura desde su proporción real y desde el hueco que le deja la lámina. La
+tabla dejó ver que **el diagrama del modelo se proyectaba a 6,15 de las 10,80
+pulgadas útiles**, es decir poco más de la mitad de la lámina, con dos palmos
+de aire a cada lado. No era el único: el día liquidado se quedaba en 5,43.
+
+### Por qué pasaba
+
+Todas las figuras del aparato se generan con el ancho de caja del documento,
+que son 6,5 pulgadas y es lo correcto para el papel. Las de la ponencia
+**heredaron esa constante sin que nadie la revisara**, y una lámina de 13,33
+pulgadas no es una página.
+
+El efecto no es solo de aire sobrante. Al proyectarse, la figura se escala al
+hueco disponible; una figura casi cuadrada topa antes con la altura que con la
+anchura, de modo que **el aire lateral se paga en tamaño de letra**.
+
+### Qué se hizo
+
+Entra una constante propia para el ancho de lámina, de 9,6 pulgadas, y las
+siete figuras que se proyectan pasan a usarla. El diagrama del modelo se
+reproporcionó además por dentro: su lienzo mapea 100 unidades de ancho a 9,6
+pulgadas y 63 de alto a 4,35, de modo que **un círculo pedido en unidades salía
+elipse**; los discos numerados pasan a dibujarse con radio en pulgadas.
+
+| Figura | Antes | Ahora |
+|---|---:|---:|
+| las curvas de los dos días | 6,23 | 8,80 |
+| el diagrama del modelo | 6,15 | 9,38 |
+| quién vende y quién compra | 7,71 | 7,72 |
+| los dos precios | 9,80 | 9,82 |
+| el día liquidado | 5,43 | 7,78 |
+| el crédito de permuta | 6,64 | 9,00 |
+| lo que gana o pierde cada una | 7,36 | 10,54 |
+
+### Tres defectos que el cambio destapó, y se corrigieron
+
+**La leyenda de los dos precios se montó sobre el rótulo del eje.** Una leyenda
+de figura no la ve el ajuste automático de márgenes, de modo que al ensanchar
+quedó a la misma altura que el rótulo. Pasa a ir dentro de cada panel, en una
+banda que se abre debajo de la última institución.
+
+**El día liquidado enseñaba un precio sin energía.** La hora de las cuatro de la
+tarde transa 0,14 kWh, que en un eje que llega a nueve no dibuja nada, mientras
+su precio sí aparecía abajo. Se rotula el total de esas horas, porque la
+geometría no puede decirlo y el rótulo sí.
+
+**Y el rótulo del excedente iba en la hora y no en la barra.** Las barras se
+dibujan sobre posiciones consecutivas y no sobre la hora del día; el rótulo,
+puesto en la hora, se salía del panel y estiraba la figura media pulgada.
+
+### Y una unidad que no coincidía
+
+La lámina de quién vende y quién compra rotulaba el eje en kilovatios mientras
+las demás lo hacen en kilovatios hora. El paso es horario, de modo que el
+número es el mismo, pero **dos unidades para lo mismo en la misma charla se
+leen como dos magnitudes**. Queda en energía, que es lo que se liquida.
+
+---
+
+## C-175 · El cupo de la permuta se comparaba contra la importación acumulada hasta cada hora, no contra la del mes
+
+**Encontrado el 2026-09-10 al preguntar el autor por la figura del crédito**, y
+confirmado contra el texto oficial, que no deja margen de lectura.
+
+### Qué dice la norma
+
+El artículo 25 de la Resolución CREG 174, en el texto que le dio el artículo 28
+de la Resolución CREG 101 072 de 2025:
+
+> «**Al cierre de cada período de facturación**, los excedentes de un AGPE se
+> categorizarán en dos tipos de excedentes […]: i) los excedentes
+> **acumulados que igualan la importación** y que se reconocerán como créditos
+> de energía […] y ii) los excedentes que superan la importación, que se
+> valorarán a la variable MCm.»
+
+Y el artículo 26, en el texto que le dio el artículo 29 de la misma
+resolución, da la liquidación del autogenerador de hasta 100 kW que aplica
+crédito de energía:
+
+> VE = (Exc1 − Imp) · CUv − Exc1 · Cvm + Exc2 · MCm
+
+Las tres cantidades, es decir el excedente que se permuta, la importación y el
+excedente que la supera, **son del mes y de cada usuario**. El índice horario
+solo aparece en los dos literales que no son el nuestro: el del precio pactado
+y el del autogenerador que no usa fuentes renovables.
+
+El tramo de capacidad también queda fijado. Cada una de las cinco plantas tiene
+17,55 kWp (H-67), de modo que las cinco caen en el tramo de hasta 100 kW, donde
+el comercializador **solo cobra el componente de comercializar** sobre lo
+permutado.
+
+### Qué hacía el código
+
+Recorría las horas del mes acumulando inyección y retiro, y en la primera hora
+en que la inyección acumulada adelantaba al retiro acumulado **marcaba ese punto
+como irreversible**: todo el excedente posterior del mes iba a bolsa. Bastaba un
+adelanto momentáneo para disparar el resto del mes. Es lo que H-69 encontró: 2,03
+kWh de un domingo, el 1 de junio, mandaron a bolsa el 98 % del mes aunque al
+cerrarlo la institución retiró cuatro veces más de lo que inyectó.
+
+La comparación correcta es contra **la importación de todo el mes**. Se corrigió
+en los dos sitios que la calculan: el escenario de autogeneración individual y
+la alternativa de fuera de cada vendedor, es decir su piso. Todo lo demás que
+calcula el tramo llama a esta última y hereda el arreglo.
+
+Quedan dos reimplementaciones propias del criterio viejo, por corregir o
+retirar: una sonda de H-53 y la figura del crédito que se preparó para el foro,
+que dibuja exactamente el disparo.
+
+### Qué cambia, medido sobre la frontera principal
+
+Nueve meses y cinco instituciones.
+
+| | Con el disparo | Con el cupo del mes |
+|---|---:|---:|
+| Excedente como crédito | 4.157,4 kWh · 69,2 % | **6.006,5 kWh · 100 %** |
+| Excedente que va más allá del crédito | 1.849,1 kWh | **cero** |
+| Meses con excedente más allá del crédito, de 45 | 2 | **0** |
+
+**En ningún mes de ninguna institución la inyección supera a la importación.**
+La comunidad inyecta 6.006,5 kWh e importa 260.525,6: cuarenta y tres veces más.
+
+En dinero, esos 1.849,1 kWh se valoraban a bolsa, con una media ponderada de
+113,0 (COP/kWh), es decir 207.421 (COP); como crédito valen 1.015.726. **La
+autogeneración individual gana 808.305 (COP)**, y pasaría de 45.139.785 a unos
+45.948.088, por encima de los 45.422.019 del mercado entre pares.
+
+**Pero de ahí no se sigue que el orden se invierta**, porque el mercado también
+se mueve: su piso sube y su residual pasa a valorarse igual que su piso
+(ESCENARIOS.md, revisión del 2026-09-13). La cifra la da la corrida.
+
+En la frontera secundaria el efecto es otro: **19 de 45 pares institución-mes
+cierran exportando**, la Universidad de Nariño en los nueve meses, el Hospital en
+siete y Mariana en tres. Allí el excedente más allá del crédito sí existe, y
+pesa su precio (H-73).
+
+### Por qué las pruebas no lo vieron
+
+Las 29 pruebas de los escenarios individual y colectivo **pasan antes y después
+de la corrección**. Ninguno de sus casos tiene un adelanto que después se
+revierta, y sin eso las dos lecturas dan los mismos totales. Eran ciegas al
+defecto.
+
+La compuerta nueva comprueba cuatro casos, y el primero es precisamente ese: un
+agente que se adelanta en la segunda hora y después consume mucho más. Con la
+lectura vieja salía todo a bolsa desde esa hora; con la del mes, todo es crédito.
+
+### Y la norma lo dice con estas palabras
+
+El Anexo 4 de la Resolución CREG 101 072, que aplica el artículo 26 durante el
+periodo de transición todavía vigente, define la hora del corte como aquella en
+que los excedentes horarios acumulados desde la primera hora del mes «igualan o
+sobrepasan la cantidad de importación total (Imp) de energía en el mes m». **Lo
+programado ahora es literalmente eso.** Lo viejo comparaba contra la importación
+acumulada hasta cada hora, que es otra cantidad.
+
+El exceso se valora a la bolsa de cada hora desde el corte, que es la regla del
+régimen transitorio (H-73); y el reparto cronológico que resulta es el de la
+norma, no una elección del modelo (H-74).
+
+### Estado
+
+**Corregido en el código, sin corrida.** Un ensayo de humo de un mes, lanzado el
+2026-09-10, confirmó el efecto sobre el piso: **cero horas-vendedor caen en
+bolsa** en julio, y el piso queda entre 640,8 y 666,0 (COP/kWh). El ensayo
+murió al 99 % porque un proceso del conjunto terminó abruptamente, y **no dejó
+cifras**.
+
+**Invalida el canon.** Entra en la próxima corrida oficial, junto con los
+ajustes de la revisión del 2026-09-13. Queda abierto dentro de este mismo tramo
+cómo se fija el piso de cada hora cuando el estado del mes solo se conoce al
+cierre (H-74).
+
+---
+
+## C-176 · Retirar un miembro de la comunidad antes de armar la corrida
+
+**Para medir qué le pasa al resto cuando se va quien más excedente aporta**
+(H-71). El orquestador admite ahora retirar uno o varios miembros por su nombre.
+
+El recorte se hace **justo después de cargar las series** y antes de todo lo
+demás, de modo que la tarifa, las cotas del juego y el porcentaje de reparto del
+colectivo se rearman para la comunidad reducida y no se heredan de la de cinco.
+Un nombre que no esté entre los miembros detiene la corrida en voz alta.
+
+**Estado: añadida y sin probar.** No se ha ejecutado todavía. La primera corrida
+que la use debe comprobar que imprime la comunidad reducida y que los nombres de
+los agentes quedan alineados con sus series.
+
+---
+
+## C-177 · El tramo del Anexo 4 en una sola función, y el residual del mercado por el artículo 25
+
+### Qué dice la norma
+
+El Anexo 4 de la Resolución CREG 101 072 fija el corte hx sobre la importación
+total del mes, como ya cita C-175. El artículo 25 de la Resolución CREG 174
+fija además el tramo de capacidad: hasta 100 (kW) la permuta paga solo el
+componente de comercializar (numeral 1); entre 100 (kW) y 1 (MW) paga además
+transmisión, distribución, pérdidas y restricciones (numeral 2); por encima de
+1 (MW) deja de ser AGPE (artículo 5 de la 174; Resolución UPME 281 de 2015). Y
+el artículo 21 de la 101 072 cuenta los excedentes asignables sobre lo que de
+verdad cruza la frontera de cada usuario, no sobre lo que registra su medidor
+bruto, que es lo que sostiene que lo colocado dentro del mercado entre pares no
+consuma cupo (D3).
+
+### Qué hacía el código
+
+Cada escenario que necesitaba el corte hx repetía su propio bucle: el
+individual, por un lado, y por separado el piso de cada vendedor del mercado
+entre pares. Ninguno aplicaba la deducción por capacidad del artículo 25 de
+forma unificada, y lo que el mercado entre pares no colocaba, es decir su
+residual, se valoraba a la bolsa de cada hora sin pasar por el crédito ni por
+el corte.
+
+### Qué cambia
+
+Una sola función, `reparto_anexo4`, en `core/opciones_externas.py`, que recibe
+la inyección y la importación de un usuario y devuelve el crédito, el exceso y
+si la hora está en permuta, con el corte hx del Anexo 4. De ella cuelgan
+`tramo_permuta` (envoltorio de compatibilidad), `residual_proporcional` (la
+lectura comercial por los dos lados, D3: el lado corto se reparte entre
+vendedores y compradores por D-7, y de ahí salen la inyección y la importación
+residuales de cada miembro), `deduccion_art25` (la deducción por capacidad de
+los tres tramos del artículo 25, que detiene la corrida en voz alta por encima
+de 1 MW), `precio_permuta_por_periodo` y `piso_residual`. El mercado entre
+pares pasa a liquidar su residual con la misma función que su piso
+(`_residual_art25`, en `scenarios/comparison_engine.py`), en vez de a bolsa
+horaria (D2), y el contrato interno hereda la misma regla para lo que la
+pareja no firma (D9, C-181). Pruebas: `tests/test_anexo4_tramo.py` (once casos
+nuevos) y `tests/test_p2p_residual_art25.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial. Invalida el canon.** El ensayo
+de humo de un día que sustituye al de tres (regla del autor del 2026-09-13: en
+local solo pruebas y humos de un día; todo lo que produce resultados va al
+servidor), lanzado sobre el 2025-07-15 y 16, terminó sin error en el caso base
+y con la generación multiplicada por siete, y la compuerta C-165 confirma que
+la matriz horaria del mercado entre pares sigue sumando exactamente su total
+por agente.
+
+---
+
+## C-178 · El colectivo es solo mensual, con exceso a bolsa horaria y reparto igual
+
+### Qué dice la norma
+
+Los artículos 19 a 21 de la Resolución CREG 101 072. El artículo 19 deja el
+porcentaje de reparto a lo que acuerden los integrantes, con la sola condición
+de sumar cien, y permite cambiarlo cada mes. El artículo 20 exige que ninguna
+frontera llegue al 10 % para el caso favorable, lo que con cinco fronteras
+exige al menos once (H-71). Y el artículo 21 liquida al cierre del período,
+contra la importación de cada miembro, en crédito hasta igualarla y exceso por
+encima, con el mismo corte hx del Anexo 4 que el autogenerador individual.
+
+### Qué hacía el código
+
+La clave «C4» de los resultados era la versión horaria, que clasificaba el
+residual como exceso sin esperar el cierre del mes. La versión mensual,
+disponible aparte, valoraba el exceso por encima del crédito a la media
+mensual de la bolsa, que lo sobrevalora un 12,5 % en la frontera secundaria
+(H-73). Y el porcentaje de reparto (`compute_pde_weights`) se calculaba con la
+generación media medida, rotulado como proporcional a la capacidad instalada,
+cuando la capacidad de las cinco plantas es idéntica: la Universidad CESMAG
+aporta el 5,2 % del fondo y se le reconoce el 10,7 % (H-71).
+
+### Qué cambia
+
+La clave «C4» pasa a ser siempre la mensual (D4); «C4_mensual» queda como alias
+del mismo objeto durante una versión, y el modo horario permanece en
+`scenario_c4_creg101072.py` solo como opción no normativa que el orquestador ya
+no invoca. `_run_c4_monthly_hx` se reescribió para partir la asignación de cada
+mes con `reparto_anexo4` hora por hora y valorar el exceso a la bolsa de la
+hora del corte, no a la media del mes. El porcentaje de reparto por defecto
+pasa a ser igual entre los cinco miembros, el 20 % (D5), con tres reglas
+alternativas de análisis (`pde_por_regla`: por consumo, por aporte y por
+generación del mes) y el contrafáctico de once fronteras que fuerza el caso
+favorable del artículo 20. Pruebas: `tests/test_c4_mensual_norma.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial. Invalida el canon.** En el mismo
+ensayo de humo de un día, el colectivo mensual («C4») y su alias («C4m») dieron
+183.132 (COP) en el caso base y 650.368 (COP) con la generación multiplicada
+por siete, iguales entre sí al dígito, como exige que el alias sea el mismo
+objeto.
+
+---
+
+## C-179 · La autogeneración remota con el contrato despachado cada hora
+
+### Qué dice la norma
+
+Los artículos 16 a 21 de la Resolución CREG 101 099 de 2026. La generación del
+autogenerador remoto se entrega al mercado mayorista (artículo 16, numeral i);
+el consumo lo atiende un comercializador por contrato, como usuario no
+regulado (numeral ii); ese contrato se registra ante el ASIC y se despacha
+cada hora por el mínimo entre la generación real y la demanda comercial
+agregada (artículo 19); y el generador devuelve al usuario el cargo por
+confiabilidad sobre la generación de cada hora que no supere el consumo, con
+un porcentaje fijo por frontera (artículo 18).
+
+### Qué hacía el código
+
+Modelaba una compensación entre fronteras: el mínimo entre el excedente y el
+déficit de la comunidad en cada hora, repartido en proporción a los déficits de
+esa hora y valorado a la tasa de usuario no regulado, con un precio de reparto
+fijado por un factor postulado. La norma no compensa: vende al mercado
+mayorista y atiende el consumo por contrato (H-72).
+
+### Qué cambia
+
+`run_c5_agr_creg101099` (en `scenarios/scenario_c5_agr_creg101099.py`) se
+reescribió con la mecánica del artículo 19: la cantidad despachada por
+contrato es el mínimo entre la inyección total y la importación total; el
+precio del contrato reparte ese valor entre generador y consumidores con la
+serie mensual de XM de contratos con destino al mercado no regulado, y cae al
+factor postulado (CAL-37) solo si no se pasa un precio; lo que sobra va a la
+bolsa de cada hora; y la devolución del cargo por confiabilidad (artículo 18)
+se declara omitida por defecto porque la serie no está disponible, de segundo
+orden y a favor de la comunidad. La cantidad despachada coincide en sustancia
+con la que el escenario viejo llamaba compensación (H-72). Pruebas:
+`tests/test_c5_101099.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial. Invalida el canon.** El mismo
+ensayo de humo de un día imprimió el precio de contrato de XM, 284,9
+(COP/kWh) de media, con la devolución del CERE omitida por falta de serie,
+tanto en el caso base como con la generación multiplicada por siete.
+
+---
+
+## C-180 · El escalado de la comunidad y los umbrales de tamaño
+
+### Qué dice la norma
+
+La clasificación del artículo 25 de la Resolución CREG 174 y el volumen del
+mercado son homogéneos de grado uno en generación y demanda juntas, salvo en
+los umbrales de tamaño: 100 (kW) por planta (artículo 25, numeral 2), 1 (MW)
+para dejar de ser AGPE (artículo 5 de la 174; UPME 281 de 2015), 100 (kW) de
+capacidad por usuario para el caso favorable del colectivo (artículo 20,
+numeral 2, literal ii) y 1 (MW) de suma de capacidades para su caso 3
+(artículo 20, numeral 1, literal i). El umbral de usuario no regulado, 0,1
+(MW) o 55 (MWh) al mes (Resolución CREG 131 de 1998), no cambia la clase
+tarifaria porque la condición es del sitio de entrega, y el circuito medido es
+parte del sitio.
+
+### Qué hacía el código
+
+M3, la segunda frontera de medición, se presentaba como una segunda comunidad,
+pero tiene la misma generación que M1 y solo cambia la demanda, recortada de
+forma desigual, de 1,8 a 6,9 veces según la institución (H-77), y con un
+medidor que en el Hospital no es frontera institucional. El orquestador
+pasaba además la generación media medida como aproximación de la capacidad
+instalada.
+
+### Qué cambia
+
+M3 se retira del todo (D10). En su lugar, `main_simulation.py` admite un
+escalado controlado de la generación y la demanda (`--factor-generacion`,
+`--factor-demanda`, `--escala-agente`, `--neto-cero`, `--factor-cv`), aplicado
+justo después de cargar las series, del que sale la matriz de once casos de la
+especificación del motor (apartado 4.12). La capacidad instalada pasa a ser la
+real, 17,55 (kWp) por planta (H-67), multiplicada por el factor de generación
+de cada institución. Se conserva, además, la regla estricta de
+`deduccion_art25`: si algún agente supera los 100 (kW) de capacidad y no se
+pasan los peajes, la autogeneración individual detiene la corrida con un error
+en vez de liquidar sin ellos y sobrestimar C1 en silencio (H-50); el colectivo
+decide su propio caso por el porcentaje de reparto y solo avisa cuando aplica,
+un criterio distinto del umbral literal de 100 (kW) (diseño previo, CAL-41).
+Pruebas: `tests/test_escalado_umbrales.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial. Invalida el canon.** El mismo
+ensayo de humo de un día confirmó la capacidad real: 17,6 (kW) por planta sin
+escalar, y ninguna institución en el numeral 2; con la generación multiplicada
+por siete, 122,8 (kW) por planta, con las cinco instituciones ya en el numeral
+2 del artículo 25.
+
+---
+
+## C-181 · El contrato interno cobra lo que vende
+
+### Qué dice la norma
+
+El artículo 23, numeral 2, literal a, de la Resolución CREG 174: la venta a un
+generador o comercializador con destino a usuarios no regulados se paga al
+precio pactado libremente, es decir por la energía completa que se entrega, no
+solo por la diferencia con la alternativa del vendedor.
+
+### Qué hacía el código
+
+`contrato_interno()` (en `scenarios/_c2_interno.py`) solo anotaba al vendedor
+la prima sobre su piso, el precio menos lo que le pagaría la red. Lo que vale
+la energía en sí no aparecía en ninguna parte de la contabilidad, ni en la
+prima ni en el residual, porque esa energía ya se descontaba como colocada
+(H-78). En el ejemplo medido, un intercambio de 3 (kWh) a 770 (COP/kWh) dentro
+de una banda de 740 a 800 (COP/kWh) daba 1.110 (COP) al contrato interno
+frente a 3.330 al mercado entre pares, una diferencia de 2.220 (COP),
+exactamente el piso por la energía vendida.
+
+### Qué cambia
+
+Se añadió `cobro_vendedor` y `cobro_horario` a `contrato_interno()`: lo que el
+vendedor cobra por la energía que entrega, precio por cantidad, agregado y por
+hora. `scenarios/comparison_engine.py` usa ahora ese cobro más el ahorro del
+comprador para el total de C2, en vez de solo la prima más el ahorro. Lo que la
+pareja no firma sigue, además, la misma regla del residual del mercado (D9,
+C-177): vuelve al residual del vendedor y a la importación del comprador,
+liquidados por el artículo 25, y no a bolsa. Con la pareja firmada, C2 y el
+mercado entre pares dan ahora el mismo total (H-33). Pruebas añadidas a
+`tests/test_p2p_residual_art25.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial. Invalida el canon.** El mismo
+ensayo de humo de un día confirma H-33: con las parejas firmadas, C2 y el
+mercado entre pares dan el mismo total al dígito, 191.625 (COP) en el caso
+base y 655.303 (COP) con la generación multiplicada por siete.
+
+---
+
+## C-182 · El análisis global real barre el componente de comercializar
+
+### Qué dice la norma
+
+Con el residual valorado igual que el piso (H-70, D2), la brecha entre el
+mercado entre pares y la autogeneración individual es, de forma aproximada, el
+componente de comercializar por la energía transada. Ese componente, para un
+usuario no regulado, es el costo pactado con su comercializador (artículo 25
+de la CREG 174) y no se conoce de antemano; el análisis global de sensibilidad
+debe barrerlo (D7).
+
+### Qué hacía el código
+
+El análisis global de sensibilidad de Sobol y Saltelli barría el piso del
+vendedor como parámetro libre, bajo el diseño previo en el que el residual del
+mercado se valoraba siempre a la bolsa real, con independencia de ese piso.
+
+### Qué cambia
+
+Nada todavía en el código de este subproyecto. Ojo, cambia respecto del plan
+original: la tarea que iba a sustituir el piso libre por el barrido del
+componente de comercializar era la tarea 12 del plan, y quedó superada por el
+rediseño completo del análisis global que el autor aprobó el 2026-09-13 (D17):
+dos niveles, un emulador del mercado validado contra las once corridas de la
+matriz de escalado con el criterio del 1 % en las brechas, seis entradas (el
+factor de Cv, el nivel de bolsa continuo, la tarifa y los peajes al ±10 %, y el
+error de medida de generación y de demanda) en los puntos E0, E2 y E4, con un
+Saltelli de segundo orden. Esta entrada registra esa decisión y remite al
+diseño completo en
+`docs/superpowers/specs/2026-09-13-rediseno-gsa-analisis.md`.
+
+### Estado
+
+**Decidido; se implementa en el subproyecto 2, junto con la corrida oficial.**
+
+---
+
+## C-183 · El factor de coincidencia que prometía la propuesta
+
+### Qué dice la norma
+
+`Documentos/PropuestaTesis.txt`, en los resultados esperados, promete
+calcular «ratio de autosuficiencia, factor de coincidencia» para evaluar si
+el mercado entre pares incentiva más autoconsumo que la distribución
+administrativa. La propuesta no define el factor, y la referencia que
+acompaña el párrafo, Bertsimas, Farias y Trichakis (2011), define el precio
+de la equidad y no dice nada de coincidencia.
+
+### Qué hacía el código
+
+Nada. El factor no existía en ninguna parte del motor, es decir la
+propuesta prometía una métrica que la implementación nunca calculó.
+
+### Qué cambia
+
+Se implementan las dos opciones de la nota `2026-09-13-factor-coincidencia-
+opciones.md` (decisión del autor del 2026-09-13): la opción C por mecanismo
+como métrica principal, y la opción B de la comunidad como complemento en
+la matriz de escalado. La opción C mide, para cada mecanismo, qué fracción
+de la energía que su liquidación acredita como si sustituyera importación
+en verdad coincidió en la hora con esa importación, con el corte del
+Anexo 4; la opción B es el pico de la importación neta de la comunidad
+entre la suma de los picos individuales.
+
+Con demanda fija la física es la misma en los siete mecanismos, de modo que
+cualquier métrica puramente física ya existe (es la autosuficiencia y el
+autoconsumo de C-164) y no distingue entre ellos. Lo que cambia es la regla
+de liquidación, y es allí donde la opción C sí distingue: en el caso a mano
+de la prueba, un mes y dos horas, la autogeneración individual (C1) acredita
+al vendedor su propia inyección de la primera hora contra su propia
+importación de la segunda, y no coincide nada, es decir el factor es cero;
+el colectivo con reparto igual asigna la mitad de esa inyección a cada
+miembro, y solo coincide la mitad de lo acreditado, es decir un medio; y el
+mercado entre pares transa el excedente completo dentro de la misma hora en
+que el otro miembro importa, por construcción del lado corto (D-7), y el
+factor vale uno.
+
+Nuevo módulo `analysis/coincidencia.py`, con `coincidencia_por_mecanismo` y
+`simultaneidad_picos`. `scenarios/comparison_engine.py` los invoca al cierre
+de `run_comparison` y expone los resultados en `ComparisonResult.coincidencia`
+y `ComparisonResult.simultaneidad`. De paso se corrige un hallazgo del humo
+de la tarea 13: el índice de equidad no traía la clave del mercado por la
+vía del colectivo, y `print_comparison_report` la respaldaba con un
+`.get(esc, 0.0)` que imprimía 0,0000, es decir «perfectamente equitativo»
+sin haberlo calculado. Se saca la fórmula que ya usaban los escenarios
+regulados a un solo ayudante, `_indice_equidad_agregado`, y el mercado por
+la vía del colectivo lo usa también. Prueba: `tests/test_coincidencia.py`.
+
+### Estado: implementado, sin corrida oficial.
+
+---
+
+---
+
+## C-184 · La ronda de corrección de la revisión final: `--analysis` vuelve a correr y liquida con la norma
+
+**2026-09-13 · tipo: `codigo` · aplicada, con pruebas y humo de un día**
+
+### Qué hacía el código
+
+- `analysis/subperiod.py` no se podía importar desde C-164: un campo con valor por defecto quedó antes de campos sin él, de modo que toda corrida con `--analysis` se detenía en el corte por subperíodos, con cualquier capacidad.
+- Aun corregido eso, el corte por subperíodos, los barridos de sensibilidad y FA-3 liquidaban sin los peajes o con la capacidad aproximada por la generación media. Con plantas de más de 100 (kW) el primero se detenía, y los demás aplicaban el numeral 1 del artículo 25 donde corresponde el 2.
+- Los contrafácticos del colectivo se calculaban y no se guardaban, y faltaba el de once fronteras del mercado por la vía del colectivo.
+- El informe mensual rotulaba como C2 otro mecanismo y no tenía la columna del mercado por la vía del colectivo; tres figuras y FA-3 suponían el colectivo horario.
+- Los peajes con celdas vacías se rellenaban en silencio con el respaldo del componente de comercializar.
+
+### Qué cambia
+
+Todo lo anterior queda corregido. La capacidad, los peajes y los períodos llegan a cada punto de entrada de `--analysis`; el barrido de cobertura omite con aviso los puntos que salen del régimen, es decir los de más de 1 (MW); los contrafácticos van a la consola y a una hoja del libro; el informe mensual sale del desglose horario (C-165) y suma el total en todas las columnas; las figuras 14 y 15 toman el colectivo del motor; y el artículo 25 rechaza peajes no finitos en el numeral 2. Pruebas nuevas: `tests/test_analysis_numeral2.py`, y dos más en las del residual y del informe mensual.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial.** 123 pruebas y la compuerta C-165 en verde, la dorada en 7 de 7, y el humo de un día con `--analysis` en E4 sin error (29 minutos). Lo que queda para el servidor está en H-80.

@@ -69,12 +69,15 @@ class SubperiodResult:
     # con lo suyo, y el índice de equidad —que antes no se guardaba— entra por
     # fin al corte por sub-períodos.
     gini_p2p:     float        # coeficiente de Gini del beneficio por agente
-    ie_p2p:       float = 0.0  # índice de equidad del mercado entre pares
     market_hours: int          # horas con mercado activo
     kwh_p2p:      float        # kWh intercambiados en P2P
     c1_c3_spread: float        # |net_c1 - net_c3| divergencia C1 vs C3 [COP]
     sc:           float        # self-consumption ratio
     ss:           float        # self-sufficiency ratio
+    # Revision final: va al final porque lleva valor por defecto. En medio de
+    # los campos sin defecto, el decorador lanzaba TypeError al importar el
+    # modulo y todo --analysis se detenia en el corte por sub-periodos.
+    ie_p2p:       float = 0.0  # índice de equidad del mercado entre pares
 
 
 # ── Función principal ─────────────────────────────────────────────────────────
@@ -93,10 +96,22 @@ def run_subperiod_analysis(
     agent_names:  list,
     currency:     str = "COP",
     verbose:      bool = True,
+    # C-1 (revision final): lo que la corrida principal le pasa a su propia
+    # comparacion. Sin los peajes, una planta de mas de 100 kW detenia el
+    # analisis en el numeral 2 del art. 25; sin el calendario, el colectivo
+    # mensual liquidaba el horizonte entero como un solo periodo. Los
+    # defectos dejan el comportamiento anterior.
+    month_labels: Optional[np.ndarray] = None,
+    component_c = "auto",
+    tolls = None,
 ) -> list[SubperiodResult]:
     """
     Ejecuta la simulación completa (EMS P2P + escenarios C1-C4) para
     cada uno de los 4 sub-períodos y retorna lista de SubperiodResult.
+
+    Cada sub-periodo escala la demanda y cambia el nivel de la bolsa sobre
+    el MISMO horizonte, sin recortarlo, de modo que `month_labels`,
+    `component_c` y `tolls` pasan tal cual a `run_comparison`.
     """
     from core.ems_p2p import EMSP2P
     from scenarios import run_comparison
@@ -156,7 +171,9 @@ def run_subperiod_analysis(
             pde=pde,
             pi_ppa=pgb + 0.5 * (pi_gs - pgb),
             capacity=capacity,
-            month_labels=None,
+            month_labels=month_labels,                  # C-1
+            component_c=component_c,                    # C-1
+            tolls=tolls,                                # C-1
         )
 
         nb = cr.net_benefit

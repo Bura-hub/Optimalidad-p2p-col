@@ -1,6 +1,12 @@
 """
 Las cinco tablas del régimen del piso (H-52, H-53, H-57).
 
+AVISO (tarea 13, C-177): desde que la producción liquida el piso sobre las
+residuales, el régimen "residual" es un alias de "tramo" en
+`paso_a_paso.carga`, de modo que la diferencia entre los dos vale cero por
+construcción. Las cifras de esta sonda son del criterio anterior; para medir
+el efecto de H-53 hay que comparar "bruto" con "tramo".
+
 La tabla que imprime el juntador resume; estas cinco desglosan, y cada una
 responde una pregunta que el resumen no contesta:
 

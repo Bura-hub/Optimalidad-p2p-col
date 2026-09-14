@@ -15,10 +15,14 @@ Y ESTA COMPUERTA LO FUERZA. Para cada mecanismo comprueba que la matriz suma
 por filas **exactamente** el beneficio por agente que el motor reporta. Si
 alguien toca una de las dos cuentas y no la otra, se entera aqui.
 
-LA QUE FALTA A PROPOSITO. La segunda granularidad del colectivo valora contra
-promedios MENSUALES. Repartir su dinero entre las horas del mes seria inventar
-una precision que la liquidacion no tiene, de modo que no tiene desglose
-horario y la compuerta comprueba que **no lo finge**.
+DESDE C-178 NO FALTA NINGUNA. El colectivo es solo mensual y anota su credito
+a la tarifa media del mes y su exceso a la bolsa de su hora; su alias de una
+version debe ser el mismo objeto.
+
+DESDE LA TAREA 13 TAMBIEN CUBRE "P2P_colectivo". La compuerta recorria los
+mecanismos originales pero no la columna que agrega el reparto en dos
+niveles (tarea 8); ahora la incluye para que un desglose que deje de sumar
+se note aqui.
 
 Uso:
     python tests/gate_c165_desglose_horario.py
@@ -86,7 +90,7 @@ def main() -> int:
 
     fallos = []
     print(f"  comunidad de {N} agentes sobre {T} horas\n")
-    for esc in ("P2P", "C1", "C2", "C3", "C4"):
+    for esc in ("P2P", "P2P_colectivo", "C1", "C2", "C3", "C4"):
         m = cr.neto_horario.get(esc)
         objetivo = np.asarray(cr.net_benefit_per_agent[esc], dtype=float)
         if m is None:
@@ -107,13 +111,13 @@ def main() -> int:
         if not ok:
             fallos.append(f"el desglose de {esc} no suma su propio total")
 
-    # La granularidad mensual del colectivo NO finge tener desglose horario.
+    # C-178: el alias del colectivo es el mismo objeto que la columna C4.
     if "C4_mensual" in cr.net_benefit:
-        ok_m = cr.neto_horario.get("C4_mensual") is None
-        print(f"\n  la granularidad mensual del colectivo no finge desglose "
-              f"horario   {'ok' if ok_m else 'FALLA'}")
+        ok_m = cr.neto_horario.get("C4_mensual") is cr.neto_horario.get("C4")
+        print(f"\n  el alias mensual del colectivo es la columna C4   "
+              f"{'ok' if ok_m else 'FALLA'}")
         if not ok_m:
-            fallos.append("la rama mensual inventó un desglose horario")
+            fallos.append("el alias C4_mensual no apunta a la columna C4")
 
     # Y una comprobacion de sentido: agregando por mes de 720 horas, la suma
     # de los meses vuelve a dar el total. Es la operacion que el capitulo de

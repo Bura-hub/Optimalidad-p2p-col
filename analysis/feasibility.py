@@ -739,6 +739,9 @@ def analyze_withdrawal_risk(
     component_c:        "str | float | np.ndarray | None" = "auto",  # CAL-15
     tolls:              "float | np.ndarray | None" = None,          # CAL-41
     verbose:            bool  = True,
+    # I-6 (revision final): el calendario de facturacion de la corrida
+    # principal; None es un solo periodo.
+    month_labels:       Optional[np.ndarray] = None,
 ) -> "WithdrawalRiskReport":
     """
     FA-3: Para cada prosumidor n, simula su retiro de la comunidad.
@@ -814,12 +817,16 @@ def analyze_withdrawal_risk(
         else:
             component_c_r = component_c
 
-        # PDE para la comunidad restante (proporcional a capacidad)
+        # I-6 (revision final): la comunidad restante se liquida como la
+        # corrida principal, que ya es el colectivo mensual (C-178): reparto
+        # igual (D5), las mismas etiquetas de mes, Cv, peajes y capacidad.
+        # Antes iba en modo horario, con el porcentaje proporcional a la
+        # capacidad, contra un B_C4_full que ya era mensual.
         if capacity is not None:
             cap_r = capacity[mask]
         else:
             cap_r = np.maximum(G_raw_r.mean(axis=1), 0.0)
-        pde_r = compute_pde_weights(cap_r)
+        pde_r = compute_pde_weights(np.ones(len(mask)), method="equal")
 
         # IDs de prosumidores en la comunidad restante
         new_ids_map  = {old: new for new, old in enumerate(mask)}
@@ -832,6 +839,8 @@ def analyze_withdrawal_risk(
             capacity=cap_r,
             component_c=component_c_r,
             tolls=tolls_r,          # CAL-41
+            mode="monthly_hx",      # I-6
+            month_labels=month_labels,
         )
         B_C4_remaining = float(c4_r["aggregate"]["total_net_benefit"])
 

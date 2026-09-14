@@ -4446,6 +4446,15 @@ excedente engaña.
 
 ---
 
+### Actualización, 2026-09-13
+
+**Cerrado por el lado del vendedor, por decisión del autor.** Lo que un vendedor
+coloca dentro de la comunidad no consume su cupo, porque no se lo entrega al
+comercializador, y su residual se valora por el artículo 25 igual que su piso.
+Con C-175 el cupo es además la importación del mes completo, de modo que en la
+frontera principal ningún vendedor lo agota con ninguna de las dos lecturas.
+Queda abierta la consecuencia simétrica por el lado del comprador (H-74).
+
 ## H-54 · La sonda y la corrida no negociaban con el mismo precio de bolsa
 
 **Estado: CORREGIDO el 2026-09-08 por C-154, con el efecto medido antes de
@@ -5871,48 +5880,1001 @@ y anota los que no resuelven en vez de colgarse.
 
 ---
 
-## H-67 · Tres cifras distintas para la capacidad instalada, y una de ellas es imposible
+## H-67 · La capacidad instalada queda cerrada, y la cifra medida que la acompanaba no reproduce
 
-**Encontrado al armar la lámina del proyecto para la ponencia**, buscando un
-dato que parecía trivial. El repositorio da tres respuestas.
+**Encontrado al armar la lamina del proyecto para la ponencia**, buscando un
+dato que parecia trivial. El repositorio daba tres respuestas y ninguna con
+cadena de origen. Cerrado el 2026-09-09 contra el Informe Tecnico 1 del propio
+proyecto.
 
-| Cifra | De dónde sale |
+### La capacidad instalada: 87,75 (kWp), y la cadena cuadra al vatio
+
+| Nivel | Cifra | Comprobacion |
+|---|---|---|
+| Modulo | 585 (Wp), Jinko Solar | dato de placa |
+| Sistema por institucion | **17,55 (kWp)** | 30 modulos por 585 (Wp) da 17.550 (W) exacto |
+| Las cinco | **87,75 (kWp)** | 5 por 17,55, y 5 por 30 da los 150 modulos del informe mensual |
+
+Fuente: Informe Tecnico 1 del proyecto, en el fichero fuente del modelo
+transaccional, secciones de aliados, de capacidad del piloto y de la tabla de
+parametros. El reporte mensual de noviembre de 2025 lo repite con el recuento de
+modulos, que es la comprobacion cruzada.
+
+**Las cinco instalaciones son identicas.** Ninguna descripcion del proyecto lo
+decia, y cambia como se cuenta: no son cinco plantas distintas, son cinco
+plantas iguales en cinco sitios distintos.
+
+**Y trae dos datos normativos que la ponencia no estaba usando.** Con 17,55
+(kWp) por sistema, cada uno se clasifica como autogenerador a pequena escala,
+cuyo limite es 1 (MW) segun la Resolucion UPME 281 de 2015; y la conexion se
+tramita por el procedimiento simplificado de la Resolucion CREG 030 de 2018.
+
+### La de 9,9 no puede ser cierta, y queda retirada
+
+Procede de un guion de presentacion sin fuente. Todos los maximos medidos por
+institucion la superan, de modo que no puede ser la capacidad de las cinco.
+Probablemente sea una cifra de una sola institucion o de una version anterior
+del conjunto de datos, rotulada como el total.
+
+### Lo nuevo: la cifra de 70,5 (kW) no reproduce
+
+La ponencia acompanaba la capacidad de placa con **70,5 (kW)** de generacion
+maxima medida, es decir el 80 % de la placa, con un desglose por institucion de
+16,5, 15,1, 14,7, 14,0 y 10,1. **Recalculado sobre el dato vigente, no sale
+ninguno de los dos numeros.**
+
+| Definicion | Sobre el dato vigente |
 |---|---|
-| **87,75 (kWp)** | el Informe 4 del asesor regulatorio, del 2026-05-27, citado en el escenario de autogeneración remota |
-| 9,9 (kW) | un guion de presentación, **sin fuente** |
-| **70,5 (kW)** | la suma de los máximos de generación medidos, del propio dato |
+| Suma de los maximos individuales | **78,91 (kW)**, el 89,9 % de la placa |
+| Maximo de la suma, es decir el pico coincidente | **75,36 (kW)**, el 85,9 % de la placa |
+| Lo que decia la ponencia | 70,5 (kW), el 80 % |
 
-### La de 9,9 no puede ser cierta
+El desglose por institucion tampoco coincide: hoy son 18,27, 15,18, 15,17, 15,14
+y 15,15. La discrepancia mayor es la Universidad CESMAG, que pasa de 10,1 a
+15,15, y es la firma de CAL-45: el filtro distribucional de atipicos recortaba
+generacion buena y fue sustituido por un guardia fisico. Las dos fronteras dan
+lo mismo, como debe ser, porque la frontera cambia la demanda y no la
+generacion.
 
-Los máximos medidos por institución sobre el horizonte completo son 16,5 para la
-universidad, 15,1, 14,7, 14,0 y 10,1 (kW). **Solo la primera supera esa cifra**,
-de modo que 9,9 no puede ser la capacidad de las cinco.
+**Cual de las dos definiciones se publica.** El pico coincidente, 75,36 (kW),
+porque es lo que las cinco entregan a la vez y es lo unico que un sistema ve.
+La suma de maximos individuales suma instantes distintos y sobrestima.
 
-Probablemente sea una cifra de una sola institución, o de una versión anterior
-del conjunto de datos, que quedó rotulada como el total. Es el mismo patrón que
-este proyecto ya persiguió dos veces: **una magnitud que no es lo que su rótulo
-dice**.
+### Una senal que queda anotada
 
-### Las otras dos son consistentes entre sí
+El maximo de la Universidad de Narino, 18,27 (kW), **supera su propia placa de
+17,55 (kWp) en un 4,1 %**. Es fisicamente posible en episodios breves de
+sobreirradiancia con celda fria, y ninguna otra institucion lo hace. Pero es
+justo la institucion cuya generacion se reconstruye desde el inversor por
+CAL-44, de modo que conviene comprobar que la reconstruccion no sobrepasa por
+escala antes de citar ese maximo por separado.
 
-70,5 sobre 87,75 es el **80 por ciento**, que es lo que una instalación real
-entrega frente a su placa. Las dos se sostienen y describen cosas distintas: una
-es lo instalado y la otra lo que de verdad se ha visto salir.
+### Estado
 
-### Qué se hace
-
-La ponencia usa **las dos**, cada una con su nombre, y no usa la tercera. Y se
-anota aquí para que la cifra de 9,9 no vuelva a viajar: **está en un guion que
-construye una presentación**, de modo que si esa presentación se mostró alguna
-vez, se mostró con un dato que contradice a las mediciones por un factor de
-siete.
-
-### Lo que queda abierto
-
-No se ha comprobado **de dónde salió** la cifra de 9,9 ni si alguna presentación
-la llegó a proyectar. No afecta a ningún resultado del modelo, porque el modelo
-lee las series medidas y no la capacidad de placa; afecta solo a la descripción
-del proyecto.
+**CERRADA en cuanto a la capacidad instalada**, que es 87,75 (kWp) con su cadena
+completa. **ABIERTA la cifra de generacion maxima**: la ponencia pasa a 75,36
+(kW), el pico coincidente, y queda pendiente comprobar el maximo de la
+Universidad de Narino contra su placa.
 
 ---
 
+## H-68 · Dos repartos distintos del mismo excedente, y el publicado usa una línea base retirada
+
+**Encontrado al verificar el guion de la ponencia contra los datos de sus
+propias figuras.** El reparto del excedente entre compradores y vendedores
+aparece con dos valores incompatibles.
+
+| Fuente | Compradores | Vendedores | Desplazamiento |
+|---|---|---|---|
+| El fichero hermano de la figura del reparto | 49,10 % | 50,90 % | 0,90 pp |
+| El resumen de la ponencia y el guion | 44,40 % | 55,60 % | 5,6 pp |
+
+Los dos dicen proceder de la corrida oficial. Solo el primero tiene fichero de
+datos regenerable; el segundo se escribió a mano.
+
+### La causa no es una errata, sino dos líneas base distintas
+
+La figura calcula la prima del vendedor contra **el piso medido de cada
+agente**, es decir la permuta mientras su crédito del mes no se agote y la
+bolsa a partir de ahí, que es lo que fijó CAL-47.
+
+La descomposición del motor de comparación calcula esa misma prima contra **el
+precio de bolsa escalar**, que recibe como parámetro suelto. Como la permuta
+vale casi la tarifa y la bolsa una fracción, la línea base del motor es mucho
+más baja y la prima del vendedor sale inflada. De ahí que el reparto se
+desplace 5,6 puntos en un caso y 0,90 en el otro.
+
+Es el mismo patrón de H-49, donde el piso medido tampoco había llegado a
+producción y una constante lo suplantaba.
+
+### Qué arrastra
+
+La cifra del reparto de la frontera secundaria, 75,32 % para los compradores,
+sale de la misma descomposición, de modo que hereda la misma duda y no se cita
+mientras no se recalcule contra el piso medido.
+
+**Lo que no se mueve.** El excedente total, el beneficio de cada mecanismo y la
+liquidación por institución no dependen de esta descomposición: se calculan por
+otra vía y sus cifras siguen en pie. El defecto afecta al **reparto**, no al
+tamaño de lo repartido.
+
+### Estado
+
+**ABIERTO.** El guion y la especificación de la ponencia pasan a la cifra con
+fichero de datos, es decir 49,10 y 50,90, y la de la frontera secundaria se
+retira de la exposición. Queda pendiente alinear la descomposición del motor
+con el piso medido, que es una corrección de código y no de redacción.
+
+---
+
+## H-69 · El titular de la ponencia descansa en dos kilovatios hora de un domingo
+
+**Encontrado al preguntar el autor por que la banda se abre en junio y julio.**
+La respuesta que la ponencia daba, que en esos meses se agota el credito de
+permuta, es cierta pero incompleta, y lo que falta cambia como hay que
+defenderla.
+
+### El cruce no ocurre en el mes: ocurre en la hora catorce del mes
+
+| Mes | Hora del cruce | Cuando | Porcion del mes que va a bolsa |
+|---|---|---|---|
+| Junio | **14 de 720** | 1 de junio, 13:00 | 98 % |
+| Julio | **11 de 744** | 1 de julio, 10:00 | 99 % |
+
+El 1 de junio de 2025 cae en **domingo**. La demanda nocturna del campus ronda
+4,4 (kW) y a partir de las ocho de la manana se desploma a 0,3, porque no hay
+nadie. La generacion sube, y a las trece horas la inyeccion acumulada del mes
+alcanza 33,64 (kWh) frente a 31,61 de retiro acumulado.
+
+**La diferencia son 2,03 (kWh).** Con eso basta: la regla, tal como esta
+implementada, es irreversible dentro del mes.
+
+A las dieciocho horas de ese mismo domingo el retiro ya vuelve a ir por delante,
+40,29 contra 39,20. No sirve de nada. Y al cerrar junio, la Universidad de
+Narino **retira cuatro veces mas energia de la que inyecta**.
+
+### Por que importa
+
+De ahi sale, en cadena: el piso de esa institucion cae de 692,7 a 129,9
+(COP/kWh); la banda media del mes pasa de 66 a 183; y **el 83,7 % del ahorro de
+los nueve meses se concentra en junio y julio**, que es el titular de la
+ponencia y la frase que la cierra.
+
+Es decir que la cifra mas citada del trabajo depende de que un domingo de
+vacaciones cayera en primero de mes.
+
+### La pregunta normativa que esto abre, y no se resuelve aqui
+
+Hay dos lecturas del credito de energia del articulo 25, y dan resultados
+opuestos:
+
+1. **Disparo horario irreversible**, que es lo implementado: en cuanto la
+   inyeccion acumulada adelanta al retiro acumulado, el agente queda fuera de
+   permuta el resto del mes.
+2. **Neteo mensual**: al cerrar el mes se comparan los totales, y solo el
+   excedente de inyeccion sobre retiro se liquida a bolsa.
+
+Bajo la segunda, la Universidad de Narino **no pisaria la bolsa ni un solo mes**,
+porque en los nueve inyecta menos de lo que retira. El piso no se desplomaria,
+la banda no se abriria, y el 83,7 % desapareceria.
+
+El propio codigo declara que «hora Hx», «Tipo 1» y «Tipo 2» son denominaciones
+didacticas del sector y **no cita literal** de la Resolucion CREG 174. De modo
+que cual de las dos lecturas rige es una pregunta para el asesor regulatorio, no
+para el programa.
+
+### Estado
+
+**ABIERTO, y con prioridad**, porque afecta a la cifra que encabeza la ponencia.
+Se suma a la consulta de H-53, que plantea la otra ambiguedad del mismo tramo.
+Mientras no se resuelva, la ponencia describe el mecanismo tal como esta
+implementado y **declara que el cruce ocurre en las primeras horas del mes**, en
+lugar de sugerir que junio y julio son meses de mas sol.
+
+### Resolución, 2026-09-13: la norma lo decide, y es el neteo mensual
+
+**La pregunta de arriba no era para el asesor: la contesta el texto.** El
+artículo 25 de la Resolución CREG 174, en la redacción del artículo 28 de la
+Resolución CREG 101 072 de 2025, clasifica «al cierre de cada período de
+facturación», y el artículo 26, en la redacción del artículo 29, liquida con el
+excedente, la importación y el excedente sobrante **del mes**. Rige la segunda
+lectura.
+
+De ahí: la Universidad de Nariño no pisa la bolsa ningún mes en la frontera
+principal, la banda no se abre en junio y julio, y **el 83,7 % deja de existir**.
+La corrección del código es C-175.
+
+**Estado: CERRADO por la norma.**
+
+---
+
+## H-70 · Con el crédito mensual la banda se estrecha al cargo de comercializar, y lo que el mercado puede sumar queda acotado
+
+**Estado: ESTIMADO sobre mediciones previas el 2026-09-13. La cifra firme la da
+la corrida oficial.** Lo destapó una pregunta del autor: si con todo bien
+modelado una banda más alta daría mejores resultados.
+
+### La respuesta es la contraria
+
+**El valor que el mercado crea en cada kWh transado es exactamente el ancho de
+la banda.** El comprador se ahorra lo que la red le cobraría, que es el techo; y
+el vendedor renuncia a lo que su comercializador le pagaría, que es su piso
+real. La diferencia es lo único que el intercambio añade.
+
+Con el crédito mensual, el comercializador le paga al vendedor casi la tarifa
+completa: la tarifa menos el componente de comercializar. **La brecha se reduce
+a ese componente**, más las diferencias de tarifa entre instituciones.
+
+Medido en H-53 sobre la frontera principal, con la lectura que no manda nada a
+bolsa, que es la que C-175 deja en vigor:
+
+| | Ancho medio de la banda | Piso medio |
+|---|---:|---:|
+| Con el disparo | 223,2 | 506,5 |
+| Con el cupo del mes | **45,5** | **684,2** |
+
+Todo en (COP/kWh), ponderado por excedente.
+
+### La cota que sale de ahí
+
+Todo lo que el mercado puede sumar sobre la autogeneración individual es la
+energía transada por el ancho de la banda. Aunque transara los 6.006,5 kWh de
+excedente de los nueve meses, serían **unos 0,27 millones de pesos**, del orden
+del 0,6 % del beneficio total.
+
+### Precisión, 2026-09-13: la banda depende del comercializador de cada vendedor
+
+La media de 45,5 esconde dos bandas. En la corrida oficial, en las horas en que
+el vendedor está en permuta, las cuatro clientas de ASC Ingeniería negocian en
+una banda de **38,4** (COP/kWh) y el CESMAG, cliente de CEDENAR, en una de
+**174,3**. Ponderada por excedente sale **48,7**, lo que confirma la medición de
+H-53. La banda es el componente de comercializar **de cada comercializador**, y
+los dos son muy distintos.
+
+Con 48,7 en lugar de 45,5 la cota queda en unos 0,29 millones: el orden de
+magnitud no cambia.
+
+La cifra de 174,92 que CAL-47 dio como ancho de la banda es la de CEDENAR, y es
+anterior a reconocer que cuatro de las cinco son clientas de ASC. Hoy solo
+describe al CESMAG.
+
+### Abrir la banda en la simulación no crea valor
+
+La energía transada es el lado corto y no depende de las cotas (D-7), y la prima
+del vendedor más el ahorro del comprador suman el ancho por la energía, de modo
+que **el precio interno se cancela en el total** (H-33). Mover las cotas como
+parámetros del juego solo mueve el reparto; cierra las horas en que la banda se
+invierte, y puede sacar a un vendedor cuyo piso quede por encima de lo que le
+pagan.
+
+Ponerle al vendedor un piso de bolsa cuando su alternativa real es la permuta
+equivale a pedirle que venda por menos de lo que le paga su comercializador. El
+modelo reportaría un excedente mayor que **no existe**, y la restricción de
+participación lo sacaría del mercado con razón.
+
+### Corrección, 2026-09-13: con el residual valorado como el piso, el piso deja de ser un parámetro libre
+
+**Lo de arriba vale para el precio interno, no para el piso.** Lo señaló el autor.
+El análisis global midió que mover el piso no mueve la ganancia del mercado,
+con índice total cero, y sí el reparto, con 0,879. Pero se midió cuando el piso
+era solo una cota del juego: el residual del mercado se valoraba a la bolsa
+real, pasara lo que pasara con él.
+
+Con la decisión del autor del 2026-09-13, el residual se valora por el artículo
+25, **igual que el piso**. El piso pasa a ser la alternativa real del vendedor, y
+entra en tres sitios:
+
+- **en el dinero del mercado**, porque cada kWh que no se coloca vale el piso:
+  subirlo sube el total en el aumento por los kWh residuales;
+- **en la autogeneración individual**, donde todo el excedente vale ese mismo
+  piso;
+- **y en la diferencia entre los dos**, que es el techo menos el piso por los kWh
+  transados: subir el piso la reduce en el aumento por los kWh transados.
+
+Sigue siendo cierto que **el precio interno se cancela**: lo que el vendedor
+gana de más en un intercambio lo paga el comprador. Lo que deja de valer es
+tratar el piso como si fuera ese precio.
+
+**La consecuencia que hay que llevar al artículo.** La robustez del ordenamiento
+se sostenía en ese análisis global (A-6). Con el diseño nuevo la brecha frente a
+la autogeneración individual es, aproximadamente, el componente de comercializar
+por la energía transada, de modo que ese componente la gobierna de forma
+lineal. **El análisis global hay que repetirlo**, y su parámetro natural ya no es
+un piso libre sino el componente de comercializar, que para un usuario no
+regulado es el costo pactado con su comercializador y no se conoce.
+
+### Dónde sí vale el mercado
+
+**Donde el crédito se agota.** En la frontera secundaria 19 de 45 pares
+institución-mes cierran exportando; allí el piso cae al precio del mercado
+mayorista, la banda se abre de verdad y el intercambio vuelve a tener qué
+repartir.
+
+### Por qué importa
+
+Cambia el resultado que encabezaba la tesis y la ponencia. Queda uno más sólido:
+**con el crédito mensual colombiano, un mercado entre autogeneradores pequeños
+solo captura el cargo de comercializar, y solo vale de verdad donde el crédito
+se agota.** Es el enfoque que hay que llevar al capítulo de resultados y al
+artículo.
+
+---
+
+## H-71 · El colectivo mensual reparte con un porcentaje calculado sobre la generación medida, y sin su mayor aportante deja de convenir
+
+**Estado: MEDIDO fuera del motor el 2026-09-13, con la clasificación del cierre
+del mes. La corrida debe reproducirlo.** Figuras del reparto y de la comunidad
+sin la Universidad de Nariño.
+
+### El porcentaje no es el que dice el rótulo
+
+El artículo 19 de la Resolución CREG 101 072 deja el porcentaje de distribución
+a lo que **acuerden los integrantes**, con la sola condición de que sume cien. El
+código rotula su método como proporcional a la capacidad instalada, **pero le
+pasa la generación media medida**.
+
+Con las cinco placas idénticas, la capacidad daría un quinto a cada una. La
+generación medida da otra cosa, y el caso del CESMAG lo delata: **su 10,7 % no
+describe una planta menor, describe lo que su medidor alcanza a ver**.
+
+| | Aporta al fondo | Se le reconoce | Diferencia |
+|---|---:|---:|---:|
+| Universidad de Nariño | 81,3 % | 25,1 % | **−56,2 pp** |
+| Hospital Universitario | 7,6 % | 20,3 % | +12,7 pp |
+| Universidad CESMAG | 5,2 % | 10,7 % | +5,5 pp |
+| Universidad Cooperativa | 3,3 % | 24,2 % | +20,9 pp |
+| Universidad Mariana | 2,6 % | 19,7 % | +17,2 pp |
+
+### Sin la Universidad de Nariño, el colectivo se da la vuelta para la mitad
+
+Ganancia frente a la autogeneración individual, en millones de (COP) sobre nueve
+meses. El cero no cambia cuando alguien se retira, porque cada una liquida sola.
+
+| | Comunidad de cinco | Comunidad de cuatro |
+|---|---:|---:|
+| Universidad Cooperativa | +0,69 | +0,09 |
+| Universidad Mariana | +0,57 | +0,08 |
+| Hospital Universitario | +0,42 | **−0,08** |
+| Universidad CESMAG | +0,21 | **−0,10** |
+| **Los cuatro** | **+1,89** | **−0,01** |
+
+Sin el gran aportante, el Hospital y el CESMAG pasan a ser los donantes: el
+Hospital aporta el 40,5 % del fondo nuevo y se le reconoce el 27,1 %.
+
+### La lectura que sale de las dos tablas
+
+**El colectivo mensual no crea valor: lo redistribuye.** Con cinco miembros el
+agregado frente a la autogeneración individual es +0,02 millones, y con cuatro,
+−0,01. Lo único que cambia es quién paga, y con cinco paga una sola institución,
+que no tiene ningún incentivo para firmarlo.
+
+Con la clasificación del cierre del mes, la conclusión de que la autogeneración
+individual es la mejor en el agregado **no se sostiene tal como está
+redactada**: el colectivo pasa de −0,62 millones a +0,02, es decir de perder a
+empatar.
+
+**Pendiente de decisión del autor:** con qué porcentaje se reparte.
+
+
+### Lo que dice la norma sobre el porcentaje y el número de miembros, revisado el 2026-09-13
+
+- **El Decreto 2236 de 2023 no fija un número mínimo de integrantes** ni ninguna
+  regla de reparto, y admite personas naturales y jurídicas de derecho público o
+  privado.
+- **El artículo 6 de la Resolución CREG 101 072** pide que el colectivo combine
+  al menos dos tipos de puntos de conexión, los que inyectan, los que consumen o
+  los que hacen las dos cosas, y admite uno formado solo por estos últimos. **Dos
+  puntos bastan.**
+- **El artículo 19** deja el porcentaje a lo que acuerden los integrantes, con la
+  sola condición de sumar cien, y permite cambiarlo avisando al comercializador
+  diez días hábiles antes del ciclo de facturación, es decir **mes a mes**.
+- **El 10 % no es un límite.** Es la condición del caso favorable del artículo
+  20: si todas las fronteras quedan por debajo y la capacidad por usuario, que el
+  artículo 18 calcula **contando también las fronteras que solo consumen**, no
+  pasa de 100 kW, la permuta paga solo el componente de comercializar. Si alguna
+  llega al 10 %, paga además transmisión, distribución, pérdidas y restricciones.
+
+De la suma del cien y el 10 % sale que el caso favorable exige **al menos once
+fronteras**. Con cinco, la comunidad cae siempre en el caso caro: **la regulación
+castiga a las comunidades pequeñas**, y se puede medir como contrafáctico.
+
+**La norma no define un reparto justo.** El 20 % para cada una no es lo
+normativo: es un acuerdo posible entre muchos. El ejercicio que pidió el autor,
+ver si la regulación afecta el reparto, consiste en medir cómo cambian ganadores
+y perdedores con distintas reglas admisibles, incluida la mensual, que es la del
+primer nivel de la arquitectura propuesta por el asesor.
+---
+
+## H-72 · La autogeneración remota no compensa: vende al mercado mayorista y compra por contrato
+
+**Estado: ABIERTO el 2026-09-13, pendiente de decisión del autor.**
+
+### Lo que dice la Resolución CREG 101 099 de 2026
+
+- **Artículo 16, numeral i.** La generación del autogenerador remoto la
+  representa un agente generador, y «se considerará entregada en el MEM, bajo
+  todas las condiciones de venta de energía» del reglamento de operación.
+- **Numeral ii.** El consumo lo atiende un comercializador, con un contrato para
+  asegurar su suministro «conforme a la regulación aplicable a un usuario no
+  regulado».
+- **Numeral iii.** Se registra ante el ASIC **un contrato** entre el comercializador
+  del usuario y el generador del autogenerador, para atender esa demanda.
+- **Artículo 18.** El generador devuelve al usuario el cargo por confiabilidad
+  sobre la generación de cada hora que no supere su consumo. Con varias
+  fronteras, la generación de cada hora se reparte con **un porcentaje fijo**
+  por frontera.
+
+### Lo que modela el escenario
+
+Una **compensación** entre fronteras, el mínimo entre el excedente y el déficit
+de la comunidad en cada hora, repartida **en proporción a los déficits de esa
+hora** y valorada a la tasa de usuario no regulado.
+
+Son dos desviaciones. La norma no compensa: vende al mercado y atiende el
+consumo por contrato. Y su reparto horario es con un porcentaje fijo y solo para
+devolver el cargo por confiabilidad, no dinámico.
+
+Se suma lo ya declarado: la revisión externa concluyó que el régimen está
+**cerrado a esta comunidad** por la vinculación económica entre sus miembros.
+
+**Pendiente de decisión del autor:** reescribirlo con los artículos 16 y 18,
+conservarlo como referencia prospectiva declarada, o retirarlo.
+
+
+### El régimen, leído completo el 2026-09-13
+
+**La mecánica, que sí es horaria, pero por contrato.** El contrato registrado
+ante el ASIC es del tipo pague lo contratado, y se despacha **cada hora** por el
+mínimo entre la generación real y la demanda comercial agregada de las fronteras
+asociadas (artículo 19). Lo que sobra de la generación se entrega al mercado
+mayorista (artículo 16, numeral i). El consumo se atiende como usuario no
+regulado con un contrato de suministro (artículos 16 y 17). El cargo por
+confiabilidad se devuelve sobre la generación de cada hora que no supere el
+consumo, con un porcentaje fijo por frontera (artículo 18). La línea base de
+consumo solo actúa cuando la bolsa supera el precio de escasez superior
+(artículo 20). Y la generación embebida en fronteras de usuarios no regulados
+está admitida, con la medida referida a la frontera principal (artículo 21, que
+remite a la Resolución CREG 101 070 de 2025, ausente del corpus).
+
+**Quién puede usarlo, y es lo que decide si aplica a esta comunidad.**
+
+- El **autogenerador remoto** atiende «sus propias necesidades» en puntos de
+  conexión distintos, y sus receptores son «sedes o establecimientos de comercio
+  que conforme a los códigos CIIU se desarrolle la misma actividad económica
+  principal del AGR» (artículo 17, numeral iv).
+- El **productor marginal remoto** atiende a usuarios con los que tiene una
+  **situación de control** en los términos de los artículos 260 y 261 del Código
+  de Comercio (artículo 22, numeral ii).
+
+Cinco instituciones independientes no cumplen la segunda. La primera es
+**ambigua**: no queda claro si la cláusula del CIIU admite receptores que sean
+otras personas con la misma actividad principal. Cuatro de las cinco son
+universidades y el hospital no.
+
+**Decisión del autor, 2026-09-13:** C5 se rehace conforme a la norma, porque
+aporta valor de análisis. Cabe en el objetivo específico 2 de la propuesta, que
+pide incorporar «los mecanismos de liquidación y restricciones de cada
+normativa».
+
+### Precisión, 2026-09-13: lo que coincide y lo que no con el escenario viejo
+
+Arriba se escribió que la norma no compensa y que eso eran dos desviaciones. Hay
+que precisarlo, porque se leyó más severo de lo que es. **La cantidad que el
+contrato despacha en cada hora**, el mínimo entre la generación y la demanda
+agregada, **coincide en sustancia con la que el escenario llamaba compensación.**
+Lo que difiere es la forma, que es un contrato registrado y no una
+compensación; el precio que reparte ese valor entre el generador y los
+consumidores, que el escenario fijaba con un factor postulado; y la devolución
+del cargo por confiabilidad, que el escenario suponía embebida en el componente
+de generación. El reparto proporcional al déficit de cada hora es además la
+forma natural de cubrir la demanda agregada, porque el ASIC da por cubierta la
+demanda del comercializador con la cantidad despachada.
+---
+
+## H-73 · El excedente que supera el crédito se valora a MCm, que es mensual, y el modelo usa bolsa
+
+**Estado: CERRADO el 2026-09-13, en la dirección contraria a la planteada (ver al final).**
+
+### Lo que dice la norma
+
+El artículo 25 de la Resolución CREG 174 liquida lo que supera la importación
+«al valor del MCm», y el artículo 26 lo multiplica por el excedente sobrante
+**del mes**. MCm es la variable del artículo 6 de la Resolución CREG 119 de 2007
+para el mes m, que publica el ASIC.
+
+La definición la modificó el artículo 24 de la **Resolución CREG 101 097 de
+2026**, según la nota de vigencia del propio texto de la 174. **Esa resolución no
+está en el corpus del proyecto.**
+
+### Lo que hace el modelo
+
+El escenario individual usa la bolsa de cada hora posterior al cupo; el
+colectivo, la media mensual de la bolsa.
+
+### La fuente candidata, que ya está en el repositorio
+
+La serie de XM del precio promedio ponderado de los contratos **con destino al
+mercado regulado**, que el proyecto ya carga para el contrato bilateral por su
+otra columna. En el horizonte va de 302,1 a 311,8 (COP/kWh), frente a una bolsa
+ponderada del orden de 113 a 157.
+
+Es plausible que coincida con la variable del artículo 6 de la CREG 119, que
+promedia los contratos liquidados con destino al mercado regulado, pero **el
+texto de ese artículo no se pudo leer en el corpus** y hay que verificarlo.
+
+### La definición, contrastada el 2026-09-13
+
+El texto de la Resolución CREG 119 de 2007, extraído del documento original,
+define la variable como el «costo promedio ponderado por energía, expresado en
+$/kWh, de todos los contratos bilaterales liquidados en el Mercado de Energía
+Mayorista en el mes m-1 con destino al mercado regulado», y ordena al ASIC
+suministrar el Mc a más tardar el sexto día calendario del mes siguiente. **Es
+la serie candidata.**
+
+Quedan dos cosas por cerrar: la modificación del artículo 24 de la Resolución
+CREG 101 097 de 2026, que no está en el corpus, y el desfase de un mes, porque
+la variable de la 119 es del mes anterior y la 174 la cita para el mes m.
+
+### Cuánto pesa
+
+En la frontera principal, nada: no hay excedente más allá del crédito. En la
+secundaria, 19 de 45 pares institución-mes. Y por la decisión del autor del
+2026-09-13 también valora el residual del mercado entre pares cuando supera el
+cupo.
+
+
+### Resolución, 2026-09-13: en la transición rige la bolsa horaria
+
+**La norma definitiva dice MCm, pero todavía no se aplica.** El Anexo 3 de la
+Resolución CREG 101 072, que es el régimen transitorio, valora lo que supera la
+importación «al precio horario de bolsa de energía correspondiente». El
+parágrafo del artículo 25 de la 174, en la redacción del artículo 4 de la
+Resolución CREG 101 087 de 2025, lo mantiene «hasta que la Comisión defina a
+través de resolución el traslado del costo de compras de energía al valor del
+Mc m». Y los conceptos CREG 3018 y 3023, ambos del 6 de abril de 2026, lo
+confirman: el Mc «aún no aplica y se continúa aplicando el precio de bolsa».
+
+Las normas de 2026 que el corpus no tenía no lo cambian. La 101 097 solo le
+añade a MCm un tope de escasez; la 101 102 y la 101 113 no tocan ni la 174 ni
+la 101 072.
+
+**De ahí sale un veredicto para cada escenario.** La autogeneración individual
+acierta al usar la bolsa de cada hora posterior al corte. El colectivo mensual
+se equivoca al usar la media mensual de la bolsa. En la frontera secundaria, los
+11.124 kWh que superan el crédito en los 19 meses exportadores valen 1.775.371
+(COP) a bolsa horaria con el reparto de la norma, y 1.997.289 con la media del
+mes: **un 12,5 % de más**, porque la bolsa de las horas solares es más barata que
+la del mes.
+
+La serie de contratos con destino al mercado regulado queda como la fuente de
+MCm para cuando termine la transición.
+---
+
+## H-74 · Un mercado horario bajo un crédito que se liquida al cierre del mes
+
+**Estado: RESUELTO en lo normativo el 2026-09-13 (ver al final).** Es la pregunta del autor, y la que
+ordena todo lo demás: si el mercado entre pares funciona hora a hora y el límite
+de la permuta solo se conoce a fin de mes, ¿cómo se liquida?
+
+### Lo que la norma ya fija
+
+La liquidación entre el autogenerador y su comercializador **es mensual**: el
+artículo 26 da un solo valor por usuario y mes. El medidor, en cambio, registra
+cada hora, y eso es lo que un mercado horario necesita.
+
+### La lectura candidata, por confirmar
+
+**Registro horario, liquidación mensual.** Cada intercambio se anota en su hora
+con su cantidad y su precio, y el dinero se liquida al cierre del mes, junto con
+la factura; el comercializador calcula entonces el excedente que se permuta y el
+que lo supera **sobre el residual que dejó el mercado**. Es la forma en que ya
+funciona el mercado mayorista, con precios y cantidades horarias y una
+liquidación mensual, y hay que contrastarla con su reglamento.
+
+### El piso dentro del mes
+
+Tres opciones planteadas: un estado del mes constante, un reparto cronológico, o
+el valor medio del mes. El autor pidió analizarlo con cuidado antes de decidir.
+
+Lo que ya se sabe: en la frontera principal el estado de cada mes **se conoce de
+antemano con certeza**, porque todas importan decenas de veces más de lo que
+inyectan, y el piso es la permuta en todas las horas. En la secundaria la
+Universidad de Nariño exporta en los nueve meses. **Los casos difíciles son los
+meses que cierran cerca del empate**, como el Hospital en diciembre, con 477,0
+kWh inyectados frente a 467,8 importados: ahí es donde suponer que el estado
+del mes se conoce de antemano deja de ser inocuo.
+
+### Decisiones del autor, 2026-09-13
+
+- **El residual del mercado se valora igual que su piso**, por el artículo 25,
+  y no a bolsa.
+- **Lo que un vendedor coloca dentro de la comunidad no consume su cupo**,
+  porque no se lo entrega al comercializador. Cierra H-53 en la dirección de la
+  lectura residual por el lado del vendedor.
+- Queda por confirmar la consecuencia simétrica: que lo que un miembro compra
+  dentro no cuente como importación ante su comercializador, lo que reduciría su
+  cupo.
+
+### Antes de decidir
+
+Revisar el corpus regulatorio completo en todos sus formatos, incluidos los
+instructivos de XM para el reporte de excedentes de autogeneradores y de
+comunidades, y contrastar en internet las modificaciones de 2026 que el corpus
+no tiene.
+
+
+### Resolución, 2026-09-13: la norma define la hora del corte
+
+El Anexo 4 de la Resolución CREG 101 072, que aplica el artículo 26 durante la
+transición, da la liquidación del autogenerador de hasta 100 kW:
+
+> VE = (Exc1 − Imp) · CUv − Exc1 · Cvm + Σ, desde h = hx hasta H, de Exc2(h) · Pbolsa(h)
+
+y define la hora del corte con estas palabras: «hx: Es la hora cuando los
+Excedentes de Energía Horarios Acumulados (EEHA) igualan o sobrepasan la
+cantidad de importación total (Imp) de energía en el mes m. La EEHA se calcula
+de forma dinámica, como la suma de energía entregada a la red en cada una de
+las horas en el mes m y a partir de la primera hora de inicio del mismo».
+
+**Es el reparto cronológico, y contra la importación total del mes.** Es
+exactamente lo que C-175 dejó programado, y deja claro de dónde salía el error
+viejo: el código comparaba contra la importación acumulada hasta cada hora,
+cuando la norma compara contra la importación total del mes.
+
+### La respuesta a la pregunta del autor
+
+La norma ya combina las dos escalas. **El cupo se fija con el total del mes, la
+hora del corte se determina con el acumulado horario contra ese total, y el
+dinero se liquida al cierre del período.** La hora del corte solo se conoce al
+cerrar el mes, porque depende de la importación total, y el comercializador la
+calcula al facturar.
+
+Un mercado entre pares encaja en esa misma estructura: registra cada
+intercambio en su hora, lo liquida al cierre del mes junto con la factura, y el
+piso de cada vendedor es la permuta antes de su hora de corte y la bolsa de la
+hora a partir de ella. En una liquidación hecha sobre datos medidos, eso supone
+conocer los totales del mes al fijar el piso, y así se declara.
+
+### Lo que queda de las tres opciones
+
+**El reparto cronológico es el de la norma.** El estado del mes constante, que se
+recomendó en la conversación, no lo es y se descarta. En la frontera principal
+da igual, porque ningún mes alcanza la hora de corte. En la secundaria el reparto
+del exceso entre horas apenas mueve su valor: 1.775.371 (COP) con el cronológico
+frente a 1.728.088 con uno proporcional a la inyección, un 2,7 %.
+
+### La lectura del cupo para quien participa en el mercado
+
+La EEHA suma «energía entregada a la red». Para los esquemas colectivos, en
+cambio, la norma cuenta sobre lo **asignado** a cada usuario y no sobre lo que
+registra el medidor (artículo 21 de la Resolución CREG 101 072). Ese es el
+precedente que sostiene la decisión del autor de que lo vendido dentro de la
+comunidad no consuma cupo.
+
+**Estado: RESUELTO en lo normativo.** Queda programar el corte sobre el residual
+del mercado.
+---
+
+## H-75 · El reparto de la figura de los cuatro casos lo deciden las tarifas de los dos comercializadores y el poco ancho de banda, no quién falta en la mesa
+
+**Estado: MEDIDO el 2026-09-13 sobre la corrida oficial, a partir de una
+hipótesis del autor.** El autor anotó que la distribución hacia el vendedor que
+enseña la figura de los cuatro casos de la ponencia se debe, seguramente, a cómo
+están determinados los precios y al poco ancho de la banda. Los intercambios de
+esas cuatro horas le dan la razón.
+
+### Lo que la figura afirma
+
+Su título es «El precio responde a quién falta en la mesa». Muestra una hora
+típica, una de escasez de oferta, una de exceso y la patológica, con el precio
+acordado situado dentro de la banda y el porcentaje del excedente que se lleva
+cada lado: 65,3 % para los compradores en la típica, 64,6 % para los
+vendedores en la escasez, y 65,0 y 65,3 % para los compradores en el exceso y
+en la patológica.
+
+### Lo que hay debajo
+
+**Hay dos bandas, no una.** Las cuatro clientas de ASC Ingeniería tienen un
+costo unitario de 726,91 y un piso de 688,37, es decir una banda de 38,54
+(COP/kWh). El CESMAG, cliente de CEDENAR, tiene 816,98 y 642,53, una banda de
+174,45. La figura sitúa cada precio contra el techo más alto y el piso más bajo
+de la hora, que son los del CESMAG, de modo que **mide todas las posiciones
+contra una banda cuatro veces y media más ancha** que aquella en la que
+negocian cuatro de las cinco.
+
+| Caso | Quién intercambia de verdad | kWh | Precio | Para los compradores |
+|---|---|---:|---:|---:|
+| Típica | Udenar y el CESMAG venden a Mariana, la Cooperativa y el Hospital | 4,63 | 698,78 | 65,3 % |
+| Escasez de oferta | el Hospital vende a las otras cuatro | 0,02 | 701,99 y 752,93 | 35,4 % |
+| Exceso de oferta | **tres de los cuatro vendedores se retiran**; queda el CESMAG, que vende al Hospital | 0,14 | 672,09 | 65,0 % |
+| Patológica | Udenar, Mariana y el Hospital venden a la Cooperativa y al CESMAG | 11,99 | 700,23 y 745,07 | 65,3 % |
+
+Precios en (COP/kWh). Donde hay dos, el segundo es el que paga el CESMAG, que
+tiene su propio techo.
+
+### Tres lecturas
+
+**Primera, dentro de la banda de ASC el precio queda cerca del piso.** En la hora
+típica y en la patológica el precio queda 10,4 y 11,9 pesos por encima del piso
+de ASC, en una banda de 38,5: el vendedor se lleva el 27 y el 31 % de cada
+intercambio entre clientas de ASC.
+
+**Segunda, el CESMAG decide los porcentajes cuando entra.** Su banda es cuatro
+veces y media más ancha. Vendiendo, en la hora típica, gana 56,25 pesos por kWh
+frente a los 10,41 de Udenar; comprando, en la patológica, ahorra 71,91 frente
+a los 26,68 de la Cooperativa. Con pocos kWh pesa tanto como el resto. **Por eso
+tres horas de composición opuesta dan el mismo porcentaje a una décima**: es la
+geometría de las dos tarifas, no la escasez.
+
+**Tercera, los dos casos que parecen responder a la escasez casi no mueven
+energía.** La hora de escasez transa 0,02 kWh. La de exceso transa 0,14 con un
+solo vendedor, porque el precio, 672,09, cayó por debajo del piso de ASC, 688,37,
+y la restricción de participación retiró a los otros tres. Los rótulos «1 vende,
+4 compran» y «4 venden, 1 compra» describen quién podía intercambiar, no quién
+lo hizo.
+
+### Consecuencias
+
+- **El título de la figura no se sostiene.** Las posiciones del precio no
+  muestran una respuesta a la escasez: muestran dos tarifas y una restricción de
+  participación.
+- **La figura hay que rehacerla o retirarla antes de reutilizarla.** Cada
+  intercambio debe situarse contra su propia banda, y las horas protagonistas
+  deben exigir una energía mínima.
+- **El patrón sobrevive a C-175.** En estas cuatro horas todos los pisos ya eran
+  la permuta: 688,37 es 726,91 menos 38,54, y 642,53 es 816,98 menos 174,45.
+- **Confirma H-70 desde otro ángulo.** Con la banda estrecha lo que se reparte
+  por kWh son unas decenas de pesos, y movimientos pequeños del precio producen
+  saltos grandes en los porcentajes.
+
+Relacionado: H-68, que ya advertía que el reparto depende de contra qué se mide
+la prima; el techo por comprador de CAL-35, por el que el CESMAG paga otro
+precio; y la restricción de participación de C-151.
+
+---
+
+## H-76 · La presentación de Fajardo en el foro confirma tres lecturas del motor y abre un escenario que falta
+
+**Estado: REVISADO el 2026-09-13 a petición del autor.** Fuente: la presentación
+del asesor regulatorio en el foro, diecisiete láminas con datos actualizados a
+agosto de 2026, en la raíz del repositorio.
+
+### Lo que confirma, como lectura independiente
+
+1. **El colectivo se liquida con cantidades del mes.** La lámina 12 reproduce el
+   esquema de la CREG: medir la importación y la exportación de cada frontera,
+   agregar las exportaciones de la comunidad, repartirlas con el porcentaje de
+   cada miembro y liquidar a cada uno su parte contra su importación, en crédito
+   hasta igualarla y exceso por encima. Es el artículo 21 de la Resolución CREG
+   101 072, y lo que hace el colectivo mensual del modelo.
+2. **La autogeneración remota no aplica tal cual a cinco instituciones
+   independientes.** La lámina 9 caracteriza el régimen de la Resolución CREG
+   101 099 como corporativo o individual, con un vínculo de control societario.
+   Es la conclusión de la revisión externa, y respalda que el escenario se
+   modele con la elegibilidad supuesta y declarada.
+3. **La arquitectura de dos niveles es la forma legal del mercado entre pares.**
+   El primer nivel es el colectivo con su porcentaje, reportado diez días
+   hábiles antes del ciclo; el segundo, la optimización hora a hora del modelo,
+   que redistribuye los beneficios y «podría manejarse inicialmente de manera
+   ex-post» (láminas 10, 11 y 13). Es la estructura de registro horario y
+   liquidación mensual de H-74.
+
+### Lo que abre, y falta en el diseño
+
+Si el mercado entre pares se lleva a la práctica por la única vía legal
+disponible, la del colectivo, la energía que se reasigna paga lo que el
+artículo 20 le cobre a la comunidad. Con cinco fronteras es el caso caro, con
+transmisión, distribución, pérdidas y restricciones sobre lo permutado. El
+modelo supone, en cambio, que el intercambio entre pares no paga cargos de red,
+y esa exención vale entre el 55 y el 72 % del margen del mercado (D-1).
+
+**Falta un escenario que mida cuánto queda del mercado entre pares cuando se
+liquida por el colectivo.** El contrafáctico de once fronteras de la
+especificación del motor mediría cuánto de esa pérdida es el castigo a las
+comunidades pequeñas.
+
+### Lo que no hay que propagar
+
+- La línea de tiempo de la lámina 6 rotula la Resolución CREG 030 de 2018 como
+  autogeneración a gran escala; era la de pequeña escala, derogada por la 174.
+- La lámina 8 llama «PLG» al contrato de la 101 099; el artículo 19 dice pague
+  lo contratado, condicionado a la generación y la demanda de cada hora.
+- La lámina 9 trata a los miembros de la comunidad como usuarios regulados. El
+  modelo los trata como no regulados (CAL-13 y CAL-47), y el artículo 25 prevé
+  ese caso con el costo de comercialización pactado. No es una contradicción,
+  pero hay que declararlo.
+
+### Lo que añade al contexto
+
+- Dos normas que el corpus no tiene: el Decreto 1403 de 2024, en cuyos
+  lineamientos se apoya la 101 099, y la Resolución CREG 135 de 2021, sobre los
+  derechos de los usuarios que entregan excedentes, a la que remiten el acuerdo
+  especial y el artículo 19 de la 101 072.
+- Los desafíos del despliegue de medición avanzada en Nariño (lámina 14), útiles
+  para la discusión de la tesis.
+- Su recomendación de política pública: tipificar la figura del gestor o
+  agregador que administre los recursos colectivos, la misma que propuso el
+  asesor académico.
+
+### Decisión del autor, 2026-09-13: se añade como escenario propio
+
+Entra en la especificación del motor como el mercado entre pares liquidado por
+el colectivo. El porcentaje de cada miembro en cada mes es la energía que
+termina siendo suya dentro del fondo común, y la liquidación regulatoria cobra lo
+que el artículo 20 exija.
+
+**Lo que se espera, y hay que medirlo antes de afirmarlo.** Con la misma tarifa,
+reasignar créditos entre miembros no crea valor, porque un kWh permutado vale lo
+mismo lo reciba quien lo reciba; solo lo crea cuando saca excedente de un miembro
+que superaría su cupo y lo lleva a otro con importación libre. En la frontera
+principal ningún mes supera el cupo, así que el escenario debería quedar en cero
+frente a la autogeneración individual en el caso favorable y por debajo en el
+caro. Si la corrida lo confirma, el margen del mercado depende por entero de que
+el intercambio entre pares no pague los cargos del comercializador.
+
+---
+
+## H-77 · La segunda frontera es la primera con menos demanda, y un escalado controlado la sustituye con ventaja
+
+**Estado: MEDIDO el 2026-09-13 sobre la tabla de agentes de la corrida del
+servidor. Decisión del autor: M3 se retira del todo.**
+
+### M3 no es otra comunidad
+
+**La generación de las dos fronteras es idéntica.** Lo único que cambia es la
+demanda, y lo hace de forma desigual:
+
+| | Demanda M1 (MWh) | Demanda M3 (MWh) | M3 es menor en un factor de |
+|---|---:|---:|---:|
+| Universidad de Nariño | 44,3 | 6,6 | 6,7 |
+| Universidad Cooperativa | 131,6 | 19,0 | 6,9 |
+| Hospital Universitario | 55,8 | 11,8 | 4,7 |
+| Universidad Mariana | 58,8 | 14,1 | 4,2 |
+| Universidad CESMAG | 27,5 | 15,3 | 1,8 |
+
+Nueve meses. Es decir, M3 es la frontera principal con la demanda recortada sin
+control: el recorte cambia de una institución a otra, cambia la forma del perfil y
+no solo su nivel, y en el Hospital el medidor es la UPS de ginecología (H-7). Sus
+resultados mezclan el efecto de la cobertura con la elección del medidor.
+
+### A qué escala se agota el crédito en la frontera principal
+
+Pares institución-mes, de 45, cuya inyección del mes supera su importación del
+mes, cuando se multiplica la generación:
+
+| Factor | ×1 | ×3 | ×4 | ×5,6 | ×7 | ×10 |
+|---|---:|---:|---:|---:|---:|---:|
+| Pares que agotan el crédito | 0 | 6 | 17 | 35 | 39 | 43 |
+
+La Universidad de Nariño es la primera, desde ×3 en seis de sus nueve meses; la
+Cooperativa la última, desde ×5,6. **El umbral de 100 kW del artículo 25 cae en
+×5,7**, con 17,55 kWp por planta: en la misma zona se agota el crédito y la
+permuta pasa a pagar T+D+Cv+PR+R, de modo que la banda se abre por las dos vías.
+
+### Por qué un escalado aísla la regulación
+
+La clasificación del artículo 25 y el volumen del mercado son homogéneos de grado
+uno en generación y demanda juntas. Multiplicar la generación por k da los mismos
+cruces que dividir la demanda por k, con el dinero multiplicado por k. **Lo único
+que rompe la proporción son los umbrales de tamaño de la norma**, y por eso una
+pareja de casos con la misma cobertura y distinta capacidad mide su efecto puro.
+
+Los umbrales de la clase tarifaria no se cruzan: el de usuario no regulado, 0,1 MW
+o 55 MWh al mes según la Resolución CREG 131 de 1998, se mide en el sitio de
+entrega, y el circuito medido es parte del sitio. Las fronteras de M1 van de 3,1 a
+14,6 MWh al mes, con picos de 12 a 72 kW, pero la condición es de la institución.
+La Resolución CREG 101 099 exime además al usuario de la autogeneración remota de
+esos límites (artículo 16, numeral ii).
+
+### Lo que queda
+
+Once corridas completas sobre M1, con los niveles en los puntos de quiebre y dos
+parejas que aíslan el umbral; el detalle y lo que muestra cada caso están en la
+especificación del motor, apartado 4.12.
+
+---
+
+## H-78 · El contrato interno no cuenta lo que vale la energía que vende
+
+**Estado: MEDIDO el 2026-09-13 al preparar el plan del motor. Se corrige en su
+tarea 5.**
+
+### Qué pasa
+
+El contrato interno liquida los mismos intercambios que el mercado entre pares,
+a un precio pactado en el punto medio de la banda de cada pareja. Al vendedor le
+anota **solo la prima sobre su piso**, es decir el precio menos lo que le
+pagaría la red. Lo que vale la energía que entrega no aparece en ninguna parte:
+no está en la prima y tampoco en el residual, porque esa energía ya se descuenta
+como colocada.
+
+### La medida
+
+Un solo intercambio de 3 kWh, a 770 (COP/kWh) dentro de una banda de 740 a 800:
+
+| | Beneficio (COP) |
+|---|---:|
+| Mercado entre pares | 3.330 |
+| Contrato interno | 1.110 |
+| Diferencia | 2.220 = 3 kWh × 740 |
+
+La diferencia es exactamente el piso por la energía vendida. Con las mismas
+parejas firmando, los dos deberían dar el mismo total, porque el precio interno
+se cancela entre vendedor y comprador (H-33).
+
+### Consecuencia
+
+Todas las cifras publicadas del contrato interno están subestimadas en el piso
+por la energía que se transa bajo contrato. En la frontera principal eso es del
+orden de 700 (COP/kWh) por cada kWh intercambiado. Como el canon ya está
+invalidado por C-175, se corrige antes de la corrida oficial y no hay que
+reconciliar cifras viejas.
+
+---
+
+## H-79 · El defecto del paso de H-37 no alcanza a la corrida oficial
+
+**Estado: registrado el 2026-09-13. La medición de la vía acoplada va al
+servidor, antes de la matriz, con la sonda de la tarea 15 sobre veinte
+horas.**
+
+H-37 midió que el reparto depende del paso fijo del bloque comprador, y C-136
+añadió una comprobación opcional de ese paso, desactivada por defecto, con la
+nota de que la corrida canónica debía activarla. Ninguna corrida la activa;
+solo la compuerta que la comprueba.
+
+No hace falta, porque ese bloque es el de la vía **alternada**. La corrida
+oficial usa la **acoplada** (CAL-48), que integra precios y cantidades juntos
+con un integrador de paso adaptativo (LSODA, tolerancias relativa y absoluta
+de 1e-6, H-51) y nunca llama al bloque de paso fijo. El mecanismo de H-37, un
+paso fijo que sobrepasa la cota y queda absorbido en el borde, no existe allí:
+el paso lo gobierna el error estimado.
+
+Queda la pregunta equivalente: si el reparto de la vía acoplada cambia al
+apretar las tolerancias o al alargar el horizonte, que con 0,05 deja sin
+llegar al estacionario a un tercio de las horas. H-51 dio una primera cota:
+entre las dos tolerancias absolutas, sobre ocho horas, el precio se movió
+menos de 6,6e-3 (COP/kWh) sobre precios del orden de 700. La sonda la
+completa con un criterio fijado antes de medir: si la tajada del vendedor se
+mueve menos de un punto, no se toca nada; si se mueve más, se corrige antes
+de la corrida oficial el mando que la mueva, la tolerancia o el horizonte del
+acoplado.
+
+**Señal del humo local de dos horas, que no es medición.** Una de las dos
+horas resuelve en 0,2 (s) y da lo mismo en las tres variantes, de modo que
+todo sale de la otra. Apretar diez veces las tolerancias deja la tajada del
+vendedor idéntica, 18,383 %; doblar el horizonte la baja a 9,785 %, es decir
+8,6 puntos, con el excedente idéntico en las tres (H-33). En esa hora el
+acoplado no había llegado al estacionario con el horizonte de producción. Si
+las veinte horas del servidor lo confirman, el mando es el horizonte y no la
+tolerancia, y el remedio es alargarlo o parar por estacionario: en esa hora el
+horizonte doble costó 35,1 (s) frente a 13,4 (s).
+
+**Una segunda hora, tras corregir la muestra, matiza lo anterior.** En la
+hora 663 las tolerancias tampoco mueven nada, pero doblar el horizonte baja
+la tajada del vendedor en 3,3 puntos, de 68,6 % a 65,3 %, y además cambia el
+excedente, de 146,25 a 172,94 (COP), un 18 %. La identidad de H-33 garantiza
+que el excedente no depende del precio; con bandas distintas por agente
+depende de qué parejas transan y de quién se retira, y si el acoplado no ha
+llegado al estacionario las parejas todavía se están moviendo. De modo que el
+horizonte puede tocar el agregado del mercado y no solo su reparto. La sonda
+mide ahora las dos cosas, con un segundo criterio fijado antes de medir: si el
+excedente cambia más de 0,1 %, se corrige el horizonte antes de la corrida
+oficial en cualquier caso.
+
+
+---
+
+## H-80 · La corrida oficial no tiene guardia por hora, y `--analysis` multiplica su coste
+
+**Estado: registrado el 2026-09-13, al cerrar el subproyecto 1. Condición previa al empaquetado del servidor; decide el autor.**
+
+Tres mediciones de la ronda final que ninguna corrida anterior había podido hacer, porque `--analysis` se detenía al importar el corte por subperíodos (C-184).
+
+**Una hora puede no terminar.** El integrador acoplado (`solve_ivp` con LSODA, en `core/coupled_ode_convergence.py`) no tiene límite de pasos ni de tiempo, y el lazo del motor espera cada hora sin plazo (`core/ems_p2p.py`, la espera de la primera tarea terminada). El plazo por tarea de C-156 existe solo en el recolector de las sondas. Con la generación por siete, la variante de producción de la hora 4184 tardó 140,1 (s), frente a 0,2 a 0,5 (s) por hora en la base, y la variante con tolerancias diez veces más estrictas no terminó en diecisiete minutos. Una hora así en una de las trece corridas la dejaría esperando sin error.
+
+**`--analysis` hace doce resoluciones del mercado además de la principal**: un punto del barrido de cobertura, siete del de tarifa y cuatro subperíodos. Es decir, multiplica del orden de trece veces el tiempo del mercado de cada corrida. El humo de un día en E4 tardó 29 minutos.
+
+**La sonda de H-79 no se puede usar tal cual en los casos escalados**: con `--horas 20` en E4 no terminaría.
+
+Qué hacer antes del servidor: un plazo por hora en el lazo del motor, que anote la hora vencida como no resuelta y con su motivo, como ya se hace con las que dan NaN, o un límite de tiempo dentro del integrador; decidir qué corridas llevan `--analysis`; y dar a la sonda un plazo por variante, o medir H-79 solo en E0.

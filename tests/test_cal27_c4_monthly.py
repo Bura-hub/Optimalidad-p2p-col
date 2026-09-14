@@ -11,6 +11,10 @@ Verifica:
   5. Default sigue 'creg174_inheritance' (CAL-15 intacto).
 
 Referencia: docs/adr/0027-cal27-c4-mensual-hx.md
+
+C-178: el exceso sobre el credito se valora ahora a la bolsa de cada hora
+desde el corte hx; con bolsa constante, como en estas pruebas, coincide con
+la media.
 """
 from __future__ import annotations
 

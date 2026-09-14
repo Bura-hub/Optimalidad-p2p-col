@@ -8,7 +8,8 @@ Verifica la implementación CAL-10 de ``run_c1_creg174``:
   1. component_c="auto" descuenta proporcionalmente al CU (≈ 13.85 %).
   2. component_c=float aplica el descuento fijo.
   3. component_c=0.0 reproduce la valoración legacy a pi_gs completo.
-  4. Hora Hx se identifica correctamente cuando inyección_acum cruza retiro_acum.
+  4. El corte hx del Anexo 4 se fija cuando la inyección acumulada alcanza la
+     importación del mes.
   5. Sin cruce (deficit ≥ surplus) todo el surplus es Tipo 1.
   6. Cruce desde t=0 (surplus desde la primera hora) clasifica correctamente.
 
@@ -89,7 +90,8 @@ def test_c1_component_c_zero_legacy_compat():
 
 def test_c1_hx_basic_crossing():
     """Cruce intramensual: surplus dominante en horas finales tras déficit
-    inicial. Hx debe ubicarse en el momento del cruce y separar Tipo 1/Tipo 2."""
+    inicial. Hx debe ubicarse en el momento en que la inyección acumulada
+    supera la importación del mes y separar Tipo 1/Tipo 2."""
     # Día 24h: 0-9 deficit, 10-23 surplus.
     D = np.zeros((1, 24))
     G = np.zeros((1, 24))
@@ -145,7 +147,7 @@ def test_c1_hx_at_first_hour():
     res = run_c1_creg174(D, G, PI_GS, pi_bolsa, [0], component_c=0.0)
 
     # En la primera hora: surplus_h[0] = 4.5, deficit_h[0] = 0
-    # iny_acum = 4.5 > ret_acum = 0 → cruza en hora 0.
+    # inyección acumulada 4,5 > importación del mes 0 → corte en hora 0.
     # cruce = 4.5; surplus_t2[0] = min(4.5, 4.5) = 4.5; surplus_t1[0] = 0.
     assert res[0]["hx_history"][0] == 0
     # Como deficit es 0 todo el mes, todo el surplus es Tipo 2.

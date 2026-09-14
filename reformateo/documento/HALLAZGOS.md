@@ -6862,6 +6862,15 @@ mide ahora las dos cosas, con un segundo criterio fijado antes de medir: si el
 excedente cambia más de 0,1 %, se corrige el horizonte antes de la corrida
 oficial en cualquier caso.
 
+**Señal nueva de una hora a ×7 (2026-09-13, D25).** Medido sobre la hora 4184
+con la generación por siete: apretar solo la tolerancia relativa (a 1e-7, con
+la absoluta fija en 1e-6) movió el excedente un 0,40 % y la tajada del
+vendedor 0,33 puntos. La tajada queda muy por debajo del umbral de un punto,
+pero el excedente supera el umbral de 0,1 %, es decir a ×7 el criterio del
+excedente puede saltar por la tolerancia sola, sin que el reparto se mueva lo
+bastante para saltar el suyo. Una sola hora no decide nada: lo decide la
+medición de veinte horas del servidor (sonda de la tarea 15), que agrega la
+muestra completa y no una hora suelta.
 
 ---
 
@@ -6878,3 +6887,17 @@ Tres mediciones de la ronda final que ninguna corrida anterior había podido hac
 **La sonda de H-79 no se puede usar tal cual en los casos escalados**: con `--horas 20` en E4 no terminaría.
 
 Qué hacer antes del servidor: un plazo por hora en el lazo del motor, que anote la hora vencida como no resuelta y con su motivo, como ya se hace con las que dan NaN, o un límite de tiempo dentro del integrador; decidir qué corridas llevan `--analysis`; y dar a la sonda un plazo por variante, o medir H-79 solo en E0.
+
+**Rectificación (2026-09-13, D25).** La hora que no terminaba en diecisiete minutos no era un defecto suelto del integrador: era la variante estricta de la sonda de H-79, que además de la relativa bajaba la tolerancia absoluta a 1e-7 y por eso reproducía H-51, cuya regla dice que la absoluta nunca se baja de 1e-6. Sobre la misma hora 4184 con la generación por siete, producción terminó en 140 (s) y la variante que aprieta solo la relativa (a 1e-7, con la absoluta en 1e-6) en 133 (s), es decir del mismo orden que producción. La guardia por hora (D24, C-186) queda como red de seguridad para los casos de escalado que aún no se han probado, y no como el arreglo de un defecto del motor: el motor no tenía ningún defecto en esa hora, la sonda tenía una variante mal planteada.
+
+---
+
+## H-81 · El caso sintético tiene horas que el acoplado no resuelve en quince minutos
+
+**Estado: registrado el 2026-09-13 al implementar el plazo por hora (D24, C-186). A mirar en la validación de convergencia y antes de correr E5.**
+
+Con el plazo por hora activo, la compuerta C-165 con su número de horas por defecto (72) dejó vencida la hora 56 de su caso sintético, resuelta por la vía acoplada: pasó de quince minutos. El integrador empezó a avisar desbordamientos y valores no válidos tras terminar unas 46 horas, es decir las 39 sin generación del caso, que acaban al instante, y unas siete con mercado. No es H-51, porque la tolerancia es la del modelo base, y no se ha visto con datos reales: el humo de un día con la generación por siete terminó todas sus horas, la más lenta en 140 (s).
+
+Lo que falta saber es si esa hora está atascada o solo es lenta, y si el mismo patrón aparece en E5, donde la generación por diez da excedentes mayores que los medidos. Mientras tanto el plazo por hora hace que una hora así no cuelgue la corrida: se anota sin resolver, con su motivo.
+
+El uso documentado de la compuerta es con 48 horas, que no llegan a la hora 56.

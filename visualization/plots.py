@@ -1973,7 +1973,9 @@ def plot_robustness_c4(
                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#F44336", alpha=0.8))
     else:
         ax2.text(0.5, 0.02,
-                 "✓ Ningún retiro invalida el régimen AGRC",
+                 "✓ Ningún retiro invalida el régimen AGRC por construcción\n"
+                 "(retirar un miembro solo baja la capacidad); el riesgo "
+                 "que aquí se mide es el económico",
                  transform=ax2.transAxes, ha="center", va="bottom",
                  fontsize=8, color="#4CAF50",
                  bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="#4CAF50", alpha=0.8))

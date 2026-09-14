@@ -270,7 +270,8 @@ class Almacen:
 
     def anota_agentes(self, k: int, nombres, D_k, G_k, techo_k, piso_k,
                       sids=(), bids=(), retirados=(),
-                      compra_p2p=None, vende_p2p=None) -> None:
+                      compra_p2p=None, vende_p2p=None,
+                      motivo: str = "") -> None:
         """Una fila por agente: su energia, su banda y su papel en esa hora.
 
         POR QUE HACIA FALTA. Las otras tablas describen el MERCADO —quien
@@ -283,6 +284,9 @@ class Almacen:
         vendedor, comprador, retirado o inactivo. Un vendedor retirado por el
         criterio de participacion NO es lo mismo que uno que no tenia
         excedente, y confundirlos borra el efecto que ese criterio produce.
+
+        Con `motivo` (D24), la hora quedo sin resolver en el motor: quien
+        tenia excedente o deficit sale «sin resolver», y no «inactivo».
         """
         base = self._llave(k)
         D_k = np.asarray(D_k, dtype=float)
@@ -301,6 +305,15 @@ class Almacen:
             falta = max(float(D_k[n]) - float(G_k[n]), 0.0)
             if n in retirados:
                 papel = "retirado"
+            elif motivo:
+                # D24 (tarea 18, fix1, C.7): la hora que el motor dejo sin
+                # resolver llega sin ids, y sin esto todos saldrian
+                # «inactivo», tambien quien tenia excedente o deficit. Ese
+                # agente tenia papel en el mercado, pero el mercado no se
+                # resolvio: «sin resolver». Lo que cruza la red sigue bien,
+                # porque sin P2P todo el sobrante y el faltante van a la red.
+                papel = ("sin resolver" if (sobra > 0.0 or falta > 0.0)
+                         else "inactivo")
             elif n in sids:
                 papel = "vendedor"
             elif n in bids:

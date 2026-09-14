@@ -379,7 +379,7 @@ def run_comparison(
 
     # ── C3 ──────────────────────────────────────────────────────────────
     c3 = run_c3_spot(D, G_klim, pi_gs_v, pi_bolsa, prosumer_ids,
-                     consumer_ids, dt=dt)
+                     consumer_ids, dt=dt, mem_costs=mem_costs)
     c3_net = np.array([c3["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.net_benefit["C3"]           = float(np.sum(c3_net))
     cr.neto_horario["C3"] = c3.get("neto_horario")          # C-165

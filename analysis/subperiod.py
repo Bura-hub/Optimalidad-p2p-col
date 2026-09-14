@@ -104,6 +104,10 @@ def run_subperiod_analysis(
     month_labels: Optional[np.ndarray] = None,
     component_c = "auto",
     tolls = None,
+    # D28 (ronda de correccion 1, tarea 17): los costos del mercado mayorista
+    # que carga C3 (y C5) a lo que vende. Con None, C3 se sigue liquidando
+    # como antes, bit a bit.
+    mem_costs = None,
 ) -> list[SubperiodResult]:
     """
     Ejecuta la simulación completa (EMS P2P + escenarios C1-C4) para
@@ -111,7 +115,8 @@ def run_subperiod_analysis(
 
     Cada sub-periodo escala la demanda y cambia el nivel de la bolsa sobre
     el MISMO horizonte, sin recortarlo, de modo que `month_labels`,
-    `component_c` y `tolls` pasan tal cual a `run_comparison`.
+    `component_c`, `tolls` y `mem_costs` (D28) pasan tal cual a
+    `run_comparison`.
     """
     from core.ems_p2p import EMSP2P
     from scenarios import run_comparison
@@ -174,6 +179,7 @@ def run_subperiod_analysis(
             month_labels=month_labels,                  # C-1
             component_c=component_c,                    # C-1
             tolls=tolls,                                # C-1
+            mem_costs=mem_costs,                        # D28 (fix1 tarea 17)
         )
 
         nb = cr.net_benefit

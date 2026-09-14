@@ -701,6 +701,24 @@ class WithdrawalRiskReport:
 
     by_agent[nombre] = {
         'compliant'          : bool   — ¿la comunidad restante sigue en AGRC?
+                                (Tarea 19, C-187): la suma de capacidades
+                                del AC restante no excede el límite AGPE de
+                                la UPME 281/2015 (`AGPE_LIMIT_KW`, la misma
+                                constante y el mismo criterio que aplica
+                                `_validate_capacity` al colectivo completo).
+                                El Caso 2 por PDE ≥ 10 % o por capacidad
+                                > 100 kW por usuario NO lo invalida (CAL-41):
+                                sigue siendo un AGRC válido, solo cambia
+                                cómo se valora la permuta.
+                                Límite estructural (fix1, tarea 19): esta
+                                función recibe la MISMA `cap` que ya validó
+                                el colectivo completo, y un retiro solo la
+                                reduce; por eso `compliant` sale verdadero
+                                por construcción en toda corrida que llega a
+                                FA-3. Lo que este informe mide de un retiro
+                                es su efecto económico (`loss_C4`,
+                                `flexibility_premium`), no si invalida el
+                                régimen.
         'B_C4_full'          : float  — beneficio C4 de la comunidad completa (COP)
         'B_C4_remaining'     : float  — beneficio C4 de la comunidad sin n (COP)
         'B_fallback'         : float  — beneficio sin AGRC (régimen individual, COP)
@@ -755,9 +773,8 @@ def analyze_withdrawal_risk(
       (cuantifica qué tanto más gana P2P que el fallback de C4 cuando alguien se va)
     """
     from scenarios.scenario_c4_creg101072 import (
-        run_c4_creg101072, compute_pde_weights,
+        run_c4_creg101072, compute_pde_weights, AGPE_LIMIT_KW,
     )
-    from scenarios.scenario_c3_spot import run_c3_spot
 
     N, T = D.shape
     report = WithdrawalRiskReport()
@@ -828,6 +845,17 @@ def analyze_withdrawal_risk(
             cap_r = np.maximum(G_raw_r.mean(axis=1), 0.0)
         pde_r = compute_pde_weights(np.ones(len(mask)), method="equal")
 
+        # Tarea 19 (Step 3b, C-187): la MISMA regla y la MISMA constante que
+        # el motor aplica al colectivo completo (`_validate_capacity`), pero
+        # decidida ANTES de llamar a `run_c4_creg101072`: esa función abortaria
+        # con ValueError si se le pasa una capacidad que ya excede el límite
+        # AGPE, y aquí se quiere INFORMAR el hallazgo, no propagar la
+        # excepción. Por eso, cuando se excede, la llamada de abajo recibe
+        # `capacity=None` (que `_validate_capacity` deja pasar sin validar) y
+        # el resultado se marca `compliant=False` con esta misma cuenta.
+        cap_total_r = float(np.sum(cap_r))
+        excede_agpe = cap_total_r > AGPE_LIMIT_KW
+
         # IDs de prosumidores en la comunidad restante
         new_ids_map  = {old: new for new, old in enumerate(mask)}
         pros_r  = [new_ids_map[m] for m in prosumer_ids if m != n]
@@ -836,7 +864,7 @@ def analyze_withdrawal_risk(
         # Beneficio C4 comunidad restante (CAL-15)
         c4_r = run_c4_creg101072(
             D_r, G_raw_r, pi_gs_r, pi_bolsa, pde_r,
-            capacity=cap_r,
+            capacity=(None if excede_agpe else cap_r),
             component_c=component_c_r,
             tolls=tolls_r,          # CAL-41
             mode="monthly_hx",      # I-6
@@ -859,13 +887,25 @@ def analyze_withdrawal_risk(
         # la permuta (ya lo hace `run_c4_creg101072`, que deriva el Caso).
         # La comunidad restante sigue siendo un AC mientras no supere el
         # límite AGPE de la UPME 281, que es lo que ahora se comprueba.
+        #
+        # Tarea 19 (Step 3b, hallazgo de la re-revisión de la tarea 17):
+        # hasta aquí el comentario de arriba ya lo anunciaba, pero
+        # `compliant` quedaba fijo en `True` y nunca se reasignaba, de modo
+        # que `community_at_risk` y `n_risky_withdrawals` salían siempre en
+        # su valor por defecto (ningún riesgo) sin que nada lo midiera. Se
+        # conecta ahora a `excede_agpe`, calculado arriba con el mismo
+        # criterio y la misma constante que `_validate_capacity`. Las reglas
+        # del 10 % y de 100 kW NO participan de `compliant` (CAL-41: son un
+        # Caso 2 válido) y se siguen informando solo en `violated`.
         caso_r = rep_r.caso_art20
-        compliant = True
+        compliant = not excede_agpe
         violated = []
         if not rep_r.rule_100kw_satisfied:
             violated.append("100kW→Caso2")
         if not rep_r.rule_10pct_satisfied:
             violated.append("PDE≥10%→Caso2")
+        if excede_agpe:
+            violated.append(f"suma>{AGPE_LIMIT_KW:.0f}kW→Caso3")
 
         # El AC restante conserva su régimen; el fallback es su propio C4,
         # liquidado bajo el Caso que le corresponda.

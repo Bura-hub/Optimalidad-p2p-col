@@ -175,7 +175,12 @@ def compute_monthly_metrics(
         net_c1 = sum(c1[n]["net_benefit"] for n in prosumer_ids)
 
         # ── C3 (spot): liquidación horaria ───────────────────────────────
-        c3 = run_c3_spot(D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids, consumer_ids)
+        c3 = run_c3_spot(
+            D_m, G_klim_m, pi_gs_m, pb_m, prosumer_ids, consumer_ids,
+            mem_costs=(mem_costs[:, idx_arr]
+                       if isinstance(mem_costs, np.ndarray)
+                       and mem_costs.ndim == 2 else mem_costs),
+        )
         net_c3 = c3["aggregate"]["total_net_benefit"]
 
         # ── C4 (AGRC): distribución PDE ──────────────────────────────────

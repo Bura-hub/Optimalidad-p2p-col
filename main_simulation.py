@@ -13,6 +13,7 @@ Modos:
   python main_simulation.py --data real --full           # datos MTE, 6144h completas
   python main_simulation.py --data real --analysis       # perfil diario + sensibilidad y factibilidad
   python main_simulation.py --data real --analysis --full  # todo, horizonte completo
+  python main_simulation.py --data real --full --analisis-ligero  # D27: solo FA-1 a FA-4 y Fig. 14/20 (corridas del servidor)
   python main_simulation.py --gsa [--n-base N]           # análisis de sensibilidad global Sobol/Saltelli
 
 Notas:
@@ -20,7 +21,7 @@ Notas:
   En los modos de 24h (sintético, perfil diario o --day) NO se genera reporte
   mensual ni series diarias para bootstrap (requieren T>=48h con --full).
 """
-import sys, os, time, argparse, warnings
+import sys, os, time, argparse, warnings, math
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -82,12 +83,14 @@ def _procesos_pedidos(args):
 
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
+         analisis_ligero: bool = False,
          single_day: str = None, paper_meters: bool = False,
          include_c5: bool = False, out_dir: str = None,
          paso: float = 1.0, desde: str = None, hasta: str = None,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
          almacen: str = None,
          procesos: int = None,
+         plazo_hora: float = 15.0,
          exencion_contribucion: bool = False,
          buyer_competition: str = "aggregate",
          excluir_agente: str = None,
@@ -480,12 +483,26 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # que la maquina declara sino los que la afinidad
                           # permite. La variable del entorno la pone el
                           # lanzador del servidor.
-                          procesos=procesos)
+                          procesos=procesos,
+                          # D24: plazo por hora del mercado, en minutos desde
+                          # la linea de ordenes; 0 o None lo desactiva.
+                          plazo_hora_s=(plazo_hora * 60.0 if plazo_hora
+                                        else None))
     if metodo == "acoplado":
         print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
               f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
+    _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
+    print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
+          f"hora empieza a correr; la vencida queda sin resolver)")
     ems    = EMSP2P(agents, grid, solver)
     p2p_results, G_klim, D_star = ems.run(D, G)
+    # D24: el motor ya lista las horas vencidas; aqui se dice que les pasa.
+    _vencidas = [r.k for r in p2p_results if getattr(r, "motivo", "")]
+    if _vencidas:
+        print(f"    [D24] {len(_vencidas)} de {len(p2p_results)} horas sin "
+              f"resolver por el plazo por hora: la liquidacion las trata "
+              f"como horas sin mercado"
+              + ("; el almacen las anota con su motivo" if almacen else ""))
 
     # ── El almacen de la corrida (C-161) ─────────────────────────────────
     # Todo lo que hasta hoy se tiraba: los retirados por hora, el piso y el
@@ -533,7 +550,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                     _piso_m[:, k], sids=r.seller_ids or (),
                     bids=r.buyer_ids or (),
                     retirados=getattr(r, "retirados", ()) or (),
-                    compra_p2p=_cp, vende_p2p=_vp)
+                    compra_p2p=_cp, vende_p2p=_vp,
+                    # D24 (tarea 18, fix1, C.7): en la hora vencida, quien
+                    # tenia excedente o deficit sale «sin resolver».
+                    motivo=getattr(r, "motivo", "") or "")
+            # D24: la hora que el motor dejo sin resolver llega sin ids, y la
+            # comprobacion siguiente la anotaria como «sin mercado esa hora»,
+            # que es otro motivo. Se anota antes con el suyo.
+            if getattr(r, "motivo", ""):
+                alm.sin_resolver(k, r.motivo)
+                continue
             if not r.seller_ids or not r.buyer_ids:
                 alm.sin_resolver(k, "sin mercado esa hora")
                 continue
@@ -1033,120 +1059,145 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         print(f"    ✓ Fig 15 — Comparación directa C1 vs C4")
 
     # ── 6. Análisis de sensibilidad y factibilidad (--analysis) ──────────
-    sa_pgb, sa_pv, sa_ppa = [], [], []
+    # D27 (tarea 19): el modo ligero (--analisis-ligero) corre solo lo que
+    # ningún otro paso del subproyecto 2 cubre: FA-1 a FA-4, la dominancia
+    # horaria y el precio de la equidad. Los barridos que vuelven a resolver
+    # el mercado (SA-2, SA-3 de tarifa, los sub-períodos) los cubren la
+    # matriz de escalado y el análisis global de nivel A; SA-1 y SA-3 del
+    # contrato son además obsoletos (PGB escalar, PPA externo). La
+    # convergencia RD+Stackelberg tampoco corre: la cubre la validación de
+    # convergencia del subproyecto 2 (ruling del controlador, no D27).
+    sa_pgb, sa_pv, sa_ppa, sa_pgs = [], [], [], []
     fa_des, fa_creg_rep, fa_ir = None, None, None
+    thresholds = {}
 
     if run_analysis:
         print("\n" + "="*65)
-        print("  ANÁLISIS DE SENSIBILIDAD Y FACTIBILIDAD")
+        print("  ANÁLISIS DE SENSIBILIDAD Y FACTIBILIDAD"
+              + ("  [MODO LIGERO — D27]" if analisis_ligero else ""))
         print("="*65)
+        if analisis_ligero:
+            print("    [D27] Modo ligero: no corren SA-1/SA-2/SA-3 (tarifa "
+                  "ni contrato), los umbrales de dominancia, la deserción "
+                  "individual (FA-1b/Fig. 19), los sub-períodos (Fig. 16), "
+                  "el heatmap 2D (Fig. 18), las Figs. 7/8/10/11 ni la "
+                  "convergencia RD+Stackelberg: quedan cubiertos por la "
+                  "matriz de escalado y el análisis global de nivel A "
+                  "(D27), y la convergencia por la validación del "
+                  "subproyecto 2. Corren FA-1 a FA-4, la dominancia horaria "
+                  "(Fig. 14), la factibilidad (Fig. 9), la robustez "
+                  "regulatoria C4 (Fig. 17), el precio de la equidad "
+                  "(Fig. 20) y la robustez C4 por agente (Fig. 21).")
 
-        from analysis.sensitivity import (
-            run_sensitivity_pgb, run_sensitivity_pv,
-            run_sensitivity_ppa, run_sensitivity_pgs,
-            find_dominance_threshold)
         from analysis.feasibility import (
-            analyze_desertion, analyze_desertion_individual_rationality,
-            analyze_creg_101072_compliance)
-        from visualization.plots import generate_sensitivity_plots
+            analyze_desertion, analyze_creg_101072_compliance)
 
-        # SA-1: variación PGB. CAL-39 (aprobado por el autor): rango
-        # extendido a [150..500] — la serie XM real está en 182-235 y el
-        # rango histórico [200..500] arrancaba por encima de la realidad.
-        # El valor NOMINAL PGB=280 no cambia (gated a asesores, Anexo A).
-        pgb_range = np.array([150, 200, 250, 280, 300, 350, 400, 450, 500])
-        sa_pgb = run_sensitivity_pgb(
-            D=D, G=G, G_klim=G_klim, agents=agents, grid_base=grid,
-            solver=solver, p2p_results_base=p2p_results,
-            pi_gb_range=pgb_range, pde=pde,
-            prosumer_ids=prosumer_ids, verbose=True,
-            month_labels=month_labels,                  # CAL-9 fix
-            component_c=component_c_arg,                 # CAL-10b fix
-            tolls=tolls_arg,                            # CAL-41
-            include_c5=include_c5,                      # CAL-39
-            g_component=g_arg, cvm_component=cvm_arg,
-            cot_component=cot_arg, mem_costs=mem_arg,
-            cot_alpha=cot_alpha_default,
-            capacity=cap,                               # I-2: numeral real
-        )
+        if not analisis_ligero:
+            from analysis.sensitivity import (
+                run_sensitivity_pgb, run_sensitivity_pv,
+                run_sensitivity_ppa, run_sensitivity_pgs,
+                find_dominance_threshold)
+            from analysis.feasibility import analyze_desertion_individual_rationality
+            from visualization.plots import generate_sensitivity_plots
 
-        # SA-2: variación cobertura PV
-        print(f"\n  SA-2: Ejecutando barrido de cobertura PV...")
-        # C-172: los objetivos por DEBAJO de la cobertura actual se descartan,
-        # no se recortan.
-        #
-        # La version anterior los recortaba a factor uno exacto. Como la
-        # comunidad ya tiene cerca del 20 % de cobertura, el objetivo del 11 %
-        # caia por debajo y se convertia en un factor 1,0000, mientras que el
-        # del 20 % daba 1,0025: dos puntos casi identicos que la funcion de
-        # duplicados no junta porque difieren en el tercer decimal.
-        #
-        # El barrido anunciaba seis niveles de cobertura y entregaba cinco, con
-        # dos filas que la pantalla redondea al mismo «1.00  20%» y que nadie
-        # puede distinguir leyendo la tabla. Y costaba una resolucion completa
-        # del horizonte, es decir unos doce minutos por frontera, en recalcular
-        # un punto que ya se tenia.
-        #
-        # Descartar es ademas lo que la intencion pedia: el barrido existe para
-        # ver que pasa si la comunidad instala MAS solar, y reducirla por
-        # debajo de lo que ya tiene no es una pregunta de este estudio.
-        base_cov = float(G.mean() / max(D.mean(), 1e-6))
-        targets  = [0.11, 0.20, 0.33, 0.50, 0.75, 1.00]
-        # El estado ACTUAL entra siempre, porque es la referencia contra la que
-        # se lee el barrido; los objetivos por encima entran cada uno una vez.
-        _brutos = [t / max(base_cov, 0.01) for t in targets]
-        _arriba = [f for f in _brutos if f >= 1.005]
-        pv_factors = np.unique(np.round(np.clip([1.0] + _arriba, 1.0, 10.0), 3))
-        _fuera = len(targets) - len(_arriba)
-        if _fuera:
-            print(f"    [C-172] {_fuera} objetivo(s) de cobertura quedan por "
-                  f"debajo del {base_cov*100:.1f} % que la comunidad ya tiene; "
-                  f"se descartan en vez de repetir el punto de referencia")
-        sa_pv = run_sensitivity_pv(
-            D=D, G_base=G, agents=agents, grid=grid, solver=solver,
-            pv_factors=pv_factors, pde=pde,
-            prosumer_ids=prosumer_ids, verbose=True,
-            month_labels=month_labels,                  # CAL-9 fix
-            component_c=component_c_arg,                 # CAL-10b fix
-            tolls=tolls_arg,                            # CAL-41
-            include_c5=include_c5,                      # CAL-39
-            g_component=g_arg, cvm_component=cvm_arg,
-            cot_component=cot_arg, mem_costs=mem_arg,
-            cot_alpha=cot_alpha_default,
-            capacity=cap,                               # I-2: cap * factor
-        )
+            # SA-1: variación PGB. CAL-39 (aprobado por el autor): rango
+            # extendido a [150..500] — la serie XM real está en 182-235 y el
+            # rango histórico [200..500] arrancaba por encima de la realidad.
+            # El valor NOMINAL PGB=280 no cambia (gated a asesores, Anexo A).
+            pgb_range = np.array([150, 200, 250, 280, 300, 350, 400, 450, 500])
+            sa_pgb = run_sensitivity_pgb(
+                D=D, G=G, G_klim=G_klim, agents=agents, grid_base=grid,
+                solver=solver, p2p_results_base=p2p_results,
+                pi_gb_range=pgb_range, pde=pde,
+                prosumer_ids=prosumer_ids, verbose=True,
+                month_labels=month_labels,                  # CAL-9 fix
+                component_c=component_c_arg,                 # CAL-10b fix
+                tolls=tolls_arg,                            # CAL-41
+                include_c5=include_c5,                      # CAL-39
+                g_component=g_arg, cvm_component=cvm_arg,
+                cot_component=cot_arg, mem_costs=mem_arg,
+                cot_alpha=cot_alpha_default,
+                capacity=cap,                               # I-2: numeral real
+            )
 
-        # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)
-        print(f"\n  SA-3: Ejecutando barrido de precio al usuario (π_gs)...")
-        sa_pgs = run_sensitivity_pgs(
-            D=D, G=G, agents=agents, grid_base=grid, solver=solver,
-            pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-            verbose=True,
-            month_labels=month_labels,                  # CAL-9 fix
-            # No pasamos component_c: pgs varía sintéticamente y el dato
-            # real Cvm,i,j (CAL-10b.2) no aplica a un sweep hipotético del CU.
-            # I-2: pero si la capacidad real y los peajes, para que el
-            # numeral del art. 25 sea el mismo de la tabla principal.
-            capacity=cap,
-            tolls=tolls_arg,
-        )
+            # SA-2: variación cobertura PV
+            print(f"\n  SA-2: Ejecutando barrido de cobertura PV...")
+            # C-172: los objetivos por DEBAJO de la cobertura actual se descartan,
+            # no se recortan.
+            #
+            # La version anterior los recortaba a factor uno exacto. Como la
+            # comunidad ya tiene cerca del 20 % de cobertura, el objetivo del 11 %
+            # caia por debajo y se convertia en un factor 1,0000, mientras que el
+            # del 20 % daba 1,0025: dos puntos casi identicos que la funcion de
+            # duplicados no junta porque difieren en el tercer decimal.
+            #
+            # El barrido anunciaba seis niveles de cobertura y entregaba cinco, con
+            # dos filas que la pantalla redondea al mismo «1.00  20%» y que nadie
+            # puede distinguir leyendo la tabla. Y costaba una resolucion completa
+            # del horizonte, es decir unos doce minutos por frontera, en recalcular
+            # un punto que ya se tenia.
+            #
+            # Descartar es ademas lo que la intencion pedia: el barrido existe para
+            # ver que pasa si la comunidad instala MAS solar, y reducirla por
+            # debajo de lo que ya tiene no es una pregunta de este estudio.
+            base_cov = float(G.mean() / max(D.mean(), 1e-6))
+            targets  = [0.11, 0.20, 0.33, 0.50, 0.75, 1.00]
+            # El estado ACTUAL entra siempre, porque es la referencia contra la que
+            # se lee el barrido; los objetivos por encima entran cada uno una vez.
+            _brutos = [t / max(base_cov, 0.01) for t in targets]
+            _arriba = [f for f in _brutos if f >= 1.005]
+            pv_factors = np.unique(np.round(np.clip([1.0] + _arriba, 1.0, 10.0), 3))
+            _fuera = len(targets) - len(_arriba)
+            if _fuera:
+                print(f"    [C-172] {_fuera} objetivo(s) de cobertura quedan por "
+                      f"debajo del {base_cov*100:.1f} % que la comunidad ya tiene; "
+                      f"se descartan en vez de repetir el punto de referencia")
+            sa_pv = run_sensitivity_pv(
+                D=D, G_base=G, agents=agents, grid=grid, solver=solver,
+                pv_factors=pv_factors, pde=pde,
+                prosumer_ids=prosumer_ids, verbose=True,
+                month_labels=month_labels,                  # CAL-9 fix
+                component_c=component_c_arg,                 # CAL-10b fix
+                tolls=tolls_arg,                            # CAL-41
+                include_c5=include_c5,                      # CAL-39
+                g_component=g_arg, cvm_component=cvm_arg,
+                cot_component=cot_arg, mem_costs=mem_arg,
+                cot_alpha=cot_alpha_default,
+                capacity=cap,                               # I-2: cap * factor
+            )
 
-        # Umbrales de dominancia
-        thresholds = find_dominance_threshold(sa_pgb, sa_pv)
-        print(f"\n  Umbrales de dominancia P2P:")
-        print(f"    P2P siempre > C4: {thresholds.get('p2p_always_beats_c4')}")
-        t_c4 = thresholds.get("pgb_threshold_vs_C4")
-        t_c1 = thresholds.get("pgb_threshold_vs_C1")
-        if isinstance(t_c4, float):
-            print(f"    PGB umbral P2P = C4: {t_c4:.0f} COP/kWh")
-        else:
-            print(f"    PGB umbral P2P = C4: {t_c4}")
-        if isinstance(t_c1, float):
-            print(f"    PGB umbral P2P = C1: {t_c1:.0f} COP/kWh  ← deserción posible aquí")
-        else:
-            print(f"    PGB umbral P2P = C1: {t_c1}")
-        if thresholds.get("pv_threshold_vs_C4"):
-            print(f"    Factor PV umbral vs C4: {thresholds['pv_threshold_vs_C4']:.2f}x")
+            # SA-3: variación precio al usuario π_gs (Actividad 4.1 propuesta)
+            print(f"\n  SA-3: Ejecutando barrido de precio al usuario (π_gs)...")
+            sa_pgs = run_sensitivity_pgs(
+                D=D, G=G, agents=agents, grid_base=grid, solver=solver,
+                pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+                verbose=True,
+                month_labels=month_labels,                  # CAL-9 fix
+                # No pasamos component_c: pgs varía sintéticamente y el dato
+                # real Cvm,i,j (CAL-10b.2) no aplica a un sweep hipotético del CU.
+                # I-2: pero si la capacidad real y los peajes, para que el
+                # numeral del art. 25 sea el mismo de la tabla principal.
+                capacity=cap,
+                tolls=tolls_arg,
+                mem_costs=mem_arg,                          # D28 (fix1 tarea 17)
+            )
+
+            # Umbrales de dominancia
+            thresholds = find_dominance_threshold(sa_pgb, sa_pv)
+            print(f"\n  Umbrales de dominancia P2P:")
+            print(f"    P2P siempre > C4: {thresholds.get('p2p_always_beats_c4')}")
+            t_c4 = thresholds.get("pgb_threshold_vs_C4")
+            t_c1 = thresholds.get("pgb_threshold_vs_C1")
+            if isinstance(t_c4, float):
+                print(f"    PGB umbral P2P = C4: {t_c4:.0f} COP/kWh")
+            else:
+                print(f"    PGB umbral P2P = C4: {t_c4}")
+            if isinstance(t_c1, float):
+                print(f"    PGB umbral P2P = C1: {t_c1:.0f} COP/kWh  ← deserción posible aquí")
+            else:
+                print(f"    PGB umbral P2P = C1: {t_c1}")
+            if thresholds.get("pv_threshold_vs_C4"):
+                print(f"    Factor PV umbral vs C4: {thresholds['pv_threshold_vs_C4']:.2f}x")
 
         # FA-1: deserción horaria (precio P2P vs precio bolsa)
         fa_des = analyze_desertion(
@@ -1154,54 +1205,61 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             agent_names=agent_names, prosumer_ids=prosumer_ids, verbose=True,
         )
 
-        # FA-1b: Condición de Racionalidad Individual por agente (§3.14)
-        # Pasamos los beneficios reales del caso nominal (XM variable) para
-        # que la evaluación base use precios correctos, no el SA-1 constante.
-        pi_gb_nom = grid_params["pi_gb"]
-        fa_ir = analyze_desertion_individual_rationality(
-            sa_pgb_results=sa_pgb,
-            agent_names=agent_names,
-            pi_gb_nominal=pi_gb_nom,
-            base_net_p2p=cr.net_benefit_per_agent.get("P2P"),
-            base_net_c1=cr.net_benefit_per_agent.get("C1"),
-            base_net_c4=cr.net_benefit_per_agent.get("C4"),
-            verbose=True,
-        )
+        if not analisis_ligero:
+            # FA-1b: Condición de Racionalidad Individual por agente (§3.14)
+            # Pasamos los beneficios reales del caso nominal (XM variable) para
+            # que la evaluación base use precios correctos, no el SA-1 constante.
+            pi_gb_nom = grid_params["pi_gb"]
+            fa_ir = analyze_desertion_individual_rationality(
+                sa_pgb_results=sa_pgb,
+                agent_names=agent_names,
+                pi_gb_nominal=pi_gb_nom,
+                base_net_p2p=cr.net_benefit_per_agent.get("P2P"),
+                base_net_c1=cr.net_benefit_per_agent.get("C1"),
+                base_net_c4=cr.net_benefit_per_agent.get("C4"),
+                verbose=True,
+            )
 
-        # §3.6: Análisis de fuente y calibración de precios
-        from data.xm_prices import price_source_analysis
-        price_source_analysis(
-            pi_bolsa=pi_bolsa,
-            pi_gs=grid_params["pi_gs"],
-            verbose=True,
-        )
+            # §3.6: Análisis de fuente y calibración de precios
+            from data.xm_prices import price_source_analysis
+            price_source_analysis(
+                pi_bolsa=pi_bolsa,
+                pi_gs=grid_params["pi_gs"],
+                verbose=True,
+            )
 
-        # SA-3: sensibilidad precio bilateral PPA (§3.8)
-        print(f"\n  SA-3: Sensibilidad al precio PPA (pi_ppa)...")
-        sa_ppa = run_sensitivity_ppa(
-            D=D, G_klim=G_klim, G_raw=G,
-            pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
-            pi_bolsa=pi_bolsa,
-            p2p_results=p2p_results,
-            prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-            pde=pde,
-            capacity=cap if 'cap' in dir() else None,
-            verbose=True,
-            month_labels=month_labels,                  # CAL-9
-            component_c=component_c_arg,                 # CAL-10b
-            tolls=tolls_arg,                            # CAL-41
-            pi_G=pi_G_arg,                                # CAL-13b
-            # CAL-16: descomposición explícita
-            g_component=g_arg,
-            cvm_component=cvm_arg,
-            cot_component=cot_arg,
-            mem_costs=mem_arg,
-            cot_alpha=cot_alpha_default,
-        )
+            # SA-3: sensibilidad precio bilateral PPA (§3.8)
+            print(f"\n  SA-3: Sensibilidad al precio PPA (pi_ppa)...")
+            sa_ppa = run_sensitivity_ppa(
+                D=D, G_klim=G_klim, G_raw=G,
+                pi_gs=grid_params["pi_gs"], pi_gb=grid_params["pi_gb"],
+                pi_bolsa=pi_bolsa,
+                p2p_results=p2p_results,
+                prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+                pde=pde,
+                capacity=cap if 'cap' in dir() else None,
+                verbose=True,
+                month_labels=month_labels,                  # CAL-9
+                component_c=component_c_arg,                 # CAL-10b
+                tolls=tolls_arg,                            # CAL-41
+                pi_G=pi_G_arg,                                # CAL-13b
+                # CAL-16: descomposición explícita
+                g_component=g_arg,
+                cvm_component=cvm_arg,
+                cot_component=cot_arg,
+                mem_costs=mem_arg,
+                cot_alpha=cot_alpha_default,
+            )
 
-        # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)
-        print(f"\n  §3.12 Desglose P2P hora a hora (muestra ampliada):")
-        print_p2p_sample(flows_rows, summary_rows, n_hours=5)
+            # §3.12: Desglose P2P hora a hora (exportado en bloque 5, muestra ampliada)
+            print(f"\n  §3.12 Desglose P2P hora a hora (muestra ampliada):")
+            print_p2p_sample(flows_rows, summary_rows, n_hours=5)
+        else:
+            print("    [D27] FA-1b y Fig. 19 no corren: dependen del "
+                  "barrido SA-1, que tampoco corre en modo ligero. "
+                  "Tampoco corren el análisis de la fuente de precios "
+                  "(§3.6) ni la muestra ampliada del desglose del "
+                  "mercado (§3.12)")
 
         # FA-2: cumplimiento CREG 101 072
         fa_creg_rep = analyze_creg_101072_compliance(
@@ -1237,26 +1295,27 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             D=D, verbose=True,
         )
 
-        # ── Convergencia RD + Stackelberg (Objetivo 2 / Validación) ──────
-        print(f"\n  Convergencia RD+Stackelberg (horas representativas)...")
-        from visualization.plots import plot_convergence
-        conv_data = ems.run_convergence(
-            D=D, G=G, G_klim=G_klim,
-            p2p_results=p2p_results,
-            n_iters_conv=8,
-            max_hours=2,
-        )
-        if conv_data:
-            conv_paths = plot_convergence(
-                conv_list=conv_data,
-                agent_names=agent_names,
-                out_dir=plots_dir,
-                currency=currency,
+        if not analisis_ligero:
+            # ── Convergencia RD + Stackelberg (Objetivo 2 / Validación) ──────
+            print(f"\n  Convergencia RD+Stackelberg (horas representativas)...")
+            from visualization.plots import plot_convergence
+            conv_data = ems.run_convergence(
+                D=D, G=G, G_klim=G_klim,
+                p2p_results=p2p_results,
+                n_iters_conv=8,
+                max_hours=2,
             )
-            for p in conv_paths:
-                print(f"    ✓ {os.path.basename(p)}")
-        else:
-            print("    (sin horas activas para análisis de convergencia)")
+            if conv_data:
+                conv_paths = plot_convergence(
+                    conv_list=conv_data,
+                    agent_names=agent_names,
+                    out_dir=plots_dir,
+                    currency=currency,
+                )
+                for p in conv_paths:
+                    print(f"    ✓ {os.path.basename(p)}")
+            else:
+                print("    (sin horas activas para análisis de convergencia)")
 
         # Activity 4.2: Análisis cualitativo de optimalidad P2P vs C4
         print(f"\n  Activity 4.2: Análisis de optimalidad P2P vs C4 hora a hora...")
@@ -1279,26 +1338,28 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         if p:
             print(f"    ✓ Fig 14 — Análisis de optimalidad P2P vs C4")
 
-        # Actividad 4.3: Análisis de sub-períodos (laborable/finde × jul/ene)
-        print(f"\n  Actividad 4.3: Análisis de sub-períodos...")
-        from analysis.subperiod import (run_subperiod_analysis,
-                                        print_subperiod_table, plot_subperiod)
-        sp_results = run_subperiod_analysis(
-            D=D, G=G,
-            agents=agents, grid=grid, solver=solver,
-            pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
-            pi_gs=grid_params["pi_gs"], capacity=cap,
-            agent_names=agent_names, currency=currency, verbose=True,
-            # C-1: los mismos peajes, Cv y calendario que la comparacion
-            # principal; el sub-periodo no recorta el horizonte.
-            month_labels=month_labels,
-            component_c=component_c_arg,
-            tolls=tolls_arg,
-        )
-        print_subperiod_table(sp_results, currency=currency)
-        p = plot_subperiod(sp_results, out_dir=plots_dir, currency=currency)
-        if p:
-            print(f"    ✓ Fig 16 — Análisis de sub-períodos")
+        if not analisis_ligero:
+            # Actividad 4.3: Análisis de sub-períodos (laborable/finde × jul/ene)
+            print(f"\n  Actividad 4.3: Análisis de sub-períodos...")
+            from analysis.subperiod import (run_subperiod_analysis,
+                                            print_subperiod_table, plot_subperiod)
+            sp_results = run_subperiod_analysis(
+                D=D, G=G,
+                agents=agents, grid=grid, solver=solver,
+                pde=pde, prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+                pi_gs=grid_params["pi_gs"], capacity=cap,
+                agent_names=agent_names, currency=currency, verbose=True,
+                # C-1: los mismos peajes, Cv y calendario que la comparacion
+                # principal; el sub-periodo no recorta el horizonte.
+                month_labels=month_labels,
+                component_c=component_c_arg,
+                tolls=tolls_arg,
+                mem_costs=mem_arg,                          # D28 (fix1 tarea 17)
+            )
+            print_subperiod_table(sp_results, currency=currency)
+            p = plot_subperiod(sp_results, out_dir=plots_dir, currency=currency)
+            if p:
+                print(f"    ✓ Fig 16 — Análisis de sub-períodos")
 
         # Fig 17 — Robustez C4
         from visualization.plots import plot_robustness_c4
@@ -1307,32 +1368,34 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         if p17:
             print(f"    ✓ Fig 17 — Robustez regulatoria C4")
 
-        # Fig 18 — Heatmap 2D PGB×PV (solo si existe el parquet del barrido)
-        sweep2d_path = os.path.join(base_dir, "outputs", "sensitivity_2d_pgb_pv.parquet")
-        if os.path.exists(sweep2d_path):
-            from analysis.sensitivity_2d import from_parquet
-            from visualization.plots     import plot_fig18_heatmap_pgb_pv
-            try:
-                sweep2d = from_parquet(sweep2d_path)
-                p18 = plot_fig18_heatmap_pgb_pv(sweep2d, out_dir=plots_dir,
-                                                currency=currency)
-                if p18:
-                    print(f"    ✓ Fig 18 — Heatmap 2D PGB×PV")
-            except Exception as e:
-                print(f"    ✗ Fig 18: {e}")
-        else:
-            print(f"    (Fig 18 requiere: python scripts/sweep_pgb_pv.py)")
+        if not analisis_ligero:
+            # Fig 18 — Heatmap 2D PGB×PV (solo si existe el parquet del barrido)
+            sweep2d_path = os.path.join(base_dir, "outputs", "sensitivity_2d_pgb_pv.parquet")
+            if os.path.exists(sweep2d_path):
+                from analysis.sensitivity_2d import from_parquet
+                from visualization.plots     import plot_fig18_heatmap_pgb_pv
+                try:
+                    sweep2d = from_parquet(sweep2d_path)
+                    p18 = plot_fig18_heatmap_pgb_pv(sweep2d, out_dir=plots_dir,
+                                                    currency=currency)
+                    if p18:
+                        print(f"    ✓ Fig 18 — Heatmap 2D PGB×PV")
+                except Exception as e:
+                    print(f"    ✗ Fig 18: {e}")
+            else:
+                print(f"    (Fig 18 requiere: python scripts/sweep_pgb_pv.py)")
 
-        # Fig 19 — Curva π_gb*ⁿ por agente (FA-1 individual)
-        from visualization.plots import plot_fig19_desercion_individual
-        try:
-            p19 = plot_fig19_desercion_individual(
-                fa_ir, agent_names, pi_gb_nominal=grid_params["pi_gb"],
-                out_dir=plots_dir, currency=currency)
-            if p19:
-                print(f"    ✓ Fig 19 — Deserción individual por agente")
-        except Exception as e:
-            print(f"    ✗ Fig 19: {e}")
+        if not analisis_ligero:
+            # Fig 19 — Curva π_gb*ⁿ por agente (FA-1 individual)
+            from visualization.plots import plot_fig19_desercion_individual
+            try:
+                p19 = plot_fig19_desercion_individual(
+                    fa_ir, agent_names, pi_gb_nominal=grid_params["pi_gb"],
+                    out_dir=plots_dir, currency=currency)
+                if p19:
+                    print(f"    ✓ Fig 19 — Deserción individual por agente")
+            except Exception as e:
+                print(f"    ✗ Fig 19: {e}")
 
         # Fig 20 — Price of Fairness P2P vs C4
         from analysis.fairness   import compute_pof
@@ -1360,19 +1423,29 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         except Exception as e:
             print(f"    ✗ Fig 21: {e}")
 
-        # Gráficas 7-9
-        generate_sensitivity_plots(
-            sa_pgb=sa_pgb, sa_pv=sa_pv,
-            findings=thresholds,
-            fa_desertion=fa_des, fa_creg=fa_creg_rep,
-            p2p_results=p2p_results, pi_bolsa=pi_bolsa,
-            D=D, agent_names=agent_names,
-            out_dir=plots_dir, currency=currency,
-            sa_ppa=sa_ppa,
-            pi_gb=grid_params["pi_gb"],
-            pi_gs=grid_params["pi_gs"],
-            sa_pgs=sa_pgs,
-        )
+        # Fig 9 (siempre) y Figs 7/8/10/11 (solo modo completo)
+        if analisis_ligero:
+            # D27: sin SA-1/SA-2/SA-3 no hay Figs. 7/8/10/11 que
+            # dibujar; la Fig. 9 se llama directamente en vez de
+            # pasar por generate_sensitivity_plots (que las agrupa).
+            from visualization.plots import plot_feasibility
+            p9 = plot_feasibility(fa_des, fa_creg_rep, p2p_results,
+                                  pi_bolsa, agent_names, plots_dir)
+            if p9:
+                print(f"    ✓ Fig 9 — Análisis de factibilidad")
+        else:
+            generate_sensitivity_plots(
+                sa_pgb=sa_pgb, sa_pv=sa_pv,
+                findings=thresholds,
+                fa_desertion=fa_des, fa_creg=fa_creg_rep,
+                p2p_results=p2p_results, pi_bolsa=pi_bolsa,
+                D=D, agent_names=agent_names,
+                out_dir=plots_dir, currency=currency,
+                sa_ppa=sa_ppa,
+                pi_gb=grid_params["pi_gb"],
+                pi_gs=grid_params["pi_gs"],
+                sa_pgs=sa_pgs,
+            )
 
         # Exportar análisis a Excel
         _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg_rep,
@@ -2020,6 +2093,14 @@ if __name__ == "__main__":
                     help="Horizonte completo 6144h")
     ap.add_argument("--analysis", action="store_true",
                     help="Análisis de sensibilidad y factibilidad")
+    ap.add_argument("--analisis-ligero", dest="analisis_ligero",
+                    action="store_true",
+                    help="D27: solo la factibilidad y la robustez (FA-1 a "
+                         "FA-4) y las figuras que no vuelven a resolver el "
+                         "mercado. Los barridos que sí lo hacen (SA-2, SA-3 "
+                         "de tarifa, sub-períodos) ya los cubren la matriz "
+                         "de escalado y el análisis global de nivel A; "
+                         "modo de las trece corridas del servidor")
     ap.add_argument("--day", type=str, default=None,
                     help="Día específico YYYY-MM-DD (implica --data real, 24h)")
     ap.add_argument("--gsa", action="store_true",
@@ -2067,6 +2148,13 @@ if __name__ == "__main__":
                          "los que la afinidad permite y no los que la maquina "
                          "declara. Tambien se lee de la variable de entorno "
                          "del lanzador del servidor.")
+    ap.add_argument("--plazo-hora", dest="plazo_hora", type=float,
+                    default=15.0, metavar="MIN",
+                    help="D24: plazo por hora del mercado, en minutos, "
+                         "contado desde que la hora empieza a correr. La "
+                         "hora que lo pasa queda sin resolver, con su "
+                         "motivo, y la corrida sigue. 0 lo desactiva. Solo "
+                         "actua en el lazo paralelo.")
     ap.add_argument("--metodo", choices=["alternado", "acoplado"],
                     default="alternado",
                     help="CAL-48: 'acoplado' integra precios y cantidades "
@@ -2103,13 +2191,31 @@ if __name__ == "__main__":
     # ── CAL-39: validación de combinaciones de flags (antes, combinaciones
     # inválidas se ignoraban en silencio: --gsa descartaba --full/--analysis/
     # --include-c5/--paper-meters sin avisar; --day pisaba --full) ──────────
-    if args.gsa and (args.full or args.analysis or args.include_c5
-                     or args.paper_meters or args.day):
+    if args.gsa and (args.full or args.analysis or args.analisis_ligero
+                     or args.include_c5 or args.paper_meters or args.day):
         ap.error("--gsa corre el modelo de referencia sintético y es "
-                 "incompatible con --full/--analysis/--include-c5/"
-                 "--paper-meters/--day")
+                 "incompatible con --full/--analysis/--analisis-ligero/"
+                 "--include-c5/--paper-meters/--day")
+    # D27 (tarea 19): --analysis corre el bloque completo (SA-1 a SA-3 y los
+    # sub-periodos); --analisis-ligero corre solo FA-1 a FA-4 y las figuras
+    # que no vuelven a resolver el mercado. Pedir las dos a la vez no tiene
+    # una lectura sin ambigüedad.
+    if args.analysis and args.analisis_ligero:
+        ap.error("--analysis y --analisis-ligero son mutuamente exclusivos: "
+                 "el primero corre el bloque completo (SA-1 a SA-3, "
+                 "sub-períodos); el segundo (D27) solo FA-1 a FA-4 y las "
+                 "figuras que no resuelven el mercado otra vez")
     if args.day and args.full:
         ap.error("--day y --full son mutuamente exclusivos")
+    # Tarea 18, fix1, C.6: NaN pasa la comprobacion de negativo (toda
+    # comparacion con NaN es falsa) y el infinito desactivaria el plazo sin
+    # decirlo. Se rechazan en voz alta.
+    if not math.isfinite(args.plazo_hora):
+        ap.error("--plazo-hora va en minutos y tiene que ser un numero "
+                 "finito; 0 lo desactiva")
+    if args.plazo_hora < 0:
+        ap.error("--plazo-hora va en minutos y no puede ser negativo; "
+                 "0 lo desactiva")
 
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
@@ -2157,12 +2263,15 @@ if __name__ == "__main__":
         out_path = save_results(idx_dict, Y_dict=Y_dict)
         print(f"\nGSA completado. Resultados en: {out_path}")
     elif args.day:
-        main(use_real_data=True, full_horizon=False, run_analysis=args.analysis,
+        main(use_real_data=True, full_horizon=False,
+             run_analysis=(args.analysis or args.analisis_ligero),
+             analisis_ligero=args.analisis_ligero,
              single_day=args.day, paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
+             plazo_hora=args.plazo_hora,
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion,
              excluir_agente=args.excluir_agente,
@@ -2173,13 +2282,15 @@ if __name__ == "__main__":
     else:
         main(use_real_data=(args.data == "real"),
              full_horizon=args.full,
-             run_analysis=args.analysis,
+             run_analysis=(args.analysis or args.analisis_ligero),
+             analisis_ligero=args.analisis_ligero,
              paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
              paso=args.paso, desde=args.desde, hasta=args.hasta,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
+             plazo_hora=args.plazo_hora,
              buyer_competition=args.buyer_competition,
              exencion_contribucion=args.exencion_contribucion,
              excluir_agente=args.excluir_agente,

@@ -820,6 +820,10 @@ def run_sensitivity_pgs(
     # la liquidacion sin peajes, bit a bit.
     capacity: Optional[np.ndarray] = None,
     tolls = None,
+    # D28 (ronda de correccion 1, tarea 17): los costos del mercado mayorista
+    # que carga C3 (y C5) a lo que vende. Con None, C3 se sigue liquidando
+    # como antes, bit a bit. C5 sigue sin correr en este barrido (CAL-39).
+    mem_costs = None,
 ) -> list:
     """
     SA-3: Varía π_gs (precio al usuario / tarifa retail) y re-ejecuta el EMS completo.
@@ -904,6 +908,7 @@ def run_sensitivity_pgs(
             # component_c queda en "auto" porque pi_gs es escalar sintético
             # en este barrido — el dato real Cvm,i,j (CAL-10b.2) no aplica
             # conceptualmente a un sweep hipotético del CU.
+            mem_costs=mem_costs,                        # D28 (fix1 tarea 17)
         )
 
         active    = [r for r in p2p_res

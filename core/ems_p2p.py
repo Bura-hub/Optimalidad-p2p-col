@@ -33,6 +33,7 @@ elección de implementación en la sección de Métodos de la tesis.
 Ver también `Documentos/notas_modelo_tesis.md §7 CAL-7`.
 """
 
+import multiprocessing
 import os
 import sys
 import time
@@ -242,6 +243,13 @@ class SolverParams:
     # permite dibujar la convergencia de cualquier hora sin volver a simular.
     # Opt-in: por omision la corrida queda identica bit a bit.
     guarda_trayectorias: bool = False
+    # D24: plazo POR HORA del lazo paralelo, en segundos, medido desde que la
+    # hora empieza a correr en un trabajador y no desde que se somete. La hora
+    # que lo pasa se anota como no resuelta, con su motivo, y la corrida
+    # sigue con las demas. Es red de seguridad: las horas que no terminaban
+    # eran H-51, ya resuelto, pero los casos de escalado del servidor no se
+    # han probado nunca. None lo desactiva. La rama secuencial no tiene plazo.
+    plazo_hora_s: Optional[float] = 900.0
 
 
 @dataclass
@@ -333,6 +341,11 @@ class HourlyResult:
     # ella no hay forma de dibujar la convergencia de una hora elegida sin
     # volver a simular. Ver el almacen y la fase 2 del plan.
     tr:         object = None
+    # D24: por que el motor dejo la hora sin resolver, por ejemplo porque
+    # vencio el plazo por hora. Vacio es lo de siempre: resuelta, o sin
+    # mercado porque faltaba un lado. La hora con motivo llega sin P_star ni
+    # ids, de modo que la liquidacion la trata como hora sin mercado.
+    motivo:     str   = ""
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
@@ -383,6 +396,224 @@ def _cuantos_obreros(pedidos) -> Optional[int]:
     print(f"    [C-169] {n} procesos ({motivo}) · {hilos} hilo(s) de álgebra "
           f"por proceso", flush=True)
     return n
+
+
+# ── Plazo por hora del lazo paralelo (D24) ───────────────────────────────────
+#
+# POR QUE UN TABLERO Y NO `future.running()`. El ejecutor marca un futuro como
+# `running()` en cuanto lo pasa a su cola de llamadas, que admite
+# `max_workers + 1` trabajos, antes de que ningun trabajador lo tome. Medido
+# el 2026-09-13 con un trabajador y cuatro horas de 1,5 s: la cuarta aparece
+# `running()` a los 1,84 s y empieza de verdad a los 4,84 s. Con el plazo
+# contado desde `running()`, tres de las cuatro vencerian sin haberse
+# atascado. Por eso el propio trabajador marca en un arreglo compartido, una
+# casilla por hora, que EMPIEZA a resolverla, y el lazo toma como arranque el
+# primer latido en que ve la marca. El retraso es de un latido a lo sumo, y
+# solo alarga el plazo: nunca hace vencer una hora antes de tiempo.
+
+_TABLERO = None
+
+
+def _abre_tablero(tablero):
+    """Inicializador de cada trabajador (D24): recibe el tablero compartido."""
+    global _TABLERO
+    _TABLERO = tablero
+
+
+def _corre_y_marca(funcion, i, job):
+    """Envoltura del trabajo (D24): marca que la hora i empieza y la resuelve."""
+    _TABLERO[i] = 1
+    return funcion(job)
+
+
+def _mata_trabajadores(ex):
+    """Cierra el pool matando a sus trabajadores, como C-156.
+
+    Un trabajador atascado esta dentro del integrador, es decir en codigo
+    nativo, y no atiende la cancelacion: con `shutdown` a secas el interprete
+    lo esperaria para siempre al salir. Se toca la interioridad del ejecutor a
+    proposito, porque no expone otra via.
+    """
+    procesos = list((getattr(ex, "_processes", None) or {}).values())
+    # Bajo `fork` (Linux, el servidor) el hilo gestor del pool viejo tiene que
+    # haber terminado antes de abrir el nuevo: si sigue vivo, los hijos del
+    # pool nuevo heredan el extremo de lectura de su tuberia, y Python 3.12 o
+    # posterior avisa de bifurcar un proceso con varios hilos. Se guarda antes
+    # del cierre porque `shutdown` suelta la referencia (tarea 18, fix1, C.4).
+    gestor = getattr(ex, "_executor_manager_thread", None)
+    for p in procesos:
+        if p.is_alive():
+            p.terminate()
+    for p in procesos:
+        p.join(timeout=10)
+        if p.is_alive():
+            print(f"    [D24] AVISO: el trabajador {p.pid} sigue vivo tras "
+                  f"terminarlo", flush=True)
+    ex.shutdown(wait=False, cancel_futures=True)
+    if gestor is not None:
+        gestor.join(timeout=30)
+        if gestor.is_alive():
+            print("    [D24] AVISO: el hilo gestor del pool viejo sigue vivo "
+                  "tras 30 (s); el pool nuevo se abre igual", flush=True)
+
+
+def _resuelve_con_plazo(funcion, jobs, procesos, plazo_s, hace_vencida,
+                        latido: float = 5.0, bar=None):
+    """Resuelve las horas en un pool con plazo POR HORA (D24).
+
+    Conserva la ventana acotada de sometimiento de CAL-43e. El plazo se mide
+    desde que la hora empieza a correr, no desde que se somete: con la
+    ventana hay horas esperando en cola que, si no, vencerian sin empezar. El
+    arranque lo marca el propio trabajador en el tablero; ver arriba por que
+    `future.running()` no sirve para eso.
+
+    La hora vencida no se espera: `hace_vencida(job)` fabrica su resultado
+    (sin mercado, con motivo) y la corrida sigue con las demas. Y el pool se
+    renueva en el acto: se matan sus trabajadores, como en C-156, y las horas
+    que estaban en vuelo se someten de nuevo a un pool nuevo. Sin eso, el
+    trabajador atascado ocuparia su plaza hasta el final, la corrida perderia
+    un trabajador por cada hora vencida y, vencidas tantas como trabajadores,
+    esperaria para siempre horas que ya no pueden empezar. Rehacer una hora da
+    el mismo resultado, porque el trabajo es determinista; solo se pierde lo
+    que llevaba hecho.
+
+    Al cerrar, si alguna vencio, se matan los trabajadores; si no, el cierre
+    es el normal. Con `plazo_s=None` es exactamente el lazo de antes: sin
+    tablero, sin envoltura, sin latido y sin renovar.
+
+    Devuelve `({k: resultado}, [k de las horas vencidas, en orden])`.
+    `jobs[i][0]` es `k`, como en los argumentos de `_run_hour_worker`.
+    """
+    jobs = list(jobs)
+    rmap, vencidas = {}, []
+    con_plazo = plazo_s is not None
+    ctx = multiprocessing.get_context()
+    tablero = ctx.RawArray("b", len(jobs)) if con_plazo else None
+
+    def _abre():
+        if not con_plazo:
+            return ProcessPoolExecutor(max_workers=procesos)
+        return ProcessPoolExecutor(max_workers=procesos, mp_context=ctx,
+                                   initializer=_abre_tablero,
+                                   initargs=(tablero,))
+
+    ex = _abre()
+    try:
+        ventana = max(4 * (getattr(ex, "_max_workers", 0) or 1), 64)
+        pendientes = iter(enumerate(jobs))
+        activos = {}                       # futuro -> (i, job)
+        arranque = {}                      # futuro -> instante en que corre
+
+        def _somete(i, j):
+            f = (ex.submit(_corre_y_marca, funcion, i, j) if con_plazo
+                 else ex.submit(funcion, j))
+            activos[f] = (i, j)
+
+        def _llena():
+            while len(activos) < ventana:
+                siguiente = next(pendientes, None)
+                if siguiente is None:
+                    return
+                _somete(*siguiente)
+
+        def _anota(r):
+            rmap[r.k] = r
+            if bar is not None:
+                bar.update(1)
+
+        _llena()
+        while activos:
+            hechos, _ = wait(set(activos),
+                             timeout=latido if con_plazo else None,
+                             return_when=FIRST_COMPLETED)
+            for f in hechos:
+                activos.pop(f)
+                arranque.pop(f, None)
+                _anota(f.result())
+            _llena()
+            if not con_plazo:
+                continue
+
+            ahora = time.monotonic()
+            vencen = []
+            for f, (i, _j) in activos.items():
+                if f not in arranque and tablero[i]:
+                    arranque[f] = ahora
+                if f in arranque and ahora - arranque[f] > plazo_s:
+                    vencen.append(f)
+            # Un resultado que llego entre la espera y esta comprobacion ya
+            # esta hecho: se recoge como terminado y no se tira (tarea 18,
+            # fix1, C.5). Al sacarlo de `activos` queda sitio en la ventana, y
+            # hay que rellenarla: si no, el lazo podria vaciarse con horas aun
+            # sin someter.
+            listos = [f for f in vencen if f.done()]
+            for f in listos:
+                activos.pop(f)
+                arranque.pop(f, None)
+                _anota(f.result())
+            vencen = [f for f in vencen if f not in listos]
+            if listos:
+                _llena()
+            if not vencen:
+                continue
+
+            for f in vencen:
+                _i, j = activos.pop(f)
+                arranque.pop(f)
+                r = hace_vencida(j)
+                _anota(r)
+                vencidas.append(r.k)
+            # Lo que termino entre el latido y ahora se recoge antes de matar;
+            # lo que sigue en vuelo o en cola vuelve a someterse, en su orden.
+            relanza = []
+            for f, ij in list(activos.items()):
+                if f.done():
+                    _anota(f.result())
+                else:
+                    relanza.append(ij)
+            _mata_trabajadores(ex)
+            activos.clear()
+            arranque.clear()
+            ex = _abre()
+            for i, j in sorted(relanza, key=lambda ij: ij[0]):
+                tablero[i] = 0             # su arranque anterior ya no cuenta
+                _somete(i, j)
+            _llena()
+    finally:
+        if vencidas:
+            _mata_trabajadores(ex)
+        else:
+            ex.shutdown(wait=True)
+    return rmap, sorted(vencidas)
+
+
+def _horas_representativas(p2p_results, D, G_klim, max_hours: int = 2):
+    """Las horas que `run_convergence` vuelve a resolver para dibujarlas.
+
+    La de mayor volumen P2P (caso excedente) y la de mayor deficit
+    comunitario (caso importacion), sin repetir y en ese orden.
+
+    NUNCA UNA HORA VENCIDA (D24; tarea 18, fix1, C.3). `run_convergence`
+    resuelve en el proceso principal, sin plazo. Si eligiera la hora que el
+    plazo dio por perdida, colgaria la corrida justo ahi, bajo `--analysis`.
+    La de mayor volumen ya la excluia sin querer, porque la hora vencida no
+    trae `P_star`; la de mayor deficit no. Se saltan las dos por el motivo.
+    Sin horas vencidas la eleccion es la de antes.
+    """
+    vencidas = {int(r.k) for r in p2p_results if getattr(r, "motivo", "")}
+    activas = [(r.k, float(np.sum(r.P_star))) for r in p2p_results
+               if r.P_star is not None and np.sum(r.P_star) > 1e-6
+               and int(r.k) not in vencidas]
+    if not activas:
+        return []
+    # Hora con mas kWh P2P (caso excedente comunitario)
+    horas = [max(activas, key=lambda x: x[1])[0]]
+    # Hora con mayor deficit comunitario (caso importacion)
+    deficit = [(k, float(np.sum(np.maximum(D[:, k] - G_klim[:, k], 0))))
+               for k in range(D.shape[1]) if k not in vencidas]
+    if deficit:
+        horas.append(max(deficit, key=lambda x: x[1])[0])
+    return list(dict.fromkeys(horas[:max_hours]))
 
 
 def _run_hour_worker(args):
@@ -751,27 +982,35 @@ class EMSP2P:
             # reordena al final: el resultado numerico es identico, solo cambia
             # el ritmo de sometimiento. Medido: M1 480 s vs 471,8 s de junio
             # (+1,7 %) y M3 320 s vs 323,5 s (-1 %) — dentro del ruido.
+            #
+            # La ventana vive ahora dentro de `_resuelve_con_plazo`, que ademas
+            # pone el plazo por hora de D24: la hora que lo pasa, contado desde
+            # que empieza a correr, queda sin resolver con su motivo, y la
+            # corrida sigue. Sin horas vencidas el resultado es el de antes.
+            plazo = getattr(sv, "plazo_hora_s", None)
+            plazo_txt = ("" if plazo is None
+                         else f"{plazo/60:.0f} min" if plazo >= 60
+                         else f"{plazo:.0f} s")
+
+            def hace_vencida(j):
+                return HourlyResult(
+                    k=j[0], motivo=f"vencio el plazo por hora de {plazo_txt}")
+
             with _make_bar(total=T, desc=desc) as bar:
-                with ProcessPoolExecutor(
-                        max_workers=_cuantos_obreros(sv.procesos)) as ex:
-                    ventana = max(4 * (getattr(ex, "_max_workers", 0) or 1), 64)
-                    pendientes = iter(jobs)
-                    activos = set()
-                    for j in pendientes:
-                        activos.add(ex.submit(_run_hour_worker, j))
-                        if len(activos) >= ventana:
-                            break
-                    while activos:
-                        hechos, activos = wait(activos,
-                                               return_when=FIRST_COMPLETED)
-                        for f in hechos:
-                            r = f.result()
-                            rmap[r.k] = r
-                            bar.update(1)
-                            j = next(pendientes, None)
-                            if j is not None:
-                                activos.add(ex.submit(_run_hour_worker, j))
+                rmap, vencidas = _resuelve_con_plazo(
+                    _run_hour_worker, jobs, _cuantos_obreros(sv.procesos),
+                    plazo, hace_vencida, bar=bar)
+            if vencidas:
+                muestra = ", ".join(str(k) for k in vencidas[:20])
+                resto = (f" y {len(vencidas) - 20} mas"
+                         if len(vencidas) > 20 else "")
+                print(f"    [D24] {len(vencidas)} horas vencieron el plazo por "
+                      f"hora de {plazo_txt} y quedan sin resolver: "
+                      f"{muestra}{resto}", flush=True)
         else:
+            # Sin plazo por hora (D24): la rama secuencial resuelve en este
+            # mismo proceso, y una hora atascada en codigo nativo no se puede
+            # interrumpir sin otro proceso que la mate.
             with _make_bar(total=T, desc=desc) as bar:
                 for j in jobs:
                     r = _run_hour_worker(j)
@@ -814,24 +1053,14 @@ class EMSP2P:
         N, T = D.shape
 
         # ── Selección de horas representativas ───────────────────────────
-        active = [(r.k, float(np.sum(r.P_star))) for r in p2p_results
-                  if r.P_star is not None and np.sum(r.P_star) > 1e-6]
-
-        if not active:
+        # La de mayor volumen y la de mayor deficit, saltando las horas que
+        # vencieron el plazo por hora: aqui se resuelven sin plazo, en este
+        # mismo proceso, y la vencida colgaria la corrida (D24; tarea 18,
+        # fix1, C.3). Ver `_horas_representativas`.
+        hours_to_run = _horas_representativas(p2p_results, D, G_klim,
+                                              max_hours)
+        if not hours_to_run:
             return []
-
-        # Hora con más kWh P2P (caso excedente comunitario)
-        hour_surplus = max(active, key=lambda x: x[1])[0]
-
-        # Hora con mayor déficit comunitario (caso importación)
-        deficit_by_hour = [
-            (k, float(np.sum(np.maximum(D[:, k] - G_klim[:, k], 0))))
-            for k in range(T)
-        ]
-        hour_deficit = max(deficit_by_hour, key=lambda x: x[1])[0]
-
-        hours_to_run = list(dict.fromkeys(
-            [hour_surplus, hour_deficit][:max_hours]))
 
         # ── Captura por hora ──────────────────────────────────────────────
         conv_list = []

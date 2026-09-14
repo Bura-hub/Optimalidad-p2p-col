@@ -8827,3 +8827,111 @@ Todo lo anterior queda corregido. La capacidad, los peajes y los períodos llega
 ### Estado
 
 **Corregido en el código, sin corrida oficial.** 123 pruebas y la compuerta C-165 en verde, la dorada en 7 de 7, y el humo de un día con `--analysis` en E4 sin error (29 minutos). Lo que queda para el servidor está en H-80.
+
+---
+
+## C-185 · C3 carga los costos del mercado mayorista, como C5 (D28)
+
+**2026-09-13 · tipo: `codigo` · aplicada, con pruebas**
+
+### Qué hacía el código
+
+`run_c3_spot` valoraba todo el excedente vendido a la bolsa mayorista al precio bruto de bolsa horaria (`pi_bolsa[k]`), sin descontar los costos del mercado (FAZNI más el 4 % de G más la representación, CAL-16). `run_c5_agr_creg101099` sí los descuenta a lo que entrega a la bolsa, con `max(pi_bolsa - mem, 0)`. En el caso de escalado ×7 esa asimetría bastaba para invertir el orden entre los dos mecanismos: en el humo de un día, C5 daba 510.787 (COP) y C3 531.842 (COP), es decir el mecanismo que sí cargaba los costos del mercado quedaba por debajo del que no los cargaba. Fuente de las dos cifras: tabla de comparación del humo de un día en E4 (generación por siete, 2025-07-15), registro `outputs/run_2026-09-13_humo_e4.log`, líneas 141 (C3, 531.842 COP) y 144 (C5, 510.787 COP).
+
+### Qué cambia
+
+Decisión del autor (D28): los dos mecanismos cargan los costos del mercado mayorista a lo que venden. `run_c3_spot` recibe un nuevo parámetro `mem_costs` (escalar, (N,) o (N, T), la misma matriz que ya reciben C2 y C5), y con él el precio del excedente pasa de `pi_bolsa[k]` a `max(pi_bolsa[k] - mem[n, k], 0)`. Con `mem_costs=None` el resultado es idéntico al de antes, bit a bit. `hourly_exposure` sigue midiéndose contra la bolsa bruta, porque mide el riesgo de precio y no el ingreso. `scenarios/comparison_engine.py` y `analysis/monthly_report.py` ya pasan `mem_costs` a la llamada; `spot_sensitivity_analysis` queda sin ese parámetro, es decir su excedente se sigue valorando a la bolsa bruta, y así se anota en su docstring. Prueba nueva: `tests/test_c3_costos_mem.py`.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial.**
+
+---
+
+## C-186 · El lazo paralelo del mercado tiene plazo por hora (D24)
+
+**2026-09-13 · tipo: `codigo` · aplicada, con pruebas**
+
+### Qué hacía el código
+
+La rama paralela de `EMSP2P.run` (`core/ems_p2p.py`) sometía las horas con la ventana acotada de CAL-43e y esperaba cada una sin plazo. Una sola hora que no terminara detenía la corrida entera, sin error y sin salida. Las horas que no terminaban eran las de H-51, ya resuelto con la tolerancia absoluta del integrador; lo que sigue es una red de seguridad para los casos de escalado del servidor, que no se han probado nunca, y no la corrección de un fallo observado.
+
+### Qué cambia
+
+Decisión del autor (D24): cada hora tiene un plazo de 15 (min), contado desde que empieza a correr en un trabajador. La hora que lo pasa se anota como no resuelta, con el motivo «vencio el plazo por hora de 15 min», y la corrida sigue con las demás.
+
+- `SolverParams.plazo_hora_s` vale 900 (s) por omisión, y `None` lo desactiva. `HourlyResult.motivo` queda vacío en las horas resueltas o sin mercado, como hasta hoy.
+- El ayudante `_resuelve_con_plazo` conserva la ventana de CAL-43e y lleva el plazo. El arranque de la hora no se toma de `future.running()`, porque el ejecutor marca así un trabajo en cuanto lo pasa a su cola de llamadas, que admite un trabajo más que trabajadores, antes de que ningún trabajador lo tome. Medido con un trabajador y cuatro horas de 1,5 (s): la cuarta aparece en curso a los 1,84 (s) y empieza de verdad a los 4,84 (s), de modo que tres de las cuatro habrían vencido sin atascarse. En su lugar, el propio trabajador marca en un arreglo compartido que empieza la hora, y el lazo toma como arranque el primer latido en que ve la marca. Ese retraso, de 5 (s) a lo sumo, solo alarga el plazo.
+- Cuando una hora vence se matan los trabajadores del pool, como en C-156, y las horas que estaban en vuelo se someten de nuevo a un pool nuevo. Sin esa renovación, el trabajador atascado conservaría su plaza hasta el final, la corrida perdería un trabajador por cada hora vencida y, vencidas tantas horas como trabajadores, esperaría para siempre horas que ya no pueden empezar. Rehacer una hora da el mismo resultado, porque el cálculo es determinista. Al cerrar, si alguna hora venció, se matan los trabajadores; si no, el cierre es el normal.
+- La hora vencida llega sin precios ni asignación, y la liquidación la trata como hora sin mercado. La consola lo dice en voz alta con la marca `[D24]`, y el almacén la anota como no resuelta con su motivo, antes de la comprobación que la habría rotulado «sin mercado esa hora».
+- `main_simulation.py` recibe la opción `--plazo-hora` (en minutos, 15 por omisión, 0 la desactiva) y la lleva al `SolverParams` de la corrida.
+- La rama secuencial no cambia y no tiene plazo: resuelve en el mismo proceso, y una hora atascada en código nativo no se puede interrumpir sin otro proceso que la mate.
+
+Prueba nueva: `tests/test_plazo_por_hora.py`, con tres casos: la hora atascada vence y las demás terminan, sin plazo se espera a todas, y la espera en cola no consume el plazo.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial.** Las tres pruebas nuevas en verde, la dorada en 7 de 7, las seis del preflight filtrado y la compuerta C-165 en verde. Sin horas vencidas, el lazo paralelo da exactamente el mismo resultado que el secuencial, hora a hora, en el caso sintético de 24 horas.
+
+El plazo ya saltó una vez, en local. En la compuerta C-165, que resuelve 72 horas sintéticas por la vía acoplada con doce procesos, la hora 56 pasó de los 15 (min) y quedó sin resolver. El pool se renovó, la hora que estaba en vuelo se rehízo, y la compuerta siguió en verde, porque mide que el desglose sume el total y no el valor de cada hora. En esa corrida, el integrador acoplado empieza a emitir advertencias de desbordamiento y de valor inválido tras terminar unas 46 horas (las 39 sin generación del caso y unas siete con mercado). No es la hora 46 del caso, que cae a las 22:00 del segundo día y no tiene generación ni mercado: «46» es el contador de la barra de progreso. No se ha diagnosticado si la hora 56 se atasca o solo es lenta; queda registrado como H-81. Hasta ahora, la compuerta esperaba a esa hora sin plazo.
+
+La renovación tiene un coste. Cada vencimiento mata también las horas sanas que estaban en vuelo en el pool viejo, y esas se vuelven a resolver desde el principio. En la compuerta, las dos horas que quedaban cuando venció la 56 terminaron 181 (s) y 310 (s) después de la renovación, según la barra de progreso (70 de 72 horas a los 916 (s), 71 a los 1097 (s) y 72 a los 1226 (s)). El coste está acotado, una renovación por hora vencida, y es aceptable mientras los vencimientos sean raros; si fueran frecuentes, una hora larga que estuviera en vuelo podría reiniciarse varias veces.
+
+### Ronda de corrección 1 (2026-09-13)
+
+La revisión no encontró fallos críticos y pidió estos cambios, todos aplicados:
+
+- `run_convergence`, que corre bajo `--analysis` en el proceso principal y sin plazo, ya no elige una hora vencida como hora representativa, ni la de mayor volumen ni la de mayor déficit (`_horas_representativas` en `core/ems_p2p.py`). Antes, si la hora de mayor déficit era la vencida, la habría vuelto a resolver sin plazo y habría colgado la corrida justo en esa hora.
+- Bajo `fork`, que es lo que usa el servidor, `_mata_trabajadores` espera al hilo gestor del pool viejo, hasta 30 (s), antes de abrir el nuevo, para que los hijos del pool nuevo no hereden su tubería.
+- Una hora que termina entre la espera y la comprobación del plazo se recoge como terminada y no se declara vencida.
+- `--plazo-hora` rechaza los valores no finitos: NaN pasaba la comprobación de negativo, y el infinito desactivaba el plazo sin decirlo.
+- En la tabla `agentes` del almacén, quien tenía excedente o déficit en una hora vencida sale «sin resolver», y no «inactivo». La liquidación no cambia: sin asignación, todo el excedente va al residual del art. 25.
+- Cuatro pruebas nuevas en `tests/test_plazo_por_hora.py`: la renovación a mitad de ventana, con 80 horas, no pierde ni repite ninguna; sin horas vencidas, el lazo paralelo da exactamente lo mismo que la rama secuencial, hora por hora, en 12 horas del caso de la compuerta; la elección de horas de `run_convergence` salta la vencida; y el papel «sin resolver» del almacén. La de equivalencia va por la vía alternada: con la acoplada, la rama secuencial de esas 12 horas pasaba de 280 (s) de CPU sin terminar, y lo que se prueba es el lazo, no el integrador.
+
+Las siete pruebas del fichero en verde, la dorada en 7 de 7, el preflight filtrado en 6 de 6 y la compuerta C-165 con 48 horas en verde, sin horas vencidas.
+
+---
+
+## C-187 · `--analisis-ligero`, la factibilidad sin los barridos (D27)
+
+**2026-09-13 · tipo: `codigo` · aplicada, con pruebas**
+
+### Qué hacía el código
+
+`--analysis` resuelve el mercado doce veces más por corrida, es decir SA-2 (cobertura PV, una resolución), SA-3 de tarifa (siete) y los cuatro subperíodos, lo que multiplica por unas trece el tiempo de la corrida. Las trece corridas planeadas para el servidor (subproyecto 2) no necesitan ese bloque completo: la matriz de escalado y el análisis global de sensibilidad de nivel A ya cubren esos barridos, y SA-1 y SA-3 del contrato son además obsoletos (PGB escalar, PPA externo). Lo único que ninguna otra pieza cubre es la factibilidad y la robustez de la actividad 4.2, y `--analysis` no tenía forma de pedir solo eso.
+
+Aparte, `analyze_withdrawal_risk` (FA-3, `analysis/feasibility.py`) dejaba `compliant = True` fijo, sin reasignarlo nunca, así que `community_at_risk` y `n_risky_withdrawals` salían siempre en su valor por defecto, es decir «ningún riesgo», sin que nada lo midiera. El comentario del propio archivo, dejado por CAL-41, ya anunciaba la regla que debía aplicarse; solo faltaba conectarla. Como FA-3 pasa a correr en las trece corridas del servidor bajo el modo ligero, ese resultado habría sido estructural y no medido: la Fig. 17 (`plot_robustness_c4`) habría dicho siempre «ningún retiro invalida el régimen AGRC», con cualquier capacidad instalada.
+
+### Qué cambia
+
+`main_simulation.py` recibe la opción `--analisis-ligero` y el parámetro `analisis_ligero` de `main` (D27). Con ella corren FA-1 (deserción horaria), FA-2 (cumplimiento de la 101 072), FA-3 y FA-4 (robustez), la dominancia horaria (Fig. 14), las Figs. 9, 17, 20 y 21, `_export_analysis` y el informe de avances. No corren SA-1, SA-2 y SA-3 (de tarifa ni de contrato), los umbrales de dominancia, la deserción individual por agente (FA-1b y la Fig. 19, que dependen del barrido SA-1), los sub-períodos (Fig. 16), el mapa 2D PGB×PV (Fig. 18) ni las Figs. 7, 8, 10 y 11. La convergencia RD+Stackelberg (`ems.run_convergence` y sus figuras) tampoco corre en modo ligero: no es de las cuatro actividades que enumera la decisión D27, vuelve a resolver dos horas en el proceso principal sin plazo por hora (D24), y la cubre la validación de convergencia del subproyecto 2. La consola imprime, al entrar al bloque, una línea con lo que se salta y por qué («cubierto por la matriz de escalado y el análisis global de nivel A, D27»). La Fig. 9 se dibuja en modo ligero con una llamada directa a `plot_feasibility`, sin pasar por `generate_sensitivity_plots` (que agrupa las Figs. 7, 8, 9, 10 y 11 y necesita los barridos). `--analysis` y `--analisis-ligero` son mutuamente exclusivos, y `--gsa` sigue rechazando la combinación con cualquiera de los dos.
+
+El arreglo de FA-3 conecta `compliant` a la misma regla de capacidad que el motor ya aplica al colectivo completo en `scenarios/scenario_c4_creg101072.py::_validate_capacity`: la suma de capacidades del AC restante, tras retirar al agente, no puede exceder el límite AGPE de 1000 (kW) de la Resolución UPME 281 de 2015 (`AGPE_LIMIT_KW`, la misma constante). Por encima de ese límite el AC cae en el Caso 3, que el módulo no implementa, y `run_c4_creg101072` lo habría rechazado con `ValueError` si se le pasaba esa capacidad; por eso la llamada interna recibe `capacity=None` cuando ya se sabe que lo excede, en vez de propagar la excepción. Las reglas del 10 % y de los 100 (kW) por usuario NO se restauran como condición de `compliant`, porque CAL-41 ya estableció que el Caso 2 del artículo 20 es un régimen colectivo válido: siguen apareciendo en `violated_rules`, como hasta hoy, pero no invalidan el AGRC. De paso se retira el import muerto de `run_c3_spot` en esa función, que quedó de antes de CAL-41.
+
+Pruebas nuevas: `tests/test_analisis_ligero.py` (caso sintético con `out_dir=tmp_path`, verifica con `monkeypatch` que ninguno de los cuatro barridos ni los sub-períodos se invoca, y que la Fig. 14 sí se dibuja) y `tests/test_fa3_cumplimiento.py` (tres casos con datos sintéticos y la función llamada directamente: con 17,55 (kW) por planta, la capacidad real de la Spec 4.11, ningún retiro es riesgoso; con 300 (kW) por planta, que deja a la comunidad restante por encima de 1000 (kW) al retirar cualquiera, los cinco retiros quedan en riesgo; y las reglas del 10 % y de 100 (kW) siguen anotadas en `violated_rules` sin decidir `compliant`).
+
+**Límite estructural, que hay que declarar.** `main_simulation.py` pasa la misma capacidad instalada (`cap`) al colectivo completo, que `run_comparison` valida con `_validate_capacity` y detiene si la suma supera el límite AGPE, y también a `analyze_withdrawal_risk`. Si la corrida llega a FA-3 es porque el colectivo completo ya cumplió esa cota, y retirar un miembro solo baja la suma: de modo que `compliant` sale verdadero y `community_at_risk` sale falso por construcción en toda corrida que llegue a FA-3, sea cual sea el tamaño de la comunidad. Lo que FA-3 mide de un retiro es su efecto económico, es decir la pérdida del colectivo restante y la prima de flexibilidad, y el Caso 2 del artículo 20, que queda anotado entre las reglas incumplidas. El arreglo de esta tarea retira un «sin riesgo» que estaba fijado a mano; no convierte a FA-3 en un detector de pérdida del régimen.
+
+### Estado
+
+**Implementado, sin corrida oficial.** Las dos pruebas nuevas en verde, y el preflight filtrado (`-k "suma or banner or propaga or construye or pasa"`) en 6 de 6. Queda anotado para el lanzador del servidor (subproyecto 2): las trece corridas deben usar `--analisis-ligero`, no `--analysis`.
+
+---
+
+## C-188 · La sonda de H-79 aprieta solo la relativa, con plazo por variante (D25)
+
+**2026-09-13 · tipo: `codigo` · corregido en el código, sin corrida oficial**
+
+### Qué hacía el código
+
+`reformateo/documento/scripts/sonda/reparto_vs_integrador.py` tenía una variante `"tolerancia_x0,1"` que apretaba diez veces las dos tolerancias del integrador acoplado, la relativa y la absoluta, a 1e-7. Bajar la absoluta por debajo de 1e-6 reproduce H-51: sobre la hora 4184 con la generación por siete, esa variante no terminó en 660 (s), mientras que producción (rtol = atol = 1e-6) tardó 140 (s). La sonda tampoco tenía plazo por variante: una hora así la dejaba esperando sin límite, el mismo defecto que H-80 señaló para el lazo del motor antes de que lo cerrara la guardia por hora de C-186.
+
+### Qué cambia
+
+- La variante se reescribe como `"relativa_x0,1"`: `rtol=1e-7`, `atol=1e-6`. Solo se aprieta la tolerancia relativa; la absoluta se deja en la de producción, siguiendo la regla principal de `CLAUDE.md` (H-51): para medir sensibilidad a la tolerancia se aprieta solo la relativa, nunca la absoluta. Sobre la misma hora 4184 a ×7, esta variante tarda 133 (s), del mismo orden que producción.
+- Cada variante corre con un plazo (`--plazo-variante`, 15 (min) por omisión) dentro de un trabajador persistente de un solo proceso, que carga los datos una única vez (`_inicia`). Si una variante lo pasa, se mata al trabajador y se abre otro, con el patrón de C-156, ya usado en el lazo del motor por C-186, porque un trabajador atascado dentro del integrador no atiende la cancelación. La variante vencida cuenta como no resuelta, con su motivo, igual que una que falla; la lógica de validez, de corte por hora y de horas completas no cambia.
+- El plazo de 15 (min) es una red, no el tiempo esperado: a ×7 el horizonte doblado, la tercera variante, no se había medido antes de esta tarea y se estimaba en unos seis (min), muy por debajo del plazo.
+
+### Estado
+
+**Corregido en el código, sin corrida oficial.** El humo de la tarea (`--horas 1 --factor-generacion 7`, hora 4184 elegida por la semilla por defecto) terminó con las tres variantes resueltas en un trabajador persistente que no se reemplazó ninguna vez: producción en 142,0 (s), la variante que aprieta solo la relativa en 133,0 (s) y el horizonte doblado en 366,7 (s), del orden de los seis minutos estimados. El veredicto de reparto salió NO DEPENDE (peor cambio 0,328 puntos, umbral 1,0), pero el del excedente salió CAMBIA (peor cambio 0,405 %, umbral 0,1 %), con código de salida 2. No es un fallo del código: es el criterio fijado antes de medir cumpliendo su función, y es la misma señal que registra H-79 sobre esta hora. Lo decide la medición de veinte horas del servidor, no esta única hora.

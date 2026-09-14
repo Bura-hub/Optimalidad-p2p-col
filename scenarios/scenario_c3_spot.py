@@ -31,11 +31,13 @@ def run_c3_spot(
     prosumer_ids: list,
     consumer_ids: list,
     dt: float = 1.0,         # CAL-46: duración del paso en horas
+    mem_costs: Union[float, np.ndarray, None] = None,   # D28 (CAL-16)
 ) -> dict:
     """
     Lógica:
       1. Autoconsumo: ahorro a pi_gs
-      2. Excedente vendido al mercado al precio de bolsa horario
+      2. Excedente vendido al mercado al precio de bolsa horario, menos los
+         costos del mercado cuando se pasan (D28)
       3. Déficit comprado a la red a pi_gs
 
     `dt` (CAL-46) es la duración de un paso en horas. Las matrices D y G
@@ -45,6 +47,10 @@ def run_c3_spot(
     """
     N, T = D.shape
     pi_gs_v = as_pi_gs_array(pi_gs, N, T)   # (N, T) — CAL-9
+
+    # D28: quien vende directamente en la bolsa carga los costos del mercado,
+    # como ya hace la autogeneracion remota. Sin ellos, el de antes bit a bit.
+    mem_v = None if mem_costs is None else as_pi_gs_array(mem_costs, N, T)
 
     savings   = np.zeros(N)   # ahorro por autoconsumo
     revenues  = np.zeros(N)   # ingresos por venta a bolsa
@@ -61,8 +67,10 @@ def run_c3_spot(
             auto = min(gen, dem)
             savings[n]  += auto * pi_gs_v[n, k]
             surplus = gen - auto
-            revenues[n] += surplus * pi_bolsa[k]
-            neto_horario[n, k] = auto * pi_gs_v[n, k] + surplus * pi_bolsa[k]
+            precio = (pi_bolsa[k] if mem_v is None
+                      else max(pi_bolsa[k] - mem_v[n, k], 0.0))
+            revenues[n] += surplus * precio
+            neto_horario[n, k] = auto * pi_gs_v[n, k] + surplus * precio
             deficit = max(0.0, dem - gen)
             grid_cost[n] += deficit * pi_gs_v[n, k]
 
@@ -141,6 +149,9 @@ def spot_sensitivity_analysis(
     """
     Análisis de sensibilidad del escenario C3 ante variaciones de pi_bolsa.
     Útil para modelar: años normales, sequías (El Niño), techos CREG 101 066.
+
+    No recibe `mem_costs` (D28): llama a `run_c3_spot` sin ese parámetro, de
+    modo que aquí el excedente se sigue valorando a la bolsa bruta.
 
     multipliers: lista de factores sobre pi_bolsa_base (ej. [0.5, 1.0, 1.5, 2.0])
     """

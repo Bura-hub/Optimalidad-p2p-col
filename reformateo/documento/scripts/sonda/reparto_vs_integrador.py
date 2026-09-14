@@ -5,8 +5,22 @@ H-37 midio que el reparto de la via ALTERNADA depende del paso fijo de su
 bloque comprador. La corrida oficial usa la ACOPLADA, que integra con paso
 adaptativo (LSODA, tolerancias 1e-6, H-51) y nunca pasa por ese bloque. Esta
 sonda mide la pregunta equivalente: si el reparto se mueve al apretar diez
-veces las tolerancias o al doblar el horizonte, que con 0,05 deja sin llegar
-al estacionario a un tercio de las horas.
+veces la tolerancia relativa o al doblar el horizonte, que con 0,05 deja sin
+llegar al estacionario a un tercio de las horas.
+
+La variante de tolerancia solo aprieta la RELATIVA, a 1e-7; la absoluta se
+deja en 1e-6, la de produccion (D25). Apretar tambien la absoluta reproduce
+H-51: esa variante estricta no termino en 660 (s) sobre la hora 4184 a
+factor de generacion 7, mientras que produccion tarda 140 (s) y esta
+variante, con solo la relativa, 133 (s). Es la regla principal de CLAUDE.md:
+la tolerancia absoluta del acoplado nunca se baja de 1e-6; para medir
+sensibilidad a la tolerancia se aprieta solo la relativa.
+
+Cada variante tiene un plazo (`--plazo-variante`, 15 min por omision). La
+resuelve un trabajador persistente que carga los datos una sola vez; si una
+variante lo pasa, se mata al trabajador y se abre otro, porque uno atascado
+no atiende la cancelacion (C-156), y la variante vencida cuenta como no
+resuelta, igual que una que falla.
 
 Criterio fijado ANTES de medir: si la tajada del vendedor del agregado de la
 muestra cambia menos de un punto porcentual en las dos variantes, el reparto
@@ -42,6 +56,7 @@ from __future__ import annotations
 import argparse
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeout
 from pathlib import Path
 
 import numpy as np
@@ -52,7 +67,7 @@ from paso_a_paso import carga, resuelve  # noqa: E402
 
 VARIANTES = {
     "produccion": None,
-    "tolerancia_x0,1": {"rtol": 1e-7, "atol": 1e-7},
+    "relativa_x0,1": {"rtol": 1e-7, "atol": 1e-6},
     "horizonte_x2": {"t_span": (0.0, 0.10)},
 }
 UMBRAL_PUNTOS = 1.0
@@ -84,6 +99,51 @@ def mide(dat: dict, r: dict) -> dict:
                 exito=bool(getattr(r["tr"], "success", True)))
 
 
+_DAT = None
+
+
+def _inicia(factor):
+    """En el trabajador: carga los datos una sola vez."""
+    global _DAT
+    from paso_a_paso import carga
+    _DAT = carga("m1", factor_generacion=factor)
+
+
+def _una_variante(k, sol):
+    """En el trabajador: resuelve UNA hora con UNA variante y mide."""
+    from paso_a_paso import resuelve
+    t0 = time.perf_counter()
+    r = resuelve(_DAT, int(k), solucionador=sol)
+    seg = time.perf_counter() - t0
+    if r is None:
+        return dict(resuelta=False, segundos=seg)
+    m = mide(_DAT, r)
+    m.update(resuelta=True, segundos=seg)
+    return m
+
+
+def _trabajador(factor):
+    return ProcessPoolExecutor(max_workers=1, initializer=_inicia,
+                               initargs=(factor,))
+
+
+def _con_plazo(ex, factor, k, sol, plazo_s):
+    """(medidas, trabajador). Si la variante vence, mata al trabajador y abre
+    otro: un trabajador atascado no atiende la cancelacion (C-156)."""
+    f = ex.submit(_una_variante, k, sol)
+    try:
+        return f.result(timeout=plazo_s), ex
+    except FuturesTimeout:
+        for p in list(getattr(ex, "_processes", {}).values()):
+            if p.is_alive():
+                p.terminate()
+        ex.shutdown(wait=False, cancel_futures=True)
+        return (dict(resuelta=False, segundos=plazo_s,
+                     motivo=f"vencio el plazo por variante de "
+                            f"{plazo_s / 60:.0f} min"),
+                _trabajador(factor))
+
+
 def main() -> int:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
@@ -93,6 +153,13 @@ def main() -> int:
     ap.add_argument("--factor-generacion", default="1", metavar="F",
                     help="I-8 b: escala la generacion de las cinco, como el "
                          "orquestador (acepta 1/7)")
+    ap.add_argument("--plazo-variante", dest="plazo_variante", type=float,
+                    default=15.0, metavar="MIN",
+                    help="D25: plazo por variante, en minutos, contado "
+                         "desde que arranca en el trabajador persistente. "
+                         "La variante que lo pasa cuenta como no resuelta, "
+                         "con su motivo, y se reemplaza el trabajador "
+                         "(C-156).")
     a = ap.parse_args()
 
     from data.escalado import lee_factor
@@ -107,6 +174,9 @@ def main() -> int:
     rng = np.random.default_rng(a.semilla)
     orden = rng.permutation(activas)
 
+    plazo_s = a.plazo_variante * 60.0
+    ex = _trabajador(factor)
+
     # Las horas se recorren en orden aleatorio hasta reunir las pedidas que
     # resuelven las tres variantes. Una hora con papeles en la medicion bruta
     # puede quedarse sin mercado tras el limite economico de generacion, y
@@ -118,28 +188,28 @@ def main() -> int:
             break
         filas_k = []
         for nombre, sol in VARIANTES.items():
-            t0 = time.perf_counter()
-            r = resuelve(dat, int(k), solucionador=sol)
-            seg = time.perf_counter() - t0
-            fila = dict(hora=int(k), variante=nombre, segundos=seg,
-                        resuelta=r is not None)
-            if r is not None:
-                fila.update(mide(dat, r))
+            fila, ex = _con_plazo(ex, factor, int(k), sol, plazo_s)
+            fila["hora"] = int(k)
+            fila["variante"] = nombre
             # I-8 a: una integracion fallida no es una hora resuelta.
             # Produccion la marca sin mercado (core/ems_p2p.py, `success`
             # falso), de modo que aqui no cuenta como completa ni entra al
-            # agregado.
+            # agregado. Una variante vencida (D25) tampoco.
             fila["valida"] = bool(fila["resuelta"] and fila.get("exito", False))
             filas_k.append(fila)
-            marca = ("" if fila["valida"] or not fila["resuelta"]
+            motivo = fila.get("motivo")
+            marca = (f"  {motivo}" if motivo else
+                     "" if fila["valida"] or not fila["resuelta"]
                      else "  FALLO del integrador")
-            print(f"  hora {int(k):5d}  {nombre:16s} {seg:7.1f} s{marca}")
+            print(f"  hora {int(k):5d}  {nombre:16s} {fila['segundos']:7.1f}"
+                  f" s{marca}")
             if not fila["valida"] and nombre == "produccion":
                 break              # sin mercado: no se gastan las otras dos
         filas.extend(filas_k)
         if (len(filas_k) == len(VARIANTES)
                 and all(f["valida"] for f in filas_k)):
             completas += 1
+    ex.shutdown(wait=True, cancel_futures=True)
     df = pd.DataFrame(filas)
     if a.salida:
         df.to_csv(a.salida, index=False)

@@ -90,6 +90,15 @@ class CoupledTrajectory:
     lam_filt_t: Optional[np.ndarray] = None
     bet_filt_t: Optional[np.ndarray] = None
 
+    # D36: cuanto trabajo le costo la hora al integrador, tal como lo cuenta
+    # `solve_ivp` (`sol.nfev`: evaluaciones del lado derecho, incluidas las
+    # de la jacobiana por diferencias; `sol.njev`: jacobianas). Es lo que el
+    # presupuesto de la parada por estacionario suma, porque no depende de
+    # la maquina como los segundos. Cero en el caso degenerado, que no
+    # integra nada. Solo se anade: el resto de la salida no cambia.
+    nfev:       int = 0
+    njev:       int = 0
+
 
 def solve_coupled_for_hour(
     G_net_j:     np.ndarray,
@@ -448,6 +457,9 @@ def solve_coupled_for_hour(
         P_star=P_star,
         success=bool(sol.success),
         message=str(sol.message),
+        # D36: el trabajo del integrador, para el presupuesto de la parada.
+        nfev=int(getattr(sol, "nfev", 0) or 0),
+        njev=int(getattr(sol, "njev", 0) or 0),
         **mult,
     )
 

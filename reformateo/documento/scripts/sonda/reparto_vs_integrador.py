@@ -46,14 +46,23 @@ marca sin mercado). En local solo el humo (--horas 2); la medicion
 Codigo de salida: 0 si los dos criterios se cumplen; 1 sin datos; 2 si salta
 DEPENDE o EXCEDENTE: CAMBIA, para que el lanzador detenga la cadena.
 
+Subproyecto 2 (D25): `--veredicto-json RUTA` escribe ademas el veredicto de
+la palanca (que variante supera algun criterio) en un JSON, para que la
+accion `matriz` del lanzador decida sin volver a correr esta sonda. La decide
+`decide_veredicto`, funcion pura que solo lee la tabla ya comparada; se
+prueba con tablas sinteticas en tests/test_veredicto_sonda.py.
+
 Uso:
     python reparto_vs_integrador.py --horas 2
     python reparto_vs_integrador.py --horas 20 --salida sonda_t15.csv
     python reparto_vs_integrador.py --horas 1 --factor-generacion 7
+    python reparto_vs_integrador.py --horas 20 --factor-generacion 1 \
+        --veredicto-json SALIDAS_SERVIDOR/sonda79/veredicto_E0.json
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeout
@@ -72,6 +81,61 @@ VARIANTES = {
 }
 UMBRAL_PUNTOS = 1.0
 UMBRAL_EXCEDENTE_PCT = 0.1
+
+# Subproyecto 2 (accion `sonda79` del lanzador): que variante activa que
+# palanca del acoplado si supera alguno de los dos criterios. D35 (tolerancia
+# relativa a 1e-7) y D26 (el acoplado para por estacionario en vez de
+# horizonte fijo).
+VARIANTE_A_PALANCA = {
+    "relativa_x0,1": "tolerancia",
+    "horizonte_x2": "horizonte",
+}
+
+
+def decide_veredicto(tabla: pd.DataFrame, umbral_puntos: float = UMBRAL_PUNTOS,
+                     umbral_excedente_pct: float = UMBRAL_EXCEDENTE_PCT) -> dict:
+    """El veredicto de la palanca, a partir de la tabla ya comparada contra
+    produccion (subproyecto 2, D25).
+
+    FUNCION PURA: solo lee las columnas de una tabla ya armada por `main`
+    (`delta_puntos`, `excedente_delta_%` y, para el caso raro del excedente
+    de produccion en cero, `excedente`); no resuelve ningun mercado ni toca
+    disco. Se prueba con tablas sinteticas en tests/test_veredicto_sonda.py.
+
+    Para cada variante candidata (tolerancia, horizonte) mira si supera
+    alguno de los dos criterios fijados antes de medir (1 punto de reparto
+    del vendedor, 0,1 % del excedente) y devuelve:
+
+        {"reparto_depende": bool, "excedente_cambia": bool,
+         "palanca": ["tolerancia"] | ["horizonte"]
+                     | ["tolerancia", "horizonte"] | []}
+
+    Una variante ausente de la tabla (por ejemplo una prueba sintetica con
+    una sola fila) no aporta palanca: no es un error.
+    """
+    reparto_depende = False
+    excedente_cambia = False
+    palanca: list[str] = []
+    for variante, campo in VARIANTE_A_PALANCA.items():
+        if variante not in tabla.index:
+            continue
+        fila = tabla.loc[variante]
+        supera_puntos = abs(float(fila.get("delta_puntos", 0.0))) >= umbral_puntos
+        delta_exc = fila.get("excedente_delta_%", np.nan)
+        if pd.notna(delta_exc):
+            supera_excedente = abs(float(delta_exc)) >= umbral_excedente_pct
+        else:
+            # Excedente de produccion ~0 (ver la guarda de cero en `main`): el
+            # cambio relativo no existe, pero de cero a algo SI es un cambio.
+            supera_excedente = abs(float(fila.get("excedente", 0.0))) > 1e-12
+        if supera_puntos:
+            reparto_depende = True
+        if supera_excedente:
+            excedente_cambia = True
+        if supera_puntos or supera_excedente:
+            palanca.append(campo)
+    return {"reparto_depende": reparto_depende,
+            "excedente_cambia": excedente_cambia, "palanca": palanca}
 
 
 def mide(dat: dict, r: dict) -> dict:
@@ -160,6 +224,14 @@ def main() -> int:
                          "La variante que lo pasa cuenta como no resuelta, "
                          "con su motivo, y se reemplaza el trabajador "
                          "(C-156).")
+    ap.add_argument("--veredicto-json", dest="veredicto_json", default=None,
+                    metavar="RUTA",
+                    help="subproyecto 2 (D25): ademas de imprimir la tabla, "
+                         "escribe el veredicto de la palanca (JSON con "
+                         "reparto_depende, excedente_cambia y palanca) en "
+                         "esta ruta. No cambia el codigo de salida: la "
+                         "accion `sonda79` del lanzador sigue sin detenerse "
+                         "por el codigo 2.")
     a = ap.parse_args()
 
     from data.escalado import lee_factor
@@ -268,6 +340,17 @@ def main() -> int:
         cambia = bool((tabla["excedente"].abs() > 1e-12).any())
         print(f"EXCEDENTE: {'CAMBIA' if cambia else 'SE CONSERVA'}"
               f" (excedente de produccion cero)")
+
+    # Subproyecto 2 (D25): el veredicto de la palanca, ademas de la tabla de
+    # arriba. No cambia el codigo de salida.
+    if a.veredicto_json:
+        veredicto = decide_veredicto(tabla)
+        ruta = Path(a.veredicto_json)
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_text(json.dumps(veredicto, ensure_ascii=False, indent=2)
+                        + "\n", encoding="utf-8")
+        print(f"\n  veredicto escrito en {ruta}")
+
     # I-8 c: el lanzador detiene la cadena con un codigo distinto de cero.
     if depende or cambia:
         print("SALIDA: 2 (salto un criterio fijado antes de medir)")

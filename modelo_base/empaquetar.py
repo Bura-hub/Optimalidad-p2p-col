@@ -40,6 +40,24 @@ NUCLEO = [
     "main_simulation.py",
     # La corrida canonica toca ademas la comparacion y la liquidacion
     "scenarios/comparison_engine.py",
+    # El motor nuevo del subproyecto 2 (Anexo 4 de la CREG 101 072, escalado
+    # D10-D12, H-79). Sin estos, `matriz` y las pruebas de mas abajo fallan
+    # con ImportError en un arbol recien clonado.
+    "data/escalado.py",                        # D10-D12: escala la comunidad
+    "data/capacidad_instalada.py",             # el numeral del art. 25
+    "data/base_case_data.py",                  # parametros del caso sintetico
+    "data/preprocessing.py",                   # PAPER_METER_DEMAND_CONFIG
+    "data/xm_data_loader.py",                  # MTEDataLoader; lo usa paso_a_paso.carga
+    "analysis/coincidencia.py",                # factor de coincidencia
+    "analysis/feasibility.py",                 # FA-3: riesgo de desercion
+    "scenarios/scenario_c1_creg174.py",        # C1: Anexo 4, permuta y excedente
+    "scenarios/scenario_c3_spot.py",           # C3
+    "scenarios/scenario_c4_creg101072.py",     # C4 mensual y P2P_colectivo
+    "scenarios/scenario_c5_agr_creg101099.py", # C5, Resolucion 101 099
+    "scenarios/scenario_p2p_colectivo.py",     # el reparto en dos niveles
+    # Los pasos 4 y 5 de `matriz` (y de `oficial`): equidad por periodo de
+    # cada caso. Estaban en la rama pero no en el paquete de respaldo.
+    "analysis/equidad_periodo.py",
 ]
 SONDAS = [
     "reformateo/documento/scripts/estilo.py",
@@ -62,6 +80,14 @@ SONDAS = [
     "reformateo/documento/scripts/sonda/regimen_piso.py",   # H-52, 4 regimenes
     "reformateo/documento/scripts/sonda/tramo_residual.py", # H-53
     "reformateo/documento/scripts/sonda/compara_regimenes.py",   # C-155
+    # El subproyecto 2 (2026-09-14): D25, la sonda de H-79 y el oraculo
+    "reformateo/documento/scripts/sonda/reparto_vs_integrador.py",
+    "reformateo/documento/scripts/sonda/oraculo_anexo4.py",  # lo importa el test
+    # Los pasos 4 y 5 de `matriz` (y de `oficial`): la liquidacion por
+    # institucion y las figuras del foro de E0.
+    "reformateo/documento/scripts/liquidacion.py",
+    "reformateo/documento/scripts/gen_foro.py",     # importa liquidacion
+    "reformateo/documento/scripts/gen_foro_b.py",   # importa paso_a_paso
 ]
 COMPUERTAS = [
     "tests/gate_c138_bienestar_comprador.py",
@@ -76,6 +102,32 @@ COMPUERTAS = [
     "tests/gate_h55_bienestar_precio.py",         # el bienestar no arbitra
     "tests/gate_c156_plazo_por_tarea.py",         # el plazo por tarea corta
     "tests/golden_test_sofia.py",
+    # Ronda de arreglo 1 (2026-09-14): estas cinco ya las usaba `compuertas`
+    # antes de esta tarea y faltaban aqui.
+    "tests/gate_almacen.py",
+    "tests/gate_almacen_cruzado.py",
+    "tests/gate_cal51_contrato.py",
+    "tests/gate_cal52_contrato_interno.py",
+    "tests/gate_c164_autoconsumo_autosuficiencia.py",
+    # El subproyecto 2: el motor nuevo (Anexo 4, escalado, H-79). C-165 con
+    # --horas: 48 en `compuertas`, 72 (su defecto) en `humo_linux`.
+    "tests/gate_c165_desglose_horario.py",
+    "tests/test_anexo4_tramo.py",
+    "tests/test_escalado_umbrales.py",
+    "tests/test_p2p_residual_art25.py",
+    "tests/test_c4_mensual_norma.py",
+    "tests/test_p2p_colectivo.py",
+    "tests/test_c5_101099.py",
+    "tests/test_mensual_suma_total.py",
+    "tests/test_coincidencia.py",
+    "tests/test_c3_costos_mem.py",
+    "tests/test_plazo_por_hora.py",
+    "tests/test_analisis_ligero.py",
+    "tests/test_fa3_cumplimiento.py",
+    "tests/test_analysis_numeral2.py",
+    "tests/test_palancas_acoplado.py",     # importa tests/gate_c165_desglose_horario
+    "tests/test_oraculo_anexo4.py",        # importa la sonda oraculo_anexo4
+    "tests/test_presupuesto_acoplado.py",  # D36-D38; importa main_simulation
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",
@@ -185,10 +237,11 @@ def main() -> None:
     print("    tar xzf paquete_modelo_base_*.tar.gz -C /ruta/al/repo")
     print("    bash modelo_base/run_servidor.sh entorno")
     print("    bash modelo_base/run_servidor.sh compuertas")
-    print("    bash modelo_base/run_servidor.sh decision 200   # H-52/H-53, LA QUE DECIDE")
-    print("    bash modelo_base/run_servidor.sh tanda 200      # H-45, H-46, H-47")
-    print("    bash modelo_base/run_servidor.sh canonica       # la corrida entera")
-    print("    bash modelo_base/run_servidor.sh recoger")
+    print("    bash modelo_base/run_servidor.sh humo_linux     # antes de E5 y de la matriz")
+    print("    bash modelo_base/run_servidor.sh sonda79        # D25: escribe los veredictos")
+    print("    bash modelo_base/run_servidor.sh matriz         # las 13 corridas, recoge al final")
+    print("  (antes de nada, SECO=1 bash modelo_base/run_servidor.sh matriz imprime")
+    print("   las ordenes sin ejecutar ninguna)")
 
 
 if __name__ == "__main__":

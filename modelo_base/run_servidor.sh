@@ -23,7 +23,16 @@
 #   bash modelo_base/run_servidor.sh decision   3000    <- TODAS las horas activas
 #   PROCS=48 bash modelo_base/run_servidor.sh decision 3000   <- y con mas procesos
 #
+#   bash modelo_base/run_servidor.sh oficial            <- la corrida oficial, sept.
+#
+#   --- el subproyecto 2 (2026-09-14): Anexo 4, escalado, H-79 -------------
+#   bash modelo_base/run_servidor.sh humo_linux         <- una vez, antes de E5/matriz
+#   bash modelo_base/run_servidor.sh sonda79            <- D25, veredicto en E0 y E4
+#   bash modelo_base/run_servidor.sh matriz             <- D18/D24/D27, las 13 corridas
+#   DESDE=P1 bash modelo_base/run_servidor.sh matriz    <- retoma desde ese caso
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
+#   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
 # muestra en horas. `todo` toma solo el tamano y recorre las dos fronteras.
@@ -34,17 +43,75 @@
 # publicada del termino de competencia, que es la unica que reproduce el caso
 # del articulo, deja los precios pegados a las cotas con datos reales. Si los
 # deja, no sirve, y habria que cambiar un defecto por otro. Ver ADR-0049.
+#
+# MODO EN SECO. Con SECO=1 en el entorno, `corre()` imprime la orden completa
+# que correria (interprete, buffer y argumentos) y devuelve cero sin ejecutar
+# nada. Es como se comprueban `compuertas`, `humo_linux`, `sonda79` y `matriz`
+# sin gastar una sola hora de mercado:
+#
+#   SECO=1 bash modelo_base/run_servidor.sh matriz
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|reparto|juntar|recoger}"
+
+# Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
+# Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
+# SECO=1 no toca el disco. Se define ANTES de la primera creacion de
+# directorios (justo abajo) porque esas corren en todas las acciones, no
+# solo dentro del case.
+crea_dir() {
+  if [[ "${SECO:-0}" == "1" ]]; then
+    printf '  [SECO] mkdir -p'
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+  mkdir -p "$@"
+}
+
+# Arreglo final (2026-09-14): borra ficheros, o dice que lo haria. Misma regla
+# que crea_dir() y corre(): con SECO=1 no se toca el disco.
+borra() {
+  if [[ "${SECO:-0}" == "1" ]]; then
+    printf '  [SECO] rm -f'
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+  rm -f "$@"
+}
 
 SONDA="reformateo/documento/scripts/sonda"
 SALIDAS="$SONDA/salidas"
 LOGS="modelo_base/logs"
-mkdir -p "$SALIDAS" "$LOGS"
+crea_dir "$SALIDAS" "$LOGS"
+
+# Subproyecto 2 (D25): donde `sonda79` escribe los veredictos de H-79 y donde
+# `matriz` los lee. Una variable de entorno permite apuntar a otro directorio
+# en la comprobacion en seco, sin tocar el de la corrida real.
+SONDA_DIR="${SONDA_DIR:-SALIDAS_SERVIDOR/sonda79}"
+
+# Los trece casos de `matriz` (spec 4.11/4.12, D18): caso y sus opciones; E0
+# no lleva ninguna. Viven aqui, fuera de la accion, porque `recoger` tambien
+# los necesita para saber que almacenes esperar (arreglo final, 2026-09-14).
+CASOS_MATRIZ=(
+  "E0:"
+  "E1:--factor-generacion 3"
+  "E2:--factor-generacion 4"
+  "E3:--factor-generacion 5.6"
+  "E4:--factor-generacion 7"
+  "E5:--factor-generacion 10"
+  "P1:--factor-demanda 1/7"
+  "P2:--factor-generacion 7 --factor-demanda 7"
+  "K1:--factor-demanda 2"
+  "I1:--escala-agente UCC:neto_cero"
+  "N1:--neto-cero"
+  "CV2:--factor-cv 2"
+  "SINU:--excluir-agente Udenar"
+)
 
 # Interprete: preferir el del entorno virtual si existe, luego python3.
 if [[ -x .venv/bin/python ]]; then
@@ -99,10 +166,25 @@ export VECLIB_MAXIMUM_THREADS=1
 # final, que es justo lo que no se quiere en una corrida larga.
 corre() {
   local nombre="$1"; shift
+
+  # Subproyecto 2: modo en seco. Con SECO=1 no se ejecuta nada: se imprime la
+  # orden completa (interprete, `-u -W ignore` y argumentos, cada uno citado
+  # tal cual se pasaria) y se devuelve cero. Es lo unico que hace falta para
+  # comprobar `compuertas`, `humo_linux`, `sonda79` y `matriz` sin gastar una
+  # sola hora de mercado.
+  if [[ "${SECO:-0}" == "1" ]]; then
+    printf '  -> %s   [SECO] %s -u -W ignore' "$nombre" "$PY"
+    printf ' %q' "$@"
+    printf '\n'
+    return 0
+  fi
+
   local log="$LOGS/${nombre}_$(marca).log"
   echo "  -> $nombre   (log: $log)"
   local codigo=0
-  "$PY" -W ignore "$@" > "$log" 2>&1 || codigo=$?
+  # -u: sin bufer (regla principal de CLAUDE.md, H-80). Si se detiene una
+  # corrida larga a mitad, el log ya tiene lo que alcanzo a escribir.
+  "$PY" -u -W ignore "$@" > "$log" 2>&1 || codigo=$?
 
   # Un codigo de salida cero no basta para dar una compuerta por buena. Si
   # pytest salta todas sus pruebas, porque falta el fichero de referencia,
@@ -142,13 +224,27 @@ case "$ACCION" in
 
   entorno)
     echo "Montando el entorno"
-    if [[ ! -d .venv ]]; then
-      python3 -m venv .venv
+    # Ronda de arreglo 1: modo en seco tambien aqui. `python3 -m venv` y
+    # `pip install` son escrituras reales fuera de corre(), y esta accion no
+    # es de las cuatro del subproyecto 2, pero el principio es el mismo: con
+    # SECO=1 no se toca el disco.
+    if [[ "${SECO:-0}" == "1" ]]; then
+      echo "  [SECO] python3 -m venv .venv   (si no existe)"
+      echo "  [SECO] .venv/bin/pip install --upgrade pip"
+      echo "  [SECO] .venv/bin/pip install -r requirements.txt"
+    else
+      if [[ ! -d .venv ]]; then
+        python3 -m venv .venv
+      fi
+      .venv/bin/pip install --upgrade pip
+      .venv/bin/pip install -r requirements.txt
     fi
-    .venv/bin/pip install --upgrade pip
-    .venv/bin/pip install -r requirements.txt
     echo
-    echo "  interprete: $(.venv/bin/python --version)"
+    if [[ "${SECO:-0}" == "1" ]]; then
+      echo "  [SECO] interprete: no se crea .venv en seco, no hay version que mostrar"
+    else
+      echo "  interprete: $(.venv/bin/python --version)"
+    fi
     echo "  Comprueba MTE_ROOT antes de medir. La carpeta que el codigo busca"
     echo "  por defecto se llama MedicionesMTE_v3, no MedicionesMTE:"
     echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
@@ -170,12 +266,30 @@ case "$ACCION" in
              gate_c151_participacion_motor gate_h55_bienestar_precio \
              gate_c156_plazo_por_tarea gate_almacen gate_almacen_cruzado \
              gate_cal51_contrato gate_cal52_contrato_interno \
-             gate_c164_autoconsumo_autosuficiencia \
-             gate_c165_desglose_horario; do
+             gate_c164_autoconsumo_autosuficiencia; do
       corre "$t" "tests/$t.py"
+    done
+    # C-165 con 48 horas, no las 72 de su defecto: con 72 la hora rigida del
+    # caso sintetico vence el plazo por hora (H-81, D24). El humo de Linux
+    # SI la corre con sus 72 horas, a proposito, para ejercer ese vencimiento.
+    corre "gate_c165_desglose_horario" "tests/gate_c165_desglose_horario.py" \
+          --horas 48
+
+    echo
+    echo "  El motor nuevo del subproyecto 2 (Anexo 4, escalado, H-79)"
+    for t in test_anexo4_tramo test_escalado_umbrales test_p2p_residual_art25 \
+             test_c4_mensual_norma test_p2p_colectivo test_c5_101099 \
+             test_mensual_suma_total test_coincidencia test_c3_costos_mem \
+             test_plazo_por_hora test_analisis_ligero test_fa3_cumplimiento \
+             test_analysis_numeral2 test_palancas_acoplado \
+             test_oraculo_anexo4 test_presupuesto_acoplado; do
+      corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
     echo
     echo "  Si alguna falla, PARA. Las mediciones no valen."
+    echo "  NUNCA tests/test_full_simulation_preflight.py sin su filtro:"
+    echo "  pisa outputs/ y graficas/ de la raiz con una corrida de datos"
+    echo "  reales (memoria de pytest, CLAUDE.md)."
     ;;
 
   caso)
@@ -235,6 +349,14 @@ case "$ACCION" in
     echo "$QUE · $COB · $N horas repartidas entre $PART procesos"
     for k in $(seq 1 "$PART"); do
       log="$LOGS/${QUE}_${COB}_p${k}de${PART}_$(marca).log"
+      # Ronda de arreglo 1: `nohup ... &` con redireccion es una escritura
+      # real fuera de corre() (y ademas queda en segundo plano). En seco solo
+      # se imprime la orden, sin lanzar nada.
+      if [[ "${SECO:-0}" == "1" ]]; then
+        printf '  [SECO] nohup %s -W ignore %s --cobertura %s --muestra %s --particion %s/%s > %s 2>&1 &\n' \
+               "$PY" "$GUION" "$cob" "$N" "$k" "$PART" "$log"
+        continue
+      fi
       nohup "$PY" -W ignore "$GUION" --cobertura "$cob" --muestra "$N" \
             --particion "$k/$PART" > "$log" 2>&1 &
       echo "  lanzado $k/$PART   pid $!   log $log"
@@ -245,8 +367,14 @@ case "$ACCION" in
     ;;
 
   juntar)
-    # Une las tablas parciales en una sola por sonda y frontera.
-    "$PY" - <<'PYFIN'
+    # Ronda de arreglo 1: el heredoc de mas abajo corre Python directo, fuera
+    # de corre(), y escribe CSV de verdad (to_csv). En seco solo se dice que
+    # se uniria, sin tocar disco.
+    if [[ "${SECO:-0}" == "1" ]]; then
+      echo "  [SECO] $PY - <<PYFIN   (une competencia_*/eficiencia_* de m1 y m3 en sonda/salidas/)"
+    else
+      # Une las tablas parciales en una sola por sonda y frontera.
+      "$PY" - <<'PYFIN'
 from pathlib import Path
 import re, pandas as pd
 sal = Path("reformateo/documento/scripts/sonda/salidas")
@@ -263,6 +391,7 @@ for base in ("competencia", "eficiencia"):
         d.to_csv(destino, index=False)
         print(f"  {destino.name}: {len(trozos)} trozos -> {len(d)} filas")
 PYFIN
+    fi
     echo "  hecho"
     ;;
 
@@ -410,7 +539,7 @@ PYFIN
     for par in "M1:" "M3:--paper-meters"; do
       COB="${par%%:*}"; EXTRA="${par#*:}"
       DIR="SALIDAS_SERVIDOR/canonica_$(echo "$COB" | tr 'A-Z' 'a-z')"
-      mkdir -p "$DIR"
+      crea_dir "$DIR"
       echo
       echo "  --- $COB  ->  $DIR"
       corre "canonica_${COB}" main_simulation.py \
@@ -423,7 +552,13 @@ PYFIN
     ;;
 
   oficial)
-    # LA CORRIDA OFICIAL. Es la que produce las cifras publicables y, sobre
+    # LA CORRIDA OFICIAL DEL SUBPROYECTO 1 (9 de septiembre de 2026). Se deja
+    # tal cual, sin tocar: para el subproyecto 2 la reemplaza la accion
+    # `matriz`, de mas abajo, que agrega las palancas del acoplado (D35, D26)
+    # y las trece corridas de la matriz de escalado (D18) en vez de las dos
+    # fronteras M1/M3 (M3 esta retirada, D10).
+    #
+    # Es la que produce las cifras publicables y, sobre
     # todo, el ALMACEN del que sale cualquier figura de cualquier hora sin
     # volver a simular.
     #
@@ -495,7 +630,7 @@ except AttributeError:
     for par in "M1:" "M3:--paper-meters"; do
       COB="${par%%:*}"; EXTRA="${par#*:}"
       DIR="SALIDAS_SERVIDOR/oficial_$(echo "$COB" | tr 'A-Z' 'a-z')"
-      mkdir -p "$DIR"
+      crea_dir "$DIR"
       echo
       echo "  --- $COB  ->  $DIR"
       corre "oficial_${COB}" main_simulation.py \
@@ -518,7 +653,7 @@ except AttributeError:
 
     echo
     echo "--- 4/5 · las figuras del foro"
-    mkdir -p "$FIGS"
+    crea_dir "$FIGS"
     for COB in m1 m3; do
       corre "foro_acd_${COB}" reformateo/documento/scripts/gen_foro.py \
             "$ALM" --cobertura "$COB" --figuras "$FIGS"
@@ -528,10 +663,246 @@ except AttributeError:
 
     echo
     echo "--- 5/5 · la recogida"
-    bash "$0" recoger
+    bash "$0" recoger oficial
     echo
     echo "=== CORRIDA OFICIAL COMPLETA ==="
     echo "  Comprueba las dos compuertas del canon antes de citar nada."
+    ;;
+
+  humo_linux)
+    # NUEVA del subproyecto 2 (tarea 18). Se corre UNA vez en el servidor,
+    # antes de E5 y antes de `matriz`: verifica el arranque del pool por
+    # `fork` (que es el de Linux), un vencimiento real del plazo por hora, un
+    # dia completo de E5, y (arreglo final) ese mismo dia con las dos
+    # palancas del acoplado encendidas.
+    echo "Humo de Linux, antes de E5 y de matriz (subproyecto 2)"
+
+    echo
+    echo "  1/4 · test_plazo_por_hora bajo el arranque de Linux"
+    echo "  core/ems_p2p.py abre el pool con multiprocessing.get_context()"
+    echo "  SIN argumento, es decir el metodo de la plataforma; en Linux ya"
+    echo "  es 'fork', que es el que nunca se ha probado (el arreglo del hilo"
+    echo "  del pool viejo, tarea 18). No hace falta forzarlo con ninguna"
+    echo "  variable: basta con correr esto aqui, que ya es Linux."
+    corre "pytest_test_plazo_por_hora" -m pytest \
+          "tests/test_plazo_por_hora.py" -q
+
+    echo
+    echo "  2/4 · C-165 con sus 72 horas de defecto (no las 48 de la compuerta)"
+    echo "  ejerce un vencimiento real del plazo por hora y la renovacion del"
+    echo "  pool: la hora 56 del caso sintetico, H-81. Su resumen [D24] debe"
+    echo "  verse en el registro de esta corrida."
+    corre "gate_c165_desglose_horario_72h" "tests/gate_c165_desglose_horario.py"
+
+    echo
+    echo "  3/4 · un dia de E5 (factor de generacion 10)"
+    DIR="SALIDAS_SERVIDOR/humo_linux_e5"
+    crea_dir "$DIR"
+    corre "humo_linux_e5" main_simulation.py \
+          --data real --full --desde 2025-07-15 --hasta 2025-07-16 \
+          --factor-generacion 10 --include-c5 --no-regulado \
+          --metodo acoplado --analisis-ligero --plazo-hora 15 \
+          --out-dir "$DIR"
+
+    echo
+    echo "  4/4 · el mismo dia de E5 con las dos palancas del acoplado"
+    echo "  (--rtol-acoplado 1e-7 --horizonte-max-acoplado 0.4), para ver en su"
+    echo "  registro las lineas [D24], [D26] y [D38] antes de las trece corridas."
+    echo "  Es un humo: si sale con 3 (D38) se imprime, pero no detiene nada."
+    DIR="SALIDAS_SERVIDOR/humo_linux_e5_palancas"
+    crea_dir "$DIR"
+    # Con PARA_EN_FALLO=0, corre() devuelve siempre cero: no hay codigo que
+    # recoger aqui, y el propio corre() ya imprime «FALLA (codigo N)» si la
+    # corrida no salio con cero. El humo no se detiene.
+    PARA_EN_FALLO=0 corre "humo_linux_e5_palancas" main_simulation.py \
+          --data real --full --desde 2025-07-15 --hasta 2025-07-16 \
+          --factor-generacion 10 --include-c5 --no-regulado \
+          --metodo acoplado --analisis-ligero --plazo-hora 15 \
+          --rtol-acoplado 1e-7 --horizonte-max-acoplado 0.4 \
+          --out-dir "$DIR"
+    echo "     Si el paso 4 dijo FALLA (codigo 3), es D38: su linea [D38] dice por que."
+
+    echo
+    echo "  Si las cuatro pasan, sigue con:  bash $0 sonda79"
+    ;;
+
+  sonda79)
+    # NUEVA del subproyecto 2 (D25). La sonda de H-79 en E0 y E4: si el
+    # reparto o el excedente dependen del integrador, y con que palanca se
+    # corrige antes de `matriz`. El codigo de salida 2 de la sonda es un
+    # VEREDICTO, no un fallo: PARA_EN_FALLO no se pone aqui, de modo que
+    # corre() siempre devuelve cero y esta accion sigue aunque salte un
+    # criterio.
+    echo "Sonda de H-79: depende el reparto del integrador, en E0 y E4 (D25)"
+    crea_dir "$SONDA_DIR"
+    FALTAN=()
+    for par in "E0:1" "E4:7"; do
+      CASO="${par%%:*}"; FACTOR="${par#*:}"
+      echo
+      echo "  --- $CASO (factor de generacion $FACTOR)"
+      # Arreglo final: el veredicto viejo se borra ANTES de correr la sonda.
+      # Si no, una sonda que falla sin escribir dejaria el JSON de la vez
+      # anterior, la comprobacion de abajo lo daria por nuevo y `matriz`
+      # fijaria las palancas con un veredicto que no es de este codigo.
+      borra "$SONDA_DIR/veredicto_${CASO}.json"
+      corre "sonda79_${CASO}" "$SONDA/reparto_vs_integrador.py" \
+            --horas 20 --factor-generacion "$FACTOR" \
+            --salida "$SONDA_DIR/sonda79_${CASO}.csv" \
+            --veredicto-json "$SONDA_DIR/veredicto_${CASO}.json"
+      # Ronda de arreglo 1: el codigo 2 de la sonda es un veredicto, no un
+      # fallo, y no detiene esta accion. Pero si la sonda no llega a ESCRIBIR
+      # el JSON (su codigo 1, sin datos; o cualquier otro fallo), `matriz` no
+      # tendria de donde leer la palanca. En seco nunca se escribe nada
+      # (corre() no ejecuta), de modo que esta comprobacion se salta.
+      if [[ "${SECO:-0}" != "1" && ! -f "$SONDA_DIR/veredicto_${CASO}.json" ]]; then
+        FALTAN+=("$CASO")
+      fi
+    done
+    echo
+    if [[ ${#FALTAN[@]} -gt 0 ]]; then
+      echo "  FALTA el veredicto de: ${FALTAN[*]} (mira su log: sin datos u otro fallo)"
+      echo "  Los que si quedaron estan en $SONDA_DIR/veredicto_<CASO>.json."
+      exit 1
+    fi
+    echo "  Veredictos en $SONDA_DIR/veredicto_E0.json y .../veredicto_E4.json."
+    echo "  Mira que palanca activo cada uno; despues:  bash $0 matriz"
+    ;;
+
+  matriz)
+    # NUEVA del subproyecto 2 (D18, D24, D27). Reemplaza a `oficial` para
+    # esta tanda: las trece corridas de la matriz de escalado, con el plazo
+    # por hora (D24), el modo ligero (D27) y las palancas del acoplado que
+    # decidio `sonda79` (D35, D26). Solo M1: M3 esta retirada (D10).
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+
+    echo "=== MATRIZ DEL SUBPROYECTO 2 · las trece corridas ==="
+    echo "    MTE_ROOT   = $MTE_ROOT"
+    echo "    veredictos = $SONDA_DIR"
+    echo
+
+    echo "--- 1/6 · compuertas"
+    bash "$0" compuertas
+
+    echo
+    echo "--- 2/6 · los veredictos de la sonda de H-79 y las palancas"
+    V0="$SONDA_DIR/veredicto_E0.json"
+    V4="$SONDA_DIR/veredicto_E4.json"
+    FALTAN=()
+    [[ -f "$V0" ]] || FALTAN+=("$V0")
+    [[ -f "$V4" ]] || FALTAN+=("$V4")
+    if [[ ${#FALTAN[@]} -gt 0 ]]; then
+      echo "  Falta el veredicto de la sonda de H-79:"
+      for f in "${FALTAN[@]}"; do
+        echo "    $f"
+      done
+      echo "  Corre primero:  bash $0 sonda79"
+      exit 2
+    fi
+    # Union de las palancas de los dos veredictos (resolucion del brief).
+    PALANCAS="$("$PY" -c '
+import json, sys
+palancas = set()
+for ruta in sys.argv[1:]:
+    with open(ruta, encoding="utf-8") as f:
+        v = json.load(f)
+    palancas.update(v.get("palanca", []))
+print(" ".join(sorted(palancas)))
+' "$V0" "$V4")"
+    PALANCAS_ARGS=""
+    if [[ " $PALANCAS " == *" tolerancia "* ]]; then
+      PALANCAS_ARGS="$PALANCAS_ARGS --rtol-acoplado 1e-7"
+      echo "  palanca activada: tolerancia -> --rtol-acoplado 1e-7 (D35)"
+    fi
+    if [[ " $PALANCAS " == *" horizonte "* ]]; then
+      PALANCAS_ARGS="$PALANCAS_ARGS --horizonte-max-acoplado 0.4"
+      echo "  palanca activada: horizonte -> --horizonte-max-acoplado 0.4 (D26)"
+    fi
+    if [[ -z "$PALANCAS_ARGS" ]]; then
+      echo "  ninguna palanca: los dos veredictos de la sonda salieron limpios"
+    fi
+
+    echo
+    echo "--- 3/6 · las trece corridas completas"
+    # Caso : opciones (spec 4.11/4.12, D18), definidos arriba en CASOS_MATRIZ
+    # porque `recoger` tambien los usa.
+    CASOS=("${CASOS_MATRIZ[@]}")
+    SALTAR="${DESDE:-}"
+    for par in "${CASOS[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      if [[ -n "$SALTAR" ]]; then
+        if [[ "$CASO" == "$SALTAR" ]]; then
+          SALTAR=""
+        else
+          echo "  ... salta $CASO (DESDE=$DESDE)"
+          continue
+        fi
+      fi
+      DIR="SALIDAS_SERVIDOR/matriz/$CASO"
+      ALM="$DIR/almacen"
+      crea_dir "$ALM"
+      echo
+      echo "  --- $CASO  ->  $DIR"
+      # D38: la corrida sale con 3, DESPUES de escribir todo, si hubo alguna
+      # hora con excepcion o mas del 1 % de horas vencidas. PARA_EN_FALLO la
+      # detiene como a cualquier fallo; aqui se dice que mirar y como seguir.
+      corre "matriz_${CASO}" main_simulation.py \
+            --data real --full --include-c5 --no-regulado \
+            --metodo acoplado --analisis-ligero --plazo-hora 15 \
+            --almacen "$ALM" \
+            ${PALANCAS_ARGS:+$PALANCAS_ARGS} ${EXTRA:+$EXTRA} \
+            --out-dir "$DIR" || {
+        cod=$?
+        echo
+        if [[ $cod -eq 3 ]]; then
+          echo "  $CASO salio con codigo 3 (D38): hubo alguna hora con excepcion"
+          echo "  o mas del 1 % de horas de mercado vencidas por el plazo. Sus"
+          echo "  salidas estan escritas, pero la cadena no sigue con un caso asi."
+        else
+          echo "  $CASO salio con codigo $cod."
+        fi
+        echo "  Mira las lineas [D24], [C-190] y [D38] de su registro"
+        echo "  ($LOGS/matriz_${CASO}_<fecha>.log) y retoma desde este caso con:"
+        echo "    DESDE=$CASO bash $0 matriz"
+        exit "$cod"
+      }
+    done
+
+    echo
+    echo "--- 4/6 · la liquidacion y la equidad de cada caso (cobertura m1)"
+    for par in "${CASOS[@]}"; do
+      CASO="${par%%:*}"
+      ALM="SALIDAS_SERVIDOR/matriz/$CASO/almacen"
+      corre "matriz_liquidacion_${CASO}" \
+            reformateo/documento/scripts/liquidacion.py "$ALM" \
+            --cobertura m1 --periodo mes
+      for P in mes hora_del_dia dia_semana; do
+        corre "matriz_equidad_${CASO}_${P}" analysis/equidad_periodo.py \
+              "$ALM" --cobertura m1 --periodo "$P"
+      done
+    done
+
+    echo
+    echo "--- 5/6 · las figuras del foro, solo de E0"
+    FIGS="SALIDAS_SERVIDOR/matriz/figuras_foro"
+    crea_dir "$FIGS"
+    corre "matriz_foro_acd_E0" reformateo/documento/scripts/gen_foro.py \
+          "SALIDAS_SERVIDOR/matriz/E0/almacen" --cobertura m1 --figuras "$FIGS"
+    corre "matriz_foro_b_E0" reformateo/documento/scripts/gen_foro_b.py \
+          --cobertura m1 --figuras "$FIGS"
+
+    echo
+    echo "--- 6/6 · la recogida"
+    bash "$0" recoger matriz
+    echo
+    echo "=== MATRIZ COMPLETA ==="
+    echo "  Un caso que falla detiene la cadena (es la corrida oficial);"
+    echo "  se retoma desde ese caso con:  DESDE=<caso> bash $0 matriz"
     ;;
 
   tanda)
@@ -563,16 +934,71 @@ except AttributeError:
     # alguien intentara dibujar una figura de vuelta en casa, y para entonces
     # la maquina que lo produjo ya no tiene el dato.
     [[ -d SALIDAS_SERVIDOR ]] && QUE+=(SALIDAS_SERVIDOR)
-    for esperado in SALIDAS_SERVIDOR/almacen SALIDAS_SERVIDOR/figuras_foro; do
-      [[ -d "$esperado" ]] || echo "  AVISO: no esta $esperado"
+
+    # Arreglo final: lo que se espera depende de la corrida que se recoge.
+    # `oficial` escribe SALIDAS_SERVIDOR/almacen y .../figuras_foro; `matriz`
+    # un almacen por caso en SALIDAS_SERVIDOR/matriz/<caso>/almacen y las
+    # figuras de E0 en SALIDAS_SERVIDOR/matriz/figuras_foro. Cada una llama a
+    # esta accion con su nombre; sin nombre se deduce: si hay
+    # SALIDAS_SERVIDOR/matriz, la matriz. Van dentro de SALIDAS_SERVIDOR, que
+    # entra entero en el tar; aqui se comprueba que existen antes, y que
+    # quedaron en el tar despues.
+    DE="${2:-}"
+    if [[ -z "$DE" ]]; then
+      if [[ -d SALIDAS_SERVIDOR/matriz ]]; then DE="matriz"; else DE="oficial"; fi
+    fi
+    ESPERADOS=()
+    case "$DE" in
+      matriz)
+        for par in "${CASOS_MATRIZ[@]}"; do
+          ESPERADOS+=("SALIDAS_SERVIDOR/matriz/${par%%:*}/almacen")
+        done
+        ESPERADOS+=("SALIDAS_SERVIDOR/matriz/figuras_foro")
+        ;;
+      oficial)
+        ESPERADOS=(SALIDAS_SERVIDOR/almacen SALIDAS_SERVIDOR/figuras_foro)
+        ;;
+      *)
+        echo "  recoger: corrida desconocida '$DE'; use matriz u oficial"
+        exit 2
+        ;;
+    esac
+    echo "  recogiendo la corrida: $DE"
+    for esperado in "${ESPERADOS[@]}"; do
+      if [[ -d "$esperado" ]]; then
+        echo "    esta: $esperado"
+      else
+        echo "  AVISO: no esta $esperado"
+      fi
     done
     echo "  recogiendo: ${QUE[*]}"
     for d in "${QUE[@]}"; do
       [[ -d "$d" ]] || { echo "  AVISO: falta $d"; }
     done
+
+    # Subproyecto 2: modo en seco. `matriz` encadena esta accion como su
+    # ultimo paso (6/6), y sin esta guarda una comprobacion con `SECO=1`
+    # empaquetaba de verdad todo SALIDAS_SERVIDOR: se detecto armando esta
+    # misma tarea, un tar.gz de 65 MB con 2827 ficheros reales.
+    if [[ "${SECO:-0}" == "1" ]]; then
+      echo "  [SECO] tar czf $DEST ${QUE[*]}"
+      exit 0
+    fi
+
     tar czf "$DEST" "${QUE[@]}"
     echo "  resultados en $DEST"
-    echo "  $(tar tzf "$DEST" | wc -l) ficheros"
+    LISTA="$(tar tzf "$DEST")"
+    # Sin tuberias: con `set -o pipefail`, `grep -q` cierra la tuberia al
+    # primer acierto, el que escribe muere por SIGPIPE (141) si la lista pasa
+    # del bufer, y el `!` convertiria eso en un aviso falso (re-revision).
+    echo "  $(wc -l <<<"$LISTA") ficheros"
+    # Lo que estaba en disco tiene que haber llegado al tar.
+    for esperado in "${ESPERADOS[@]}"; do
+      [[ -d "$esperado" ]] || continue
+      if ! grep -q "^${esperado}/" <<<"$LISTA"; then
+        echo "  AVISO: $esperado esta en disco pero NO en el tar"
+      fi
+    done
     echo
     echo "  Traelo de vuelta y descomprimelo en la raiz del repositorio."
     ;;

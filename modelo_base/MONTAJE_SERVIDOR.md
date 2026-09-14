@@ -318,7 +318,9 @@ bash modelo_base/run_servidor.sh canonica
 ```
 
 **Va por la vía alternada a propósito.** La acoplada cuesta unos 47 segundos
-por hora de mercado, y el horizonte son 5.160 horas por frontera: ni con
+por hora de mercado, y el horizonte son 6144 horas por frontera (así lo
+imprimen el humo de E0 del 2026-09-13, `outputs/run_2026-09-13_humo_e0.log`,
+y la corrida canónica de junio, `T=6144h`): ni con
 dieciséis núcleos es viable. El servidor permite muestras grandes, no el
 horizonte por la vía acoplada.
 
@@ -416,6 +418,174 @@ bash modelo_base/run_servidor.sh piso 200 8      # ocho minutos por tarea
 
 Una hora que no resuelve **es un dato**, queda anotada como no resuelta y la
 medición sigue.
+
+---
+
+## El subproyecto 2 (2026-09-14): humo, sonda y matriz
+
+Contexto en una frase: la corrida oficial de septiembre (`oficial`) se deja tal
+cual; para el subproyecto 2 (Anexo 4 de la CREG 101 072, escalado, H-79) la
+reemplaza `matriz`, que agrega las palancas del acoplado (D35, D26) y las
+trece corridas de la matriz de escalado (D18) en vez de las dos fronteras
+M1/M3 (M3 está retirada, D10). El orden es fijo y no se salta ningún paso:
+
+```bash
+bash modelo_base/run_servidor.sh compuertas
+bash modelo_base/run_servidor.sh humo_linux
+bash modelo_base/run_servidor.sh sonda79
+bash modelo_base/run_servidor.sh matriz
+```
+
+**Antes de correr nada de verdad**, la comprobación en seco imprime cada
+orden completa sin ejecutar ninguna, en cualquier máquina (no hace falta
+Linux ni los datos del MTE):
+
+```bash
+SECO=1 bash modelo_base/run_servidor.sh matriz
+```
+
+### 1 · `compuertas`
+
+Ahora corre además el motor nuevo: dieciséis pruebas de pytest (Anexo 4,
+umbrales del escalado, P2P residual del artículo 25, C4 mensual, P2P
+colectivo, C5 de la Resolución 101 099, suma mensual, coincidencia, costos de
+C3, plazo por hora, análisis ligero, cumplimiento de FA-3, el numeral 2 del
+análisis, las dos palancas del acoplado, el oráculo del Anexo 4 con los
+factores uno y siete, y el presupuesto de la parada por estacionario con el
+código de salida, D36 a D38), y la compuerta C-165 con 48 horas en vez
+de las 72 de su defecto: con 72, la hora rígida del caso sintético vence el
+plazo por hora (H-81).
+
+**Qué mirar.** Que todo pase. Si algo falla, PARA: ni el humo ni la sonda ni
+la matriz valen nada corridos sobre un motor que no pasa sus propias
+compuertas.
+
+### 2 · `humo_linux`
+
+Se corre **una vez**, en el servidor (porque es Linux), antes de E5 y antes
+de `matriz`. Cuatro pasos:
+
+1. `test_plazo_por_hora` bajo el arranque de Linux. `core/ems_p2p.py` abre el
+   pool con `multiprocessing.get_context()` sin argumento, es decir con el
+   método de la plataforma; en Linux ya es `fork`, y es el único que nunca se
+   ha probado (el arreglo del hilo del pool viejo, tarea 18). No hace falta
+   forzar ninguna variable de entorno: basta con correr esto en el servidor.
+2. La compuerta C-165 con sus 72 horas de defecto (no las 48 de
+   `compuertas`), a propósito: ejerce un vencimiento real del plazo por hora
+   y la renovación del pool, la hora 56 del caso sintético (H-81). Su
+   resumen `[D24]` debe verse en el registro de esta corrida.
+3. Un día de E5 (factor de generación 10) con datos reales
+   (`--desde 2025-07-15 --hasta 2025-07-16`), modo ligero y plazo por hora,
+   en `SALIDAS_SERVIDOR/humo_linux_e5`.
+4. El mismo día de E5 con las dos palancas del acoplado encendidas
+   (`--rtol-acoplado 1e-7 --horizonte-max-acoplado 0.4`), en
+   `SALIDAS_SERVIDOR/humo_linux_e5_palancas`. Existe para ver en su registro,
+   antes de las trece corridas, las líneas `[D24]` (plazo por hora), `[D26]`
+   (horas por horizonte usado y por motivo de parada: estacionario, tope,
+   presupuesto o vuelta fallida) y `[D38]` (el código de salida).
+
+**Qué mirar.** Que las cuatro pasen. El paso 4 puede salir con código 3
+(D38): se imprime, pero no detiene el humo, y su línea `[D38]` dice por qué.
+**Tiempo esperado:** el humo de un día a
+×7 con `--analysis` completo tardó 29 minutos en local; con el modo ligero
+(`--analisis-ligero`, D27) es bastante menos, porque solo corre FA-1 a FA-4
+y las figuras 14 y 20.
+
+### 3 · `sonda79`
+
+D25: la sonda de H-79
+(`reformateo/documento/scripts/sonda/reparto_vs_integrador.py`) mide si el
+reparto o el excedente dependen del integrador acoplado, en dos casos de la
+matriz de escalado: E0 (factor de generación 1) y E4 (factor 7), 20 horas
+cada uno. Dos variantes candidatas: apretar solo la tolerancia relativa (a
+1e-7) o doblar el horizonte del acoplado.
+
+Escribe un veredicto en JSON por caso, en `SALIDAS_SERVIDOR/sonda79/`:
+
+```json
+{"reparto_depende": false, "excedente_cambia": false, "palanca": []}
+```
+
+`palanca` es la lista de variantes que superó alguno de los dos criterios
+fijados antes de medir (1 punto porcentual de la tajada del vendedor, 0,1 %
+del excedente): `["tolerancia"]`, `["horizonte"]`, las dos, o ninguna.
+
+**El código de salida 2 de la sonda es un veredicto, no un fallo**: esta
+acción no se detiene por él, aunque el resto de la cadena (`oficial`,
+`matriz`) sí tiene `set -e`.
+
+Antes de correr la sonda de cada caso, la acción borra su veredicto viejo.
+Si la sonda falla sin escribir, `matriz` no encuentra el JSON de una vez
+anterior y se detiene, en vez de fijar las palancas con un veredicto que no
+es de este código.
+
+**Qué mirar.** Los dos JSON, `veredicto_E0.json` y `veredicto_E4.json`.
+Conviene leerlos a mano antes de correr `matriz`.
+
+### 4 · `matriz`
+
+D18, D24, D27. Reemplaza a `oficial` para esta tanda. En orden:
+
+1. las compuertas (el paso 1, otra vez);
+2. lee los dos veredictos de `sonda79` y fija la **unión** de sus palancas:
+   si alguno trae `tolerancia`, agrega `--rtol-acoplado 1e-7` (D35) a las
+   trece corridas; si alguno trae `horizonte`, agrega
+   `--horizonte-max-acoplado 0.4` (D26: para por estacionario en vez de
+   horizonte fijo, hasta ocho veces el horizonte de producción). Si los
+   veredictos no existen, se detiene y pide correr `sonda79` primero;
+3. las trece corridas completas de la matriz de escalado (E0-E5, P1, P2, K1,
+   I1, N1, CV2, SINU; spec 4.11 y 4.12), cada una con su propio almacén y su
+   propio `--out-dir` en `SALIDAS_SERVIDOR/matriz/<caso>`;
+4. la liquidación por institución y la equidad por mes, hora del día y día
+   de la semana, de cada caso (cobertura `m1`: M3 está retirada, D10);
+5. las figuras del foro, solo de E0;
+6. la recogida.
+
+Un caso que falla detiene la cadena, como en `oficial`. También uno que sale
+con código 3 (D38): la corrida lo devuelve, después de escribir todas sus
+salidas, si hubo alguna hora con excepción o más del 1 % de las horas de
+mercado vencidas por el plazo. El lanzador dice entonces que se miren las
+líneas `[D24]`, `[C-190]` y `[D38]` del registro de ese caso. Se retoma sin
+repetir los que ya corrieron:
+
+```bash
+DESDE=P1 bash modelo_base/run_servidor.sh matriz
+```
+
+**Tiempo esperado.** Cada corrida es un horizonte completo de una sola
+frontera por la vía acoplada y en modo ligero. El cargador da 6144 horas, del
+2025-04-04 al 2025-12-16: así lo imprime el humo de E0 del 2026-09-13
+(`outputs/run_2026-09-13_humo_e0.log`) y la corrida canónica de junio
+(`T=6144h`), la misma cifra que da la sección de la tanda del 7 de
+septiembre. La única fuente de
+tiempo del servidor para la vía acoplada es la corrida oficial de septiembre:
+el comentario de la acción `oficial` en `run_servidor.sh` dice «13,9 s por
+hora de mercado con 32 procesos, de modo que las dos fronteras del horizonte
+completo son unos 89 minutos», y la tabla de `oficial` de este documento da
+unos 89 (min) a su paso 2, las dos fronteras con el almacén. Esa corrida tenía
+6144 horas por frontera (C-173, en `core/almacen.py`), y las dos cifras
+cuadran así: 2 × 6144 × 13,9 / 32 ≈ 89 (min). No son 89 minutos por
+frontera, como decía antes esta línea: al mismo ritmo, una frontera de 6144
+horas son 6144 × 13,9 / 32 ≈ 44,5 (min) de mercado por corrida, la mitad, más
+el análisis ligero, que no se ha medido en el servidor. En la máquina de trabajo no hay
+registro de aquella corrida con que confirmar el 13,9.
+
+Con la palanca del horizonte activa (D26), las horas que no llegan al
+estacionario en el horizonte de producción vuelven a resolverse con el
+horizonte doble, y su tiempo de mercado crece. Lo acota el presupuesto de
+D36: una hora no empieza una vuelta que no quepa en 5,3 millones de
+evaluaciones del integrador, que en la máquina de trabajo son unos 584 (s),
+el 65 % del plazo por hora de 15 (min). Las trece corridas se lanzan en
+secuencia, no en paralelo entre sí (el paralelismo es interno a cada una,
+entre horas), de modo que el total escala con las trece.
+
+**Qué mirar al terminar.** Que la recogida no avise de nada: tras `matriz`
+comprueba el almacén de cada uno de los trece casos y las figuras de E0, y
+que hayan quedado en el fichero comprimido. Y qué palancas activó el paso 2: cambian la tolerancia o el
+horizonte del acoplado de las trece corridas a la vez, de modo que conviene
+saber si se activaron antes de leer ninguna cifra.
+
+---
 
 ## Lo que este paquete NO hace
 

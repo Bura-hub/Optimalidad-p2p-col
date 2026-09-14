@@ -82,12 +82,80 @@ def _procesos_pedidos(args):
     return None
 
 
+def cuenta_para_salida(p2p_results) -> tuple:
+    """Los tres conteos de D38, sacados de las horas del mercado.
+
+    Devuelve `(n_horas_mercado, n_vencidas, n_excepciones)`.
+
+    EL DENOMINADOR. Las T horas del horizonte pasan todas por
+    `_run_hour_worker`, pero la que no tiene vendedores y compradores a la vez
+    sale en su primera linea sin tocar el integrador: no puede vencer ni
+    reventar. `n_horas_mercado` cuenta las demas, las horas en que el juego
+    de verdad se planteo: las que traen vendedores y compradores (resueltas,
+    con excepcion o sin exito del integrador) y las vencidas por el plazo,
+    que el plazo devuelve sin ids pero que por fuerza se estaban resolviendo.
+    Es el numero de horas que PODIAN vencer, y es contra el que tiene sentido
+    el 1 % de D38; contra todas las horas del horizonte el umbral seria unas
+    cinco veces mas laxo en la frontera base, donde solo alrededor de una de
+    cada cinco horas tiene mercado (1126 horas activas en la frontera
+    principal, H-52).
+    """
+    n_mercado = n_vencidas = n_excepciones = 0
+    for r in p2p_results:
+        motivo = getattr(r, "motivo", "") or ""
+        if motivo or (r.seller_ids and r.buyer_ids):
+            n_mercado += 1
+        if motivo.startswith("vencio el plazo"):
+            n_vencidas += 1
+        elif motivo.startswith("excepcion"):
+            n_excepciones += 1
+    return n_mercado, n_vencidas, n_excepciones
+
+
+def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
+                     n_excepciones: int,
+                     umbral_vencidas: float = 0.01) -> int:
+    """D38: el codigo con que sale la corrida, 0 o 3.
+
+    3 si hubo ALGUNA hora con excepcion (C-190), o si las horas vencidas por
+    el plazo (D24) pasan de `umbral_vencidas` de las horas de mercado (el
+    denominador de `cuenta_para_salida`). 0 en otro caso.
+
+    LA FRONTERA. «Mas del 1 %» es estricto: justo el 1 % sale con 0 (una de
+    cien, diez de mil); una hora mas, con 3. Se compara el cociente
+    `n_vencidas / n_horas_mercado` con el umbral, y no el producto
+    `umbral * n`, porque el cociente de dos enteros que vale exactamente 1/100
+    se redondea al mismo doble que el literal 0.01, y la frontera queda exacta.
+
+    Sirve para que `PARA_EN_FALLO` del lanzador detenga la cadena de la
+    matriz en vez de seguir con un caso vacio. Funcion pura: no imprime ni
+    sale; eso lo hace el bloque de la linea de ordenes, al final.
+    """
+    for nombre, v in (("n_horas_mercado", n_horas_mercado),
+                      ("n_vencidas", n_vencidas),
+                      ("n_excepciones", n_excepciones)):
+        if int(v) != v or v < 0:
+            raise ValueError(f"{nombre}={v!r}; tiene que ser un entero no "
+                             f"negativo")
+    if n_vencidas > n_horas_mercado:
+        raise ValueError(f"{n_vencidas} horas vencidas de {n_horas_mercado} "
+                         f"horas de mercado: las vencidas son horas de "
+                         f"mercado, no pueden ser mas")
+    if n_excepciones > 0:
+        return 3
+    if n_horas_mercado > 0 and n_vencidas / n_horas_mercado > umbral_vencidas:
+        return 3
+    return 0
+
+
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
          analisis_ligero: bool = False,
          single_day: str = None, paper_meters: bool = False,
          include_c5: bool = False, out_dir: str = None,
          paso: float = 1.0, desde: str = None, hasta: str = None,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
+         rtol_acoplado: float = 1e-6, horizonte_max_acoplado: float = 0.0,
+         presupuesto_eval_acoplado: int = None,
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -474,6 +542,20 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
                           n_points=150, stackelberg_iters=2, parallel=True,
                           metodo=metodo, t_span_acoplado=t_span_acoplado,
+                          # D35: la sonda de H-79 aprieta esta tolerancia si
+                          # esa es la palanca que decide. 1e-6 (defecto) es
+                          # identica a la de hoy.
+                          rtol_acoplado=rtol_acoplado,
+                          # D26: la sonda de H-79 activa la parada por
+                          # estacionario si esa es la palanca que decide. 0
+                          # (defecto) la desactiva: una sola resolucion.
+                          horizonte_max_acoplado=(horizonte_max_acoplado
+                                                  if horizonte_max_acoplado
+                                                  else None),
+                          # D36: el presupuesto de evaluaciones de esa
+                          # parada; None es la constante del motor. Sin la
+                          # parada activa no actua.
+                          presupuesto_eval_acoplado=presupuesto_eval_acoplado,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -491,18 +573,79 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     if metodo == "acoplado":
         print(f"    [CAL-48] Mercado resuelto ACOPLADO (horizonte "
               f"{t_span_acoplado}), como JoinFinal.m; no por alternancia")
+        if rtol_acoplado != 1e-6:
+            print(f"    [D35] Tolerancia relativa del acoplado: "
+                  f"{rtol_acoplado:g} (defecto 1e-6)")
+        if solver.horizonte_max_acoplado is not None:
+            from core.ems_p2p import PRESUPUESTO_EVAL_ACOPLADO
+            _pres = (PRESUPUESTO_EVAL_ACOPLADO
+                     if solver.presupuesto_eval_acoplado is None
+                     else solver.presupuesto_eval_acoplado)
+            print(f"    [D26] Parada por estacionario activa: dobla el "
+                  f"horizonte hasta {solver.horizonte_max_acoplado:g}, con "
+                  f"un presupuesto de {_pres} evaluaciones del integrador "
+                  f"por hora (D36)")
     _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
     print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
           f"hora empieza a correr; la vencida queda sin resolver)")
     ems    = EMSP2P(agents, grid, solver)
     p2p_results, G_klim, D_star = ems.run(D, G)
     # D24: el motor ya lista las horas vencidas; aqui se dice que les pasa.
-    _vencidas = [r.k for r in p2p_results if getattr(r, "motivo", "")]
+    # Solo las del plazo, no cualquier motivo: una hora con excepcion (mas
+    # abajo) tambien trae `motivo` no vacio y no vencio ningun plazo.
+    _vencidas = [r.k for r in p2p_results
+                if getattr(r, "motivo", "").startswith("vencio el plazo")]
     if _vencidas:
         print(f"    [D24] {len(_vencidas)} de {len(p2p_results)} horas sin "
               f"resolver por el plazo por hora: la liquidacion las trata "
               f"como horas sin mercado"
               + ("; el almacen las anota con su motivo" if almacen else ""))
+    # C-190: fallar en voz alta. Antes una hora que reventaba el acoplado
+    # volvia "sin mercado" sin dejar rastro; ahora trae su `motivo` con la
+    # excepcion, y aqui se cuenta en voz alta, sin tumbar la corrida. Con
+    # cero horas asi, esta linea no aparece y la salida no cambia.
+    _excepciones = [r for r in p2p_results
+                   if getattr(r, "motivo", "").startswith("excepcion")]
+    if _excepciones:
+        print(f"    [C-190] {len(_excepciones)} de {len(p2p_results)} horas "
+              f"terminaron con excepcion (no silenciosa); las primeras "
+              f"{min(5, len(_excepciones))}:")
+        for r in _excepciones[:5]:
+            print(f"        hora {r.k}: {r.motivo}")
+    # D37: la hora cuya primera vuelta del integrador no termino con exito
+    # queda sin mercado, como antes, pero ahora con su motivo, y aqui se
+    # cuenta. Con cero horas asi, la linea no aparece.
+    _sin_exito = [r for r in p2p_results
+                  if getattr(r, "motivo", "").startswith("integrador sin exito")]
+    if _sin_exito:
+        print(f"    [D37] {len(_sin_exito)} de {len(p2p_results)} horas sin "
+              f"mercado porque la primera vuelta del integrador no termino "
+              f"con exito; las primeras {min(5, len(_sin_exito))}: "
+              + ", ".join(str(r.k) for r in _sin_exito[:5]))
+    # D26: el resumen solo sale si la parada por estacionario esta activa;
+    # con los valores por defecto la salida de la corrida no cambia en nada.
+    if solver.horizonte_max_acoplado is not None:
+        from collections import Counter
+        _cuenta = Counter(round(float(r.horizonte_usado), 6)
+                          for r in p2p_results if r.P_star is not None)
+        if _cuenta:
+            _resumen = ", ".join(f"{h:g}: {n}"
+                                 for h, n in sorted(_cuenta.items()))
+            print(f"    [D26] Horas por horizonte usado: {_resumen}")
+        # D36/D37: y por que paro cada hora con mercado. Los cuatro motivos
+        # salen siempre, tambien en cero, para que el registro diga que se
+        # miraron; cualquier otro valor se lista aparte, porque no deberia
+        # aparecer con la parada activa.
+        _paradas = Counter(getattr(r, "parada_acoplado", "")
+                           for r in p2p_results if r.P_star is not None)
+        if _paradas:
+            _motivos = ("estacionario", "tope", "presupuesto", "fallo_vuelta")
+            _txt = ", ".join(f"{m}: {_paradas.get(m, 0)}" for m in _motivos)
+            _otros = sorted((m or "sin anotar", n) for m, n in _paradas.items()
+                            if m not in _motivos)
+            if _otros:
+                _txt += "; ademas " + ", ".join(f"{m}: {n}" for m, n in _otros)
+            print(f"    [D26] Horas con mercado por motivo de parada: {_txt}")
 
     # ── El almacen de la corrida (C-161) ─────────────────────────────────
     # Todo lo que hasta hoy se tiraba: los retirados por hora, el piso y el
@@ -528,6 +671,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 else np.atleast_2d(np.asarray(pi_gs_arg, dtype=float)))
         _piso_m = (None if pi_gb_agente is None
                    else np.asarray(pi_gb_agente, dtype=float))
+        # D36: con la parada por estacionario activa, y solo entonces para no
+        # tocar la tabla por defecto, cada hora resuelta lleva el horizonte de
+        # la vuelta que se conservo y por que paro. El almacen no tiene
+        # esquema fijo (cada parte es un DataFrame y el lector las concatena),
+        # de modo que son dos columnas mas que solo aparecen en ese caso.
+        _con_parada = solver.horizonte_max_acoplado is not None
         for r in p2p_results:
             k = int(r.k)
             # C-166: la tabla de agentes se llena SIEMPRE, tambien en las
@@ -575,7 +724,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 W_vendedor=float(r.Wj_total), W_comprador=float(r.Wi_total),
                 SC=float(r.SC), SS=float(r.SS), equidad=float(r.IE),
                 reparto_comprador=float(r.PS),
-                reparto_vendedor=float(r.PSR))
+                reparto_vendedor=float(r.PSR),
+                **(dict(horizonte_usado=float(r.horizonte_usado),
+                        parada_acoplado=str(r.parada_acoplado))
+                   if _con_parada else {}))
             alm.anota_flujos(
                 k, P, pi, r.seller_ids, r.buyer_ids, agent_names,
                 techo_i=(None if te_m is None or te_m.shape[0] == 1
@@ -2168,6 +2320,30 @@ if __name__ == "__main__":
     ap.add_argument("--t-span-acoplado", type=float, default=0.05,
                     metavar="T",
                     help="CAL-48: horizonte del solucionador acoplado")
+    ap.add_argument("--rtol-acoplado", dest="rtol_acoplado", type=float,
+                    default=1e-6, metavar="RTOL",
+                    help="D35: tolerancia relativa del solucionador "
+                         "acoplado. 1e-6 (defecto) es identica a la de hoy; "
+                         "la sonda de H-79 la aprieta a 1e-7 en produccion "
+                         "si esa es la palanca que decide. La tolerancia "
+                         "absoluta NO se expone (H-51, regla principal de "
+                         "CLAUDE.md) y sigue en 1e-6.")
+    ap.add_argument("--horizonte-max-acoplado", dest="horizonte_max_acoplado",
+                    type=float, default=0.0, metavar="T",
+                    help="D26: si es mayor que cero, el acoplado para por "
+                         "estacionario en vez de horizonte fijo, doblando "
+                         "--t-span-acoplado hasta este tope. 0 (defecto) lo "
+                         "desactiva: una sola resolucion, como hoy. Tiene "
+                         "que ser mayor o igual que --t-span-acoplado.")
+    ap.add_argument("--presupuesto-eval-acoplado",
+                    dest="presupuesto_eval_acoplado", type=int, default=None,
+                    metavar="N",
+                    help="D36: tope de evaluaciones del integrador por hora "
+                         "de la parada por estacionario; no se empieza una "
+                         "vuelta que no quepa, y la hora se queda con la "
+                         "ultima buena. Entero positivo. Sin la bandera, la "
+                         "constante calibrada del motor. Solo tiene efecto "
+                         "con --horizonte-max-acoplado.")
     ap.add_argument("--competencia", dest="buyer_competition",
                     choices=["aggregate", "matlab", "matrix"],
                     default="aggregate",
@@ -2217,6 +2393,34 @@ if __name__ == "__main__":
         ap.error("--plazo-hora va en minutos y no puede ser negativo; "
                  "0 lo desactiva")
 
+    # D35/D26: las dos palancas del acoplado que activa el veredicto de la
+    # sonda de H-79. La misma regla de NaN/infinito de --plazo-hora, arriba.
+    if not math.isfinite(args.rtol_acoplado) or args.rtol_acoplado <= 0:
+        ap.error("--rtol-acoplado tiene que ser un numero finito y positivo")
+    if args.rtol_acoplado > 1e-6:
+        print(f"    [D35] AVISO: --rtol-acoplado={args.rtol_acoplado:g} "
+              f"afloja la tolerancia de produccion (1e-6); la sonda de "
+              f"H-79 la aprieta, no la afloja")
+    if (not math.isfinite(args.horizonte_max_acoplado)
+            or args.horizonte_max_acoplado < 0):
+        ap.error("--horizonte-max-acoplado tiene que ser un numero finito "
+                 "y no negativo; 0 lo desactiva")
+    if (args.horizonte_max_acoplado
+            and args.horizonte_max_acoplado < args.t_span_acoplado):
+        ap.error("--horizonte-max-acoplado tiene que ser mayor o igual que "
+                 "--t-span-acoplado")
+    # D36: el presupuesto de la parada. `type=int` ya rechaza lo que no es
+    # entero; aqui, el cero y los negativos.
+    if (args.presupuesto_eval_acoplado is not None
+            and args.presupuesto_eval_acoplado <= 0):
+        ap.error("--presupuesto-eval-acoplado tiene que ser un entero "
+                 "positivo (evaluaciones del integrador por hora)")
+    if (args.presupuesto_eval_acoplado is not None
+            and not args.horizonte_max_acoplado):
+        print("    [D36] AVISO: --presupuesto-eval-acoplado no tiene efecto "
+              "sin --horizonte-max-acoplado: con la parada apagada hay una "
+              "sola resolucion por hora")
+
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
     # El lazo alternado no resuelve el modelo base y deja el precio pegado a
@@ -2239,6 +2443,9 @@ if __name__ == "__main__":
             "  Si de verdad quiere el horizonte alternado, para comparar las "
             "dos vias, anada --permitir-alternado y declarelo donde publique.")
 
+    # D38: las horas del mercado de la corrida, para el codigo de salida del
+    # final. El GSA no pasa por `main` y se queda en None.
+    _p2p = None
     if args.gsa:
         from analysis.global_sensitivity import (
             run_sobol_analysis, compute_indices, save_results)
@@ -2263,12 +2470,16 @@ if __name__ == "__main__":
         out_path = save_results(idx_dict, Y_dict=Y_dict)
         print(f"\nGSA completado. Resultados en: {out_path}")
     elif args.day:
-        main(use_real_data=True, full_horizon=False,
+        _, _p2p = main(
+             use_real_data=True, full_horizon=False,
              run_analysis=(args.analysis or args.analisis_ligero),
              analisis_ligero=args.analisis_ligero,
              single_day=args.day, paper_meters=args.paper_meters,
              include_c5=args.include_c5, out_dir=args.out_dir,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             rtol_acoplado=args.rtol_acoplado,
+             horizonte_max_acoplado=args.horizonte_max_acoplado,
+             presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2280,7 +2491,8 @@ if __name__ == "__main__":
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv))
     else:
-        main(use_real_data=(args.data == "real"),
+        _, _p2p = main(
+             use_real_data=(args.data == "real"),
              full_horizon=args.full,
              run_analysis=(args.analysis or args.analisis_ligero),
              analisis_ligero=args.analisis_ligero,
@@ -2288,6 +2500,9 @@ if __name__ == "__main__":
              include_c5=args.include_c5, out_dir=args.out_dir,
              paso=args.paso, desde=args.desde, hasta=args.hasta,
              metodo=args.metodo, t_span_acoplado=args.t_span_acoplado,
+             rtol_acoplado=args.rtol_acoplado,
+             horizonte_max_acoplado=args.horizonte_max_acoplado,
+             presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2298,3 +2513,29 @@ if __name__ == "__main__":
              factor_demanda=lee_factor(args.factor_demanda),
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv))
+
+    # ── D38: el codigo de salida, DESPUES de escribir todo ────────────────
+    # `main` ya escribio todas sus salidas y cerro el almacen. Solo aqui, en
+    # la linea de ordenes, se decide el codigo: las llamadas a `main` desde
+    # pruebas o compuertas no cambian. Con 3, `PARA_EN_FALLO` del lanzador
+    # detiene la matriz en vez de seguir con un caso sin mercado.
+    if _p2p is not None:
+        _n, _v, _e = cuenta_para_salida(_p2p)
+        _codigo = codigo_de_salida(_n, _v, _e)
+        _pct = (100.0 * _v / _n) if _n else 0.0
+        if _codigo == 0:
+            print(f"    [D38] codigo de salida 0: ninguna hora con excepcion, "
+                  f"y {_v} de {_n} horas de mercado vencidas por el plazo "
+                  f"({_pct:.2f} %, umbral: mas del 1 %)", flush=True)
+        else:
+            _por = []
+            if _e:
+                _por.append(f"{_e} horas con excepcion (C-190)")
+            if _n and _v / _n > 0.01:
+                _por.append(f"{_v} de {_n} horas de mercado vencidas por el "
+                            f"plazo ({_pct:.2f} %, mas del 1 %)")
+            print(f"    [D38] codigo de salida {_codigo}: "
+                  + " y ".join(_por)
+                  + ". Todas las salidas ya estan escritas; mira las lineas "
+                    "[D24] y [C-190] de este registro", flush=True)
+        sys.exit(_codigo)

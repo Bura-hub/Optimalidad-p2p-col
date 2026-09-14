@@ -51,6 +51,12 @@ from .settlement         import (
     compute_savings, equity_index, welfare_distribution,
 )
 from .dr_program         import run_dr_program, compute_price_signal
+# D36 (arreglo final, revision del conjunto): a nivel de modulo y no dentro
+# de la rama acoplada. Alli el `import` quedaba DENTRO del `try` de C-190, de
+# modo que un modulo ausente o viejo se convertia en un motivo por hora
+# («excepcion del acoplado: ImportError...») en cada hora con mercado, en vez
+# de tumbar la corrida en voz alta al arrancar.
+from .coupled_ode_convergence import solve_coupled_for_hour
 
 # ── Barra de progreso ─────────────────────────────────────────────────────────
 # Usa tqdm si está instalado; si no, implementación propia sin dependencias.
@@ -238,6 +244,29 @@ class SolverParams:
                                       # tercios de las horas llegan a
                                       # estacionario y la corrida cuesta
                                       # 1,4 h con once procesos
+    # D35: la sonda de H-79 corre en el servidor antes de la matriz y decide
+    # si el reparto o el excedente dependen del integrador. Si la palanca es
+    # la tolerancia relativa, produccion la aprieta a 1e-7. Apagada por
+    # defecto: 1e-6 es identica a la de hoy, y es el mismo valor que
+    # `solve_coupled_for_hour` ya trae por omision. La tolerancia absoluta
+    # NO se expone (regla principal de CLAUDE.md, H-51): bajarla de 1e-6
+    # cuelga el integrador.
+    rtol_acoplado:     float = 1e-6
+    # D26: si la palanca de H-79 es el horizonte, el acoplado para por
+    # estacionario en vez de horizonte fijo: dobla `t_span_acoplado` hasta
+    # que el precio se mueva menos del 1 % de su recorrido en el ultimo
+    # decimo (TOL_ESTACIONARIO), o hasta pasar este tope. Apagada por
+    # defecto (None): una sola resolucion con `t_span_acoplado`, identica a
+    # la de hoy.
+    horizonte_max_acoplado: Optional[float] = None
+    # D36: tope de trabajo de la parada por estacionario, en evaluaciones del
+    # integrador (`nfev`) sumadas sobre las vueltas de una hora. Antes de
+    # doblar el horizonte se estima lo que costaria la vuelta siguiente y, si
+    # no cabe, la hora se queda con la ultima vuelta buena. None es la
+    # constante de modulo `PRESUPUESTO_EVAL_ACOPLADO`. Solo actua con la
+    # parada activa: con `horizonte_max_acoplado=None` hay una sola
+    # resolucion, identica al bit a la de antes.
+    presupuesto_eval_acoplado: Optional[int] = None
     # C-161: si se pide, cada hora conserva su trayectoria con los
     # multiplicadores en vez de tirarla. Es lo que llena el almacen y lo que
     # permite dibujar la convergencia de cualquier hora sin volver a simular.
@@ -250,6 +279,19 @@ class SolverParams:
     # eran H-51, ya resuelto, pero los casos de escalado del servidor no se
     # han probado nunca. None lo desactiva. La rama secuencial no tiene plazo.
     plazo_hora_s: Optional[float] = 900.0
+
+    def __post_init__(self):
+        # D36: un presupuesto que no es un entero positivo no se corrige en
+        # silencio. Se rechaza al construir, antes de someter ninguna hora:
+        # dentro del trabajador se convertiria en una excepcion por hora.
+        p = self.presupuesto_eval_acoplado
+        if p is not None:
+            if isinstance(p, bool) or int(p) != p or int(p) <= 0:
+                raise ValueError(
+                    f"presupuesto_eval_acoplado={p!r}; tiene que ser un "
+                    f"entero positivo (evaluaciones del integrador) o None "
+                    f"para la constante de modulo")
+            self.presupuesto_eval_acoplado = int(p)
 
 
 @dataclass
@@ -346,9 +388,57 @@ class HourlyResult:
     # mercado porque faltaba un lado. La hora con motivo llega sin P_star ni
     # ids, de modo que la liquidacion la trata como hora sin mercado.
     motivo:     str   = ""
+    # D26: el horizonte con que de verdad se resolvio esta hora por la via
+    # acoplada. Con `horizonte_max_acoplado=None` (defecto) vale siempre
+    # `t_span_acoplado`, porque hay una sola resolucion; con la parada por
+    # estacionario activa, puede ser ese mismo valor doblado una o mas
+    # veces. 0.0 es lo de siempre: via alternada, o sin mercado esa hora.
+    # D36: es el horizonte de la vuelta que se CONSERVO, no el de la ultima
+    # que se intento.
+    horizonte_usado: float = 0.0
+    # D36/D37: por que paro el acoplado en esta hora. "una_vuelta" con la
+    # parada por estacionario apagada (una sola resolucion, la de siempre);
+    # con ella activa, "estacionario", "tope" (llego al horizonte maximo sin
+    # estacionario), "presupuesto" (la vuelta siguiente no cabia en el
+    # presupuesto de evaluaciones) o "fallo_vuelta" (una vuelta no termino
+    # con exito y se conservo la anterior, o fallo la primera y la hora
+    # queda sin mercado con su motivo). Vacio en la via alternada.
+    parada_acoplado: str = ""
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
+
+# D26: umbral de la parada por estacionario del solucionador acoplado. El
+# precio se considera estacionario cuando se mueve menos de esta fraccion de
+# su recorrido total en el ultimo decimo de la trayectoria, la misma medida
+# que el motor ya guarda como `norm_rel_final`. Constante de modulo: la
+# funcion que decide la parada (`_resuelve_acoplado`) la toma como valor por
+# defecto de su argumento `tol_estacionario`, y quien necesite otro valor
+# para una prueba pasa ese argumento, nunca mutando esta constante.
+TOL_ESTACIONARIO = 0.01
+
+# D36: el presupuesto de la parada por estacionario, calibrado el 2026-09-14
+# en la maquina de trabajo sobre la hora mas lenta medida, la 4184 de la
+# frontera M1 con la generacion por siete (`paso_a_paso.carga`, parametros de
+# produccion: rtol = atol = 1e-6, 150 puntos, un solo proceso, una sola
+# resolucion por horizonte):
+#
+#   horizonte 0,05:  141,4 (s)   1 292 398 evaluaciones   34 564 jacobianas
+#   horizonte 0,1:   365,9 (s)   3 310 324 evaluaciones   87 627 jacobianas
+#
+# Doblar el horizonte multiplica el trabajo por 3 310 324 / 1 292 398 = 2,56:
+# es FACTOR_CRECIMIENTO_DOBLEZ, lo que se supone que costara la vuelta
+# siguiente cuando solo hay una vuelta medida. Con dos o mas se usa el
+# cociente medido entre las dos ultimas.
+#
+# La velocidad medida es de unas 9 073 evaluaciones por segundo (4 602 722 en
+# 507,3 (s)), de modo que 5 300 000 evaluaciones son unos 584 (s), el 65 % del
+# plazo por hora de 15 (min) (D24): una hora que agota el presupuesto termina
+# antes de que el plazo la mate, y conserva su ultima vuelta buena. Es un
+# conteo y no un reloj: corta en el mismo sitio en cualquier maquina, aunque
+# los segundos cambien con ella. El plazo por hora queda como red.
+FACTOR_CRECIMIENTO_DOBLEZ = 2.56
+PRESUPUESTO_EVAL_ACOPLADO = 5_300_000
 
 def nucleos_disponibles() -> int:
     """Los nucleos que este proceso PUEDE usar de verdad.
@@ -616,6 +706,138 @@ def _horas_representativas(p2p_results, D, G_klim, max_hours: int = 2):
     return list(dict.fromkeys(horas[:max_hours]))
 
 
+def _trayectoria_finita(tr) -> bool:
+    """D37 (re-revision del arreglo final): cierto si los precios de la
+    trayectoria (`pi_t`) y las cantidades finales (`P_star`) son todos
+    finitos. Una vuelta con `success=True` y un precio no finito daba un
+    recorrido `nan`, que la comprobacion de estacionario contaba como
+    estacionario: la vuelta rota desplazaba a la buena."""
+    for nombre in ("pi_t", "P_star"):
+        v = getattr(tr, nombre, None)
+        if v is None:
+            continue
+        v = np.asarray(v, dtype=float)
+        if v.size and not np.all(np.isfinite(v)):
+            return False
+    return True
+
+
+def _resuelve_acoplado(
+        *, G_net_j, D_net_i, a_j, b_j, lam_j, theta_j, G_klim_i, lam_i,
+        theta_i, etha_i, pi_gs, pi_gb, tau, tau_buyers, n_points,
+        buyer_competition, guarda_tr, t_span_aco, rtol_aco,
+        horizonte_max_aco, tol_estacionario: float = TOL_ESTACIONARIO,
+        presupuesto_eval: Optional[int] = None,
+        factor_crecimiento: float = FACTOR_CRECIMIENTO_DOBLEZ):
+    """Resuelve una hora por la via acoplada (CAL-48), con las dos palancas
+    de la sonda de H-79 (D35, D26).
+
+    `rtol_aco` aprieta la tolerancia relativa del integrador
+    (`solve_coupled_for_hour`); la absoluta no se toca (H-51). Con
+    `horizonte_max_aco=None` hay una sola resolucion con `t_span_aco`,
+    identica a la de antes de D26. Con `horizonte_max_aco` activo, la parada
+    es por estacionario: cada vuelta resuelve DESDE EL ARRANQUE con el
+    horizonte doble (no hace falta arranque en caliente, el resultado es
+    determinista) hasta que el precio se mueva menos de `tol_estacionario`
+    de su recorrido en el ultimo decimo, o hasta pasar `horizonte_max_aco`.
+
+    `tol_estacionario` tiene por defecto la constante de modulo
+    `TOL_ESTACIONARIO`; una prueba que necesite otro umbral pasa este
+    argumento, sin mutar la constante (que seguiria rigiendo cualquier otra
+    hora que se resolviera en el mismo proceso).
+
+    D36, LA VUELTA BUENA Y EL PRESUPUESTO. Con la parada activa, la funcion
+    guarda la ultima vuelta que resolvio bien y suma las evaluaciones del
+    integrador (`nfev`) de cada una. Antes de doblar estima lo que costaria
+    la vuelta siguiente (las evaluaciones de la ultima por un factor de
+    crecimiento: el cociente medido entre las dos ultimas si hay dos, nunca
+    menor que uno; si solo hay una, `factor_crecimiento`) y NO LA EMPIEZA si
+    lo gastado mas lo estimado pasa de `presupuesto_eval` (None: la
+    constante `PRESUPUESTO_EVAL_ACOPLADO`). Asi ninguna hora con mercado
+    llega al plazo por hora (D24) por culpa de D26: el trabajador que el
+    plazo mata no tiene canal para devolver la vuelta que ya tenia.
+
+    D37, LA VUELTA QUE FALLA. Si una vuelta devuelve `success=False`, o una
+    trayectoria con precios o cantidades no finitos (`_trayectoria_finita`),
+    la hora se queda con la ultima vuelta buena. Si fallo la primera no hay
+    ninguna,
+    y se devuelve la trayectoria fallida: el llamador la deja sin mercado,
+    con su motivo. Una EXCEPCION no se atrapa aqui: sube al trabajador, que
+    la anota (C-190) y la corrida la cuenta para su codigo de salida (D38).
+
+    El presupuesto y el factor solo actuan con la parada activa. Con
+    `horizonte_max_aco=None` hay una sola resolucion, identica al bit a la de
+    antes de D26.
+
+    Devuelve `(tr, h, parada, gastado)`: la trayectoria que se conserva
+    (`CoupledTrajectory`), el horizonte de ESA vuelta, para
+    `HourlyResult.horizonte_usado`; por que paro, para
+    `HourlyResult.parada_acoplado`: "una_vuelta" (parada apagada),
+    "estacionario", "tope", "presupuesto" o "fallo_vuelta"; y las
+    evaluaciones del integrador que gasto la hora en TODAS sus vueltas,
+    fallidas incluidas, para que el reintento de H-43 reciba solo lo que
+    queda del presupuesto (re-revision del arreglo final).
+    """
+    h = float(t_span_aco)
+    presupuesto = (PRESUPUESTO_EVAL_ACOPLADO if presupuesto_eval is None
+                   else int(presupuesto_eval))
+    buena = None          # (tr, h) de la ultima vuelta que resolvio bien
+    evals = []            # nfev de cada vuelta buena, en orden
+    gastado = 0
+    while True:
+        tr = solve_coupled_for_hour(
+            G_net_j=G_net_j, D_net_i=D_net_i, a_j=a_j, b_j=b_j,
+            lam_j=lam_j, theta_j=theta_j, G_klim_i=G_klim_i,
+            lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
+            pi_gs=pi_gs, pi_gb=pi_gb, tau_sellers=tau,
+            tau_buyers=tau_buyers, t_span=(0.0, h),
+            n_points=n_points, rtol=rtol_aco,
+            # CAL-49: la via acoplada no recibia la forma del termino de
+            # competencia, de modo que elegirla no la afectaba y las dos
+            # vias podian correr con formas distintas sin avisar.
+            buyer_competition=buyer_competition,
+            # Los multiplicadores dicen QUE RESTRICCION esta mordiendo. Sin
+            # ellos, la figura de convergencia enseña el precio deteniendose
+            # sin poder decir por que se detiene ahi.
+            devuelve_multiplicadores=bool(guarda_tr))
+        n = int(getattr(tr, "nfev", 0) or 0)
+        gastado += n
+        if horizonte_max_aco is None:
+            # La parada apagada: una sola resolucion, la de siempre. Si no
+            # termino con exito, el llamador deja la hora sin mercado.
+            return tr, h, "una_vuelta", gastado
+        if (not bool(getattr(tr, "success", True))
+                or not _trayectoria_finita(tr)):
+            # D37: la vuelta fallida no reemplaza a la buena. Tampoco la que
+            # termino "con exito" con precios o cantidades no finitos: su
+            # recorrido `nan` pasaria por estacionario (re-revision).
+            if buena is None:
+                return tr, h, "fallo_vuelta", gastado
+            return buena[0], buena[1], "fallo_vuelta", gastado
+        evals.append(n)
+        buena = (tr, h)
+        traj = tr.pi_t
+        cola = int(max(1, traj.shape[1] // 10))
+        mov = float(np.max(np.abs(traj[:, -1] - traj[:, -cola])))
+        rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
+        estacionario = ((mov / rec if rec > 1e-12 else 0.0)
+                        <= tol_estacionario)
+        if estacionario:
+            return tr, h, "estacionario", gastado
+        if 2.0 * h > horizonte_max_aco + 1e-12:
+            return tr, h, "tope", gastado
+        # D36: lo que costaria la vuelta siguiente, que no se empieza si no
+        # cabe. El cociente medido nunca baja de uno: doblar el horizonte no
+        # abarata la integracion, y un cociente menor seria ruido.
+        if len(evals) >= 2 and evals[-2] > 0:
+            crece = max(1.0, evals[-1] / evals[-2])
+        else:
+            crece = float(factor_crecimiento)
+        if gastado + evals[-1] * crece > presupuesto:
+            return tr, h, "presupuesto", gastado
+        h *= 2.0
+
+
 def _run_hour_worker(args):
     """
     Resuelve el equilibrio Nash-Stackelberg para una hora k.
@@ -643,12 +865,23 @@ def _run_hour_worker(args):
     # comportamiento por omision quede identico bit a bit.
     if len(args) == 25:
         args = args + (False,)
+    # D35/D26: las dos palancas del acoplado que activa el veredicto de la
+    # sonda de H-79. Apagadas por defecto (1e-6, None) e identicas al bit a
+    # los llamadores que aun no las conocen.
+    if len(args) == 26:
+        args = args + (1e-6, None)
+    # D36: el presupuesto de evaluaciones de la parada por estacionario. None
+    # es la constante de modulo, y solo actua con la parada activa, de modo
+    # que una tupla de 28 campos resuelve igual que antes.
+    if len(args) == 28:
+        args = args + (None,)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
      min_iter, tol, max_iter, ode_method, buyer_competition,
-     metodo, t_span_aco, pi_gb_j, guarda_tr) = args
+     metodo, t_span_aco, pi_gb_j, guarda_tr,
+     rtol_aco, horizonte_max_aco, presupuesto_aco) = args
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -677,31 +910,57 @@ def _run_hour_worker(args):
     # frente al 1,2 % del acoplado. Medido sobre el dato real: el acoplado
     # cuesta 26,3 s por hora en mediana al horizonte que se conserva, es
     # decir 1,4 h de corrida completa con once procesos.
+    # D36 (re-revision): las evaluaciones del integrador que lleva gastadas
+    # esta hora, para que el reintento de H-43 reciba solo lo que queda.
+    gastado_hora = 0
     if metodo == "acoplado":
-        from core.coupled_ode_convergence import solve_coupled_for_hour
         try:
-            tr = solve_coupled_for_hour(
+            tr, h, parada, gastado_hora = _resuelve_acoplado(
                 G_net_j=G_net_j, D_net_i=D_net_i, a_j=a_j, b_j=b_j,
                 lam_j=lam_j, theta_j=theta_j, G_klim_i=G_klim_i,
                 lam_i=lam_i, theta_i=theta_i, etha_i=etha_i,
-                pi_gs=pi_gs, pi_gb=pi_gb, tau_sellers=tau,
-                tau_buyers=tau_buyers, t_span=(0.0, float(t_span_aco)),
-                n_points=n_points,
-                # CAL-49: la via acoplada no recibia la forma del termino de
-                # competencia, de modo que elegirla no la afectaba y las dos
-                # vias podian correr con formas distintas sin avisar.
-                buyer_competition=buyer_competition,
-                # Los multiplicadores dicen QUE RESTRICCION esta mordiendo.
-                # Sin ellos, la figura de convergencia enseña el precio
-                # deteniendose sin poder decir por que se detiene ahi.
-                devuelve_multiplicadores=bool(guarda_tr))
-        except Exception:
+                pi_gs=pi_gs, pi_gb=pi_gb, tau=tau, tau_buyers=tau_buyers,
+                n_points=n_points, buyer_competition=buyer_competition,
+                guarda_tr=guarda_tr, t_span_aco=t_span_aco,
+                rtol_aco=rtol_aco, horizonte_max_aco=horizonte_max_aco,
+                presupuesto_eval=presupuesto_aco)
+        except Exception as e:
+            # Fallar en voz alta (regla principal de CLAUDE.md, fila
+            # "cifras que salen sin error pero son falsas"): antes esta hora
+            # volvia "sin mercado" indistinguible de J=0/I=0 o del guardia
+            # de NaN, sin dejar rastro de que revento. Una hora que falla no
+            # puede tumbar la corrida (5160 horas), pero tampoco puede
+            # quedar muda. `motivo` no vacio hace que la liquidacion y el
+            # almacen la traten como "sin resolver" con su causa, igual que
+            # ya hacen con las horas que vencen el plazo (D24).
+            res.motivo = (f"excepcion del acoplado: "
+                         f"{type(e).__name__}: {e}")[:200]
+            res.horizonte_usado = 0.0
             return res
+        # D36/D37: por que paro el acoplado ("una_vuelta" con la parada
+        # apagada). Se anota tambien en la hora que sale sin mercado.
+        res.parada_acoplado = parada
         # El integrador avisa cuando no logra resolver. Antes de CAL-48 esa
         # bandera no se miraba y la hora entraba igual con lo que el solver
         # tuviera a mano. Se marca como sin mercado, que es lo que ya hace
         # esta funcion con las horas que producen NaN.
-        if not bool(getattr(tr, "success", True)):
+        #
+        # D37: aqui solo llega la PRIMERA vuelta fallida (la unica, con la
+        # parada apagada): si fallo una posterior, `_resuelve_acoplado` ya
+        # devolvio la ultima vuelta buena. Hasta D37 esta hora volvia sin
+        # motivo, indistinguible de una sin vendedores o sin compradores. Los
+        # numeros no cambian, sigue sin mercado; ahora dice por que.
+        #
+        # Re-revision: con la parada activa, una trayectoria no finita cuenta
+        # como vuelta fallida (D37); aqui solo llega si era la primera. Con la
+        # parada apagada no se mira aqui: esa hora sigue por el guardia de NaN
+        # de mas abajo, como siempre, identica al bit.
+        fallida = (not bool(getattr(tr, "success", True))
+                   or (horizonte_max_aco is not None
+                       and not _trayectoria_finita(tr)))
+        if fallida:
+            res.motivo = f"integrador sin exito al horizonte {h:g}"
+            res.horizonte_usado = 0.0
             return res
         P_star = np.asarray(tr.P_star, dtype=float)
         pi_i = np.clip(np.asarray(tr.pi_star, dtype=float), pi_gb, pi_gs)
@@ -715,6 +974,8 @@ def _run_hour_worker(args):
         rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
         iter_count = int(traj.shape[1])
         norm_rel = mov / rec if rec > 1e-12 else 0.0
+        # D26: el horizonte con que de verdad se resolvio esta hora.
+        res.horizonte_usado = h
         if guarda_tr:
             res.tr = tr
     else:
@@ -785,6 +1046,22 @@ def _run_hour_worker(args):
 
         if fuera and len(fuera) < J:
             quedan = [u for u in range(J) if u not in fuera]
+            # D36 (re-revision): el reintento con el conjunto reducido recibe
+            # SOLO lo que queda del presupuesto de la hora, no uno entero. Con
+            # uno entero, una hora que gasto casi todo en el conjunto completo
+            # gastaria dos presupuestos (unos 1168 (s) a la velocidad medida),
+            # el plazo por hora la mataria con las dos soluciones dentro, que
+            # es justo lo que D36 viene a impedir; y la recursion se anida. Con
+            # max(1, ...) la primera vuelta del conjunto reducido corre
+            # siempre: el peor caso es un presupuesto mas una vuelta al
+            # horizonte de produccion. Con la parada apagada, o por la via
+            # alternada, el presupuesto es inerte y pasa tal cual.
+            if metodo == "acoplado" and horizonte_max_aco is not None:
+                total = (PRESUPUESTO_EVAL_ACOPLADO if presupuesto_aco is None
+                         else int(presupuesto_aco))
+                queda = max(1, total - int(gastado_hora))
+            else:
+                queda = presupuesto_aco
             sub = _run_hour_worker(
                 (k, G_klim_k, D_k, G_raw_k,
                  [seller_ids[u] for u in quedan], buyer_ids,
@@ -792,11 +1069,29 @@ def _run_hour_worker(args):
                  pi_gs, float(np.min(piso_v[quedan])),
                  tau, tau_buyers, t_span, n_points,
                  min_iter, tol, max_iter, ode_method, buyer_competition,
-                 metodo, t_span_aco, piso_v[quedan]))
+                 metodo, t_span_aco, piso_v[quedan], False,
+                 # D35/D26: las mismas palancas de esta vuelta, para que el
+                 # conjunto reducido no resuelva con otra tolerancia u otro
+                 # horizonte que el resto de la hora. D36: y solo lo que
+                 # queda del presupuesto de la hora (arriba).
+                 rtol_aco, horizonte_max_aco, queda))
+            # D36: la parada que cuenta es la de la vuelta que produjo el
+            # resultado final (o su falta), la del conjunto reducido.
+            res.parada_acoplado = sub.parada_acoplado
             # Si el conjunto reducido no resuelve, la hora se queda sin
             # mercado, que es lo que esta funcion ya hace con las que no
             # convergen. Mejor sin mercado que con uno que nadie aceptaria.
             if sub.P_star is None:
+                # D26: el horizonte del intento con el conjunto completo,
+                # que la restriccion de participacion descarto, no significa
+                # nada si al final no hay mercado.
+                res.horizonte_usado = 0.0
+                # C-190: si el reintento reventó, su motivo tiene que subir.
+                # Sin esto, `res` (el marco exterior, `motivo=""` de fabrica)
+                # volveria "sin mercado" muda, el mismo fallo mudo que cierra
+                # C-190, solo que un nivel mas arriba.
+                if sub.motivo:
+                    res.motivo = sub.motivo
                 return res
             P_completo = np.zeros((J, I))
             P_completo[quedan, :] = sub.P_star
@@ -804,12 +1099,19 @@ def _run_hour_worker(args):
             pi_i     = sub.pi_star
             iter_count = sub.iters_used
             norm_rel = sub.norm_rel_final
+            # D26: el horizonte que de verdad produjo este resultado es el
+            # de la vuelta anidada, no el del intento con el conjunto
+            # completo que la restriccion de participacion descarto.
+            res.horizonte_usado = sub.horizonte_usado
             # La llamada anidada hace su propia vuelta, de modo que el bucle
             # se cierra solo. Sus retirados se suman a los de esta vuelta.
             res.retirados = ([seller_ids[u] for u in fuera]
                              + list(sub.retirados))
         elif fuera:
-            # Todos a perdida: no hay mercado que valga esa hora.
+            # Todos a perdida: no hay mercado que valga esa hora. Sin
+            # mercado, el horizonte del intento acoplado que la restriccion
+            # de participacion descarto no significa nada (D26).
+            res.horizonte_usado = 0.0
             return res
 
     res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
@@ -943,7 +1245,12 @@ class EMSP2P:
                          # trayectoria con multiplicadores en vez de tirarla.
                          # Opt-in, para que la corrida sin almacen quede
                          # identica bit a bit. Ver C-161.
-                         bool(getattr(sv, "guarda_trayectorias", False))))
+                         bool(getattr(sv, "guarda_trayectorias", False)),
+                         # D35/D26: las dos palancas del acoplado, apagadas
+                         # por defecto (identicas al bit a lo de hoy). D36:
+                         # el presupuesto, que solo actua con la parada.
+                         sv.rtol_acoplado, sv.horizonte_max_acoplado,
+                         getattr(sv, "presupuesto_eval_acoplado", None)))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -1228,4 +1535,7 @@ class EMSP2P:
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,
                                   sv.ode_method, sv.buyer_competition,
                                   sv.metodo, sv.t_span_acoplado, pj,
-                                  bool(devuelve_trayectoria)))
+                                  bool(devuelve_trayectoria),
+                                  sv.rtol_acoplado, sv.horizonte_max_acoplado,
+                                  getattr(sv, "presupuesto_eval_acoplado",
+                                          None)))

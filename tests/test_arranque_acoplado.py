@@ -421,14 +421,27 @@ def test_los_literales_son_la_hora_753_al_bit():
     assert float(np.sum(GN)) < float(np.sum(DN))
 
 
-def test_rapida_el_arranque_de_siempre_desborda_y_d41_lo_corta():
+def test_rapida_el_arranque_de_siempre_le_cuesta_mucho_mas_que_el_factible():
+    # CUANDO desborda el arranque de siempre depende de la maquina, porque la
+    # hora esta mal condicionada (H-84): en la de trabajo (Windows) el corte
+    # de D41 llega antes de este horizonte corto, y en el servidor (Linux) el
+    # mismo tramo termina, con 40 464 evaluaciones frente a las 6 919 del
+    # factible (compuertas del 2026-09-15). Lo que no depende de la maquina es
+    # que al arranque de siempre le cuesta mucho mas recorrer el mismo tramo,
+    # y que si no termina es por el corte de D41.
     with np.errstate(all="ignore"):
         tr = _resuelve("iguales", T_CORTO)
-    print(f"    iguales: {tr.message}   evaluaciones {tr.nfev}")
-    assert tr.success is False
-    assert tr.message.startswith("lado derecho no finito en t=")
-    # Solo el punto inicial: la hora no avanzo hasta el horizonte.
-    assert tr.t.shape == (1,)
+    factible = _resuelve("factible", T_CORTO)
+    assert factible.success, factible.message
+    print(f"    iguales: exito {tr.success}   {tr.message}"
+          f"   evaluaciones {tr.nfev} (factible {factible.nfev})")
+    if tr.success:
+        assert _finita(tr)
+        assert tr.nfev > 3 * factible.nfev, (tr.nfev, factible.nfev)
+    else:
+        assert tr.message.startswith("lado derecho no finito en t=")
+        # Solo el punto inicial: la hora no avanzo hasta el horizonte.
+        assert tr.t.shape == (1,)
 
 
 def test_rapida_el_factible_termina_sin_valores_no_finitos():

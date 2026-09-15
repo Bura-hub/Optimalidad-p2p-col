@@ -502,15 +502,17 @@ SECO=1 bash modelo_base/run_servidor.sh matriz
 
 ### 1 · `compuertas`
 
-Ahora corre además el motor nuevo: diecisiete pruebas de pytest (Anexo 4,
+Ahora corre además el motor nuevo: diecinueve pruebas de pytest (Anexo 4,
 umbrales del escalado, P2P residual del artículo 25, C4 mensual, P2P
 colectivo, C5 de la Resolución 101 099, suma mensual, coincidencia, costos de
 C3, plazo por hora, análisis ligero, cumplimiento de FA-3, el numeral 2 del
 análisis, las dos palancas del acoplado, el oráculo del Anexo 4 con los
 factores uno y siete, el presupuesto de la parada por estacionario con el
-código de salida, D36 a D38, y el piso de P del acoplado, H-84 con D40 a
-D42, cuya prueba lenta tarda unos 3 a 4 (min) en la máquina de trabajo), y
-la compuerta C-165 con 48 horas en vez
+código de salida, D36 a D38, el piso de P del acoplado, H-84 con D40 a
+D42, cuya prueba lenta tarda unos 3 a 4 (min) en la máquina de trabajo, y
+el arranque factible del acoplado con la herramienta que compara los dos
+arranques, H-85 con D45 y D46, cuya prueba lenta tarda unos 4 (min) en la
+máquina de trabajo), y la compuerta C-165 con 48 horas en vez
 de las 72 de su defecto: con 72, la hora rígida del caso sintético vence el
 plazo por hora (H-81).
 
@@ -652,6 +654,83 @@ comprueba el almacén de cada uno de los trece casos y las figuras de E0, y
 que hayan quedado en el fichero comprimido. Y qué palancas activó el paso 2: cambian la tolerancia o el
 horizonte del acoplado de las trece corridas a la vez, de modo que conviene
 saber si se activaron antes de leer ninguna cifra.
+
+## La medición del arranque (H-85, D45 y D46)
+
+Contexto en una frase: la matriz de trece corridas dejó nueve horas sin
+resolver por el arranque del solucionador acoplado (H-85), que reparte la
+oferta de cada vendedor a partes iguales; el arranque factible (la oferta
+repartida en proporción al déficit de cada comprador, opción
+`--arranque-acoplado factible`, apagada por defecto) se mide aquí antes de
+decidir si pasa a ser el defecto y se repite la matriz (D45), y la misma
+campaña mide en cuántas horas el precio por comprador no queda determinado
+y cuánto mueve lo que paga cada uno (D46).
+
+```bash
+SECO=1 bash modelo_base/run_servidor.sh arranque   # antes: imprime las órdenes
+bash modelo_base/run_servidor.sh arranque
+```
+
+Pide `MTE_ROOT`, como `matriz`, y toma `PROCS` del entorno. En orden:
+
+1. un `bash -n` del lanzador, de cortesía. Las compuertas no se repiten: ya
+   pasaron con este código;
+2. cuatro corridas de la semana del 5 al 11 de mayo de 2025
+   (`--desde 2025-05-05 --hasta 2025-05-12`, que contiene la hora 753 de E4):
+   E0 (sin factor) y E4 (`--factor-generacion 7`), cada una con
+   `--arranque-acoplado iguales` y con `--arranque-acoplado factible`, y las
+   opciones de la matriz sin el análisis (`--data real --full --include-c5
+   --no-regulado --metodo acoplado --plazo-hora 15
+   --horizonte-max-acoplado 0.4`). Cada una con su almacén y su `--out-dir`
+   en `SALIDAS_SERVIDOR/arranque/<caso>_<regla>`. **No se detiene por el
+   código 3 de D38**: la semana de E4 con el arranque de hoy lo dará, por la
+   hora 753. La acción imprime el código de cada corrida y, al final, todos
+   juntos;
+3. `reformateo/documento/scripts/sonda/compara_arranque.py` para E0 y para
+   E4: un resumen en su registro (`modelo_base/logs/arranque_compara_<caso>_<fecha>.log`),
+   el CSV hora a hora en `SALIDAS_SERVIDOR/arranque/compara_arranque_<caso>.csv`
+   y el detalle por hora y comprador en `..._<caso>_compradores.csv`. Es
+   una medición, no una compuerta: sale con 0 sea cual sea el resultado;
+4. la recogida (`recoger arranque`), que comprueba los cuatro almacenes y
+   los dos CSV, y que quedaron en el fichero comprimido.
+
+**Qué mirar**, en el resumen de cada comparación (A es el arranque de hoy, B
+el factible):
+
+- **las horas sin resolver de cada arranque**, con su motivo. En E4, con el
+  de hoy, debe salir la hora 753 (en la semana es la hora 9, el 5 de mayo a
+  las 9:00) como «integrador sin exito»; con el factible, ninguna. Si el
+  factible deja horas sin resolver que el de hoy resolvía, eso es un
+  hallazgo;
+- **cuántas horas cambian**: alguna entrega por comprador no coincide (su
+  diferencia pasa de max(1e-4 (kWh), 1e-5 por la mayor de sus dos
+  entregas)) o algún precio por comprador se mueve más de 1e-3 (COP/kWh), o
+  la hora resolvió con un solo arranque; y el máximo y la media de esas
+  diferencias, y el pago de cada comprador con cada arranque sumado sobre
+  las horas que resolvieron los dos (una hora que resolvió uno solo, como
+  la 753 de E4, no entra en esa suma y se lee en el CSV hora a hora);
+- **las horas de precio indeterminado (D46)**: entregas iguales y algún
+  precio distinto, como la hora 4184 de H-85. Para ellas, cuánto se mueve el
+  pago de cada comprador y si la suma de lo que pagan los compradores se
+  conserva (su diferencia no pasa de max(1e-3 (COP/kWh) por la energía de
+  la hora, 1e-5 por la mayor de las dos sumas)).
+
+Por qué la tolerancia de las entregas es combinada: el almacén guarda los
+números en precisión sencilla (float32), y cerca de 20 (kWh) su paso es de
+unos 1,9e-6 (kWh). Con una tolerancia absoluta de 1e-6 (kWh), una hora de
+precio indeterminado podría salir como «entregas_distintas» por un solo
+redondeo; 1e-5 relativo son unas 84 unidades de redondeo y cubre también
+las energías de cientos de kWh de la matriz. La del precio sigue absoluta:
+cerca de 400 (COP/kWh) el paso de float32 es de unos 3e-5. El resumen y la
+primera línea de cada CSV (precedida de «#»; se lee con
+`pd.read_csv(..., comment="#")`) dicen qué tolerancias se usaron, y la
+comparación se repite en casa, en segundos, con otras (`--tol-kwh`,
+`--tol-rel`, `--tol-precio`).
+
+**Tiempo esperado.** Cuatro semanas de mercado, del orden de 5 a 15 (min)
+cada una con 31 procesos (la semana de E4 del censo de H-84 tardó 5 min 56 s
+de mercado con el piso de P), más la comparación, que tarda segundos. Es
+decir, entre veinte minutos y una hora en total.
 
 ---
 

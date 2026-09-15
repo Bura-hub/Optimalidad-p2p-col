@@ -176,6 +176,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
          rtol_acoplado: float = 1e-6, horizonte_max_acoplado: float = 0.0,
          presupuesto_eval_acoplado: int = None,
+         arranque_acoplado: str = "iguales",
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -576,6 +577,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # parada; None es la constante del motor. Sin la
                           # parada activa no actua.
                           presupuesto_eval_acoplado=presupuesto_eval_acoplado,
+                          # H-85 / D45: el arranque del acoplado. "iguales"
+                          # (defecto) es el de siempre, identico al bit.
+                          arranque_acoplado=arranque_acoplado,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -605,6 +609,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   f"horizonte hasta {solver.horizonte_max_acoplado:g}, con "
                   f"un presupuesto de {_pres} evaluaciones del integrador "
                   f"por hora (D36)")
+        if solver.arranque_acoplado == "factible":
+            print("    [D45] Arranque factible del acoplado: la oferta de "
+                  "cada vendedor se reparte en proporcion al deficit de cada "
+                  "comprador, sin que ninguno arranque con mas de lo que "
+                  "necesita (H-85); el defecto reparte a partes iguales, "
+                  "como JoinFinal.m")
     _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
     print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
           f"hora empieza a correr; la vencida queda sin resolver)")
@@ -2364,6 +2374,14 @@ if __name__ == "__main__":
                          "ultima buena. Entero positivo. Sin la bandera, la "
                          "constante calibrada del motor. Solo tiene efecto "
                          "con --horizonte-max-acoplado.")
+    ap.add_argument("--arranque-acoplado", dest="arranque_acoplado",
+                    choices=["iguales", "factible"], default="iguales",
+                    help="H-85/D45: con que oferta arranca el solucionador "
+                         "acoplado. 'iguales' (defecto) reparte a partes "
+                         "iguales, como JoinFinal.m, identico a hoy; "
+                         "'factible' reparte en proporcion al deficit de "
+                         "cada comprador, sin que ninguno arranque con mas "
+                         "de lo que necesita. Solo con --metodo acoplado.")
     ap.add_argument("--competencia", dest="buyer_competition",
                     choices=["aggregate", "matlab", "matrix"],
                     default="aggregate",
@@ -2440,6 +2458,10 @@ if __name__ == "__main__":
         print("    [D36] AVISO: --presupuesto-eval-acoplado no tiene efecto "
               "sin --horizonte-max-acoplado: con la parada apagada hay una "
               "sola resolucion por hora")
+    # H-85 / D45: el arranque solo existe en el acoplado.
+    if args.arranque_acoplado != "iguales" and args.metodo != "acoplado":
+        print("    [D45] AVISO: --arranque-acoplado no tiene efecto sin "
+              "--metodo acoplado: la via alternada no usa ese arranque")
 
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
@@ -2500,6 +2522,7 @@ if __name__ == "__main__":
              rtol_acoplado=args.rtol_acoplado,
              horizonte_max_acoplado=args.horizonte_max_acoplado,
              presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
+             arranque_acoplado=args.arranque_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2523,6 +2546,7 @@ if __name__ == "__main__":
              rtol_acoplado=args.rtol_acoplado,
              horizonte_max_acoplado=args.horizonte_max_acoplado,
              presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
+             arranque_acoplado=args.arranque_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,

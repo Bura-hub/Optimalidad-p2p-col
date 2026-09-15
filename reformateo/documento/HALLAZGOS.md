@@ -7005,4 +7005,31 @@ Con el piso la hora deja de ser una moneda al aire: las once corridas terminan c
 
 Las dos horas problemáticas de la semana se resuelven y el resto no cambia de régimen. Queda repetir la sonda de H-79 con el piso, porque su veredicto (H-83) se midió sin él, antes de la matriz.
 
+---
+
+## H-85 · Las nueve horas sin resolver de la matriz: el arranque reparte a partes iguales y desborda el multiplicador de demanda
+
+**Estado: registrado el 2026-09-15, tras la matriz de trece corridas (entrega en `SALIDAS_SERVIDOR/entrega_matriz_2026-09-15/`).**
+
+La matriz terminó sus trece casos con el código 0 de D38, sin horas vencidas ni excepciones, pero con nueve horas «sin éxito del integrador» (D37), todas entre las 9:00 y las 15:00 y todas con el motivo «integrador sin exito al horizonte 0.05», es decir en la primera vuelta:
+
+| Caso | Hora | Fecha |
+|---|---|---|
+| E1 | 1139 | 2025-05-21 11:00 |
+| E2 | 993 | 2025-05-15 9:00 |
+| E3 | 1017 y 5557 | 2025-05-16 9:00 y 2025-11-21 13:00 |
+| E4 | 753 | 2025-05-05 9:00 |
+| E5 | 1671 | 2025-06-12 15:00 |
+| P2 | 3081 | 2025-08-10 9:00 |
+| I1 | 923 | 2025-05-12 11:00 |
+| CV2 | 3081 | 2025-08-10 9:00 |
+
+Son como mucho el 0,14 % de las horas de mercado de un caso. El almacén no guarda el mensaje del integrador, de modo que el motivo no distingue el corte de D41 de un fallo de LSODA.
+
+**La hora 753 de E4, resuelta aislada en la máquina de trabajo** (`outputs/run_2026-09-15_diag_E4_h753.log`, `..._arranque_E4_h753.log`), también falla: «lado derecho no finito en t=7.191737e-06» en la evaluación 15 144. No es el mecanismo de H-84 (la oferta P ya tiene su piso), y no es una moneda al aire: falla igual en las dos máquinas. **El arranque** reparte la oferta de cada vendedor a partes iguales entre los compradores, de modo que el comprador 1, con un déficit de 1,90 (kWh), recibe 10,45 al empezar, 5,5 veces lo que necesita. Su multiplicador de demanda crece en proporción a sí mismo, a una tasa del orden de 10 · 10⁶ · (10,45 − 1,90) ≈ 8,5e7 por segundo, y desborda el mayor número de coma flotante (unos e⁷⁰⁹) hacia t ≈ 8e-6, antes de que la fuerza que corrige la asignación, que pasa por un filtro de unos 1e-4 (s), alcance a actuar. La hora 1017 de E3, en cambio, termina bien en la máquina de trabajo (404 560 evaluaciones) y falló en el servidor: esa sigue siendo del tipo de H-84, en el borde.
+
+**Un arranque factible lo resuelve** (probado en una copia en memoria del acoplado, sin tocar el motor): repartir la oferta en proporción al déficit de cada comprador, de modo que ningún comprador arranca con más de lo que necesita y ningún vendedor ofrece más de lo que tiene. En la hora 753 la integración termina (1 579 181 evaluaciones), con precios 412,95 y 318,18 (COP/kWh) y entregas 1,8985 y 18,9987 (kWh), justo por debajo de los déficits. En la hora 4184, de control, las entregas son las mismas al cuarto decimal.
+
+**Y deja ver algo más: el equilibrio no fija el reparto del precio entre dos compradores.** En la hora 4184, el arranque de hoy da precios 711,134 · 456,569 · 254,566 y el arranque factible 711,134 · 456,978 · 254,157 (COP/kWh), con las mismas entregas: dos precios se mueven ±0,41 y su suma no cambia (711,135 en los dos). Es decir, en esa hora hay una dirección en la que el equilibrio no está determinado, y el arranque elige un punto de ella. Lo que el comprador paga por la misma energía depende entonces de dónde arranca la dinámica; queda por medir en cuántas horas pasa y cuánto mueve, antes de reportar precios por comprador.
+
 **El arreglo quedó en el motor (C-192, 2026-09-14; D40, D41 y D42).** El lado derecho del acoplado (`core/coupled_ode_convergence.py`, `_rhs`) lee P con el piso de 1e-10, la misma línea del experimento. La integración se corta en el primer valor no finito del lado derecho, en vez de seguir millones de evaluaciones sin avanzar, y la hora sigue el camino de D37: sin mercado con el motivo «integrador sin exito al horizonte <h>» o, con la parada activa, con la vuelta anterior buena. La vía alternada no se toca. Con el motor, y ya no con la copia en memoria, la hora 4184 al horizonte de producción da en la máquina de trabajo el mismo equilibrio del experimento (precio 711,134 · 456,569 · 254,566; entregas 0,1218 · 9,638 · 13,5585 (kWh)) con las mismas 1 155 804 evaluaciones, y ningún comprador recibe más que su déficit. `tests/test_piso_P.py`, que entra en `compuertas`, lo fija con las entradas de la hora como literales exactos: sin el piso, tres de las cuatro perturbaciones de un ulp de su prueba rápida explotan hacia t ≈ 1,06e-4 y la prueba falla. El piso mueve también el transitorio: al horizonte corto de 0,002 el precio de la base pasa de 534,356 a 534,436 (COP/kWh) en el primer comprador; el equilibrio no cambia. Queda por medir, con el piso y el entorno igualado: la hora 4184 aislada y la sonda de H-79 en el servidor, y el censo de la semana de E4 (22 al 28 de septiembre). Esa semana ya no se lee solo con las horas vencidas, que D41 hace bajar por construcción (la hora que explota se corta en vez de vencer): se lee también con `[D37]`, las horas sin mercado porque la primera vuelta del integrador no terminó con éxito, y con «fallo_vuelta» de `[D26]`, las que conservaron una vuelta anterior. Por D44 (decisión del autor, 2026-09-14), las horas sin éxito cuentan para el umbral del 1 % de D38 junto con las vencidas. Tampoco está medido cuánto se mueven con el piso las demás horas del horizonte, de modo que ninguna cifra anterior del acoplado se compara con una nueva sin decirlo.

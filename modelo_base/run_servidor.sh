@@ -31,8 +31,12 @@
 #   bash modelo_base/run_servidor.sh matriz             <- D18/D24/D27, las 13 corridas
 #   DESDE=P1 bash modelo_base/run_servidor.sh matriz    <- retoma desde ese caso
 #
+#   --- el arranque del acoplado (2026-09-15): H-85, D45 y D46 -------------
+#   bash modelo_base/run_servidor.sh arranque           <- E0 y E4, una semana, los dos arranques
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
+#   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
 # muestra en horas. `todo` toma solo el tamano y recorre las dos fronteras.
@@ -55,7 +59,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -113,6 +117,15 @@ CASOS_MATRIZ=(
   "SINU:--excluir-agente Udenar"
 )
 
+# H-85, D45 y D46 (2026-09-15): los dos casos de la accion `arranque`, cada
+# uno corrido con los dos arranques del acoplado. Viven aqui por la misma
+# razon que CASOS_MATRIZ: `recoger` los necesita para saber que esperar.
+CASOS_ARRANQUE=(
+  "E0:"
+  "E4:--factor-generacion 7"
+)
+REGLAS_ARRANQUE=(iguales factible)
+
 # Interprete: preferir el del entorno virtual si existe, luego python3.
 if [[ -x .venv/bin/python ]]; then
   PY=".venv/bin/python"
@@ -161,6 +174,11 @@ export MKL_NUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 
+# H-85 (2026-09-15): el codigo de salida de la ultima orden de corre(), para
+# quien lo quiera imprimir aunque corre() devuelva cero (PARA_EN_FALLO=0).
+# En seco vale «seco»: no se ejecuto nada.
+CODIGO_CORRE=""
+
 # Corre una sonda con su log fechado y avisa del codigo de salida. No usa
 # tuberias: una tuberia retiene la salida y el log se queda vacio hasta el
 # final, que es justo lo que no se quiere en una corrida larga.
@@ -176,6 +194,7 @@ corre() {
     printf '  -> %s   [SECO] %s -u -W ignore' "$nombre" "$PY"
     printf ' %q' "$@"
     printf '\n'
+    CODIGO_CORRE="seco"
     return 0
   fi
 
@@ -185,6 +204,7 @@ corre() {
   # -u: sin bufer (regla principal de CLAUDE.md, H-80). Si se detiene una
   # corrida larga a mitad, el log ya tiene lo que alcanzo a escribir.
   "$PY" -u -W ignore "$@" > "$log" 2>&1 || codigo=$?
+  CODIGO_CORRE="$codigo"
 
   # Un codigo de salida cero no basta para dar una compuerta por buena. Si
   # pytest salta todas sus pruebas, porque falta el fichero de referencia,
@@ -282,7 +302,8 @@ case "$ACCION" in
              test_mensual_suma_total test_coincidencia test_c3_costos_mem \
              test_plazo_por_hora test_analisis_ligero test_fa3_cumplimiento \
              test_analysis_numeral2 test_palancas_acoplado \
-             test_oraculo_anexo4 test_presupuesto_acoplado test_piso_P; do
+             test_oraculo_anexo4 test_presupuesto_acoplado test_piso_P \
+             test_arranque_acoplado test_compara_arranque; do
       corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
     echo
@@ -907,6 +928,89 @@ print(" ".join(sorted(palancas)))
     echo "  se retoma desde ese caso con:  DESDE=<caso> bash $0 matriz"
     ;;
 
+  arranque)
+    # H-85, D45 y D46 (2026-09-15). La matriz dejo nueve horas sin resolver
+    # por el arranque del acoplado; el arranque factible es una opcion
+    # apagada por defecto (--arranque-acoplado factible) y se mide aqui antes
+    # de decidir si pasa a ser el defecto y se repite la matriz (D45). La
+    # misma campana mide en cuantas horas el precio por comprador no queda
+    # determinado (D46). Una semana, la del 5 al 11 de mayo de 2025, que
+    # contiene la hora 753 de E4; E0 y E4, cada uno con los dos arranques.
+    #
+    # Las compuertas NO se repiten: ya pasaron con este codigo. Las corridas
+    # NO se detienen por el codigo 3 de D38 (la semana de E4 con el arranque
+    # de hoy lo dara, por la hora 753): PARA_EN_FALLO=0 y se imprime el
+    # codigo de cada una.
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    ARR="SALIDAS_SERVIDOR/arranque"
+
+    echo "=== ARRANQUE DEL ACOPLADO (H-85; D45 y D46) ==="
+    echo "    semana del 2025-05-05 al 2025-05-11 (contiene la hora 753 de E4)"
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $ARR"
+    echo
+
+    echo "--- 1/4 · la sintaxis del lanzador (las compuertas no se repiten)"
+    if bash -n "$0"; then
+      echo "     ok"
+    else
+      echo "     FALLA: el lanzador tiene un error de sintaxis"
+      exit 2
+    fi
+
+    echo
+    echo "--- 2/4 · las cuatro corridas de la semana"
+    CODIGOS=()
+    for par in "${CASOS_ARRANQUE[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      for REGLA in "${REGLAS_ARRANQUE[@]}"; do
+        DIR="$ARR/${CASO}_${REGLA}"
+        ALM="$DIR/almacen"
+        crea_dir "$ALM"
+        echo
+        echo "  --- $CASO con el arranque $REGLA  ->  $DIR"
+        PARA_EN_FALLO=0 corre "arranque_${CASO}_${REGLA}" main_simulation.py \
+              --data real --full --desde 2025-05-05 --hasta 2025-05-12 \
+              --include-c5 --no-regulado \
+              --metodo acoplado --plazo-hora 15 \
+              --horizonte-max-acoplado 0.4 \
+              --arranque-acoplado "$REGLA" \
+              --almacen "$ALM" \
+              ${EXTRA:+$EXTRA} --out-dir "$DIR"
+        echo "     codigo de salida de ${CASO} con ${REGLA}: $CODIGO_CORRE"
+        CODIGOS+=("${CASO}_${REGLA}=${CODIGO_CORRE}")
+      done
+    done
+
+    echo
+    echo "--- 3/4 · la comparacion de los dos arranques, E0 y E4"
+    for par in "${CASOS_ARRANQUE[@]}"; do
+      CASO="${par%%:*}"
+      PARA_EN_FALLO=0 corre "arranque_compara_${CASO}" \
+            "$SONDA/compara_arranque.py" \
+            "$ARR/${CASO}_iguales/almacen" "$ARR/${CASO}_factible/almacen" \
+            --cobertura m1 --etiqueta "$CASO" --salida "$ARR"
+      echo "     codigo de salida de la comparacion de ${CASO}: $CODIGO_CORRE"
+      CODIGOS+=("compara_${CASO}=${CODIGO_CORRE}")
+    done
+
+    echo
+    echo "--- 4/4 · la recogida"
+    bash "$0" recoger arranque
+    echo
+    echo "=== ARRANQUE COMPLETO ==="
+    echo "  codigos de salida: ${CODIGOS[*]}"
+    echo "  El 3 de D38 en E4 con el arranque iguales es lo esperado (hora 753)."
+    echo "  Mira en los registros arranque_compara_<caso>_<fecha>.log las horas"
+    echo "  sin resolver de cada arranque, cuantas cambian y las de precio"
+    echo "  indeterminado (D46)."
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -960,14 +1064,27 @@ print(" ".join(sorted(palancas)))
       oficial)
         ESPERADOS=(SALIDAS_SERVIDOR/almacen SALIDAS_SERVIDOR/figuras_foro)
         ;;
+      arranque)
+        # H-85: el almacen de cada caso con cada arranque, y el CSV hora a
+        # hora de la comparacion de cada caso (un fichero, no una carpeta).
+        for par in "${CASOS_ARRANQUE[@]}"; do
+          for REGLA in "${REGLAS_ARRANQUE[@]}"; do
+            ESPERADOS+=("SALIDAS_SERVIDOR/arranque/${par%%:*}_${REGLA}/almacen")
+          done
+          ESPERADOS+=("SALIDAS_SERVIDOR/arranque/compara_arranque_${par%%:*}.csv")
+        done
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz u oficial"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial o arranque"
         exit 2
         ;;
     esac
     echo "  recogiendo la corrida: $DE"
+    # H-85: -e y no -d, porque `arranque` espera tambien ficheros (los CSV
+    # de la comparacion); para las carpetas de `matriz` y `oficial` es lo
+    # mismo.
     for esperado in "${ESPERADOS[@]}"; do
-      if [[ -d "$esperado" ]]; then
+      if [[ -e "$esperado" ]]; then
         echo "    esta: $esperado"
       else
         echo "  AVISO: no esta $esperado"
@@ -995,9 +1112,13 @@ print(" ".join(sorted(palancas)))
     # del bufer, y el `!` convertiria eso en un aviso falso (re-revision).
     echo "  $(wc -l <<<"$LISTA") ficheros"
     # Lo que estaba en disco tiene que haber llegado al tar.
+    # Una carpeta aparece en la lista como «ruta/» y un fichero como «ruta»
+    # a secas: se aceptan las dos formas (H-85, los CSV de `arranque`).
+    # Los puntos de la ruta van como «[.]», para que no casen con cualquier
+    # caracter en la expresion regular.
     for esperado in "${ESPERADOS[@]}"; do
-      [[ -d "$esperado" ]] || continue
-      if ! grep -q "^${esperado}/" <<<"$LISTA"; then
+      [[ -e "$esperado" ]] || continue
+      if ! grep -qE "^${esperado//./[.]}(/|\$)" <<<"$LISTA"; then
         echo "  AVISO: $esperado esta en disco pero NO en el tar"
       fi
     done

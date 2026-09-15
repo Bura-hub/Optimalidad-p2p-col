@@ -128,6 +128,73 @@ class CoupledTrajectory:
     njev:       int = 0
 
 
+# H-85 / D45: las reglas con que arranca la oferta P del acoplado. La primera
+# es el defecto y es la de siempre.
+ARRANQUES = ("iguales", "factible")
+
+
+def _arranque_P0(G_net_j, D_net_i, regla: str = "iguales") -> np.ndarray:
+    """La oferta P (J, I) con que arranca el acoplado (H-85, D45).
+
+    "iguales" es el arranque de siempre, identico al bit: si la oferta cubre
+    la demanda (sum_G >= sum_D), cada comprador recibe su deficit repartido a
+    partes iguales entre los J vendedores; si no, cada vendedor reparte su
+    excedente a partes iguales entre los I compradores. Asi arranca
+    `JoinFinal.m`, y un comprador de deficit pequeno puede arrancar con
+    varias veces lo que necesita: en la hora 753 de E4 (generacion por siete)
+    el comprador 1, con un deficit de 1,90 (kWh), recibe 10,45 al empezar; su
+    multiplicador de demanda crece en proporcion a si mismo y desborda el
+    mayor numero de coma flotante hacia t = 7,2e-6, antes de que la
+    correccion alcance a actuar (H-85).
+
+    "factible" reparte en proporcion al lado corto:
+      - si sum_G >= sum_D, P0 = outer(G_net_j / sum_G, D_net_i): la columna
+        de cada comprador suma exactamente su deficit, y la fila de cada
+        vendedor suma G_net_j · sum_D / sum_G <= G_net_j;
+      - si no, P0 = outer(G_net_j, D_net_i / sum_D): la fila de cada vendedor
+        suma exactamente su excedente, y la columna de cada comprador suma
+        D_net_i · sum_G / sum_D <= D_net_i.
+    Es decir, ningun comprador arranca con mas de lo que necesita y ningun
+    vendedor ofrece mas de lo que tiene: el arranque cumple las dos
+    restricciones de capacidad del juego, y los multiplicadores no nacen
+    empujando.
+
+    Las dos terminan con el mismo recorte a 1e-10 de siempre (el piso de P
+    del lado derecho, D40, es el mismo).
+
+    Aviso de fidelidad: `JoinFinal.m` reparte a partes iguales; el arranque
+    factible es una extension de esta traduccion, opcional y apagada por
+    defecto hasta medirla (D45).
+    """
+    G_net_j = np.asarray(G_net_j, dtype=float)
+    D_net_i = np.asarray(D_net_i, dtype=float)
+    J = len(G_net_j)
+    I = len(D_net_i)
+    sum_G = float(np.sum(G_net_j))
+    sum_D = float(np.sum(D_net_i))
+    if regla == "iguales":
+        if sum_G >= sum_D:
+            P0 = np.tile(D_net_i / J, (J, 1))
+        else:
+            P0 = np.tile(G_net_j / I, (I, 1)).T
+    elif regla == "factible":
+        # El reparto divide por el lado largo o por el corto; con una suma
+        # que no es positiva no hay mercado, y el llamador ya lo trata como
+        # caso degenerado antes de arrancar. Aqui se falla en voz alta en vez
+        # de devolver un NaN.
+        if not (sum_G > 0.0 and sum_D > 0.0):
+            raise ValueError(f"arranque factible sin oferta o sin demanda: "
+                             f"sum_G={sum_G!r}, sum_D={sum_D!r}")
+        if sum_G >= sum_D:
+            P0 = np.outer(G_net_j / sum_G, D_net_i)
+        else:
+            P0 = np.outer(G_net_j, D_net_i / sum_D)
+    else:
+        raise ValueError(f"arranque={regla!r}; use 'iguales' (el de siempre, "
+                         "como JoinFinal.m) o 'factible' (H-85, D45)")
+    return np.clip(P0, 1e-10, None)
+
+
 def solve_coupled_for_hour(
     G_net_j:     np.ndarray,
     D_net_i:     np.ndarray,
@@ -170,6 +237,9 @@ def solve_coupled_for_hour(
     buyer_competition: str = "aggregate",
     devuelve_multiplicadores: bool = False,
     peso_virtual: str = "barrera",
+    # H-85 / D45: la regla del arranque de la oferta P (`_arranque_P0`).
+    # "iguales" (defecto) es el de siempre, identico al bit.
+    arranque:    str = "iguales",
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -193,6 +263,12 @@ def solve_coupled_for_hour(
                producto de barrera a las I+1 estrategias; "precio" reproduce
                el fichero original, donde el jugador virtual entra con su
                propio precio. Opt-in, para medir sin mover el defecto.
+    arranque : con que oferta P arranca la integracion (H-85, D45).
+               "iguales" (defecto) reparte a partes iguales, como
+               JoinFinal.m, identico al bit al historico; "factible" reparte
+               en proporcion al lado corto, de modo que ningun comprador
+               arranca con mas de su deficit ni ningun vendedor con mas de su
+               excedente. Ver `_arranque_P0`.
     pi_gb    : COP/kWh, precio compra a la red (limite inferior π)
     tau_sellers : tau filtro Lagrange (matching JoinFinal.m linea 132)
     tau_buyers  : tau3 filtro buyer (matching JoinFinal.m linea 133)
@@ -221,6 +297,12 @@ def solve_coupled_for_hour(
     lam_i    = np.asarray(lam_i,    dtype=float)
     theta_i  = np.asarray(theta_i,  dtype=float)
     etha_i   = np.asarray(etha_i,   dtype=float)
+
+    # H-85 / D45: una regla desconocida se rechaza antes de nada, tambien en
+    # la hora sin mercado, que vuelve antes de arrancar.
+    if arranque not in ARRANQUES:
+        raise ValueError(f"arranque={arranque!r}; use 'iguales' (el de "
+                         "siempre, como JoinFinal.m) o 'factible' (H-85, D45)")
 
     J = len(G_net_j)
     I = len(D_net_i)
@@ -315,11 +397,12 @@ def solve_coupled_for_hour(
     gamma_0  = 0.1 * np.ones(J)
     y_filt_0 = np.ones(J)
 
-    if sum_G >= sum_D:
-        P0 = np.tile(D_net_i / J, (J, 1))
-    else:
-        P0 = np.tile(G_net_j / I, (I, 1)).T
-    P0 = np.clip(P0, 1e-10, None)
+    # H-85 / D45: la oferta inicial. Con "iguales" es exactamente el reparto
+    # de JoinFinal.m de siempre, al bit; con "factible", el reparto en
+    # proporcion al lado corto: las sumas por columna no pasan del deficit
+    # de cada comprador y las sumas por fila no pasan del excedente de cada
+    # vendedor. Las dos llevan el recorte a 1e-10 de siempre.
+    P0 = _arranque_P0(G_net_j, D_net_i, arranque)
 
     lam_ub_0   = 0.1 * np.ones(J)
     bet_ub_0   = 0.1 * np.ones(I)

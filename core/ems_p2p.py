@@ -56,7 +56,7 @@ from .dr_program         import run_dr_program, compute_price_signal
 # modo que un modulo ausente o viejo se convertia en un motivo por hora
 # («excepcion del acoplado: ImportError...») en cada hora con mercado, en vez
 # de tumbar la corrida en voz alta al arrancar.
-from .coupled_ode_convergence import solve_coupled_for_hour
+from .coupled_ode_convergence import ARRANQUES, solve_coupled_for_hour
 
 # ── Barra de progreso ─────────────────────────────────────────────────────────
 # Usa tqdm si está instalado; si no, implementación propia sin dependencias.
@@ -267,6 +267,15 @@ class SolverParams:
     # parada activa: con `horizonte_max_acoplado=None` hay una sola
     # resolucion, identica al bit a la de antes.
     presupuesto_eval_acoplado: Optional[int] = None
+    # H-85 / D45: con que oferta arranca el acoplado. "iguales" (defecto) es
+    # el arranque de siempre, identico al bit: reparte a partes iguales, como
+    # JoinFinal.m. "factible" reparte en proporcion al lado corto, de modo
+    # que ningun comprador arranca con mas de su deficit ni ningun vendedor
+    # con mas de su excedente; resuelve la hora 753 de E4, que con el de
+    # siempre desborda el multiplicador de demanda. Apagado hasta medirlo en
+    # el servidor con los dos arranques sobre la misma semana (D45, D46).
+    # Solo actua por la via acoplada.
+    arranque_acoplado: str = "iguales"
     # C-161: si se pide, cada hora conserva su trayectoria con los
     # multiplicadores en vez de tirarla. Es lo que llena el almacen y lo que
     # permite dibujar la convergencia de cualquier hora sin volver a simular.
@@ -292,6 +301,13 @@ class SolverParams:
                     f"entero positivo (evaluaciones del integrador) o None "
                     f"para la constante de modulo")
             self.presupuesto_eval_acoplado = int(p)
+        # H-85 / D45: una regla de arranque desconocida se rechaza al
+        # construir, no dentro del trabajador (seria una excepcion por hora).
+        if self.arranque_acoplado not in ARRANQUES:
+            raise ValueError(
+                f"arranque_acoplado={self.arranque_acoplado!r}; use "
+                f"'iguales' (el de siempre, como JoinFinal.m) o 'factible' "
+                f"(H-85, D45)")
 
 
 @dataclass
@@ -728,7 +744,8 @@ def _resuelve_acoplado(
         buyer_competition, guarda_tr, t_span_aco, rtol_aco,
         horizonte_max_aco, tol_estacionario: float = TOL_ESTACIONARIO,
         presupuesto_eval: Optional[int] = None,
-        factor_crecimiento: float = FACTOR_CRECIMIENTO_DOBLEZ):
+        factor_crecimiento: float = FACTOR_CRECIMIENTO_DOBLEZ,
+        arranque: str = "iguales"):
     """Resuelve una hora por la via acoplada (CAL-48), con las dos palancas
     de la sonda de H-79 (D35, D26).
 
@@ -769,6 +786,10 @@ def _resuelve_acoplado(
     `horizonte_max_aco=None` hay una sola resolucion, identica al bit a la de
     antes de D26.
 
+    `arranque` (H-85, D45) es la regla de la oferta inicial del acoplado, la
+    misma en todas las vueltas: "iguales" (defecto, el de siempre) o
+    "factible".
+
     Devuelve `(tr, h, parada, gastado)`: la trayectoria que se conserva
     (`CoupledTrajectory`), el horizonte de ESA vuelta, para
     `HourlyResult.horizonte_usado`; por que paro, para
@@ -799,7 +820,9 @@ def _resuelve_acoplado(
             # Los multiplicadores dicen QUE RESTRICCION esta mordiendo. Sin
             # ellos, la figura de convergencia enseña el precio deteniendose
             # sin poder decir por que se detiene ahi.
-            devuelve_multiplicadores=bool(guarda_tr))
+            devuelve_multiplicadores=bool(guarda_tr),
+            # H-85 / D45: la regla del arranque; "iguales" es el de siempre.
+            arranque=arranque)
         n = int(getattr(tr, "nfev", 0) or 0)
         gastado += n
         if horizonte_max_aco is None:
@@ -875,13 +898,24 @@ def _run_hour_worker(args):
     # que una tupla de 28 campos resuelve igual que antes.
     if len(args) == 28:
         args = args + (None,)
+    # H-85 / D45: la regla del arranque del acoplado. "iguales" es el de
+    # siempre, de modo que una tupla de 29 campos resuelve igual que antes.
+    if len(args) == 29:
+        args = args + ("iguales",)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
      min_iter, tol, max_iter, ode_method, buyer_competition,
      metodo, t_span_aco, pi_gb_j, guarda_tr,
-     rtol_aco, horizonte_max_aco, presupuesto_aco) = args
+     rtol_aco, horizonte_max_aco, presupuesto_aco, arranque_aco) = args
+    # H-85 / D45: una regla desconocida falla en voz alta en todas las horas,
+    # tambien en las que no tienen mercado, y no como excepcion del acoplado
+    # por hora (C-190). `SolverParams` ya la valida; esto cubre la tupla
+    # armada a mano.
+    if arranque_aco not in ARRANQUES:
+        raise ValueError(f"arranque del acoplado {arranque_aco!r}; use "
+                         f"'iguales' o 'factible' (H-85, D45)")
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -923,7 +957,9 @@ def _run_hour_worker(args):
                 n_points=n_points, buyer_competition=buyer_competition,
                 guarda_tr=guarda_tr, t_span_aco=t_span_aco,
                 rtol_aco=rtol_aco, horizonte_max_aco=horizonte_max_aco,
-                presupuesto_eval=presupuesto_aco)
+                presupuesto_eval=presupuesto_aco,
+                # H-85 / D45: la regla del arranque de la oferta.
+                arranque=arranque_aco)
         except Exception as e:
             # Fallar en voz alta (regla principal de CLAUDE.md, fila
             # "cifras que salen sin error pero son falsas"): antes esta hora
@@ -1074,7 +1110,9 @@ def _run_hour_worker(args):
                  # conjunto reducido no resuelva con otra tolerancia u otro
                  # horizonte que el resto de la hora. D36: y solo lo que
                  # queda del presupuesto de la hora (arriba).
-                 rtol_aco, horizonte_max_aco, queda))
+                 rtol_aco, horizonte_max_aco, queda,
+                 # H-85 / D45: el mismo arranque que el conjunto completo.
+                 arranque_aco))
             # D36: la parada que cuenta es la de la vuelta que produjo el
             # resultado final (o su falta), la del conjunto reducido.
             res.parada_acoplado = sub.parada_acoplado
@@ -1250,7 +1288,10 @@ class EMSP2P:
                          # por defecto (identicas al bit a lo de hoy). D36:
                          # el presupuesto, que solo actua con la parada.
                          sv.rtol_acoplado, sv.horizonte_max_acoplado,
-                         getattr(sv, "presupuesto_eval_acoplado", None)))
+                         getattr(sv, "presupuesto_eval_acoplado", None),
+                         # H-85 / D45: el arranque del acoplado; "iguales"
+                         # (defecto) es el de siempre, identico al bit.
+                         getattr(sv, "arranque_acoplado", "iguales")))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -1538,4 +1579,7 @@ class EMSP2P:
                                   bool(devuelve_trayectoria),
                                   sv.rtol_acoplado, sv.horizonte_max_acoplado,
                                   getattr(sv, "presupuesto_eval_acoplado",
-                                          None)))
+                                          None),
+                                  # H-85 / D45: el arranque del acoplado.
+                                  getattr(sv, "arranque_acoplado",
+                                          "iguales")))

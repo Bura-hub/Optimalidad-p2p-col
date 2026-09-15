@@ -83,9 +83,15 @@ def _procesos_pedidos(args):
 
 
 def cuenta_para_salida(p2p_results) -> tuple:
-    """Los tres conteos de D38, sacados de las horas del mercado.
+    """Los cuatro conteos de D38, sacados de las horas del mercado.
 
-    Devuelve `(n_horas_mercado, n_vencidas, n_excepciones)`.
+    Devuelve `(n_horas_mercado, n_vencidas, n_excepciones, n_sin_exito)`.
+
+    D44 (2026-09-14): `n_sin_exito` cuenta las horas cuyo motivo empieza por
+    «integrador sin exito» (D37). Con el corte de D41 (C-192), una hora del
+    acoplado que explota ya no vence el plazo: se corta en seguida y queda sin
+    mercado con ese motivo. Sin contarla, la hora que antes detenia la matriz
+    como vencida dejaria de detenerla.
 
     EL DENOMINADOR. Las T horas del horizonte pasan todas por
     `_run_hour_worker`, pero la que no tiene vendedores y compradores a la vez
@@ -100,7 +106,7 @@ def cuenta_para_salida(p2p_results) -> tuple:
     cada cinco horas tiene mercado (1126 horas activas en la frontera
     principal, H-52).
     """
-    n_mercado = n_vencidas = n_excepciones = 0
+    n_mercado = n_vencidas = n_excepciones = n_sin_exito = 0
     for r in p2p_results:
         motivo = getattr(r, "motivo", "") or ""
         if motivo or (r.seller_ids and r.buyer_ids):
@@ -109,23 +115,35 @@ def cuenta_para_salida(p2p_results) -> tuple:
             n_vencidas += 1
         elif motivo.startswith("excepcion"):
             n_excepciones += 1
-    return n_mercado, n_vencidas, n_excepciones
+        elif motivo.startswith("integrador sin exito"):
+            n_sin_exito += 1
+    return n_mercado, n_vencidas, n_excepciones, n_sin_exito
 
 
 def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
-                     n_excepciones: int,
-                     umbral_vencidas: float = 0.01) -> int:
+                     n_excepciones: int, n_sin_exito: int,
+                     umbral: float = 0.01) -> int:
     """D38: el codigo con que sale la corrida, 0 o 3.
 
-    3 si hubo ALGUNA hora con excepcion (C-190), o si las horas vencidas por
-    el plazo (D24) pasan de `umbral_vencidas` de las horas de mercado (el
-    denominador de `cuenta_para_salida`). 0 en otro caso.
+    3 si hubo ALGUNA hora con excepcion (C-190), o si las horas perdidas pasan
+    de `umbral` de las horas de mercado (el denominador de
+    `cuenta_para_salida`). 0 en otro caso.
+
+    D44 (2026-09-14): las horas perdidas son la SUMA de las vencidas por el
+    plazo (D24) y las que quedaron sin exito del integrador (D37). Con el
+    corte de D41, la hora que explota ya no vence: se corta y queda sin
+    exito, y tiene que seguir contando. El umbral se aplica a la suma, de
+    modo que dos cantidades que por separado no lo pasan pueden pasarlo
+    juntas. Las excepciones siguen deteniendo con una sola. `n_sin_exito` es
+    obligatorio a proposito: una llamada con la cuenta de antes de D44 falla
+    en voz alta en vez de contar de menos.
 
     LA FRONTERA. «Mas del 1 %» es estricto: justo el 1 % sale con 0 (una de
     cien, diez de mil); una hora mas, con 3. Se compara el cociente
-    `n_vencidas / n_horas_mercado` con el umbral, y no el producto
-    `umbral * n`, porque el cociente de dos enteros que vale exactamente 1/100
-    se redondea al mismo doble que el literal 0.01, y la frontera queda exacta.
+    `(n_vencidas + n_sin_exito) / n_horas_mercado` con el umbral, y no el
+    producto `umbral * n`, porque el cociente de dos enteros que vale
+    exactamente 1/100 se redondea al mismo doble que el literal 0.01, y la
+    frontera queda exacta.
 
     Sirve para que `PARA_EN_FALLO` del lanzador detenga la cadena de la
     matriz en vez de seguir con un caso vacio. Funcion pura: no imprime ni
@@ -133,17 +151,19 @@ def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
     """
     for nombre, v in (("n_horas_mercado", n_horas_mercado),
                       ("n_vencidas", n_vencidas),
-                      ("n_excepciones", n_excepciones)):
+                      ("n_excepciones", n_excepciones),
+                      ("n_sin_exito", n_sin_exito)):
         if int(v) != v or v < 0:
             raise ValueError(f"{nombre}={v!r}; tiene que ser un entero no "
                              f"negativo")
-    if n_vencidas > n_horas_mercado:
-        raise ValueError(f"{n_vencidas} horas vencidas de {n_horas_mercado} "
-                         f"horas de mercado: las vencidas son horas de "
-                         f"mercado, no pueden ser mas")
+    perdidas = n_vencidas + n_sin_exito
+    if perdidas > n_horas_mercado:
+        raise ValueError(f"{n_vencidas} horas vencidas y {n_sin_exito} sin "
+                         f"exito de {n_horas_mercado} horas de mercado: las "
+                         f"dos son horas de mercado, no pueden ser mas")
     if n_excepciones > 0:
         return 3
-    if n_horas_mercado > 0 and n_vencidas / n_horas_mercado > umbral_vencidas:
+    if n_horas_mercado > 0 and perdidas / n_horas_mercado > umbral:
         return 3
     return 0
 
@@ -2520,22 +2540,28 @@ if __name__ == "__main__":
     # pruebas o compuertas no cambian. Con 3, `PARA_EN_FALLO` del lanzador
     # detiene la matriz en vez de seguir con un caso sin mercado.
     if _p2p is not None:
-        _n, _v, _e = cuenta_para_salida(_p2p)
-        _codigo = codigo_de_salida(_n, _v, _e)
-        _pct = (100.0 * _v / _n) if _n else 0.0
+        _n, _v, _e, _s = cuenta_para_salida(_p2p)
+        _codigo = codigo_de_salida(_n, _v, _e, _s)
+        # D44: el umbral del 1 % se aplica a la suma de vencidas y sin exito;
+        # la linea da las dos cifras por separado y la suma.
+        _perdidas = _v + _s
+        _pct = (100.0 * _perdidas / _n) if _n else 0.0
+        _cifras = (f"{_v} horas vencidas por el plazo (D24) mas {_s} sin "
+                   f"exito del integrador (D37) = {_perdidas} de {_n} horas "
+                   f"de mercado ({_pct:.2f} %; D44: el umbral del 1 % se "
+                   f"aplica a la suma)")
         if _codigo == 0:
             print(f"    [D38] codigo de salida 0: ninguna hora con excepcion, "
-                  f"y {_v} de {_n} horas de mercado vencidas por el plazo "
-                  f"({_pct:.2f} %, umbral: mas del 1 %)", flush=True)
+                  f"y {_cifras}, sin pasar del 1 %", flush=True)
         else:
             _por = []
             if _e:
                 _por.append(f"{_e} horas con excepcion (C-190)")
-            if _n and _v / _n > 0.01:
-                _por.append(f"{_v} de {_n} horas de mercado vencidas por el "
-                            f"plazo ({_pct:.2f} %, mas del 1 %)")
-            print(f"    [D38] codigo de salida {_codigo}: "
+            if _n and _perdidas / _n > 0.01:
+                _por.append("la suma de vencidas y sin exito pasa del 1 %")
+            print(f"    [D38] codigo de salida {_codigo} porque "
                   + " y ".join(_por)
-                  + ". Todas las salidas ya estan escritas; mira las lineas "
-                    "[D24] y [C-190] de este registro", flush=True)
+                  + f"; {_cifras}. Todas las salidas ya estan escritas; mira "
+                    "las lineas [D24], [D37], [D26] y [C-190] de este "
+                    "registro", flush=True)
         sys.exit(_codigo)

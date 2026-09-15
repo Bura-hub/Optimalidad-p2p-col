@@ -277,38 +277,66 @@ def test_SolverParams_rechaza_un_presupuesto_que_no_es_entero_positivo(malo):
 
 
 def test_codigo_de_salida_cero_sin_nada():
-    assert codigo_de_salida(0, 0, 0) == 0
-    assert codigo_de_salida(1126, 0, 0) == 0
+    assert codigo_de_salida(0, 0, 0, 0) == 0
+    assert codigo_de_salida(1126, 0, 0, 0) == 0
 
 
 def test_codigo_de_salida_tres_con_una_sola_excepcion():
-    assert codigo_de_salida(1126, 0, 1) == 3
+    assert codigo_de_salida(1126, 0, 1, 0) == 3
 
 
 def test_codigo_de_salida_tres_con_vencidas_por_encima_del_uno_por_ciento():
-    assert codigo_de_salida(100, 2, 0) == 3
-    assert codigo_de_salida(1000, 11, 0) == 3
+    assert codigo_de_salida(100, 2, 0, 0) == 3
+    assert codigo_de_salida(1000, 11, 0, 0) == 3
+
+
+def test_codigo_de_salida_tres_con_sin_exito_por_encima_del_uno_por_ciento():
+    # D44: la hora que D41 corta queda «integrador sin exito»; sola ya cuenta.
+    assert codigo_de_salida(100, 0, 0, 2) == 3
+    assert codigo_de_salida(1000, 0, 0, 11) == 3
+
+
+def test_codigo_de_salida_tres_cuando_la_suma_pasa_aunque_ninguna_sola_pase():
+    # D44: el umbral se aplica a la suma. Una de cien vencida y una sin exito
+    # son el 1 % cada una (ninguna pasa sola) y el 2 % juntas; seis y cinco de
+    # mil son el 0,6 % y el 0,5 %, y el 1,1 % juntas.
+    assert codigo_de_salida(100, 1, 0, 0) == 0
+    assert codigo_de_salida(100, 0, 0, 1) == 0
+    assert codigo_de_salida(100, 1, 0, 1) == 3
+    assert codigo_de_salida(1000, 6, 0, 0) == 0
+    assert codigo_de_salida(1000, 0, 0, 5) == 0
+    assert codigo_de_salida(1000, 6, 0, 5) == 3
 
 
 def test_codigo_de_salida_cero_justo_en_el_uno_por_ciento():
-    # La frontera: «mas del 1 %» es estricto. Una de cien y diez de mil son
-    # exactamente el 1 % y salen con 0; una mas, con 3 (caso anterior).
-    assert codigo_de_salida(100, 1, 0) == 0
-    assert codigo_de_salida(1000, 10, 0) == 0
-    assert codigo_de_salida(300, 3, 0) == 0
+    # La frontera: «mas del 1 %» es estricto, y se mide sobre la suma de
+    # vencidas y sin exito (D44). Una de cien y diez de mil son exactamente
+    # el 1 % y salen con 0; una mas, con 3 (casos anteriores).
+    assert codigo_de_salida(100, 1, 0, 0) == 0
+    assert codigo_de_salida(1000, 10, 0, 0) == 0
+    assert codigo_de_salida(300, 3, 0, 0) == 0
+    assert codigo_de_salida(1000, 5, 0, 5) == 0
+    assert codigo_de_salida(300, 2, 0, 1) == 0
+    assert codigo_de_salida(1000, 0, 0, 10) == 0
 
 
 def test_codigo_de_salida_rechaza_conteos_imposibles():
     with pytest.raises(ValueError):
-        codigo_de_salida(10, 11, 0)      # mas vencidas que horas de mercado
+        codigo_de_salida(10, 11, 0, 0)   # mas vencidas que horas de mercado
     with pytest.raises(ValueError):
-        codigo_de_salida(10, -1, 0)
+        codigo_de_salida(10, 6, 0, 5)    # vencidas mas sin exito, tambien
+    with pytest.raises(ValueError):
+        codigo_de_salida(10, -1, 0, 0)
+    with pytest.raises(ValueError):
+        codigo_de_salida(10, 0, 0, -1)
+    with pytest.raises(TypeError):
+        codigo_de_salida(10, 0, 0)       # D44: la cuenta sin exito es obligatoria
 
 
 def test_cuenta_para_salida_define_el_denominador():
     # Una hora sin un lado (no cuenta), una resuelta, una vencida (sin ids,
     # pero cuenta), una con excepcion y una sin exito del integrador (con
-    # ids, cuentan, y no son ni vencida ni excepcion).
+    # ids, cuentan; la sin exito lleva su propio conteo desde D44).
     horas = [
         HourlyResult(k=0),
         HourlyResult(k=1, seller_ids=[0], buyer_ids=[1]),
@@ -318,7 +346,7 @@ def test_cuenta_para_salida_define_el_denominador():
         HourlyResult(k=4, seller_ids=[0], buyer_ids=[1],
                      motivo="integrador sin exito al horizonte 0.05"),
     ]
-    assert cuenta_para_salida(horas) == (4, 1, 1)
+    assert cuenta_para_salida(horas) == (4, 1, 1, 1)
 
 
 # ─── re-revision: el reintento de H-43 y las vueltas no finitas ─────────────

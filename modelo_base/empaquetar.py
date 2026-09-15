@@ -37,6 +37,12 @@ NUCLEO = [
     "data/tarifas_asc_mensual.csv",      # tarifas de ASC
     "data/xm_prices.py",                 # H-50: el techo de escasez y su guarda
     "data/precios_bolsa_xm_api.csv",     # la serie de bolsa, que el techo acota
+    # La serie de contratos de XM que usa C5 (precios_contratos.py). El
+    # .gitignore excluye los .xlsx, asi que no llega con el clon: sin ella
+    # toda corrida con --include-c5 falla al arrancar (humo de Linux,
+    # 2026-09-14).
+    "data/XM_Energía y Precios transados en contratos con destino a "
+    "Mercado Regulado y No Regulado.xlsx",
     "main_simulation.py",
     # La corrida canonica toca ademas la comparacion y la liquidacion
     "scenarios/comparison_engine.py",
@@ -128,6 +134,7 @@ COMPUERTAS = [
     "tests/test_palancas_acoplado.py",     # importa tests/gate_c165_desglose_horario
     "tests/test_oraculo_anexo4.py",        # importa la sonda oraculo_anexo4
     "tests/test_presupuesto_acoplado.py",  # D36-D38; importa main_simulation
+    "tests/test_piso_P.py",                # H-84, D40-D42; importa la C-165
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",

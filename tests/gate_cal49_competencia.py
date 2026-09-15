@@ -62,6 +62,11 @@ def acoplado(d, forma=None):
         lam_i=d["lam_i"], theta_i=d["theta_i"], etha_i=d["etha"],
         pi_gs=900.0, pi_gb=200.0, tau_sellers=0.001, tau_buyers=0.01,
         t_span=(0.0, 0.01), n_points=200, **kw)
+    # C-192 (D41): una trayectoria cortada trae solo el punto inicial y
+    # `success=False`; sin mirarlo, las comprobaciones compararian arranques.
+    if not tr.success:
+        raise AssertionError(f"el acoplado no termino con exito (forma "
+                             f"{forma!r}): {tr.message}")
     return np.asarray(tr.pi_star, float), np.asarray(tr.P_star, float)
 
 

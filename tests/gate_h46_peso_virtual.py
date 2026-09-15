@@ -54,6 +54,11 @@ def corre(d: dict, **kw):
     tr = solve_coupled_for_hour(
         **d, pi_gs=906.27, pi_gb=280.0, tau_sellers=0.001, tau_buyers=0.01,
         t_span=(0.0, 0.005), n_points=150, **kw)
+    # C-192 (D41): una trayectoria cortada trae solo el punto inicial y
+    # `success=False`; sin mirarlo, las comprobaciones compararian arranques.
+    if not tr.success:
+        raise AssertionError(f"el acoplado no termino con exito ({kw!r}): "
+                             f"{tr.message}")
     return np.asarray(tr.pi_star, float), np.asarray(tr.P_star, float)
 
 

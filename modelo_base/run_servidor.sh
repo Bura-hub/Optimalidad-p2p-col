@@ -282,7 +282,7 @@ case "$ACCION" in
              test_mensual_suma_total test_coincidencia test_c3_costos_mem \
              test_plazo_por_hora test_analisis_ligero test_fa3_cumplimiento \
              test_analysis_numeral2 test_palancas_acoplado \
-             test_oraculo_anexo4 test_presupuesto_acoplado; do
+             test_oraculo_anexo4 test_presupuesto_acoplado test_piso_P; do
       corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
     echo
@@ -707,7 +707,7 @@ except AttributeError:
     echo
     echo "  4/4 · el mismo dia de E5 con las dos palancas del acoplado"
     echo "  (--rtol-acoplado 1e-7 --horizonte-max-acoplado 0.4), para ver en su"
-    echo "  registro las lineas [D24], [D26] y [D38] antes de las trece corridas."
+    echo "  registro las lineas [D24], [D37], [D26] y [D38] antes de las trece corridas."
     echo "  Es un humo: si sale con 3 (D38) se imprime, pero no detiene nada."
     DIR="SALIDAS_SERVIDOR/humo_linux_e5_palancas"
     crea_dir "$DIR"
@@ -849,8 +849,9 @@ print(" ".join(sorted(palancas)))
       echo
       echo "  --- $CASO  ->  $DIR"
       # D38: la corrida sale con 3, DESPUES de escribir todo, si hubo alguna
-      # hora con excepcion o mas del 1 % de horas vencidas. PARA_EN_FALLO la
-      # detiene como a cualquier fallo; aqui se dice que mirar y como seguir.
+      # hora con excepcion o si las vencidas mas las sin exito del integrador
+      # pasan del 1 % (D44). PARA_EN_FALLO la detiene como a cualquier fallo;
+      # aqui se dice que mirar y como seguir.
       corre "matriz_${CASO}" main_simulation.py \
             --data real --full --include-c5 --no-regulado \
             --metodo acoplado --analisis-ligero --plazo-hora 15 \
@@ -860,13 +861,14 @@ print(" ".join(sorted(palancas)))
         cod=$?
         echo
         if [[ $cod -eq 3 ]]; then
-          echo "  $CASO salio con codigo 3 (D38): hubo alguna hora con excepcion"
-          echo "  o mas del 1 % de horas de mercado vencidas por el plazo. Sus"
+          echo "  $CASO salio con codigo 3 (D38): hubo alguna hora con excepcion,"
+          echo "  o las horas vencidas por el plazo mas las sin exito del"
+          echo "  integrador pasan del 1 % de las horas de mercado (D44). Sus"
           echo "  salidas estan escritas, pero la cadena no sigue con un caso asi."
         else
           echo "  $CASO salio con codigo $cod."
         fi
-        echo "  Mira las lineas [D24], [C-190] y [D38] de su registro"
+        echo "  Mira las lineas [D24], [D37], [C-190] y [D38] de su registro"
         echo "  ($LOGS/matriz_${CASO}_<fecha>.log) y retoma desde este caso con:"
         echo "    DESDE=$CASO bash $0 matriz"
         exit "$cod"

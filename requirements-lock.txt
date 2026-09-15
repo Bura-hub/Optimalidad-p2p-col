@@ -1,0 +1,26 @@
+# Entorno exacto de las corridas (H-84, 2026-09-14). Python 3.13.
+#
+# El mismo dato de entrada da resultados distintos con versiones distintas del
+# integrador: la hora 4184 con la generacion por siete termina bien con scipy
+# 1.17.1 (141 s, 1,29 millones de evaluaciones) y falla con scipy 1.15.3
+# («Unexpected istate in LSODA» a los 15 775). requirements.txt deja las
+# versiones libres; este fichero las fija para que el servidor y la maquina de
+# trabajo corran exactamente lo mismo. Pide Python 3.13.7; donde no lo hay (el
+# servidor solo tiene 3.10) se instala con `uv`, con la receta de
+# modelo_base/MONTAJE_SERVIDOR.md, seccion «El entorno exacto (H-84)»:
+#
+#   mv .venv .venv_py310
+#   .venv_py310/bin/python -m pip install uv
+#   .venv_py310/bin/uv python install 3.13.7
+#   .venv_py310/bin/uv venv --seed --python 3.13.7 .venv
+#   .venv_py310/bin/uv pip install --python .venv/bin/python -r requirements-lock.txt
+numpy==2.4.4
+scipy==1.17.1
+pandas==3.0.2
+pyarrow==24.0.0
+openpyxl==3.1.5
+tqdm==4.67.3
+matplotlib==3.10.8
+pydataxm==0.3.16
+SALib==1.5.2
+pytest==9.1.1

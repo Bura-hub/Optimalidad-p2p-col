@@ -47,6 +47,31 @@ from core.replicator_sellers import VEL_GRAD, BGRANDE, VEL_RD
 from core.replicator_buyers import VEL_WI, VEL_GPC, PGB, PGS
 
 
+class _LadoDerechoNoFinito(Exception):
+    """D41 (H-84): el lado derecho del acoplado recibio o produjo un valor no
+    finito, y la integracion se corta en esa misma evaluacion.
+
+    La lanza `_rhs` y la atrapa SOLO `solve_coupled_for_hour`, alrededor de
+    `solve_ivp`, que devuelve entonces una trayectoria con `success=False`.
+    Nunca sale de este modulo: si escapara, llegaria al `except` de C-190 en
+    el motor, contaria como excepcion y detendria la matriz (D38), cuando lo
+    que ocurre es un integrador sin exito, que tiene su propio camino (D37).
+
+    Por que cortar. Con scipy 1.17 LSODA no se detiene al aparecer un NaN: en
+    el servidor la hora 4184 con la generacion por siete siguio unos catorce
+    millones de evaluaciones en 15 (min) sin avanzar en el tiempo, y en la
+    maquina de trabajo una perturbacion de un ulp termino con «exito» y el
+    estado entero en NaN (H-84).
+    """
+
+    def __init__(self, t: float, evaluacion: int, donde: str):
+        self.t = float(t)
+        self.evaluacion = int(evaluacion)
+        self.donde = donde
+        super().__init__(f"lado derecho no finito en t={self.t:.6e} "
+                         f"({donde} de la evaluacion {self.evaluacion})")
+
+
 @dataclass
 class CoupledTrajectory:
     """Resultado del solver coupled-ODE para una hora.
@@ -96,6 +121,9 @@ class CoupledTrajectory:
     # presupuesto de la parada por estacionario suma, porque no depende de
     # la maquina como los segundos. Cero en el caso degenerado, que no
     # integra nada. Solo se anade: el resto de la salida no cambia.
+    # D41: en la trayectoria cortada por un lado derecho no finito, `nfev`
+    # son las evaluaciones hechas hasta el corte, esa incluida, y `njev` es
+    # cero, porque `solve_ivp` no llega a devolver su cuenta.
     nfev:       int = 0
     njev:       int = 0
 
@@ -326,11 +354,35 @@ def solve_coupled_for_hour(
     matriz = np.ones((I, I)) - np.eye(I)
     etha_fila = matriz.T @ etha_i          # (I,) = sum_{k != i} etha_k
 
+    # D41: las evaluaciones del lado derecho en esta resolucion. Son el `nfev`
+    # de la trayectoria cortada, porque la cuenta de `solve_ivp` no llega.
+    evaluaciones = [0]
+
     def _rhs(t: float, X: np.ndarray) -> np.ndarray:
+        evaluaciones[0] += 1
+        # D41: un estado no finito no se evalua; la integracion se corta aqui.
+        if not np.all(np.isfinite(X)):
+            raise _LadoDerechoNoFinito(t, evaluaciones[0], "estado")
         pi_all   = X[:n_pi_all]
         gamma    = X[idx0_gamma:idx0_yfilt]
         y_filt   = X[idx0_yfilt:idx0_P]
-        P        = X[idx0_P:idx0_lam].reshape(J, I)
+        # H-84 / D40: P se LEE con un piso de 1e-10; el estado integrado no
+        # se toca. La dinamica de replicador (dP = P*(F - F_bar)) conserva
+        # P >= 0 solo en aritmetica exacta. Con un comprador de deficit muy
+        # pequeno frente a lo que le asigna el arranque, su multiplicador de
+        # demanda (VEL_GRAD = 1e6) empuja su columna de P a cero con una
+        # fuerza del orden de 1e7, el integrador cruza el cero y, con P
+        # negativa, el replicador se alimenta a si mismo hasta desbordar: la
+        # hora 4184 con la generacion por siete explotaba o no segun el
+        # ultimo decimal de la entrada. La P negativa que sobrevivia la
+        # borraba despues el recorte a cero de la salida, e inflaba lo que
+        # recibe ese comprador (0,2319 frente a un deficit de 0,1218 (kWh)).
+        # Es el mismo piso de 1e-10 del arranque (`P0`, mas arriba). No es
+        # cero a proposito: con piso cero la columna seria absorbente (P = 0
+        # da dP = 0 para siempre) y ese comprador no podria volver a recibir.
+        # Aviso de fidelidad: JoinFinal.m (join, lineas 146 a 166) no lleva
+        # este piso; es una salvaguarda de esta traduccion.
+        P        = np.maximum(X[idx0_P:idx0_lam].reshape(J, I), 1e-10)
         lam_ub   = X[idx0_lam:idx0_bet]
         bet_ub   = X[idx0_bet:idx0_lamfilt]
         lam_filt = X[idx0_lamfilt:idx0_betfilt]
@@ -399,7 +451,7 @@ def solve_coupled_for_hour(
         #   WJ = 10   * Replicator_sellers  → 10   sobre bloque sellers
         # Equilibrio invariante (cero del RHS). Recupera transitorio
         # visible de P_ji(t) en t_span=[0, 0.01]s.
-        return np.concatenate([
+        salida = np.concatenate([
             0.08 * d_pi_all,    # I+1   (buyer pi)
             0.08 * d_gamma,     # J     (buyer auxiliar)
             0.08 * d_y_filt,    # J     (buyer filtro)
@@ -409,18 +461,43 @@ def solve_coupled_for_hour(
             10.0 * d_lam_filt,  # J     (seller lam filtro)
             10.0 * d_bet_filt,  # I     (seller bet filtro)
         ])
+        # D41: el primer valor no finito del lado derecho corta la
+        # integracion (ver `_LadoDerechoNoFinito`).
+        if not np.all(np.isfinite(salida)):
+            raise _LadoDerechoNoFinito(t, evaluaciones[0], "salida")
+        return salida
 
     # ── Integracion ──────────────────────────────────────────
     t_eval = np.linspace(t_span[0], t_span[1], n_points)
-    sol = solve_ivp(
-        _rhs, t_span, X0, method=method,
-        t_eval=t_eval, rtol=rtol, atol=atol,
-    )
+    try:
+        sol = solve_ivp(
+            _rhs, t_span, X0, method=method,
+            t_eval=t_eval, rtol=rtol, atol=atol,
+        )
+    except _LadoDerechoNoFinito as corte:
+        # D41: la integracion se detuvo en el primer valor no finito. La
+        # trayectoria lleva solo el punto inicial, con las formas de siempre
+        # (un punto en el eje del tiempo), y `success=False`: el motor la
+        # trata como integrador sin exito (D37), con la parada activa
+        # conserva la vuelta anterior buena y, si era la primera, deja la
+        # hora sin mercado con su motivo. Solo se atrapa esta excepcion.
+        t_sol = np.array([float(t_span[0])])
+        y_sol = X0[:, None].copy()
+        exito = False
+        mensaje = str(corte)
+        nfev, njev = corte.evaluacion, 0
+    else:
+        t_sol, y_sol = sol.t, sol.y
+        exito = bool(sol.success)
+        mensaje = str(sol.message)
+        # D36: el trabajo del integrador, para el presupuesto de la parada.
+        nfev = int(getattr(sol, "nfev", 0) or 0)
+        njev = int(getattr(sol, "njev", 0) or 0)
 
-    n_t = sol.y.shape[1]
-    pi_t_real = np.clip(sol.y[:I, :], pi_gb, gs_i[:, None])
+    n_t = y_sol.shape[1]
+    pi_t_real = np.clip(y_sol[:I, :], pi_gb, gs_i[:, None])
     P_t = np.clip(
-        sol.y[idx0_P:idx0_lam, :].reshape(J, I, n_t),
+        y_sol[idx0_P:idx0_lam, :].reshape(J, I, n_t),
         0.0, None,
     )
 
@@ -440,14 +517,14 @@ def solve_coupled_for_hour(
     mult = {}
     if devuelve_multiplicadores:
         mult = dict(
-            lam_t=sol.y[idx0_lam:idx0_bet, :],
-            bet_t=sol.y[idx0_bet:idx0_lamfilt, :],
-            lam_filt_t=sol.y[idx0_lamfilt:idx0_betfilt, :],
-            bet_filt_t=sol.y[idx0_betfilt:, :],
+            lam_t=y_sol[idx0_lam:idx0_bet, :],
+            bet_t=y_sol[idx0_bet:idx0_lamfilt, :],
+            lam_filt_t=y_sol[idx0_lamfilt:idx0_betfilt, :],
+            bet_filt_t=y_sol[idx0_betfilt:, :],
         )
 
     return CoupledTrajectory(
-        t=sol.t,
+        t=t_sol,
         pi_t=pi_t_real,
         P_t=P_t,
         Wj_t=Wj_t,
@@ -455,11 +532,12 @@ def solve_coupled_for_hour(
         W_t=W_t,
         pi_star=pi_star,
         P_star=P_star,
-        success=bool(sol.success),
-        message=str(sol.message),
+        success=exito,
+        message=mensaje,
         # D36: el trabajo del integrador, para el presupuesto de la parada.
-        nfev=int(getattr(sol, "nfev", 0) or 0),
-        njev=int(getattr(sol, "njev", 0) or 0),
+        # D41: en la trayectoria cortada, las evaluaciones hasta el corte.
+        nfev=nfev,
+        njev=njev,
         **mult,
     )
 

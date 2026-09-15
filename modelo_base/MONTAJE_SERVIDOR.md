@@ -35,6 +35,7 @@ cambiando un defecto por otro.
 | `MedicionesMTE_v3/` | 1,7 GB · 73 CSV | **Copiar a mano** (nunca se commitea, por diseño). Va en la raíz y con ese nombre: es lo que los cargadores buscan por defecto |
 | `Documentos/copy/` | 208 KB · 17 ficheros | **Copiar a mano**. Solo lo necesitan dos compuertas, no las mediciones |
 | `data/ASC_pdfs/` | 1,8 MB | **Opcional**, y solo si se van a reextraer tarifas. El CSV derivado sí viene del repositorio |
+| `data/XM_Energía y Precios transados en contratos con destino a Mercado Regulado y No Regulado.xlsx` | 3,6 KB | **Copiar a mano**, con ese nombre exacto (el `.gitignore` excluye los `.xlsx`). Es la serie de precios de contratos de XM que usa C5; sin ella, toda corrida con `--include-c5` falla al arrancar con `FileNotFoundError`, y la matriz lleva `--include-c5` en sus trece casos. Lo encontró el humo de Linux del 2026-09-14. Huella MD5: `a700a88cae95b07696d421a83bc5b9ed` |
 
 `Documentos/` está gitignorado por la política del repositorio público, de
 modo que no llega con el clon. Sin él, la prueba dorada **salta sus siete
@@ -421,6 +422,61 @@ medición sigue.
 
 ---
 
+## El entorno exacto (H-84)
+
+Antes de cualquier acción del subproyecto 2, el servidor corre con el mismo
+entorno que la máquina de trabajo. Con datos de entrada idénticos al bit, la
+hora 4184 con la generación por siete terminaba en la máquina de trabajo
+(Python 3.13.7, numpy 2.4.4, scipy 1.17.1) y fallaba en el servidor (Python
+3.10.12, numpy 2.2.6, scipy 1.15.3): `requirements.txt` deja las versiones
+libres, y cada máquina instalaba lo que su Python admitía (scipy 1.16 en
+adelante pide Python 3.11 o superior). `requirements-lock.txt` fija las
+versiones exactas de la máquina de trabajo.
+
+El servidor solo tiene Python 3.10, de modo que el 3.13.7 se instala con
+`uv`, sin tocar el Python del sistema. Desde la raíz del repositorio:
+
+```bash
+mv .venv .venv_py310
+.venv_py310/bin/python -m pip install uv
+.venv_py310/bin/uv python install 3.13.7
+.venv_py310/bin/uv venv --seed --python 3.13.7 .venv
+.venv_py310/bin/uv pip install --python .venv/bin/python -r requirements-lock.txt
+```
+
+- El primer paso conserva el entorno viejo con otro nombre, por si hay que
+  volver a él. Sus guiones (`.venv_py310/bin/pip` y los demás) llevan escrita
+  en su primera línea la ruta vieja del intérprete, y al renombrar la carpeta
+  dejan de funcionar. Por eso el segundo paso llama a pip como
+  `python -m pip`, que no depende de ellos.
+- `uv python install` descarga un Python 3.13.7 completo en la carpeta de
+  `uv`, fuera del repositorio.
+- `--seed` deja `pip` dentro del entorno nuevo, para quien lo necesite.
+- `--python .venv/bin/python` fija explícitamente el entorno donde instala
+  `uv pip install`. Sin esa opción tomaría el entorno activado o, si no hay
+  ninguno, el `.venv` del directorio actual; con ella el destino queda
+  escrito en la orden y no depende de desde dónde se corra.
+
+La comprobación de versiones:
+
+```bash
+.venv/bin/python -c "import sys, numpy, scipy, pandas; print(sys.version.split()[0], numpy.__version__, scipy.__version__, pandas.__version__)"
+```
+
+Tiene que imprimir `3.13.7 2.4.4 1.17.1 3.0.2`. El lanzador toma
+`.venv/bin/python` por su cuenta, de modo que nada más cambia. La acción
+`entorno` del lanzador instala `requirements.txt`, con las versiones libres:
+no se corre sobre este entorno.
+
+**Las cifras entre máquinas se comparan solo con el mismo entorno.** Con
+versiones distintas, una diferencia entre el servidor y la máquina de trabajo
+no dice nada del modelo: puede ser el integrador. Con el mismo entorno, H-84
+mostró además que la hora 4184 explotaba o no según el último decimal de la
+entrada; el piso de P del acoplado (C-192) lo corrige, y en la máquina de
+trabajo la hora ya da el mismo equilibrio con la base y con diez
+perturbaciones de un ulp. En el servidor queda por medir, con la sonda de
+H-79 y la semana de E4.
+
 ## El subproyecto 2 (2026-09-14): humo, sonda y matriz
 
 Contexto en una frase: la corrida oficial de septiembre (`oficial`) se deja tal
@@ -446,13 +502,15 @@ SECO=1 bash modelo_base/run_servidor.sh matriz
 
 ### 1 · `compuertas`
 
-Ahora corre además el motor nuevo: dieciséis pruebas de pytest (Anexo 4,
+Ahora corre además el motor nuevo: diecisiete pruebas de pytest (Anexo 4,
 umbrales del escalado, P2P residual del artículo 25, C4 mensual, P2P
 colectivo, C5 de la Resolución 101 099, suma mensual, coincidencia, costos de
 C3, plazo por hora, análisis ligero, cumplimiento de FA-3, el numeral 2 del
 análisis, las dos palancas del acoplado, el oráculo del Anexo 4 con los
-factores uno y siete, y el presupuesto de la parada por estacionario con el
-código de salida, D36 a D38), y la compuerta C-165 con 48 horas en vez
+factores uno y siete, el presupuesto de la parada por estacionario con el
+código de salida, D36 a D38, y el piso de P del acoplado, H-84 con D40 a
+D42, cuya prueba lenta tarda unos 3 a 4 (min) en la máquina de trabajo), y
+la compuerta C-165 con 48 horas en vez
 de las 72 de su defecto: con 72, la hora rígida del caso sintético vence el
 plazo por hora (H-81).
 
@@ -486,6 +544,13 @@ de `matriz`. Cuatro pasos:
 
 **Qué mirar.** Que las cuatro pasen. El paso 4 puede salir con código 3
 (D38): se imprime, pero no detiene el humo, y su línea `[D38]` dice por qué.
+En los pasos 3 y 4, además de `[D24]`, mira `[D37]` (horas sin mercado
+porque la primera vuelta del integrador no terminó con éxito, entre ellas las
+que corta D41 al primer valor no finito) y, en el paso 4, el «fallo_vuelta»
+de `[D26]` (horas que conservaron la vuelta anterior buena). Con D41 la hora
+que explota ya no vence el plazo, así que las vencidas bajan por
+construcción; por eso D38 cuenta las vencidas más las sin éxito (D44), y su
+línea da las dos cifras por separado y la suma.
 **Tiempo esperado:** el humo de un día a
 ×7 con `--analysis` completo tardó 29 minutos en local; con el modo ligero
 (`--analisis-ligero`, D27) es bastante menos, porque solo corre FA-1 a FA-4
@@ -543,10 +608,13 @@ D18, D24, D27. Reemplaza a `oficial` para esta tanda. En orden:
 
 Un caso que falla detiene la cadena, como en `oficial`. También uno que sale
 con código 3 (D38): la corrida lo devuelve, después de escribir todas sus
-salidas, si hubo alguna hora con excepción o más del 1 % de las horas de
-mercado vencidas por el plazo. El lanzador dice entonces que se miren las
-líneas `[D24]`, `[C-190]` y `[D38]` del registro de ese caso. Se retoma sin
-repetir los que ya corrieron:
+salidas, si hubo alguna hora con excepción, o si las horas vencidas por el
+plazo más las que quedaron sin éxito del integrador pasan del 1 % de las
+horas de mercado (D44: con D41 la hora que explota ya no vence, se corta y
+queda sin éxito, y tiene que seguir contando). El lanzador dice entonces que
+se miren las líneas `[D24]`, `[D37]`, `[C-190]` y `[D38]` del registro de ese
+caso; con la palanca del horizonte activa, también el «fallo_vuelta» de
+`[D26]`. Se retoma sin repetir los que ya corrieron:
 
 ```bash
 DESDE=P1 bash modelo_base/run_servidor.sh matriz

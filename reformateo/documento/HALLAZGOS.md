@@ -6941,6 +6941,8 @@ La sonda de H-79 (`reformateo/documento/scripts/sonda/reparto_vs_integrador.py`)
 
 En E4 la sonda sorteó veintiuna horas: la 4184 falló en su variante de producción (`exito=False` en 1 (s)), la sonda la descartó sin correr sus otras dos variantes y comparó las veinte restantes. El veredicto no se ve afectado; la causa de esa falla es H-84.
 
+**Repetida con el piso de P (commit `d068b04`, entorno Python 3.13.7; `modelo_base/logs/consola_sonda_piso.txt`).** En E0 las cifras son idénticas al dígito (horizonte doble: tajada del vendedor −3,86 puntos, excedente +3,47 %; tolerancia: nada): en esas veinte horas la oferta P no llegaba a cruzar el cero, así que el piso no las toca. En E4 la hora 4184 ya se resuelve dentro de la sonda (72,5 (s) en producción, 200,2 (s) con el horizonte doble) y entra en las veinte comparadas, sin fallos ni horas descartadas; el veredicto se mantiene: **no depende** (horizonte doble: −0,131 puntos; excedente: 0,000 %), con una tajada del vendedor de 13,23 % y un 21,95 % de los precios en cota. La unión de los dos veredictos sigue siendo solo la palanca del horizonte: la matriz lleva `--horizonte-max-acoplado 0.4` y no la tolerancia relativa.
+
 ---
 
 ## H-84 · El mismo dato da un resultado distinto en el servidor y en la máquina de trabajo: la versión del integrador
@@ -6989,5 +6991,18 @@ Es decir, lo que falla es que el solucionador acoplado no respeta P ≥ 0 dentro
 | diez perturbaciones de un ulp con piso | éxito las diez, sin NaN | 1 153 836 a 1 165 786 | idéntico | idéntico |
 
 Con el piso la hora deja de ser una moneda al aire: las once corridas terminan con el mismo equilibrio y cerca de un 10 % menos de evaluaciones. **Y la base original llevaba un error escondido:** el comprador 0 recibe 0,2319 (kWh) cuando su déficit es 0,1218, es decir 90 % más de lo que pidió, porque su columna de P termina con una entrada positiva y otra negativa, y el recorte a cero de la salida borra la negativa e infla el total. Con el piso recibe exactamente su déficit. El precio de equilibrio no cambia. Es decir, el motor actual puede liquidar energía inflada, en silencio, en toda hora que termine con alguna P negativa.
+
+**Verificación en el servidor con el arreglo (commit `d068b04`, 2026-09-14).** Las compuertas pasan 35 de 35 (consola `modelo_base/logs/consola_compuertas_piso.txt`), incluida `tests/test_piso_P.py` con 18 de 18 en 92 (s): la hora 4184 termina también en Linux, con el mismo equilibrio y una diferencia de precio entre la base y las perturbaciones de un ulp de 1,1e-9. La misma semana de E4 del censo (`modelo_base/logs/censo_e4_semana_piso.log`), ahora con el piso:
+
+| | Sin el piso | Con el piso |
+|---|---|---|
+| Horas de mercado | 35 | 35 |
+| Vencidas por el plazo (`[D24]`) | 1 (la 4184) | 0 |
+| Sin éxito del integrador (`[D37]`) | 1 (la 104) | 0 |
+| Motivo de parada (`[D26]`) | 27 estacionario, 2 tope, 4 presupuesto | 29 estacionario, 2 tope, 4 presupuesto, 0 vuelta fallida |
+| Código de D38 | 3 (2,86 %) | 0 |
+| Tiempo | 920 (s), el mercado 15 (min) por la hora atascada | 380 (s), el mercado 5 min 56 s |
+
+Las dos horas problemáticas de la semana se resuelven y el resto no cambia de régimen. Queda repetir la sonda de H-79 con el piso, porque su veredicto (H-83) se midió sin él, antes de la matriz.
 
 **El arreglo quedó en el motor (C-192, 2026-09-14; D40, D41 y D42).** El lado derecho del acoplado (`core/coupled_ode_convergence.py`, `_rhs`) lee P con el piso de 1e-10, la misma línea del experimento. La integración se corta en el primer valor no finito del lado derecho, en vez de seguir millones de evaluaciones sin avanzar, y la hora sigue el camino de D37: sin mercado con el motivo «integrador sin exito al horizonte <h>» o, con la parada activa, con la vuelta anterior buena. La vía alternada no se toca. Con el motor, y ya no con la copia en memoria, la hora 4184 al horizonte de producción da en la máquina de trabajo el mismo equilibrio del experimento (precio 711,134 · 456,569 · 254,566; entregas 0,1218 · 9,638 · 13,5585 (kWh)) con las mismas 1 155 804 evaluaciones, y ningún comprador recibe más que su déficit. `tests/test_piso_P.py`, que entra en `compuertas`, lo fija con las entradas de la hora como literales exactos: sin el piso, tres de las cuatro perturbaciones de un ulp de su prueba rápida explotan hacia t ≈ 1,06e-4 y la prueba falla. El piso mueve también el transitorio: al horizonte corto de 0,002 el precio de la base pasa de 534,356 a 534,436 (COP/kWh) en el primer comprador; el equilibrio no cambia. Queda por medir, con el piso y el entorno igualado: la hora 4184 aislada y la sonda de H-79 en el servidor, y el censo de la semana de E4 (22 al 28 de septiembre). Esa semana ya no se lee solo con las horas vencidas, que D41 hace bajar por construcción (la hora que explota se corta en vez de vencer): se lee también con `[D37]`, las horas sin mercado porque la primera vuelta del integrador no terminó con éxito, y con «fallo_vuelta» de `[D26]`, las que conservaron una vuelta anterior. Por D44 (decisión del autor, 2026-09-14), las horas sin éxito cuentan para el umbral del 1 % de D38 junto con las vencidas. Tampoco está medido cuánto se mueven con el piso las demás horas del horizonte, de modo que ninguna cifra anterior del acoplado se compara con una nueva sin decirlo.

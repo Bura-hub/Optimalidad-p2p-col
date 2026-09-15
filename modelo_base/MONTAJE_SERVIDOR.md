@@ -31,7 +31,7 @@ cambiando un defecto por otro.
 
 | Pieza | Tamaño | De dónde |
 |---|---|---|
-| Código del proyecto | ~15 MB | **GitHub**, rama `feature/cal43-depuracion-fase-a` |
+| Código del proyecto | ~15 MB | **GitHub**, rama `main` |
 | `MedicionesMTE_v3/` | 1,7 GB · 73 CSV | **Copiar a mano** (nunca se commitea, por diseño). Va en la raíz y con ese nombre: es lo que los cargadores buscan por defecto |
 | `Documentos/copy/` | 208 KB · 17 ficheros | **Copiar a mano**. Solo lo necesitan dos compuertas, no las mediciones |
 | `data/ASC_pdfs/` | 1,8 MB | **Opcional**, y solo si se van a reextraer tarifas. El CSV derivado sí viene del repositorio |
@@ -59,7 +59,7 @@ corre esa.
 cd /home/brayan_lopez
 git clone https://github.com/Bura-hub/Optimalidad-p2p-col.git sistemabl
 cd sistemabl
-git checkout feature/cal43-depuracion-fase-a
+git checkout main
 git log --oneline -1
 
 bash modelo_base/run_servidor.sh entorno
@@ -157,8 +157,8 @@ avanzar la rama:
 ```bash
 cd /home/brayan_lopez/sistemabl
 git fetch origin
-git checkout feature/cal43-depuracion-fase-a
-git pull --ff-only origin feature/cal43-depuracion-fase-a
+git checkout main
+git pull --ff-only origin main
 git log --oneline -1        # debe decir C-169
 ```
 

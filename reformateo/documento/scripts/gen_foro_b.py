@@ -329,14 +329,6 @@ def main() -> None:
     print(f"\nen {E.DIR_FIGURAS}")
 
 
-if __name__ == "__main__":
-    import multiprocessing as _mp
-
-    _mp.freeze_support()          # obligatorio en Windows
-    main()
-
-
-
 def _b2_dibuja(d_ok, sin, cobertura, k):
     """La maqueta de b2, separada del barrido.
 
@@ -446,3 +438,13 @@ def _b2_dibuja(d_ok, sin, cobertura, k):
     return E.guardar(fig, f"foro_b2_rivalidad_{cobertura}", datos=d_ok,
                      procedencia=[f"mediciones MTE, frontera {cobertura}, "
                                   f"hora {k}; núcleo del modelo"])
+
+
+# El bloque principal va al final: Python ejecuta el módulo de arriba abajo, y
+# si llama a main() antes de definir _b2_dibuja, la figura b2 muere con
+# NameError (así se detuvo la matriz del 2026-09-15 en su paso 5).
+if __name__ == "__main__":
+    import multiprocessing as _mp
+
+    _mp.freeze_support()          # obligatorio en Windows
+    main()

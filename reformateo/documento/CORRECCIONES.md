@@ -9049,3 +9049,17 @@ Prueba nueva: `tests/test_piso_P.py`, con 18 casos y sin datos reales. Las entra
 **Corregido en el código, sin corrida oficial.** Las 18 pruebas de `tests/test_piso_P.py` en verde (183 (s), la lenta incluida); la dorada en 7 de 7 (la vía alternada no cambia); las seis de `tests/test_palancas_acoplado.py` (342 (s)); las 24 de `tests/test_presupuesto_acoplado.py`; las siete de `tests/test_plazo_por_hora.py`; las seis de `tests/test_oraculo_anexo4.py`, con las dos pasadas de datos reales; el preflight filtrado en 6 de 6; y la compuerta C-165 con 48 horas en verde. Ninguna prueba existente cambió de resultado. Las compuertas del almacén no se corrieron: `pyarrow` no está en el entorno virtual de la máquina de trabajo. Registros en `outputs/run_2026-09-14_piso_P_*.log`. Queda por medir en el servidor, con el piso y el entorno igualado: la hora 4184 aislada, la sonda de H-79 y el censo de la semana de E4 (H-84).
 
 Ronda de arreglo 1 (la revisión confirmó el código del motor, que no se tocó): D44 en `main_simulation.py` y sus pruebas; el fallo explícito en las tres compuertas; la cita de las líneas de la proyección del precio y el cierre de H-84 en `HALLAZGOS.md`; el «Qué mirar» del humo y de la matriz y la razón de `--python` en `MONTAJE_SERVIDOR.md`; los mensajes del lanzador para el código 3 y el paso 4 del humo, que ahora nombran `[D37]` y la suma de D44; y la cabecera de `requirements-lock.txt`, que proponía `python3.13 -m venv` (el servidor solo tiene 3.10) y ahora da la receta con `uv`. Las 26 pruebas de `tests/test_presupuesto_acoplado.py` en verde (las 24 anteriores, con los conteos de D44, más dos nuevas); las 17 de `tests/test_piso_P.py` sin la lenta, que ya había pasado dos veces; la dorada en 7 de 7; la sintaxis de las tres compuertas tocadas, correcta (`ast.parse`); y `bash -n` del lanzador, sin errores. Las seis compuertas que usan el acoplado las corre el controlador en local, con el piso.
+
+---
+
+## C-193 · La figura b2 del foro llamaba a su función de dibujo antes de definirla
+
+**Qué hacía el código.** En `reformateo/documento/scripts/gen_foro_b.py`, el bloque que ejecuta `main()` estaba en la mitad del fichero, antes de la definición de `_b2_dibuja`, la función que dibuja la figura del barrido de rivalidad. Python ejecuta el módulo de arriba abajo, de modo que al correr el guion `main()` llegaba a `b2_rivalidad` y esta llamaba a una función que todavía no existía: `NameError: name '_b2_dibuja' is not defined`. La función se añadió al final del fichero en el commit `208c9ae`, después del bloque principal. Las pruebas no lo veían porque importar el módulo no ejecuta ese bloque.
+
+**Dónde se vio.** La matriz de trece corridas del 2026-09-15 terminó sus trece casos, todos con el código 0 de D38, y su paso 4 (liquidación y equidad) en 53 de 53; se detuvo en el paso 5, la figura b2 de E0, después de terminar el barrido (la última línea impresa fue la de la rivalidad 0,8), de modo que la recogida no llegó a correr. No afecta a ninguna cifra: es el dibujo de una figura.
+
+**Qué cambia.** El bloque principal pasa al final del fichero, con un comentario que dice por qué. Se revisaron los 64 guiones de `reformateo/documento/scripts` con su árbol sintáctico: ninguno más tiene definiciones después de su bloque principal.
+
+### Estado
+
+**Corregido.** El guion compila y, al importarlo, `_b2_dibuja` y `main` existen. Queda regenerar en el servidor solo esa figura y la recogida de la matriz; las trece corridas no se repiten.

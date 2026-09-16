@@ -92,6 +92,9 @@ SONDAS = [
     # H-85 (2026-09-15): la comparacion de los dos arranques del acoplado,
     # D45 y D46. La corre la accion `arranque` y la importa su prueba.
     "reformateo/documento/scripts/sonda/compara_arranque.py",
+    # H-86 (2026-09-16): el resumen del costo del criterio sobre el reparto,
+    # D47. Lo corre la accion `convergencia`, al final de la campana.
+    "reformateo/documento/scripts/sonda/censo_convergencia.py",
     # Los pasos 4 y 5 de `matriz` (y de `oficial`): la liquidacion por
     # institucion y las figuras del foro de E0.
     "reformateo/documento/scripts/liquidacion.py",
@@ -140,6 +143,8 @@ COMPUERTAS = [
     "tests/test_piso_P.py",                # H-84, D40-D42; importa la C-165
     "tests/test_arranque_acoplado.py",     # H-85, D45; importa la C-165
     "tests/test_compara_arranque.py",      # H-85, D46; importa la sonda
+    "tests/test_criterio_reparto.py",      # H-86, D47; importa la C-165
+    "tests/test_censo_convergencia.py",    # H-86, D47; importa la sonda
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",
@@ -253,6 +258,7 @@ def main() -> None:
     print("    bash modelo_base/run_servidor.sh sonda79        # D25: escribe los veredictos")
     print("    bash modelo_base/run_servidor.sh matriz         # las 13 corridas, recoge al final")
     print("    bash modelo_base/run_servidor.sh arranque       # H-85: los dos arranques, E0 y E4")
+    print("    bash modelo_base/run_servidor.sh convergencia   # H-86/D47: el costo del criterio del reparto")
     print("  (antes de nada, SECO=1 bash modelo_base/run_servidor.sh matriz imprime")
     print("   las ordenes sin ejecutar ninguna)")
 

@@ -373,8 +373,11 @@ def _espia(monkeypatch):
         J, I = len(kw["G_net_j"]), len(kw["D_net_i"])
         vistos.append((J, kw["arranque"]))
         pi_t = np.tile(np.linspace(300.0, 500.0, 20), (I, 1))
+        # D47: la trayectoria fabricada lleva tambien `P_t`, como la de
+        # verdad, porque el motor mide sobre ella el residuo del reparto.
         return SimpleNamespace(P_star=np.full((J, I), 0.01),
                                pi_star=pi_t[:, -1].copy(), pi_t=pi_t,
+                               P_t=np.full((J, I, pi_t.shape[1]), 0.01),
                                success=True, nfev=10, njev=0,
                                message="fabricada")
 
@@ -399,8 +402,11 @@ def test_la_regla_viaja_por_los_tres_sitios_que_arman_la_tupla(monkeypatch):
             ("factible", SolverParams(parallel=False, metodo="acoplado",
                                       t_span_acoplado=T_ACO,
                                       arranque_acoplado="factible")),
+            # D45: el arranque del modelo base hay que PEDIRLO desde el
+            # 2026-09-16; el defecto de `SolverParams` es el factible.
             ("iguales", SolverParams(parallel=False, metodo="acoplado",
-                                     t_span_acoplado=T_ACO))):
+                                     t_span_acoplado=T_ACO,
+                                     arranque_acoplado="iguales"))):
         ems = EMSP2P(agents=agentes, grid=GridParams(pi_gs=PGS, pi_gb=PGB),
                      solver=sv)
         # `run_single_hour`.
@@ -411,6 +417,47 @@ def test_la_regla_viaja_por_los_tres_sitios_que_arman_la_tupla(monkeypatch):
         vistos.clear()
         ems.run(h["D"][:, [h["k"]]], h["G"][:, [h["k"]]])
         assert vistos == [(2, regla)]
+
+
+# ─── el defecto de produccion (D45, resuelta el 2026-09-16) ────────────────
+
+
+def test_el_defecto_de_produccion_es_el_arranque_factible():
+    # D45 resuelta con la medicion del servidor delante (H-86): produccion
+    # arranca con el reparto factible, y el del modelo base hay que pedirlo.
+    assert SolverParams().arranque_acoplado == "factible"
+    assert (SolverParams(arranque_acoplado="iguales").arranque_acoplado
+            == "iguales")
+    # La funcion de bajo nivel NO cambia de defecto: quien la llame directa
+    # (las compuertas que comparan contra el modelo base, las sondas) sigue
+    # recibiendo el arranque de JoinFinal.m sin pedirlo.
+    G, D = CASOS["oferta_cubre"]
+    assert np.array_equal(_arranque_P0(G, D), _de_siempre(G, D))
+
+
+def test_con_el_defecto_la_hora_da_lo_mismo_que_pidiendo_factible():
+    h = _hora()
+    N = h["a"].shape[0]
+    agentes = AgentParams(N=N, a=h["a"], b=h["b"], c=h["c"], lam=h["lam"],
+                          theta=h["theta"], etha=h["etha"])
+    rejilla = GridParams(pi_gs=PGS, pi_gb=PGB)
+    comun = dict(parallel=False, metodo="acoplado", t_span_acoplado=T_ACO)
+    por_defecto = EMSP2P(agents=agentes, grid=rejilla,
+                         solver=SolverParams(**comun)
+                         ).run_single_hour(h["k"], h["D"], h["G"])
+    pedido = EMSP2P(agents=agentes, grid=rejilla,
+                    solver=SolverParams(arranque_acoplado="factible", **comun)
+                    ).run_single_hour(h["k"], h["D"], h["G"])
+    del_modelo_base = EMSP2P(
+        agents=agentes, grid=rejilla,
+        solver=SolverParams(arranque_acoplado="iguales", **comun)
+        ).run_single_hour(h["k"], h["D"], h["G"])
+    assert por_defecto.P_star is not None
+    assert np.array_equal(por_defecto.P_star, pedido.P_star)
+    assert np.array_equal(por_defecto.pi_star, pedido.pi_star)
+    # Y la prueba separa: en esta hora los dos arranques no dan lo mismo, de
+    # modo que un defecto que no hubiera cambiado la haria fallar.
+    assert not np.array_equal(por_defecto.P_star, del_modelo_base.P_star)
 
 
 # ─── la hora 753, rapida ───────────────────────────────────────────────────

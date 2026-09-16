@@ -502,7 +502,7 @@ SECO=1 bash modelo_base/run_servidor.sh matriz
 
 ### 1 · `compuertas`
 
-Ahora corre además el motor nuevo: diecinueve pruebas de pytest (Anexo 4,
+Ahora corre además el motor nuevo: veintiuna pruebas de pytest (Anexo 4,
 umbrales del escalado, P2P residual del artículo 25, C4 mensual, P2P
 colectivo, C5 de la Resolución 101 099, suma mensual, coincidencia, costos de
 C3, plazo por hora, análisis ligero, cumplimiento de FA-3, el numeral 2 del
@@ -512,7 +512,8 @@ código de salida, D36 a D38, el piso de P del acoplado, H-84 con D40 a
 D42, cuya prueba lenta tarda unos 3 a 4 (min) en la máquina de trabajo, y
 el arranque factible del acoplado con la herramienta que compara los dos
 arranques, H-85 con D45 y D46, cuya prueba lenta tarda unos 4 (min) en la
-máquina de trabajo), y la compuerta C-165 con 48 horas en vez
+máquina de trabajo, y el criterio de parada sobre el reparto con el censo de
+la campaña, H-86 con D47), y la compuerta C-165 con 48 horas en vez
 de las 72 de su defecto: con 72, la hora rígida del caso sintético vence el
 plazo por hora (H-81).
 
@@ -731,6 +732,103 @@ comparación se repite en casa, en segundos, con otras (`--tol-kwh`,
 cada una con 31 procesos (la semana de E4 del censo de H-84 tardó 5 min 56 s
 de mercado con el piso de P), más la comparación, que tarda segundos. Es
 decir, entre veinte minutos y una hora en total.
+
+## La campaña de convergencia (H-86, D47)
+
+Contexto en una frase: el criterio de parada del solucionador acoplado mira **el
+precio**, y en muchas horas el precio ya está quieto mientras el reparto entre
+compradores sigue moviéndose entero, de modo que el detalle por institución del
+horizonte de producción es transitorio y no equilibrio (H-86). Esta campaña mide
+**qué cuesta** mirar también el reparto, para fijar el horizonte de producción
+con el costo medido delante. No cambia ese horizonte y no repite la matriz.
+
+```bash
+bash modelo_base/run_servidor.sh compuertas            # SÍ, en este paquete
+SECO=1 bash modelo_base/run_servidor.sh convergencia   # antes: imprime las órdenes
+bash modelo_base/run_servidor.sh convergencia
+```
+
+**Las compuertas hay que correrlas antes**, al revés que en la medición del
+arranque. Este paquete mueve el defecto del arranque del acoplado a «factible»
+(D45) y edita `tests/gate_almacen_cruzado.py`, que es la compuerta que compara
+el motor contra el camino independiente de la sonda, es decir la que se
+enteraría si los dos dejaran de arrancar igual; ninguna de las dos cosas ha
+pasado todavía por una corrida de compuertas en el servidor. La acción no las
+corre sola, para no encadenar una hora de pruebas a una campaña de una noche,
+pero lo avisa en su paso 1.
+
+Pide `MTE_ROOT`, como `matriz`, y toma `PROCS` del entorno. En orden:
+
+1. un `bash -n` del lanzador, y el aviso de las compuertas;
+2. **seis corridas** de la semana del 5 al 11 de mayo de 2025
+   (`--desde 2025-05-05 --hasta 2025-05-12`): dos casos, E0 (sin factor) y K1
+   (`--factor-demanda 2`, el caso de la matriz con menos horas estacionarias,
+   el 33 %), cada uno con tres configuraciones del criterio de parada:
+   - **hoy**: `--criterio-estacionario precio --horizonte-max-acoplado 0.4`,
+     con el presupuesto y el plazo de la matriz (`--plazo-hora 15`);
+   - **reparto a 0,4**: `--criterio-estacionario precio_y_reparto
+     --horizonte-max-acoplado 0.4`;
+   - **reparto a 2,0**: `--criterio-estacionario precio_y_reparto
+     --horizonte-max-acoplado 2.0`.
+
+   Las dos del criterio nuevo aflojan los topes a propósito (`--plazo-hora 60`
+   y `--presupuesto-eval-acoplado 100000000`): la campaña existe **para ver el
+   costo, no para acotarlo**, y una hora que hoy se corta por presupuesto es
+   justo la que hay que medir. Las seis con `--arranque-acoplado factible`, que
+   es el defecto desde D45 y el barato, cada una con su almacén y su `--out-dir`
+   en `SALIDAS_SERVIDOR/convergencia/<caso>_<configuración>`. **No se detienen
+   por el código 3 de D38**; la acción imprime el código de cada una y, al
+   final, todos juntos;
+3. las comparaciones de repartos con `compara_arranque.py`, la herramienta de
+   D46: de cada caso, «hoy» contra «reparto a 2,0» y «reparto a 0,4» contra
+   «reparto a 2,0». Aquí A y B no son dos arranques sino dos criterios, y las
+   diferencias siguen siendo B menos A; la acción pasa `--etiqueta-a` y
+   `--etiqueta-b` con el nombre de cada configuración, de modo que el resumen y
+   la primera línea de los CSV dicen qué se comparó y no hablan de arranques;
+4. el censo del costo,
+   `reformateo/documento/scripts/sonda/censo_convergencia.py`, que lee los seis
+   almacenes y escribe `SALIDAS_SERVIDOR/convergencia/censo_convergencia.csv`;
+5. la recogida (`recoger convergencia`), que comprueba los seis almacenes, los
+   cuatro CSV de las comparaciones y el censo.
+
+**Qué mirar.**
+
+- En el censo, por caso y configuración: cuántas horas pararon por cada motivo
+  (estacionario, tope, presupuesto, vuelta fallida) y **cuántas quedaron con el
+  reparto todavía en marcha**, es decir con su residuo del reparto por encima
+  del 1 % de la energía de la hora. Esa es la cifra que dice cuánto del detalle
+  por institución es transitorio.
+- En el censo también, **lo que costó**: los segundos y las evaluaciones del
+  integrador por hora (mediana, percentil 90, máximo y suma). El almacén los
+  guarda desde D47, una fila por hora resuelta. **Los segundos son tiempo de
+  pared del trabajador**, medidos mientras otras `PROCS` horas corren en la
+  misma máquina: no son tiempo de procesador ni lo que costaría esa hora
+  corrida sola. De ahí dos consecuencias prácticas: la mediana sale inflada
+  frente a una hora aislada, y la suma de la columna no es la duración de la
+  corrida, sino del orden de `PROCS` veces esa duración (la duración real está
+  en el registro). Entre dos configuraciones de la misma campaña, con los
+  mismos procesos y la misma máquina, la comparación sí es justa, que es
+  exactamente para lo que está. **La cifra que no depende de la máquina es
+  `evaluaciones`**, y es la que se cita al comparar con el servidor o al
+  publicar. Si un almacén es anterior a D47 y no trae alguna de estas
+  columnas, el censo dice «NO MEDIDO» en vez de contar ceros.
+- En el registro de cada corrida, las líneas `[D26]` (horas por horizonte usado
+  y por motivo de parada, y las que pararon con el reparto moviéndose),
+  `[D47]` (el criterio, cuando es el nuevo) y `[D45]` (el arranque), más los
+  segundos del mercado entero que imprime el paso 2 de la corrida.
+- En las comparaciones, cuánto se mueve la entrega de cada comprador entre una
+  configuración y otra. Si «hoy» y «reparto a 2,0» dieran lo mismo en las horas
+  que las dos resuelven, el transitorio no sesgaría el reparto y D47 quedaría
+  sin objeto; la medición de H-86 dice lo contrario (entre el 16 % y el 53 % de
+  la energía de la hora en siete horas de E0).
+
+**Tiempo esperado: del orden de una noche**, y hay que decirlo así. Las cuatro
+corridas del criterio nuevo integran hasta que el reparto se quieta, y en la
+medición de H-86 hubo horas de hasta **3 609 (s) con 28,7 millones de
+evaluaciones** cada una, frente a los 26,3 (s) de la hora mediana al horizonte
+de producción. La configuración «hoy» de cada caso es una semana normal, del
+orden de 5 a 15 (min) con 31 procesos; las otras cuatro son las caras, y por eso
+llevan plazo de 60 (min) por hora.
 
 ---
 

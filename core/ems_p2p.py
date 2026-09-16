@@ -267,15 +267,40 @@ class SolverParams:
     # parada activa: con `horizonte_max_acoplado=None` hay una sola
     # resolucion, identica al bit a la de antes.
     presupuesto_eval_acoplado: Optional[int] = None
-    # H-85 / D45: con que oferta arranca el acoplado. "iguales" (defecto) es
-    # el arranque de siempre, identico al bit: reparte a partes iguales, como
-    # JoinFinal.m. "factible" reparte en proporcion al lado corto, de modo
-    # que ningun comprador arranca con mas de su deficit ni ningun vendedor
-    # con mas de su excedente; resuelve la hora 753 de E4, que con el de
-    # siempre desborda el multiplicador de demanda. Apagado hasta medirlo en
-    # el servidor con los dos arranques sobre la misma semana (D45, D46).
+    # H-85 / D45, RESUELTA el 2026-09-16: con que oferta arranca el acoplado.
+    # "factible" es el DEFECTO DE PRODUCCION desde esta fecha: reparte en
+    # proporcion al lado corto, de modo que ningun comprador arranca con mas de
+    # su deficit ni ningun vendedor con mas de su excedente. "iguales" es el
+    # arranque del modelo base, que reparte a partes iguales como JoinFinal.m.
+    #
+    # POR QUE SE CAMBIO EL DEFECTO, con la medicion del servidor delante
+    # (H-86): el factible resuelve la hora 753 de E4, que con el de siempre
+    # desborda el multiplicador de demanda; mueve menos del 1 % los pagos de
+    # E4; y sobre todo, el arranque a partes iguales cae en algunas horas sobre
+    # un conjunto SIMETRICO del que la dinamica no sale (hora 152 de E0: el
+    # mismo reparto, hasta el quinto decimal, a tres compradores con deficits
+    # de 2,79, 3,66 y 7,85 (kWh), ni siquiera al horizonte 2,0), y cuesta hasta
+    # mil veces mas (17 340 641 evaluaciones frente a 79 762).
+    #
+    # AVISO DE FIDELIDAD: es un apartamiento declarado de `JoinFinal.m`, con
+    # esa evidencia. `solve_coupled_for_hour`, la funcion de bajo nivel,
+    # conserva su propio defecto "iguales", de modo que quien la llame directa
+    # (las compuertas que comparan contra el modelo base, las sondas) sigue
+    # obteniendo el arranque del modelo base sin pedirlo.
+    #
     # Solo actua por la via acoplada.
-    arranque_acoplado: str = "iguales"
+    arranque_acoplado: str = "factible"
+    # D47 (H-86): que mira el criterio de parada por estacionario. "precio"
+    # (defecto) es el de D26, identico al bit; "precio_y_reparto" exige ademas
+    # que el reparto entre compradores este quieto. El defecto NO cambia en
+    # esta tarea: el horizonte de produccion se fija con el costo medido por la
+    # campana `convergencia` del lanzador, no adivinado. Solo actua con la
+    # parada por estacionario activa (`horizonte_max_acoplado`).
+    criterio_estacionario: str = "precio"
+    # D47: umbral de la medida del reparto, como fraccion de la energia
+    # transada de la hora. Solo actua con `criterio_estacionario` en
+    # "precio_y_reparto".
+    tol_reparto: float = 0.01
     # C-161: si se pide, cada hora conserva su trayectoria con los
     # multiplicadores en vez de tirarla. Es lo que llena el almacen y lo que
     # permite dibujar la convergencia de cualquier hora sin volver a simular.
@@ -306,8 +331,22 @@ class SolverParams:
         if self.arranque_acoplado not in ARRANQUES:
             raise ValueError(
                 f"arranque_acoplado={self.arranque_acoplado!r}; use "
-                f"'iguales' (el de siempre, como JoinFinal.m) o 'factible' "
-                f"(H-85, D45)")
+                f"'factible' (el defecto de produccion, D45) o 'iguales' "
+                f"(el del modelo base, como JoinFinal.m)")
+        # D47: lo mismo con el criterio de parada y su umbral. Un criterio
+        # desconocido dentro del trabajador seria una excepcion por hora
+        # (C-190), y un umbral no finito dejaria pasar cualquier vuelta.
+        if self.criterio_estacionario not in CRITERIOS_ESTACIONARIO:
+            raise ValueError(
+                f"criterio_estacionario={self.criterio_estacionario!r}; use "
+                f"'precio' (el de siempre, D26) o 'precio_y_reparto' "
+                f"(H-86, D47)")
+        t = self.tol_reparto
+        if not (isinstance(t, (int, float)) and not isinstance(t, bool)
+                and np.isfinite(t) and t > 0):
+            raise ValueError(
+                f"tol_reparto={t!r}; tiene que ser un numero finito y "
+                f"positivo (fraccion de la energia transada de la hora)")
 
 
 @dataclass
@@ -420,6 +459,54 @@ class HourlyResult:
     # con exito y se conservo la anterior, o fallo la primera y la hora
     # queda sin mercado con su motivo). Vacio en la via alternada.
     parada_acoplado: str = ""
+    # D47 (H-86): cuanto se movia el REPARTO entre compradores en el ultimo
+    # decimo de la vuelta que se conservo, como fraccion de la energia transada
+    # de la hora (`_movimiento_relativo(tr.P_t, "energia")`). Se guarda SIEMPRE
+    # que la hora se resuelva por la via acoplada, se use o no en el criterio
+    # de parada: es barato, y sin el no se puede censar cuantas horas quedaron
+    # con el reparto en marcha sin repetir la corrida entera. 0.0 por la via
+    # alternada o en la hora sin mercado.
+    residuo_reparto: float = 0.0
+    # D47: LO QUE COSTO la hora por la via acoplada, que es lo que hay que
+    # poner al lado del residuo para decidir el horizonte de produccion y hoy
+    # no se puede leer sin volver a correrlo.
+    #
+    #   segundos      TIEMPO DE PARED del trabajador que la resolvio, medido
+    #                 alrededor de la resolucion. Y hay que leerlo por lo que
+    #                 es: mientras esa hora corre hay otras `PROCS` corriendo
+    #                 en la misma maquina, de modo que NO es tiempo de
+    #                 procesador ni lo que costaria esa hora corrida sola. La
+    #                 mediana sale inflada frente a una hora aislada, y la SUMA
+    #                 de la columna no es la duracion de la corrida sino del
+    #                 orden de `PROCS` veces esa duracion. Entre dos
+    #                 configuraciones de la MISMA campana, con los mismos
+    #                 procesos y la misma maquina, la comparacion si es justa,
+    #                 que es para lo que esta.
+    #   evaluaciones  evaluaciones del lado derecho sumadas sobre TODAS las
+    #                 vueltas de la hora, fallidas incluidas (el `gastado` de
+    #                 `_resuelve_acoplado`). **Es la cifra que no depende de la
+    #                 maquina**, y la misma cuenta con la que D36 hace su
+    #                 presupuesto: la que se cita cuando se compara entre
+    #                 maquinas o se publica.
+    #
+    # Ninguna de las dos decide nada dentro del motor: son mediciones.
+    #
+    # Con la restriccion de participacion (H-43) las dos suman lo del conjunto
+    # completo mas lo del reducido, porque las dos resoluciones las pago esa
+    # hora.
+    #
+    # CUANTO VALEN SIN MERCADO. Valen 0.0 y 0 por la via alternada, que no pasa
+    # por aqui, y en la hora que no tiene vendedores o no tiene compradores,
+    # que vuelve antes de resolver nada. En cambio la hora que SI se intento y
+    # no dio mercado (el integrador sin exito, el guardia de NaN, el conjunto
+    # reducido que no resuelve, todos a perdida) guarda su costo de verdad, a
+    # proposito: se gasto igual. Ese costo NO TIENE CONSUMIDOR HOY, porque esas
+    # horas se anotan en el almacen por `sin_resolver`, que escribe el motivo y
+    # nada mas; queda en el resultado por si alguna vez se quiere contar, y
+    # quien lo busque en el CSV del censo no lo va a encontrar. No se perdio:
+    # nunca se escribio.
+    segundos: float = 0.0
+    evaluaciones: int = 0
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
@@ -432,6 +519,21 @@ class HourlyResult:
 # defecto de su argumento `tol_estacionario`, y quien necesite otro valor
 # para una prueba pasa ese argumento, nunca mutando esta constante.
 TOL_ESTACIONARIO = 0.01
+
+# D47 (H-86): umbral de la medida del REPARTO, la otra mitad del criterio de
+# parada. El reparto se considera quieto cuando la mayor pareja (j, i) se mueve,
+# en el ultimo decimo de la trayectoria, menos de esta fraccion de la energia
+# transada de la hora. Misma regla que TOL_ESTACIONARIO: constante de modulo,
+# valor por defecto del argumento de `_resuelve_acoplado`, y quien necesite otro
+# umbral lo pasa en vez de mutarla.
+TOL_REPARTO = 0.01
+
+# D47: que mira el criterio de parada del acoplado. "precio" es el de siempre
+# (D26), identico al bit; "precio_y_reparto" exige que las DOS medidas esten
+# quietas, porque un precio quieto no implica un reparto quieto: en la matriz de
+# trece corridas, la hora 109 de E0 paro por estacionario con residuo 0,0065 y
+# su reparto estaba lejos del punto final (H-86).
+CRITERIOS_ESTACIONARIO = ("precio", "precio_y_reparto")
 
 # D36: el presupuesto de la parada por estacionario, calibrado el 2026-09-14
 # en la maquina de trabajo sobre la hora mas lenta medida, la 4184 de la
@@ -724,11 +826,20 @@ def _horas_representativas(p2p_results, D, G_klim, max_hours: int = 2):
 
 def _trayectoria_finita(tr) -> bool:
     """D37 (re-revision del arreglo final): cierto si los precios de la
-    trayectoria (`pi_t`) y las cantidades finales (`P_star`) son todos
-    finitos. Una vuelta con `success=True` y un precio no finito daba un
-    recorrido `nan`, que la comprobacion de estacionario contaba como
-    estacionario: la vuelta rota desplazaba a la buena."""
-    for nombre in ("pi_t", "P_star"):
+    trayectoria (`pi_t`), las cantidades finales (`P_star`) y la trayectoria
+    del reparto (`P_t`) son todos finitos. Una vuelta con `success=True` y un
+    precio no finito daba un recorrido `nan`, que la comprobacion de
+    estacionario contaba como estacionario: la vuelta rota desplazaba a la
+    buena.
+
+    D47: `P_t` entra en la tupla porque desde entonces NO es un adorno de la
+    trayectoria: decide la parada con el criterio nuevo y viaja al almacen como
+    residuo del reparto. Un no finito ahi daria una medida `nan`, que no es
+    menor ni mayor que el umbral, de modo que ninguna vuelta seria estacionaria
+    y la hora quemaria el presupuesto entero sin que nada dijera por que; y con
+    el criterio de hoy, esa hora podria acabar marcada como no resuelta aunque
+    el motor la hubiera resuelto."""
+    for nombre in ("pi_t", "P_star", "P_t"):
         v = getattr(tr, nombre, None)
         if v is None:
             continue
@@ -738,6 +849,47 @@ def _trayectoria_finita(tr) -> bool:
     return True
 
 
+def _movimiento_relativo(traj, normaliza: str = "recorrido") -> float:
+    """Cuanto se mueve una trayectoria en su ULTIMO DECIMO, en relativo (D47).
+
+    `traj` admite las dos formas del acoplado: el precio, (I, n_t), y el
+    reparto, (J, I, n_t), que se aplana a una fila por pareja (j, i). El
+    movimiento es el mayor cambio de una fila entre la ultima columna y la de
+    un decimo antes, la misma cola que el criterio de D26 usaba para el precio.
+
+    QUE CAMBIA SEGUN LA MAGNITUD, y no es un detalle:
+
+      "recorrido" divide por el mayor recorrido de una fila (su maximo menos su
+          minimo). Es la medida del PRECIO de D26, y esta funcion la reproduce
+          operacion por operacion, de modo que con el criterio "precio" el
+          resultado es identico al bit al de antes de D47.
+      "energia" divide por la ENERGIA TRANSADA de la hora, la suma de la ultima
+          columna. Es la medida del REPARTO, y la eleccion importa: el reparto
+          no tiene un recorrido propio que signifique algo (una pareja que
+          nunca recibio nada tiene recorrido cero y otra que se lo lleva todo
+          lo tiene enorme), mientras que lo que decide si la hora esta hecha es
+          CUANTA ENERGIA SE SIGUE MOVIENDO frente a la que se reparte. Con la
+          suma casi nula, el divisor se acota a 1e-12 en vez de dividir por
+          cero; esa hora no tiene mercado que repartir y el llamador ya la
+          trata aparte.
+
+    Con un solo punto (la trayectoria que D41 corta) la cola vale uno, el
+    movimiento es cero y la medida es cero, igual que antes.
+    """
+    a = np.asarray(traj, dtype=float)
+    if a.ndim == 3:                      # (J, I, n_t) -> una fila por pareja
+        a = a.reshape(-1, a.shape[-1])
+    cola = int(max(1, a.shape[1] // 10))
+    mov = float(np.max(np.abs(a[:, -1] - a[:, -cola])))
+    if normaliza == "recorrido":
+        rec = float(np.max(np.abs(a.max(axis=1) - a.min(axis=1))))
+        return mov / rec if rec > 1e-12 else 0.0
+    if normaliza != "energia":
+        raise ValueError(f"normaliza={normaliza!r}; use 'recorrido' (el "
+                         f"precio, D26) o 'energia' (el reparto, D47)")
+    return mov / max(float(np.sum(a[:, -1])), 1e-12)
+
+
 def _resuelve_acoplado(
         *, G_net_j, D_net_i, a_j, b_j, lam_j, theta_j, G_klim_i, lam_i,
         theta_i, etha_i, pi_gs, pi_gb, tau, tau_buyers, n_points,
@@ -745,7 +897,8 @@ def _resuelve_acoplado(
         horizonte_max_aco, tol_estacionario: float = TOL_ESTACIONARIO,
         presupuesto_eval: Optional[int] = None,
         factor_crecimiento: float = FACTOR_CRECIMIENTO_DOBLEZ,
-        arranque: str = "iguales"):
+        arranque: str = "iguales",
+        criterio: str = "precio", tol_reparto: float = TOL_REPARTO):
     """Resuelve una hora por la via acoplada (CAL-48), con las dos palancas
     de la sonda de H-79 (D35, D26).
 
@@ -790,6 +943,18 @@ def _resuelve_acoplado(
     misma en todas las vueltas: "iguales" (defecto, el de siempre) o
     "factible".
 
+    D47, QUE MIRA EL CRITERIO. Con `criterio="precio"` (defecto) la hora es
+    estacionaria cuando el precio se mueve poco, que es el criterio de D26,
+    identico al bit. Con "precio_y_reparto" lo es solo si ADEMAS el reparto
+    entre compradores esta quieto, medido con `_movimiento_relativo` sobre
+    `tr.P_t` y normalizado por la energia transada de la hora, contra
+    `tol_reparto`. Existe porque un precio quieto no implica un reparto
+    quieto: en la hora 109 de E0 el precio se movia de 721,5 a 725,7
+    (COP/kWh) entre los horizontes 0,05 y 2,0 mientras el reparto pasaba de
+    cuatro compradores casi iguales a uno solo con todo (H-86). El resto de
+    la maquinaria (doblar, tope, presupuesto, vuelta buena) no cambia: lo
+    unico que cambia es CUANDO se declara estacionaria una vuelta.
+
     Devuelve `(tr, h, parada, gastado)`: la trayectoria que se conserva
     (`CoupledTrajectory`), el horizonte de ESA vuelta, para
     `HourlyResult.horizonte_usado`; por que paro, para
@@ -799,6 +964,13 @@ def _resuelve_acoplado(
     fallidas incluidas, para que el reintento de H-43 reciba solo lo que
     queda del presupuesto (re-revision del arreglo final).
     """
+    # D47: un criterio mal escrito no puede degradar en silencio al criterio
+    # flojo, que es lo que haria la comparacion de mas abajo con un valor
+    # desconocido. Las dos entradas de produccion (`SolverParams` y la tupla
+    # del trabajador) ya lo validan; esto cubre a quien llame aqui directo.
+    if criterio not in CRITERIOS_ESTACIONARIO:
+        raise ValueError(f"criterio={criterio!r}; use 'precio' (el de siempre, "
+                         f"D26) o 'precio_y_reparto' (H-86, D47)")
     h = float(t_span_aco)
     presupuesto = (PRESUPUESTO_EVAL_ACOPLADO if presupuesto_eval is None
                    else int(presupuesto_eval))
@@ -839,12 +1011,15 @@ def _resuelve_acoplado(
             return buena[0], buena[1], "fallo_vuelta", gastado
         evals.append(n)
         buena = (tr, h)
-        traj = tr.pi_t
-        cola = int(max(1, traj.shape[1] // 10))
-        mov = float(np.max(np.abs(traj[:, -1] - traj[:, -cola])))
-        rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
-        estacionario = ((mov / rec if rec > 1e-12 else 0.0)
+        # La medida del precio, la de D26, con la misma cuenta de siempre.
+        estacionario = (_movimiento_relativo(tr.pi_t, "recorrido")
                         <= tol_estacionario)
+        # D47: con el criterio nuevo, tambien la del reparto. Las dos, o
+        # ninguna: la hora no esta hecha mientras la energia siga cambiando
+        # de manos, aunque el precio ya no se mueva.
+        if estacionario and criterio == "precio_y_reparto":
+            estacionario = (_movimiento_relativo(tr.P_t, "energia")
+                            <= tol_reparto)
         if estacionario:
             return tr, h, "estacionario", gastado
         if 2.0 * h > horizonte_max_aco + 1e-12:
@@ -898,24 +1073,36 @@ def _run_hour_worker(args):
     # que una tupla de 28 campos resuelve igual que antes.
     if len(args) == 28:
         args = args + (None,)
-    # H-85 / D45: la regla del arranque del acoplado. "iguales" es el de
-    # siempre, de modo que una tupla de 29 campos resuelve igual que antes.
+    # H-85 / D45: la regla del arranque del acoplado. El shim rellena con
+    # "iguales", que era el defecto cuando esas tuplas se escribieron: una
+    # tupla de 29 campos resuelve hoy igual que antes de D45, aunque el defecto
+    # de `SolverParams` haya pasado a "factible". Es lo que hace que las
+    # pruebas que arman la tupla a mano sigan midiendo lo que median.
     if len(args) == 29:
         args = args + ("iguales",)
+    # D47: el criterio de parada y su umbral. "precio" es el de siempre, de
+    # modo que una tupla de 30 campos resuelve igual que antes de D47.
+    if len(args) == 30:
+        args = args + ("precio", TOL_REPARTO)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
      pi_gs, pi_gb, tau, tau_buyers, t_span, n_points,
      min_iter, tol, max_iter, ode_method, buyer_competition,
      metodo, t_span_aco, pi_gb_j, guarda_tr,
-     rtol_aco, horizonte_max_aco, presupuesto_aco, arranque_aco) = args
+     rtol_aco, horizonte_max_aco, presupuesto_aco, arranque_aco,
+     criterio_aco, tol_reparto_aco) = args
     # H-85 / D45: una regla desconocida falla en voz alta en todas las horas,
     # tambien en las que no tienen mercado, y no como excepcion del acoplado
     # por hora (C-190). `SolverParams` ya la valida; esto cubre la tupla
     # armada a mano.
     if arranque_aco not in ARRANQUES:
         raise ValueError(f"arranque del acoplado {arranque_aco!r}; use "
-                         f"'iguales' o 'factible' (H-85, D45)")
+                         f"'factible' o 'iguales' (H-85, D45)")
+    # D47: y lo mismo con el criterio de parada.
+    if criterio_aco not in CRITERIOS_ESTACIONARIO:
+        raise ValueError(f"criterio del acoplado {criterio_aco!r}; use "
+                         f"'precio' o 'precio_y_reparto' (H-86, D47)")
 
     J = len(seller_ids); I = len(buyer_ids)
     res = HourlyResult(k=k, seller_ids=seller_ids, buyer_ids=buyer_ids,
@@ -947,7 +1134,14 @@ def _run_hour_worker(args):
     # D36 (re-revision): las evaluaciones del integrador que lleva gastadas
     # esta hora, para que el reintento de H-43 reciba solo lo que queda.
     gastado_hora = 0
+    # D47: cuanto se movia el reparto en la vuelta que se conserva. Cero por la
+    # via alternada, que no produce trayectoria de la que medirlo.
+    residuo_rep = 0.0
+    # D47: y lo que costo la hora, en tiempo de reloj y en evaluaciones.
+    segundos_hora = 0.0
+    evaluaciones_hora = 0
     if metodo == "acoplado":
+        _reloj = time.monotonic()
         try:
             tr, h, parada, gastado_hora = _resuelve_acoplado(
                 G_net_j=G_net_j, D_net_i=D_net_i, a_j=a_j, b_j=b_j,
@@ -959,7 +1153,9 @@ def _run_hour_worker(args):
                 rtol_aco=rtol_aco, horizonte_max_aco=horizonte_max_aco,
                 presupuesto_eval=presupuesto_aco,
                 # H-85 / D45: la regla del arranque de la oferta.
-                arranque=arranque_aco)
+                arranque=arranque_aco,
+                # D47: que mira el criterio de parada, y con que umbral.
+                criterio=criterio_aco, tol_reparto=tol_reparto_aco)
         except Exception as e:
             # Fallar en voz alta (regla principal de CLAUDE.md, fila
             # "cifras que salen sin error pero son falsas"): antes esta hora
@@ -972,7 +1168,12 @@ def _run_hour_worker(args):
             res.motivo = (f"excepcion del acoplado: "
                          f"{type(e).__name__}: {e}")[:200]
             res.horizonte_usado = 0.0
+            # D47: el tiempo si se sabe; las evaluaciones no, porque la
+            # excepcion se lleva por delante la cuenta que devolvia.
+            res.segundos = time.monotonic() - _reloj
             return res
+        segundos_hora = time.monotonic() - _reloj
+        evaluaciones_hora = int(gastado_hora)
         # D36/D37: por que paro el acoplado ("una_vuelta" con la parada
         # apagada). Se anota tambien en la hora que sale sin mercado.
         res.parada_acoplado = parada
@@ -997,6 +1198,10 @@ def _run_hour_worker(args):
         if fallida:
             res.motivo = f"integrador sin exito al horizonte {h:g}"
             res.horizonte_usado = 0.0
+            # D47: la hora no da mercado, pero COSTO lo que costo, y eso es
+            # parte del precio de la configuracion que se este midiendo.
+            res.segundos = float(segundos_hora)
+            res.evaluaciones = int(evaluaciones_hora)
             return res
         P_star = np.asarray(tr.P_star, dtype=float)
         pi_i = np.clip(np.asarray(tr.pi_star, dtype=float), pi_gb, pi_gs)
@@ -1004,12 +1209,13 @@ def _run_hour_worker(args):
         # recorrido: cerca de cero es estacionario. Se guarda donde el lazo
         # alternado guardaba su residuo, para que el diagnóstico de la
         # corrida siga teniendo una sola columna de convergencia.
-        traj = tr.pi_t
-        cola = int(max(1, traj.shape[1] // 10))
-        mov = float(np.max(np.abs(traj[:, -1] - traj[:, -cola])))
-        rec = float(np.max(np.abs(traj.max(axis=1) - traj.min(axis=1))))
-        iter_count = int(traj.shape[1])
-        norm_rel = mov / rec if rec > 1e-12 else 0.0
+        iter_count = int(tr.pi_t.shape[1])
+        norm_rel = _movimiento_relativo(tr.pi_t, "recorrido")
+        # D47: y la misma medida sobre el REPARTO, que se guarda siempre,
+        # entre en el criterio de parada o no. Es lo que permite censar
+        # despues cuantas horas quedaron con la energia todavia cambiando de
+        # manos (H-86), sin volver a resolverlas.
+        residuo_rep = _movimiento_relativo(tr.P_t, "energia")
         # D26: el horizonte con que de verdad se resolvio esta hora.
         res.horizonte_usado = h
         if guarda_tr:
@@ -1041,6 +1247,12 @@ def _run_hour_worker(args):
     # mercado. Un solo NaN contamina toda la agregación aguas abajo (IE,
     # net_benefit, W_sellers/buyers, etc.).
     if np.isnan(P_star).any() or np.isnan(pi_i).any():
+        # D47: esta hora no da mercado, pero COSTO lo que costo, igual que sus
+        # hermanas de mas arriba. Un cero aqui seria un «no se midio» disfrazado
+        # de «no costo nada», que es la clase de cifra que el censo acaba de
+        # dejar de escribir.
+        res.segundos = float(segundos_hora)
+        res.evaluaciones = int(evaluaciones_hora)
         return res
 
     # ── Restriccion de participacion (H-43 / C-151) ──────────────────────
@@ -1112,7 +1324,14 @@ def _run_hour_worker(args):
                  # queda del presupuesto de la hora (arriba).
                  rtol_aco, horizonte_max_aco, queda,
                  # H-85 / D45: el mismo arranque que el conjunto completo.
-                 arranque_aco))
+                 arranque_aco,
+                 # D47: y el mismo criterio de parada, por la misma razon.
+                 criterio_aco, tol_reparto_aco))
+            # D47: las dos resoluciones las pago esta hora, de modo que su
+            # costo es la suma. Se acumula antes de mirar si el conjunto
+            # reducido dio mercado, porque lo que gasto lo gasto igual.
+            segundos_hora += float(getattr(sub, "segundos", 0.0))
+            evaluaciones_hora += int(getattr(sub, "evaluaciones", 0))
             # D36: la parada que cuenta es la de la vuelta que produjo el
             # resultado final (o su falta), la del conjunto reducido.
             res.parada_acoplado = sub.parada_acoplado
@@ -1124,6 +1343,8 @@ def _run_hour_worker(args):
                 # que la restriccion de participacion descarto, no significa
                 # nada si al final no hay mercado.
                 res.horizonte_usado = 0.0
+                res.segundos = float(segundos_hora)
+                res.evaluaciones = int(evaluaciones_hora)
                 # C-190: si el reintento reventó, su motivo tiene que subir.
                 # Sin esto, `res` (el marco exterior, `motivo=""` de fabrica)
                 # volveria "sin mercado" muda, el mismo fallo mudo que cierra
@@ -1137,6 +1358,9 @@ def _run_hour_worker(args):
             pi_i     = sub.pi_star
             iter_count = sub.iters_used
             norm_rel = sub.norm_rel_final
+            # D47: el residuo del reparto que cuenta es el de la vuelta que
+            # produjo el resultado final, la del conjunto reducido.
+            residuo_rep = sub.residuo_reparto
             # D26: el horizonte que de verdad produjo este resultado es el
             # de la vuelta anidada, no el del intento con el conjunto
             # completo que la restriccion de participacion descarto.
@@ -1150,10 +1374,15 @@ def _run_hour_worker(args):
             # mercado, el horizonte del intento acoplado que la restriccion
             # de participacion descarto no significa nada (D26).
             res.horizonte_usado = 0.0
+            res.segundos = float(segundos_hora)
+            res.evaluaciones = int(evaluaciones_hora)
             return res
 
     res.P_star = P_star; res.pi_star = pi_i; res.iters_used = iter_count
     res.norm_rel_final = float(norm_rel)
+    res.residuo_reparto = float(residuo_rep)
+    res.segundos = float(segundos_hora)
+    res.evaluaciones = int(evaluaciones_hora)
 
     settle = residual_settlement(P_star, G_net_j, D_net_i,
                                   G_klim_k, G_raw_k, pi_gs, pi_gb,
@@ -1289,9 +1518,17 @@ class EMSP2P:
                          # el presupuesto, que solo actua con la parada.
                          sv.rtol_acoplado, sv.horizonte_max_acoplado,
                          getattr(sv, "presupuesto_eval_acoplado", None),
-                         # H-85 / D45: el arranque del acoplado; "iguales"
-                         # (defecto) es el de siempre, identico al bit.
-                         getattr(sv, "arranque_acoplado", "iguales")))
+                         # H-85 / D45: el arranque del acoplado. El respaldo
+                         # del `getattr` es "iguales" por la misma razon que
+                         # el shim de la tupla: lo que se rellena por
+                         # compatibilidad es el defecto de cuando se escribio
+                         # este camino, no el de hoy. Un objeto sin el campo
+                         # es de antes de D45 y esperaba el arranque de antes.
+                         getattr(sv, "arranque_acoplado", "iguales"),
+                         # D47: el criterio de parada y su umbral; "precio"
+                         # (defecto) es el de D26, identico al bit.
+                         getattr(sv, "criterio_estacionario", "precio"),
+                         getattr(sv, "tol_reparto", TOL_REPARTO)))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -1580,6 +1817,12 @@ class EMSP2P:
                                   sv.rtol_acoplado, sv.horizonte_max_acoplado,
                                   getattr(sv, "presupuesto_eval_acoplado",
                                           None),
-                                  # H-85 / D45: el arranque del acoplado.
+                                  # H-85 / D45: el arranque del acoplado; el
+                                  # respaldo es el defecto de cuando se
+                                  # escribio este camino, como en el shim.
                                   getattr(sv, "arranque_acoplado",
-                                          "iguales")))
+                                          "iguales"),
+                                  # D47: el criterio de parada y su umbral.
+                                  getattr(sv, "criterio_estacionario",
+                                          "precio"),
+                                  getattr(sv, "tol_reparto", TOL_REPARTO)))

@@ -176,7 +176,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          metodo: str = "alternado", t_span_acoplado: float = 0.05,
          rtol_acoplado: float = 1e-6, horizonte_max_acoplado: float = 0.0,
          presupuesto_eval_acoplado: int = None,
-         arranque_acoplado: str = "iguales",
+         # H-85 / D45, resuelta el 2026-09-16: produccion arranca el acoplado
+         # con el reparto factible. D47: y el criterio de parada mira solo el
+         # precio mientras la campana `convergencia` no mida lo que cuesta
+         # mirar tambien el reparto.
+         arranque_acoplado: str = "factible",
+         criterio_estacionario: str = "precio",
+         tol_reparto: float = 0.01,
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -577,9 +583,13 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # parada; None es la constante del motor. Sin la
                           # parada activa no actua.
                           presupuesto_eval_acoplado=presupuesto_eval_acoplado,
-                          # H-85 / D45: el arranque del acoplado. "iguales"
-                          # (defecto) es el de siempre, identico al bit.
+                          # H-85 / D45: el arranque del acoplado. "factible"
+                          # es el defecto de produccion desde el 2026-09-16.
                           arranque_acoplado=arranque_acoplado,
+                          # D47: que mira el criterio de parada por
+                          # estacionario, y con que umbral el reparto.
+                          criterio_estacionario=criterio_estacionario,
+                          tol_reparto=tol_reparto,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -610,11 +620,23 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   f"un presupuesto de {_pres} evaluaciones del integrador "
                   f"por hora (D36)")
         if solver.arranque_acoplado == "factible":
-            print("    [D45] Arranque factible del acoplado: la oferta de "
-                  "cada vendedor se reparte en proporcion al deficit de cada "
-                  "comprador, sin que ninguno arranque con mas de lo que "
-                  "necesita (H-85); el defecto reparte a partes iguales, "
-                  "como JoinFinal.m")
+            print("    [D45] Arranque factible del acoplado (defecto desde el "
+                  "2026-09-16): la oferta de cada vendedor se reparte en "
+                  "proporcion al deficit de cada comprador, sin que ninguno "
+                  "arranque con mas de lo que necesita (H-85, H-86). Es un "
+                  "apartamiento declarado de JoinFinal.m, que reparte a "
+                  "partes iguales y cae en horas simetricas de las que la "
+                  "dinamica no sale")
+        else:
+            print("    [D45] Arranque del modelo base (a partes iguales, como "
+                  "JoinFinal.m), pedido expresamente; el defecto de "
+                  "produccion es el factible")
+        if solver.criterio_estacionario == "precio_y_reparto":
+            print("    [D47] Criterio de parada sobre el PRECIO Y EL REPARTO: "
+                  "una hora es estacionaria solo si ademas la mayor pareja "
+                  f"mueve menos del {solver.tol_reparto:g} de la energia "
+                  "transada en el ultimo decimo (H-86). El defecto mira solo "
+                  "el precio, y deja horas cuyo reparto sigue en marcha")
     _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
     print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
           f"hora empieza a correr; la vencida queda sin resolver)")
@@ -676,6 +698,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             if _otros:
                 _txt += "; ademas " + ", ".join(f"{m}: {n}" for m, n in _otros)
             print(f"    [D26] Horas con mercado por motivo de parada: {_txt}")
+        # D47 (H-86): y cuantas de esas horas pararon con el REPARTO todavia
+        # moviendose. Con el criterio "precio" son las que el criterio de hoy
+        # no ve; con "precio_y_reparto" solo pueden serlo las que paran por
+        # tope, presupuesto o vuelta fallida. Sale siempre que la parada este
+        # activa, tambien en cero, para que el registro diga que se miro.
+        _con_mercado = [r for r in p2p_results if r.P_star is not None]
+        _movidas = [r for r in _con_mercado
+                    if float(getattr(r, "residuo_reparto", 0.0))
+                    > solver.tol_reparto]
+        print(f"    [D26] Horas con mercado cuyo reparto seguia moviendose al "
+              f"parar (residuo del reparto sobre {solver.tol_reparto:g}): "
+              f"{len(_movidas)} de {len(_con_mercado)} (D47)")
 
     # ── El almacen de la corrida (C-161) ─────────────────────────────────
     # Todo lo que hasta hoy se tiraba: los retirados por hora, el piso y el
@@ -751,6 +785,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 precio_medio=float(np.mean(pi)) if pi.size else float("nan"),
                 iteraciones=int(r.iters_used),
                 residuo=float(r.norm_rel_final),
+                # D47 (H-86): el residuo del REPARTO viaja junto al del
+                # precio, siempre. Es lo que permite censar despues cuantas
+                # horas quedaron con la energia todavia cambiando de manos,
+                # sin volver a resolver la corrida.
+                residuo_reparto=float(getattr(r, "residuo_reparto", 0.0)),
+                # D47: y lo que costo la hora, al lado de sus residuos. Es lo
+                # que la campana de convergencia tiene que poner en la balanza
+                # para decidir el horizonte, y sin esto no se puede leer sin
+                # volver a correr. Los segundos son tiempo de PARED con `PROCS`
+                # horas a la vez, no tiempo de procesador ni el costo de una
+                # hora sola (ver el campo en `HourlyResult`); la cifra que no
+                # depende de la maquina es `evaluaciones`. Solo se escriben en
+                # las horas resueltas: la que no resuelve pasa por
+                # `sin_resolver`, que anota el motivo y nada mas.
+                segundos=float(getattr(r, "segundos", 0.0)),
+                evaluaciones=int(getattr(r, "evaluaciones", 0)),
                 W_vendedor=float(r.Wj_total), W_comprador=float(r.Wi_total),
                 SC=float(r.SC), SS=float(r.SS), equidad=float(r.IE),
                 reparto_comprador=float(r.PS),
@@ -2374,14 +2424,31 @@ if __name__ == "__main__":
                          "ultima buena. Entero positivo. Sin la bandera, la "
                          "constante calibrada del motor. Solo tiene efecto "
                          "con --horizonte-max-acoplado.")
+    # El defecto se resuelve despues de leer los argumentos, con None como
+    # centinela: asi se puede saber si el operador la pidio o no, y avisar
+    # solo cuando la pidio sin --metodo acoplado.
     ap.add_argument("--arranque-acoplado", dest="arranque_acoplado",
-                    choices=["iguales", "factible"], default="iguales",
+                    choices=["iguales", "factible"], default=None,
                     help="H-85/D45: con que oferta arranca el solucionador "
-                         "acoplado. 'iguales' (defecto) reparte a partes "
-                         "iguales, como JoinFinal.m, identico a hoy; "
-                         "'factible' reparte en proporcion al deficit de "
-                         "cada comprador, sin que ninguno arranque con mas "
-                         "de lo que necesita. Solo con --metodo acoplado.")
+                         "acoplado. 'factible' (DEFECTO desde el 2026-09-16) "
+                         "reparte en proporcion al deficit de cada comprador, "
+                         "sin que ninguno arranque con mas de lo que necesita; "
+                         "'iguales' reparte a partes iguales, como "
+                         "JoinFinal.m. Solo con --metodo acoplado.")
+    ap.add_argument("--criterio-estacionario", dest="criterio_estacionario",
+                    choices=["precio", "precio_y_reparto"], default="precio",
+                    help="H-86/D47: que mira la parada por estacionario del "
+                         "acoplado. 'precio' (defecto) es el criterio de D26, "
+                         "identico a hoy; 'precio_y_reparto' exige ademas que "
+                         "el reparto entre compradores este quieto, porque un "
+                         "precio quieto no implica un reparto quieto. Solo "
+                         "tiene efecto con --horizonte-max-acoplado.")
+    ap.add_argument("--tol-reparto", dest="tol_reparto", type=float,
+                    default=0.01, metavar="TOL",
+                    help="H-86/D47: umbral de la medida del reparto, como "
+                         "fraccion de la energia transada de la hora. Solo "
+                         "tiene efecto con --criterio-estacionario "
+                         "precio_y_reparto.")
     ap.add_argument("--competencia", dest="buyer_competition",
                     choices=["aggregate", "matlab", "matrix"],
                     default="aggregate",
@@ -2458,10 +2525,25 @@ if __name__ == "__main__":
         print("    [D36] AVISO: --presupuesto-eval-acoplado no tiene efecto "
               "sin --horizonte-max-acoplado: con la parada apagada hay una "
               "sola resolucion por hora")
-    # H-85 / D45: el arranque solo existe en el acoplado.
-    if args.arranque_acoplado != "iguales" and args.metodo != "acoplado":
+    # H-85 / D45: el arranque solo existe en el acoplado. El aviso sale si el
+    # operador lo PIDIO sin la via acoplada, no por el defecto: desde que el
+    # factible es el defecto, avisarlo por su valor saltaria en toda corrida
+    # alternada, incluido el caso sintetico de siempre.
+    if args.arranque_acoplado is not None and args.metodo != "acoplado":
         print("    [D45] AVISO: --arranque-acoplado no tiene efecto sin "
               "--metodo acoplado: la via alternada no usa ese arranque")
+    if args.arranque_acoplado is None:
+        args.arranque_acoplado = "factible"
+    # D47: el criterio y su umbral. El umbral es una fraccion positiva, y la
+    # misma regla de NaN/infinito de las palancas de arriba.
+    if not math.isfinite(args.tol_reparto) or args.tol_reparto <= 0:
+        ap.error("--tol-reparto tiene que ser un numero finito y positivo "
+                 "(fraccion de la energia transada de la hora)")
+    if (args.criterio_estacionario != "precio"
+            and not args.horizonte_max_acoplado):
+        print("    [D47] AVISO: --criterio-estacionario no tiene efecto sin "
+              "--horizonte-max-acoplado: con la parada apagada hay una sola "
+              "resolucion por hora y no se declara nada estacionario")
 
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
@@ -2523,6 +2605,8 @@ if __name__ == "__main__":
              horizonte_max_acoplado=args.horizonte_max_acoplado,
              presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
              arranque_acoplado=args.arranque_acoplado,
+             criterio_estacionario=args.criterio_estacionario,
+             tol_reparto=args.tol_reparto,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2547,6 +2631,8 @@ if __name__ == "__main__":
              horizonte_max_acoplado=args.horizonte_max_acoplado,
              presupuesto_eval_acoplado=args.presupuesto_eval_acoplado,
              arranque_acoplado=args.arranque_acoplado,
+             criterio_estacionario=args.criterio_estacionario,
+             tol_reparto=args.tol_reparto,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,

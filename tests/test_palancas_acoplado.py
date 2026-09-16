@@ -207,7 +207,12 @@ def test_palancas_activas_en_produccion_via_EMSP2P_run_single_hour():
         theta_i=h["theta"][h["bids"]], etha_i=h["etha"][h["bids"]],
         pi_gs=PGS, pi_gb=PGB, tau_sellers=SV.tau, tau_buyers=SV.tau_buyers,
         t_span=(0.0, horizonte_max), n_points=SV.n_points, rtol=1e-7,
-        buyer_competition=SV.buyer_competition)
+        buyer_competition=SV.buyer_competition,
+        # D45 (2026-09-16): `SolverParams` arranca con el reparto factible y
+        # `solve_coupled_for_hour` conserva el del modelo base, de modo que la
+        # comparacion tiene que pedir el de produccion para comparar lo mismo.
+        # Lo que esta prueba mide son las PALANCAS, no el arranque.
+        arranque=sv_activo.arranque_acoplado)
     pi_directo = np.clip(np.asarray(directo.pi_star, dtype=float), PGB, PGS)
 
     # (a) `run_single_hour`: una hora suelta, la misma via de diagnostico
@@ -292,8 +297,11 @@ def test_excepcion_en_reintento_de_h43_propaga_el_motivo(monkeypatch):
             P_star = np.array([[5.0, 0.0, 0.0], [0.0, 2.5, 2.5]])
             pi_star = np.array([500.0, 500.0, 500.0])
             pi_t = np.tile(pi_star[:, None], (1, 10))
+            # D47: la trayectoria fabricada lleva tambien `P_t`, como la de
+            # verdad, porque el motor mide sobre ella el residuo del reparto.
+            P_t = np.tile(P_star[:, :, None], (1, 1, 10))
             tr = SimpleNamespace(P_star=P_star, pi_star=pi_star, pi_t=pi_t,
-                                success=True)
+                                P_t=P_t, success=True)
             # D36: `_resuelve_acoplado` devuelve ademas por que paro.
             return tr, kwargs["t_span_aco"], "una_vuelta", 0
         # Conjunto reducido (un solo vendedor): revienta.

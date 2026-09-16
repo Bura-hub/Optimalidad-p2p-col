@@ -34,9 +34,13 @@
 #   --- el arranque del acoplado (2026-09-15): H-85, D45 y D46 -------------
 #   bash modelo_base/run_servidor.sh arranque           <- E0 y E4, una semana, los dos arranques
 #
+#   --- la convergencia del reparto (2026-09-16): H-86, D47 ----------------
+#   bash modelo_base/run_servidor.sh convergencia       <- E0 y K1, una semana, tres criterios
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
+#   bash modelo_base/run_servidor.sh recoger convergencia  <- y lo de convergencia
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
 # muestra en horas. `todo` toma solo el tamano y recorre las dos fronteras.
@@ -59,7 +63,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -125,6 +129,29 @@ CASOS_ARRANQUE=(
   "E4:--factor-generacion 7"
 )
 REGLAS_ARRANQUE=(iguales factible)
+
+# H-86, D47 (2026-09-16): la campana de convergencia. Los dos casos, cada uno
+# con las tres configuraciones del criterio de parada. Viven aqui por la misma
+# razon que los de arriba: `recoger` los necesita para saber que esperar.
+#
+# K1 (--factor-demanda 2) es el caso de la matriz con MENOS horas estacionarias,
+# el 33 %, frente al 68 % del conjunto: es donde el criterio de parada se ve
+# mas, y por eso acompana a E0.
+CASOS_CONVERGENCIA=(
+  "E0:"
+  "K1:--factor-demanda 2"
+)
+# «hoy» lleva el presupuesto y el plazo de la matriz (el presupuesto es la
+# constante del motor, que no se pasa). Las dos del criterio nuevo aflojan los
+# dos topes a proposito: la campana existe PARA VER EL COSTO, no para acotarlo,
+# y una hora que hoy se corta por presupuesto es justo la que hay que medir.
+CONFIGS_CONVERGENCIA=(
+  "hoy:--criterio-estacionario precio --horizonte-max-acoplado 0.4 --plazo-hora 15"
+  "reparto04:--criterio-estacionario precio_y_reparto --horizonte-max-acoplado 0.4 --plazo-hora 60 --presupuesto-eval-acoplado 100000000"
+  "reparto20:--criterio-estacionario precio_y_reparto --horizonte-max-acoplado 2.0 --plazo-hora 60 --presupuesto-eval-acoplado 100000000"
+)
+# Las comparaciones de repartos que se hacen al final, «A:B» por caso.
+PARES_CONVERGENCIA=("hoy:reparto20" "reparto04:reparto20")
 
 # Interprete: preferir el del entorno virtual si existe, luego python3.
 if [[ -x .venv/bin/python ]]; then
@@ -303,7 +330,8 @@ case "$ACCION" in
              test_plazo_por_hora test_analisis_ligero test_fa3_cumplimiento \
              test_analysis_numeral2 test_palancas_acoplado \
              test_oraculo_anexo4 test_presupuesto_acoplado test_piso_P \
-             test_arranque_acoplado test_compara_arranque; do
+             test_arranque_acoplado test_compara_arranque \
+             test_criterio_reparto test_censo_convergencia; do
       corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
     echo
@@ -1011,6 +1039,138 @@ print(" ".join(sorted(palancas)))
     echo "  indeterminado (D46)."
     ;;
 
+  convergencia)
+    # H-86, D47 (2026-09-16). El criterio de parada del acoplado mira EL
+    # PRECIO, y en muchas horas el precio ya esta quieto mientras el reparto
+    # entre compradores sigue moviendose entero: de las 15 541 horas de mercado
+    # de la matriz, una de cada tres no llego siquiera al criterio (2 556 por
+    # tope, 2 475 por presupuesto), y de las que llegaron, la hora 109 de E0
+    # paro con residuo 0,0065 y su reparto lejos del punto final. Integrada a
+    # 2,0 esa hora da todo el excedente a un solo comprador, mientras el
+    # horizonte de produccion lo reparte casi por igual entre cuatro.
+    #
+    # Esta campana mide QUE CUESTA mirar tambien el reparto, para fijar el
+    # horizonte de produccion con el costo medido delante. NO cambia ese
+    # horizonte y NO repite la matriz: las dos cosas vienen despues, con estas
+    # cifras.
+    #
+    # Una semana, la del 5 al 11 de mayo de 2025; dos casos, E0 y K1 (el de
+    # menos horas estacionarias de la matriz, el 33 %); tres configuraciones,
+    # la de hoy y el criterio nuevo a los horizontes 0,4 y 2,0. Todas con el
+    # arranque factible, que es el defecto desde D45 y el barato.
+    #
+    # LAS COMPUERTAS SI HAY QUE CORRERLAS ANTES, al reves que en `arranque`.
+    # Este paquete mueve el defecto del arranque del acoplado a "factible"
+    # (D45) y edita `tests/gate_almacen_cruzado.py`, que es justo la que
+    # compara el motor contra el camino independiente de la sonda: ninguna de
+    # las dos cosas ha pasado todavia por una corrida de compuertas en el
+    # servidor. Esta accion no las corre sola, para no encadenar una hora de
+    # pruebas a una campana de una noche, pero lo avisa en su paso 1.
+    #
+    # Las corridas NO se detienen por el codigo 3 de D38 (una semana con horas
+    # sin resolver lo dara): PARA_EN_FALLO=0 y se imprime el codigo de cada una.
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    CONV="SALIDAS_SERVIDOR/convergencia"
+
+    echo "=== LA CONVERGENCIA DEL REPARTO (H-86, D47) ==="
+    echo "    semana del 2025-05-05 al 2025-05-11"
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $CONV"
+    echo "    ESTO TARDA DEL ORDEN DE UNA NOCHE: la configuracion del"
+    echo "    horizonte 2,0 integra hasta que el reparto se quieta, y en la"
+    echo "    medicion de H-86 hubo horas de 3 609 (s) con 28,7 millones de"
+    echo "    evaluaciones. Es a proposito: la campana existe para ver el"
+    echo "    costo, no para acotarlo."
+    echo
+
+    echo "--- 1/5 · la sintaxis del lanzador"
+    if bash -n "$0"; then
+      echo "     ok"
+    else
+      echo "     FALLA: el lanzador tiene un error de sintaxis"
+      exit 2
+    fi
+    echo
+    echo "  AVISO: en ESTE paquete las compuertas SI hay que correrlas antes:"
+    echo "      bash $0 compuertas"
+    echo "  El defecto del arranque del acoplado se movio a «factible» (D45) y"
+    echo "  tests/gate_almacen_cruzado.py se edito despues de la ultima corrida"
+    echo "  de compuertas. Esa compuerta es la que compara el motor contra el"
+    echo "  camino independiente de la sonda, es decir la que se enteraria si"
+    echo "  los dos dejaran de arrancar igual. Una campana de una noche sobre"
+    echo "  un motor sin compuertas no vale nada."
+
+    echo
+    echo "--- 2/5 · las seis corridas de la semana"
+    CODIGOS=()
+    for par in "${CASOS_CONVERGENCIA[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      for cfg in "${CONFIGS_CONVERGENCIA[@]}"; do
+        NOMBRE="${cfg%%:*}"; OPTS="${cfg#*:}"
+        DIR="$CONV/${CASO}_${NOMBRE}"
+        ALM="$DIR/almacen"
+        crea_dir "$ALM"
+        echo
+        echo "  --- $CASO con la configuracion $NOMBRE  ->  $DIR"
+        PARA_EN_FALLO=0 corre "convergencia_${CASO}_${NOMBRE}" main_simulation.py \
+              --data real --full --desde 2025-05-05 --hasta 2025-05-12 \
+              --include-c5 --no-regulado \
+              --metodo acoplado --arranque-acoplado factible \
+              ${OPTS:+$OPTS} \
+              --almacen "$ALM" \
+              ${EXTRA:+$EXTRA} --out-dir "$DIR"
+        echo "     codigo de salida de ${CASO} con ${NOMBRE}: $CODIGO_CORRE"
+        CODIGOS+=("${CASO}_${NOMBRE}=${CODIGO_CORRE}")
+      done
+    done
+
+    echo
+    echo "--- 3/5 · los repartos, comparados dos a dos"
+    # La herramienta es la de D46 (`compara_arranque.py`), que compara dos
+    # almacenes de la misma ventana hora a hora. Aqui A y B no son dos
+    # arranques sino dos criterios: A el primero del par, B el segundo, y las
+    # diferencias siguen siendo B menos A.
+    for par in "${CASOS_CONVERGENCIA[@]}"; do
+      CASO="${par%%:*}"
+      for pc in "${PARES_CONVERGENCIA[@]}"; do
+        A="${pc%%:*}"; B="${pc#*:}"
+        PARA_EN_FALLO=0 corre "convergencia_compara_${CASO}_${A}_vs_${B}" \
+              "$SONDA/compara_arranque.py" \
+              "$CONV/${CASO}_${A}/almacen" "$CONV/${CASO}_${B}/almacen" \
+              --cobertura m1 --etiqueta "${CASO}_${A}_vs_${B}" \
+              --etiqueta-a "$A" --etiqueta-b "$B" \
+              --salida "$CONV"
+        echo "     codigo de la comparacion ${CASO} ${A} vs ${B}: $CODIGO_CORRE"
+        CODIGOS+=("compara_${CASO}_${A}_vs_${B}=${CODIGO_CORRE}")
+      done
+    done
+
+    echo
+    echo "--- 4/5 · el censo del costo"
+    PARA_EN_FALLO=0 corre "convergencia_censo" \
+          "$SONDA/censo_convergencia.py" "$CONV" \
+          --cobertura m1 --salida "$CONV"
+    echo "     codigo del censo: $CODIGO_CORRE"
+    CODIGOS+=("censo=${CODIGO_CORRE}")
+
+    echo
+    echo "--- 5/5 · la recogida"
+    bash "$0" recoger convergencia
+    echo
+    echo "=== CONVERGENCIA COMPLETA ==="
+    echo "  codigos de salida: ${CODIGOS[*]}"
+    echo "  Mira en convergencia_censo_<fecha>.log, por caso y configuracion,"
+    echo "  cuantas horas pararon por cada motivo y cuantas quedaron con el"
+    echo "  reparto todavia en marcha; en los registros de cada corrida, las"
+    echo "  lineas [D26] y [D47] y los segundos del mercado; y en las"
+    echo "  comparaciones, cuanto se mueve el reparto entre configuraciones."
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -1074,8 +1234,22 @@ print(" ".join(sorted(palancas)))
           ESPERADOS+=("SALIDAS_SERVIDOR/arranque/compara_arranque_${par%%:*}.csv")
         done
         ;;
+      convergencia)
+        # H-86: el almacen de cada caso con cada configuracion, los CSV hora a
+        # hora de las comparaciones dos a dos, y el censo del costo.
+        for par in "${CASOS_CONVERGENCIA[@]}"; do
+          CASO="${par%%:*}"
+          for cfg in "${CONFIGS_CONVERGENCIA[@]}"; do
+            ESPERADOS+=("SALIDAS_SERVIDOR/convergencia/${CASO}_${cfg%%:*}/almacen")
+          done
+          for pc in "${PARES_CONVERGENCIA[@]}"; do
+            ESPERADOS+=("SALIDAS_SERVIDOR/convergencia/compara_arranque_${CASO}_${pc%%:*}_vs_${pc#*:}.csv")
+          done
+        done
+        ESPERADOS+=("SALIDAS_SERVIDOR/convergencia/censo_convergencia.csv")
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial o arranque"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque o convergencia"
         exit 2
         ;;
     esac

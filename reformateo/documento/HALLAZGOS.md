@@ -7035,3 +7035,45 @@ Son como mucho el 0,14 % de las horas de mercado de un caso. El almacén no guar
 **El arreglo quedó en el motor (C-192, 2026-09-14; D40, D41 y D42).** El lado derecho del acoplado (`core/coupled_ode_convergence.py`, `_rhs`) lee P con el piso de 1e-10, la misma línea del experimento. La integración se corta en el primer valor no finito del lado derecho, en vez de seguir millones de evaluaciones sin avanzar, y la hora sigue el camino de D37: sin mercado con el motivo «integrador sin exito al horizonte <h>» o, con la parada activa, con la vuelta anterior buena. La vía alternada no se toca. Con el motor, y ya no con la copia en memoria, la hora 4184 al horizonte de producción da en la máquina de trabajo el mismo equilibrio del experimento (precio 711,134 · 456,569 · 254,566; entregas 0,1218 · 9,638 · 13,5585 (kWh)) con las mismas 1 155 804 evaluaciones, y ningún comprador recibe más que su déficit. `tests/test_piso_P.py`, que entra en `compuertas`, lo fija con las entradas de la hora como literales exactos: sin el piso, tres de las cuatro perturbaciones de un ulp de su prueba rápida explotan hacia t ≈ 1,06e-4 y la prueba falla. El piso mueve también el transitorio: al horizonte corto de 0,002 el precio de la base pasa de 534,356 a 534,436 (COP/kWh) en el primer comprador; el equilibrio no cambia. Queda por medir, con el piso y el entorno igualado: la hora 4184 aislada y la sonda de H-79 en el servidor, y el censo de la semana de E4 (22 al 28 de septiembre). Esa semana ya no se lee solo con las horas vencidas, que D41 hace bajar por construcción (la hora que explota se corta en vez de vencer): se lee también con `[D37]`, las horas sin mercado porque la primera vuelta del integrador no terminó con éxito, y con «fallo_vuelta» de `[D26]`, las que conservaron una vuelta anterior. Por D44 (decisión del autor, 2026-09-14), las horas sin éxito cuentan para el umbral del 1 % de D38 junto con las vencidas. Tampoco está medido cuánto se mueven con el piso las demás horas del horizonte, de modo que ninguna cifra anterior del acoplado se compara con una nueva sin decirlo.
 
 **Cuándo desborda depende de la máquina (2026-09-15, compuertas del servidor).** Con el arranque de siempre y un horizonte corto de 0,001, la hora 753 se corta por D41 en la máquina de trabajo (t = 7,3e-6, evaluación 15 329) y en el servidor **termina**, con 40 464 evaluaciones, frente a las 6 919 que le basta al arranque factible. Es el mismo borde de H-84: la hora está mal condicionada y el instante del desborde lo decide el último decimal de cada plataforma. Al horizonte de producción (0,05) falla en las dos, que es como salió en la matriz. La prueba rápida de `tests/test_arranque_acoplado.py` fijaba el corte como si fuera invariante y por eso falló en el servidor; ahora acepta las dos plataformas y fija lo que no cambia de una a otra: si no termina es por el corte de D41, y si termina le cuesta más del triple de evaluaciones que al arranque factible.
+
+---
+
+## H-86 · El horizonte de producción no converge el reparto entre compradores, y el criterio de parada mira el precio
+
+**Estado: registrado el 2026-09-16, a partir de la medición del arranque (D45 y D46) corrida en el servidor el 2026-09-15.**
+
+La medición del arranque se hizo para decidir si el arranque factible pasaba a ser el defecto, y encontró algo más grande que la pregunta que la motivó.
+
+**Lo que midió la campaña** (semana del 5 al 11 de mayo de 2025, E0 y E4, los dos arranques, `SALIDAS_SERVIDOR/entrega_arranque_2026-09-15/`). En E4 el arranque factible resuelve la hora 753 que el de hoy pierde, 27 de las 37 horas comparables salen idénticas y lo que paga cada institución en la semana se mueve menos del 1 %. En E0, en cambio, **17 de las 20 horas de mercado cambian**, y cambian las entregas, hasta 1,98 (kWh) en una hora; sobre la semana, HUDN paga un 31 % más y Cesmag un 17 % menos. En todas las horas que cambian, **el volumen transado y el precio medio son idénticos con los dos arranques**: lo que cambia es el reparto entre compradores.
+
+**Cómo paró el integrador en la matriz de trece corridas.** De 15 541 horas de mercado resueltas, 10 510 (68 %) pararon por estacionario, 2 556 (16 %) por tope, es decir sin alcanzar el criterio ni con el horizonte ocho veces mayor, y 2 475 (16 %) por presupuesto. Una de cada tres horas de la matriz nunca llegó al criterio. De las que sí llegaron, 2 497 quedaron con el residuo por encima de 0,005, la mitad del umbral. Por casos va del 33 % de horas estacionarias en K1 y el 46 % en CV2 al 89 % en E4 y E5.
+
+**Y llegar al criterio no significa que el reparto haya convergido.** La hora 109 de E0 paró por estacionario, con residuo 0,0065, y su reparto estaba lejos del punto final. Integrada desde los dos arranques a horizontes crecientes (`scratchpad/sonda_horizonte_arranque.py`):
+
+| Horizonte | Reparto con el arranque de hoy (kWh) | Con el factible (kWh) | Diferencia |
+|---|---|---|---|
+| 0,05, el de producción | 0,171 · 0,171 · 0,171 · 0,696 | 0,121 · 0,422 · 0,092 · 0,574 | 0,25 (kWh) |
+| 0,4 | 0 · 0 · 0 · 1,209 | 0 · 0 · 0 · 1,209 | 8e-5 (kWh) |
+| 2,0 | 0 · 0 · 0 · 1,20904 | 0 · 0 · 0 · 1,20904 | 4e-16 (kWh) |
+
+Los dos arranques convergen al mismo punto: la diferencia del horizonte de producción es transitorio, no un equilibrio distinto. Pero el punto al que convergen **le da todo el excedente a un solo comprador**, mientras la matriz, con el horizonte de producción, lo reparte casi por igual entre cuatro.
+
+**El mecanismo.** El motor declara estacionario cuando el precio se mueve menos del 1 % de su recorrido en el último décimo de la trayectoria (`TOL_ESTACIONARIO`, D26). En estas horas el precio se mueve lentísimo (721,5 a 725,7 (COP/kWh) entre 0,05 y 2,0) mientras el reparto se mueve entero. El criterio mira una variable que ya está quieta y no la que todavía se mueve.
+
+**Cuánto se aparta el reparto de producción del convergido.** Con el arranque factible, que es el barato, en las primeras siete horas de mercado de la semana de E0 (`scratchpad/sesgo_horizonte.py`, cortada tras la hora 130):
+
+| Hora | Energía (kWh) | Diferencia máxima entre t = 0,05 y t = 2,0 | En % de la energía | Segundos de la larga |
+|---|---|---|---|---|
+| 36 | 0,141 | 0,075 | 53 % | 0,4 |
+| 37 | 4,865 | 0,967 | 20 % | 2,8 |
+| 83 | 2,493 | 1,328 | 53 % | 0,8 |
+| 85 | 0,315 | 0,152 | 48 % | 0,4 |
+| 109 | 1,209 | 0,635 | 53 % | 0,6 |
+| 129 | 3,499 | 1,799 | 51 % | 2 523 |
+| 130 | 8,385 | 1,300 | 16 % | 3 609 |
+
+**El arranque de hoy es además degenerado en algunas horas.** En la hora 152 de E0 reparte exactamente lo mismo, hasta el quinto decimal, a tres compradores cuyos déficits son 2,79, 3,66 y 7,85 (kWh), y no sale de esa simetría ni a horizonte 2,0, gastando 17 340 641 evaluaciones (48 (min)); el arranque factible llega a otro punto en 15 (s) con 79 762. Es decir, el arranque a partes iguales cae sobre un conjunto simétrico del que la dinámica no lo saca, y lo que la matriz reporta en esas horas es esa simetría, no un equilibrio.
+
+**Qué se sostiene y qué no.** Se sostienen las cifras agregadas, es decir el volumen transado, el precio medio, el bienestar y la comparación regulatoria, que salen iguales con los dos arranques. **No se sostienen el reparto por comprador, la liquidación por institución ni los índices de equidad.** Y el sesgo tiene dirección conocida: el transitorio se ve más igualitario que el equilibrio, de modo que un índice de equidad calculado sobre el horizonte de producción está sesgado hacia la igualdad.
+
+**Lo que queda abierto.** Converger todas las horas por integración no es viable: las horas caras cuestan del orden de una hora de máquina cada una, y la matriz tiene 15 541. Las salidas posibles, que se deciden con los costos medidos delante, son un criterio de parada que mire el reparto con su presupuesto, una muestra convergida para las cifras de reparto junto con la matriz completa para las agregadas, o resolver el equilibrio como raíz de las condiciones de estacionariedad en vez de integrando hasta él. Las trayectorias largas de las horas 109 y 152 sirven de referencia para validar esa tercera vía.

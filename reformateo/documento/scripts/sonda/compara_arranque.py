@@ -99,6 +99,15 @@ TOL_REL = 1e-5        # parte relativa, entregas y suma de pagos
 TOL_PRECIO = 1e-3     # (COP/kWh): precio por comprador
 SIN_MERCADO = "sin mercado esa hora"
 
+# Como se llaman los dos almacenes en el resumen y en la primera linea de los
+# CSV. Los de siempre son los dos arranques (D46), que es para lo que se
+# escribio esta herramienta; la campana de convergencia (H-86, D47) la usa para
+# comparar dos CRITERIOS con el mismo arranque, y pasa los suyos con
+# `--etiqueta-a` y `--etiqueta-b`, para que sus registros no digan que compara
+# arranques cuando no los compara.
+ETIQUETA_A = "iguales (el de siempre)"
+ETIQUETA_B = "factible"
+
 # Las clases de una hora, en el orden en que se imprimen.
 CLASES = ("igual", "precio_indeterminado", "entregas_distintas",
           "compradores_distintos", "resuelta_solo_en_a", "resuelta_solo_en_b",
@@ -387,10 +396,11 @@ def carga(almacen, cobertura: str = "m1"):
 
 
 def escribe(tabla, detalle, salida, etiqueta: str = "",
-            tolerancias: dict = None) -> tuple:
+            tolerancias: dict = None, etiquetas: tuple = None) -> tuple:
     """El CSV hora a hora y el detalle por comprador, en `salida`. Con
     `tolerancias` (el diccionario del resumen), la primera linea de cada CSV
-    las dice, precedida de «#»: se leen con `pd.read_csv(..., comment="#")`."""
+    las dice, precedida de «#»: se leen con `pd.read_csv(..., comment="#")`.
+    Con `etiquetas`, esa misma linea dice ademas que es A y que es B."""
     salida = Path(salida)
     salida.mkdir(parents=True, exist_ok=True)
     sufijo = f"_{etiqueta}" if etiqueta else ""
@@ -400,7 +410,9 @@ def escribe(tabla, detalle, salida, etiqueta: str = "",
         with open(ruta, "w", encoding="utf-8", newline="") as f:
             if tolerancias is not None:
                 f.write(f"# compara_arranque {etiqueta}: tolerancias "
-                        f"{texto_tolerancias(tolerancias)}\n")
+                        f"{texto_tolerancias(tolerancias)}"
+                        + (f"; A = {etiquetas[0]}, B = {etiquetas[1]}"
+                           if etiquetas else "") + "\n")
             d.to_csv(f, index=False)
     return r1, r2
 
@@ -410,10 +422,12 @@ def _num(v, fmt=".6g") -> str:
                                         and math.isnan(v)) else format(v, fmt)
 
 
-def imprime(r: dict, etiqueta: str = "") -> None:
+def imprime(r: dict, etiqueta: str = "", etiqueta_a: str = ETIQUETA_A,
+            etiqueta_b: str = ETIQUETA_B) -> None:
     p = lambda *a: print(*a, flush=True)  # noqa: E731
-    p(f"=== Arranque del acoplado{' ' + etiqueta if etiqueta else ''}: "
-      f"A = iguales (el de siempre), B = factible (H-85; D45, D46) ===")
+    p(f"=== Dos almacenes de la misma ventana"
+      f"{' ' + etiqueta if etiqueta else ''}: "
+      f"A = {etiqueta_a}, B = {etiqueta_b} ===")
     p(f"  tolerancias: {texto_tolerancias(r['tolerancias'])}")
     p(f"  horas de la ventana: {r['horas']}")
     for lado in ("a", "b"):
@@ -464,6 +478,11 @@ def main(argv=None) -> int:
     ap.add_argument("--cobertura", default="m1")
     ap.add_argument("--etiqueta", default="",
                     help="nombre del caso, para el informe y el CSV (E0, E4)")
+    ap.add_argument("--etiqueta-a", dest="etiqueta_a", default=ETIQUETA_A,
+                    help="como se llama el primer almacen en el resumen y en "
+                         "la primera linea de los CSV")
+    ap.add_argument("--etiqueta-b", dest="etiqueta_b", default=ETIQUETA_B,
+                    help="como se llama el segundo almacen")
     ap.add_argument("--salida", default=None,
                     help="carpeta del CSV hora a hora; sin ella no se escribe")
     ap.add_argument("--tol-kwh", dest="tol_kwh", type=float, default=TOL_KWH,
@@ -488,10 +507,11 @@ def main(argv=None) -> int:
     tabla, detalle, resumen = compara(ha, fa, hb, fb, tol_kwh=args.tol_kwh,
                                       tol_precio=args.tol_precio,
                                       tol_rel=args.tol_rel)
-    imprime(resumen, args.etiqueta)
+    imprime(resumen, args.etiqueta, args.etiqueta_a, args.etiqueta_b)
     if args.salida:
         r1, r2 = escribe(tabla, detalle, args.salida, args.etiqueta,
-                         resumen["tolerancias"])
+                         resumen["tolerancias"],
+                         (args.etiqueta_a, args.etiqueta_b))
         print(f"  hora a hora:   {r1}", flush=True)
         print(f"  por comprador: {r2}", flush=True)
     return 0

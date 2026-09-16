@@ -76,7 +76,16 @@ def main() -> int:
         solver=SolverParams(tau=0.001, tau_buyers=0.01, t_span=(0.0, 0.005),
                             n_points=150, stackelberg_iters=2, parallel=False,
                             metodo="acoplado", t_span_acoplado=0.05,
-                            buyer_competition="aggregate"),
+                            buyer_competition="aggregate",
+                            # D45: el arranque del modelo base, PEDIDO. Esta
+                            # compuerta compara el motor contra el camino
+                            # independiente de la sonda (`paso_a_paso.resuelve`),
+                            # que llama a `solve_coupled_for_hour` sin pedir
+                            # arranque y recibe por tanto el de JoinFinal.m.
+                            # Con el defecto nuevo (factible) los dos caminos
+                            # arrancarian distinto y la comparacion mediria el
+                            # arranque en vez del almacen.
+                            arranque_acoplado="iguales"),
     )
     res = ems.run_single_hour(k, D, G, devuelve_trayectoria=True)
     if res.tr is None:

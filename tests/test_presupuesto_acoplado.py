@@ -101,8 +101,14 @@ def _vuelta(J, I, i, *, nfev, estacionaria=False, exito=True, finita=True):
         # "Exito" del integrador con un precio no finito al final: el
         # recorrido sale `nan` y, sin la guarda, pasaria por estacionario.
         pi_t[0, -1] = np.nan
-    return SimpleNamespace(P_star=np.full((J, I), 0.01 * (i + 1)),
-                           pi_star=pi_t[:, -1].copy(), pi_t=pi_t,
+    # D47: la trayectoria fabricada lleva tambien `P_t`, como la de verdad,
+    # porque el motor mide sobre ella el residuo del reparto. Quieta: todas
+    # las parejas valen lo mismo en todos los pasos, de modo que el residuo
+    # del reparto de estas vueltas es cero y no cambia ninguna de estas
+    # cifras, que son las del criterio sobre el precio.
+    P_t = np.full((J, I, n), 0.01 * (i + 1))
+    return SimpleNamespace(P_star=P_t[:, :, -1].copy(),
+                           pi_star=pi_t[:, -1].copy(), pi_t=pi_t, P_t=P_t,
                            success=exito, nfev=nfev, njev=0,
                            message="fabricada")
 

@@ -18,6 +18,8 @@ Modos:
 
 Notas:
   --day implica --data real y horizonte de 24h (no requiere --data real explícito).
+  D48: con datos reales (--data real o --day) y sin --metodo, el mercado se
+  resuelve por reposo en forma cerrada; el caso sintético sigue en alternado.
   En los modos de 24h (sintético, perfil diario o --day) NO se genera reporte
   mensual ni series diarias para bootstrap (requieren T>=48h con --full).
 """
@@ -120,14 +122,356 @@ def cuenta_para_salida(p2p_results) -> tuple:
     return n_mercado, n_vencidas, n_excepciones, n_sin_exito
 
 
+def cuenta_retiros_reposo(p2p_results) -> int:
+    """D67: los vendedores que la participacion retiro por la via del reposo,
+    sumados sobre TODAS las horas (tambien las que acabaron con motivo).
+
+    Con el piso del vendedor marginal (D63) todo despachado cobra al menos su
+    piso, de modo que la cuenta debe dar 0; uno solo es un hallazgo y hace
+    salir la corrida con el codigo 3 (D38). Se lee el campo `retiros_reposo`
+    del resultado de la hora, que el motor llena solo por esa via."""
+    return int(sum(int(getattr(r, "retiros_reposo", 0) or 0)
+                   for r in p2p_results))
+
+
+def resuelve_metodo(metodo, datos_reales: bool, gsa: bool = False) -> tuple:
+    """D48: la via del mercado cuando la linea de ordenes no la pide.
+
+    Devuelve `(metodo, aviso)`. Con `--metodo` explicito, ese y ningun aviso:
+    nada cambia. Sin el (`metodo=None`), con datos reales (`--data real` o
+    `--day`) la via es 'reposo', la de produccion desde el 2026-09-17, y el
+    aviso lo dice; con el caso sintetico, o con `--gsa`, que no usa la via,
+    es 'alternado', el comportamiento historico, sin aviso.
+    """
+    if metodo is not None:
+        if metodo not in ("alternado", "acoplado", "reposo"):
+            raise ValueError(f"metodo={metodo!r}; use 'alternado', "
+                             f"'acoplado' o 'reposo'")
+        return metodo, None
+    if datos_reales and not gsa:
+        return "reposo", ("Datos reales sin --metodo: el mercado se resuelve "
+                          "por REPOSO en forma cerrada, la via de produccion "
+                          "desde el 2026-09-17. Pida --metodo acoplado o "
+                          "--metodo alternado para las otras vias")
+    return "alternado", None
+
+
+def error_costo_cuadratico(metodo, a):
+    """CAL-32 y D48: el mensaje de error si la via por reposo recibe un costo
+    cuadratico no nulo, o None si no hay nada que objetar.
+
+    El nucleo del reposo supone costos lineales (a_j = 0, CAL-32): con el
+    despacho por costo ordena solo por b_j. Con datos reales `main` arma a = 0,
+    pero el caso
+    sintetico del modelo base trae a no nulos, y resolverlo por reposo
+    ignoraria ese termino sin decirlo.
+    """
+    if metodo != "reposo":
+        return None
+    a = np.asarray(a, dtype=float)
+    if np.all(a == 0.0):
+        return None
+    return (f"CAL-32: la via por reposo supone costo cuadratico nulo (a = 0) "
+            f"y este caso trae a = {np.round(a, 4).tolist()}; resolverlo por "
+            f"reposo ignoraria ese termino. Use --metodo acoplado o "
+            f"alternado, o un caso con a = 0")
+
+
+def linea_inicio_reposo(solver) -> str:
+    """D48: la linea con que empieza el mercado por la via por reposo.
+
+    Dice las cuatro reglas con que se resuelve cada hora, para que el registro
+    de la corrida baste para saber que se publico.
+    """
+    if solver.modo_presupuesto != "sigma":
+        sigma = "no aplica"
+    elif solver.sigma_nivel is None:
+        sigma = "base ((I-1)/I)"
+    else:
+        sigma = f"{float(solver.sigma_nivel):g}"
+    return (f"Mercado por reposo en forma cerrada: presupuesto "
+            f"{solver.modo_presupuesto}, sigma {sigma}, liquidacion "
+            f"{solver.regla_precio}, despacho {solver.despacho_vendedores}")
+
+
+def linea_dinamica_regularizada(solver):
+    """D49 / D50: la linea [D49] de la via acoplada cuando la dinamica
+    regularizada esta activa (exploracion entropica con mu > 0, o arranque de
+    precios con el presupuesto sigma). None si las dos estan apagadas, que es
+    el defecto y no se anuncia."""
+    mu = float(getattr(solver, "mu_entropia", 0.0))
+    nivel = getattr(solver, "nivel_acoplado", "c136")
+    if mu <= 0.0 and nivel == "c136":
+        return None
+    partes = []
+    if mu > 0.0:
+        partes.append(f"exploracion entropica del replicador del vendedor, "
+                      f"mu = {mu:g} (COP/kWh)")
+    if nivel == "sigma":
+        partes.append("precios que arrancan en el presupuesto sigma "
+                      "(piso + (I-1)/I·(techo - piso), virtual en su techo)")
+    return ("Dinamica regularizada del acoplado: " + "; ".join(partes)
+            + ". Apartamiento declarado de JoinFinal.m para validar el reposo "
+              "en forma cerrada y dibujar la convergencia; no es la via de "
+              "produccion (D48)")
+
+
+def columnas_reposo(r, nombres) -> dict:
+    """D48: las columnas del reposo para la tabla de horas del almacen.
+
+    Se escriben en todas las vias: con la acoplada o la alternada el resultado
+    de la hora trae los valores neutros de `HourlyResult` (regimen vacio,
+    ceros y listas vacias), y un objeto de antes de D48 sin esos campos da lo
+    mismo. Las listas de agentes van como texto, los nombres separados por
+    punto y coma, en el orden del resultado (el de merito, en `orden_merito`).
+    """
+    def _texto(campo):
+        return ";".join(nombres[int(n)] for n in (getattr(r, campo, None)
+                                                   or ()))
+
+    return dict(
+        regimen=str(getattr(r, "regimen", "") or ""),
+        presupuesto=float(getattr(r, "presupuesto", 0.0)),
+        precio_comun=float(getattr(r, "precio_comun", 0.0)),
+        precio_uniforme=float(getattr(r, "precio_uniforme", 0.0)),
+        piso_juego=float(getattr(r, "piso_juego", 0.0)),
+        # D63 y D69 (2026-09-17): el piso del vendedor marginal y la prima
+        # descompuesta, con los mismos valores neutros fuera del reposo.
+        piso_marginal=float(getattr(r, "piso_marginal", 0.0)),
+        renta_inframarginal=float(getattr(r, "renta_inframarginal", 0.0)),
+        parte_juego=float(getattr(r, "parte_juego", 0.0)),
+        n_soluciones=int(getattr(r, "n_soluciones", 0)),
+        excedente_optimo=float(getattr(r, "excedente_optimo", 0.0)),
+        excedente_peor=float(getattr(r, "excedente_peor", 0.0)),
+        captura=float(getattr(r, "captura", 0.0)),
+        excluidos=_texto("excluidos"),
+        excluidos_bajo_piso=_texto("excluidos_bajo_piso"),
+        vendedores_excluidos=_texto("vendedores_excluidos"),
+        # D65: los que la caminata competitiva deja fuera por su piso.
+        vendedores_no_despachados=_texto("vendedores_no_despachados"),
+        orden_merito=_texto("orden_merito"))
+
+
+def _por_agente(valor: np.ndarray, n: int, k: int) -> float:
+    """El valor del agente n en la hora k de un escalar, un vector (N,) o una
+    matriz (N, T)."""
+    if valor.ndim == 0:
+        return float(valor)
+    if valor.ndim == 1:
+        return float(valor[n])
+    return float(valor[n, k])
+
+
+def resumen_reposo(p2p_results, techo, dt: float = 1.0,
+                   tol_precio: float = 1e-6, piso=None) -> dict:
+    """D48: los conteos de la linea final de la via por reposo.
+
+    `techo` es el techo de cada agente tal como entra al juego, y `piso` el
+    piso de cada vendedor: un escalar, un vector (N,) o una matriz (N, T). El
+    piso solo hace falta si hay retirados, para medir su energia comerciable;
+    si los hay y falta, ValueError. `dt` es la duracion del paso en horas
+    (CAL-46), para que la energia salga en (kWh).
+
+    QUE HORAS CUENTAN. En los regimenes y en las energias, solo las que la via
+    por reposo resolvio sin error: con `regimen` y sin `motivo`. Una hora con
+    `motivo` no resolvio, aunque traiga regimen (la excepcion pudo llegar
+    despues del nucleo, en las cotas); no entra en ningun regimen y se cuenta
+    solo en `horas_excepcion` si su motivo es del reposo, que es la misma hora
+    que la linea [C-190] lista con su causa.
+
+    Devuelve un diccionario con:
+      regimenes            {regimen: [horas, energia]}, todos los de
+                           `REGIMENES`, tambien en cero. La energia es la
+                           transada; en TODA hora sin mercado, es decir sin
+                           `P_star` («sin_ganancia» de D61, y la que lo perdio
+                           porque la participacion retiro a los vendedores que
+                           hacian falta), es la energia POSIBLE,
+                           min(excedente, deficit), que no se transo
+      horas_excepcion      horas del reposo que acabaron en excepcion
+      excluidos            [horas, deficit sin recibir] de los compradores en
+                           su techo sin energia
+      excluidos_bajo_piso  [horas, deficit] de los que salen por el piso (D61)
+      vendedores_excluidos [horas, excedente] de los vendedores sin ganancia
+      al_techo, al_piso    energia de los compradores LIQUIDADOS a su techo
+                           (ahorro cero) o al piso del juego (si coinciden,
+                           cuenta al techo)
+      topada_reposo        energia de los compradores cuyo precio DEL REPOSO
+                           (el de puja) es su techo, con energia recibida; con
+                           la liquidacion uniforme casi nunca pagan ese techo
+      transada             la energia transada de esas horas
+      un_comprador         la energia de las horas de un solo comprador (D54)
+      retiros, horas_retiro  vendedores retirados por la participacion
+                           (C-151) y horas con algun retiro
+      retirada_ofrecida    la energia que OFRECIAN los retirados, es decir su
+                           excedente neto de la hora, que no se transo
+      retirada_comerciable la parte de esa energia que algun comprador habria
+                           comprado: con deficit sin cubrir en la hora y techo
+                           por encima del piso del retirado. Por hora es el
+                           minimo entre la oferta retirada y ese deficit; con
+                           varios retirados, cada uno toma del deficit de los
+                           compradores que lo aceptan empezando por el de piso
+                           mas alto. Como los que aceptan a un piso alto
+                           aceptan tambien a uno mas bajo (los conjuntos estan
+                           anidados), ese orden da el maximo comerciable
+      retiros_reposo       D67: vendedores retirados por la via del reposo en
+                           TODAS las horas, tambien las que acabaron con
+                           motivo (`cuenta_retiros_reposo`); debe ser 0
+      renta_inframarginal, parte_juego  D69: la prima de los vendedores de
+                           las horas con mercado, descompuesta (COP), con la
+                           duracion del paso
+      sin_mercado_tras_retiro  [horas, energia posible] de las horas que
+                           tenian mercado y lo perdieron tras un retiro: su
+                           energia no se transo y no esta en `transada`
+    """
+    from core.ems_p2p import PREFIJO_EXCEPCION_REPOSO
+    from core.reposo_mercado import REGIMENES
+
+    te = np.asarray(techo, dtype=float)
+    pj = None if piso is None else np.asarray(piso, dtype=float)
+    s = dict(regimenes={g: [0, 0.0] for g in REGIMENES}, horas_excepcion=0,
+             excluidos=[0, 0.0], excluidos_bajo_piso=[0, 0.0],
+             vendedores_excluidos=[0, 0.0], al_techo=0.0, al_piso=0.0,
+             topada_reposo=0.0, transada=0.0, un_comprador=0.0, retiros=0,
+             horas_retiro=0, retirada_ofrecida=0.0,
+             retirada_comerciable=0.0,
+             retiros_reposo=cuenta_retiros_reposo(p2p_results),
+             renta_inframarginal=0.0, parte_juego=0.0,
+             sin_mercado_tras_retiro=[0, 0.0])
+    for r in p2p_results:
+        motivo = getattr(r, "motivo", "") or ""
+        if motivo:
+            if motivo.startswith(PREFIJO_EXCEPCION_REPOSO):
+                s["horas_excepcion"] += 1
+            continue
+        regimen = getattr(r, "regimen", "") or ""
+        if not regimen:
+            continue
+        if regimen not in s["regimenes"]:
+            raise ValueError(f"la hora {r.k} trae el regimen {regimen!r}, "
+                             f"que no esta entre {REGIMENES}")
+        k = int(r.k)
+        G = np.asarray(r.G_klim_k, dtype=float)
+        D = np.asarray(r.D_k, dtype=float)
+        sobra = {int(j): float(G[j] - D[j]) for j in r.seller_ids}
+        falta = {int(i): float(D[i] - G[i]) for i in r.buyer_ids}
+        q = np.zeros(len(r.buyer_ids))
+        if r.P_star is None:
+            # La hora no transo nada: ni «sin_ganancia» (D61) ni la que perdio
+            # el mercado porque la participacion retiro a los vendedores que
+            # hacian falta (C-151). Lo que se cuenta en su regimen es la
+            # energia POSIBLE, min(excedente, deficit), y nunca entra en
+            # `transada`; la que perdio el mercado se cuenta ademas aparte,
+            # para que no se lea como energia del mercado (revision final,
+            # menor 1).
+            e = min(sum(sobra.values()), sum(falta.values())) * dt
+            if getattr(r, "retirados", None):
+                s["sin_mercado_tras_retiro"][0] += 1
+                s["sin_mercado_tras_retiro"][1] += e
+        else:
+            P = np.asarray(r.P_star, dtype=float)
+            e = float(P.sum()) * dt
+            s["transada"] += e
+            # D69: la prima descompuesta de las horas con mercado.
+            s["renta_inframarginal"] += float(
+                getattr(r, "renta_inframarginal", 0.0)) * dt
+            s["parte_juego"] += float(getattr(r, "parte_juego", 0.0)) * dt
+            q = P.sum(axis=0)
+            pi = np.asarray(r.pi_star, dtype=float)
+            pr = getattr(r, "pi_reposo", None)
+            pr = None if pr is None else np.asarray(pr, dtype=float)
+            piso = float(getattr(r, "piso_juego", 0.0))
+            for b, i in enumerate(r.buyer_ids):
+                if q[b] <= 0.0:
+                    continue
+                t_i = _por_agente(te, int(i), k)
+                if abs(pi[b] - t_i) <= tol_precio:
+                    s["al_techo"] += float(q[b]) * dt
+                elif abs(pi[b] - piso) <= tol_precio:
+                    s["al_piso"] += float(q[b]) * dt
+                if pr is not None and abs(pr[b] - t_i) <= tol_precio:
+                    s["topada_reposo"] += float(q[b]) * dt
+            if regimen == "un_comprador":
+                s["un_comprador"] += e
+        s["regimenes"][regimen][0] += 1
+        s["regimenes"][regimen][1] += e
+        for campo, cantidades in (("excluidos", falta),
+                                  ("excluidos_bajo_piso", falta),
+                                  ("vendedores_excluidos", sobra)):
+            ids = getattr(r, campo, None) or ()
+            if ids:
+                s[campo][0] += 1
+                s[campo][1] += sum(cantidades[int(n)] for n in ids) * dt
+        retirados = getattr(r, "retirados", None) or ()
+        if retirados:
+            s["retiros"] += len(retirados)
+            s["horas_retiro"] += 1
+            if pj is None:
+                raise ValueError(
+                    f"la hora {r.k} tiene vendedores retirados y no se dio el "
+                    f"piso de cada vendedor: sin el no se puede medir su "
+                    f"energia comerciable")
+            oferta = {int(j): max(sobra[int(j)], 0.0) for j in retirados}
+            s["retirada_ofrecida"] += sum(oferta.values()) * dt
+            sin_cubrir = {int(i): max(falta[int(i)] - float(q[b]), 0.0)
+                          for b, i in enumerate(r.buyer_ids)}
+            for j in sorted(oferta, key=lambda j: -_por_agente(pj, j, k)):
+                piso_j = _por_agente(pj, j, k)
+                aceptan = [i for i in sin_cubrir
+                           if _por_agente(te, i, k) > piso_j
+                           and sin_cubrir[i] > 0.0]
+                toma = min(oferta[j], sum(sin_cubrir[i] for i in aceptan))
+                s["retirada_comerciable"] += toma * dt
+                for i in aceptan:
+                    parte = min(toma, sin_cubrir[i])
+                    sin_cubrir[i] -= parte
+                    toma -= parte
+    return s
+
+
+def linea_resumen_reposo(s: dict) -> str:
+    """D48: la linea final de la via por reposo, a partir de `resumen_reposo`."""
+    reg = ", ".join(f"{g} {n} h ({e:.2f} kWh)"
+                    for g, (n, e) in s["regimenes"].items())
+    exc, bajo, vend = (s["excluidos"], s["excluidos_bajo_piso"],
+                       s["vendedores_excluidos"])
+    sin_m = s["sin_mercado_tras_retiro"]
+    return (f"Horas por regimen: {reg} (en las horas SIN MERCADO, la energia "
+            f"POSIBLE, no transada); horas que perdieron el mercado tras un "
+            f"retiro: {sin_m[0]} h ({sin_m[1]:.2f} kWh posibles, sin "
+            f"transar); "
+            f"horas del reposo con excepcion, fuera de los regimenes: "
+            f"{s['horas_excepcion']} (ver [C-190]); "
+            f"compradores excluidos: {exc[0]} h ({exc[1]:.2f} kWh de deficit "
+            f"sin recibir), excluidos_bajo_piso: {bajo[0]} h ({bajo[1]:.2f} "
+            f"kWh); vendedores_excluidos: {vend[0]} h ({vend[1]:.2f} kWh de "
+            f"excedente); energia liquidada al techo (ahorro cero) "
+            f"{s['al_techo']:.2f} kWh y al piso {s['al_piso']:.2f} kWh de "
+            f"{s['transada']:.2f} kWh transados; energia topada en el reposo "
+            f"(precio del reposo igual al techo, antes de la liquidacion) "
+            f"{s['topada_reposo']:.2f} kWh; energia en horas con un solo "
+            f"comprador {s['un_comprador']:.2f} kWh; vendedores retirados por "
+            f"la participacion: {s['retiros']} en {s['horas_retiro']} h, con "
+            f"{s['retirada_ofrecida']:.2f} kWh ofrecidos por los retirados "
+            f"(su excedente neto, sin transar), de los que "
+            f"{s['retirada_comerciable']:.2f} kWh eran comerciables (algun "
+            f"comprador con deficit sin cubrir y techo sobre el piso del "
+            f"retirado); retiros de la via por reposo: {s['retiros_reposo']}, "
+            f"debe ser 0 (D67); prima de los vendedores descompuesta (D69): "
+            f"renta inframarginal {s['renta_inframarginal']:.2f} COP y parte "
+            f"del juego {s['parte_juego']:.2f} COP")
+
+
 def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
                      n_excepciones: int, n_sin_exito: int,
-                     umbral: float = 0.01) -> int:
+                     umbral: float = 0.01, n_retiros_reposo: int = 0) -> int:
     """D38: el codigo con que sale la corrida, 0 o 3.
 
-    3 si hubo ALGUNA hora con excepcion (C-190), o si las horas perdidas pasan
+    3 si hubo ALGUNA hora con excepcion (C-190), si las horas perdidas pasan
     de `umbral` de las horas de mercado (el denominador de
-    `cuenta_para_salida`). 0 en otro caso.
+    `cuenta_para_salida`), o si la participacion retiro a ALGUN vendedor por la
+    via del reposo (`n_retiros_reposo`, de `cuenta_retiros_reposo`): con el
+    piso del vendedor marginal eso no puede pasar (D67), y si pasa la matriz
+    se detiene. 0 en otro caso.
 
     D44 (2026-09-14): las horas perdidas son la SUMA de las vencidas por el
     plazo (D24) y las que quedaron sin exito del integrador (D37). Con el
@@ -152,7 +496,8 @@ def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
     for nombre, v in (("n_horas_mercado", n_horas_mercado),
                       ("n_vencidas", n_vencidas),
                       ("n_excepciones", n_excepciones),
-                      ("n_sin_exito", n_sin_exito)):
+                      ("n_sin_exito", n_sin_exito),
+                      ("n_retiros_reposo", n_retiros_reposo)):
         if int(v) != v or v < 0:
             raise ValueError(f"{nombre}={v!r}; tiene que ser un entero no "
                              f"negativo")
@@ -161,11 +506,52 @@ def codigo_de_salida(n_horas_mercado: int, n_vencidas: int,
         raise ValueError(f"{n_vencidas} horas vencidas y {n_sin_exito} sin "
                          f"exito de {n_horas_mercado} horas de mercado: las "
                          f"dos son horas de mercado, no pueden ser mas")
-    if n_excepciones > 0:
+    if n_excepciones > 0 or n_retiros_reposo > 0:
         return 3
     if n_horas_mercado > 0 and perdidas / n_horas_mercado > umbral:
         return 3
     return 0
+
+
+def salida_d38(p2p_results, metodo) -> tuple:
+    """D38: el codigo de salida de la corrida y la linea [D38] que lo explica.
+
+    Devuelve `(codigo, linea)`. La usa el bloque final de la linea de ordenes,
+    DESPUES de que `main` lo escribio todo; es funcion aparte para poder
+    probar la linea sin datos reales.
+
+    D67 (2026-09-17): por la via del reposo, cero retiros es compuerta. Las
+    otras vias no llenan `retiros_reposo` y no cuentan."""
+    n, v, e, s = cuenta_para_salida(p2p_results)
+    r = cuenta_retiros_reposo(p2p_results) if metodo == "reposo" else 0
+    codigo = codigo_de_salida(n, v, e, s, n_retiros_reposo=r)
+    # D44: el umbral del 1 % se aplica a la suma de vencidas y sin exito; la
+    # linea da las dos cifras por separado y la suma.
+    perdidas = v + s
+    pct = (100.0 * perdidas / n) if n else 0.0
+    cifras = (f"{v} horas vencidas por el plazo (D24) mas {s} sin exito del "
+              f"integrador (D37) = {perdidas} de {n} horas de mercado "
+              f"({pct:.2f} %; D44: el umbral del 1 % se aplica a la suma)")
+    retiros = (f"; {r} retiros de vendedor por la via del reposo, que debe "
+               f"dar 0 (D67)" if metodo == "reposo" else "")
+    if codigo == 0:
+        return 0, (f"[D38] codigo de salida 0: ninguna hora con excepcion, y "
+                   f"{cifras}, sin pasar del 1 %{retiros}")
+    por = []
+    if e:
+        por.append(f"{e} horas con excepcion (C-190)")
+    if n and perdidas / n > 0.01:
+        por.append("la suma de vencidas y sin exito pasa del 1 %")
+    if r:
+        por.append(f"la participacion retiro {r} vendedores por la via del "
+                   f"reposo: con el piso del vendedor marginal todo "
+                   f"despachado cobra al menos su piso, y un retiro es un "
+                   f"hallazgo (D67)")
+    return codigo, (f"[D38] codigo de salida {codigo} porque "
+                    + " y ".join(por)
+                    + f"; {cifras}{retiros}. Todas las salidas ya estan "
+                      "escritas; mira las lineas [D24], [D37], [D26], "
+                      "[C-151], [D48] y [C-190] de este registro")
 
 
 def main(use_real_data=False, full_horizon=False, run_analysis=False,
@@ -183,6 +569,19 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          arranque_acoplado: str = "factible",
          criterio_estacionario: str = "precio",
          tol_reparto: float = 0.01,
+         # D48 a D52: las opciones de la via por reposo. Solo actuan con
+         # metodo="reposo". El defecto de `metodo` de esta funcion NO cambia:
+         # el de produccion con datos reales lo decide la linea de ordenes.
+         modo_presupuesto: str = "sigma",
+         sigma_nivel: float = None,
+         regla_precio: str = "uniforme",
+         # D63 a D65: el despacho por piso con el piso del vendedor marginal;
+         # "merito" se admite como alias de "costo", con aviso.
+         despacho_vendedores: str = "piso",
+         # D49 / D50: la dinamica regularizada del acoplado, apagada por
+         # defecto. Solo actua con metodo="acoplado".
+         mu_entropia: float = 0.0,
+         nivel_acoplado: str = "c136",
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -565,6 +964,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         c=np.zeros(N) if use_real_data else np.array(p["c"]),
         lam=np.full(N, 100.0), theta=np.full(N, 0.5), etha=np.full(N, 0.1),
     ) if use_real_data else AgentParams(**p)
+    # CAL-32 y D48: el reposo no admite costo cuadratico; se rechaza antes de
+    # resolver ninguna hora, en voz alta.
+    _error_a = error_costo_cuadratico(metodo, agents.a)
+    if _error_a:
+        raise ValueError(_error_a)
 
     solver = SolverParams(tau=0.001, t_span=(0.0, 0.005),
                           n_points=150, stackelberg_iters=2, parallel=True,
@@ -590,6 +994,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # estacionario, y con que umbral el reparto.
                           criterio_estacionario=criterio_estacionario,
                           tol_reparto=tol_reparto,
+                          # D48 a D52: la via por reposo; inertes en las
+                          # otras dos. `SolverParams` las valida al construir.
+                          modo_presupuesto=modo_presupuesto,
+                          sigma_nivel=sigma_nivel,
+                          regla_precio=regla_precio,
+                          despacho_vendedores=despacho_vendedores,
+                          # D49 / D50: la dinamica regularizada del acoplado;
+                          # inerte en las otras vias. `SolverParams` la valida.
+                          mu_entropia=mu_entropia,
+                          nivel_acoplado=nivel_acoplado,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -637,6 +1051,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   f"mueve menos del {solver.tol_reparto:g} de la energia "
                   "transada en el ultimo decimo (H-86). El defecto mira solo "
                   "el precio, y deja horas cuyo reparto sigue en marcha")
+        _linea_d49 = linea_dinamica_regularizada(solver)
+        if _linea_d49:
+            print(f"    [D49] {_linea_d49}")
+    if metodo == "reposo":
+        print(f"    [D48] {linea_inicio_reposo(solver)}")
     _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
     print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
           f"hora empieza a correr; la vencida queda sin resolver)")
@@ -720,7 +1139,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     alm = None
     if almacen:
         from core.almacen import Almacen
-        if metodo != "acoplado":
+        if metodo == "reposo":
+            print("    [C-161] AVISO: la via por reposo no integra nada y no "
+                  "produce trayectorias; se llenan las tablas de horas, "
+                  "flujos, agentes y escenarios, con el regimen, el "
+                  "presupuesto, los precios del reposo y las cotas (D48)")
+        elif metodo != "acoplado":
             print(f"    [C-161] AVISO: el almacen guarda trayectorias y la "
                   f"via alternada no las produce; solo se llenaran las "
                   f"tablas de horas y flujos")
@@ -776,6 +1200,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             if not r.seller_ids or not r.buyer_ids:
                 alm.sin_resolver(k, "sin mercado esa hora")
                 continue
+            # D48 y D61: la hora que la via por reposo resolvio SIN mercado
+            # (sin ganancia posible: el piso de todos los vendedores sobre el
+            # techo de todos los compradores). Tiene vendedores y compradores,
+            # y sin esta rama caeria en la anotacion de abajo con `P_star`
+            # vacio, que la guarda de C-160 anotaria como «solucion no
+            # finita». Se anota como sin mercado, con su causa en `regimen`.
+            # Solo la via por reposo llena `regimen`: las otras no cambian.
+            if r.P_star is None and getattr(r, "regimen", ""):
+                alm.anota_hora(k, resuelta=False,
+                               motivo="sin mercado esa hora",
+                               **columnas_reposo(r, agent_names))
+                continue
             P = np.asarray(r.P_star, dtype=float)
             pi = np.asarray(r.pi_star, dtype=float)
             alm.anota_hora(
@@ -807,14 +1243,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 reparto_vendedor=float(r.PSR),
                 **(dict(horizonte_usado=float(r.horizonte_usado),
                         parada_acoplado=str(r.parada_acoplado))
-                   if _con_parada else {}))
+                   if _con_parada else {}),
+                # D48: el regimen, el presupuesto, los precios y las cotas
+                # del reposo. Se escriben en TODAS las vias, con los valores
+                # neutros del resultado de la hora en las otras dos, para que
+                # el esquema de la tabla no dependa de la via.
+                **columnas_reposo(r, agent_names))
             alm.anota_flujos(
                 k, P, pi, r.seller_ids, r.buyer_ids, agent_names,
                 techo_i=(None if te_m is None or te_m.shape[0] == 1
                          else te_m[r.buyer_ids, k]),
                 piso_j=(None if pi_gb_agente is None
                         else np.asarray(pi_gb_agente,
-                                        dtype=float)[r.seller_ids, k]))
+                                        dtype=float)[r.seller_ids, k]),
+                # D48: el precio del reposo (pago segun puja) de cada
+                # comprador, junto al liquidado; 0.0 en las otras vias.
+                pi_reposo=getattr(r, "pi_reposo", None))
             if getattr(r, "tr", None) is not None:
                 alm.anota_trayectoria(k, r.tr, r.seller_ids, r.buyer_ids,
                                       agent_names)
@@ -838,6 +1282,17 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     elif getattr(grid, "pi_gb_agente", None) is not None:
         print(f"    [C-151] Participacion: ningun retiro; el mercado bate la "
               f"alternativa de red de todos los vendedores en todas las horas")
+    # D48: el cierre del mercado por reposo. Los regimenes salen todos, tambien
+    # en cero, para que el registro diga que se miraron; la energia al techo,
+    # al piso y en horas de un solo comprador es la que D54 y la seccion 9 de
+    # la especificacion piden censar.
+    if metodo == "reposo":
+        print(f"    [D48] " + linea_resumen_reposo(
+            resumen_reposo(p2p_results, pi_gs_arg, dt=paso,
+                           # el piso de cada vendedor, el mismo que recibe
+                           # el juego; sin matriz, el escalar de siempre
+                           piso=(pi_gb_agente if pi_gb_agente is not None
+                                 else grid_params["pi_gb"]))))
 
     # Reportar impacto del DR (solo si hay flexibilidad activa)
     dr_active = np.any(agents.alpha > 1e-9)
@@ -2387,11 +2842,54 @@ if __name__ == "__main__":
                          "hora que lo pasa queda sin resolver, con su "
                          "motivo, y la corrida sigue. 0 lo desactiva. Solo "
                          "actua en el lazo paralelo.")
-    ap.add_argument("--metodo", choices=["alternado", "acoplado"],
-                    default="alternado",
-                    help="CAL-48: 'acoplado' integra precios y cantidades "
-                         "juntos como el modelo base; 'alternado' (defecto) "
-                         "es el comportamiento historico")
+    # D48: el defecto se resuelve despues de leer los argumentos, con None
+    # como centinela, porque depende de los datos: con datos reales es
+    # 'reposo', y con el caso sintetico sigue siendo 'alternado'.
+    ap.add_argument("--metodo", choices=["alternado", "acoplado", "reposo"],
+                    default=None,
+                    help="CAL-48 y D48: 'reposo' resuelve cada hora en el "
+                         "reposo del juego regularizado, en forma cerrada "
+                         "(DEFECTO con --data real o --day desde el "
+                         "2026-09-17); 'acoplado' integra precios y "
+                         "cantidades juntos como el modelo base; "
+                         "'alternado' es el comportamiento historico y el "
+                         "defecto del caso sintetico")
+    ap.add_argument("--modo-presupuesto", dest="modo_presupuesto",
+                    choices=["sigma", "algoritmo3", "c136"], default=None,
+                    help="D50: el presupuesto de precios del reposo. 'sigma' "
+                         "(defecto) es la regla de produccion, S = suma de "
+                         "[piso + sigma·(techo - piso)]; 'algoritmo3' es la "
+                         "regla literal del articulo (techo escalar); 'c136' "
+                         "es el arranque de hoy del acoplado, solo para "
+                         "comparar. Solo con --metodo reposo.")
+    ap.add_argument("--sigma-nivel", dest="sigma_nivel", default=None,
+                    metavar="SIGMA",
+                    help="D50: la sigma del presupuesto 'sigma', un numero "
+                         "entre 0 y 1, o 'base' (defecto), que es (I-1)/I con "
+                         "I los compradores de la hora. Solo con --metodo "
+                         "reposo y --modo-presupuesto sigma.")
+    ap.add_argument("--regla-precio", dest="regla_precio",
+                    choices=["uniforme", "puja"], default=None,
+                    help="D51: como se liquida a cada comprador. 'uniforme' "
+                         "(defecto) es el precio marginal uniforme que "
+                         "conserva el ingreso del reposo; 'puja' liquida al "
+                         "precio del reposo de cada uno (sensibilidad). Solo "
+                         "con --metodo reposo.")
+    ap.add_argument("--despacho-vendedores", dest="despacho_vendedores",
+                    choices=["piso", "costo", "llenado", "merito"],
+                    default=None,
+                    help="D63 a D65: que vende cada vendedor y cual es el "
+                         "piso del juego. 'piso' (defecto) despacha por el "
+                         "piso de cada vendedor con la caminata competitiva, "
+                         "y el piso del juego es el del vendedor marginal; "
+                         "'costo' despacha por costo b_j creciente (el merito "
+                         "de D52, de comparacion); 'llenado' reparte por "
+                         "niveles entre todos. En las tres el piso del juego "
+                         "es el del marginal, y un vendedor marginal "
+                         "minusculo sube el piso de toda la hora: es la "
+                         "subasta de precio uniforme, y se mide en M-J. "
+                         "'merito' es el nombre viejo de 'costo' y se acepta "
+                         "con aviso. Solo con --metodo reposo.")
     ap.add_argument("--permitir-alternado", dest="permitir_alternado",
                     action="store_true",
                     help="CAL-48: permite el horizonte completo por la via "
@@ -2449,6 +2947,26 @@ if __name__ == "__main__":
                          "fraccion de la energia transada de la hora. Solo "
                          "tiene efecto con --criterio-estacionario "
                          "precio_y_reparto.")
+    # D49 / D50: la dinamica regularizada. None como centinela, para avisar
+    # solo si se pidio sin la via acoplada.
+    ap.add_argument("--mu-entropia", dest="mu_entropia", type=float,
+                    default=None, metavar="MU",
+                    help="D49: exploracion entropica del replicador del "
+                         "vendedor del acoplado (COP/kWh). 0 (defecto) la "
+                         "apaga y la via queda identica a hoy; 1 es el valor "
+                         "de la validacion del reposo. Apartamiento declarado "
+                         "de JoinFinal.m, para validar el reposo y dibujar la "
+                         "convergencia. Solo con --metodo acoplado.")
+    ap.add_argument("--nivel-acoplado", dest="nivel_acoplado",
+                    choices=["c136", "sigma"], default=None,
+                    help="D50: como arrancan los precios del acoplado. "
+                         "'c136' (defecto) es el arranque de siempre; 'sigma' "
+                         "arranca cada comprador en piso + (I-1)/I·(techo - "
+                         "piso) y el jugador virtual en su techo, el "
+                         "presupuesto del reposo. Sin el interruptor de "
+                         "C-136: una hora con algun techo bajo el piso lanza "
+                         "un error y queda sin resolver, con su motivo "
+                         "(C-190). Solo con --metodo acoplado.")
     ap.add_argument("--competencia", dest="buyer_competition",
                     choices=["aggregate", "matlab", "matrix"],
                     default="aggregate",
@@ -2498,6 +3016,79 @@ if __name__ == "__main__":
         ap.error("--plazo-hora va en minutos y no puede ser negativo; "
                  "0 lo desactiva")
 
+    # D48: la via de produccion con datos reales es el reposo en forma
+    # cerrada. Con datos reales (--data real o --day) y sin --metodo, el
+    # metodo es 'reposo', y se anuncia; con --metodo explicito no cambia nada.
+    # El caso sintetico conserva 'alternado', su comportamiento historico.
+    #
+    # El GSA no pasa por `main`: resuelve con su propio `SolverParams` en
+    # `analysis/global_sensitivity.py`, por la via alternada. Pedirle el reposo
+    # no tiene lectura, y sin esta guarda el error que salia era el de CAL-32,
+    # que no dice por que. Las otras vias se ignoran, con aviso.
+    if args.gsa and args.metodo == "reposo":
+        ap.error("--gsa corre el analisis de sensibilidad global con su "
+                 "propio mercado (analysis/global_sensitivity.py, via "
+                 "alternada) y no usa --metodo; el reposo no esta disponible "
+                 "en el GSA. Quite --metodo reposo")
+    if args.gsa and args.metodo is not None:
+        print(f"    [D48] AVISO: --metodo {args.metodo} no tiene efecto con "
+              f"--gsa: el GSA resuelve con su propio mercado, por la via "
+              f"alternada")
+    args.metodo, _aviso_metodo = resuelve_metodo(
+        args.metodo, datos_reales=(args.data == "real" or bool(args.day)),
+        gsa=args.gsa)
+    if _aviso_metodo:
+        print(f"    [D48] {_aviso_metodo}")
+    # CAL-32: la via por reposo supone costo cuadratico nulo. Con datos reales
+    # `main` arma a = 0; el caso sintetico del modelo base no lo cumple, y se
+    # rechaza aqui, antes de cargar nada. `main` lo vuelve a comprobar para
+    # quien la llame desde Python.
+    if args.metodo == "reposo" and not (args.data == "real" or args.day):
+        _error_a = error_costo_cuadratico(args.metodo,
+                                          get_agent_params()["a"])
+        if _error_a:
+            ap.error(_error_a)
+    # D48 a D52: las opciones del reposo. Con None como centinela se sabe si
+    # el operador las pidio, para avisar solo cuando no tienen efecto.
+    _pedidas = [nombre for nombre, v in (
+        ("--modo-presupuesto", args.modo_presupuesto),
+        ("--sigma-nivel", args.sigma_nivel),
+        ("--regla-precio", args.regla_precio),
+        ("--despacho-vendedores", args.despacho_vendedores)) if v is not None]
+    if _pedidas and args.metodo != "reposo":
+        print(f"    [D48] AVISO: {', '.join(_pedidas)} no tiene efecto sin "
+              f"--metodo reposo: la via {args.metodo} no usa esas reglas")
+    if args.modo_presupuesto is None:
+        args.modo_presupuesto = "sigma"
+    if args.regla_precio is None:
+        args.regla_precio = "uniforme"
+    if args.despacho_vendedores is None:
+        args.despacho_vendedores = "piso"
+    elif args.despacho_vendedores == "merito":
+        # D64: el alias, traducido aqui para que el registro lo diga una vez.
+        print("    [D64] AVISO: --despacho-vendedores merito es el nombre "
+              "viejo del despacho por costo b_j (D52); se usa 'costo'. El "
+              "defecto de produccion es 'piso', el piso del vendedor "
+              "marginal (D63)")
+        args.despacho_vendedores = "costo"
+    # La sigma: 'base' (o nada) es (I-1)/I; si no, un numero finito en
+    # [0, 1]. La misma regla de NaN e infinito de las palancas de abajo.
+    if args.sigma_nivel is None or args.sigma_nivel.strip().lower() == "base":
+        args.sigma_nivel = None
+    else:
+        try:
+            _sigma = float(args.sigma_nivel)
+        except ValueError:
+            ap.error(f"--sigma-nivel={args.sigma_nivel!r}: tiene que ser un "
+                     f"numero entre 0 y 1 o la palabra 'base' ((I-1)/I)")
+        if not math.isfinite(_sigma) or not 0.0 <= _sigma <= 1.0:
+            ap.error(f"--sigma-nivel={args.sigma_nivel!r}: tiene que ser un "
+                     f"numero finito entre 0 y 1 o la palabra 'base'")
+        if args.modo_presupuesto != "sigma":
+            ap.error(f"--sigma-nivel solo aplica a --modo-presupuesto sigma, "
+                     f"no a {args.modo_presupuesto}")
+        args.sigma_nivel = _sigma
+
     # D35/D26: las dos palancas del acoplado que activa el veredicto de la
     # sonda de H-79. La misma regla de NaN/infinito de --plazo-hora, arriba.
     if not math.isfinite(args.rtol_acoplado) or args.rtol_acoplado <= 0:
@@ -2528,10 +3119,13 @@ if __name__ == "__main__":
     # H-85 / D45: el arranque solo existe en el acoplado. El aviso sale si el
     # operador lo PIDIO sin la via acoplada, no por el defecto: desde que el
     # factible es el defecto, avisarlo por su valor saltaria en toda corrida
-    # alternada, incluido el caso sintetico de siempre.
+    # alternada, incluido el caso sintetico de siempre. D48: la via se nombra
+    # tal como quedo resuelta, porque con datos reales y sin --metodo ya no es
+    # la alternada sino el reposo, que tampoco integra nada.
     if args.arranque_acoplado is not None and args.metodo != "acoplado":
-        print("    [D45] AVISO: --arranque-acoplado no tiene efecto sin "
-              "--metodo acoplado: la via alternada no usa ese arranque")
+        print(f"    [D45] AVISO: --arranque-acoplado no tiene efecto sin "
+              f"--metodo acoplado: la via {args.metodo} no usa el arranque "
+              f"del solucionador acoplado")
     if args.arranque_acoplado is None:
         args.arranque_acoplado = "factible"
     # D47: el criterio y su umbral. El umbral es una fraccion positiva, y la
@@ -2544,6 +3138,24 @@ if __name__ == "__main__":
         print("    [D47] AVISO: --criterio-estacionario no tiene efecto sin "
               "--horizonte-max-acoplado: con la parada apagada hay una sola "
               "resolucion por hora y no se declara nada estacionario")
+    # D49 / D50: la dinamica regularizada. La misma regla de NaN e infinito de
+    # las palancas de arriba; el aviso sale solo si se pidio sin la via
+    # acoplada, que es la unica que integra.
+    if args.mu_entropia is not None and (not math.isfinite(args.mu_entropia)
+                                         or args.mu_entropia < 0):
+        ap.error("--mu-entropia tiene que ser un numero finito y no negativo "
+                 "(COP/kWh); 0 la apaga")
+    _pedidas_d49 = [nombre for nombre, v in (
+        ("--mu-entropia", args.mu_entropia),
+        ("--nivel-acoplado", args.nivel_acoplado)) if v is not None]
+    if _pedidas_d49 and args.metodo != "acoplado":
+        print(f"    [D49] AVISO: {', '.join(_pedidas_d49)} no tiene efecto "
+              f"sin --metodo acoplado: la via {args.metodo} no integra la "
+              f"dinamica")
+    if args.mu_entropia is None:
+        args.mu_entropia = 0.0
+    if args.nivel_acoplado is None:
+        args.nivel_acoplado = "c136"
 
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
@@ -2557,15 +3169,21 @@ if __name__ == "__main__":
     # corrida antigua cambie de comportamiento en silencio. Y se puede
     # forzar, porque comparar las dos vias sobre el horizonte es una medicion
     # legitima; lo que no es legitimo es hacerlo sin querer.
+    #
+    # D48 (2026-09-17): con datos reales y sin --metodo la via ya es el reposo
+    # en forma cerrada, de modo que a este error solo se llega pidiendo la
+    # alternada o con el caso sintetico. El mensaje nombra las dos vias
+    # admitidas: el reposo, la de produccion, y la acoplada, la dinamica.
     if args.full and args.metodo == "alternado" and not args.permitir_alternado:
         ap.error(
-            "La corrida de horizonte completo va por la via ACOPLADA desde "
-            "CAL-48. Anada --metodo acoplado.\n"
+            "La corrida de horizonte completo no va por la via alternada "
+            "(CAL-48). Anada --metodo reposo, la via de produccion con datos "
+            "reales desde el 2026-09-17 (D48), o --metodo acoplado, la "
+            "dinamica del modelo base.\n"
             "  Por que: el lazo alternado deja el precio pegado a una cota en "
-            "el 72 % de los casos y no resuelve el modelo base (H-38), y todo "
-            "lo que el documento mide sale de la via acoplada.\n"
+            "el 72 % de los casos y no resuelve el modelo base (H-38).\n"
             "  Si de verdad quiere el horizonte alternado, para comparar las "
-            "dos vias, anada --permitir-alternado y declarelo donde publique.")
+            "vias, anada --permitir-alternado y declarelo donde publique.")
 
     # D38: las horas del mercado de la corrida, para el codigo de salida del
     # final. El GSA no pasa por `main` y se queda en None.
@@ -2607,6 +3225,12 @@ if __name__ == "__main__":
              arranque_acoplado=args.arranque_acoplado,
              criterio_estacionario=args.criterio_estacionario,
              tol_reparto=args.tol_reparto,
+             modo_presupuesto=args.modo_presupuesto,
+             sigma_nivel=args.sigma_nivel,
+             regla_precio=args.regla_precio,
+             despacho_vendedores=args.despacho_vendedores,
+             mu_entropia=args.mu_entropia,
+             nivel_acoplado=args.nivel_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2633,6 +3257,12 @@ if __name__ == "__main__":
              arranque_acoplado=args.arranque_acoplado,
              criterio_estacionario=args.criterio_estacionario,
              tol_reparto=args.tol_reparto,
+             modo_presupuesto=args.modo_presupuesto,
+             sigma_nivel=args.sigma_nivel,
+             regla_precio=args.regla_precio,
+             despacho_vendedores=args.despacho_vendedores,
+             mu_entropia=args.mu_entropia,
+             nivel_acoplado=args.nivel_acoplado,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -2650,28 +3280,6 @@ if __name__ == "__main__":
     # pruebas o compuertas no cambian. Con 3, `PARA_EN_FALLO` del lanzador
     # detiene la matriz en vez de seguir con un caso sin mercado.
     if _p2p is not None:
-        _n, _v, _e, _s = cuenta_para_salida(_p2p)
-        _codigo = codigo_de_salida(_n, _v, _e, _s)
-        # D44: el umbral del 1 % se aplica a la suma de vencidas y sin exito;
-        # la linea da las dos cifras por separado y la suma.
-        _perdidas = _v + _s
-        _pct = (100.0 * _perdidas / _n) if _n else 0.0
-        _cifras = (f"{_v} horas vencidas por el plazo (D24) mas {_s} sin "
-                   f"exito del integrador (D37) = {_perdidas} de {_n} horas "
-                   f"de mercado ({_pct:.2f} %; D44: el umbral del 1 % se "
-                   f"aplica a la suma)")
-        if _codigo == 0:
-            print(f"    [D38] codigo de salida 0: ninguna hora con excepcion, "
-                  f"y {_cifras}, sin pasar del 1 %", flush=True)
-        else:
-            _por = []
-            if _e:
-                _por.append(f"{_e} horas con excepcion (C-190)")
-            if _n and _perdidas / _n > 0.01:
-                _por.append("la suma de vencidas y sin exito pasa del 1 %")
-            print(f"    [D38] codigo de salida {_codigo} porque "
-                  + " y ".join(_por)
-                  + f"; {_cifras}. Todas las salidas ya estan escritas; mira "
-                    "las lineas [D24], [D37], [D26] y [C-190] de este "
-                    "registro", flush=True)
+        _codigo, _linea = salida_d38(_p2p, args.metodo)
+        print(f"    {_linea}", flush=True)
         sys.exit(_codigo)

@@ -192,16 +192,23 @@ class Almacen:
         self._empuja("horas", dict(self._llave(k), **campos))
 
     def anota_flujos(self, k: int, P, pi, sids, bids, nombres,
-                     techo_i=None, piso_j=None) -> None:
+                     techo_i=None, piso_j=None, pi_reposo=None) -> None:
         """Una fila por par. **Sin filtrar los de energia casi nula.**
 
         El desglose de produccion los descarta bajo un umbral, y con ellos se
         pierde la prueba de que el par existio y de que el mercado los
         considero. Aqui entran todos y el que lea decide.
+
+        D48: `precio` es el precio con que se LIQUIDA al comprador. Por la via
+        por reposo ese es el uniforme de D51, y el del reposo (el pago segun
+        puja, `pi_reposo`) va al lado en `precio_reposo`. La columna se
+        escribe siempre, con 0.0 cuando no se da, para que el esquema no
+        dependa de la via.
         """
         P = np.asarray(P, dtype=float)
         pi = np.asarray(pi, dtype=float)
-        if not _finito(P, pi):
+        pr = None if pi_reposo is None else np.asarray(pi_reposo, dtype=float)
+        if not _finito(P, pi, pr):
             return self.sin_resolver(k, "solucion no finita")
         base = self._llave(k)
         for a, j in enumerate(sids):
@@ -209,7 +216,9 @@ class Almacen:
                 e = float(P[a, b])
                 p = float(pi[b])
                 fila = dict(base, vendedor=nombres[j], comprador=nombres[i],
-                            kwh=e, precio=p, valor=e * p)
+                            kwh=e, precio=p, valor=e * p,
+                            precio_reposo=(0.0 if pr is None
+                                           else float(pr[b])))
                 if techo_i is not None:
                     fila["techo_comprador"] = float(techo_i[b])
                     fila["ahorro_comprador"] = (float(techo_i[b]) - p) * e

@@ -45,6 +45,10 @@ from scipy.integrate import solve_ivp
 
 from core.replicator_sellers import VEL_GRAD, BGRANDE, VEL_RD
 from core.replicator_buyers import VEL_WI, VEL_GPC, PGB, PGS
+# D50: el presupuesto de precios del reposo. El arranque `nivel="sigma"` lo
+# toma del nucleo en vez de repetir la formula. El nucleo es puro y no importa
+# nada del motor, de modo que no hay importacion circular.
+from core.reposo_mercado import presupuesto_precios
 
 
 class _LadoDerechoNoFinito(Exception):
@@ -195,6 +199,111 @@ def _arranque_P0(G_net_j, D_net_i, regla: str = "iguales") -> np.ndarray:
     return np.clip(P0, 1e-10, None)
 
 
+# D49 / D50: las reglas con que arrancan los precios del acoplado. La primera
+# es el defecto y es la de siempre (C-136, H-32, H-45).
+NIVELES = ("c136", "sigma")
+
+# D49: las claves de `estado_inicial`, las dos obligatorias. Los
+# multiplicadores y los filtros arrancan siempre en su valor de siempre. Eso
+# basta en las horas NO rigidas: arrancando desde el reposo, el reparto sale
+# quieto o casi (max |dP/dt| = 0 en la hora 853 y 3,0e-4 (kWh por unidad de
+# tiempo) en la 2120) y el transitorio medido por
+# `tests/gate_reposo_cero_dinamica.py` no pasa de 2,2e-6 (kWh) en la 853 ni de
+# 3e-10 en la 2120. En las rigidas no: max |dP/dt| = 86,3 en la 874 (topados)
+# y 32,7 en la 4766 (compradores cortos), porque sus multiplicadores de demanda
+# arrancan lejos de su valor, y no se ha medido si darlos cambiaria el
+# resultado. Las cuatro cifras son de la revision de la tarea 3; las fija
+# `tests/test_dinamica_regularizada.py`.
+CLAVES_ESTADO = ("P", "pi")
+
+
+def valida_opciones_dinamica(mu_entropia, nivel,
+                             nombre_nivel: str = "nivel") -> None:
+    """D49 / D50: las dos opciones de la dinamica regularizada, en voz alta.
+
+    `mu_entropia` es un numero real finito y no negativo (COP/kWh); 0 apaga el
+    termino. `nivel` es uno de NIVELES. La usan `solve_coupled_for_hour` y,
+    por `core/ems_p2p.py`, `SolverParams` y la tupla del trabajador, que la
+    llaman con `nombre_nivel="nivel_acoplado"` para que el mensaje nombre su
+    campo.
+    """
+    if (isinstance(mu_entropia, bool)
+            or not isinstance(mu_entropia, (int, float, np.integer,
+                                            np.floating))
+            or not np.isfinite(mu_entropia) or float(mu_entropia) < 0.0):
+        raise ValueError(f"mu_entropia={mu_entropia!r}; tiene que ser un "
+                         f"numero finito y no negativo (COP/kWh); 0 apaga la "
+                         f"exploracion entropica (D49)")
+    if nivel not in NIVELES:
+        raise ValueError(f"{nombre_nivel}={nivel!r}; use 'c136' (el arranque "
+                         f"de precios de siempre) o 'sigma' (el presupuesto "
+                         f"del reposo, D50)")
+
+
+def _precios_sigma(gs_i: np.ndarray, pi_gb: float) -> np.ndarray:
+    """D50: los precios reales con que arranca `nivel="sigma"`.
+
+    Cada comprador abre en piso + sigma_I·(techo_i - piso), con
+    sigma_I = (I-1)/I, y el jugador virtual (fuera de esta funcion) en su
+    techo, donde la barrera lo congela. La suma de estos precios es el
+    presupuesto `presupuesto_precios(techo, piso, modo="sigma")` del nucleo, y
+    la dinamica la conserva (H-87 sec. 6, H-90 punto 2). Cada precio sale del
+    propio nucleo, aplicado a ese comprador solo con la sigma de la hora, para
+    no duplicar la formula. Un techo bajo el piso lo rechaza el nucleo
+    (ValueError): esta regla no tiene el interruptor de C-136.
+    """
+    I = gs_i.size
+    sigma = (I - 1) / I
+    pi0 = np.array([presupuesto_precios(gs_i[i:i + 1], pi_gb, modo="sigma",
+                                        sigma=sigma) for i in range(I)])
+    S = presupuesto_precios(gs_i, pi_gb, modo="sigma")
+    if abs(float(np.sum(pi0)) - S) > 1e-9 * max(1.0, abs(S)):
+        raise AssertionError(f"el arranque sigma suma {np.sum(pi0)!r} y el "
+                             f"presupuesto del nucleo es {S!r}")
+    return pi0
+
+
+def _valida_estado_inicial(estado, J: int, I: int, gs_i: np.ndarray,
+                           pi_gb: float) -> dict:
+    """D49: el estado desde el que arranca la integracion, comprobado.
+
+    Devuelve un diccionario con copias float64 de las dos claves, las dos
+    obligatorias: "P", forma (J, I), finita y no negativa (kWh), y "pi",
+    forma (I,), finita y dentro de [pi_gb, techo_i] (COP/kWh). Una clave que
+    falta o sobra, una forma que no cuadra o un valor fuera de rango se
+    rechazan con ValueError.
+    """
+    if not isinstance(estado, dict):
+        raise ValueError(f"estado_inicial tiene que ser un diccionario con "
+                         f"las claves {CLAVES_ESTADO}; llego {type(estado)}")
+    if set(estado) != set(CLAVES_ESTADO):
+        raise ValueError(f"estado_inicial tiene las claves "
+                         f"{sorted(estado)}; tiene que tener exactamente "
+                         f"{CLAVES_ESTADO}")
+    formas = dict(P=(J, I), pi=(I,))
+    salida = {}
+    for clave in CLAVES_ESTADO:
+        try:
+            arr = np.array(estado[clave], dtype=float, copy=True)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"estado_inicial[{clave!r}] no es numerico: "
+                             f"{exc}") from None
+        if arr.shape != formas[clave]:
+            raise ValueError(f"estado_inicial[{clave!r}] tiene forma "
+                             f"{arr.shape}; se esperaba {formas[clave]}")
+        if not np.all(np.isfinite(arr)):
+            raise ValueError(f"estado_inicial[{clave!r}] tiene valores no "
+                             f"finitos")
+        salida[clave] = arr
+    if np.any(salida["P"] < 0.0):
+        raise ValueError("estado_inicial['P'] tiene energias negativas")
+    pi = salida["pi"]
+    if np.any(pi < pi_gb) or np.any(pi > gs_i):
+        raise ValueError(f"estado_inicial['pi'] = {pi} fuera de la banda "
+                         f"[{pi_gb}, techo] con techo {gs_i}")
+    return salida
+
+
 def solve_coupled_for_hour(
     G_net_j:     np.ndarray,
     D_net_i:     np.ndarray,
@@ -240,6 +349,15 @@ def solve_coupled_for_hour(
     # H-85 / D45: la regla del arranque de la oferta P (`_arranque_P0`).
     # "iguales" (defecto) es el de siempre, identico al bit.
     arranque:    str = "iguales",
+    # D49: exploracion entropica del replicador del vendedor (COP/kWh). 0.0
+    # (defecto) la apaga y el lado derecho es el de siempre, al bit.
+    mu_entropia: float = 0.0,
+    # D50: como arrancan los precios. "c136" (defecto) es el de siempre, al
+    # bit; "sigma" arranca en el presupuesto del reposo.
+    nivel:       str = "c136",
+    # D49: arrancar desde un estado dado (`_valida_estado_inicial`). None
+    # (defecto) es el arranque de siempre, al bit.
+    estado_inicial: Optional[dict] = None,
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -269,6 +387,32 @@ def solve_coupled_for_hour(
                en proporcion al lado corto, de modo que ningun comprador
                arranca con mas de su deficit ni ningun vendedor con mas de su
                excedente. Ver `_arranque_P0`.
+    mu_entropia : D49, exploracion entropica del replicador del vendedor
+               (COP/kWh). Con mu > 0 el bloque de P recibe
+               -mu·P·(ln P - <ln P>), con <ln P> = sum P ln P / sum P, que
+               conserva la suma de P y hace que la dinamica llegue al reposo
+               del juego regularizado (H-90 punto 5). 0.0 (defecto) lo apaga:
+               lado derecho identico al bit. Apartamiento declarado de
+               JoinFinal.m, para validar el reposo en forma cerrada y dibujar
+               la convergencia; no es la via de produccion (D48).
+    nivel    : D50, como arrancan los precios. "c136" (defecto) es el
+               arranque de siempre, identico al bit. "sigma" arranca cada
+               comprador en piso + (I-1)/I·(techo_i - piso) y el jugador
+               virtual en su techo, de modo que la suma de los precios reales
+               es el presupuesto `presupuesto_precios(modo="sigma")` del
+               nucleo del reposo. Sin el interruptor de C-136: un techo bajo
+               el piso lanza ValueError. Solo con `peso_virtual="barrera"`:
+               con "precio" la suma no se conserva (H-46, H-90) y se rechaza
+               con ValueError.
+    estado_inicial : D49, arranca la integracion desde un estado dado: un
+               diccionario con la oferta por pareja "P" (J, I) (kWh) y los
+               precios reales "pi" (I,) (COP/kWh), las dos obligatorias (ver
+               `_valida_estado_inicial`). El jugador virtual arranca segun
+               `nivel`, y los multiplicadores y filtros como siempre. P se
+               respeta tal cual, sin el recorte a 1e-10 de los arranques (el
+               lado derecho ya la lee con ese piso, D40). No se combina con
+               `arranque="factible"` (ValueError). None (defecto): identico
+               al bit.
     pi_gb    : COP/kWh, precio compra a la red (limite inferior π)
     tau_sellers : tau filtro Lagrange (matching JoinFinal.m linea 132)
     tau_buyers  : tau3 filtro buyer (matching JoinFinal.m linea 133)
@@ -303,12 +447,38 @@ def solve_coupled_for_hour(
     if arranque not in ARRANQUES:
         raise ValueError(f"arranque={arranque!r}; use 'iguales' (el de "
                          "siempre, como JoinFinal.m) o 'factible' (H-85, D45)")
+    # D49 / D50: lo mismo con las opciones de la dinamica regularizada y con
+    # el estado inicial, tambien en la hora sin mercado.
+    valida_opciones_dinamica(mu_entropia, nivel)
+    mu = float(mu_entropia)
+    if nivel == "sigma" and peso_virtual == "precio":
+        # Menor 4 de la revision de la tarea 3: con el peso de precio el
+        # jugador virtual no se congela en su techo, absorbe el presupuesto y
+        # la suma de los precios reales deja de conservarse, de modo que el
+        # nivel no seria el presupuesto del nucleo que `sigma` promete.
+        raise ValueError("nivel='sigma' no se combina con "
+                         "peso_virtual='precio': sin la barrera el jugador "
+                         "virtual no se congela en su techo, la suma de los "
+                         "precios reales no se conserva (H-46; H-90, punto "
+                         "2) y el nivel deja de ser el presupuesto sigma del "
+                         "nucleo del reposo")
 
     J = len(G_net_j)
     I = len(D_net_i)
     sum_G = float(np.sum(G_net_j))
     sum_D = float(np.sum(D_net_i))
     simplex = min(sum_G, sum_D)
+
+    estado = None
+    if estado_inicial is not None:
+        if arranque == "factible":
+            raise ValueError("estado_inicial ya fija la oferta P con que "
+                             "arranca la integracion; no se combina con "
+                             "arranque='factible' (D49)")
+        estado = _valida_estado_inicial(
+            estado_inicial, J, I,
+            np.broadcast_to(np.asarray(pi_gs, dtype=float), (I,)),
+            float(pi_gb))
 
     # Caso degenerado: sin mercado P2P
     if simplex < 1e-10 or J == 0 or I == 0:
@@ -389,11 +559,18 @@ def solve_coupled_for_hour(
     # precio no se mueve nunca: es la misma patologia de H-32 por el otro
     # extremo. Con techos iguales las dos formas coinciden y el arranque es
     # el escalar de siempre, bit a bit.
-    ci_i = np.where((pi_gb < ci) & (ci < gs_i), ci,
-                    pi_gb + (gs_i - pi_gb) * I / n_pi_all)
-    ci_v = (ci if pi_gb < ci < pi_gs_max
-            else pi_gb + (pi_gs_max - pi_gb) * I / n_pi_all)
-    pi_all_0 = np.append(ci_i, ci_v)
+    if nivel == "sigma":
+        # D50: el presupuesto del reposo. Los compradores en
+        # piso + (I-1)/I·(techo_i - piso), del nucleo, y el virtual en su
+        # techo, donde la barrera lo congela: la suma de los precios reales es
+        # el presupuesto sigma y la dinamica la conserva.
+        pi_all_0 = np.append(_precios_sigma(gs_i, float(pi_gb)), pi_gs_max)
+    else:
+        ci_i = np.where((pi_gb < ci) & (ci < gs_i), ci,
+                        pi_gb + (gs_i - pi_gb) * I / n_pi_all)
+        ci_v = (ci if pi_gb < ci < pi_gs_max
+                else pi_gb + (pi_gs_max - pi_gb) * I / n_pi_all)
+        pi_all_0 = np.append(ci_i, ci_v)
     gamma_0  = 0.1 * np.ones(J)
     y_filt_0 = np.ones(J)
 
@@ -408,6 +585,12 @@ def solve_coupled_for_hour(
     bet_ub_0   = 0.1 * np.ones(I)
     lam_filt_0 = np.zeros(J)
     bet_filt_0 = np.zeros(I)
+
+    if estado is not None:
+        # D49: la oferta y los precios reales del estado dado; el jugador
+        # virtual segun `nivel`, y los multiplicadores y filtros como siempre.
+        pi_all_0 = np.append(estado["pi"], pi_all_0[I])
+        P0 = estado["P"]
 
     X0 = np.concatenate([
         pi_all_0, gamma_0, y_filt_0,
@@ -534,11 +717,25 @@ def solve_coupled_for_hour(
         #   WJ = 10   * Replicator_sellers  → 10   sobre bloque sellers
         # Equilibrio invariante (cero del RHS). Recupera transitorio
         # visible de P_ji(t) en t_span=[0, 0.01]s.
+        dP_salida = 10.0 * dP.ravel()
+        if mu > 0.0:
+            # D49: exploracion entropica del replicador del vendedor, el
+            # termino V3a que llevo la dinamica al reposo en la sonda del
+            # consenso: `scratchpad/consenso/arnes.py`, lineas 251 a 255
+            # (`dP_eff = escala_v * dP.ravel()` y, con `mu_ent`, `lnP`, `m` y
+            # `dP_eff - mu_ent * (P * (lnP - m)).ravel()`), con escala_v = 10
+            # y sin aceleracion. Se resta DESPUES del factor 10, como alli, y
+            # sobre la P leida con el piso de 1e-10 (D40), de modo que ln P es
+            # finito. Conserva la suma de P: sum P·(ln P - m) = 0. Con mu = 0
+            # esta rama no corre y la salida es la de siempre, al bit.
+            lnP = np.log(P)
+            m = float(np.sum(P * lnP)) / float(np.sum(P))
+            dP_salida = dP_salida - mu * (P * (lnP - m)).ravel()
         salida = np.concatenate([
             0.08 * d_pi_all,    # I+1   (buyer pi)
             0.08 * d_gamma,     # J     (buyer auxiliar)
             0.08 * d_y_filt,    # J     (buyer filtro)
-            10.0 * dP.ravel(),  # J*I   (seller P_ji)
+            dP_salida,          # J*I   (seller P_ji; D49 con mu > 0)
             10.0 * Glam,        # J     (seller capacity multiplier)
             10.0 * Gbet,        # I     (seller demand multiplier)
             10.0 * d_lam_filt,  # J     (seller lam filtro)

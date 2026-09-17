@@ -64,6 +64,13 @@ NUCLEO = [
     # Los pasos 4 y 5 de `matriz` (y de `oficial`): equidad por periodo de
     # cada caso. Estaban en la rama pero no en el paquete de respaldo.
     "analysis/equidad_periodo.py",
+    # D48 a D62 (2026-09-17): el nucleo del reposo en forma cerrada, que el
+    # motor importa, y el almacen, que gana la columna `precio_reposo` en los
+    # flujos (tarea 2). Sin el almacen nuevo, `main_simulation.py` llama a
+    # `anota_flujos` con un argumento que el viejo no conoce y la corrida
+    # por reposo muere al anotar la primera hora.
+    "core/reposo_mercado.py",
+    "core/almacen.py",
 ]
 SONDAS = [
     "reformateo/documento/scripts/estilo.py",
@@ -95,6 +102,11 @@ SONDAS = [
     # H-86 (2026-09-16): el resumen del costo del criterio sobre el reparto,
     # D47. Lo corre la accion `convergencia`, al final de la campana.
     "reformateo/documento/scripts/sonda/censo_convergencia.py",
+    # D48 (2026-09-17): la compuerta de salida de cada caso de
+    # `matriz_reposo` y `barrido_sigma`, y la comparacion con la matriz vieja
+    # (M-F). Las corre el lanzador y las importan sus pruebas.
+    "reformateo/documento/scripts/sonda/compuertas_matriz_reposo.py",
+    "reformateo/documento/scripts/sonda/compara_matriz_reposo.py",
     # Los pasos 4 y 5 de `matriz` (y de `oficial`): la liquidacion por
     # institucion y las figuras del foro de E0.
     "reformateo/documento/scripts/liquidacion.py",
@@ -145,6 +157,16 @@ COMPUERTAS = [
     "tests/test_compara_arranque.py",      # H-85, D46; importa la sonda
     "tests/test_criterio_reparto.py",      # H-86, D47; importa la C-165
     "tests/test_censo_convergencia.py",    # H-86, D47; importa la sonda
+    "tests/test_reposo_mercado.py",        # D48-D69, C-197: el nucleo
+    "tests/test_reposo_motor.py",          # D48: la via por reposo en el motor
+    "tests/test_compuertas_matriz_reposo.py",  # D48: la compuerta de salida
+    "tests/test_compara_matriz_reposo.py",     # M-F: la comparacion
+    # D49 / D50: la dinamica regularizada y su compuerta. `compuertas` la
+    # corre con -k "not lenta" (las dos horas rapidas); las dos lentas van
+    # aparte, con las ordenes del docstring de la compuerta (revision final,
+    # menor 2). La prueba importa la compuerta, de modo que las dos viajan.
+    "tests/test_dinamica_regularizada.py",
+    "tests/gate_reposo_cero_dinamica.py",
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",
@@ -259,6 +281,8 @@ def main() -> None:
     print("    bash modelo_base/run_servidor.sh matriz         # las 13 corridas, recoge al final")
     print("    bash modelo_base/run_servidor.sh arranque       # H-85: los dos arranques, E0 y E4")
     print("    bash modelo_base/run_servidor.sh convergencia   # H-86/D47: el costo del criterio del reparto")
+    print("    bash modelo_base/run_servidor.sh matriz_reposo  # D48: las 13 corridas por reposo, con su compuerta de salida")
+    print("    bash modelo_base/run_servidor.sh barrido_sigma  # D50: las 13 con sigma 0, 0,5 y 1, despues")
     print("  (antes de nada, SECO=1 bash modelo_base/run_servidor.sh matriz imprime")
     print("   las ordenes sin ejecutar ninguna)")
 

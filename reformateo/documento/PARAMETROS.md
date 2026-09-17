@@ -1,8 +1,11 @@
 # Los parámetros del modelo, y cómo defender cada uno
 
-**Estado al 2026-09-08.** Material de sustentación. Un apartado por parámetro,
-con lo que vale, de dónde sale, qué evidencia lo respalda y **qué contestar si
-lo preguntan**.
+**Estado al 2026-09-08, ampliado el 2026-09-17** con los cuatro parámetros de la
+vía por reposo (D48 a D62; CAL-53, que es el ADR 0060) y, el mismo día por la
+tarde, con la regla del **piso del vendedor marginal** (D63 a D70; H-91,
+C-199; la enmienda del 2026-09-17 al ADR 0060). Material de sustentación. Un
+apartado por parámetro, con lo que vale, de dónde sale, qué evidencia lo
+respalda y **qué contestar si lo preguntan**.
 
 Compañero de `MODELO_DEFINITIVO.md`, que dice qué es el modelo, y de
 `HALLAZGOS.md`, que dice qué se encontró.
@@ -18,6 +21,12 @@ Compañero de `MODELO_DEFINITIVO.md`, que dice qué es el modelo, y de
 > la regulación y del tarifario.**
 
 Eso no es una defensa retórica: cada afirmación tiene su medición y está abajo.
+
+**Salvedad desde el 2026-09-17.** El titular habla de los parámetros heredados
+del modelo base. La vía por reposo añade uno declarado que **sí gobierna el
+nivel del precio y el reparto del excedente**, aunque no el volumen: el
+presupuesto de precios σ. No es un parámetro libre escondido: es una primitiva
+del mecanismo, se declara y se barre. Está en «Los parámetros del reposo».
 
 ---
 
@@ -209,6 +218,174 @@ comercializar.»
 
 ---
 
+## Los parámetros del reposo (añadidos el 2026-09-17)
+
+Desde D48, el mercado de cada hora con datos reales se resuelve en el reposo
+del juego regularizado, calculado en forma cerrada (`--metodo reposo`). Cinco
+decisiones fijan cómo, y cada una tiene su opción en la línea de órdenes,
+salvo el piso del juego, que no se elige: lo fija la caminata competitiva. Las
+fuentes son las decisiones D48 a D70 (ADR 0059, con la enmienda del
+2026-09-17 al ADR 0060), la calibración CAL-53 y los hallazgos H-89, H-90 y
+H-91.
+
+### El presupuesto de precios, σ · vale (I − 1)/I, con barrido
+
+**Qué es.** La suma de los precios de los I compradores de la hora,
+S = Σ_i [piso + σ·(techo_i − piso)]. Con bandas iguales, el precio común es
+piso + σ·banda. Con un solo comprador, el precio es el piso, que desde el
+2026-09-17 es el del vendedor marginal y no el mínimo: es el precio
+competitivo del lado vendedor, y los vendedores inframarginales cobran su
+renta (D54, reinterpretada por D66; H-91).
+
+**De dónde sale.** Es el presupuesto de puja del Algoritmo 3 del documento
+extenso de la autora (H-61), que su ecuación (24) conserva al clavar el
+jugador virtual en su techo, generalizado a la banda como en H-32 y sin el
+interruptor de C-136 (D50). Opción: `--modo-presupuesto sigma` con
+`--sigma-nivel` en [0, 1], o sin ella para la sigma base.
+
+**Evidencia.** El bloque de precios es un replicador sobre un presupuesto que
+se conserva: la dinámica **redistribuye** el nivel entre compradores, pero no
+lo fija, y con las tarifas colombianas el único ancla del modelo base, la
+cobertura del costo del vendedor, queda bajo el piso (H-88; H-90, puntos 2 y
+3). Con bandas iguales, el vendedor se lleva (I − 1)/I del excedente. El
+barrido σ ∈ {0; 0,5; (I − 1)/I; 1} es la acción `barrido_sigma` del
+lanzador.
+
+**Si lo preguntan.** «El nivel del precio no lo produce la negociación: es una
+primitiva del mecanismo, como el costo del vendedor en el caso de la autora.
+La única regla de nivel que está en el modelo es su presupuesto de puja, y
+esa es la que se adopta. Se declara y se barre, y con σ = 0 todos quedan en
+el piso, que es lo que da su código con las tarifas colombianas (H-88).»
+
+### La exploración entrópica, μ · vale 1 (COP/kWh), solo para validar
+
+**Qué es.** Un término −μ·P·(ln P − ⟨ln P⟩) en el replicador del vendedor, que
+empuja suavemente hacia el reparto uniforme: una fricción (D49).
+
+**De dónde sale.** Es un apartamiento declarado, análogo en espíritu al filtro
+que la autora añadió en la sección III-E de su documento extenso para mejorar
+la convergencia. **Se añade como opción apagada de la vía acoplada**, y solo
+allí, para validar el reposo y dibujar su convergencia; al escribir esto está
+en implementación. La forma cerrada no lo usa: toma el límite μ → 0⁺, es
+decir prioridad estricta y empates solo exactos (ADR 0060).
+
+**Evidencia.** Sin el término, con un vendedor y varios compradores la
+dinámica oscila sin llegar (H-87). Con él llega al reposo y se queda en las
+horas medidas, y **μ solo cambia la velocidad**: en la hora 109 de la semana
+de E0, con μ de 0,3 a 5 el reposo es el mismo, y con 0,05 no llega a t = 40
+(H-90, punto 5). La sensibilidad a μ y los empates a menos de 3μ son la
+medición M-E, pendiente.
+
+**Si lo preguntan.** «No entra en las cifras: las cifras salen de la forma
+cerrada. Entra en la validación, para que la dinámica llegue al punto que la
+forma cerrada calcula, y su valor solo cambia cuánto tarda en llegar.»
+
+### La liquidación · uniforme, que conserva el ingreso
+
+**Qué es.** Cada comprador servido paga min(p_u, techo_i), con el precio
+uniforme p_u de la hora fijado para que Σ_i min(p_u, techo_i)·q_i sea igual al
+ingreso del reposo, Σ_i π_i·q_i (D51). Opción: `--regla-precio uniforme`; con
+`puja`, cada uno paga su precio del reposo, que el almacén guarda siempre en
+`precio_reposo`.
+
+**De dónde sale.** De la bolsa de XM, que liquida a un solo precio por hora.
+El vendedor recibe exactamente lo que el juego le da, y ningún comprador paga
+más que su alternativa. Por eso el techo de liquidación de CAL-35 queda
+inerte (ADR 0060).
+
+**Evidencia.** La conservación del ingreso se comprueba en cada hora, en el
+núcleo al 1e-9 relativo y, sobre el almacén, en la compuerta de salida de la
+matriz. El pago según puja se publica como sensibilidad.
+
+**Si lo preguntan.** «Las dos reglas le dan al vendedor lo mismo; cambian el
+reparto entre compradores. Se eligió la del mercado mayorista colombiano. Un
+comprador cuyo techo queda bajo el precio uniforme paga su techo y no ahorra:
+está en su punto de indiferencia, y esa energía se cuenta aparte.»
+
+### El despacho de vendedores sobrantes · por la alternativa de cada uno
+
+**Qué es.** Cuando la oferta supera la demanda, qué vende cada vendedor:
+primero el de **piso más bajo**, es decir el de menor costo de oportunidad, y
+entre vendedores de piso igual, llenado por niveles (D64, desde el
+2026-09-17). Opción: `--despacho-vendedores piso`, que es el defecto y el
+modo de la matriz. Los otros dos valores, `costo` y `llenado`, son de
+comparación: `costo` es el orden de mérito por el costo nivelado b_j, que fue
+el defecto hasta el 2026-09-17 (D52), y `llenado` reparte por niveles entre
+todos. **`merito` se acepta como alias de `costo`**, con un aviso `[D64]`
+antes de cargar nada; el núcleo no lo admite, y la traducción vive en la línea
+de órdenes y en el motor (C-199).
+
+**De dónde sale.** Del piso del juego. Con pisos distintos por vendedor, un
+solo piso de juego y emparejamiento de rango uno, todos los vendedores cobran
+el mismo ingreso medio, y ordenar por b_j dejaba fuera al de alternativa baja
+para despachar al de alternativa alta, que después quedaba cobrando por debajo
+de ella. Ordenar por piso_j es lo que hace la subasta de precio uniforme: el
+último despachado fija el precio, y es el que define el piso marginal (D63,
+D65; H-91).
+
+**Evidencia.** Medido en la hora 133 de E4 (2025-04-09 13:00): con el mérito
+por costo vendía Cesmag a 330,15 (COP/kWh) mientras Udenar, con alternativa
+147,46, no vendía; con el mérito por piso vende Udenar a 147,46, y el
+excedente de la hora pasa de 1 694,38 a 2 460,29 (COP). Sobre los trece casos,
+el cambio de regla recupera toda la energía que la participación retiraba,
+entre el 0,2 % y el 60,2 % de lo transado según el caso (H-91). **Cuál de los
+dos costos usa la dinámica sigue sin medirse:** es M-B reformulada, que ahora
+enfrenta c_j = piso_j a c_j = b_j en la aptitud del vendedor, con 20 horas de
+E4 y 10 de E5 en el servidor.
+
+**Si lo preguntan.** «El vendedor entra al mercado por lo que le cuesta no
+entrar, que es su alternativa regulada, y no por su costo nivelado, que apenas
+varía entre instituciones: de 225 a 241,07 (COP/kWh), mientras la alternativa
+va de 147 a 415 en una misma hora. Con el costo nivelado el orden dejaba a
+vendedores cobrando bajo su alternativa y el mercado los expulsaba; con la
+alternativa, no. Si la medición de la dinámica dice que el costo que manda es
+el nivelado, se cambia la opción sin tocar el código, y esa comparación es la
+medición **M-B reformulada**, que enfrenta c_j = piso_j a c_j = b_j en la
+aptitud del vendedor.» Cuántas horas de compradores cortos despachan distinto
+los dos criterios, y cuánta energía y cuánto excedente mueven, es otra
+medición, **M-K**. Las cifras por institución de esas horas se citan con esa
+salvedad (H-89, H-91).
+
+### El piso del juego · el del vendedor marginal
+
+**Qué es.** El precio por debajo del cual el juego no reparte nada: el piso
+del **último vendedor que hace falta** para cubrir la demanda de la hora
+(D63). Lo fija una caminata competitiva sobre los pisos distintos: p\* es el
+menor nivel de piso que maximiza el mínimo entre la oferta con piso ≤ p y la
+demanda con techo ≥ p (D65). No tiene opción en la línea de órdenes; se
+mueve con `--despacho-vendedores`, porque los modos de comparación ponen el
+piso en el máximo de los despachados.
+
+**De dónde sale.** De que la tesis dio a cada vendedor su propio piso
+(CAL-47, H-49) mientras el juego conserva uno solo. Hasta el 2026-09-17 ese
+piso era el mínimo de los que despachan (D62), y el resultado era que el
+vendedor de piso alto cobraba por debajo de su alternativa y la participación
+lo retiraba. Con el piso marginal eso es imposible por construcción, y la
+participación queda como guarda inerte (D67).
+
+**Evidencia.** En las 4 886 horas con retiro de los trece casos siempre
+existía un precio uniforme que cubría a todos, con brechas de mediana por caso
+entre 1,7 y 262,4 (COP/kWh). Con el piso marginal se recupera el 100 % de la
+energía retirada y el excedente queda mayor o igual en los trece casos, con K1
+sin cambio (E1 de 1,363 a 1,669 millones de (COP)). **Las dos cosas están
+medidas como contrafáctico**, con el núcleo sustituido y el lazo anterior, no
+con la caminata que quedó implementada; comprobarlas sobre los trece casos es
+M-F y M-I, al 0,1 (kWh). El teorema de cobertura, que ningún despachado cobre
+bajo su piso, sí está ejercido sobre el núcleo nuevo: 141 136 horas
+adversarias sin una sola violación (H-91, C-199).
+
+**Si lo preguntan.** «Es el precio de cierre de una subasta de precio
+uniforme, el mismo mecanismo que justifica nuestra regla de liquidación.
+Coincide con el piso de siempre, y no cambia nada, por tres motivos: con un
+solo vendedor; con todos los pisos iguales; y cuando el vendedor de piso menor
+cubre él solo la demanda, que es el caso de la hora 4766. Entre los tres se
+llevan once de las catorce horas reales que fijan las pruebas del núcleo, que
+dan lo mismo al bit. Lo que cuesta es que los vendedores de
+alternativa baja cobran por encima de ella, es decir renta inframarginal, y
+por eso la prima se publica descompuesta en renta y parte del juego (D69).»
+
+---
+
 ## La tabla, para una diapositiva
 
 | Parámetro | Valor | ¿Entra al juego? | Evidencia |
@@ -222,6 +399,11 @@ comercializar.»
 | filtro | 0,001 | sí | del modelo base |
 | iteraciones | 2 | sí | verificado en dos regímenes |
 | **techo y piso** | **medidos** | **sí, y deciden** | **tarifario y CREG 174** |
+| **presupuesto de precios σ** | **(I − 1)/I, con barrido** | **sí: nivel y reparto, no volumen** | **Algoritmo 3 y ec. (24) del documento extenso; D50, H-90** |
+| exploración entrópica μ | 1 (COP/kWh) | solo en la validación | D49, H-90: solo cambia la velocidad |
+| liquidación | uniforme, conserva el ingreso | sí: reparto entre compradores | D51; CAL-53 (ADR 0060) |
+| despacho de sobrantes | por la alternativa piso_j (`piso`, el defecto; `costo` y `llenado`, de comparación; `merito` es alias de `costo`) | sí: quién vende | D64, H-91; M-B decide qué costo usa la dinámica |
+| **piso del juego** | **el del vendedor marginal** | **sí: nivel del precio y quién entra** | **D63, D65, H-91: teorema de cobertura** |
 
 ---
 

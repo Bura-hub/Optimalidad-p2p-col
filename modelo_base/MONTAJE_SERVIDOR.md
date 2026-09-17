@@ -830,6 +830,375 @@ de producción. La configuración «hoy» de cada caso es una semana normal, del
 orden de 5 a 15 (min) con 31 procesos; las otras cuatro son las caras, y por eso
 llevan plazo de 60 (min) por hora.
 
+## La matriz con el reposo (D48 a D69; M-F y M-H)
+
+Contexto en una frase: desde el 2026-09-17 el mercado de cada hora con datos
+reales se resuelve en el reposo del juego regularizado, calculado en forma
+cerrada (`--metodo reposo`; CAL-53, ADR 0060), y la matriz de trece casos se
+repite una sola vez por esa vía (D57); la del 15 de septiembre, por la vía
+acoplada, se queda en `SALIDAS_SERVIDOR/matriz` como foto de referencia, no
+citada, y es contra la que se compara.
+
+**La regla del piso (D63 a D69, 2026-09-17).** El piso del juego es el del
+**vendedor marginal**: los vendedores despachan por su piso y una caminata
+competitiva decide quién entra de cada lado (`--despacho-vendedores piso`, el
+defecto). Con la regla anterior (D62, el piso mínimo de los que despachan) el
+vendedor en permuta quedaba bajo su piso y la participación lo retiraba aunque
+algún comprador le pagaría (E1 perdía 5 977 (kWh) frente a 10 625 transados).
+Con el piso marginal todo despachado cobra al menos su piso, de modo que la
+participación queda como guarda inerte (D67): **los retiros deben ser 0**, un
+solo retiro hace salir la corrida con código 3 y la compuerta de salida lo
+vuelve a comprobar. La prima de los vendedores se publica descompuesta en renta
+inframarginal y parte del juego (D69). `merito`, el nombre viejo del despacho
+por costo, se acepta como alias de `costo`, con aviso.
+
+```bash
+SECO=1 bash modelo_base/run_servidor.sh matriz_reposo   # antes: imprime las órdenes
+bash modelo_base/run_servidor.sh matriz_reposo
+# después, y aparte, cuando las cifras base ya estén:
+SECO=1 bash modelo_base/run_servidor.sh barrido_sigma
+bash modelo_base/run_servidor.sh barrido_sigma
+```
+
+**Antes de lanzarla.** El paquete trae dos ficheros del núcleo que el clon no
+tiene al día: `core/reposo_mercado.py`, el reposo en forma cerrada, y
+`core/almacen.py`, que gana la columna `precio_reposo` en los flujos. Sin el
+segundo, la corrida por reposo muere al anotar la primera hora. El entorno es
+el de `requirements-lock.txt` (H-84). **No hace falta `sonda79`**: la vía por
+reposo no integra, y la acción no lee veredictos ni pone palancas del
+acoplado.
+
+### `matriz_reposo`
+
+Pide `MTE_ROOT`, toma `PROCS` del entorno y comprueba `DESDE` antes de gastar
+nada. En orden, y **para en el primer fallo**:
+
+1. las compuertas, con seis pruebas más que en la campaña de convergencia:
+   el núcleo del reposo (`test_reposo_mercado`), la vía por reposo en el motor
+   (`test_reposo_motor`), la compuerta de salida
+   (`test_compuertas_matriz_reposo`), la comparación
+   (`test_compara_matriz_reposo`), la dinámica regularizada
+   (`test_dinamica_regularizada`) y su compuerta
+   (`gate_reposo_cero_dinamica`, con `-k "not lenta"`). **La compuerta de la
+   dinámica solo ejerce ahí sus dos horas rápidas** (853 y 2120): las dos
+   lentas (874 y 4766) cuestan horas, van aparte y sus órdenes exactas están
+   escritas en el docstring de la propia compuerta;
+2. las trece corridas, cada una en `SALIDAS_SERVIDOR/matriz_reposo/<caso>`
+   con su almacén y su `--out-dir`, con las opciones de la matriz
+   (`--data real --full --include-c5 --no-regulado --analisis-ligero` y las
+   de cada caso) y las del reposo **escritas en la orden aunque sean los
+   defectos**: `--metodo reposo --modo-presupuesto sigma --regla-precio
+   uniforme --despacho-vendedores piso`, sin `--sigma-nivel`, es decir con
+   la sigma base (I − 1)/I y el piso del vendedor marginal (D63 a D65). La
+   corrida sale con código 3 si alguna hora terminó con excepción, si la
+   participación retiró a algún vendedor (D67) o si las vencidas pasan del
+   1 %. No lleva `--plazo-hora`: el motor no lo exige con
+   el reposo, y su defecto de 15 (min) sigue de guardia en el lazo paralelo
+   (D24). Detrás de cada corrida va **su compuerta de salida**, que para la
+   cadena si falla;
+3. la liquidación por institución y la equidad por mes, hora del día y día
+   de la semana de cada caso;
+4. las figuras del foro de E0: los grupos C, D y E de `gen_foro.py`
+   (`--grupo CDE`). **El grupo A no sale**: lee la tabla de trayectorias, que
+   la vía por reposo no escribe, y `gen_foro.py` se cae con `FileNotFoundError`
+   en su primera figura (medido en la tarea 4b sobre un almacén por reposo;
+   con `--grupo CDE` salen las seis figuras). **El grupo B tampoco se corre**
+   (`gen_foro_b.py`): vuelve a simular el modelo base con otros parámetros, no
+   lee el almacén ni depende de la vía, y ya salió con la matriz vieja. Las
+   figuras no detienen la cadena: en la matriz vieja, una figura rota la
+   detuvo antes de la recogida;
+5. la comparación con la matriz vieja,
+   `reformateo/documento/scripts/sonda/compara_matriz_reposo.py`, de los
+   casos que tengan `SALIDAS_SERVIDOR/matriz/<caso>/almacen`. Si no hay
+   ninguno, avisa, imprime la orden para hacerla en casa y sigue; tampoco
+   detiene la cadena si falla;
+6. la recogida (`recoger matriz_reposo`), que comprueba el almacén de cada
+   caso, el registro de su compuerta de salida (el más reciente, porque
+   `corre()` le pone la fecha al nombre), las figuras de E0 y, si había matriz
+   vieja, el CSV de la comparación. **Estar no basta**: avisa en voz alta si
+   la carpeta de figuras está vacía (el lanzador la crea antes de dibujar) o si
+   el registro de una compuerta no termina `EN VERDE`, pero recoge igual,
+   porque lo que hay sirve también cuando algo falló.
+
+Ninguna corrida usa `--modo-presupuesto c136`. **Toda acción que lo use
+tiene que lanzarse con `PARA_EN_FALLO=0`**: con ese presupuesto la corrida
+sale siempre con código 3, por H-32, en unas 451 horas (medidas con D62; con
+el piso marginal la cuenta puede cambiar) en las que el núcleo rechaza el
+presupuesto en voz alta.
+
+**Lo mismo con `--despacho-vendedores costo`, y por eso M-K también va con
+`PARA_EN_FALLO=0`.** Con el piso máximo de los despachados, el lazo que
+excluye a los compradores bajo ese piso ya no es monótono y en cerca del 2,7 %
+de las horas sintéticas oscila: el núcleo lo dice en voz alta, la hora queda
+con su motivo y la corrida sale con código 3. Es el comportamiento esperado,
+no un fallo. **Las horas que oscilen se reportan como no comparables** en la
+comparación de M-K (mérito por piso frente a mérito por costo en horas de
+compradores cortos), y el resto se compara igual.
+
+**Segunda salvedad de M-K: el polvo que el motor sí mira.** Con `costo` (y con
+`llenado`) el despacho puede dejar a un vendedor una cantidad de polvo, por
+debajo de 1e-9 de lo despachado en la hora: el núcleo no lo cuenta para el
+piso del juego ni para la cobertura, pero **el motor sí lo mira**, porque su
+umbral es `colocado <= 1e-9` absoluto, y si su piso queda sobre el precio
+medio **la participación lo retira**. Entonces la corrida sale con código 3 y
+la compuerta de salida falla `cero_retiros`. Con `PARA_EN_FALLO=0` eso es lo
+esperado en M-K, no un hallazgo: se anota el caso y se sigue. **Con `piso`, el
+modo de la matriz, no puede pasar:** solo despachan vendedores de piso menor o
+igual al marginal, de modo que todos cobran al menos su piso y la guarda es
+inerte por construcción.
+
+**Tercera salvedad de M-K: el polvo que cobra bajo su piso.** En los modos
+`costo` y `llenado`, un
+vendedor despachado al que el filtro de polvo descarta puede acabar cobrando
+por debajo de su piso: buscándolo a propósito en 80 000 horas, lo peor son
+4,9e-5 (COP) con `costo` y 4,7e-5 con `llenado` (re-revisión de la tarea 5a,
+`.superpowers/sdd/2026-09-16-reposo/task-5a-rereview.md`). **Con `piso`, que
+es el modo de la matriz y el de producción, lo peor en esa misma búsqueda son
+1,2e-11 (COP)**, es decir redondeo: **es imposible por construcción**, porque
+pueden vender solo los de piso menor o igual que p\* y el ingreso medio del
+rango uno nunca queda bajo p\*. Esa desigualdad no depende del filtro de
+polvo, que es justamente lo que rompe la igualdad entre el piso y el mayor de
+los despachados en `costo` y `llenado` (D63; H-91). No invalida la comparación
+de M-K, pero si su registro muestra un vendedor bajo su piso con `costo`, es
+esto y no un defecto nuevo.
+
+### La compuerta de salida
+
+`reformateo/documento/scripts/sonda/compuertas_matriz_reposo.py <almacén>
+--cobertura m1` lee las tablas de horas, flujos, agentes y escenarios y
+comprueba, hora a hora salvo la última, que es del caso entero:
+
+| Identidad | Qué exige | Tolerancia nominal |
+|---|---|---|
+| volumen | la suma de los flujos es E = min(oferta de los vendedores que pueden vender, demanda de los compradores que siguen), descontando `vendedores_excluidos`, `vendedores_no_despachados` (D65), los retirados y `excluidos_bajo_piso` | 1e-6 (kWh) |
+| excedente | captura × óptimo y la suma de ahorro más prima de los flujos valen Σ (techo − piso)·P | 0,01 (COP) |
+| ingreso | Σ precio liquidado × q = Σ precio del reposo × q | 1e-9 relativo |
+| precios | ningún precio de un comprador servido fuera de [piso del juego, su techo]; el uniforme y el común de la hora, dentro de [piso, techo mayor] | 1e-6 (COP/kWh) |
+| vendedores | ningún despachado cobra en promedio bajo **su** piso (el del vendedor en sus flujos, no el del juego: el teorema de cobertura de D63); la parte de los vendedores no es negativa | 1e-9 |
+| captura | en [0, 1] cuando el óptimo es positivo | 1e-6 |
+| finitud | ningún NaN ni infinito en las columnas del reposo de las horas, en las de los flujos, en el sobrante y el faltante de los agentes ni en el valor de los escenarios | |
+| sin mercado | las horas sin mercado no tienen flujos | |
+| estado | toda hora resuelta tiene régimen; ninguna quedó sin resolver por excepción o plazo; las listas nombran agentes de esa hora; ningún vendedor está a la vez en `vendedores_excluidos` y en `vendedores_no_despachados` | |
+| cero retiros | D67: ninguna hora tiene vendedores con papel «retirado» | |
+| prima descompuesta | D69: en las horas resueltas, renta inframarginal + parte del juego = Σ (precio − piso del vendedor)·kWh de los flujos | 0,01 (COP) |
+| P2P frente a C2 | del caso entero (síntesis §6): el beneficio P2P y el de C2 no coinciden en **todas** las instituciones con energía P2P; si coinciden en todas, es el síntoma del defecto viejo y falla; si solo en algunas, lo informa sin fallar | 1 (COP) o 1e-6 del mayor |
+
+**El almacén guarda en precisión sencilla** (float32), con un redondeo
+relativo de unos 6e-8 por valor. En las horas grandes, eso es más grueso que
+la tolerancia nominal: con cientos de kWh, el excedente recalculado se mueve
+centésimas de peso. Por eso cada comprobación usa la tolerancia nominal más
+una cota del redondeo calculada para esa hora, y el resumen dice cuántas horas
+pasan la nominal y quedan dentro de esa cota, para que ninguna se esconda en
+ella. El motor ya comprueba las mismas identidades en doble precisión con las
+tolerancias nominales; la compuerta comprueba lo que quedó escrito.
+
+**Qué imprime.** Un resumen por régimen (horas, energía y la peor desviación
+de cada identidad, con la de la prima descompuesta), los retiros de la
+participación (deben ser 0 vendedores en 0 horas), la prima de los vendedores
+de las horas resueltas en renta inframarginal más parte del juego frente a la
+de los flujos, lo que se descontó de la oferta y la demanda por cada causa, en
+horas y energía, P2P frente a C2 por institución, y termina con `COMPUERTA
+MATRIZ REPOSO <caso> EN VERDE` o con la lista de fallos. Sale con 0 en verde,
+1 si alguna hora o el caso no cumple y 2 si el almacén no se puede comprobar
+(no está, no trae las columnas del reposo o las de D63 y D69, **no tiene
+ninguna hora resuelta**, o sus escenarios no traen P2P y C2: un almacén de la
+vía acoplada, o uno por reposo anterior al piso marginal, sale con 2). El caso
+de ninguna hora resuelta importa porque sin horas resueltas ninguna identidad
+mira nada: la compuerta saldría en verde sin haber comprobado nada, así que
+sale con 2 y lo dice. Si aparece, lo que hay que mirar es el registro de la
+corrida, `[C-190]`, `[D24]` y `[D38]`.
+
+**Probada en la máquina de trabajo** sobre almacenes en parquet reconstruidos
+por la vía por reposo a partir de la tabla de agentes de la matriz vieja (E0,
+E1, E4, I1 y P2, con el motor hora a hora y la clase del almacén): en verde en
+los cinco, y con los recuentos de régimen y de retiros de la compuerta de la
+participación de la tarea 2. Esa prueba es de la regla D62; las identidades
+de D63 a D69 (cero retiros, prima descompuesta y el descuento de los no
+despachados) solo están probadas sobre el almacén sintético de
+`tests/test_compuertas_matriz_reposo.py`: los trece almacenes reales los da la
+matriz.
+
+**Salvedad sobre P2P frente a C2.** En esos cinco almacenes reconstruidos solo
+se rehicieron las horas del mercado; **la tabla `escenarios` es la que dejó la
+corrida por la vía acoplada del 15 de septiembre**. Es decir, la identidad
+«P2P frente a C2» se ejerció con los escenarios de la vía acoplada, no con los
+que escribe la vía por reposo. Que esté en verde dice que la compuerta lee y
+compara bien, no que los escenarios del reposo la vayan a pasar: eso lo dice
+la matriz.
+
+### Qué mirar
+
+- **Las dos líneas `[D48]`** de cada `matriz_reposo_<caso>_<fecha>.log`. La
+  del principio dice con qué reglas se resolvió:
+
+  ```
+  [D48] Mercado por reposo en forma cerrada: presupuesto sigma, sigma base ((I-1)/I), liquidacion uniforme, despacho piso
+  ```
+
+  La del final lleva, en una sola línea y con las cifras del caso en lugar de
+  `<n>` y `<x>` (energías en kWh, con punto decimal):
+
+  ```
+  [D48] Horas por regimen: interiores <n> h (<x> kWh), topados <n> h (<x> kWh), excluidos <n> h (<x> kWh), mixto <n> h (<x> kWh), suma_no_cabe <n> h (<x> kWh), compradores_cortos <n> h (<x> kWh), un_comprador <n> h (<x> kWh), sin_mercado <n> h (<x> kWh), sin_ganancia <n> h (<x> kWh) (en las horas SIN MERCADO, la energia POSIBLE, no transada); horas que perdieron el mercado tras un retiro: <n> h (<x> kWh posibles, sin transar); horas del reposo con excepcion, fuera de los regimenes: <n> (ver [C-190]); compradores excluidos: <n> h (<x> kWh de deficit sin recibir), excluidos_bajo_piso: <n> h (<x> kWh); vendedores_excluidos: <n> h (<x> kWh de excedente); energia liquidada al techo (ahorro cero) <x> kWh y al piso <x> kWh de <x> kWh transados; energia topada en el reposo (precio del reposo igual al techo, antes de la liquidacion) <x> kWh; energia en horas con un solo comprador <x> kWh; vendedores retirados por la participacion: <n> en <n> h, con <x> kWh ofrecidos por los retirados (su excedente neto, sin transar), de los que <x> kWh eran comerciables (algun comprador con deficit sin cubrir y techo sobre el piso del retirado); retiros de la via por reposo: <n>, debe ser 0 (D67); prima de los vendedores descompuesta (D69): renta inframarginal <x> COP y parte del juego <x> COP
+  ```
+
+  Es decir: horas y energía por régimen, con la advertencia de que **en las
+  horas sin mercado la energía es la posible, no la transada** (en
+  `sin_ganancia` de D61, y en la que perdió el mercado porque la participación
+  retiró a los vendedores que hacían falta, que además se cuenta aparte con su
+  energía posible); las horas del reposo que acabaron
+  en excepción, fuera de los regímenes; los excluidos, los excluidos bajo el
+  piso y los vendedores excluidos; la energía liquidada al techo (ahorro
+  cero) y al piso; la energía topada en el reposo; la de las horas con un solo
+  comprador; los retirados por la participación, con **la energía que
+  ofrecían** (su excedente neto) y **la parte comerciable** (la que algún
+  comprador con déficit sin cubrir y techo sobre el piso del retirado habría
+  comprado); **los retiros de la vía por reposo, que deben ser 0** (D67: con el
+  piso marginal todo despachado cobra al menos su piso; cuentan también las
+  horas que acabaron con motivo); y **la prima de los vendedores descompuesta**
+  (D69) en renta inframarginal (lo que cobran sobre su piso los de piso menor
+  que el marginal) y parte del juego (lo que el presupuesto de los compradores
+  sube el precio medio sobre el piso marginal), en (COP).
+- **`[C-190]`, `[C-151]`, `[D24]` y `[D38]`.** Por reposo, el código 3 sale si
+  alguna hora terminó con excepción del núcleo, **si la participación retiró a
+  algún vendedor** (la línea `[D38]` lo dice y cita D67) o si las horas
+  vencidas por el plazo (D24) pasan del 1 % de las horas de mercado; la cadena
+  se detiene, el lanzador dice qué mirar y cómo retomar. Un retiro es un
+  hallazgo, no ruido: con el piso marginal no debería ocurrir.
+- **La compuerta de salida** de cada caso, en
+  `matriz_reposo_compuerta_<caso>_<fecha>.log`: la línea final y, si falla,
+  la lista de fallos, que va al final del registro. **Esta compuerta es solo
+  para almacenes por reposo**: uno de la vía acoplada o alternada sale con 2
+  porque ninguna de sus horas resueltas trae régimen, y los almacenes de la
+  matriz del 15 de septiembre salen con 2 porque les faltan los cuatro campos
+  de D63 y D69. En los dos casos es lo correcto, no un fallo: esos almacenes
+  se comprueban con las compuertas de la matriz vieja.
+- **La comparación** (M-F), en `matriz_reposo_compara_<fecha>.log` y en
+  `SALIDAS_SERVIDOR/matriz_reposo/compara_matriz_reposo.csv`: por caso y por
+  institución, la energía transada, el precio medio ponderado por energía, la
+  parte del vendedor y el beneficio P2P, vieja y nueva; de la nueva, la energía
+  al techo, al piso, excluida y en horas de un solo comprador, y la captura
+  media y agregada; y los órdenes P2P frente a C1 a C5 y P2P colectivo frente a
+  C4, con la columna que marca si el signo cambió. «Al techo» y «al piso» usan
+  la misma regla y la misma tolerancia que la línea `[D48]`, 1e-6 (COP/kWh)
+  absoluta. Los escenarios no se recalculan: salen de la tabla `escenarios`
+  del almacén, la misma que suma `liquidacion.py` y que la compuerta C-165 ata
+  al total del motor. La comparación falla en voz alta, con código 2, si lo que
+  suma trae algún valor no finito. La primera línea del CSV, precedida de «#»,
+  dice qué se comparó y con qué tolerancia de empate (1 (COP) o 1e-6 del
+  beneficio); se lee con `pd.read_csv(..., comment="#")`.
+
+  Si en el servidor no estaba la matriz vieja, la comparación se hace en casa,
+  en segundos. `--nueva` es la carpeta `SALIDAS_SERVIDOR/matriz_reposo` que
+  sale del tar de la recogida, desempaquetado en su carpeta de entrega:
+
+  ```bash
+  python -u reformateo/documento/scripts/sonda/compara_matriz_reposo.py \
+      --vieja SALIDAS_SERVIDOR/entrega_matriz_2026-09-15/SALIDAS_SERVIDOR/matriz \
+      --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \
+      --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_matriz_reposo.csv
+  ```
+- **M-H, sin guion aparte.** La línea final `[D48]` de cada caso ya da la
+  energía en horas con un solo comprador sobre la energía transada, y de los
+  retirados, **la energía ofrecida y la comerciable**; el resumen de la
+  comparación imprime además el porcentaje de un solo comprador por caso. Se
+  leen las tres cantidades frente a la energía transada. **Aceptación: si la
+  energía de las horas con un solo comprador pasa del 5 % de la energía
+  transada de algún caso, D54 se reabre.** La comerciable de los retirados es
+  la que la participación deja sin transar aunque algún comprador la habría
+  pagado por encima del piso del retirado; con D63 no debe haber retirados y
+  las dos cantidades deben salir en 0,00. D54 se conserva reinterpretada
+  (D66): el comprador único paga el piso marginal, y los inframarginales cobran
+  su renta.
+
+### Cómo retomar
+
+Un caso que sale con código distinto de cero, o cuya compuerta de salida
+falla, detiene la cadena con sus salidas escritas. Se retoma sin repetir los
+que ya corrieron:
+
+```bash
+DESDE=P1 bash modelo_base/run_servidor.sh matriz_reposo
+```
+
+`DESDE` repite las compuertas del paso 1. Un `DESDE` que no es ninguno de los
+trece casos se rechaza antes de correrlas.
+
+### `barrido_sigma`
+
+D50: el presupuesto de precios del reposo con σ = 0 (todos en el piso, el
+caso «Chacón fiel»), 0,5 y 1 (todos en su techo); la sigma base es la de
+`matriz_reposo`. Va aparte para tener primero las cifras base, y después de
+ella: no repite las compuertas, que ya pasaron con este código. **Por eso se
+lanza con el mismo paquete que `matriz_reposo`**, sin traer código entre las
+dos; si llegó código nuevo, antes `bash modelo_base/run_servidor.sh
+compuertas`. El paso 1 del barrido lo recuerda.
+
+Corre los trece casos por sigma en
+`SALIDAS_SERVIDOR/matriz_reposo/<caso>_sigma<0|05|1>`, con las mismas
+opciones que `matriz_reposo` más `--sigma-nivel`, cada uno con su compuerta
+de salida, y termina con `recoger barrido_sigma`, que busca lo que exista y
+avisa de lo que falte (y, como la de `matriz_reposo`, de las compuertas de
+salida que no terminaron en verde). Recorre una sigma entera antes de pasar a
+la siguiente. `SIGMAS` acota la lista (por defecto `"0 0.5 1"`; solo se
+aceptan esas tres formas, `0`, `0.5` y `1`, porque `1.0` o `0.50` darían otra
+carpeta) y
+`DESDE` salta hasta ese caso **en la primera sigma de la lista**; las
+siguientes corren enteras. Si se detiene, el lanzador imprime la orden exacta
+para retomar:
+
+```bash
+SIGMAS="0.5 1" DESDE=P1 bash modelo_base/run_servidor.sh barrido_sigma
+```
+
+No hace liquidación, figuras ni comparación. La comparación de cada sigma
+contra la base se hace en casa, en segundos. Las dos raíces son la carpeta
+`SALIDAS_SERVIDOR/matriz_reposo` que sale del tar, desempaquetado en su
+carpeta de entrega:
+
+```bash
+python -u reformateo/documento/scripts/sonda/compara_matriz_reposo.py \
+    --vieja SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \
+    --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \
+    --sufijo-nueva _sigma05 --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_sigma05.csv
+```
+
+Si algún orden P2P frente a C_k cambia de signo dentro del barrido, se
+publica como empate dentro de la sensibilidad (M-F).
+
+### Tiempo esperado
+
+No hay medición de la vía por reposo en el servidor. La estimación sale de
+tres fuentes, y cada cifra dice de cuál:
+
+- **Compuertas: unos 26 (min) más las cuatro pruebas nuevas.** La corrida de
+  compuertas de la campaña de convergencia fue de las 08:41 a las 09:07 del
+  16 de septiembre (nombres de sus registros y hora del fichero de consola,
+  `SALIDAS_SERVIDOR/entrega_convergencia_2026-09-16/modelo_base/logs/`). De
+  las cuatro nuevas, en la máquina de trabajo `test_reposo_motor` tardó unos
+  42 (s) y las dos de esta tarea unos 4 (s) juntas; `test_reposo_mercado` no
+  se midió por separado.
+- **Las trece corridas: del orden de 15 a 25 (min).** En la matriz vieja, del
+  inicio de E0 (21:55) al final de SINU (09:44:08) pasaron 11 (h) y 49 (min), de los
+  que el mercado acoplado fue 41 826 (s), la suma de la línea
+  «s | horas mercado» de los trece registros
+  (`SALIDAS_SERVIDOR/entrega_matriz_2026-09-15/modelo_base/logs/matriz_<caso>_<fecha>.log`).
+  Lo que no es mercado (carga de datos, escenarios, análisis ligero, almacén y
+  figuras de cada corrida) suma entre 663 y 722 (s) para los trece, unos
+  51 a 56 (s) por caso; el margen es el minuto que el nombre del registro
+  redondea. Por reposo, el mercado no integra: en la máquina de trabajo, las
+  6 144 horas de un caso pasan por el motor, en un solo proceso y con la
+  escritura del almacén, en 5 a 8 (s). La compuerta de salida de un caso
+  tarda unos 2 (s).
+- **Lo demás.** En la matriz vieja, la liquidación y la equidad de los trece
+  casos tardaron un minuto y medio (09:44 a 09:45:21), y las figuras de E0
+  que leen el almacén, unos 30 (s); el grupo B, que tardaba unos 7 (min), ya
+  no se corre. La comparación de los trece casos tarda unos 6 (s) en la
+  máquina de trabajo.
+
+En total, **del orden de una hora**, casi toda de compuertas. El barrido son
+39 corridas sin compuertas: del orden de 40 (min) a 1 (h).
+
 ---
 
 ## Lo que este paquete NO hace

@@ -37,10 +37,18 @@
 #   --- la convergencia del reparto (2026-09-16): H-86, D47 ----------------
 #   bash modelo_base/run_servidor.sh convergencia       <- E0 y K1, una semana, tres criterios
 #
+#   --- el reposo del juego regularizado (2026-09-17): D48 a D69, M-F -----
+#   bash modelo_base/run_servidor.sh matriz_reposo      <- las 13 corridas por reposo, cada una con su compuerta de salida
+#   DESDE=P1 bash modelo_base/run_servidor.sh matriz_reposo   <- retoma desde ese caso
+#   bash modelo_base/run_servidor.sh barrido_sigma      <- las 13 con sigma 0, 0,5 y 1 (despues de matriz_reposo)
+#   SIGMAS="0.5 1" DESDE=P1 bash modelo_base/run_servidor.sh barrido_sigma   <- retoma
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
 #   bash modelo_base/run_servidor.sh recoger convergencia  <- y lo de convergencia
+#   bash modelo_base/run_servidor.sh recoger matriz_reposo <- y lo de matriz_reposo
+#   bash modelo_base/run_servidor.sh recoger barrido_sigma <- y lo del barrido
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
 # muestra en horas. `todo` toma solo el tamano y recorre las dos fronteras.
@@ -63,7 +71,7 @@ set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|barrido_sigma|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -152,6 +160,82 @@ CONFIGS_CONVERGENCIA=(
 )
 # Las comparaciones de repartos que se hacen al final, «A:B» por caso.
 PARES_CONVERGENCIA=("hoy:reparto20" "reparto04:reparto20")
+
+# D48 a D69 (2026-09-17): donde escriben `matriz_reposo` y `barrido_sigma`, y
+# las sigmas del barrido del presupuesto de precios (D50). Viven aqui por la
+# misma razon que los de arriba: `recoger` los necesita para saber que esperar.
+# La matriz vieja (acoplado, 15 de septiembre) sigue en SALIDAS_SERVIDOR/matriz
+# y no se pisa (D57).
+MATRIZ_REPOSO="SALIDAS_SERVIDOR/matriz_reposo"
+MATRIZ_VIEJA="SALIDAS_SERVIDOR/matriz"
+# SIGMAS acota el barrido; la sigma base, (I-1)/I, es la de `matriz_reposo`.
+SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
+
+# La etiqueta de una sigma en el nombre de la carpeta: 0 -> 0, 0.5 -> 05, 1 -> 1.
+etiqueta_sigma() {
+  printf '%s' "${1//./}"
+}
+
+# Fallar en voz alta si SIGMAS trae algo que no es una de las tres sigmas del
+# barrido, escrita en su forma canonica. El motor rechaza lo que no es un
+# numero en [0, 1], pero despues de cargar los datos; y una forma no canonica,
+# como 1.0 o 0.50, daria otra carpeta (_sigma10, _sigma050) que `recoger` y la
+# comparacion no buscan (revision de 4b, menor 2).
+valida_sigmas() {
+  local s
+  for s in $SIGMAS_BARRIDO; do
+    case "$s" in
+      0|0.5|1) ;;
+      *)
+        echo "  SIGMAS: '$s' no vale; las sigmas del barrido se escriben 0, 0.5 o 1"
+        exit 2
+        ;;
+    esac
+  done
+  return 0
+}
+
+# Fallar en voz alta, ANTES de las compuertas, si DESDE no es ninguno de los
+# trece casos: si no, la cadena saltaria todos en silencio despues de gastar las
+# compuertas.
+valida_desde() {
+  local par
+  [[ -z "${DESDE:-}" ]] && return 0
+  for par in "${CASOS_MATRIZ[@]}"; do
+    [[ "${par%%:*}" == "$DESDE" ]] && return 0
+  done
+  echo "  DESDE=$DESDE no es ninguno de los trece casos de la matriz"
+  exit 2
+}
+
+# Los casos de la matriz que tienen almacen de la matriz vieja, en VIEJOS. Solo
+# lee el disco.
+casos_con_matriz_vieja() {
+  VIEJOS=()
+  local par
+  for par in "${CASOS_MATRIZ[@]}"; do
+    if [[ -d "$MATRIZ_VIEJA/${par%%:*}/almacen" ]]; then
+      VIEJOS+=("${par%%:*}")
+    fi
+  done
+  return 0
+}
+
+# El registro mas reciente que corre() dejo con ese nombre. corre() le pone la
+# fecha al nombre, de modo que `recoger` no puede esperar una ruta fija: la
+# busca, y si no hay ninguno devuelve la ruta con «<fecha>», que no existe y
+# sale como ausente.
+ultimo_registro() {
+  local hallados=()
+  shopt -s nullglob
+  hallados=("$LOGS/${1}_"[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9][0-9][0-9].log)
+  shopt -u nullglob
+  if [[ ${#hallados[@]} -gt 0 ]]; then
+    printf '%s' "${hallados[${#hallados[@]}-1]}"
+  else
+    printf '%s' "$LOGS/${1}_<fecha>.log"
+  fi
+}
 
 # Interprete: preferir el del entorno virtual si existe, luego python3.
 if [[ -x .venv/bin/python ]]; then
@@ -331,9 +415,18 @@ case "$ACCION" in
              test_analysis_numeral2 test_palancas_acoplado \
              test_oraculo_anexo4 test_presupuesto_acoplado test_piso_P \
              test_arranque_acoplado test_compara_arranque \
-             test_criterio_reparto test_censo_convergencia; do
+             test_criterio_reparto test_censo_convergencia \
+             test_reposo_mercado test_reposo_motor \
+             test_compuertas_matriz_reposo test_compara_matriz_reposo \
+             test_dinamica_regularizada; do
       corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
+    # D49 / D50: la compuerta de la dinamica regularizada, SOLO sus dos horas
+    # rapidas (853 y 2120): `-k "not lenta"`. Las dos lentas (874 y 4766)
+    # cuestan horas y van aparte, con las ordenes del docstring de la
+    # compuerta (revision final, menor 2).
+    corre "pytest_gate_reposo_cero_dinamica" -m pytest \
+          "tests/gate_reposo_cero_dinamica.py" -q -k "not lenta"
     echo
     echo "  Si alguna falla, PARA. Las mediciones no valen."
     echo "  NUNCA tests/test_full_simulation_preflight.py sin su filtro:"
@@ -1171,6 +1264,322 @@ print(" ".join(sorted(palancas)))
     echo "  comparaciones, cuanto se mueve el reparto entre configuraciones."
     ;;
 
+  matriz_reposo)
+    # D48 a D69 (2026-09-17): la matriz de trece casos con el mercado de cada
+    # hora resuelto en el reposo del juego regularizado, en forma cerrada
+    # (CAL-53, ADR 0060; M-F de H-90). Es una copia de la estructura de
+    # `matriz`, con estos cambios:
+    #
+    #   - escribe en SALIDAS_SERVIDOR/matriz_reposo/<caso>, sin pisar
+    #     SALIDAS_SERVIDOR/matriz, que es la matriz vieja (acoplado, 15 de
+    #     septiembre) y se queda para comparar (D57);
+    #   - corre con `--metodo reposo`, el presupuesto `sigma` con la sigma base
+    #     (I-1)/I (sin --sigma-nivel), la liquidacion `uniforme` y el despacho
+    #     `piso`: los vendedores despachan por su piso, una caminata
+    #     competitiva decide quien entra y el piso del juego es el del
+    #     vendedor marginal (D63 a D65). Son los defectos, y van escritos
+    #     igual, para que la orden del registro diga con que se corrio. Con el
+    #     piso marginal la participacion es una guarda inerte (D67): un solo
+    #     retiro hace salir la corrida con el codigo 3, y la compuerta de
+    #     salida lo comprueba otra vez sobre el almacen (`cero_retiros`);
+    #   - NO lee los veredictos de la sonda de H-79 ni pone las palancas del
+    #     acoplado (tolerancia y horizonte): la via por reposo no integra;
+    #   - NO pasa --plazo-hora. El motor no lo exige con `reposo`: la opcion
+    #     tiene un defecto de 15 (min) que actua en cualquier via, como guardia
+    #     del lazo paralelo (D24), y una hora por reposo tarda milisegundos;
+    #   - detras de cada corrida va su COMPUERTA DE SALIDA
+    #     (`compuertas_matriz_reposo.py`) sobre su almacen, por corre(), de
+    #     modo que su fallo para la cadena como el de la corrida;
+    #   - las figuras del foro de E0 van con `--grupo CDE`. El grupo A lee la
+    #     tabla de trayectorias, que la via por reposo no escribe, y
+    #     `gen_foro.py` se cae en su primera figura con FileNotFoundError
+    #     (medido en la tarea 4b sobre un almacen por reposo); C, D y E salen.
+    #     Las figuras no detienen la cadena (PARA_EN_FALLO=0): en la matriz
+    #     vieja, una figura rota la detuvo antes de la recogida;
+    #   - NO corre `gen_foro_b.py`: sus figuras vuelven a simular el modelo
+    #     base con otros parametros, no leen el almacen ni dependen de la via,
+    #     y ya salieron con la matriz vieja (unos 7 (min) que no aportan);
+    #   - al final, la comparacion con la matriz vieja
+    #     (`compara_matriz_reposo.py`) de los casos que la tengan; si no hay
+    #     ninguno, avisa y sigue: se hace en casa, en segundos.
+    #
+    # Se conservan las compuertas, --include-c5 --no-regulado
+    # --analisis-ligero, el almacen, las opciones de cada caso (CASOS_MATRIZ),
+    # DESDE, el tratamiento del codigo 3 (D38) y la liquidacion y la equidad
+    # por caso. Ninguna corrida usa --modo-presupuesto c136, que saldria con 3
+    # por H-32 en unas 451 horas (medidas con D62; con el piso marginal la
+    # cuenta puede cambiar).
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    valida_desde
+
+    echo "=== MATRIZ CON EL REPOSO (D48 a D69) · las trece corridas ==="
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $MATRIZ_REPOSO   (la matriz vieja, $MATRIZ_VIEJA, no se toca)"
+    echo
+
+    echo "--- 1/6 · compuertas"
+    bash "$0" compuertas
+
+    echo
+    echo "--- 2/6 · las trece corridas, cada una con su compuerta de salida"
+    SALTAR="${DESDE:-}"
+    for par in "${CASOS_MATRIZ[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      if [[ -n "$SALTAR" ]]; then
+        if [[ "$CASO" == "$SALTAR" ]]; then
+          SALTAR=""
+        else
+          echo "  ... salta $CASO (DESDE=$DESDE)"
+          continue
+        fi
+      fi
+      DIR="$MATRIZ_REPOSO/$CASO"
+      ALM="$DIR/almacen"
+      crea_dir "$ALM"
+      echo
+      echo "  --- $CASO  ->  $DIR"
+      # D38: por reposo, la corrida sale con 3 si alguna hora termino con
+      # excepcion del nucleo (C-190) o si la participacion retiro a algun
+      # vendedor (D67); las horas vencidas por el plazo tambien cuentan,
+      # aunque no deberia haber ninguna.
+      corre "matriz_reposo_${CASO}" main_simulation.py \
+            --data real --full --include-c5 --no-regulado \
+            --metodo reposo --modo-presupuesto sigma \
+            --regla-precio uniforme --despacho-vendedores piso \
+            --analisis-ligero --almacen "$ALM" \
+            ${EXTRA:+$EXTRA} --out-dir "$DIR" || {
+        cod=$?
+        echo
+        if [[ $cod -eq 3 ]]; then
+          echo "  $CASO salio con codigo 3 (D38): alguna hora termino con excepcion"
+          echo "  del reposo (C-190), la participacion retiro a algun vendedor (D67:"
+          echo "  con el piso marginal debe dar 0), o las vencidas por el plazo pasan"
+          echo "  del 1 %. Sus salidas estan escritas, pero la cadena no sigue con un"
+          echo "  caso asi."
+        else
+          echo "  $CASO salio con codigo $cod."
+        fi
+        echo "  Mira las lineas [C-190], [C-151], [D24], [D48] y [D38] de su registro"
+        echo "  ($LOGS/matriz_reposo_${CASO}_<fecha>.log) y retoma desde este caso con:"
+        echo "    DESDE=$CASO bash $0 matriz_reposo"
+        exit "$cod"
+      }
+      corre "matriz_reposo_compuerta_${CASO}" \
+            "$SONDA/compuertas_matriz_reposo.py" "$ALM" \
+            --cobertura m1 --caso "$CASO" || {
+        cod=$?
+        echo
+        echo "  La compuerta de salida de $CASO no paso (codigo $cod): alguna hora"
+        echo "  no cumple una identidad del reposo (1), o el almacen no se pudo"
+        echo "  comprobar (2). El almacen esta escrito; la lista de fallos va al"
+        echo "  final de $LOGS/matriz_reposo_compuerta_${CASO}_<fecha>.log."
+        echo "  Retoma desde este caso con:"
+        echo "    DESDE=$CASO bash $0 matriz_reposo"
+        exit "$cod"
+      }
+    done
+
+    echo
+    echo "--- 3/6 · la liquidacion y la equidad de cada caso (cobertura m1)"
+    for par in "${CASOS_MATRIZ[@]}"; do
+      CASO="${par%%:*}"
+      ALM="$MATRIZ_REPOSO/$CASO/almacen"
+      corre "matriz_reposo_liquidacion_${CASO}" \
+            reformateo/documento/scripts/liquidacion.py "$ALM" \
+            --cobertura m1 --periodo mes
+      for P in mes hora_del_dia dia_semana; do
+        corre "matriz_reposo_equidad_${CASO}_${P}" analysis/equidad_periodo.py \
+              "$ALM" --cobertura m1 --periodo "$P"
+      done
+    done
+
+    echo
+    echo "--- 4/6 · las figuras del foro, solo de E0, grupos C, D y E"
+    CODIGOS=()
+    FIGS="$MATRIZ_REPOSO/figuras_foro"
+    crea_dir "$FIGS"
+    PARA_EN_FALLO=0 corre "matriz_reposo_foro_cde_E0" \
+          reformateo/documento/scripts/gen_foro.py \
+          "$MATRIZ_REPOSO/E0/almacen" --cobertura m1 --grupo CDE \
+          --figuras "$FIGS"
+    CODIGOS+=("foro_cde_E0=${CODIGO_CORRE}")
+
+    echo
+    echo "--- 5/6 · la comparacion con la matriz vieja"
+    casos_con_matriz_vieja
+    COMPARA=("$SONDA/compara_matriz_reposo.py" --vieja "$MATRIZ_VIEJA" \
+             --nueva "$MATRIZ_REPOSO" --cobertura m1 \
+             --salida "$MATRIZ_REPOSO/compara_matriz_reposo.csv")
+    if [[ ${#VIEJOS[@]} -eq 0 ]]; then
+      echo "  AVISO: no esta $MATRIZ_VIEJA/<caso>/almacen de ningun caso; la"
+      echo "  comparacion no se hace aqui. Se hace en casa, en segundos, con la"
+      echo "  matriz vieja de la entrega del 15 de septiembre. --nueva es la"
+      echo "  carpeta $MATRIZ_REPOSO que sale del tar de esta recogida,"
+      echo "  desempaquetado en su carpeta de entrega, por ejemplo:"
+      echo "    python -u $SONDA/compara_matriz_reposo.py \\"
+      echo "      --vieja SALIDAS_SERVIDOR/entrega_matriz_2026-09-15/SALIDAS_SERVIDOR/matriz \\"
+      echo "      --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \\"
+      echo "      --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_matriz_reposo.csv"
+      CODIGOS+=("compara=no se hizo")
+      if [[ "${SECO:-0}" == "1" ]]; then
+        echo "  [SECO] con la matriz vieja en el servidor, correria:"
+        PARA_EN_FALLO=0 corre "matriz_reposo_compara" "${COMPARA[@]}" \
+              --casos $(for par in "${CASOS_MATRIZ[@]}"; do printf '%s ' "${par%%:*}"; done)
+      fi
+    else
+      if [[ ${#VIEJOS[@]} -lt ${#CASOS_MATRIZ[@]} ]]; then
+        echo "  AVISO: solo hay matriz vieja de ${#VIEJOS[@]} casos; se comparan: ${VIEJOS[*]}"
+      fi
+      PARA_EN_FALLO=0 corre "matriz_reposo_compara" "${COMPARA[@]}" \
+            --casos "${VIEJOS[@]}"
+      CODIGOS+=("compara=${CODIGO_CORRE}")
+    fi
+
+    echo
+    echo "--- 6/6 · la recogida"
+    bash "$0" recoger matriz_reposo
+    echo
+    echo "=== MATRIZ CON EL REPOSO COMPLETA ==="
+    echo "  codigos de salida: ${CODIGOS[*]}"
+    echo "  Un caso o una compuerta de salida que falla detiene la cadena; se"
+    echo "  retoma desde ese caso con:  DESDE=<caso> bash $0 matriz_reposo"
+    echo "  Mira en cada matriz_reposo_<caso>_<fecha>.log las dos lineas [D48]"
+    echo "  (M-H: la energia en horas de un solo comprador; los retiros de la via"
+    echo "  por reposo, que deben ser 0 (D67); y la prima descompuesta en renta"
+    echo "  inframarginal y parte del juego (D69)), en"
+    echo "  cada matriz_reposo_compuerta_<caso>_<fecha>.log el resumen por regimen"
+    echo "  y las identidades cero_retiros y prima_descompuesta,"
+    echo "  y en matriz_reposo_compara_<fecha>.log los cambios de signo (M-F)."
+    ;;
+
+  barrido_sigma)
+    # D50 (2026-09-17): el barrido del presupuesto de precios de la via por
+    # reposo, S = suma de [piso + sigma·(techo - piso)], con sigma 0 (el
+    # «Chacon fiel»: todos en el piso), 0,5 y 1 (todos en su techo). La sigma
+    # base, (I-1)/I, es la de `matriz_reposo`. Va aparte para que el autor
+    # tenga primero las cifras base: se corre DESPUES de `matriz_reposo`.
+    #
+    # Los trece casos por sigma, en SALIDAS_SERVIDOR/matriz_reposo/<caso>_sigma
+    # <0|05|1>, con las mismas opciones que `matriz_reposo` mas --sigma-nivel,
+    # y cada uno con su compuerta de salida. Recorre una sigma entera antes de
+    # pasar a la siguiente. SIGMAS acota la lista (por defecto "0 0.5 1") y
+    # DESDE salta hasta ese caso DE LA PRIMERA SIGMA de la lista; las
+    # siguientes corren enteras. Para retomar en la segunda sigma, se la pone
+    # primera:  SIGMAS="0.5 1" DESDE=P1 bash $0 barrido_sigma
+    #
+    # Las compuertas no se repiten: ya pasaron con este codigo en el paso 1 de
+    # `matriz_reposo`. Por eso el barrido se lanza CON EL MISMO PAQUETE que
+    # `matriz_reposo`, sin traer codigo nuevo entre las dos; si cambio algo,
+    # antes van las compuertas. La liquidacion, la equidad, las figuras y la comparacion
+    # no se hacen aqui; la comparacion del barrido se hace en casa con
+    # `compara_matriz_reposo.py --sufijo-nueva _sigma<etiqueta>`.
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    valida_sigmas
+    valida_desde
+    # Sin comodines posibles: valida_sigmas ya comprobo que son numeros.
+    SIGS=( $SIGMAS_BARRIDO )
+
+    echo "=== BARRIDO DE SIGMA (D50) · trece casos por sigma ==="
+    echo "    sigmas   = ${SIGS[*]}   (la base, (I-1)/I, es matriz_reposo)"
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $MATRIZ_REPOSO/<caso>_sigma<etiqueta>"
+    echo
+
+    echo "--- 1/3 · la sintaxis del lanzador (las compuertas ya pasaron en matriz_reposo)"
+    if bash -n "$0"; then
+      echo "     ok"
+    else
+      echo "     FALLA: el lanzador tiene un error de sintaxis"
+      exit 2
+    fi
+    echo "  AVISO: se corre con el mismo paquete que matriz_reposo. Si entre las"
+    echo "  dos llego codigo nuevo, antes:  bash $0 compuertas"
+
+    echo
+    echo "--- 2/3 · las corridas, cada una con su compuerta de salida"
+    SALTAR="${DESDE:-}"
+    for n in "${!SIGS[@]}"; do
+      S="${SIGS[$n]}"
+      ETQ="$(etiqueta_sigma "$S")"
+      RESTO="${SIGS[*]:$n}"
+      echo
+      echo "  === sigma $S"
+      for par in "${CASOS_MATRIZ[@]}"; do
+        CASO="${par%%:*}"; EXTRA="${par#*:}"
+        if [[ -n "$SALTAR" ]]; then
+          if [[ "$CASO" == "$SALTAR" ]]; then
+            SALTAR=""
+          else
+            echo "  ... salta $CASO (DESDE=$DESDE)"
+            continue
+          fi
+        fi
+        DIR="$MATRIZ_REPOSO/${CASO}_sigma${ETQ}"
+        ALM="$DIR/almacen"
+        crea_dir "$ALM"
+        echo
+        echo "  --- $CASO con sigma $S  ->  $DIR"
+        corre "barrido_sigma${ETQ}_${CASO}" main_simulation.py \
+              --data real --full --include-c5 --no-regulado \
+              --metodo reposo --modo-presupuesto sigma --sigma-nivel "$S" \
+              --regla-precio uniforme --despacho-vendedores piso \
+              --analisis-ligero --almacen "$ALM" \
+              ${EXTRA:+$EXTRA} --out-dir "$DIR" || {
+          cod=$?
+          echo
+          if [[ $cod -eq 3 ]]; then
+            echo "  $CASO con sigma $S salio con codigo 3 (D38): alguna hora termino"
+            echo "  con excepcion del reposo (C-190), la participacion retiro a algun"
+            echo "  vendedor (D67), o las vencidas por el plazo pasan del 1 %. Sus"
+            echo "  salidas estan escritas."
+          else
+            echo "  $CASO con sigma $S salio con codigo $cod."
+          fi
+          echo "  Mira las lineas [C-190], [C-151], [D24], [D48] y [D38] de su registro y retoma con:"
+          echo "    SIGMAS=\"$RESTO\" DESDE=$CASO bash $0 barrido_sigma"
+          exit "$cod"
+        }
+        corre "barrido_compuerta_sigma${ETQ}_${CASO}" \
+              "$SONDA/compuertas_matriz_reposo.py" "$ALM" \
+              --cobertura m1 --caso "${CASO}_sigma${ETQ}" || {
+          cod=$?
+          echo
+          echo "  La compuerta de salida de $CASO con sigma $S no paso (codigo $cod)."
+          echo "  La lista de fallos va al final de su registro. Retoma con:"
+          echo "    SIGMAS=\"$RESTO\" DESDE=$CASO bash $0 barrido_sigma"
+          exit "$cod"
+        }
+      done
+    done
+
+    echo
+    echo "--- 3/3 · la recogida"
+    bash "$0" recoger barrido_sigma
+    echo
+    echo "=== BARRIDO DE SIGMA COMPLETO ==="
+    echo "  La comparacion con la base se hace en casa y por sigma. Las dos raices"
+    echo "  son la carpeta $MATRIZ_REPOSO que sale del tar, desempaquetado en"
+    echo "  su carpeta de entrega, por ejemplo:"
+    echo "    python -u $SONDA/compara_matriz_reposo.py \\"
+    echo "      --vieja SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \\"
+    echo "      --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \\"
+    echo "      --sufijo-nueva _sigma05 --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_sigma05.csv"
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -1248,8 +1657,39 @@ print(" ".join(sorted(palancas)))
         done
         ESPERADOS+=("SALIDAS_SERVIDOR/convergencia/censo_convergencia.csv")
         ;;
+      matriz_reposo)
+        # D48: el almacen de cada caso y el registro de su compuerta de salida
+        # (el mas reciente: corre() le pone fecha al nombre), las figuras del
+        # foro de E0 y, si habia matriz vieja con que comparar, el CSV de la
+        # comparacion.
+        for par in "${CASOS_MATRIZ[@]}"; do
+          CASO="${par%%:*}"
+          ESPERADOS+=("$MATRIZ_REPOSO/$CASO/almacen")
+          ESPERADOS+=("$(ultimo_registro "matriz_reposo_compuerta_${CASO}")")
+        done
+        ESPERADOS+=("$MATRIZ_REPOSO/figuras_foro")
+        casos_con_matriz_vieja
+        if [[ ${#VIEJOS[@]} -gt 0 ]]; then
+          ESPERADOS+=("$MATRIZ_REPOSO/compara_matriz_reposo.csv")
+        else
+          echo "  sin matriz vieja en $MATRIZ_VIEJA: la comparacion no se espera (se hace en casa)"
+        fi
+        ;;
+      barrido_sigma)
+        # D50: lo que exista de cada sigma y cada caso, con aviso de lo que
+        # falte: el almacen y el registro de su compuerta de salida.
+        valida_sigmas
+        for S in $SIGMAS_BARRIDO; do
+          ETQ="$(etiqueta_sigma "$S")"
+          for par in "${CASOS_MATRIZ[@]}"; do
+            CASO="${par%%:*}"
+            ESPERADOS+=("$MATRIZ_REPOSO/${CASO}_sigma${ETQ}/almacen")
+            ESPERADOS+=("$(ultimo_registro "barrido_compuerta_sigma${ETQ}_${CASO}")")
+          done
+        done
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque o convergencia"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo o barrido_sigma"
         exit 2
         ;;
     esac
@@ -1264,6 +1704,28 @@ print(" ".join(sorted(palancas)))
         echo "  AVISO: no esta $esperado"
       fi
     done
+    # D48 (revision de 4b, menor 4): en `matriz_reposo` y `barrido_sigma`,
+    # estar no basta. La carpeta de figuras la crea el lanzador ANTES de
+    # dibujar, de modo que existe aunque la figura se caiga; y el registro de
+    # una compuerta de salida existe aunque falle. Se avisa en voz alta, pero
+    # no se aborta: recoger lo que hay sirve tambien cuando algo fallo.
+    if [[ "$DE" == "matriz_reposo" || "$DE" == "barrido_sigma" ]]; then
+      for esperado in "${ESPERADOS[@]}"; do
+        if [[ -d "$esperado" && "$esperado" == */figuras_foro ]]; then
+          shopt -s nullglob dotglob
+          contenido=("$esperado"/*)
+          shopt -u nullglob dotglob
+          if [[ ${#contenido[@]} -eq 0 ]]; then
+            echo "  === AVISO: $esperado esta VACIA: las figuras no salieron ==="
+          fi
+        fi
+        if [[ -f "$esperado" && "$esperado" == */*compuerta_*.log ]]; then
+          if ! grep -qE "^COMPUERTA MATRIZ REPOSO .* EN VERDE" "$esperado"; then
+            echo "  === AVISO: la compuerta de salida NO termino EN VERDE: $esperado ==="
+          fi
+        fi
+      done
+    fi
     echo "  recogiendo: ${QUE[*]}"
     for d in "${QUE[@]}"; do
       [[ -d "$d" ]] || { echo "  AVISO: falta $d"; }

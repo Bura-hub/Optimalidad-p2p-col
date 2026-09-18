@@ -21,7 +21,7 @@
 #   bash modelo_base/run_servidor.sh piso        200    <- H-52 + H-53, 4 regimenes
 #   bash modelo_base/run_servidor.sh decision    200    <- compuertas + tramo + piso
 #   bash modelo_base/run_servidor.sh decision   3000    <- TODAS las horas activas
-#   PROCS=48 bash modelo_base/run_servidor.sh decision 3000   <- y con mas procesos
+#   PROCS=8 bash modelo_base/run_servidor.sh decision 3000    <- con menos procesos (nunca mas de 16: el servidor es compartido)
 #
 #   bash modelo_base/run_servidor.sh oficial            <- la corrida oficial, sept.
 #
@@ -75,6 +75,46 @@
 #   SECO=1 bash modelo_base/run_servidor.sh matriz
 # ---------------------------------------------------------------------------
 set -euo pipefail
+
+# CONTENCION (incidente del 2026-09-18). EL SERVIDOR ES COMPARTIDO con la
+# plataforma MTE en produccion: la web, los servicios de los puertos 3500 y
+# 3600, PostgreSQL y la red de Fabric. La validacion del reposo, con 30
+# procesos (nucleos - 2), la dejo sin CPU de 10:37 a 14:14: carga de hasta 417,
+# la web y el SSH sin responder, y el patron «vuelve cada hora unos minutos»
+# eran los huecos entre una medicion y la siguiente.
+#
+# Desde entonces TODA accion se vuelve a lanzar a si misma, antes de hacer nada,
+# encerrada en la mitad alta de los nucleos (taskset, un tope duro: la mitad
+# baja queda siempre para la plataforma), con la prioridad minima de CPU
+# (nice 19) y de disco (ionice, clase ociosa). Los hijos lo heredan, y como
+# NUCLEOS se cuenta despues con la afinidad ya puesta, los procesos del mercado
+# se ajustan solos al tramo.
+#
+#   CONTENCION=0          la desactiva (solo con la plataforma parada o avisada)
+#   NUCLEOS_TESIS=24-31   otro tramo de nucleos
+#
+# Si el operador ya la lanzo con la afinidad restringida, se respeta: solo se
+# restringe cuando el proceso ve la maquina entera. Solo en Linux; en seco
+# tambien se aplica, que es como se comprueba. Subir el nice no se deshace sin
+# sudo; la afinidad la puede ensanchar el dueno: taskset -a -p -c 0-31 <pid>.
+if [[ "${CONTENCION:-1}" == "1" && -z "${CONTENIDO:-}" \
+      && "$(uname -s 2>/dev/null)" == "Linux" ]]; then
+  export CONTENIDO=1
+  _todos="$(nproc --all 2>/dev/null || echo 0)"
+  _visibles="$(OMP_NUM_THREADS= OMP_THREAD_LIMIT= nproc 2>/dev/null || echo 0)"
+  _previo=()
+  if [[ "$_todos" -ge 4 && "$_visibles" -eq "$_todos" ]] \
+      && command -v taskset >/dev/null 2>&1; then
+    _previo+=(taskset -c "${NUCLEOS_TESIS:-$(( _todos / 2 ))-$(( _todos - 1 ))}")
+  fi
+  command -v nice >/dev/null 2>&1 && _previo+=(nice -n 19)
+  command -v ionice >/dev/null 2>&1 && _previo+=(ionice -c 3 -t)
+  if [[ ${#_previo[@]} -gt 0 ]]; then
+    echo "[contencion] ${_previo[*]} (el servidor es compartido con la" \
+         "plataforma MTE; CONTENCION=0 la quita)" >&2
+    exec "${_previo[@]}" bash "${BASH_SOURCE[0]}" "$@"
+  fi
+fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
@@ -255,8 +295,9 @@ fi
 
 marca() { date +%Y-%m-%d_%H%M; }
 
-# Nucleos para las sondas paralelas: todos menos dos, para que la maquina
-# siga respondiendo y quede holgura para el sistema de ficheros.
+# Nucleos para las sondas paralelas. Hasta el 2026-09-18 eran todos menos dos;
+# desde entonces, como mucho la mitad (PROCS_MAX, mas abajo): el servidor es
+# compartido con la plataforma MTE, que es produccion.
 #
 # DOS TRAMPAS, las dos medidas el 2026-09-07 en el servidor:
 #
@@ -271,14 +312,29 @@ marca() { date +%Y-%m-%d_%H%M; }
 if [[ -z "${NUCLEOS:-}" ]]; then
   NUCLEOS="$( { OMP_NUM_THREADS= OMP_THREAD_LIMIT= nproc 2>/dev/null                 || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 8; } )"
 fi
+# PROCS_MAX (regla del servidor compartido, 2026-09-18): COMO MUCHO LA MITAD de
+# los nucleos de la maquina (16 en bunnygirl), y nunca mas que los del tramo
+# de la contencion. Antes era «todos menos dos», y con 30 procesos de ~1 GB la
+# plataforma MTE, que es produccion, se quedo sin CPU ni memoria.
+_todos_nucleos="$(nproc --all 2>/dev/null || echo "$NUCLEOS")"
+PROCS_MAX=$(( _todos_nucleos / 2 > 0 ? _todos_nucleos / 2 : 1 ))
+if [[ "$NUCLEOS" -lt "$PROCS_MAX" ]]; then
+  PROCS_MAX="$NUCLEOS"
+fi
 if [[ -z "${PROCS:-}" ]]; then
-  PROCS=$(( NUCLEOS > 2 ? NUCLEOS - 2 : 1 ))
+  PROCS="$PROCS_MAX"
 else
-  # El operador la fijo a mano: se respeta, y la accion oficial no la pisa.
+  # El operador la fijo a mano: se respeta por debajo del tope, y la accion
+  # oficial no la pisa. Por encima, solo con CONTENCION=0 (plataforma avisada).
   PROCS_PEDIDO=1
   export PROCS_PEDIDO
+  if [[ "$PROCS" -gt "$PROCS_MAX" && "${CONTENCION:-1}" != "0" ]]; then
+    echo "[contencion] PROCS=$PROCS pedido; se baja a $PROCS_MAX, la mitad de" \
+         "los nucleos (el servidor es compartido; CONTENCION=0 lo permite)" >&2
+    PROCS="$PROCS_MAX"
+  fi
 fi
-export NUCLEOS PROCS
+export NUCLEOS PROCS PROCS_MAX
 
 # UN hilo por proceso. Las bibliotecas de algebra lineal abren por defecto
 # tantos hilos como nucleos vean, y como el trabajo se reparte en tantos
@@ -646,7 +702,7 @@ PYFIN
     #
     # PARA USAR LA MAQUINA ENTERA hay dos palancas, y la segunda importa mas:
     #
-    #   PROCS=48 bash modelo_base/run_servidor.sh decision 200
+    #   PROCS=8 bash modelo_base/run_servidor.sh decision 200   (como mucho PROCS_MAX)
     #     sube los procesos. Por omision son los nucleos menos dos.
     #
     #   bash modelo_base/run_servidor.sh decision 3000
@@ -737,18 +793,19 @@ PYFIN
     ALM="SALIDAS_SERVIDOR/almacen"
     FIGS="SALIDAS_SERVIDOR/figuras_foro"
 
-    # TODA LA MAQUINA, y no la de las sondas.
+    # TODO EL TRAMO DE LA TESIS (2026-09-18), no toda la maquina.
     #
-    # Para las sondas se reservan dos nucleos, para que el servidor siga
-    # respondiendo mientras se mide. La corrida oficial es lo unico que corre y
-    # es la que se quiere lo mas corta posible, de modo que toma TODOS los
-    # nucleos utiles. Quien quiera dejar holgura la pide: PROCS=30 bash ...
+    # Antes la corrida oficial tomaba TODOS los nucleos utiles. El servidor es
+    # compartido con la plataforma MTE, que es produccion, y desde el incidente
+    # del 2026-09-18 la corrida oficial toma PROCS_MAX: como mucho la mitad de
+    # los nucleos, los del tramo de la contencion. Quien quiera menos lo pide:
+    # PROCS=8 bash ...
     #
     # UTILES, y no los que la maquina declara. Dentro de un contenedor o con la
     # afinidad restringida los dos numeros difieren, y abrir mas procesos que
     # nucleos utiles no acelera: los hace pelearse.
     if [[ -z "${PROCS_PEDIDO:-}" ]]; then
-      PROCS="$NUCLEOS"
+      PROCS="$PROCS_MAX"
       export PROCS
     fi
     UTILES="$("$PY" -c 'import os
@@ -768,7 +825,7 @@ except AttributeError:
     fi
     echo "    MTE_ROOT = $MTE_ROOT"
     echo "    almacen  = $ALM"
-    echo "    Para dejar holgura:  PROCS_PEDIDO=1 PROCS=30 bash $0 oficial"
+    echo "    Para dejar mas holgura:  PROCS=8 bash $0 oficial   (como mucho $PROCS_MAX)"
     echo
 
     echo "--- 1/5 · compuertas"

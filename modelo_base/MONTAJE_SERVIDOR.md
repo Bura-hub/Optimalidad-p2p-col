@@ -10,6 +10,50 @@ hallazgos H-39 a H-42, y la decisión en `docs/adr/0049-…`.
 
 ---
 
+## El servidor es compartido con la plataforma MTE (incidente del 2026-09-18)
+
+En la misma máquina corre **la plataforma MTE en producción**: la web
+`mte.udenar.edu.co`, los servicios de los puertos 3500 y 3600, PostgreSQL y la
+red de Fabric. El 2026-09-18, la validación del reposo lanzada con 30 procesos
+(los núcleos menos dos) la dejó sin CPU de 10:37 a 14:14. La carga llegó a 417,
+y la web y el SSH dejaron de responder. El patrón «vuelve cada hora unos
+minutos» eran los huecos entre una medición y la siguiente.
+
+Desde entonces **el lanzador se contiene solo**. Toda acción, antes de hacer
+nada, se vuelve a lanzar a sí misma con tres cosas:
+
+- **encerrada en la mitad alta de los núcleos** (`taskset -c 16-31` en esta
+  máquina), un tope duro: la mitad baja queda siempre para la plataforma;
+- con **la prioridad mínima de CPU** (`nice 19`);
+- con **la prioridad mínima de disco** (`ionice`, clase ociosa).
+
+Los procesos hijos lo heredan. **El número de procesos es, como mucho, la
+mitad de los núcleos (16 en esta máquina)**: es el valor por defecto de todas
+las acciones, también de `oficial`, y un `PROCS` mayor pedido a mano se recorta
+a 16 y se avisa. La consola lo dice en su primera línea:
+
+```
+[contencion] taskset -c 16-31 nice -n 19 ionice -c 3 -t (el servidor es compartido ...)
+```
+
+- `CONTENCION=0` la quita. Solo se usa con la plataforma parada o con su
+  responsable avisado.
+- `NUCLEOS_TESIS=24-31` cambia el tramo.
+- Si la acción ya se lanzó con la afinidad restringida, no se ensancha.
+- **Subir el `nice` no se deshace sin sudo.** La afinidad sí la puede ensanchar
+  el dueño: `taskset -a -p -c 0-31 <pid>`.
+- Las acciones largas van de noche.
+- La plataforma trae su propio comprobador:
+  `~/bslopez/mercado-p2p/scripts/estado_servidor.sh`. Dice si la plataforma
+  responde y si la mitad baja de los núcleos tiene holgura.
+
+**Consecuencia para los tiempos.** Todo lo que este documento mide con 30
+procesos ahora corre con 16, y tarda del orden del doble. Los topes por
+medición y el tope global de la validación del reposo no se tocaron. Lo que no
+quepa se salta, el cierre lo anuncia y se retoma otra noche.
+
+---
+
 ## Qué se mide, y qué decide cada cosa
 
 | Acción | Cuesta | Qué decide |
@@ -215,11 +259,13 @@ mirarlas**, porque son las que contestan si se está usando todo el servidor:
 ```
 
 Si la segunda fila fuera menor que la primera, la afinidad está restringiendo
-la máquina y el mercado se ajusta solo, avisando. Y si se quiere dejar holgura
+la máquina y el mercado se ajusta solo, avisando. **Desde el 2026-09-18 eso es
+lo normal**: la contención deja 16 núcleos útiles de 32 (ver «El servidor es
+compartido» al principio). Y si se quiere dejar holgura
 para entrar por consola mientras corre:
 
 ```bash
-PROCS_PEDIDO=1 PROCS=30 bash modelo_base/run_servidor.sh oficial
+PROCS=8 bash modelo_base/run_servidor.sh oficial     # como mucho 16: se recorta solo
 ```
 
 Después, las compuertas. **Si alguna falla, para ahí**: la corrida se detiene

@@ -1342,23 +1342,52 @@ deterministas, y si falta alguna corrida imprime «MEDICIÓN INCOMPLETA: N de M�
 encima de la tabla y sale con 4. Por eso **ni los `horas_<caso>.json` ni los
 guiones de medición se tocan** entre la noche y esa relectura.
 
+**Qué se recalcula al releer, y qué no.** Al releer no se usan los indicadores
+que la corrida calculó al correr (dentro en teq 80 y 160, criterio de
+consenso). Se **recalculan** con la `preparacion.tolerancias`, `dentro` y
+`criterio_consenso` de hoy, a partir de lo que el JSON guarda en cada punto de
+control: la distancia a cada referencia (`dist`) y las derivadas (`dq_dt`,
+`dp_dt`). Un cambio de tolerancia o de criterio después de la noche se recoge
+sin volver a correr nada. La quietud de M-C, M-E y M-G también se recalcula,
+con la tolerancia de la medición entre teq 80 y teq 160; en M-G, con la de su
+tabla y solo en las magnitudes que la tabla lee, y el brazo k = 1, que termina
+en teq 40 por diseño, entre teq 20 y 40. Si en algún registro falta un dato
+para recalcular, se usa el indicador guardado y la tabla lo avisa.
+**El límite**: la P de la dinámica (el reparto por pareja) solo se guarda en el
+**último** punto de control. Las distancias ya guardadas se pueden rejuzgar con
+otra tolerancia en todos los puntos, porque lo que se guardó en cada uno es la
+distancia a las referencias de la noche. Pero una **regla de referencia nueva**
+solo se puede juzgar en teq 160. Además hay que recalcular su reposo cerrado con
+las entradas de cada hora, que el JSON trae (`gn`, `dn`, `techo`, `piso_j`) sin
+el costo b_j.
+
+**Una retomada con `--desde`** escribe su propio JSON con la parte que faltaba,
+y su registro dice «MEDICIÓN INCOMPLETA» porque, sola, no tiene todo el plan.
+Es lo esperado: se lee **junto con el primer JSON**, pasándole los dos a
+`veredicto.py`, que une las corridas y solo avisa si falta algo en la suma.
+
 ### Qué se lee de cada JSON, y qué decide
 
 - **Cómo cuenta cualquier veredicto.** Una fila por régimen, referencia y
   **familia**. La familia es el modelo que se prueba: las dos aceleraciones de
-  M-A, o los cuatro arranques de M-C, son un modelo y se juzgan juntas (todas
-  dentro); los dos costos de M-B, los tres μ de M-E o las dos formas del
-  jugador virtual de M-G son modelos distintos y se cuentan aparte. Una hora se
+  M-A son un modelo y se juzgan juntas (todas dentro); los dos costos de M-B,
+  los tres μ de M-E o las dos formas del jugador virtual de M-G son modelos
+  distintos y se cuentan aparte. M-C se lee solo por su juicio propio, que
+  separa sus dos arranques de precios (abajo). Una hora se
   juzga con las corridas que llegaron al tiempo equivalente 160; las que se
   cortaron antes por su tope se publican como **cortadas**. **El denominador
   son todas las horas del grupo**: una hora sin ninguna corrida en teq 160
-  cuenta como «no llega» (columna `nolleg`). Con menos de **cinco horas** el
+  cuenta como «no llega» (columna `nolleg`), y una cuyas corridas fallaron
+  todas, como «falla» (columna `falla`), con el régimen que le dio la selección
+  de horas. Con menos de **cinco horas** el
   rótulo es **muestra insuficiente**, nunca reposo verificado, y siempre sale
   el n. Una hora cuyo recorte movió el reposo se aparta y se dice.
 - **Medición incompleta.** Si el tope total dejó corridas del plan sin hacer,
   la medición sale con código 4, el lanzador la anota como `m_x=incompleta`, su
   veredicto avisa «MEDICIÓN INCOMPLETA: N de M» y el cierre dice **INCOMPLETA**
-  (también si algo se saltó por el tope global). Si la selección de horas de
+  (también si algo se saltó por el tope global). Si algún paso salió con un
+  código de fallo (1, 2, 3 u otro distinto de 0 y de 4), el cierre dice **CON
+  FALLOS** y los lista. Si la selección de horas de
   algún caso salió con 1, el cierre lo repite: las mediciones corrieron igual
   con esa muestra.
 - **`veredicto_m_a.txt`** es la tabla que se lleva a la tesis: cuántas horas se
@@ -1383,13 +1412,33 @@ guiones de medición se tocan** entre la noche y esa relectura.
   modelo adopte; si gana el llenado, la dinámica no distingue y el orden de
   mérito es una decisión del modelo, no un resultado.
 - **`veredicto_m_c.txt`** decide D53, con la tolerancia que el plan declara para
-  M-C (1e-3·E y 0,5 (COP/kWh)). Además de la tabla, compara **los cuatro
-  arranques entre sí**, pero solo los que **llegaron**: a teq 160 y con el
-  estado quieto (derivadas bajo 1e-3 en sus dos últimos puntos). Separa las
-  horas que llegaron al mismo sitio, las que **llegaron a sitios distintos**
-  (varios reposos, con la **energía afectada** y su fracción de la muestra) y
-  las que **no llegaron**, que no son multiplicidad. Con multiplicidad, la
-  regla del paso 5 se publica como declarada, con esa energía.
+  M-C (1e-3·E y 0,5 (COP/kWh)). **Los dos arranques de precios no son el mismo
+  modelo**: la dinámica conserva la suma de los precios y esa suma la fija el
+  arranque (H-90), así que «medio» y «sigma» acaban en sitios distintos sin que
+  eso sea multiplicidad. Por eso la tabla genérica no rotula M-C y el juicio va
+  en tres partes:
+  1. **Multiplicidad**, solo **dentro de cada arranque de precios**: sus dos
+     ofertas (iguales frente a factible), con las que llegaron quietas a teq
+     160. Separa las horas con **el par sigma** en el mismo sitio, las que
+     están en **sitios distintos** en algún arranque (varios reposos, con la
+     **energía afectada** y su fracción de la muestra) y las que no tienen el
+     par sigma comparado; y da el resultado **por arranque de precios**, sigma
+     y medio por separado. El par sigma es la prueba de unicidad: una hora con
+     una oferta sigma cortada, fallida o en movimiento **no suma como «mismo
+     sitio» por el par medio**, y se dice cuántas estaban en ese caso. Es lo
+     único que puede hacer que D53 salga declarada por multiplicidad.
+  2. **Los arranques sigma frente a la forma cerrada**: si la regla del paso 5
+     es el reposo al que llega la dinámica. Una hora cuenta «dentro» solo si
+     **las dos ofertas sigma** llegaron a teq 160 y están dentro; si una se
+     cortó, es «no llega», y si falló, «falla», aunque la otra esté dentro. Las
+     horas con una sola oferta sigma en teq 160 se cuentan aparte. Denominador:
+     todas las horas, con las que no llegan y las que fallaron dentro. Con el
+     95 % (y cinco horas como mínimo), reposo verificado; si no, regla
+     declarada.
+  3. **«Medio» frente a sigma**, informativo: la **dependencia del
+     presupuesto** (H-90), con la diferencia de la suma de los precios y
+     cuántas horas cambian de régimen (cambia el conjunto de compradores sin
+     energía, como la 2120 del consenso). No cuenta contra D53.
 - **El registro de M-D** trae, por hora, el residuo y los valores propios.
   **El residuo se lee antes que los valores propios**: donde es grande, ese
   punto no es de reposo para los multiplicadores, que crecen mientras la
@@ -1409,12 +1458,20 @@ guiones de medición se tocan** entre la noche y esa relectura.
 - **`veredicto_m_g.txt`** es la tabla de la comparación con el artículo base,
   la que se presenta a los asesores antes del artículo de revista (D59). **No
   se juzga con los puntos de teq** sino contra su tabla, variante por variante,
-  sobre el estado final del brazo que llegó más lejos **estando quieto**; si
-  ningún brazo está quieto, dice «no llegó» y no lee la tabla, porque un
-  transitorio no es el reposo. Los dos brazos se publican con su alcance, su
-  costo y si están quietos, y que el brazo k = 1 se detenga en teq 40 no es un
-  fallo. Corre en la **configuración del código de la autora**
-  (competencia `matlab`, oferta a partes iguales), que es la de la sonda del
+  sobre el estado final del brazo que llegó más lejos **estando quieto**, con
+  la tolerancia de **su tabla**, no con la floja de M-A, y **solo en las
+  magnitudes que la tabla lee**: q (±1e-3 (kWh)), p (±0,5 (COP/kWh)) y la parte
+  del vendedor en el brazo de barrera; el nivel ponderado (±1 (COP/kWh)) y la
+  parte (±0,002) en el de precio, cuyo reparto puede seguir convergiendo como
+  1/t con los precios ya quietos en el piso (con c = 0,25 se mueve 1,56e-3
+  (kWh) entre teq 80 y 160, y exigirle ±1e-3 lo dejaba sin lectura). Si ningún
+  brazo está quieto, dice «no llegó» y no lee la tabla, porque un transitorio
+  no es el reposo. El brazo k = 1 termina en teq 40 **por
+  diseño**, y su quietud se juzga entre sus dos últimos puntos (teq 20 y 40):
+  así el contraste sin acelerar también se puede leer. Los dos brazos se
+  publican con su alcance, su costo y el motivo de su quietud. Corre en la
+  **configuración del código de la autora** (competencia `matlab`, oferta a
+  partes iguales), que es la de la sonda del
   consenso y la de H-88; con los defectos del arnés un resultado distinto no se
   podría leer. Con el peso de barrera a las 22:00, la predicción es 833,3
   (COP/kWh) en tres compradores y 1 250 en dos (±0,5), reparto [0,3037 x 3;

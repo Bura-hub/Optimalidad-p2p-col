@@ -162,16 +162,22 @@ def veredicto(resultados) -> str:
         return "\n".join(lineas + ["  ninguna corrida de M-B"])
     ganadoras = {}
     for fam in sorted(horas):
+        from veredicto import es_falla
         hs = horas[fam]
         n = len(hs)
+        # m-b de la re-revision 2: una hora cuyas corridas fallaron todas
+        # sigue en el denominador, como «falla», igual que las que no llegan.
+        fallidas = sum(1 for c in hs.values() if all(es_falla(x) for x in c))
         no_llegan = sum(1 for c in hs.values()
-                        if reproduce(c, "cerrada") is None)
+                        if reproduce(c, "cerrada") is None) - fallidas
         discr = [h for h, c in hs.items() if discrimina(c)]
         lineas.append(f"  {fam}: {n} horas; {len(apartadas.get(fam, ()))} "
                       f"apartadas (el recorte movio el reposo); {no_llegan} sin "
-                      f"ninguna corrida en teq 160 (cuentan como que no "
-                      f"reproducen); {len(discr)} discriminan entre el piso y "
-                      f"el costo")
+                      f"ninguna corrida en teq 160 y {fallidas} con todas sus "
+                      f"corridas FALLIDAS (cuentan como que no reproducen); "
+                      f"{len(discr)} discriminan entre el piso y el costo"
+                      f"{' (de las fallidas no se sabe si discriminan: no '
+                         'guardan su reposo cerrado)' if fallidas else ''}")
         lineas.append(f"    {'regla':<12s} {'todas':>12s} {'discriminan':>14s}")
         cuenta = {}
         for regla in REFERENCIAS:

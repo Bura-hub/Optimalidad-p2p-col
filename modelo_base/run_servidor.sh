@@ -1921,12 +1921,35 @@ print(" ".join(sorted(palancas)))
     bash "$0" recoger validacion_reposo
     echo
     # m3: con algo saltado o incompleto, la noche NO esta completa.
+    # m-a de la re-revision 2: un paso que salio con un codigo de fallo (1, 2,
+    # 3 o cualquier otro distinto de 0 y de 4) tampoco deja la noche completa.
+    # «seco», «saltada», «incompleta» y 0 no son fallos.
+    FALLOS=()
+    for par in "${CODIGOS[@]}"; do
+      valor="${par#*=}"
+      if [[ "$valor" =~ ^[0-9]+$ && "$valor" != "0" && "$valor" != "4" ]]; then
+        FALLOS+=("$par")
+      fi
+    done
+    INCOMPLETA=0
     if [[ ${#SALTADAS[@]} -gt 0 || ${#INCOMPLETAS[@]} -gt 0 ]]; then
+      INCOMPLETA=1
+    fi
+    if [[ ${#FALLOS[@]} -gt 0 && $INCOMPLETA -eq 1 ]]; then
+      echo "=== VALIDACION DEL REPOSO CON FALLOS E INCOMPLETA ==="
+    elif [[ ${#FALLOS[@]} -gt 0 ]]; then
+      echo "=== VALIDACION DEL REPOSO CON FALLOS ==="
+    elif [[ $INCOMPLETA -eq 1 ]]; then
       echo "=== VALIDACION DEL REPOSO INCOMPLETA ==="
     else
       echo "=== VALIDACION DEL REPOSO COMPLETA ==="
     fi
     echo "  codigos de salida: ${CODIGOS[*]}"
+    if [[ ${#FALLOS[@]} -gt 0 ]]; then
+      echo "  === CON FALLOS: ${FALLOS[*]} ==="
+      echo "  Mira el registro de cada uno en $LOGS/validacion_reposo_<paso>_<fecha>.log"
+      echo "  antes de leer ningun veredicto que dependa de el."
+    fi
     echo "  tiempo de pared: $(( $(date +%s) - INICIO_GLOBAL )) s de un tope global de $TOPE_GLOBAL s"
     if [[ ${#SALTADAS[@]} -gt 0 ]]; then
       echo "  === SALTADAS POR EL TOPE GLOBAL: ${SALTADAS[*]} ==="

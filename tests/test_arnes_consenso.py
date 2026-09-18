@@ -714,28 +714,49 @@ def test_mc_y_me_usan_la_tolerancia_que_declaran():
 
 
 # ── medio 4: los cuatro arranques entre si y la energia afectada ───────────
-def _arranque(fecha, E, q, p, cortada=False):
-    d = dict(dq=0.0, dp=0.0, dP=0.0, dsj=0.0)
-    return _registro("M-C", MC.FAMILIA, "E0", fecha, 100.0, "suma_no_cabe", E,
-                     dict(cerrada=d),
-                     teqs=((0.0, 80.0, 160.0) if not cortada
-                           else (0.0, 20.0)),
-                     final=dict(p=p, q=q, ppond=700.0, parte=0.4))
+def _arranque(fecha, E, q, p, cortada=False, nivel="sigma", oferta="iguales",
+              dist=None):
+    """Un arranque de M-C: su arranque de precios va en `spec.nivel` y el de
+    la oferta en `spec.var.arranque`, como en la noche."""
+    d = dist or dict(dq=0.0, dp=0.0, dP=0.0, dsj=0.0)
+    r = _registro("M-C", MC.FAMILIA, "E0", fecha, 100.0, "suma_no_cabe", E,
+                  dict(cerrada=d),
+                  teqs=((0.0, 80.0, 160.0) if not cortada else (0.0, 20.0)),
+                  final=dict(p=p, q=q, ppond=700.0, parte=0.4),
+                  var=dict(arranque=oferta))
+    r["spec"]["nivel"] = nivel
+    r["spec"]["etq"] = f"oferta {oferta} + precios {nivel}"
+    return r
 
 
-def test_mc_compara_los_cuatro_arranques_y_suma_la_energia():
-    iguales = [_arranque("A", 2.0, [1.0, 1.0], [700.0, 710.0])
-               for _ in range(4)]
+def _cuatro(fecha, E, sigma, medio, sigma_f=None, medio_f=None):
+    """Los cuatro arranques de una hora: (q, p) final de cada arranque de
+    precios con la oferta iguales, y con la factible si se da otro."""
+    return [_arranque(fecha, E, *sigma, nivel="sigma", oferta="iguales"),
+            _arranque(fecha, E, *(sigma_f or sigma), nivel="sigma",
+                      oferta="factible"),
+            _arranque(fecha, E, *medio, nivel="medio", oferta="iguales"),
+            _arranque(fecha, E, *(medio_f or medio), nivel="medio",
+                      oferta="factible")]
+
+
+def test_mc_multiplicidad_dentro_de_un_arranque_y_energia():
+    a = ([1.0, 1.0], [700.0, 710.0])
+    b = ([1.5, 0.5], [700.0, 710.0])
+    # `entre_arranques` compara lo que se le da.
+    iguales = [_arranque("A", 2.0, *a) for _ in range(4)]
     assert not MC.entre_arranques(iguales)["multiple"]
-    distintos = iguales[:3] + [_arranque("A", 2.0, [1.5, 0.5],
-                                         [700.0, 710.0])]
-    r = MC.entre_arranques(distintos)
+    r = MC.entre_arranques(iguales[:1] + [_arranque("A", 2.0, *b)])
     assert r["multiple"] and r["dq"] == pytest.approx(0.5)
-    otra = [_arranque("B", 3.0, [1.0, 2.0], [690.0, 695.0]) for _ in range(4)]
-    texto = MC.veredicto(distintos + otra)
-    assert "1 llegaron a SITIOS DISTINTOS" in texto
+    # La hora A tiene las dos ofertas de sigma en sitios distintos; la B no.
+    res = (_cuatro("A", 2.0, a, a, sigma_f=b)
+           + _cuatro("B", 3.0, ([1.0, 2.0], [690.0, 695.0]),
+                     ([1.0, 2.0], [690.0, 695.0])))
+    texto = MC.veredicto(res)
+    assert "1 en SITIOS DISTINTOS (varios reposos)" in texto
+    assert "VARIOS REPOSOS E0 A (precios sigma)" in texto
     assert "2.0000 de 5.0000 (kWh) de la muestra = 40.00 %" in texto
-    assert "DECLARADA" in texto
+    assert "DECLARADA por multiplicidad" in texto
     # Un arranque cortado antes de teq 160 no entra en la comparacion.
     r = MC.entre_arranques(iguales[:3] + [_arranque("A", 2.0, [9.0, 9.0],
                                                     [1.0, 1.0], cortada=True)])
@@ -960,21 +981,25 @@ def test_n4_me_mu_solo_velocidad_con_cinco_horas():
 
 # ── N5: M-C y M-G solo con estados quietos ─────────────────────────────────
 def test_n5_mc_moverse_no_es_multiplicidad():
-    """Un arranque que en teq 160 todavia se mueve no cuenta: con los otros
-    tres iguales, la hora llego al mismo sitio; con dos quietos distintos,
-    varios reposos; con menos de dos quietos, no llego."""
-    iguales = [_arranque("A", 2.0, [1.0, 1.0], [700.0, 710.0])
-               for _ in range(3)]
-    lento = _arranque("A", 2.0, [1.9, 0.1], [700.0, 710.0])
-    for f in lento["filas"]:
+    """Una oferta que en teq 160 todavia se mueve no cuenta: si el par sigma
+    llego al mismo sitio, la hora esta en el MISMO sitio aunque el par medio no
+    se comparara; si el par sigma no se comparo, la hora no se da por
+    comparada (re-revision 4)."""
+    a = ([1.0, 1.0], [700.0, 710.0])
+    res = _cuatro("A", 2.0, a, a, medio_f=([1.9, 0.1], [700.0, 710.0]))
+    for f in res[3]["filas"]:                  # medio + factible, lenta
         f["dq_dt"] = 0.5
-    r = MC.entre_arranques(iguales + [lento])
-    assert not r["multiple"] and r["comparados"] == 3 and r["moviendose"] == 1
-    texto = MC.veredicto(iguales + [lento])
-    assert "1 llegaron al MISMO sitio" in texto
-    solo_uno = [iguales[0]] + [dict(lento) for _ in range(3)]
-    texto = MC.veredicto(solo_uno)
-    assert "1 NO LLEGARON" in texto and "VARIOS REPOSOS" not in texto
+    r = MC.entre_arranques(res[2:])
+    assert not r["multiple"] and r["comparados"] == 1 and r["moviendose"] == 1
+    texto = MC.veredicto(res)
+    assert "1 con el par sigma en el MISMO sitio" in texto
+    assert "precios medio: 0 con el par en el MISMO sitio, 0 en SITIOS "            "DISTINTOS y 1 sin el par comparado" in texto
+    for c in (res[1], res[3]):                 # las dos factibles, lentas
+        for f in c["filas"]:
+            f["dq_dt"] = 0.5
+    texto = MC.veredicto(res)
+    assert "1 SIN EL PAR SIGMA COMPARADO" in texto
+    assert "VARIOS REPOSOS" not in texto
 
 
 def test_n5_mg_un_transitorio_no_se_lee_contra_la_tabla():
@@ -987,8 +1012,435 @@ def test_n5_mg_un_transitorio_no_se_lee_contra_la_tabla():
     texto = MG.veredicto(res)
     assert "todavia EN MOVIMIENTO" in texto
     assert "NO LLEGO" in texto and "CUMPLE" not in texto
+    # El brazo de precio se juzga con lo que lee su tabla (re-revision 4): su
+    # transitorio es de precios, no de reparto.
     res = [_registro("M-G", MG.PRECIO, "CHACON", "22", 100.0, "topados",
                      1.381, dict(cerrada=d), quieta=False,
                      final=dict(p=[114.0] * 5, q=[0.3] * 5, ppond=114.0,
                                 parte=0.0))]
+    for f in res[0]["filas"][1:]:
+        f["dp_dt"] = 0.5
     assert "sin lectura: el brazo de precio no llego" in MG.veredicto(res)
+
+
+# ═══════════════ re-revision 2 de 4c: NM1, NM2 y m-b ═════════════════════
+_D0 = dict(dq=0.0, dp=0.0, dP=0.0, dsj=0.0)
+
+
+def _lento(fecha="h", q80=(0.92, 1.08), q160=(1.0, 1.0), E=2.0,
+           dq_dt=9e-4, medicion="M-C"):
+    """Una corrida con las derivadas JUSTO BAJO 1e-3 en sus ultimos puntos,
+    pero cuyo reparto todavia se mueve entre teq 80 y teq 160: el transitorio
+    lento de la re-revision 2."""
+    r = _registro(medicion, MC.FAMILIA, "E0", fecha, 100.0, "suma_no_cabe", E,
+                  dict(cerrada=_D0),
+                  final=dict(p=[700.0, 710.0], q=list(q160), ppond=700.0,
+                             parte=0.4))
+    r["filas"][1]["q"] = list(q80)
+    for f in r["filas"][1:]:
+        f["dq_dt"] = dq_dt
+    return r
+
+
+# ── NM1: la quietud compara el estado entre teq 80 y teq 160 ───────────────
+def test_nm1_un_transitorio_lento_ya_no_esta_quieto():
+    lento = _lento()
+    assert all(f["dq_dt"] < 1e-3 for f in lento["filas"][-2:])
+    quieta, motivo = V.quietud(lento)
+    assert not quieta and "entre teq 80 y 160" in motivo
+    # El mismo estado sin moverse entre 80 y 160 si esta quieto.
+    assert V.esta_quieta(_lento(q80=(1.0, 1.0)))
+    # Sin punto en teq 80 (el brazo k = 1 de M-G llega a teq 40): no se sabe.
+    corto = _registro("M-G", MG.BARRERA, "CHACON", "22", 1.0, "topados", 1.381,
+                      dict(cerrada=_D0), teqs=(0.0, 20.0, 40.0))
+    quieta, motivo = V.quietud(corto)
+    assert not quieta and "teq 80 y 160" in motivo
+
+
+def test_nm1_en_mc_un_transitorio_lento_no_es_multiplicidad():
+    """Tres arranques quietos en el mismo sitio y uno lento que acaba en otro:
+    antes contaba como «varios reposos»; ahora no llego."""
+    iguales = [_lento(q80=(1.0, 1.0)) for _ in range(3)]
+    lento = _lento(q80=(1.3, 0.7), q160=(1.2, 0.8))
+    r = MC.entre_arranques(iguales + [lento])
+    assert not r["multiple"] and r["comparados"] == 3 and r["moviendose"] == 1
+
+
+def test_nm1_en_me_un_mu_lento_no_mueve_el_reposo():
+    igual = ([1.0, 1.0], [700.0, 710.0])
+    res = _me("h", [igual] * 3)
+    lento = res[2]                             # mu = 3, en otro sitio y lento
+    lento["filas"][-1]["q"] = [1.2, 0.8]
+    lento["filas"][1]["q"] = [1.3, 0.7]
+    for f in lento["filas"][1:]:
+        f["dq_dt"] = 9e-4
+    texto = ME.veredicto(res)
+    assert "MU MUEVE EL REPOSO" not in texto
+    assert "(1 de las que coinciden lo hacen con solo dos mu" in texto
+
+
+# ── NM2: al releer se recalcula con la tolerancia de hoy ───────────────────
+def _guardado_con_tolerancia_floja(dq=0.1, E=2.0):
+    """Una corrida de M-A cuyos indicadores se calcularon al correr con una
+    tolerancia de reparto de 1e-1·E (dentro), y cuya distancia guardada es
+    dq = 0,05·E: con la de hoy (1e-2·E, floja) queda fuera."""
+    dist = dict(dq=dq, dp=0.01, dP=dq, dsj=dq)
+    return _registro("M-A", "V3a acelerada", "E0", "h", 100.0, "interiores", E,
+                     dict(cerrada=dist),
+                     tol=dict(tol_q_rel=1e-1, tol_p=0.5, clase="de la noche",
+                              motivo="prueba"))
+
+
+def test_nm2_cambiar_la_tolerancia_cambia_el_veredicto_al_releer(monkeypatch):
+    r = _guardado_con_tolerancia_floja()
+    # Al correr, dentro.
+    assert r["veredicto"]["cerrada"]["teq160"]["dentro"] is True
+    # Al releer con la tolerancia de hoy (floja, 1e-2·E), fuera.
+    c = V.cuenta_hora([r], "cerrada")
+    assert c["juzgada"] and c["dentro"] is False and c["guardados"] == 0
+    assert c["clases"] == ["floja"]
+    # Si la tolerancia de hoy cambia, el veredicto releido cambia con ella.
+    monkeypatch.setattr(PR, "TOL_Q_REL_FLOJA", 1e-1)
+    assert V.cuenta_hora([r], "cerrada")["dentro"] is True
+
+
+def test_nm2_sin_regimen_usa_el_indicador_guardado_y_lo_dice():
+    r = _guardado_con_tolerancia_floja()
+    del r["regimen"]
+    j = V.rejuzga(r, "cerrada")
+    assert j["fuente"].startswith("guardado") and j["dentro160"] is True
+    assert "AVISO: en 1 juicios de corrida no se pudo recalcular" in V.tabla([r])
+
+
+def test_nm2_el_criterio_de_consenso_tambien_se_recalcula(monkeypatch):
+    bien = dict(dq=1e-5, dp=0.01, dP=1e-5, dsj=1e-5)
+    r = _registro("M-A", "V3a acelerada", "E0", "h", 100.0, "interiores", 1.0,
+                  dict(cerrada=bien))
+    assert V.rejuzga(r, "cerrada")["llega"] is True
+    # Un criterio de hoy mas exigente (ninguna derivada queda bajo cero) se
+    # recoge al releer. Se cambia la funcion y no la constante, porque la
+    # constante entra como argumento por defecto al definirse.
+    original = PR.criterio_consenso
+    monkeypatch.setattr(PR, "criterio_consenso",
+                        lambda filas, nombre, E, tol: original(
+                            filas, nombre, E, tol, tol_derivada=0.0))
+    assert V.rejuzga(r, "cerrada")["llega"] is False
+
+
+# ── m-b: una hora cuyas corridas fallaron todas cuenta como «falla» ────────
+def _falla(medicion, familia, fecha, caso="E0", grupo="interiores", k=100.0,
+           referencias=None):
+    return dict(spec=dict(medicion=medicion, familia=familia, caso=caso,
+                          fecha=fecha, grupo=grupo, etq=f"{familia} k{k:g}",
+                          var=dict(k_lento=k), referencias=referencias or {}),
+                msg="FALLA RuntimeError: prueba", filas=[], veredicto={},
+                cerrada={}, seg=0.0)
+
+
+def test_mb_una_hora_toda_fallida_cuenta_en_el_denominador():
+    bien = dict(dq=1e-5, dp=0.01, dP=1e-5, dsj=1e-5)
+    res = [_registro("M-A", "V3a acelerada", "E0", f"b{h}", 100.0,
+                     "interiores", 1.0, dict(cerrada=bien), grupo="interiores")
+           for h in range(5)]
+    res += [_falla("M-A", "V3a acelerada", f"f{h}") for h in range(5)]
+    horas = {"E0": {"interiores": [dict(fecha=f"f{h}", regimen="interiores")
+                                   for h in range(5)]}}
+    texto = V.tabla(res, horas=horas)
+    # Antes: las fallidas salian y el rotulo era «verificado (n = 5)».
+    assert "regla declarada (50 %, n = 10)" in texto
+    assert "reposo verificado" not in texto
+    grupos, _ = V.agrupa(res, horas)
+    (clave, hs), = grupos.items()
+    assert clave[0] == "interiores"
+    assert sum(V.cuenta_hora(c, "cerrada")["falla"] for c in hs.values()) == 5
+    # Sin la seleccion no se sabe su regimen: salen aparte, como «?».
+    grupos, _ = V.agrupa(res)
+    assert {k[0] for k in grupos} == {"interiores", "?"}
+
+
+def test_mb_las_fallidas_tambien_en_los_juicios_propios():
+    iguales = _cuatro("A", 2.0, ([1.0, 1.0], [700.0, 710.0]),
+                      ([1.0, 1.0], [700.0, 710.0]))
+    fallida = [_falla("M-C", MC.FAMILIA, "Z", grupo="suma_no_cabe")
+               for _ in range(4)]
+    texto = MC.veredicto(iguales + fallida)
+    assert "2 horas" in texto and "1 FALLARON en todas sus corridas" in texto
+    assert "1 que fallaron" in texto          # tambien frente a la forma cerrada
+    mb = _mb_horas(6, 6) + [_falla("M-B", "costo alternativa", "zz", caso="E4")]
+    texto = MB.veredicto(mb)
+    assert "7 horas" in texto and "1 con todas sus corridas FALLIDAS" in texto
+    me = _me("h", [([1.0, 1.0], [700.0, 710.0])] * 3)
+    me += [_falla("M-E", f"mu {mu:g}", "rota") for mu in ME.MUS]
+    assert "1 FALLARON en todos sus mu" in ME.veredicto(me)
+    mg = [_falla("M-G", MG.BARRERA, "22", caso="CHACON", grupo="chacon")]
+    assert "NO LLEGO: fallaron todos sus brazos" in MG.veredicto(mg)
+
+
+# ═══════════════ re-revision 3 de 4c: M-C por arranque de precios, M-G ═════
+def test_rr3_mc_dos_presupuestos_no_son_multiplicidad():
+    """Los dos arranques de precios quietos en sitios distintos, con sus dos
+    ofertas de acuerdo dentro de cada uno: NO es multiplicidad; sale como
+    dependencia del presupuesto (H-90), con la diferencia de la suma y el
+    cambio de regimen (el comprador 2 recibe energia con precios medios)."""
+    sigma = ([1.0, 0.0], [700.0, 710.0])       # comprador 2 sin energia
+    medio = ([0.6, 0.4], [690.0, 695.0])       # «cabe»: los dos reciben
+    res = []
+    for h in range(5):
+        res += _cuatro(f"h{h}", 1.0, sigma, medio)
+    texto = MC.veredicto(res)
+    assert "5 con el par sigma en el MISMO sitio; 0 en SITIOS DISTINTOS" in texto
+    assert "precios sigma: 5 con el par en el MISMO sitio" in texto
+    assert "precios medio: 5 con el par en el MISMO sitio" in texto
+    assert "DECLARADA por multiplicidad" not in texto
+    assert "DEPENDENCIA DEL PRESUPUESTO" in texto
+    assert "-25.00 (COP/kWh) de media" in texto
+    assert "5 horas CAMBIAN DE REGIMEN" in texto
+    # Y los sigma estan en la forma cerrada: la regla es el reposo.
+    assert "reposo verificado (n = 5)" in texto
+    assert "D53: la regla del paso 5 es el reposo al que llega" in texto
+    # La tabla generica no rotula M-C.
+    assert "(ver el juicio propio)" in V.resume(res)
+
+
+def test_rr3_mc_ofertas_distintas_en_un_arranque_si_es_multiplicidad():
+    a = ([1.0, 0.0], [700.0, 710.0])
+    b = ([0.7, 0.3], [700.0, 710.0])
+    res = _cuatro("h", 1.0, a, a, medio_f=b)   # dentro de «medio», discrepan
+    texto = MC.veredicto(res)
+    assert "1 en SITIOS DISTINTOS" in texto
+    assert "VARIOS REPOSOS E0 h (precios medio)" in texto
+    assert "D53: la regla del paso 5 se publica como DECLARADA por " \
+           "multiplicidad" in texto
+
+
+def test_rr3_mc_sigma_frente_a_la_forma_cerrada_con_todas_las_horas():
+    """El denominador son todas las horas: 5 dentro, 1 que no llega (sus
+    sigma cortadas) y 1 que fallo entera dan 5 de 7."""
+    a = ([1.0, 0.0], [700.0, 710.0])
+    res = []
+    for h in range(5):
+        res += _cuatro(f"h{h}", 1.0, a, a)
+    corta = _cuatro("corta", 1.0, a, a)
+    for c in corta[:2]:
+        c.update(_arranque("corta", 1.0, *a, cortada=True))
+    res += corta
+    res += [_falla("M-C", MC.FAMILIA, "rota", grupo="suma_no_cabe")]
+    texto = MC.veredicto(res)
+    assert "7 horas (el denominador): 5 dentro" in texto
+    assert "1 que no llegan a teq 160 y 1 que fallaron" in texto
+    assert "regla declarada (71 %, n = 7)" in texto
+
+
+def _brazo_k1(final, q20=None):
+    """El brazo k = 1 de M-G tal como lo escribe la noche: sus cortes acaban
+    en teq 40 POR DISEÑO y termino con «ok»."""
+    r = _registro("M-G", MG.BARRERA, "CHACON", "22", 1.0, "topados", 1.381,
+                  dict(cerrada=_D0), teqs=(0.0, 20.0, 40.0), final=final)
+    r["spec"]["cortes"] = list(MG.CORTES[1.0])
+    r["cortada"], r["msg"] = False, "ok"
+    if q20 is not None:
+        r["filas"][1]["q"] = list(q20)
+    return r
+
+
+_REPOSO_22 = dict(p=[833.3333, 833.3333, 833.3333, 1250.0, 1250.0],
+                  q=[0.303667, 0.303667, 0.303667, 0.262, 0.208],
+                  ppond=975.14, parte=0.758)
+
+
+def test_rr3_mg_el_brazo_k1_quieto_en_20_y_40_se_lee():
+    r = _brazo_k1(_REPOSO_22)
+    quieta, motivo = V.quietud(r, MG.tolerancia_quietud("22", MG.BARRERA))
+    assert quieta and "entre teq 20 y 40" in motivo
+    texto = MG.veredicto([r])
+    assert "CUMPLE  precios 833,3 x 3 y 1 250 x 2" in texto
+    assert "con el brazo k = 1" in texto and "NO LLEGO" not in texto
+    # En M-A, M-C y M-E nada cambia: sus cortes llegan a 160 y se usan 80 y 160.
+    assert V.teq_final_del_plan(r) == 40.0
+    lento = _lento()
+    lento["spec"]["cortes"] = list(MC.CORTES)
+    assert V.teq_final_del_plan(lento) == pytest.approx(160.0)
+    assert "entre teq 80 y 160" in V.quietud(lento)[1]
+
+
+def test_rr3_mg_un_reparto_que_deriva_0_01_no_esta_quieto():
+    """Con la tolerancia de la tabla (+-1e-3 (kWh)) un reparto que todavia se
+    mueve 0,01 (kWh) no esta quieto. Con la floja de M-A (1e-2·E = 0,0138
+    (kWh) aqui) si lo habria estado: es el menor de la re-revision 3."""
+    deriva = [x + 0.01 for x in _REPOSO_22["q"]]
+    r = _registro("M-G", MG.BARRERA, "CHACON", "22", 100.0, "topados", 1.381,
+                  dict(cerrada=_D0), final=_REPOSO_22)
+    r["filas"][1]["q"] = deriva                   # teq 80
+    assert V.quietud(r)[0] is True                # con la floja de M-A
+    tol = MG.tolerancia_quietud("22", MG.BARRERA)
+    assert tol["magnitudes"] == {"p": 0.5, "q": 1e-3, "parte": 0.005}
+    quieta, motivo = V.quietud(r, tol)
+    assert not quieta and "EN MOVIMIENTO entre teq 80 y 160" in motivo
+    assert "NO LLEGO" in MG.veredicto([r])
+    # El brazo k = 1 con la misma deriva entre 20 y 40, tampoco.
+    k1 = _brazo_k1(_REPOSO_22, q20=deriva)
+    assert not V.quietud(k1, tol)[0]
+
+
+# ═══════════════ re-revision 4 de 4c: el par sigma y M-G por magnitudes ════
+def _sigma_cortada(fecha, E=1.2):
+    """La oferta «factible + sigma» cortada por el tope en teq 5, lejos de la
+    regla 0,4 x 3, como en la sintetica con techos distintos de la
+    re-revision 4."""
+    r = _registro("M-C", MC.FAMILIA, "E0", fecha, 100.0, "suma_no_cabe", E,
+                  dict(cerrada=_D0), teqs=(0.0, 2.0, 5.0),
+                  final=dict(p=[700.0, 705.0, 710.0], q=[0.065, 0.536, 0.600],
+                             ppond=700.0, parte=0.4),
+                  var=dict(arranque="factible"))
+    r["spec"]["nivel"] = "sigma"
+    r["spec"]["etq"] = "oferta factible + precios sigma"
+    return r
+
+
+def test_rr4_mc_una_oferta_sigma_cortada_no_verifica_la_hora():
+    """Cinco horas con la oferta iguales + sigma dentro y la factible + sigma
+    cortada en teq 5: antes salian «reposo verificado (n = 5)» con una sola
+    oferta, y «MISMO sitio» por el par medio. Ahora no llegan."""
+    regla = ([0.4, 0.4, 0.4], [700.0, 705.0, 710.0])
+    res = []
+    for h in range(5):
+        cuatro = _cuatro(f"h{h}", 1.2, regla, regla)
+        cuatro[1] = _sigma_cortada(f"h{h}")
+        res += cuatro
+    est = MC.contra_la_forma_cerrada([c for c in res if c["spec"]["fecha"]
+                                      == "h0"])
+    assert est["estado"] == "no llega" and est["una_sola"]
+    assert est["una_sola_dentro"]
+    assert est["ofertas"]["factible"]["estado"] == "no llega"
+    texto = MC.veredicto(res)
+    # Parte 2: ninguna hora dentro; las cinco, con una sola oferta.
+    assert "5 horas (el denominador): 0 dentro" in texto
+    assert "5 que no llegan a teq 160 y 0 que fallaron" in texto
+    assert "5 horas con UNA SOLA oferta sigma en teq 160" in texto
+    assert "5 de ellas con esa oferta dentro" in texto
+    assert "reposo verificado" not in texto
+    assert "regla declarada (0 %, n = 5)" in texto
+    # Re-revision final (menor 1): ninguna juzgada queda fuera, de modo que
+    # no es que la dinamica vaya a otro sitio, sino que no se pudo verificar.
+    assert "D53: la regla del paso 5 se publica como DECLARADA: no se pudo " \
+           "verificar: 5 horas no llegan y 0 fallan" in texto
+    assert "no la alcanza" not in texto
+    # Parte 1: el par medio coincide, pero la hora no suma como MISMO sitio.
+    assert "0 con el par sigma en el MISMO sitio" in texto
+    assert "5 SIN EL PAR SIGMA COMPARADO" in texto
+    assert "precios sigma: 0 con el par en el MISMO sitio, 0 en SITIOS " \
+           "DISTINTOS y 5 sin el par comparado" in texto
+    assert "precios medio: 5 con el par en el MISMO sitio" in texto
+    assert "5 horas sin el par sigma comparado tienen el par medio en el " \
+           "mismo sitio: NO cuentan como MISMO sitio" in texto
+    assert "VARIOS REPOSOS" not in texto
+    # Si la oferta en vez de cortarse falla, la hora es «falla».
+    rota = _cuatro("r", 1.2, regla, regla)
+    rota[1] = _falla("M-C", MC.FAMILIA, "r", grupo="suma_no_cabe")
+    rota[1]["spec"].update(nivel="sigma")
+    rota[1]["spec"]["var"]["arranque"] = "factible"
+    est = MC.contra_la_forma_cerrada(rota)
+    assert est["estado"] == "falla" and est["una_sola"]
+    texto = MC.veredicto(rota)
+    assert "1 horas (el denominador): 0 dentro" in texto
+    assert "0 que no llegan a teq 160 y 1 que fallaron" in texto
+    # Y si la oferta ni se corrio, tampoco hay par.
+    est = MC.contra_la_forma_cerrada([c for i, c in enumerate(rota) if i != 1])
+    assert est["estado"] == "no llega"
+    assert est["ofertas"]["factible"]["estado"] == "falta"
+
+
+def test_rr4_mc_las_dos_ofertas_sigma_dentro_verifican_como_hoy():
+    regla = ([0.4, 0.4, 0.4], [700.0, 705.0, 710.0])
+    res = []
+    for h in range(5):
+        res += _cuatro(f"h{h}", 1.2, regla, regla)
+    est = MC.contra_la_forma_cerrada(res[:4])
+    assert est["estado"] == "juzgada" and est["dentro"] and not est["una_sola"]
+    texto = MC.veredicto(res)
+    assert "5 horas (el denominador): 5 dentro en teq 80 y 160 con LAS DOS " \
+           "ofertas sigma" in texto
+    assert "0 horas con UNA SOLA oferta sigma" in texto
+    assert "reposo verificado (n = 5)" in texto
+    assert "5 con el par sigma en el MISMO sitio" in texto
+    assert "D53: la regla del paso 5 es el reposo al que llega" in texto
+
+
+# El reparto que todavia converge como 1/t con c = 0,25: entre teq 80 y 160 se
+# mueve 0,25/80 - 0,25/160 = 1,5625e-3 (kWh), y su derivada en teq 160 es
+# 0,25/160^2 = 9,8e-6, bajo 1e-3.
+_C_LENTO = 0.25
+
+
+def _q_lento(q_inf, teq):
+    """q_inf mas c/teq en el primer comprador y menos en el segundo (la
+    energia se conserva)."""
+    q = list(q_inf)
+    q[0] += _C_LENTO / teq
+    q[1] -= _C_LENTO / teq
+    return q
+
+
+def _con_reparto_lento(r, q_inf):
+    for f in r["filas"][1:]:
+        f["q"] = _q_lento(q_inf, f["teq"])
+        f["dq_dt"] = _C_LENTO / f["teq"] ** 2
+    return r
+
+
+def test_rr4_mg_brazo_de_precio_en_el_piso_con_reparto_lento_se_lee_b():
+    q_inf = [0.2762] * 5
+    r = _registro("M-G", MG.PRECIO, "CHACON", "22", 100.0, "topados", 1.381,
+                  dict(cerrada=_D0),
+                  final=dict(p=[114.0] * 5, q=q_inf, ppond=114.0, parte=0.0))
+    _con_reparto_lento(r, q_inf)
+    f80, f160 = r["filas"][1], r["filas"][2]
+    assert max(abs(a - b) for a, b in zip(f80["q"], f160["q"])) \
+        == pytest.approx(1.5625e-3)
+    assert f160["dq_dt"] < 1e-3
+    tol = MG.tolerancia_quietud("22", MG.PRECIO)
+    # Re-revision final (menor 2): (b) lee tambien cada precio, con +-1.
+    assert tol["magnitudes"] == {"ppond": 1.0, "parte": 0.002, "p": 1.0}
+    quieta, motivo = V.quietud(r, tol)
+    assert quieta and "entre teq 80 y 160" in motivo
+    # Con la tolerancia de la ronda 4 (+-1e-3 (kWh) en el reparto) no lo estaba.
+    assert not V.quietud(r, dict(tol_q_abs=1e-3, tol_p=1.0))[0]
+    texto = MG.veredicto([r])
+    assert "=> se cumple la lectura (b)" in texto and "NO LLEGO" not in texto
+    # Pero si el nivel ponderado todavia se mueve mas de 1 (COP/kWh), no.
+    r["filas"][1]["ppond"] = 116.0
+    quieta, motivo = V.quietud(r, tol)
+    assert not quieta and "EN MOVIMIENTO entre teq 80 y 160" in motivo
+    assert "sin lectura: el brazo de precio no llego" in MG.veredicto([r])
+
+
+def test_rr4_mg_brazo_de_barrera_con_el_mismo_reparto_lento_no_esta_quieto():
+    r = _registro("M-G", MG.BARRERA, "CHACON", "22", 100.0, "topados", 1.381,
+                  dict(cerrada=_D0), final=_REPOSO_22)
+    _con_reparto_lento(r, _REPOSO_22["q"])
+    tol = MG.tolerancia_quietud("22", MG.BARRERA)
+    quieta, motivo = V.quietud(r, tol)
+    assert not quieta and "EN MOVIMIENTO entre teq 80 y 160" in motivo
+    assert "|dq| = 1.56e-03 (kWh)" in motivo
+    texto = MG.veredicto([r])
+    assert "NO LLEGO" in texto and "CUMPLE" not in texto
+    # Sin tolerancia por magnitudes (M-A, M-C, M-E) todo sigue como antes.
+    assert V.quietud(r, dict(tol_q_abs=1e-3, tol_p=0.5))[0] is False
+    assert V.quietud(r, dict(tol_q_abs=2e-3, tol_p=0.5))[0] is True
+
+
+def test_rrf_mg_b_exige_todos_los_precios_en_el_piso():
+    """Re-revision final de 4c (menor 2): el nivel y la parte van ponderados por
+    energia. Un comprador quieto en 300 (COP/kWh) que recibe 0,001 (kWh) deja
+    el nivel en 114,135 y la parte en 1,2e-4, dentro de sus tolerancias; la
+    fila de cada precio impide que eso se lea como «todos en el piso»."""
+    r = _registro("M-G", MG.PRECIO, "CHACON", "22", 100.0, "topados", 1.381,
+                  dict(cerrada=_D0),
+                  final=dict(p=[300.0] + [114.0] * 4, q=[0.2762] * 5,
+                             ppond=114.135, parte=1.2e-4))
+    juicio = MG.juzga_fila(r["filas"][-1], MG.ESPERADO[("22", MG.PRECIO)])
+    por_texto = {j["texto"]: j["cumple"] for j in juicio}
+    assert por_texto["(b) todos en el piso: nivel 114"]
+    assert por_texto["(b) todos en el piso: parte 0"]
+    assert not por_texto["(b) todos en el piso: cada precio en 114"]
+    assert "lectura (b)" not in MG.lectura(juicio)

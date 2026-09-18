@@ -146,9 +146,15 @@ def veredicto(resultados) -> str:
               "(COP/kWh), sobre el estado final quieto en teq 160)", ""]
     if not horas:
         return "\n".join(lineas + ["  ninguna corrida de M-E"])
-    coinciden, mueven, no_comp = [], [], []
+    from veredicto import es_falla
+    coinciden, mueven, no_comp, fallidas = [], [], [], []
     for (caso, fecha), corridas in sorted(horas.items()):
-        r = entre_mus(corridas)
+        # m-b de la re-revision 2: una hora cuyas corridas fallaron todas
+        # cuenta en el denominador, como «falla».
+        if all(es_falla(c) for c in corridas):
+            fallidas.append((caso, fecha))
+            continue
+        r = entre_mus([c for c in corridas if not es_falla(c)])
         if not r["comparable"]:
             no_comp.append((caso, fecha, r))
         elif r["coinciden"]:
@@ -158,7 +164,8 @@ def veredicto(resultados) -> str:
     lineas.append(f"  {len(horas)} horas: en {len(coinciden)} los mu que "
                   f"llegaron coinciden; en {len(mueven)} el reposo CAMBIA con "
                   f"mu; {len(no_comp)} no se pueden comparar (menos de dos mu "
-                  f"quietos en teq 160)")
+                  f"quietos en teq 160); {len(fallidas)} FALLARON en todos sus "
+                  f"mu")
     for caso, fecha, r in mueven[:20]:
         lineas.append(f"    MU MUEVE EL REPOSO {caso} {fecha}: max|dq| = "
                       f"{r['dq']:.3e} (kWh, E = {r['E']:.4f}), max|dp| = "

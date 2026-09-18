@@ -80,13 +80,23 @@ COMO SE JUZGA (critico 1b de la revision de 4c). NO con los puntos de teq ni
 con el criterio de consenso de M-A: contra la TABLA (`ESPERADO`), variante por
 variante y hora por hora, sobre el estado final de cada brazo (k = 1 hasta teq
 40 y k = 100 hasta teq 160). Se lee el brazo que llego mas lejos ESTANDO
-QUIETO, es decir con las derivadas del reparto y de los precios bajo 1e-3 en
-sus dos ultimos puntos (N5 de la re-revision): un estado que todavia se mueve
-es un transitorio, y si ningun brazo esta quieto la tabla no se lee y se dice
-«no llego». Los dos brazos se publican con su alcance, su costo y si estan
-quietos. Que el brazo k = 1 se detenga en teq 40 no es un fallo: es hasta donde
-llega sin acelerar. `veredicto(resultados)` hace esto, y `veredicto.py` lo
-llama solo cuando el JSON es de M-G.
+QUIETO (`veredicto.quietud`): con las derivadas bajo 1e-3 en sus dos ultimos
+puntos (N5 de la re-revision) y sin moverse mas que la tolerancia entre dos
+puntos de control (NM1 de la re-revision 2). Los dos puntos son teq 80 y 160
+para el brazo k = 100, y para el brazo k = 1, que termina en teq 40 POR
+DISEÑO, sus dos ultimos, teq 20 y 40 (re-revision 3): asi el brazo sin
+acelerar tambien se puede leer, que es el contraste que importa en «topados»,
+donde la aceleracion solo es aproximada. La tolerancia de esa quietud es la de
+la TABLA, no la floja de M-A (re-revision 3, menor), y se aplica SOLO a las
+magnitudes que la tabla lee (`tolerancia_quietud`, re-revision 4, menor): el
+brazo de barrera, con q (+-1e-3 (kWh)), p (+-0,5 (COP/kWh)) y la parte del
+vendedor; el de precio, con el nivel ponderado y la parte, sin mirar el
+reparto, que con la exploracion entropica puede seguir convergiendo como 1/t
+con los precios ya quietos en el piso. Un estado que todavia se mueve es un
+transitorio, y si ningun brazo esta quieto la tabla no se lee y se dice «no
+llego». Los dos brazos se publican con su alcance, su costo y el motivo de su
+quietud. `veredicto(resultados)` hace esto, y `veredicto.py` lo llama solo
+cuando el JSON es de M-G.
 
 LA TABLA, con su procedencia:
   - 22:00, barrera + V3a: precios 833,3 x 3 y 1 250 x 2, +-0,5 (COP/kWh), y
@@ -107,6 +117,8 @@ COSTO. La sonda del consenso no llego al reposo en este caso, y por eso esta
 medicion existe: a t = 0,3 los precios seguian moviendose. Con k = 100 hasta
 teq 160 deberia caber; el tope es de 3 600 (s) por corrida y son ocho corridas.
 """
+import math
+
 import numpy as np
 
 MEDICION = "M-G"
@@ -146,11 +158,18 @@ ESPERADO = {
          "lectura del transitorio"),
         ("(b) todos en el piso: parte 0", "parte", 0.0, 0.002,
          "lectura del transitorio"),
+        # Re-revision final de 4c (menor 2): el nivel y la parte van
+        # ponderados por energia, y un comprador quieto en 300 que recibe
+        # 0,001 (kWh) los dejaba en 114,135 y 1,2e-4. «Todos» se lee literal.
+        ("(b) todos en el piso: cada precio en 114", "p", [114.0] * 5, 1.0,
+         "lectura del transitorio"),
     ],
     ("14", PRECIO): [
         ("(b) todos en el piso: nivel 114", "ppond", 114.0, 1.0,
          "lectura del transitorio"),
         ("(b) todos en el piso: parte 0", "parte", 0.0, 0.002,
+         "lectura del transitorio"),
+        ("(b) todos en el piso: cada precio en 114", "p", [114.0] * 4, 1.0,
          "lectura del transitorio"),
     ],
 }
@@ -201,6 +220,33 @@ def specs(horas=None):
     return fuera
 
 
+def tolerancia_quietud(hora, familia) -> dict:
+    """La tolerancia con que se juzga si un brazo de M-G esta quieto: la de SU
+    TABLA (menor de la re-revision 3 de 4c), no la floja de M-A, que con
+    k = 100 daba 1e-2·E = 0,014 (kWh) mientras la tabla exige +-1e-3 (kWh).
+
+    Y SOLO CON LAS MAGNITUDES QUE LEE SU TABLA (menor de la re-revision 4): el
+    brazo de barrera, con q, p y la parte del vendedor; el de precio, con el
+    nivel ponderado y la parte, sin mirar el reparto. Con la exploracion
+    entropica y compradores topados el reparto converge como 1/t: con c = 0,25
+    se mueve 1,56e-3 (kWh) entre teq 80 y 160 aunque los precios esten ya
+    quietos en el piso y la lectura (b) se cumpla exactamente, y exigirle
+    +-1e-3 (kWh) al reparto dejaba ese brazo «sin lectura».
+
+    Devuelve {"magnitudes": {magnitud: tolerancia}} para `veredicto.quietud`:
+    la tolerancia de cada magnitud es la menor de las filas de la tabla que la
+    leen. Una hora y variante sin tabla (no la hay hoy) se juzga con la del
+    plan para M-G: 1e-3 (kWh) en reparto y 0,5 (COP/kWh) en precio."""
+    tabla = ESPERADO.get((hora, familia), [])
+    magnitudes = {}
+    for _t, m, _v, tol, _f in tabla:
+        magnitudes[m] = min(float(tol), magnitudes.get(m, math.inf))
+    if not magnitudes:
+        magnitudes = {"q": 1e-3, "p": 0.5}
+    return dict(magnitudes=magnitudes,
+                clase="la de la tabla de M-G, en lo que lee la tabla")
+
+
 def _valor(fila, magnitud):
     return np.asarray(fila[magnitud], dtype=float)
 
@@ -223,12 +269,15 @@ def juzga_fila(fila, filas_tabla) -> list:
 
 def veredicto(resultados) -> str:
     """M-G contra su tabla, por hora y variante, con el alcance de cada brazo."""
-    lineas = ["", "  M-G CONTRA LA TABLA (por variante; se rotula con el brazo "
-              "que llego mas lejos)", ""]
+    from veredicto import es_falla, quietud
+    lineas = ["", "  M-G CONTRA LA TABLA (por variante; se lee el brazo que "
+              "llego mas lejos ESTANDO QUIETO)", ""]
     grupos = {}
     for res in resultados:
         sp = res.get("spec", {})
-        if sp.get("medicion") != MEDICION or not res.get("filas"):
+        if sp.get("medicion") != MEDICION:
+            continue
+        if not res.get("filas") and not es_falla(res):
             continue
         grupos.setdefault((sp["fecha"], sp.get("familia", sp["etq"])),
                           []).append(res)
@@ -238,21 +287,31 @@ def veredicto(resultados) -> str:
     for (hora, familia), brazos in sorted(grupos.items()):
         tabla = ESPERADO.get((hora, familia), [])
         lineas.append(f"  {hora}:00 - {familia}")
-        brazos = sorted(brazos, key=lambda r: -float(r.get("teq_alcanzado",
-                                                            0.0)))
-        from veredicto import esta_quieta
+        # m-b de la re-revision 2: un brazo fallido se dice, no desaparece.
+        for res in [b for b in brazos if es_falla(b)]:
+            k = res["spec"].get("var", {}).get("k_lento", 1.0)
+            lineas.append(f"    brazo k = {k:g}: FALLA ({res.get('msg', '?')})")
+        brazos = sorted([b for b in brazos if not es_falla(b)],
+                        key=lambda r: -float(r.get("teq_alcanzado", 0.0)))
+        tol_quieta = tolerancia_quietud(hora, familia)
         for res in brazos:
             k = res["spec"].get("var", {}).get("k_lento", 1.0)
             f = res["filas"][-1]
+            _q, motivo = quietud(res, tol_quieta)
             lineas.append(
                 f"    brazo k = {k:g}: llego a teq {res.get('teq_alcanzado', 0):g}"
                 f" ({res.get('msg', '?')}), {res.get('nfev', 0)} evaluaciones, "
-                f"{res.get('seg', 0.0):.0f} (s), "
-                f"{'QUIETO' if esta_quieta(res) else 'todavia EN MOVIMIENTO'} "
+                f"{res.get('seg', 0.0):.0f} (s), {motivo} "
                 f"(|dq/dt| = {f['dq_dt']:.1e}, |dp/dt| = {f['dp_dt']:.1e}); "
                 f"precios {np.round(f['p'], 2).tolist()}, reparto "
                 f"{np.round(f['q'], 4).tolist()}, nivel {f['ppond']:.2f}, "
                 f"parte {f['parte']:.4f}")
+        if not brazos:
+            lineas.append("    NO LLEGO: fallaron todos sus brazos")
+            if familia == PRECIO:
+                lineas.append("    => sin lectura: el brazo de precio fallo")
+            lineas.append("")
+            continue
         if not tabla:
             lineas.append("    (sin tabla para esta hora y variante)")
             lineas.append("")
@@ -260,7 +319,7 @@ def veredicto(resultados) -> str:
         # N5: solo se lee contra la tabla un estado QUIETO. El brazo que llego
         # mas lejos sin estar quieto describe un transitorio, y leerlo contra
         # la tabla confundiria «no llego» con «llego a otro sitio».
-        quietos = [r for r in brazos if esta_quieta(r)]
+        quietos = [r for r in brazos if quietud(r, tol_quieta)[0]]
         if not quietos:
             lineas.append("    NO LLEGO: ningun brazo esta quieto al final; su "
                           "estado es un transitorio y no se lee contra la tabla")

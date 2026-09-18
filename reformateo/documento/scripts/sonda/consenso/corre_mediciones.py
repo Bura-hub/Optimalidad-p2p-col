@@ -24,7 +24,9 @@ UNA ESPECIFICACION es un diccionario con:
     familia         el MODELO que se prueba. El veredicto exige que todas las
                     corridas de una hora y una familia esten dentro, y cuenta
                     cada familia aparte: las dos aceleraciones de M-A o los
-                    cuatro arranques de M-C son una familia (el mismo modelo);
+                    cuatro arranques de M-C son una familia en la tabla, que
+                    no rotula M-C (su juicio propio separa los dos
+                    arranques de precios, H-90);
                     los dos costos de M-B o las dos formas del jugador virtual
                     de M-G son dos (critico 1 de la revision de 4c);
     grupo           el estrato de la muestra (el regimen lo pone el nucleo);

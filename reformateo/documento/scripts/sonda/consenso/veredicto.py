@@ -9,12 +9,13 @@ Acepta varios JSON (por ejemplo el de una corrida y el de su retomada).
 
 LA CLAVE (critico 1 de la revision de 4c). Se cuenta por (regimen, referencia,
 FAMILIA). La familia es el MODELO que se prueba, y la pone cada guion de
-medicion: las dos aceleraciones de M-A, o los cuatro arranques de M-C, son el
-mismo modelo y van juntos; los dos costos del vendedor de M-B, las dos formas
-del jugador virtual de M-G o los tres mu de M-E son modelos distintos y se
-cuentan aparte. Antes se agrupaba por hora sin mirar la variante, y en M-B las
-tres reglas salian en 0 % porque se exigia que un mismo reparto casara con dos
-modelos que van a sitios distintos a proposito.
+medicion: las dos aceleraciones de M-A son el mismo modelo y van juntas; los
+dos costos del vendedor de M-B, las dos formas del jugador virtual de M-G o los
+tres mu de M-E son modelos distintos y se cuentan aparte. M-C no se lee por la
+tabla generica sino por su juicio propio: sus dos arranques de precios no son
+el mismo modelo (H-90; re-revision 3). Antes se agrupaba por hora sin mirar
+la variante, y en M-B las tres reglas salian en 0 % porque se exigia que un
+mismo reparto casara con dos modelos que van a sitios distintos a proposito.
 
 COMO SE CUENTA UNA HORA, dentro de su familia:
   - se juzga con las corridas que llegaron al punto de control de teq 160; las
@@ -45,14 +46,17 @@ falta alguna, sale «MEDICION INCOMPLETA: N de M» y el codigo de salida es 4.
 
 EL JUICIO PROPIO. Si el JSON es de una sola medicion y su guion trae
 `veredicto(resultados)`, se imprime despues de la tabla: M-B (que regla
-reproduce cada costo), M-C (los cuatro arranques entre si y la energia
-afectada) y M-G (la tabla publicada; en M-G la tabla generica no rotula).
+reproduce cada costo), M-C (la multiplicidad dentro de cada arranque de
+precios, los arranques sigma frente a la forma cerrada y la dependencia del
+presupuesto), M-E (los tres mu entre si) y M-G (la tabla publicada). En las
+cuatro la tabla generica no rotula.
 
 Nada de esto decide por si mismo: deja la tabla con la que el autor rotula cada
 regimen en la tesis.
 """
 import importlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -81,21 +85,182 @@ GUIONES = {"M-A": "medicion_regimenes", "M-B": "medicion_merito_vendedores",
 # coinciden en las tres y el rotulo generico diria «reposo verificado» tambien
 # para la regla que pierde. En M-E es la comparacion de los tres mu entre si
 # (N4): con dos horas por grupo, cada fila generica tiene n = 2 y diria
-# «muestra insuficiente» sin que eso sea el resultado.
-SIN_ROTULO_GENERICO = ("M-B", "M-E", "M-G")
+# «muestra insuficiente» sin que eso sea el resultado. En M-C, su juicio en
+# tres partes (re-revision 3): la tabla generica juntaria los arranques
+# «medio» con la forma cerrada de sigma, que no es su reposo (H-90), y
+# rotularia «regla declarada» por construccion.
+SIN_ROTULO_GENERICO = ("M-B", "M-C", "M-E", "M-G")
 
 
-def esta_quieta(res, tol=TOL_DERIVADA) -> bool:
-    """N5: el estado final de una corrida esta QUIETO si en sus dos ultimos
-    puntos de control las derivadas del reparto y de los precios, por unidad
-    de tiempo equivalente, valen menos de `tol`. Es la parte del criterio de
-    consenso que no mira la forma cerrada, y se lee de lo que el JSON guarda
-    (`dq_dt`, `dp_dt`). Sin dos puntos, no se sabe: False."""
+def es_falla(res) -> bool:
+    """La corrida fallo al correr (su registro trae «FALLA ...» y ningun
+    punto de control)."""
+    return str(res.get("msg", "")).startswith("FALLA")
+
+
+def _prep():
+    """`preparacion`, que se importa solo cuando hace falta: trae el arnes, y
+    el arnes se situa en la raiz del repositorio al importarse (por eso
+    `main` resuelve antes todas las rutas)."""
+    import preparacion
+    return preparacion
+
+
+def tolerancia_de(res) -> tuple:
+    """(tolerancia, fuente) de una corrida, RECALCULADA con la
+    `preparacion.tolerancias` de hoy (NM2 de la re-revision 2 de 4c): la que la
+    medicion declara, si la declara, o la de M-A por regimen y aceleracion. Si
+    el registro no trae el regimen, la que se guardo al correr, y se dice."""
+    sp = res.get("spec", {})
+    reg = res.get("regimen")
+    if reg:
+        k = float(sp.get("var", {}).get("k_lento", 1.0))
+        return (_prep().tolerancias(reg, k, declarada=sp.get("tolerancia")),
+                "recalculada")
+    guardada = res.get("tolerancia")
+    if guardada:
+        return guardada, "guardada (el registro no trae el regimen)"
+    return None, "sin tolerancia: el registro no trae regimen ni tolerancia"
+
+
+def teq_final_del_plan(res) -> float:
+    """El tiempo equivalente al que la corrida DEBIA llegar: el ultimo de sus
+    cortes por su aceleracion. En M-A, M-C y M-E es 160; en el brazo k = 1 de
+    M-G, 40, por diseño."""
+    sp = res.get("spec", {})
+    cortes = sp.get("cortes")
+    if not cortes:
+        return TEQ_JUICIO[-1]
+    k = float(sp.get("var", {}).get("k_lento", 1.0))
+    return float(cortes[-1]) * k
+
+
+def quietud(res, tolerancia=None) -> tuple:
+    """(quieta, motivo) del estado final de una corrida.
+
+    Esta QUIETA si se cumplen las dos cosas:
+      - N5: en sus dos ultimos puntos de control las derivadas del reparto y
+        de los precios, por unidad de tiempo equivalente, valen menos de 1e-3;
+      - NM1 de la re-revision 2: entre dos puntos de control el estado no se
+        movio mas que la tolerancia: |q(b) - q(a)| <= tol_q y
+        |p(b) - p(a)| <= tol_p. El umbral de la derivada es absoluto y no
+        escala con E: con dq/dt justo bajo 1e-3 el reparto todavia se mueve
+        unos 0,08 (kWh) entre teq 80 y 160, cuarenta veces 1e-3·E. Sin esta
+        segunda condicion, un transitorio lento se leia como reposo.
+
+    LOS DOS PUNTOS son teq 80 y teq 160. Para una corrida cuyos cortes terminan
+    antes de teq 160 POR DISEÑO (el brazo k = 1 de M-G, hasta teq 40), son sus
+    dos ultimos puntos, teq 20 y 40 (re-revision 3 de 4c): sin esto ese brazo
+    nunca se leia contra la tabla. Una corrida CORTADA por su tope antes de
+    llegar al final de sus cortes no esta quieta, y una con cortes hasta 160 sin
+    punto en teq 80 o en 160 tampoco: no hay con que comprobarlo.
+
+    LA TOLERANCIA es la de la medicion recalculada (`tolerancia_de`), salvo que
+    se de otra en `tolerancia`: un diccionario con `tol_p` y `tol_q_rel` (veces
+    E) o `tol_q_abs` (kWh). M-G da la de su tabla (re-revision 3).
+
+    POR MAGNITUDES (re-revision 4 de 4c, menor de M-G): si `tolerancia` trae
+    `magnitudes`, un diccionario {magnitud: tolerancia absoluta} con las que
+    lee la tabla de la medicion ("q", "p", "ppond", "parte"), la quietud se
+    juzga SOLO con esas: el desplazamiento de cada una entre los dos puntos
+    frente a su tolerancia, y la derivada del reparto solo si se lee "q", y la
+    de los precios solo si se lee "p" o "ppond" (de la parte del vendedor no se
+    guarda derivada: la cubre su desplazamiento). Asi el brazo de precio de
+    M-G, cuya tabla lee `ppond` y `parte`, no se queda sin lectura porque su
+    reparto todavia converja como 1/t con los precios ya quietos en el piso.
+    Sin `magnitudes`, todo como antes: las dos derivadas, q y p.
+    """
+    magnitudes = (tolerancia or {}).get("magnitudes")
     filas = res.get("filas") or []
     if len(filas) < 2:
-        return False
-    return all(float(f["dq_dt"]) < tol and float(f["dp_dt"]) < tol
-               for f in filas[-2:])
+        return False, "sin puntos de control"
+    if magnitudes is None:
+        derivadas = ("dq_dt", "dp_dt")
+    else:
+        derivadas = tuple(
+            d for d, lee in (("dq_dt", "q" in magnitudes),
+                             ("dp_dt", "p" in magnitudes
+                              or "ppond" in magnitudes)) if lee)
+    if not all(float(f[d]) < TOL_DERIVADA for f in filas[-2:]
+               for d in derivadas):
+        return False, "todavia EN MOVIMIENTO (derivadas por encima de 1e-3)"
+    fin = teq_final_del_plan(res)
+    if fin < TEQ_JUICIO[-1] - 1e-6:
+        # Termina antes de teq 160 por diseño: sus dos ultimos puntos, si llego
+        # al final de sus cortes.
+        if res.get("cortada") or abs(float(filas[-1]["teq"]) - fin) > 1e-6:
+            return False, (f"cortada antes del final de sus cortes (teq {fin:g}): "
+                           f"no se puede comprobar")
+        fa, fb = filas[-2], filas[-1]
+    else:
+        fa, fb = punto(res, 80.0), punto(res, 160.0)
+        if fa is None or fb is None:
+            return False, "sin puntos en teq 80 y 160: no se puede comprobar"
+    ta, tb = float(fa["teq"]), float(fb["teq"])
+    if magnitudes is not None:
+        return _quietud_por_magnitudes(fa, fb, ta, tb, magnitudes)
+    if tolerancia is None:
+        tolerancia, _fuente = tolerancia_de(res)
+    if tolerancia is None:
+        return False, "sin tolerancia con que comprobarlo"
+    if tolerancia.get("tol_q_abs") is not None:
+        tol_q = float(tolerancia["tol_q_abs"])
+    else:
+        tol_q = (float(tolerancia["tol_q_rel"])
+                 * max(float(res.get("E", 0.0)), 1e-12))
+    dq = max((abs(float(a) - float(b)) for a, b in zip(fb["q"], fa["q"])),
+             default=0.0)
+    dp = max((abs(float(a) - float(b)) for a, b in zip(fb["p"], fa["p"])),
+             default=0.0)
+    if dq > tol_q or dp > float(tolerancia["tol_p"]):
+        return False, (f"todavia EN MOVIMIENTO entre teq {ta:g} y {tb:g} "
+                       f"(|dq| = {dq:.2e} (kWh), |dp| = {dp:.2e} (COP/kWh))")
+    return True, f"QUIETO (entre teq {ta:g} y {tb:g})"
+
+
+# Las unidades de las magnitudes que leen las tablas, para los motivos.
+UNIDADES = {"q": "(kWh)", "p": "(COP/kWh)", "ppond": "(COP/kWh)",
+            "parte": "(fraccion)"}
+
+
+def _desplazamiento(fa, fb, magnitud) -> float:
+    """max |fb[m] - fa[m]| de una magnitud escalar o por comprador. Un NaN en
+    los dos puntos (la parte del vendedor sin excedente) no es movimiento; en
+    uno solo, si (infinito). Formas distintas, tambien infinito."""
+    a, b = fa[magnitud], fb[magnitud]
+    a = [float(x) for x in (a if isinstance(a, (list, tuple)) else [a])]
+    b = [float(x) for x in (b if isinstance(b, (list, tuple)) else [b])]
+    if len(a) != len(b):
+        return math.inf
+    peor = 0.0
+    for x, y in zip(a, b):
+        if math.isnan(x) and math.isnan(y):
+            continue
+        d = abs(y - x)
+        peor = max(peor, math.inf if math.isnan(d) else d)
+    return peor
+
+
+def _quietud_por_magnitudes(fa, fb, ta, tb, magnitudes) -> tuple:
+    """El desplazamiento entre los dos puntos de cada magnitud que lee la
+    tabla, frente a su tolerancia (ver `quietud`)."""
+    faltan = [m for m in magnitudes if m not in fa or m not in fb]
+    if faltan:
+        return False, (f"sin {', '.join(faltan)} en los puntos de control: no "
+                       f"se puede comprobar")
+    difs = {m: _desplazamiento(fa, fb, m) for m in magnitudes}
+    texto = ", ".join(f"|d{m}| = {d:.2e} {UNIDADES.get(m, '')}".rstrip()
+                      for m, d in difs.items())
+    if any(d > float(magnitudes[m]) for m, d in difs.items()):
+        return False, (f"todavia EN MOVIMIENTO entre teq {ta:g} y {tb:g} "
+                       f"({texto})")
+    return True, (f"QUIETO (entre teq {ta:g} y {tb:g}, en lo que lee su tabla: "
+                  f"{', '.join(magnitudes)})")
+
+
+def esta_quieta(res, tolerancia=None) -> bool:
+    """Si el estado final esta quieto (ver `quietud`)."""
+    return quietud(res, tolerancia)[0]
 
 
 def _hora(res) -> tuple:
@@ -108,17 +273,46 @@ def familia(res) -> str:
     return str(sp.get("familia", sp.get("etq", "")))
 
 
-def agrupa(resultados) -> tuple:
-    """({(regimen, referencia, familia): {hora: [corridas]}}, [apartadas])."""
+def regimen_de_seleccion(spec, horas) -> str:
+    """El regimen de una hora segun los ficheros de seleccion, que lo guardan
+    comprobado contra el almacen. Es lo unico que dice el regimen de una hora
+    cuyas corridas fallaron todas (m-b), porque una corrida fallida no llega a
+    calcularlo. '?' si no esta."""
+    if not horas:
+        return "?"
+    por_grupo = horas.get(spec.get("caso"), {})
+    candidatos = ([por_grupo.get(spec.get("grupo"), [])]
+                  + list(por_grupo.values()))
+    for lista in candidatos:
+        for h in lista or []:
+            if h.get("fecha") == spec.get("fecha") and h.get("regimen"):
+                return str(h["regimen"])
+    return "?"
+
+
+def agrupa(resultados, horas=None) -> tuple:
+    """({(regimen, referencia, familia): {hora: [corridas]}}, [apartadas]).
+
+    m-b de la re-revision 2: una corrida FALLIDA tambien entra, con el regimen
+    de su hora segun la seleccion (`regimen_de_seleccion`) y las referencias
+    de su especificacion. Asi, una hora cuyas corridas fallaron todas sigue en
+    el denominador, como «falla», en vez de desaparecer.
+    """
     fuera, apartadas = {}, []
     for res in resultados:
-        if not res.get("veredicto"):
-            continue
         if res.get("recorte_movio"):
             apartadas.append(res)
             continue
-        reg = res.get("regimen", "?")
-        for nombre in res["veredicto"]:
+        if res.get("veredicto"):
+            reg = res.get("regimen", "?")
+            nombres = list(res["veredicto"])
+        elif es_falla(res):
+            sp = res.get("spec", {})
+            reg = regimen_de_seleccion(sp, horas)
+            nombres = list(sp.get("referencias") or {}) or ["cerrada"]
+        else:
+            continue                    # sin mercado: se lista aparte
+        for nombre in nombres:
             fuera.setdefault((reg, nombre, familia(res)), {}).setdefault(
                 _hora(res), []).append(res)
     return fuera, apartadas
@@ -132,23 +326,74 @@ def punto(res, teq):
     return None
 
 
+def rejuzga(res, nombre) -> dict:
+    """Los indicadores de una corrida frente a una referencia, RECALCULADOS.
+
+    NM2 de la re-revision 2: `dentro` en teq 80 y 160 y el criterio de
+    consenso se recalculan desde lo que el JSON guarda (`filas[*].dist`,
+    `dq_dt`, `dp_dt`) con la `preparacion.tolerancias`, `dentro` y
+    `criterio_consenso` de HOY, de modo que un cambio en ellas se recoge al
+    releer la noche. Si falta algun dato para recalcular, se usan los
+    indicadores guardados al correr y `fuente` lo dice.
+    """
+    guardado = (res.get("veredicto") or {}).get(nombre)
+    filas = res.get("filas") or []
+    tol, fuente_tol = tolerancia_de(res)
+    motivo = None
+    if not filas:
+        motivo = "sin puntos de control"
+    elif tol is None or fuente_tol != "recalculada":
+        motivo = fuente_tol
+    elif any(nombre not in (f.get("dist") or {}) for f in filas):
+        motivo = f"falta la distancia a '{nombre}' en algun punto"
+    if motivo is None:
+        PR = _prep()
+        E = float(res.get("E", 0.0))
+        t80 = PR.en_teq(filas, nombre, E, tol, 80.0)
+        t160 = PR.en_teq(filas, nombre, E, tol, 160.0)
+        return dict(hay160=bool(t160["hay"]),
+                    dentro80=bool(t80["dentro"]),
+                    dentro160=bool(t160["dentro"]),
+                    llega=bool(PR.criterio_consenso(filas, nombre, E, tol)
+                               ["llega"]),
+                    clase=str(tol.get("clase", "?")), fuente="recalculado")
+    if guardado:
+        return dict(hay160=bool(guardado["teq160"]["hay"]),
+                    dentro80=bool(guardado["teq80"]["dentro"]),
+                    dentro160=bool(guardado["teq160"]["dentro"]),
+                    llega=bool(guardado["consenso"]["llega"]),
+                    clase=str((res.get("tolerancia") or {}).get("clase", "?")),
+                    fuente=f"guardado ({motivo})")
+    return dict(hay160=False, dentro80=False, dentro160=False, llega=False,
+                clase="?", fuente=f"nada ({motivo})")
+
+
 def juzgable(res, nombre) -> bool:
     """Una corrida se juzga si llego al punto de control de teq 160."""
-    return bool(res["veredicto"][nombre]["teq160"]["hay"])
+    return (not es_falla(res)) and rejuzga(res, nombre)["hay160"]
 
 
 def cuenta_hora(corridas, nombre) -> dict:
-    """Lo que una hora aporta a su fila del veredicto, dentro de su familia."""
-    juzgadas = [c for c in corridas if juzgable(c, nombre)]
-    cortadas = len(corridas) - len(juzgadas)
+    """Lo que una hora aporta a su fila del veredicto, dentro de su familia.
+
+    Los indicadores se recalculan (`rejuzga`, NM2). Una hora cuyas corridas
+    fallaron todas sale con `falla=True` y cuenta en el denominador (m-b).
+    """
+    if corridas and all(es_falla(c) for c in corridas):
+        return dict(juzgada=False, falla=True, cortadas=0, guardados=0)
+    vivas = [c for c in corridas if not es_falla(c)]
+    juicios = [(c, rejuzga(c, nombre)) for c in vivas]
+    juzgadas = [(c, j) for c, j in juicios if j["hay160"]]
+    cortadas = len(vivas) - len(juzgadas)
+    guardados = sum(1 for _c, j in juicios if j["fuente"] != "recalculado")
     if not juzgadas:
-        return dict(juzgada=False, cortadas=cortadas)
-    v = [c["veredicto"][nombre] for c in juzgadas]
-    ok = [x["teq80"]["dentro"] and x["teq160"]["dentro"] for x in v]
-    E = max(float(juzgadas[0].get("E", 0.0)), 1e-12)
+        return dict(juzgada=False, falla=False, cortadas=cortadas,
+                    guardados=guardados)
+    ok = [j["dentro80"] and j["dentro160"] for _c, j in juzgadas]
+    E = max(float(juzgadas[0][0].get("E", 0.0)), 1e-12)
     dP = []
     peor_dq = peor_dp = 0.0
-    for c in juzgadas:
+    for c, _j in juzgadas:
         for teq in TEQ_JUICIO:
             f = punto(c, teq)
             if f is None:
@@ -159,10 +404,10 @@ def cuenta_hora(corridas, nombre) -> dict:
         f160 = punto(c, TEQ_JUICIO[-1])
         dP.append(float(f160["dist"].get(nombre, {}).get("dP", float("inf")))
                   if f160 is not None else float("inf"))
-    clases = sorted({str(c.get("tolerancia", {}).get("clase", "?"))
-                     for c in juzgadas})
-    return dict(juzgada=True, cortadas=cortadas, dentro=all(ok),
-                alguna=any(ok), llega=all(x["consenso"]["llega"] for x in v),
+    clases = sorted({j["clase"] for _c, j in juzgadas})
+    return dict(juzgada=True, falla=False, cortadas=cortadas,
+                guardados=guardados, dentro=all(ok), alguna=any(ok),
+                llega=all(j["llega"] for _c, j in juzgadas),
                 con_dP=all(x <= TOL_P_REL * E for x in dP),
                 peor_dq=peor_dq, peor_dp=peor_dp, clases=clases)
 
@@ -176,8 +421,8 @@ def rotulo(dentro: int, n: int) -> str:
     return f"regla declarada ({100 * frac:.0f} %, n = {n})"
 
 
-def tabla(resultados, rotular=True) -> str:
-    grupos, apartadas = agrupa(resultados)
+def tabla(resultados, rotular=True, horas=None) -> str:
+    grupos, apartadas = agrupa(resultados, horas)
     lineas = ["", "  VEREDICTO POR REGIMEN, REFERENCIA Y FAMILIA", ""]
     if apartadas:
         lineas.append(f"  {len(apartadas)} corridas APARTADAS porque el recorte "
@@ -190,19 +435,23 @@ def tabla(resultados, rotular=True) -> str:
         return "\n".join(lineas + ["  (ninguna corrida con veredicto: mira los "
                                    "mensajes de arriba)"])
     lineas.append(f"  {'regimen':<19s} {'referencia':<11s} {'familia':<22s} "
-                  f"{'horas':>5s} {'juzg':>4s} {'nolleg':>6s} {'cort':>4s} "
-                  f"{'llegan':>6s} {'80y160':>6s} {'alguna':>6s} "
+                  f"{'horas':>5s} {'juzg':>4s} {'nolleg':>6s} {'falla':>5s} "
+                  f"{'cort':>4s} {'llegan':>6s} {'80y160':>6s} {'alguna':>6s} "
                   f"{'dP<=1e-3E':>9s} {'peor dq':>9s} {'peor dp':>8s} "
                   f"tolerancia  rotulo")
-    for (reg, nombre, fam), horas in sorted(grupos.items()):
-        cuentas = [cuenta_hora(c, nombre) for c in horas.values()]
+    total_guardados = 0
+    for (reg, nombre, fam), horas_g in sorted(grupos.items()):
+        cuentas = [cuenta_hora(c, nombre) for c in horas_g.values()]
         juzg = [c for c in cuentas if c["juzgada"]]
         # N2: el denominador son TODAS las horas del grupo. Una hora sin
-        # ninguna corrida en teq 160 cuenta como «no llega», no sale de la
+        # ninguna corrida en teq 160 cuenta como «no llega», y una cuyas
+        # corridas fallaron todas, como «falla» (m-b); ninguna sale de la
         # cuenta.
-        n = len(horas)
-        no_llegan = n - len(juzg)
+        n = len(horas_g)
+        fallas = sum(1 for c in cuentas if c["falla"])
+        no_llegan = n - len(juzg) - fallas
         cortadas = sum(c["cortadas"] for c in cuentas)
+        total_guardados += sum(c["guardados"] for c in cuentas)
         dentro = sum(c["dentro"] for c in juzg)
         alguna = sum(c["alguna"] for c in juzg)
         llegan = sum(c["llega"] for c in juzg)
@@ -212,13 +461,15 @@ def tabla(resultados, rotular=True) -> str:
         clases = ",".join(sorted({k for c in juzg for k in c["clases"]})) or "-"
         rot = rotulo(dentro, n) if rotular else "(ver el juicio propio)"
         lineas.append(f"  {reg:<19s} {nombre:<11s} {fam:<22s} {n:5d} "
-                      f"{len(juzg):4d} {no_llegan:6d} {cortadas:4d} "
-                      f"{llegan:6d} {dentro:6d} {alguna:6d} {con_dP:9d} "
-                      f"{peor_dq:9.2e} {peor_dp:8.2e} {clases:<11s} {rot}")
+                      f"{len(juzg):4d} {no_llegan:6d} {fallas:5d} "
+                      f"{cortadas:4d} {llegan:6d} {dentro:6d} {alguna:6d} "
+                      f"{con_dP:9d} {peor_dq:9.2e} {peor_dp:8.2e} "
+                      f"{clases:<11s} {rot}")
     lineas += ["",
                "  horas = horas del grupo, que son el DENOMINADOR del rotulo; "
                "juzg = las que tienen alguna corrida en teq 160; nolleg = las "
-               "que no, y cuentan como «no llega»; cort = corridas que no "
+               "que no, y cuentan como «no llega»; falla = las que fallaron en "
+               "todas sus corridas, y cuentan igual; cort = corridas que no "
                "llegaron a teq 160 (cortadas por su tope, o con cortes que "
                "terminan antes, como el brazo k = 1 de M-G)",
                "  llegan = todas las juzgadas cumplen el criterio de consenso "
@@ -228,7 +479,14 @@ def tabla(resultados, rotular=True) -> str:
                "  dP<=1e-3E = todas las juzgadas con max|dP_ji| <= 1e-3*E en "
                "teq 160 (la aceptacion de M-B)",
                "  peor dq y peor dp: en kWh y COP/kWh, en los puntos de juicio "
-               "(teq 80 y 160)", ""]
+               "(teq 80 y 160)",
+               "  llegan, 80y160 y alguna se RECALCULAN al releer, con la "
+               "tolerancia y el criterio de consenso de hoy (NM2)"]
+    if total_guardados:
+        lineas.append(f"  AVISO: en {total_guardados} juicios de corrida no se "
+                      f"pudo recalcular (falta un dato) y se uso el indicador "
+                      f"guardado al correr")
+    lineas.append("")
     return "\n".join(lineas)
 
 
@@ -302,8 +560,13 @@ def aviso_plan(resultados, horas_dir=None) -> tuple:
 def resume(resultados, horas_dir=None) -> str:
     med = medicion_de(resultados)
     texto_plan, _inc = aviso_plan(resultados, horas_dir)
+    horas = None
+    if horas_dir is not None:
+        from corre_mediciones import carga_horas
+        horas = carga_horas(Path(horas_dir))
     partes = [texto_plan,
-              tabla(resultados, rotular=med not in SIN_ROTULO_GENERICO)]
+              tabla(resultados, rotular=med not in SIN_ROTULO_GENERICO,
+                    horas=horas)]
     if med in GUIONES:
         mod = importlib.import_module(GUIONES[med])
         juicio = getattr(mod, "veredicto", None)
@@ -326,7 +589,7 @@ def main(argv=None) -> int:
         if k + 1 >= len(argv):
             print("  --salida necesita un fichero")
             return 2
-        salida = Path(argv[k + 1])
+        salida = Path(argv[k + 1]).resolve()
         del argv[k:k + 2]
     # `--horas <carpeta>`: donde estan los horas_<caso>.json con que se deduce
     # el plan de un JSON que no lo guarda (N3). Por defecto, la carpeta del
@@ -337,10 +600,13 @@ def main(argv=None) -> int:
         if k + 1 >= len(argv):
             print("  --horas necesita una carpeta")
             return 2
-        horas_dir = Path(argv[k + 1])
+        horas_dir = Path(argv[k + 1]).resolve()
         del argv[k:k + 2]
     if horas_dir is None and argv:
         horas_dir = Path(argv[0]).resolve().parent
+    # Todas las rutas ya estan resueltas: al recalcular (NM2) se importa
+    # `preparacion`, que trae el arnes, y el arnes se situa en la raiz del
+    # repositorio; una ruta relativa dejaria de apuntar a su fichero.
     lineas = []
 
     def escribe(texto=""):
@@ -349,7 +615,7 @@ def main(argv=None) -> int:
 
     resultados = []
     for f in argv:
-        p = Path(f)
+        p = Path(f).resolve()
         if not p.is_file():
             print(f"  no esta: {p}")
             return 2

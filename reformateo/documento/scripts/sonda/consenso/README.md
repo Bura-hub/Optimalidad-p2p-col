@@ -38,8 +38,8 @@ M-A), las tres juntas y las dos configuraciones de M-G (el código de la
 autora: competencia `matlab` y oferta a partes iguales). Los estados probados
 se perturban de forma aditiva, con escala por bloque, desde el arranque y desde
 un estado con los filtros de los multiplicadores cargados, para que se ejerzan
-los ocho bloques del estado. Si
-difiere, dice en qué bloque y cuánto, y sale con código distinto de cero.
+los ocho bloques del estado. Si difiere, dice en qué bloque y cuánto, y sale
+con código distinto de cero.
 Siempre corre sobre el caso publicado de Chacón y sobre una hora sintética de
 pisos distintos (la que ejerce de verdad el piso marginal), que no necesitan
 datos reales; los argumentos añaden horas reales.
@@ -105,9 +105,10 @@ medición tiene un juicio propio, su guion trae `veredicto(resultados)`.
   topados o con aceleración, porque la aceleración solo es exacta con libres.
   M-C y M-E **declaran** la suya (1e-3·E y 0,5 (COP/kWh)), y se usa esa.
 - **Familia**: el veredicto cuenta por régimen, referencia y familia. La
-  familia es el modelo que se prueba: las dos aceleraciones de M-A o los cuatro
-  arranques de M-C van juntos (todas sus corridas dentro); los dos costos de
-  M-B, los tres μ de M-E y las dos formas del jugador virtual de M-G, aparte.
+  familia es el modelo que se prueba: las dos aceleraciones de M-A van juntas
+  (todas sus corridas dentro); los dos costos de M-B, los tres μ de M-E y las
+  dos formas del jugador virtual de M-G, aparte. M-C se lee solo por su juicio
+  propio, que separa sus dos arranques de precios (H-90).
 - **Aceptación por régimen**: el 95 % o más de **todas** las horas del grupo
   dentro, en el tiempo equivalente 80 y en el 160. Una hora se juzga con sus
   corridas que llegaron a teq 160; si ninguna llegó, sigue en el denominador y
@@ -120,8 +121,24 @@ medición tiene un juicio propio, su guion trae `veredicto(resultados)`.
     hacen falta al menos cinco; si no, «ninguna regla alcanza el 95 %» o
     «muestra insuficiente». Dice cuántas horas se apartaron y cuántas no
     llegaron.
-  - **M-C** y **M-E** comparan sus corridas **entre sí**: los cuatro arranques,
-    o los tres μ, de cada hora. **M-G** se juzga contra la tabla publicada.
+  - **M-C** juzga en tres partes, porque sus dos arranques de precios no son el
+    mismo modelo (la dinámica conserva la suma de precios que fija el arranque,
+    H-90): la multiplicidad, solo entre las dos ofertas de un mismo arranque de
+    precios, informada por arranque (sigma y medio por separado); los
+    arranques sigma frente a la forma cerrada, sobre todas las horas; y
+    «medio» frente a sigma como dependencia del presupuesto, que no cuenta
+    contra D53. **El par sigma es la prueba de unicidad**: una hora está en el
+    «mismo sitio» solo si se comparó su par sigma (el par medio no la suma), y
+    cuenta «dentro» de la forma cerrada solo si **las dos** ofertas sigma
+    llegaron a teq 160 y están dentro; con una sola, es «no llega» (o «falla»),
+    y esas horas se cuentan aparte.
+  - **M-E** compara los tres μ de cada hora entre sí. **M-G** se juzga contra
+    la tabla publicada, con la tolerancia de la tabla también para la quietud,
+    y solo en las magnitudes que la tabla lee: q, p y la parte del vendedor en
+    el brazo de barrera; el nivel ponderado y la parte en el de precio, cuyo
+    reparto puede seguir convergiendo como 1/t con los precios ya quietos en
+    el piso. Su brazo k = 1, que termina en teq 40 por diseño, se juzga entre
+    teq 20 y 40.
   - En los tres, solo cuentan los estados **quietos** (derivadas bajo 1e-3 en
     los dos últimos puntos): se separa «no llegaron» de «llegaron a sitios
     distintos».

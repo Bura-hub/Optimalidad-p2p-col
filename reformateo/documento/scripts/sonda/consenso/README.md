@@ -71,7 +71,7 @@ Todo sale en `SALIDAS_SERVIDOR/validacion_reposo/`.
 python -u reformateo/documento/scripts/sonda/consenso/corre_mediciones.py \
     --medicion medicion_regimenes \
     --salida SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes.json \
-    --procesos 30 --tope-total 14400
+    --procesos 16 --tope-total 14400
 python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
     SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes.json
 ```
@@ -79,6 +79,29 @@ python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
 El JSON se escribe **después de cada corrida**, de modo que una parada no deja
 la noche en blanco; si el tope total corta, el propio guion dice con qué
 `--desde` se retoma y en qué fichero, y `veredicto.py` acepta los dos juntos.
+
+**Un trabajador muerto no tumba la medición** (tarea 4d, noche del
+2026-09-18):
+
+- el registro imprime la memoria de la máquina y el RSS de los trabajadores;
+- las corridas en vuelo sin terminar vuelven a la cola. Solo las que podían
+  estar corriendo (las `procesos + 1` primeras por orden de sometimiento) son
+  sospechosas: vuelven **una vez** y corren de una en una, para aislar a la
+  que revienta la memoria. Las demás estaban en espera y vuelven sin más;
+- la sospechosa que cae en dos muertes se anota como FALLA, con la causa
+  «trabajador muerto (probable falta de memoria)», y no se reencola más;
+- se abre un pool nuevo y se sigue;
+- con tres muertes en la misma medición, se para con código 1 y lista los
+  índices que faltan;
+- en `validacion_reposo`, cada medición va envuelta en `timeout` (su tope más
+  3 900 (s)): un cuelgue del gestor del pool sale con 124 y se anota como
+  fallo;
+- el veredicto sigue contando esas FALLA en el denominador, y dice cuántas de
+  las fallidas son de la máquina (la columna `muerto`).
+
+Antes de abrir cada pool, los procesos se reducen si `MemAvailable` no da
+1,5 GB a cada uno (`--memoria-por-proceso`, o `MEMORIA_POR_PROCESO_GB`; 0 lo
+quita).
 
 ## Cómo se escribe un guion de medición
 

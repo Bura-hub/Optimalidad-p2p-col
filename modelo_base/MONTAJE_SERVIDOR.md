@@ -1261,6 +1261,10 @@ SECO=1 bash modelo_base/run_servidor.sh validacion_reposo   # antes: imprime las
 bash modelo_base/run_servidor.sh validacion_reposo
 ```
 
+Con `PASOS="3 4 5 7"` corren solo esos pasos, más el 1 y la recogida, que
+corren siempre. Ver «Relanzar solo unos pasos», más abajo, con la orden del
+relanzamiento de la primera noche.
+
 **Esto no se hace con el motor.** En una hora rígida, llegar al reposo
 integrando cuesta del orden de 1e9 evaluaciones del lado derecho. Se hace con
 el **arnés acelerado** de la sonda del consenso, en
@@ -1568,6 +1572,161 @@ python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
     SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes_resto.json \
     --salida SALIDAS_SERVIDOR/validacion_reposo/veredicto_m_a.txt
 ```
+
+### Si muere un trabajador del pool (tarea 4d)
+
+La noche del 2026-09-18, M-A, M-B y M-C murieron con `BrokenProcessPool`: un
+trabajador «terminated abruptly» y la medición entera salió con 1. La causa
+probable es la memoria. Cada trabajador ocupa hasta ~1 GB, y eran 30 procesos
+con la plataforma MTE en la misma máquina y la swap llena. Desde entonces
+`corre_mediciones.py` **sobrevive a un trabajador muerto**:
+
+- el registro imprime la memoria de ese momento (`MemAvailable` y la swap, de
+  `/proc/meminfo`) y el RSS de cada trabajador en el último muestreo, que se
+  toma cada 30 (s) mientras corren;
+- al romperse, el pool mata a **todos** sus trabajadores, así que casi todas
+  las corridas en vuelo (hasta el doble de los procesos, por la ventana de
+  sometimiento) son víctimas de rebote de una sola, y **todas vuelven a la
+  cola**;
+- **solo son sospechosas las que podían estar corriendo.** El pool alimenta a
+  sus trabajadores en orden de llegada, así que solo las `procesos + 1`
+  primeras en vuelo, por orden de sometimiento, pueden haber estado
+  corriendo: con 16 procesos, 17 de las hasta 32 en vuelo. Esas cuentan la
+  muerte y vuelven **una vez** («REENCOLADA»). Las demás estaban en espera y
+  vuelven a la cola normal, en paralelo, sin contarles nada («DE VUELTA»);
+- las sospechosas corren **de una en una**: nunca hay dos en vuelo a la vez,
+  mientras el resto del plan llena los demás procesos. Así la que de verdad
+  revienta la memoria se aísla, y las víctimas no vuelven a caer con ella;
+- se lleva la cuenta por corrida. **La que ya era sospechosa en una muerte
+  anterior y vuelve a estar entre las que podían correr se anota como
+  FALLA**, con la causa «trabajador muerto (probable falta de memoria)», y no
+  se reencola más;
+- se abre un pool nuevo y se sigue con lo que queda del plan;
+- **si el pool muere tres veces en la misma medición, se para**, con código 1:
+  algo sistemático lo está matando. Las que podían estar corriendo en esa
+  tercera muerte quedan como FALLA. El registro lista los índices que faltan
+  («FALTAN los índices: 12-15, 40») y da la orden para retomar.
+
+**El esperador con tope.** Dentro de `validacion_reposo`, cada
+`corre_mediciones.py` va envuelto en `timeout --kill-after=300`, con el tope
+total de su medición más 3 900 (s): la hora de la última corrida en vuelo y
+cinco minutos de margen. Si el gestor del pool se cuelga, la medición sale con
+124 (o 137, si no atendió al SIGTERM y hubo que matarla), y el cierre la anota
+como fallo. La cabecera de la consola dice si hay esperador («esperador =
+timeout …»); sin el `timeout` de GNU no lo hay, y también lo dice.
+
+**En el veredicto**, una FALLA por trabajador muerto sigue contando como
+«falla» en el denominador, con el mismo criterio conservador de las demás
+fallidas. La tabla tiene una columna `muerto` con cuántas de las «falla» son
+de la máquina, y los juicios propios de M-B, M-C, M-E y M-G lo dicen en su
+línea de fallidas.
+
+Cada reencolada cuesta una corrida más, y en serie, de modo que importa más no
+llegar a una muerte:
+
+- **El tope de memoria.** Antes de abrir cada pool, si `MemAvailable` dividida
+  entre los procesos baja de 1,5 GB, los procesos se reducen a los que caben, y
+  el registro lo dice («SE REDUCEN A N PROCESOS»). Se suma al tope de núcleos
+  de la contención (`PROCS_MAX`), y manda el menor de los dos.
+- **Cambiar el margen.** `MEMORIA_POR_PROCESO_GB=2 bash …` lo sube, y `0` lo
+  quita.
+
+### Relanzar solo unos pasos (`PASOS`), y el relanzamiento de la primera noche
+
+`PASOS` elige qué pasos de la tabla corren. Por omisión, todos.
+
+- **El 1**, el arnés frente al motor, corre **siempre**: sin él, nada de lo
+  demás vale.
+- **El 2**, la muestra de horas, corre caso por caso **si falta** su
+  `horas_<caso>.json`, aunque no se pida. La selección es determinista (tiene
+  semilla fija), de modo que rehacerla sobre los mismos almacenes da la misma
+  muestra.
+- **La recogida y el cierre** (paso 10) corren siempre.
+- **Lo que `PASOS` deja fuera** sale en el cierre como «no pedido». No es un
+  fallo ni un salto por el tope. El cierre dice «COMPLETA EN LOS PASOS
+  PEDIDOS», y la recogida espera solo lo de esos pasos.
+
+**El relanzamiento de la noche del 2026-09-18** repite los pasos que murieron
+o corrieron con la máquina ahogada: M-A, M-B y M-C, más M-E (9 de 10 horas sin
+ningún μ quieto). Paso a paso:
+
+**1. Que no quede nada vivo de la primera noche.** Antes de tocar su carpeta:
+
+```bash
+cd ~/bslopez/sistemabl
+pgrep -af 'run_servidor.sh validacion_reposo|corre_mediciones|gate_reposo_cero_dinamica|medicion_estabilidad'
+```
+
+- **Si no imprime nada**, se sigue con el paso 2.
+- **Si imprime algo**, la primera noche sigue viva (casi seguro M-G o las horas
+  lentas). Se espera a que termine, o se mata **el grupo entero del lanzador
+  viejo**, para no dejar trabajadores huérfanos:
+
+  ```bash
+  ps -o pgid= -p <pid>                  # <pid>: el de la línea «bash ... run_servidor.sh validacion_reposo»
+  ps -o pid,pgid,etime,cmd -g <pgid>    # ANTES de matar: que el grupo sea solo la corrida
+  kill -- -<pgid>                       # el signo menos delante: todo el grupo
+  ```
+
+  El `ps -g` es para no matar de más: si la primera noche se hubiera lanzado
+  sin control de trabajos, el grupo podría ser el de la sesión SSH. Si en la
+  lista aparece algo que no es la corrida (`sshd`, la shell, el editor), no se
+  mata el grupo: se matan los procesos de la corrida uno a uno. Después se
+  vuelve a correr el `pgrep` hasta que no imprima nada. Si al cabo de un minuto
+  sigue algo, `kill -9 -- -<pgid>`.
+
+**2. Apartar la carpeta de la primera noche**, para que la corrida nueva
+escriba en una limpia. Con `-T`, si el destino ya existiera, `mv` falla en vez
+de meter la carpeta dentro de él:
+
+```bash
+mv -T SALIDAS_SERVIDOR/validacion_reposo SALIDAS_SERVIDOR/validacion_reposo_2026-09-18a
+```
+
+**3. Copiar su muestra de horas** a la carpeta nueva, para que el
+relanzamiento mida **la misma muestra**. El paso 2 los encontrará y saldrán en
+el cierre como `ya_estaba`:
+
+```bash
+mkdir -p SALIDAS_SERVIDOR/validacion_reposo
+cp SALIDAS_SERVIDOR/validacion_reposo_2026-09-18a/horas_*.json SALIDAS_SERVIDOR/validacion_reposo/
+ls SALIDAS_SERVIDOR/validacion_reposo/            # los cinco: E0, K1, E4, E5 y CV2
+```
+
+**4. El seco**, que no escribe nada, y leerlo: los pasos 6, 8 y 9 tienen que
+salir «no pedido», los cinco casos del paso 2 «se usa ... que ya esta», y cada
+medición envuelta en `timeout`:
+
+```bash
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+SECO=1 PASOS="3 4 5 7" bash modelo_base/run_servidor.sh validacion_reposo
+```
+
+**5. El lanzamiento:**
+
+```bash
+PASOS="3 4 5 7" nohup bash modelo_base/run_servidor.sh validacion_reposo \
+    > consola_validacion_reposo_2026-09-18b.txt 2>&1 &
+```
+
+M-D y lo que M-G y las horas lentas alcanzaran a escribir la primera noche
+siguen en `validacion_reposo_2026-09-18a/`; el censo de empates va con el
+paso 7 y se rehace. Si M-G no llegó a terminar, se añade el 8 a `PASOS`; si se
+quieren las horas lentas, el 9.
+
+**Para parar esta corrida más adelante** no basta con matar el grupo del
+lanzador. Cada medición corre ahora dentro de su `timeout`, que se pone en un
+grupo propio, y seguiría hasta su tope. Esto casa con el lanzador, los
+`timeout`, cada `corre_mediciones` y sus trabajadores:
+
+```bash
+pkill -TERM -f 'run_servidor.sh validacion_reposo|corre_mediciones'
+pgrep -af 'run_servidor.sh validacion_reposo|corre_mediciones'    # repetir hasta que no salga nada
+```
+
+El JSON de cada medición se escribe de forma atómica (a un temporal y luego
+`os.replace`), así que una parada no lo deja truncado: queda el de la última
+corrida terminada.
 
 ### Lo que esta validación no alcanza
 

@@ -189,6 +189,9 @@ COMPUERTAS = [
     # sin datos reales (usa el caso publicado y los literales de
     # `test_reposo_mercado.py`, que ya viaja).
     "tests/test_arnes_consenso.py",
+    # Tarea 4d: el trabajador falso con que esa prueba mata el pool; la prueba
+    # lo importa, y los procesos del pool tambien.
+    "tests/_trabajador_falso_consenso.py",
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",

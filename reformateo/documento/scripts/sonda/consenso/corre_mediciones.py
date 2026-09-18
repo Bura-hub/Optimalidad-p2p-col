@@ -45,14 +45,58 @@ REGLAS DE LA CASA que este guion cumple: nunca canaliza su salida (la
 redirige el lanzador), escribe el JSON despues de CADA corrida (una parada no
 deja la noche en blanco), somete al pool en ventana acotada (CAL-43e) y tiene
 tope por corrida y tope total, con el mensaje de como retomar.
+
+UN TRABAJADOR MUERTO NO TUMBA LA MEDICION (tarea 4d, noche del 2026-09-18).
+Esa noche M-A, M-B y M-C murieron con `BrokenProcessPool`: un trabajador
+«terminated abruptly», muy probablemente por falta de memoria (30 procesos de
+hasta ~1 GB con la plataforma MTE en la misma maquina y la swap llena), y el
+`submit` siguiente lanzo la excepcion y la medicion entera salio con 1. Ahora,
+cuando el pool se rompe (en el `submit` o en el `result`):
+  - se imprime la memoria de la maquina (`/proc/meminfo`: MemAvailable, y la
+    swap) y el RSS de cada trabajador en el ultimo muestreo, que se toma cada
+    `MUESTREO_S` segundos mientras corren (despues de la muerte ya no se puede
+    leer: el pool mata a los demas);
+  - las corridas en vuelo que ya habian terminado se anotan con su resultado;
+  - las que no, VUELVEN A LA COLA (decision del controlador sobre 4d). Al
+    romperse, el pool mata a todos sus trabajadores, de modo que casi todas
+    son victimas de rebote de una sola que revento la memoria, y se rehacen;
+  - SOLO SON SOSPECHOSAS LAS QUE PODIAN ESTAR CORRIENDO (M1 de la revision de
+    4d). El pool alimenta a sus trabajadores en FIFO, de modo que solo las
+    `n_proc + 1` primeras en vuelo por orden de sometimiento pueden haber
+    estado corriendo. Solo esas cuentan la muerte y vuelven UNA vez; las demas
+    estaban en espera, vuelven a la cola normal, en paralelo, sin contarles
+    nada. Se lleva la cuenta de muertes por corrida (su indice del plan): la
+    que ya estaba entre las que podian correr en una muerte anterior y vuelve a
+    estarlo se anota como FALLA, con la causa «trabajador muerto (probable
+    falta de memoria)» y `trabajador_muerto`, y no se reencola mas;
+  - para que la culpable se aisle y las victimas no caigan otra vez con ella,
+    las reencoladas («sospechosas») corren DE UNA EN UNA: nunca hay dos en
+    vuelo a la vez, mientras el resto del plan llena los demas procesos;
+  - se abre un pool nuevo, otra vez con el tope de memoria, y se sigue.
+Si el pool muere `MAX_MUERTES` (3) veces en la misma medicion, algo sistematico
+lo mata: se para en voz alta y se sale con 1, con el JSON escrito (las que
+podian estar corriendo en esa tercera muerte, como FALLA), la lista de los
+indices que faltan y la orden para retomar.
+Una corrida anotada como FALLA por trabajador muerto es un fallo de la
+maquina, no del modelo: el veredicto la sigue contando como «falla» en el
+denominador (N2 y m-b, criterio conservador), pero dice cuantas de las
+fallidas son de la maquina.
+
+EL TOPE DE MEMORIA. Antes de abrir cada pool, si MemAvailable / procesos baja
+de `--memoria-por-proceso` (1,5 GB por omision, o MEMORIA_POR_PROCESO_GB en el
+entorno; 0 lo quita), los procesos se reducen a los que caben, y se dice en el
+registro: mejor ir lento que matar trabajadores o a la plataforma. Donde no hay
+`/proc/meminfo` (Windows) no hay tope, y tambien se dice.
 """
 import argparse
 import importlib
 import json
 import multiprocessing as mp
+import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, FIRST_COMPLETED, wait
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
@@ -64,6 +108,16 @@ TOPE_CORRIDA = 3600.0      # (s) por corrida, si la especificacion no dice otra
 # tope total le dejo corridas sin hacer. No es un fallo del codigo, pero
 # tampoco es una medicion completa. El mismo que `veredicto.CODIGO_INCOMPLETA`.
 CODIGO_INCOMPLETA = 4
+
+# Tarea 4d: el pool que muere MAX_MUERTES veces en una medicion la para (con 1).
+MAX_MUERTES = 3
+CAUSA_MUERTE = "trabajador muerto (probable falta de memoria)"
+# La memoria que se reserva por proceso al abrir el pool (GB), y cada cuanto se
+# muestrea el RSS de los trabajadores mientras corren (s).
+MEMORIA_POR_PROCESO_GB = 1.5
+MUESTREO_S = 30.0
+MEMINFO = "/proc/meminfo"
+PROC = "/proc"
 
 
 def carga_horas(directorio) -> dict:
@@ -228,6 +282,355 @@ def imprime(n, total, res):
               f"({res['tolerancia']['motivo']})", flush=True)
 
 
+def tramos(indices) -> str:
+    """Los indices del plan en tramos: [3, 4, 5, 9, 12, 13] -> «3-5, 9, 12-13».
+    Para decir que falta sin una lista de cien numeros."""
+    xs = sorted(set(int(i) for i in indices))
+    if not xs:
+        return "ninguno"
+    partes, ini, ant = [], xs[0], xs[0]
+    for x in xs[1:] + [None]:
+        if x is not None and x == ant + 1:
+            ant = x
+            continue
+        partes.append(f"{ini}" if ini == ant else f"{ini}-{ant}")
+        if x is not None:
+            ini = ant = x
+    return ", ".join(partes)
+
+
+# ── la memoria de la maquina y de los trabajadores (tarea 4d) ─────────────
+def memoria(ruta=MEMINFO):
+    """Los campos de `/proc/meminfo` que interesan, en kB: MemTotal,
+    MemAvailable, SwapTotal y SwapFree. None si no se puede leer (Windows)."""
+    try:
+        texto = Path(ruta).read_text(encoding="ascii", errors="replace")
+    except OSError:
+        return None
+    fuera = {}
+    for linea in texto.splitlines():
+        clave, _, resto = linea.partition(":")
+        if clave in ("MemTotal", "MemAvailable", "SwapTotal", "SwapFree"):
+            try:
+                fuera[clave] = int(resto.split()[0])
+            except (IndexError, ValueError):
+                continue
+    return fuera or None
+
+
+def rss_kb(pid, proc=PROC):
+    """El RSS de un proceso (kB), de `/proc/<pid>/status`; None si no se
+    puede leer (el proceso ya no esta, o no es Linux)."""
+    try:
+        texto = (Path(proc) / str(pid) / "status").read_text(
+            encoding="ascii", errors="replace")
+    except OSError:
+        return None
+    for linea in texto.splitlines():
+        if linea.startswith("VmRSS:"):
+            try:
+                return int(linea.split()[1])
+            except (IndexError, ValueError):
+                return None
+    return None
+
+
+def rss_trabajadores(ex, proc=PROC) -> dict:
+    """{pid: RSS (kB)} de los trabajadores vivos del pool. Lee el atributo
+    `_processes` del `ProcessPoolExecutor` (privado, pero estable desde 3.3);
+    un pool sin el devuelve un diccionario vacio."""
+    procesos = dict(getattr(ex, "_processes", None) or {})
+    fuera = {}
+    for pid in procesos:
+        r = rss_kb(pid, proc)
+        if r is not None:
+            fuera[pid] = r
+    return fuera
+
+
+def _gb(kb) -> str:
+    return f"{kb / 2**20:.1f}"
+
+
+def texto_memoria(ruta=MEMINFO) -> str:
+    """Una linea con la memoria de la maquina, para el registro."""
+    m = memoria(ruta)
+    if not m:
+        return f"memoria: no se puede leer {ruta}"
+    partes = []
+    if "MemAvailable" in m:
+        partes.append(f"MemAvailable {_gb(m['MemAvailable'])} GB"
+                      + (f" de {_gb(m['MemTotal'])}" if "MemTotal" in m else ""))
+    if "SwapTotal" in m:
+        partes.append(f"swap libre {_gb(m.get('SwapFree', 0))} GB de "
+                      f"{_gb(m['SwapTotal'])}")
+    return "memoria: " + "; ".join(partes)
+
+
+def procesos_por_memoria(pedidos, por_proceso_gb=MEMORIA_POR_PROCESO_GB,
+                         ruta=MEMINFO) -> tuple:
+    """(procesos, texto): los pedidos, o menos si no caben en la memoria.
+
+    Si MemAvailable / pedidos baja de `por_proceso_gb`, se reducen a los que
+    caben (uno como minimo, con aviso si ni ese cabe). Sin /proc/meminfo, o con
+    `por_proceso_gb` <= 0, se quedan los pedidos. El texto va al registro."""
+    pedidos = max(1, int(pedidos))
+    if por_proceso_gb <= 0:
+        return pedidos, (f"  memoria: sin tope por proceso "
+                         f"(--memoria-por-proceso 0); {pedidos} procesos")
+    m = memoria(ruta)
+    if not m or "MemAvailable" not in m:
+        return pedidos, (f"  memoria: no se puede leer MemAvailable de {ruta} "
+                         f"(no es Linux); sin tope de memoria, {pedidos} "
+                         f"procesos")
+    disponible_gb = m["MemAvailable"] / 2**20
+    caben = int(disponible_gb // por_proceso_gb)
+    if caben >= pedidos:
+        return pedidos, (f"  memoria: MemAvailable {disponible_gb:.1f} GB; "
+                         f"caben {caben} procesos de {por_proceso_gb:g} GB, se "
+                         f"usan los {pedidos} pedidos")
+    n = max(1, caben)
+    texto = (f"  === MEMORIA: MemAvailable {disponible_gb:.1f} GB / {pedidos} "
+             f"procesos = {disponible_gb / pedidos:.2f} GB por proceso, por "
+             f"debajo de {por_proceso_gb:g} GB: SE REDUCEN A {n} PROCESOS "
+             f"(mejor lento que matar trabajadores o a la plataforma) ===")
+    if caben < 1:
+        texto += ("\n  === Ni uno cabe con ese margen: se corre con 1, y puede "
+                  "morir. Mira que mas ocupa la memoria. ===")
+    return n, texto
+
+
+def informe_muerte(muertes, rss, t_rss, ruta=MEMINFO,
+                   max_muertes=MAX_MUERTES) -> str:
+    """Lo que se imprime cuando el pool muere: la memoria de ahora y el RSS de
+    los trabajadores en el ultimo muestreo."""
+    lineas = [f"  === EL POOL MURIO ({muertes} de {max_muertes} permitidas): un "
+              f"trabajador termino de golpe, {CAUSA_MUERTE} ===",
+              f"  {texto_memoria(ruta)}"]
+    if rss:
+        hace = time.perf_counter() - t_rss if t_rss is not None else float("nan")
+        suma = sum(rss.values())
+        detalle = ", ".join(f"{pid}: {kb / 1024:.0f} MB"
+                            for pid, kb in sorted(rss.items()))
+        lineas.append(f"  RSS de los trabajadores en el ultimo muestreo (hace "
+                      f"{hace:.0f} s): {detalle}; suma {suma / 1024:.0f} MB, el "
+                      f"mayor {max(rss.values()) / 1024:.0f} MB")
+    else:
+        lineas.append("  RSS de los trabajadores: no se pudo leer (sin /proc, o "
+                      "murio antes del primer muestreo)")
+    return "\n".join(lineas)
+
+
+def corre_plan(pendientes, total, procesos, salida, tope_total=0.0,
+               trabajo_fn=None, fabrica=None,
+               por_proceso_gb=MEMORIA_POR_PROCESO_GB, max_muertes=MAX_MUERTES,
+               meminfo=MEMINFO, proc=PROC, muestreo_s=MUESTREO_S) -> dict:
+    """Corre las `pendientes` [(indice, spec)] en un pool y escribe `salida`
+    despues de cada corrida. Sobrevive a un trabajador muerto (ver el
+    docstring del modulo).
+
+    `trabajo_fn` es la funcion de cada corrida (`trabajo`) y `fabrica(n)` abre
+    el pool (un `ProcessPoolExecutor` de n procesos); las dos se cambian en las
+    pruebas. Devuelve dict(resultados, hechos, muertes, perdidas,
+    reencoladas, devueltas, sospechosas, detenida, seg): `perdidas`, los
+    indices anotados como FALLA por un trabajador muerto; `reencoladas`, las
+    sospechosas que volvieron a la cola (una vez cada una); `devueltas`, las
+    que estaban en espera en el pool y volvieron sin contarles la muerte;
+    `sospechosas`, por cada muerte, los indices que podian estar corriendo;
+    `detenida`, si se paro por morir el pool `max_muertes` veces.
+    """
+    trabajo_fn = trabajo_fn or trabajo
+    fabrica = fabrica or (lambda n: ProcessPoolExecutor(max_workers=n))
+    resultados, hechos, perdidas, reencoladas = [], set(), [], []
+    devueltas, sospechosas_por_muerte = [], []
+    t0 = time.perf_counter()
+    cola = list(pendientes)
+    muertes = 0
+    detenida = False
+    # Cuantas muertes del pool vio cada corrida (indice del plan) en vuelo.
+    muertes_de = {}
+
+    def sospechosa(n):
+        return muertes_de.get(n, 0) > 0
+
+    def siguiente(en_vuelo):
+        """La posicion en la cola de la proxima corrida que se puede someter:
+        la primera, salvo que sea sospechosa y ya haya otra en vuelo."""
+        hay = any(sospechosa(n) for n, _sp in en_vuelo.values())
+        for i, (n, _sp) in enumerate(cola):
+            if not (hay and sospechosa(n)):
+                return i
+        return None
+
+    def registra(res, n):
+        # N3: cada registro dice de que plan salio y cual de sus corridas es,
+        # para que `veredicto.py` sepa si falta alguna.
+        res["plan_total"] = total
+        res["plan_indice"] = n
+        resultados.append(res)
+        hechos.add(n)
+        # Escritura atomica (menor 3 de la re-revision de 4d): una senal del
+        # esperador o del operador a mitad de la escritura dejaria un JSON
+        # truncado e ilegible; con el temporal y os.replace queda el anterior.
+        temporal = salida.with_name(salida.name + ".tmp")
+        temporal.write_text(json.dumps(limpia(resultados)), encoding="utf-8")
+        os.replace(temporal, salida)
+
+    def fuera_de_tiempo():
+        return bool(tope_total and time.perf_counter() - t0 > tope_total)
+
+    while True:
+        n_proc, texto = procesos_por_memoria(procesos, por_proceso_gb, meminfo)
+        print(texto, flush=True)
+        ex = fabrica(n_proc)
+        # Ventana acotada de sometimiento (CAL-43e): nunca se someten todas
+        # las corridas de golpe.
+        ventana = max(2 * n_proc, n_proc + 1)
+        en_vuelo = {}
+        rss, t_rss = {}, None
+        roto = False
+        try:
+            while cola or en_vuelo:
+                while cola and len(en_vuelo) < ventana:
+                    i = siguiente(en_vuelo)
+                    if i is None:
+                        break                # solo quedan sospechosas y ya
+                    n, sp = cola[i]          # hay una en vuelo
+                    try:
+                        fu = ex.submit(trabajo_fn, sp)
+                    except BrokenProcessPool:
+                        roto = True          # esta no llego a someterse: sigue en
+                        break                # la cola y corre en el pool nuevo
+                    cola.pop(i)
+                    en_vuelo[fu] = (n, sp)
+                if roto or not en_vuelo:
+                    break
+                # Con plazo: entre dos corridas que terminan se muestrea el RSS de
+                # los trabajadores, que despues de una muerte ya no se puede leer.
+                listos, _ = wait(list(en_vuelo), timeout=muestreo_s,
+                                 return_when=FIRST_COMPLETED)
+                muestra = rss_trabajadores(ex, proc)
+                if muestra:
+                    rss, t_rss = muestra, time.perf_counter()
+                for fu in sorted(listos, key=lambda f: en_vuelo[f][0]):
+                    n, sp = en_vuelo[fu]
+                    try:
+                        res = fu.result()
+                    except BrokenProcessPool:
+                        roto = True          # se anota abajo, con las demas
+                        continue
+                    except Exception as exc:                      # noqa: BLE001
+                        print(f"=== FALLA [{n}/{total}] {sp['caso']} {sp['fecha']} "
+                              f"{sp['etq']}: {type(exc).__name__}: {exc}",
+                              flush=True)
+                        res = dict(spec=sp, msg=f"FALLA {type(exc).__name__}: {exc}",
+                                   filas=[], veredicto={}, cerrada={}, seg=0.0)
+                    else:
+                        imprime(n, total, res)
+                    del en_vuelo[fu]
+                    registra(res, n)
+                if roto:
+                    break
+                if cola and fuera_de_tiempo():
+                    print(f"  TOPE TOTAL de {tope_total:.0f} s: no se someten "
+                          f"mas corridas; quedan {len(cola)}. Las que ya estan "
+                          f"corriendo terminan con su propio tope.", flush=True)
+                    cola = []
+        except BaseException:
+            # Una interrupcion (o un error del propio guion) no deja el
+            # pool abierto: lo que hacia el `with` de antes.
+            ex.shutdown(wait=False, cancel_futures=True)
+            raise
+        if not roto:
+            ex.shutdown(wait=True)
+            break
+
+        # ── el pool murio ─────────────────────────────────────────────────
+        muertes += 1
+        print(informe_muerte(muertes, rss, t_rss, meminfo, max_muertes),
+              flush=True)
+        # Primero se cierra: asi el pool termina de marcar como fallidas las
+        # que tenia pendientes y ninguna queda a medias.
+        ex.shutdown(wait=True, cancel_futures=True)
+        para = muertes >= max_muertes
+        vuelven = []
+        # Las que habian terminado antes de la muerte se anotan con su
+        # resultado. `en_vuelo` guarda el orden de sometimiento.
+        sin_terminar = []
+        for fu, (n, sp) in list(en_vuelo.items()):
+            if fu.done() and not fu.cancelled() and fu.exception() is None:
+                res = fu.result()
+                imprime(n, total, res)
+                registra(res, n)
+            else:
+                sin_terminar.append((n, sp))
+        # M1 de la revision de 4d: el pool alimenta a sus trabajadores en
+        # FIFO, asi que solo las n_proc + 1 primeras sin terminar, por orden
+        # de sometimiento, podian estar corriendo. Solo esas son sospechosas.
+        podian = {n for n, _sp in sin_terminar[:n_proc + 1]}
+        sospechosas_por_muerte.append(sorted(podian))
+        for n, sp in sorted(sin_terminar, key=lambda x: x[0]):
+            if n not in podian:
+                # Estaba en espera en el pool: no pudo matarlo. Vuelve a la
+                # cola normal, sin contarle la muerte (o queda sin hacer si la
+                # medicion para aqui).
+                print(f"=== {'SIN HACER' if para else 'DE VUELTA'} [{n}/{total}] "
+                      f"{sp['caso']} {sp['fecha']} {sp['etq']}: estaba en "
+                      f"espera en el pool, no llego a correr; "
+                      f"{'queda sin hacer' if para else 'vuelve a la cola sin contarle la muerte'}",
+                      flush=True)
+                vuelven.append((n, sp))
+                if not para:
+                    devueltas.append(n)
+                continue
+            muertes_de[n] = muertes_de.get(n, 0) + 1
+            if muertes_de[n] < 2 and not para:
+                # Decision del controlador: vuelve a la cola UNA vez.
+                print(f"=== REENCOLADA [{n}/{total}] {sp['caso']} {sp['fecha']} "
+                      f"{sp['etq']}: podia estar corriendo cuando murio el "
+                      f"pool; se rehace una vez, sin otra sospechosa en vuelo",
+                      flush=True)
+                vuelven.append((n, sp))
+                reencoladas.append(n)
+                continue
+            motivo = ("en vuelo en dos muertes del pool" if muertes_de[n] >= 2
+                      else f"en vuelo en la muerte {muertes}, que para la "
+                           f"medicion")
+            print(f"=== FALLA [{n}/{total}] {sp['caso']} {sp['fecha']} "
+                  f"{sp['etq']}: {CAUSA_MUERTE} ({motivo})", flush=True)
+            res = dict(spec=sp,
+                       msg=f"FALLA BrokenProcessPool: {CAUSA_MUERTE} ({motivo})",
+                       filas=[], veredicto={}, cerrada={}, seg=0.0,
+                       trabajador_muerto=muertes,
+                       muertes_en_vuelo=muertes_de[n])
+            perdidas.append(n)
+            registra(res, n)
+        cola = sorted(cola + vuelven, key=lambda x: x[0])
+        if para:
+            detenida = True
+            raya = "=" * 70
+            print(f"\n  {raya}\n  EL POOL MURIO {muertes} VECES EN ESTA "
+                  f"MEDICION: algo sistematico lo mata (casi seguro la\n  "
+                  f"memoria). SE PARA AQUI, con {len(cola)} corridas sin "
+                  f"hacer: indices {tramos(n for n, _sp in cola)}.\n  Baja "
+                  f"PROCS o sube --memoria-por-proceso, mira que mas ocupa la "
+                  f"memoria de la\n  maquina y retoma con la orden de abajo.\n"
+                  f"  {raya}", flush=True)
+            break
+        if cola and fuera_de_tiempo():
+            print(f"  TOPE TOTAL de {tope_total:.0f} s: no se abre otro pool; "
+                  f"quedan {len(cola)} corridas.", flush=True)
+            cola = []
+        if not cola:
+            break
+        print(f"  se abre un pool nuevo y se sigue con las {len(cola)} corridas "
+              f"que quedan", flush=True)
+    return dict(resultados=resultados, hechos=hechos, muertes=muertes,
+                perdidas=perdidas, reencoladas=reencoladas,
+                devueltas=devueltas, sospechosas=sospechosas_por_muerte,
+                detenida=detenida, seg=time.perf_counter() - t0)
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--medicion", required=True,
@@ -241,6 +644,11 @@ def main(argv=None) -> int:
                     help="indice de la primera especificacion, para retomar")
     ap.add_argument("--horas", default="SALIDAS_SERVIDOR/validacion_reposo",
                     help="carpeta con los horas_<caso>.json de seleccion")
+    ap.add_argument("--memoria-por-proceso", type=float,
+                    default=float(os.environ.get("MEMORIA_POR_PROCESO_GB",
+                                                 MEMORIA_POR_PROCESO_GB)),
+                    help="(GB) que se reservan por proceso al abrir el pool; "
+                         "si MemAvailable no da, se abren menos. 0 = sin tope")
     args = ap.parse_args(argv)
 
     salida = Path(args.salida).resolve()
@@ -265,61 +673,41 @@ def main(argv=None) -> int:
               f"corrio nada", flush=True)
         return 2
 
-    resultados = []
-    t0 = time.perf_counter()
-    hechos = set()
-    with ProcessPoolExecutor(max_workers=args.procesos) as ex:
-        # Ventana acotada de sometimiento (CAL-43e): nunca se someten todas
-        # las corridas de golpe.
-        ventana = max(2 * args.procesos, args.procesos + 1)
-        en_vuelo = {}
-        cola = list(pendientes)
-        while cola or en_vuelo:
-            while cola and len(en_vuelo) < ventana:
-                n, sp = cola.pop(0)
-                en_vuelo[ex.submit(trabajo, sp)] = (n, sp)
-            if not en_vuelo:
-                break
-            listos, _ = wait(list(en_vuelo), return_when=FIRST_COMPLETED)
-            for fu in listos:
-                n, sp = en_vuelo.pop(fu)
-                try:
-                    res = fu.result()
-                except Exception as exc:                      # noqa: BLE001
-                    print(f"=== FALLA [{n}/{total}] {sp['caso']} {sp['fecha']} "
-                          f"{sp['etq']}: {type(exc).__name__}: {exc}",
-                          flush=True)
-                    res = dict(spec=sp, msg=f"FALLA {type(exc).__name__}: {exc}",
-                               filas=[], veredicto={}, cerrada={}, seg=0.0)
-                else:
-                    imprime(n, total, res)
-                # N3: cada registro dice de que plan salio y cual de sus
-                # corridas es, para que `veredicto.py` sepa si falta alguna.
-                res["plan_total"] = total
-                res["plan_indice"] = n
-                resultados.append(res)
-                hechos.add(n)
-                salida.write_text(json.dumps(limpia(resultados)),
-                                  encoding="utf-8")
-            if (args.tope_total and cola
-                    and time.perf_counter() - t0 > args.tope_total):
-                print(f"  TOPE TOTAL de {args.tope_total:.0f} s: no se someten "
-                      f"mas corridas; quedan {len(cola)}. Las que ya estan "
-                      f"corriendo terminan con su propio tope.", flush=True)
-                cola = []
-    seg = time.perf_counter() - t0
-    print(f"  {len(hechos)} corridas en {seg:.0f} s; JSON en {salida}",
+    plan = corre_plan(pendientes, total, args.procesos, salida,
+                      tope_total=args.tope_total,
+                      por_proceso_gb=args.memoria_por_proceso)
+    resultados, hechos = plan["resultados"], plan["hechos"]
+    print(f"  {len(hechos)} corridas en {plan['seg']:.0f} s; JSON en {salida}",
           flush=True)
+    if plan["muertes"]:
+        print(f"  el pool murio {plan['muertes']} veces: "
+              f"{len(plan['reencoladas'])} sospechosas volvieron a la cola una "
+              f"vez (indices {tramos(plan['reencoladas'])}) y "
+              f"{len(plan['devueltas'])} que estaban en espera volvieron sin "
+              f"contarles nada (indices {tramos(plan['devueltas'])})",
+              flush=True)
+    if plan["perdidas"]:
+        print(f"  {len(plan['perdidas'])} corridas anotadas como FALLA porque "
+              f"murio su trabajador: indices {sorted(plan['perdidas'])}. Son "
+              f"un fallo de la maquina, no del modelo; el veredicto las cuenta "
+              f"como falla y dice cuantas son.", flush=True)
     faltan = faltantes(total, hechos, args.desde)
     if faltan:
         print(f"  MEDICION INCOMPLETA: quedaron {len(faltan)} corridas sin "
               f"hacer de {total - args.desde} (la primera es la {faltan[0]})",
               flush=True)
+        print(f"  FALTAN los indices: {tramos(faltan)}", flush=True)
         print(f"  RETOMA con:  --desde {faltan[0]} --salida "
               f"{salida.with_name(salida.stem + '_resto.json').name}",
               flush=True)
         print("  (el JSON de esta parte queda escrito; el veredicto se calcula "
               "sobre los dos: veredicto.py acepta varios)", flush=True)
+    if plan["detenida"]:
+        # Tarea 4d: el pool murio MAX_MUERTES veces. Sale con 1, en voz alta; el
+        # JSON esta escrito y `veredicto.py` lo puede leer aparte.
+        print(f"  === DETENIDA: el pool murio {plan['muertes']} veces; sale "
+              f"con 1 ===", flush=True)
+        return 1
     # Menor 3 de la revision de 4c: sin `except`. Si el resumen del veredicto
     # falla, la medicion sale con error y se ve; el JSON ya esta escrito, y
     # `veredicto.py` lo puede releer cuando se arregle lo que fallo.

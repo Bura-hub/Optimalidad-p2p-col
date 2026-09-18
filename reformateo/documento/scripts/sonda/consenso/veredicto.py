@@ -31,6 +31,9 @@ COMO SE CUENTA UNA HORA, dentro de su familia:
   - «dP<=1e-3E»: todas las juzgadas con max|dP_ji| <= 1e-3·E en teq 160, que
     es la aceptacion de M-B.
 Una hora cuyo recorte movio el reposo NO cuenta: se aparta y se dice (medio 5).
+Una hora que fallo porque murio el trabajador del pool (tarea 4d) SI cuenta,
+como «falla», con el criterio conservador de N2 y m-b; la columna «muerto»
+dice cuantas de las «falla» son de la maquina y no del modelo.
 
 EL ROTULO, sobre TODAS las horas del grupo. Con menos de cinco horas, «muestra
 insuficiente»; si no, con el 95 % o mas dentro, «reposo verificado»; por
@@ -96,6 +99,19 @@ def es_falla(res) -> bool:
     """La corrida fallo al correr (su registro trae «FALLA ...» y ningun
     punto de control)."""
     return str(res.get("msg", "")).startswith("FALLA")
+
+
+def es_muerto(res) -> bool:
+    """La corrida fallo porque murio el trabajador del pool (tarea 4d): un
+    fallo de la maquina, no del modelo. Sigue contando como «falla» en el
+    denominador (N2 y m-b, criterio conservador); solo se dice cuantas son."""
+    return es_falla(res) and (res.get("trabajador_muerto") is not None
+                              or "trabajador muerto" in str(res.get("msg", "")))
+
+
+def texto_muertas(k) -> str:
+    """El inciso que dice cuantas de las fallidas son de la maquina."""
+    return f" ({k} por trabajador muerto: fallo de la maquina)" if k else ""
 
 
 def _prep():
@@ -380,7 +396,10 @@ def cuenta_hora(corridas, nombre) -> dict:
     fallaron todas sale con `falla=True` y cuenta en el denominador (m-b).
     """
     if corridas and all(es_falla(c) for c in corridas):
-        return dict(juzgada=False, falla=True, cortadas=0, guardados=0)
+        # Tarea 4d: si todas fallaron porque murio su trabajador, la hora es
+        # «falla» de la maquina; cuenta igual, pero la tabla lo dice aparte.
+        return dict(juzgada=False, falla=True, cortadas=0, guardados=0,
+                    muerto=all(es_muerto(c) for c in corridas))
     vivas = [c for c in corridas if not es_falla(c)]
     juicios = [(c, rejuzga(c, nombre)) for c in vivas]
     juzgadas = [(c, j) for c, j in juicios if j["hay160"]]
@@ -436,6 +455,7 @@ def tabla(resultados, rotular=True, horas=None) -> str:
                                    "mensajes de arriba)"])
     lineas.append(f"  {'regimen':<19s} {'referencia':<11s} {'familia':<22s} "
                   f"{'horas':>5s} {'juzg':>4s} {'nolleg':>6s} {'falla':>5s} "
+                  f"{'muerto':>6s} "
                   f"{'cort':>4s} {'llegan':>6s} {'80y160':>6s} {'alguna':>6s} "
                   f"{'dP<=1e-3E':>9s} {'peor dq':>9s} {'peor dp':>8s} "
                   f"tolerancia  rotulo")
@@ -449,6 +469,7 @@ def tabla(resultados, rotular=True, horas=None) -> str:
         # cuenta.
         n = len(horas_g)
         fallas = sum(1 for c in cuentas if c["falla"])
+        muertas = sum(1 for c in cuentas if c["falla"] and c.get("muerto"))
         no_llegan = n - len(juzg) - fallas
         cortadas = sum(c["cortadas"] for c in cuentas)
         total_guardados += sum(c["guardados"] for c in cuentas)
@@ -462,6 +483,7 @@ def tabla(resultados, rotular=True, horas=None) -> str:
         rot = rotulo(dentro, n) if rotular else "(ver el juicio propio)"
         lineas.append(f"  {reg:<19s} {nombre:<11s} {fam:<22s} {n:5d} "
                       f"{len(juzg):4d} {no_llegan:6d} {fallas:5d} "
+                      f"{muertas:6d} "
                       f"{cortadas:4d} {llegan:6d} {dentro:6d} {alguna:6d} "
                       f"{con_dP:9d} {peor_dq:9.2e} {peor_dp:8.2e} "
                       f"{clases:<11s} {rot}")
@@ -469,7 +491,10 @@ def tabla(resultados, rotular=True, horas=None) -> str:
                "  horas = horas del grupo, que son el DENOMINADOR del rotulo; "
                "juzg = las que tienen alguna corrida en teq 160; nolleg = las "
                "que no, y cuentan como «no llega»; falla = las que fallaron en "
-               "todas sus corridas, y cuentan igual; cort = corridas que no "
+               "todas sus corridas, y cuentan igual; muerto = de las falla, "
+               "las que fallaron porque murio el trabajador del pool (fallo de "
+               "la maquina, no del modelo; siguen en el denominador); "
+               "cort = corridas que no "
                "llegaron a teq 160 (cortadas por su tope, o con cortes que "
                "terminan antes, como el brazo k = 1 de M-G)",
                "  llegan = todas las juzgadas cumplen el criterio de consenso "
@@ -633,7 +658,8 @@ def main(argv=None) -> int:
             escribe(f"    {r['spec']['caso']} {r['spec']['fecha']}: "
                     f"{'; '.join(r.get('avisos', []))}")
     if fallas:
-        escribe(f"  {len(fallas)} con FALLA:")
+        muertas = sum(1 for r in fallas if es_muerto(r))
+        escribe(f"  {len(fallas)} con FALLA{texto_muertas(muertas)}:")
         for r in fallas[:10]:
             escribe(f"    {r['spec']['caso']} {r['spec']['fecha']} "
                     f"{r['spec']['etq']}: {r['msg']}")

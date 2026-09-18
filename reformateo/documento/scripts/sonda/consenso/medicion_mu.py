@@ -99,21 +99,34 @@ def entre_mus(corridas, tol=TOLERANCIA) -> dict:
     puede decir «muestra insuficiente» en cada fila. Lo que M-E pregunta es
     otra cosa: si en una misma hora los tres mu llegan al MISMO sitio. Entra
     cada mu que llego a teq 160 con el estado quieto (`veredicto.esta_quieta`,
-    como en M-C); si una hora cae en dos grupos de la muestra (m2), se toma su
-    primera corrida de cada mu. Devuelve los mu que llegaron, los que no, la
-    mayor diferencia de reparto y de precio entre dos de los que llegaron, y
-    si coinciden.
+    como en M-C). Si un mu tiene varias corridas (una hora que cae en dos
+    grupos de la muestra, m2, o una corrida rehecha y su JSON de retomada), se
+    queda con la QUIETA en teq 160 si la hay; si no, con la primera que no sea
+    FALLA; y solo si no hay otra, con la FALLA (M3 de la revision de 4d:
+    antes se quedaba con la primera, aunque fuera una FALLA o un transitorio
+    y hubiera otra quieta). Devuelve los mu que llegaron, los que no, la mayor
+    diferencia de reparto y de precio entre dos de los que llegaron, y si
+    coinciden.
     """
     import numpy as np
-    from veredicto import esta_quieta
-    por_mu = {}
+    from veredicto import es_falla, esta_quieta
+
+    def llego(c):
+        return bool(c.get("filas") and not c.get("cortada")
+                    and abs(float(c["filas"][-1]["teq"]) - TEQ_FINAL) < 1e-6
+                    and esta_quieta(c))
+
+    candidatas = {}
     for c in corridas:
         mu = c.get("spec", {}).get("var", {}).get("mu_ent")
-        if mu is None or mu in por_mu:
-            continue
-        en_160 = (c.get("filas") and not c.get("cortada")
-                  and abs(float(c["filas"][-1]["teq"]) - TEQ_FINAL) < 1e-6)
-        por_mu[mu] = c if (en_160 and esta_quieta(c)) else None
+        if mu is not None:
+            candidatas.setdefault(mu, []).append(c)
+    por_mu = {}
+    for mu, cs in candidatas.items():
+        elegida = (next((c for c in cs if llego(c)), None)
+                   or next((c for c in cs if not es_falla(c)), None)
+                   or cs[0])
+        por_mu[mu] = elegida if llego(elegida) else None
     llegaron = {mu: c for mu, c in por_mu.items() if c is not None}
     E = max(float(corridas[0].get("E", 0.0)), 1e-12) if corridas else 1e-12
     dq = dp = 0.0
@@ -146,7 +159,7 @@ def veredicto(resultados) -> str:
               "(COP/kWh), sobre el estado final quieto en teq 160)", ""]
     if not horas:
         return "\n".join(lineas + ["  ninguna corrida de M-E"])
-    from veredicto import es_falla
+    from veredicto import es_falla, es_muerto, texto_muertas
     coinciden, mueven, no_comp, fallidas = [], [], [], []
     for (caso, fecha), corridas in sorted(horas.items()):
         # m-b de la re-revision 2: una hora cuyas corridas fallaron todas
@@ -165,7 +178,9 @@ def veredicto(resultados) -> str:
                   f"llegaron coinciden; en {len(mueven)} el reposo CAMBIA con "
                   f"mu; {len(no_comp)} no se pueden comparar (menos de dos mu "
                   f"quietos en teq 160); {len(fallidas)} FALLARON en todos sus "
-                  f"mu")
+                  f"mu" + texto_muertas(sum(
+                      1 for h in fallidas
+                      if all(es_muerto(c) for c in horas[h]))))
     for caso, fecha, r in mueven[:20]:
         lineas.append(f"    MU MUEVE EL REPOSO {caso} {fecha}: max|dq| = "
                       f"{r['dq']:.3e} (kWh, E = {r['E']:.4f}), max|dp| = "

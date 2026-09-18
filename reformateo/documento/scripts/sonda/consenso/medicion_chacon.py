@@ -269,7 +269,7 @@ def juzga_fila(fila, filas_tabla) -> list:
 
 def veredicto(resultados) -> str:
     """M-G contra su tabla, por hora y variante, con el alcance de cada brazo."""
-    from veredicto import es_falla, quietud
+    from veredicto import es_falla, es_muerto, quietud
     lineas = ["", "  M-G CONTRA LA TABLA (por variante; se lee el brazo que "
               "llego mas lejos ESTANDO QUIETO)", ""]
     grupos = {}
@@ -288,9 +288,13 @@ def veredicto(resultados) -> str:
         tabla = ESPERADO.get((hora, familia), [])
         lineas.append(f"  {hora}:00 - {familia}")
         # m-b de la re-revision 2: un brazo fallido se dice, no desaparece.
-        for res in [b for b in brazos if es_falla(b)]:
+        fallidos = [b for b in brazos if es_falla(b)]
+        for res in fallidos:
             k = res["spec"].get("var", {}).get("k_lento", 1.0)
-            lineas.append(f"    brazo k = {k:g}: FALLA ({res.get('msg', '?')})")
+            maquina = (" -- fallo de la maquina, no del modelo"
+                       if es_muerto(res) else "")
+            lineas.append(f"    brazo k = {k:g}: FALLA ({res.get('msg', '?')})"
+                          f"{maquina}")
         brazos = sorted([b for b in brazos if not es_falla(b)],
                         key=lambda r: -float(r.get("teq_alcanzado", 0.0)))
         tol_quieta = tolerancia_quietud(hora, familia)
@@ -307,7 +311,10 @@ def veredicto(resultados) -> str:
                 f"{np.round(f['q'], 4).tolist()}, nivel {f['ppond']:.2f}, "
                 f"parte {f['parte']:.4f}")
         if not brazos:
-            lineas.append("    NO LLEGO: fallaron todos sus brazos")
+            lineas.append("    NO LLEGO: fallaron todos sus brazos"
+                          + (" (por trabajador muerto: fallo de la maquina)"
+                             if fallidos and all(es_muerto(b) for b in fallidos)
+                             else ""))
             if familia == PRECIO:
                 lineas.append("    => sin lectura: el brazo de precio fallo")
             lineas.append("")

@@ -353,6 +353,12 @@ export VECLIB_MAXIMUM_THREADS=1
 # En seco vale «seco»: no se ejecuto nada.
 CODIGO_CORRE=""
 
+# Tarea 4d (esperador con tope): la orden que envuelve la siguiente llamada a
+# corre(), por ejemplo `timeout --kill-after=300 18300`. Vacia por omision,
+# de modo que las demas acciones corren exactamente como antes; quien la pone
+# la vacia al volver.
+ENVOLTURA=()
+
 # Corre una sonda con su log fechado y avisa del codigo de salida. No usa
 # tuberias: una tuberia retiene la salida y el log se queda vacio hasta el
 # final, que es justo lo que no se quiere en una corrida larga.
@@ -365,7 +371,9 @@ corre() {
   # comprobar `compuertas`, `humo_linux`, `sonda79` y `matriz` sin gastar una
   # sola hora de mercado.
   if [[ "${SECO:-0}" == "1" ]]; then
-    printf '  -> %s   [SECO] %s -u -W ignore' "$nombre" "$PY"
+    printf '  -> %s   [SECO]' "$nombre"
+    if [[ ${#ENVOLTURA[@]} -gt 0 ]]; then printf ' %q' "${ENVOLTURA[@]}"; fi
+    printf ' %s -u -W ignore' "$PY"
     printf ' %q' "$@"
     printf '\n'
     CODIGO_CORRE="seco"
@@ -377,7 +385,8 @@ corre() {
   local codigo=0
   # -u: sin bufer (regla principal de CLAUDE.md, H-80). Si se detiene una
   # corrida larga a mitad, el log ya tiene lo que alcanzo a escribir.
-  "$PY" -u -W ignore "$@" > "$log" 2>&1 || codigo=$?
+  ${ENVOLTURA[@]+"${ENVOLTURA[@]}"} "$PY" -u -W ignore "$@" > "$log" 2>&1 \
+    || codigo=$?
   CODIGO_CORRE="$codigo"
 
   # Un codigo de salida cero no basta para dar una compuerta por buena. Si
@@ -1710,6 +1719,20 @@ print(" ".join(sorted(palancas)))
       return 1
     }
     SALTADAS=()
+    # Tarea 4d (CLAUDE.md: un solo esperador por corrida, con tope, que cubra
+    # el fallo). Cada corre_mediciones.py va envuelto en `timeout`, con su tope
+    # total mas 3 900 (s): la hora de la ultima corrida en vuelo (3 600) y 300
+    # de margen, y --kill-after=300 por si no atiende al SIGTERM. Un cuelgue
+    # del gestor del pool queda asi acotado y sale con 124 (o 137), que el
+    # cierre anota como fallo. Sin `timeout` (GNU) no se envuelve, y se dice.
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    con_tope() {                     # $1 = el --tope-total de la medicion (s)
+      ENVOLTURA=()
+      if [[ "$TIMEOUT_GNU" == "1" ]]; then
+        ENVOLTURA=(timeout --kill-after=300 "$(( $1 + 3900 ))")
+      fi
+    }
     # N3 de la re-revision de 4c: una medicion (o su veredicto) sale con 4
     # cuando el plan tenia corridas que no se llegaron a hacer. No es un fallo
     # del codigo, pero la medicion no esta completa: se anota «incompleta» y el
@@ -1727,16 +1750,48 @@ print(" ".join(sorted(palancas)))
     # m1: los casos cuya seleccion de horas salio con 1 (descarto de mas o dejo
     # un grupo vacio). Las mediciones corren igual; el cierre lo repite.
     SELECCION_MAL=()
+    # Tarea 4d: PASOS elige que pasos correr, para relanzar solo los que
+    # fallaron (la noche del 2026-09-18: PASOS="3 4 5 7" son M-A, M-B, M-C y
+    # M-E). Por defecto, todos. El 1 (el arnes frente al motor) corre SIEMPRE:
+    # sin el nada de lo demas vale. El 2 (la muestra de horas) corre, caso por
+    # caso, si falta su horas_<caso>.json aunque no se pida. La 10 (la recogida
+    # y el cierre) tambien corre siempre. Lo que PASOS deja fuera sale en el
+    # cierre como «no pedido», que no es un fallo ni un salto por el tope.
+    PASOS_TODOS="1 2 3 4 5 6 7 8 9 10"
+    PASOS="${PASOS:-$PASOS_TODOS}"
+    PASOS="${PASOS//,/ }"
+    for _p in $PASOS; do
+      if ! [[ "$_p" =~ ^([1-9]|10)$ ]]; then
+        echo "  PASOS=\"$PASOS\": \"$_p\" no es un paso (van del 1 al 10)"
+        exit 2
+      fi
+    done
+    export PASOS                     # la recogida (paso 10) lo lee tambien
+    pedido() { [[ " $PASOS " == *" $1 "* ]]; }
+    NO_PEDIDOS=()
+    no_pedido() {                    # $1 = paso, $2 = etiqueta en CODIGOS
+      echo "    no pedido (PASOS=\"$PASOS\"): no se corre"
+      CODIGOS+=("$2=no_pedido"); NO_PEDIDOS+=("$1:$2")
+    }
     crea_dir "$VAL"
 
     echo "=== VALIDACION DEL REPOSO (M-A a M-G) ==="
     echo "    MTE_ROOT  = $MTE_ROOT"
-    echo "    procesos  = $PROCS"
+    echo "    procesos  = $PROCS   (corre_mediciones.py los baja si la memoria"
+    echo "                no da ${MEMORIA_POR_PROCESO_GB:-1.5} GB a cada uno)"
     echo "    almacenes = $ALMACENES   (de ahi salen las horas de cada regimen)"
     echo "    salidas   = $VAL"
+    echo "    pasos     = $PASOS   (PASOS; el 1 y la recogida corren siempre,"
+    echo "                el 2 si falta la muestra de algun caso)"
     echo "    tope por medicion = $TOPE_M s (M-A y M-B; M-C, M-E y M-G, 7200 s)"
     echo "    tope global = $TOPE_GLOBAL s (TOPE_GLOBAL_S; cada medicion recibe"
     echo "                  lo menor entre su tope y lo que quede)"
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      echo "    esperador = timeout, con el tope de cada medicion + 3900 s"
+    else
+      echo "    esperador = SIN timeout (no esta el de GNU): una medicion colgada"
+      echo "                no se corta sola"
+    fi
     echo
     CODIGOS=()
 
@@ -1779,6 +1834,14 @@ print(" ".join(sorted(palancas)))
       CASO="${par%%:*}"; RESTO="${par#*:}"
       GRUPOS="${RESTO%%:*}"; NHORAS="${RESTO##*:}"
       ALM="$ALMACENES/$CASO/almacen"
+      # Tarea 4d: sin el paso 2 en PASOS, la muestra que ya esta se usa tal
+      # cual (la seleccion es determinista: semilla fija); la que falta se hace.
+      if ! pedido 2 && [[ -f "$VAL/horas_${CASO}.json" ]]; then
+        echo "    $CASO: se usa $VAL/horas_${CASO}.json, que ya esta (el paso 2"
+        echo "    no se pidio)"
+        CODIGOS+=("horas_$CASO=ya_estaba")
+        continue
+      fi
       if [[ ! -d "$ALM" && "${SECO:-0}" != "1" ]]; then
         echo "  AVISO: no esta $ALM; $CASO se queda sin muestra y las"
         echo "  mediciones que dependen de el correran con sus horas de respaldo"
@@ -1803,10 +1866,14 @@ print(" ".join(sorted(palancas)))
     echo "    acelerar (tolerancia estricta: 1e-3·E y 0,05). En teq 80 y 160, en"
     echo "    el 95 % de las horas, con cinco como minimo. 140 corridas; la que no"
     echo "    quepa en su tope se publica como cortada."
-    if hay_tiempo "M-A"; then
+    if ! pedido 3; then
+      no_pedido 3 m_a
+    elif hay_tiempo "M-A"; then
+      T_M="$(tope_de "$TOPE_M")"; con_tope "$T_M"
       corre "validacion_reposo_m_a" "$CONS/corre_mediciones.py" \
             --medicion medicion_regimenes --salida "$VAL/m_a_regimenes.json" \
-            --procesos "$PROCS" --tope-total "$(tope_de "$TOPE_M")" --horas "$VAL"
+            --procesos "$PROCS" --tope-total "$T_M" --horas "$VAL"
+      ENVOLTURA=()
       anota "m_a"
       corre "validacion_reposo_m_a_veredicto" "$CONS/veredicto.py" \
             "$VAL/m_a_regimenes.json" --salida "$VAL/veredicto_m_a.txt"
@@ -1821,10 +1888,14 @@ print(" ".join(sorted(palancas)))
     echo "    vendiendo, con el costo del vendedor en su alternativa (su piso) y"
     echo "    en su costo nivelado, contra las tres reglas del nucleo."
     echo "    Aceptacion: |dP_ji| <= 1e-3·E (kWh) para la que gane. Decide D64."
-    if hay_tiempo "M-B"; then
+    if ! pedido 4; then
+      no_pedido 4 m_b
+    elif hay_tiempo "M-B"; then
+      T_M="$(tope_de "$TOPE_M")"; con_tope "$T_M"
       corre "validacion_reposo_m_b" "$CONS/corre_mediciones.py" \
             --medicion medicion_merito_vendedores --salida "$VAL/m_b_merito.json" \
-            --procesos "$PROCS" --tope-total "$(tope_de "$TOPE_M")" --horas "$VAL"
+            --procesos "$PROCS" --tope-total "$T_M" --horas "$VAL"
+      ENVOLTURA=()
       anota "m_b"
       corre "validacion_reposo_m_b_veredicto" "$CONS/veredicto.py" \
             "$VAL/m_b_merito.json" --salida "$VAL/veredicto_m_b.txt"
@@ -1840,11 +1911,14 @@ print(" ".join(sorted(palancas)))
     echo "    precios (sigma y medio): 260 corridas de las baratas."
     echo "    Aceptacion: el mismo reposo en los cuatro. Decide D53, que es el"
     echo "    rotulo de un regimen que pesa el 14 % de la energia."
-    if hay_tiempo "M-C"; then
+    if ! pedido 5; then
+      no_pedido 5 m_c
+    elif hay_tiempo "M-C"; then
+      T_M="$(tope_de "${TOPE_M_C:-7200}")"; con_tope "$T_M"
       corre "validacion_reposo_m_c" "$CONS/corre_mediciones.py" \
             --medicion medicion_suma_no_cabe --salida "$VAL/m_c_no_cabe.json" \
-            --procesos "$PROCS" --tope-total "$(tope_de "${TOPE_M_C:-7200}")" \
-            --horas "$VAL"
+            --procesos "$PROCS" --tope-total "$T_M" --horas "$VAL"
+      ENVOLTURA=()
       anota "m_c"
       corre "validacion_reposo_m_c_veredicto" "$CONS/veredicto.py" \
             "$VAL/m_c_no_cabe.json" --salida "$VAL/veredicto_m_c.txt"
@@ -1857,17 +1931,24 @@ print(" ".join(sorted(palancas)))
     echo "--- 6/10 · M-D · la estabilidad del reposo (jacobiano en el reposo)"
     echo "    Segundos: no integra. Lee antes el residuo de cada hora, que dice"
     echo "    si ese punto es de reposo tambien para los multiplicadores."
-    corre "validacion_reposo_m_d" "$CONS/medicion_estabilidad.py" \
-          --horas "$VAL" --salida "$VAL/m_d_estabilidad.json" --por-regimen 10
-    CODIGOS+=("m_d=${CODIGO_CORRE}")
+    if ! pedido 6; then
+      no_pedido 6 m_d
+    else
+      corre "validacion_reposo_m_d" "$CONS/medicion_estabilidad.py" \
+            --horas "$VAL" --salida "$VAL/m_d_estabilidad.json" --por-regimen 10
+      CODIGOS+=("m_d=${CODIGO_CORRE}")
+    fi
 
     echo
     echo "--- 7/10 · M-E · sensibilidad a mu, y el censo de empates"
-    if hay_tiempo "M-E (la sensibilidad a mu; el censo corre igual)"; then
+    if ! pedido 7; then
+      no_pedido 7 m_e            # la sensibilidad a mu y el censo
+    elif hay_tiempo "M-E (la sensibilidad a mu; el censo corre igual)"; then
+      T_M="$(tope_de "${TOPE_M_E:-7200}")"; con_tope "$T_M"
       corre "validacion_reposo_m_e" "$CONS/corre_mediciones.py" \
             --medicion medicion_mu --salida "$VAL/m_e_mu.json" \
-            --procesos "$PROCS" --tope-total "$(tope_de "${TOPE_M_E:-7200}")" \
-            --horas "$VAL"
+            --procesos "$PROCS" --tope-total "$T_M" --horas "$VAL"
+      ENVOLTURA=()
       anota "m_e"
       corre "validacion_reposo_m_e_veredicto" "$CONS/veredicto.py" \
             "$VAL/m_e_mu.json" --salida "$VAL/veredicto_m_e.txt"
@@ -1876,6 +1957,7 @@ print(" ".join(sorted(palancas)))
       CODIGOS+=("m_e=saltada"); SALTADAS+=("M-E")
     fi
     for CASO in E0 K1; do
+      if ! pedido 7; then break; fi
       ALM="$ALMACENES/$CASO/almacen"
       if [[ ! -d "$ALM" && "${SECO:-0}" != "1" ]]; then
         echo "  AVISO: no esta $ALM; el censo de empates de $CASO no se hace"
@@ -1892,11 +1974,14 @@ print(" ".join(sorted(palancas)))
     echo "    La prueba dorada va en las compuertas, sin cambio (7 de 7); aqui"
     echo "    van sus dos horas con el arnes, con las dos formas del jugador"
     echo "    virtual. Es la tabla de la comparacion con el articulo base."
-    if hay_tiempo "M-G (la dorada corre igual)"; then
+    if ! pedido 8; then
+      no_pedido 8 m_g            # M-G y la prueba dorada
+    elif hay_tiempo "M-G (la dorada corre igual)"; then
+      T_M="$(tope_de "${TOPE_M_G:-7200}")"; con_tope "$T_M"
       corre "validacion_reposo_m_g" "$CONS/corre_mediciones.py" \
             --medicion medicion_chacon --salida "$VAL/m_g_chacon.json" \
-            --procesos "$PROCS" --tope-total "$(tope_de "${TOPE_M_G:-7200}")" \
-            --horas "$VAL"
+            --procesos "$PROCS" --tope-total "$T_M" --horas "$VAL"
+      ENVOLTURA=()
       anota "m_g"
       corre "validacion_reposo_m_g_veredicto" "$CONS/veredicto.py" \
             "$VAL/m_g_chacon.json" --salida "$VAL/veredicto_m_g.txt"
@@ -1904,13 +1989,17 @@ print(" ".join(sorted(palancas)))
     else
       CODIGOS+=("m_g=saltada"); SALTADAS+=("M-G")
     fi
-    corre "validacion_reposo_m_g_dorada" -m pytest tests/golden_test_sofia.py \
-          -q -rs -p no:cacheprovider
-    CODIGOS+=("m_g_dorada=${CODIGO_CORRE}")
+    if pedido 8; then
+      corre "validacion_reposo_m_g_dorada" -m pytest tests/golden_test_sofia.py \
+            -q -rs -p no:cacheprovider
+      CODIGOS+=("m_g_dorada=${CODIGO_CORRE}")
+    fi
 
     echo
     echo "--- 9/10 · las dos horas lentas de la compuerta de la dinamica"
-    if [[ "$LENTAS" != "1" ]]; then
+    if ! pedido 9; then
+      no_pedido 9 horas_lentas
+    elif [[ "$LENTAS" != "1" ]]; then
       echo "  LENTAS=$LENTAS: se saltan. Sus ordenes exactas estan en el"
       echo "  docstring de tests/gate_reposo_cero_dinamica.py."
     else
@@ -1980,7 +2069,8 @@ print(" ".join(sorted(palancas)))
     # m3: con algo saltado o incompleto, la noche NO esta completa.
     # m-a de la re-revision 2: un paso que salio con un codigo de fallo (1, 2,
     # 3 o cualquier otro distinto de 0 y de 4) tampoco deja la noche completa.
-    # «seco», «saltada», «incompleta» y 0 no son fallos.
+    # «seco», «saltada», «incompleta» y 0 no son fallos; tampoco «no_pedido» ni
+    # «ya_estaba» (tarea 4d: PASOS), que no son numeros.
     FALLOS=()
     for par in "${CODIGOS[@]}"; do
       valor="${par#*=}"
@@ -1992,18 +2082,30 @@ print(" ".join(sorted(palancas)))
     if [[ ${#SALTADAS[@]} -gt 0 || ${#INCOMPLETAS[@]} -gt 0 ]]; then
       INCOMPLETA=1
     fi
+    # Con PASOS, el cierre habla solo de los pasos pedidos.
+    ALCANCE=""
+    if [[ ${#NO_PEDIDOS[@]} -gt 0 ]]; then
+      ALCANCE=" EN LOS PASOS PEDIDOS (PASOS=\"$PASOS\")"
+    fi
     if [[ ${#FALLOS[@]} -gt 0 && $INCOMPLETA -eq 1 ]]; then
-      echo "=== VALIDACION DEL REPOSO CON FALLOS E INCOMPLETA ==="
+      echo "=== VALIDACION DEL REPOSO CON FALLOS E INCOMPLETA${ALCANCE} ==="
     elif [[ ${#FALLOS[@]} -gt 0 ]]; then
-      echo "=== VALIDACION DEL REPOSO CON FALLOS ==="
+      echo "=== VALIDACION DEL REPOSO CON FALLOS${ALCANCE} ==="
     elif [[ $INCOMPLETA -eq 1 ]]; then
-      echo "=== VALIDACION DEL REPOSO INCOMPLETA ==="
+      echo "=== VALIDACION DEL REPOSO INCOMPLETA${ALCANCE} ==="
     else
-      echo "=== VALIDACION DEL REPOSO COMPLETA ==="
+      echo "=== VALIDACION DEL REPOSO COMPLETA${ALCANCE} ==="
     fi
     echo "  codigos de salida: ${CODIGOS[*]}"
+    if [[ ${#NO_PEDIDOS[@]} -gt 0 ]]; then
+      echo "  no pedidos (PASOS=\"$PASOS\"): ${NO_PEDIDOS[*]}"
+      echo "  No son fallos ni saltos por el tope: esta vez no se pidieron. Sus"
+      echo "  resultados, si los hay, son los de la corrida que los pidio."
+    fi
     if [[ ${#FALLOS[@]} -gt 0 ]]; then
       echo "  === CON FALLOS: ${FALLOS[*]} ==="
+      echo "  (124 o 137 en una medicion: la corto su esperador con tope; el"
+      echo "  gestor del pool se colgo o no atendio a su propio tope)"
       echo "  Mira el registro de cada uno en $LOGS/validacion_reposo_<paso>_<fecha>.log"
       echo "  antes de leer ningun veredicto que dependa de el."
     fi
@@ -2158,23 +2260,33 @@ print(" ".join(sorted(palancas)))
         # estaba (sin el, la medicion corre con sus horas de respaldo o no
         # corre), de modo que aqui se avisa de lo que falte pero no se aborta:
         # recoger lo que hay sirve tambien cuando algo no corrio.
+        # Tarea 4d: con PASOS, solo se espera lo de los pasos pedidos (la
+        # muestra de horas y el registro del arnes, siempre).
+        _pasos=" ${PASOS:-1 2 3 4 5 6 7 8 9 10} "
+        _pasos="${_pasos//,/ }"
+        _pide() { [[ "$_pasos" == *" $1 "* ]]; }
+        VR="SALIDAS_SERVIDOR/validacion_reposo"
         for CASO in E0 K1 E4 E5 CV2; do
-          ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/horas_${CASO}.json")
+          ESPERADOS+=("$VR/horas_${CASO}.json")
         done
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes.json")
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_b_merito.json")
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_c_no_cabe.json")
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_d_estabilidad.json")
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_e_mu.json")
-        ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_g_chacon.json")
-        for CASO in E0 K1; do
-          ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/m_e_empates_${CASO}.json")
-        done
-        for M in m_a m_b m_c m_e m_g; do
-          ESPERADOS+=("SALIDAS_SERVIDOR/validacion_reposo/veredicto_${M}.txt")
-        done
+        if _pide 3; then ESPERADOS+=("$VR/m_a_regimenes.json" "$VR/veredicto_m_a.txt"); fi
+        if _pide 4; then ESPERADOS+=("$VR/m_b_merito.json" "$VR/veredicto_m_b.txt"); fi
+        if _pide 5; then ESPERADOS+=("$VR/m_c_no_cabe.json" "$VR/veredicto_m_c.txt"); fi
+        if _pide 6; then
+          ESPERADOS+=("$VR/m_d_estabilidad.json")
+          ESPERADOS+=("$(ultimo_registro "validacion_reposo_m_d")")
+        fi
+        if _pide 7; then
+          ESPERADOS+=("$VR/m_e_mu.json" "$VR/veredicto_m_e.txt")
+          for CASO in E0 K1; do
+            ESPERADOS+=("$VR/m_e_empates_${CASO}.json")
+          done
+        fi
+        if _pide 8; then ESPERADOS+=("$VR/m_g_chacon.json" "$VR/veredicto_m_g.txt"); fi
         ESPERADOS+=("$(ultimo_registro "validacion_reposo_lado_derecho")")
-        ESPERADOS+=("$(ultimo_registro "validacion_reposo_m_d")")
+        if [[ "$_pasos" != " 1 2 3 4 5 6 7 8 9 10 " ]]; then
+          echo "  PASOS=\"${PASOS}\": solo se espera lo de esos pasos"
+        fi
         ;;
       *)
         echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, barrido_sigma o validacion_reposo"

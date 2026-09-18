@@ -35,6 +35,14 @@ Y, desde la ronda de arreglos de la revision de 4c:
      con recorte que movio el reposo se apartan (5), y el umbral de descarte
      de la seleccion (6).
 
+Y, desde la tarea 4d (la noche del 2026-09-18, que murio con BrokenProcessPool):
+
+ 13. `corre_mediciones.py` sobrevive a un trabajador muerto (os._exit(1) en una
+     especificacion): reencola una vez las corridas en vuelo, anota como FALLA
+     la que cae en dos muertes, abre otro pool y sigue; con tres muertes sale
+     con 1. Reduce los procesos a los que caben en MemAvailable antes de abrir
+     cada pool. El veredicto dice cuantas fallidas son de la maquina.
+
 RAPIDA Y SIN DATOS REALES: todo se hace sobre el caso publicado de Chacon, que
 son literales, una hora sintetica y registros escritos a mano. No carga MTE ni
 escribe nada fuera de `tmp_path`.
@@ -1444,3 +1452,311 @@ def test_rrf_mg_b_exige_todos_los_precios_en_el_piso():
     assert por_texto["(b) todos en el piso: parte 0"]
     assert not por_texto["(b) todos en el piso: cada precio en 114"]
     assert "lectura (b)" not in MG.lectura(juicio)
+
+
+# ═══════════════ tarea 4d: el pool que pierde un trabajador ═══════════════
+# La noche del 2026-09-18, M-A, M-B y M-C murieron con `BrokenProcessPool`
+# (un trabajador «terminated abruptly», probable falta de memoria) y la
+# medicion entera salio con 1. Estas pruebas abren pools de verdad, de un
+# proceso, con un trabajador falso que muere con os._exit(1).
+import json as _json                                      # noqa: E402
+from concurrent.futures import Future as _Future          # noqa: E402
+from concurrent.futures.process import BrokenProcessPool  # noqa: E402
+
+import _trabajador_falso_consenso as TF                   # noqa: E402
+
+
+def _main_falso(tmp_path, monkeypatch, plan, procesos=1):
+    """`corre_mediciones.main` con la medicion y el trabajador falsos."""
+    monkeypatch.setattr(TF, "PLAN", plan)
+    monkeypatch.setattr(CM, "trabajo", TF.trabaja)
+    salida = tmp_path / "m_x.json"
+    codigo = CM.main(["--medicion", "_trabajador_falso_consenso",
+                      "--salida", str(salida), "--procesos", str(procesos),
+                      "--horas", str(tmp_path), "--memoria-por-proceso", "0"])
+    return codigo, _json.loads(salida.read_text(encoding="utf-8"))
+
+
+def test_4d_una_victima_de_rebote_se_rehace_y_termina_bien(tmp_path,
+                                                         monkeypatch, capsys):
+    """La corrida 0 mata el pool la primera vez y a la segunda no (decision
+    del controlador: reencolar una vez). Las que estaban en vuelo vuelven a la
+    cola, se rehacen y la medicion termina bien, sin ninguna FALLA."""
+    marca = tmp_path / "marca_0"
+    codigo, registros = _main_falso(
+        tmp_path, monkeypatch,
+        TF.plan(mueren=set(), n=6, una_vez={0: str(marca)}))
+    salida = capsys.readouterr().out
+    assert marca.exists()                     # la primera vez murio
+    assert codigo == 0
+    assert sorted(r["plan_indice"] for r in registros) == list(range(6))
+    assert not any(V.es_falla(r) for r in registros)
+    assert "EL POOL MURIO (1 de 3" in salida
+    assert "=== REENCOLADA [0/6]" in salida
+    assert "el pool murio 1 veces" in salida
+    assert "anotadas como FALLA" not in salida
+
+
+def test_4d_la_que_mata_siempre_falla_a_la_segunda_sin_llegar_a_tres(
+        tmp_path, monkeypatch, capsys):
+    """La corrida 0 mata el pool siempre: se reencola una vez, en la segunda
+    muerte queda como FALLA y no se reencola mas. Las victimas de rebote se
+    rehacen, y la medicion termina (con 0) sin llegar a la tercera muerte."""
+    codigo, registros = _main_falso(tmp_path, monkeypatch,
+                                    TF.plan(mueren={0}, n=6))
+    salida = capsys.readouterr().out
+    assert codigo == 0
+    assert sorted(r["plan_indice"] for r in registros) == list(range(6))
+    por_indice = {r["plan_indice"]: r for r in registros}
+    muerta = por_indice[0]
+    assert V.es_falla(muerta) and V.es_muerto(muerta)
+    assert CM.CAUSA_MUERTE in muerta["msg"]
+    assert "en vuelo en dos muertes del pool" in muerta["msg"]
+    assert muerta["trabajador_muerto"] == 2
+    assert muerta["muertes_en_vuelo"] == 2
+    # Las demas, tambien las victimas de rebote, corrieron.
+    assert all(por_indice[i]["msg"] == "sin mercado" for i in range(1, 6))
+    assert "EL POOL MURIO (2 de 3" in salida
+    assert "EL POOL MURIO (3 de 3" not in salida
+    assert "1 corridas anotadas como FALLA porque murio su trabajador" in salida
+    assert "MEDICION INCOMPLETA" not in salida
+
+
+def test_4d_tres_que_matan_el_pool_paran_la_medicion_con_1(tmp_path,
+                                                          monkeypatch, capsys):
+    """Tres corridas distintas que matan el pool: a la tercera muerte se para
+    en voz alta, con 1, con el JSON escrito y la orden de retomar."""
+    codigo, registros = _main_falso(tmp_path, monkeypatch,
+                                    TF.plan(mueren={0, 2, 4}, n=8))
+    salida = capsys.readouterr().out
+    assert codigo == 1
+    por_indice = {r["plan_indice"]: r for r in registros}
+    # La 0 cae en dos muertes y la 2 en la segunda y la tercera: FALLA las dos.
+    assert V.es_muerto(por_indice[0]) and V.es_muerto(por_indice[2])
+    # Las victimas de la primera muerte que no volvieron a caer, corrieron.
+    assert por_indice[1]["msg"] == "sin mercado"
+    assert por_indice[3]["msg"] == "sin mercado"
+    assert 7 not in por_indice                # no llego a someterse
+    assert "EL POOL MURIO 3 VECES EN ESTA MEDICION" in salida
+    assert "DETENIDA: el pool murio 3 veces" in salida
+    assert "RETOMA con:  --desde " in salida
+    # M3 de la revision de 4d: la parada dice que indices faltan.
+    assert "corridas sin hacer: indices " in salida
+    assert "FALTAN los indices: " in salida
+    faltan = sorted(set(range(8)) - set(por_indice))
+    assert f"FALTAN los indices: {CM.tramos(faltan)}" in salida
+
+
+def test_4d_m1_solo_son_sospechosas_las_que_podian_correr(tmp_path):
+    """M1 de la revision de 4d: con 2 procesos la ventana es de 4, y el pool
+    alimenta a sus trabajadores en FIFO: tras una muerte solo las 3 primeras en
+    vuelo (n_proc + 1) podian estar corriendo. Esas son sospechosas y vuelven
+    una vez; la cuarta estaba en espera y vuelve sin contarle nada."""
+    marca = tmp_path / "marca_0"
+    plan = list(enumerate(TF.plan(mueren=set(), n=6, duerme=0.5,
+                                  una_vez={0: str(marca)})))
+    r = CM.corre_plan(plan, 6, 2, tmp_path / "x.json", trabajo_fn=TF.trabaja,
+                      por_proceso_gb=0, muestreo_s=0.2)
+    assert r["muertes"] == 1 and not r["detenida"]
+    assert r["sospechosas"] == [[0, 1, 2]]
+    assert r["reencoladas"] == [0, 1, 2]
+    assert r["devueltas"] == [3]
+    assert r["perdidas"] == []
+    assert sorted(x["plan_indice"] for x in r["resultados"]) == list(range(6))
+    assert not any(V.es_falla(x) for x in r["resultados"])
+
+
+def test_4d_tramos_de_indices():
+    assert CM.tramos([3, 4, 5, 9, 12, 13]) == "3-5, 9, 12-13"
+    assert CM.tramos([7]) == "7"
+    assert CM.tramos([]) == "ninguno"
+
+
+def test_4d_m3_me_se_queda_con_la_corrida_quieta_de_cada_mu():
+    """M3 de la revision de 4d: si un mu tiene varias corridas (una rehecha,
+    o una hora en dos grupos), `entre_mus` se queda con la quieta; si no la
+    hay, con la primera que no sea FALLA; solo si no hay otra, con la FALLA.
+    Antes se quedaba con la primera, aunque fuera una FALLA."""
+    igual = ([1.0, 1.0], [700.0, 710.0])
+    otro = ([1.9, 0.1], [700.0, 710.0])
+    quietas = _me("h", [igual] * 3)
+    lenta_mu1 = _me("h", [otro] * 3, quietos=(False,) * 3)[1]
+    falla_mu1 = _falla("M-E", "mu 1", "h")
+    falla_mu1["spec"]["var"]["mu_ent"] = 1.0
+    r = ME.entre_mus([falla_mu1, lenta_mu1] + quietas)
+    assert r["llegaron"] == [0.3, 1.0, 3.0] and r["coinciden"]
+    # Sin la quieta de mu 1, la que queda no llego (la lenta, no la FALLA).
+    r = ME.entre_mus([falla_mu1, lenta_mu1, quietas[0], quietas[2]])
+    assert r["llegaron"] == [0.3, 3.0] and r["no_llegaron"] == [1.0]
+    # Con solo la FALLA, tampoco.
+    r = ME.entre_mus([falla_mu1, quietas[0], quietas[2]])
+    assert r["no_llegaron"] == [1.0]
+
+
+class _PoolFalso:
+    """Un pool sin procesos: su primer `submit` falla como el de un pool roto
+    (si se le pide), y los demas devuelven futuros ya resueltos."""
+
+    abiertos = []
+
+    def __init__(self, n, roto_al_empezar):
+        self.n, self.roto = n, roto_al_empezar
+        _PoolFalso.abiertos.append(self)
+
+    def submit(self, fn, sp):
+        if self.roto:
+            raise BrokenProcessPool("prueba: el pool ya estaba roto")
+        fu = _Future()
+        fu.set_result(fn(sp))
+        return fu
+
+    def shutdown(self, wait=True, cancel_futures=False):
+        pass
+
+
+def _registro_falso(sp):
+    return dict(spec=sp, msg="sin mercado", filas=[], avisos=[], cerrada={},
+                veredicto={}, seg=0.0)
+
+
+def test_4d_el_submit_roto_vuelve_a_la_cola(tmp_path):
+    """Si el pool se rompe en el `submit` (asi murio la noche), la corrida que
+    no llego a someterse no se pierde ni se anota: corre en el pool nuevo."""
+    _PoolFalso.abiertos = []
+
+    def fabrica(n):
+        return _PoolFalso(n, roto_al_empezar=not _PoolFalso.abiertos)
+
+    plan = list(enumerate(TF.plan(mueren=set(), n=3)))
+    r = CM.corre_plan(plan, 3, 2, tmp_path / "x.json",
+                      trabajo_fn=_registro_falso, fabrica=fabrica,
+                      por_proceso_gb=0, muestreo_s=0.1)
+    assert r["muertes"] == 1 and r["perdidas"] == [] and not r["detenida"]
+    assert len(_PoolFalso.abiertos) == 2
+    assert sorted(x["plan_indice"] for x in r["resultados"]) == [0, 1, 2]
+    assert not any(V.es_falla(x) for x in r["resultados"])
+
+
+def _meminfo(tmp_path, disponible_gb, total_gb=31.0):
+    f = tmp_path / "meminfo"
+    f.write_text(f"MemTotal:       {int(total_gb * 2**20)} kB\n"
+                 f"MemFree:          123456 kB\n"
+                 f"MemAvailable:   {int(disponible_gb * 2**20)} kB\n"
+                 f"SwapTotal:       2097148 kB\n"
+                 f"SwapFree:              0 kB\n", encoding="ascii")
+    return f
+
+
+@pytest.mark.parametrize("disponible,pedidos,esperados,reduce", [
+    (40.0, 16, 16, False),       # sobra: se quedan los pedidos
+    (24.0, 16, 16, False),       # justo 1,5 GB por proceso
+    (6.0, 16, 4, True),          # 6 GB / 16 = 0,375: caben 4
+    (1.0, 16, 1, True),          # ni uno cabe: se corre con 1, con aviso
+])
+def test_4d_los_procesos_se_reducen_a_los_que_caben(tmp_path, disponible,
+                                                    pedidos, esperados,
+                                                    reduce):
+    ruta = _meminfo(tmp_path, disponible)
+    n, texto = CM.procesos_por_memoria(pedidos, 1.5, ruta)
+    assert n == esperados
+    assert ("SE REDUCEN A" in texto) is reduce
+    assert "MemAvailable" in texto
+    assert ("Ni uno cabe" in texto) is (disponible < 1.5)
+
+
+def test_4d_sin_meminfo_o_sin_tope_no_se_reduce(tmp_path):
+    n, texto = CM.procesos_por_memoria(16, 1.5, tmp_path / "no_esta")
+    assert n == 16 and "no se puede leer MemAvailable" in texto
+    n, texto = CM.procesos_por_memoria(16, 0, _meminfo(tmp_path, 1.0))
+    assert n == 16 and "sin tope" in texto
+
+
+def test_4d_el_pool_se_abre_con_los_que_caben(tmp_path, capsys):
+    """El tope de memoria manda sobre los procesos pedidos al abrir el pool."""
+    _PoolFalso.abiertos = []
+
+    def fabrica(n):
+        return _PoolFalso(n, roto_al_empezar=False)
+
+    plan = list(enumerate(TF.plan(mueren=set(), n=2)))
+    CM.corre_plan(plan, 2, 16, tmp_path / "x.json",
+                  trabajo_fn=_registro_falso, fabrica=fabrica,
+                  por_proceso_gb=1.5, meminfo=_meminfo(tmp_path, 6.0),
+                  muestreo_s=0.1)
+    assert [p.n for p in _PoolFalso.abiertos] == [4]
+    assert "SE REDUCEN A 4 PROCESOS" in capsys.readouterr().out
+
+
+def test_4d_la_muerte_informa_memoria_y_rss(tmp_path):
+    """En cada muerte: MemAvailable, la swap y el RSS de los trabajadores del
+    ultimo muestreo, leidos de /proc (aqui, uno falso)."""
+    for pid, kb in ((101, 900 * 1024), (102, 700 * 1024)):
+        (tmp_path / str(pid)).mkdir()
+        (tmp_path / str(pid) / "status").write_text(
+            f"Name:\tpython\nVmRSS:\t  {kb} kB\n", encoding="ascii")
+
+    class _ConProcesos:
+        _processes = {101: None, 102: None, 103: None}   # 103 ya no esta
+
+    rss = CM.rss_trabajadores(_ConProcesos(), proc=tmp_path)
+    assert rss == {101: 900 * 1024, 102: 700 * 1024}
+    texto = CM.informe_muerte(2, rss, None, _meminfo(tmp_path, 0.8))
+    assert "EL POOL MURIO (2 de 3" in texto
+    assert "MemAvailable 0.8 GB de 31.0" in texto
+    assert "swap libre 0.0 GB de 2.0" in texto
+    assert "101: 900 MB" in texto and "suma 1600 MB" in texto
+    assert "no se pudo leer" in CM.informe_muerte(1, {}, None,
+                                                  tmp_path / "no_esta")
+
+
+def test_4d_el_veredicto_dice_cuantas_fallidas_son_de_la_maquina():
+    """Las FALLA por trabajador muerto siguen en el denominador (N2 y m-b);
+    la tabla y los juicios propios dicen cuantas son (decision del
+    controlador sobre 4d)."""
+    muerta = _falla("M-A", "V3a acelerada", "m0")
+    muerta["msg"] = f"FALLA BrokenProcessPool: {CM.CAUSA_MUERTE}"
+    muerta["trabajador_muerto"] = 2
+    otra = _falla("M-A", "V3a acelerada", "f0")
+    assert V.es_muerto(muerta) and not V.es_muerto(otra)
+    bien = dict(dq=1e-5, dp=0.01, dP=1e-5, dsj=1e-5)
+    res = [_registro("M-A", "V3a acelerada", "E0", f"b{h}", 100.0,
+                     "interiores", 1.0, dict(cerrada=bien), grupo="interiores")
+           for h in range(3)] + [muerta, otra]
+    horas = {"E0": {"interiores": [dict(fecha=f, regimen="interiores")
+                                   for f in ("m0", "f0")]}}
+    texto = V.tabla(res, horas=horas)
+    fila = next(l for l in texto.splitlines() if "V3a acelerada" in l)
+    # horas 5, juzg 3, nolleg 0, falla 2, muerto 1: siguen en el denominador.
+    assert fila.split()[4:9] == ["5", "3", "0", "2", "1"]
+    assert "regla declarada (60 %, n = 5)" in fila
+    assert "muerto = de las falla" in texto
+    # Los juicios propios: M-C, M-B, M-E y M-G.
+    a = ([1.0, 1.0], [700.0, 710.0])
+    mc = _cuatro("A", 2.0, a, a)
+    rota = [dict(_falla("M-C", MC.FAMILIA, "Z", grupo="suma_no_cabe"),
+                 msg=f"FALLA BrokenProcessPool: {CM.CAUSA_MUERTE}",
+                 trabajador_muerto=1) for _ in range(4)]
+    for c, (oferta, nivel) in zip(rota, MC.ARRANQUES):
+        c["spec"].update(nivel=nivel)
+        c["spec"]["var"]["arranque"] = oferta
+    texto = MC.veredicto(mc + rota)
+    assert ("1 FALLARON en todas sus corridas (1 por trabajador muerto: "
+            "fallo de la maquina)") in texto
+    assert "1 que fallaron (1 por trabajador muerto" in texto
+    mb = _mb_horas(6, 6) + [dict(_falla("M-B", "costo alternativa", "zz",
+                                        caso="E4"),
+                                 trabajador_muerto=1)]
+    assert ("1 con todas sus corridas FALLIDAS (1 por trabajador muerto"
+            in MB.veredicto(mb))
+    me = _me("h", [([1.0, 1.0], [700.0, 710.0])] * 3)
+    me += [dict(_falla("M-E", f"mu {mu:g}", "rota"), trabajador_muerto=1)
+           for mu in ME.MUS]
+    assert ("1 FALLARON en todos sus mu (1 por trabajador muerto"
+            in ME.veredicto(me))
+    mg = [dict(_falla("M-G", MG.BARRERA, "22", caso="CHACON", grupo="chacon"),
+               msg=f"FALLA BrokenProcessPool: {CM.CAUSA_MUERTE}",
+               trabajador_muerto=1)]
+    texto = MG.veredicto(mg)
+    assert "fallo de la maquina, no del modelo" in texto
+    assert ("NO LLEGO: fallaron todos sus brazos (por trabajador muerto"
+            in texto)

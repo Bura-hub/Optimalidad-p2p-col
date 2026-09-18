@@ -279,7 +279,7 @@ def veredicto(resultados) -> str:
     """D53 en tres partes: multiplicidad dentro de cada arranque de precios,
     los arranques sigma frente a la forma cerrada, y «medio» frente a sigma
     como dependencia del presupuesto (ver el docstring del modulo)."""
-    from veredicto import es_falla, rotulo
+    from veredicto import es_falla, es_muerto, rotulo, texto_muertas
     horas = {}
     for res in resultados:
         sp = res.get("spec", {})
@@ -295,6 +295,9 @@ def veredicto(resultados) -> str:
         return "\n".join(lineas + ["  ninguna hora con corridas utiles"])
     n = len(horas)
     fallidas = [h for h, c in horas.items() if all(es_falla(x) for x in c)]
+    # Tarea 4d: de las fallidas, cuantas por trabajador muerto (la maquina).
+    fallidas_muertas = sum(1 for h in fallidas
+                           if all(es_muerto(x) for x in horas[h]))
 
     # ── 1. multiplicidad, dentro de cada arranque de precios ──────────────
     # Re-revision 4 (medio): el resultado se da por arranque de precios, y la
@@ -333,7 +336,8 @@ def veredicto(resultados) -> str:
                   f"reposos) en algun arranque de precios; {len(sin_comparar)} "
                   f"SIN EL PAR SIGMA COMPARADO (alguna de sus dos ofertas sigma "
                   f"no llego quieta a teq 160, fallo o no se corrio); "
-                  f"{len(fallidas)} FALLARON en todas sus corridas")
+                  f"{len(fallidas)} FALLARON en todas sus corridas"
+                  f"{texto_muertas(fallidas_muertas)}")
     lineas.append(f"     por arranque de precios (cada linea cuenta las {n} "
                   f"horas):")
     for nv, cuenta in por_arranque.items():
@@ -374,6 +378,12 @@ def veredicto(resultados) -> str:
     llegan = sum(1 for e in juzgadas if e["llega"])
     no_llegan = sum(1 for e in estados.values() if e["estado"] == "no llega")
     fallan = sum(1 for e in estados.values() if e["estado"] == "falla")
+    # Tarea 4d: las «falla» cuyas ofertas sigma fallidas murieron todas por el
+    # trabajador (la maquina, no el modelo).
+    fallan_muertas = sum(
+        1 for h, e in estados.items() if e["estado"] == "falla"
+        and all(es_muerto(c) for c in horas[h]
+                if nivel_de(c) == "sigma" and es_falla(c)))
     una_sola = [h for h, e in sorted(estados.items()) if e["una_sola"]]
     una_dentro = sum(1 for h in una_sola if estados[h]["una_sola_dentro"])
     rot = rotulo(dentro, n)
@@ -382,8 +392,8 @@ def veredicto(resultados) -> str:
                f"     {n} horas (el denominador): {dentro} dentro en teq 80 y "
                f"160 con LAS DOS ofertas sigma, {llegan} que cumplen el criterio "
                f"de consenso, {no_llegan} que no llegan a teq 160 y {fallan} que "
-               f"fallaron (basta con que no llegue o falle una de las dos "
-               f"ofertas sigma) -> {rot}",
+               f"fallaron{texto_muertas(fallan_muertas)} (basta con que no "
+               f"llegue o falle una de las dos ofertas sigma) -> {rot}",
                f"     {len(una_sola)} horas con UNA SOLA oferta sigma en teq 160 "
                f"(la otra cortada, fallida o sin correr): cuentan como \"no "
                f"llega\" o \"falla\", no como dentro; {una_dentro} de ellas con "

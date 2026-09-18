@@ -100,6 +100,11 @@ set -euo pipefail
 if [[ "${CONTENCION:-1}" == "1" && -z "${CONTENIDO:-}" \
       && "$(uname -s 2>/dev/null)" == "Linux" ]]; then
   export CONTENIDO=1
+  # Y si alguna vez falta memoria, que el nucleo mate PRIMERO a la tesis y no a
+  # PostgreSQL ni a la plataforma: subir el oom_score_adj propio no pide sudo,
+  # se hereda por fork y exec, y corre_mediciones sobrevive a un trabajador
+  # muerto. taskset limita la CPU, no la memoria; esto cubre ese hueco.
+  { echo 500 > /proc/self/oom_score_adj; } 2>/dev/null || true
   _todos="$(nproc --all 2>/dev/null || echo 0)"
   _visibles="$(OMP_NUM_THREADS= OMP_THREAD_LIMIT= nproc 2>/dev/null || echo 0)"
   _previo=()

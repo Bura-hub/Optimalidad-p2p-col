@@ -26,6 +26,9 @@ nada, se vuelve a lanzar a sí misma con tres cosas:
   máquina), un tope duro: la mitad baja queda siempre para la plataforma;
 - con **la prioridad mínima de CPU** (`nice 19`);
 - con **la prioridad mínima de disco** (`ionice`, clase ociosa).
+- y **marcada como la primera víctima si falta memoria** (`oom_score_adj` 500):
+  `taskset` limita la CPU, no la memoria, y así el sistema mata antes a un
+  trabajador de la tesis, que la medición sobrevive, que a PostgreSQL.
 
 Los procesos hijos lo heredan. **El número de procesos es, como mucho, la
 mitad de los núcleos (16 en esta máquina)**: es el valor por defecto de todas
@@ -1664,11 +1667,12 @@ pgrep -af 'run_servidor.sh validacion_reposo|corre_mediciones|gate_reposo_cero_d
 
   ```bash
   ps -o pgid= -p <pid>                  # <pid>: el de la línea «bash ... run_servidor.sh validacion_reposo»
-  ps -o pid,pgid,etime,cmd -g <pgid>    # ANTES de matar: que el grupo sea solo la corrida
+  ps -eo pid,pgid,etime,cmd | awk -v g=<pgid> 'NR==1 || $2==g'   # ANTES de matar: que el grupo sea solo la corrida
+                                        # (no `ps -g`: en Linux filtra por SESION, no por grupo, y sale vacio)
   kill -- -<pgid>                       # el signo menos delante: todo el grupo
   ```
 
-  El `ps -g` es para no matar de más: si la primera noche se hubiera lanzado
+  El listado del grupo es para no matar de más: si la primera noche se hubiera lanzado
   sin control de trabajos, el grupo podría ser el de la sesión SSH. Si en la
   lista aparece algo que no es la corrida (`sshd`, la shell, el editor), no se
   mata el grupo: se matan los procesos de la corrida uno a uno. Después se

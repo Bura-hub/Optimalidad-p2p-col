@@ -188,18 +188,22 @@ def _valida_reposo(modo_presupuesto, sigma_nivel, regla_precio,
                          f"presupuesto 'sigma', no a {modo_presupuesto!r}")
 
 
-def _valida_dinamica(mu_entropia, nivel_acoplado) -> None:
-    """D49 / D50: las dos opciones de la dinamica regularizada del acoplado,
+def _valida_dinamica(mu_entropia, nivel_acoplado, costo_vendedor="lcoe",
+                     piso_juego="minimo") -> None:
+    """D49 / D50 / D68: las opciones de la dinamica regularizada del acoplado,
     en voz alta (H-50, C-190), con el mismo patron que `_valida_reposo`.
 
     La usan `SolverParams` y la tupla del trabajador, de modo que un valor
     invalido se rechaza antes de someter ninguna hora y tambien cuando la
     tupla se arma a mano. La regla es la de `solve_coupled_for_hour`
     (`valida_opciones_dinamica`): `mu_entropia` finito y no negativo (COP/kWh),
-    `nivel_acoplado` uno de NIVELES. Solo actuan por la via acoplada.
+    `nivel_acoplado` uno de NIVELES, `costo_vendedor` uno de COSTOS_VENDEDOR y
+    `piso_juego` uno de PISOS_JUEGO. Solo actuan por la via acoplada.
     """
     valida_opciones_dinamica(mu_entropia, nivel_acoplado,
-                             nombre_nivel="nivel_acoplado")
+                             nombre_nivel="nivel_acoplado",
+                             costo_vendedor=costo_vendedor,
+                             piso_juego=piso_juego)
 
 # ── Barra de progreso ─────────────────────────────────────────────────────────
 # Usa tqdm si está instalado; si no, implementación propia sin dependencias.
@@ -488,9 +492,27 @@ class SolverParams:
     #   nivel_acoplado  "c136" (el arranque de precios de siempre, identico al
     #                   bit) o "sigma" (el presupuesto del reposo, con el
     #                   jugador virtual en su techo)
+    # D68: las dos palancas con que se le pregunta a la dinamica si llega al
+    # reposo de produccion. Tambien APAGADAS, e identicas al bit con sus
+    # defectos.
+    #   costo_vendedor  que costo entra en la aptitud del vendedor y en el
+    #                   termino de la ecuacion 16: "lcoe" (el costo nivelado
+    #                   b_j, el de siempre) o "alternativa" (el piso piso_j de
+    #                   cada vendedor, el que despacha D64). Es la palanca de
+    #                   M-B. Con "alternativa" la hora necesita el vector de
+    #                   pisos: si la corrida no lo tiene (`pi_gb_agente` sin
+    #                   fijar), la via acoplada lo rechaza por hora, con su
+    #                   motivo (C-190) y el codigo 3 de D38
+    #   piso_juego      que escalar de piso recibe el juego: "minimo" (el menor
+    #                   de los pisos de la hora, el de siempre, H-49) o
+    #                   "marginal" (el p* de la caminata competitiva del
+    #                   nucleo, el piso del vendedor marginal de D63). Es la
+    #                   palanca de M-A
     # Solo actuan con `metodo="acoplado"`; con las otras vias son inertes.
     mu_entropia: float = 0.0
     nivel_acoplado: str = "c136"
+    costo_vendedor: str = "lcoe"
+    piso_juego: str = "minimo"
 
     def __post_init__(self):
         # D48: la via se valida al construir. Antes un nombre desconocido
@@ -502,8 +524,9 @@ class SolverParams:
             self.despacho_vendedores)
         _valida_reposo(self.modo_presupuesto, self.sigma_nivel,
                        self.regla_precio, self.despacho_vendedores)
-        # D49 / D50: y las dos opciones de la dinamica regularizada.
-        _valida_dinamica(self.mu_entropia, self.nivel_acoplado)
+        # D49 / D50 / D68: y las opciones de la dinamica regularizada.
+        _valida_dinamica(self.mu_entropia, self.nivel_acoplado,
+                         self.costo_vendedor, self.piso_juego)
         # D36: un presupuesto que no es un entero positivo no se corrige en
         # silencio. Se rechaza al construir, antes de someter ninguna hora:
         # dentro del trabajador se convertiria en una excepcion por hora.
@@ -770,12 +793,14 @@ def _opciones_reposo(sv) -> tuple:
 
 
 def _opciones_dinamica(sv) -> tuple:
-    """D49 / D50: las dos opciones de la dinamica regularizada para la tupla
-    del trabajador, en su orden. El respaldo del `getattr` es el defecto de
-    `SolverParams`, identico al bit: un objeto sin los campos es de antes de
-    D49 y no las pedia."""
+    """D49 / D50 / D68: las cuatro opciones de la dinamica regularizada para la
+    tupla del trabajador, en su orden. El respaldo del `getattr` es el defecto
+    de `SolverParams`, identico al bit: un objeto sin los campos es de antes de
+    D49 o de D68 y no las pedia."""
     return (getattr(sv, "mu_entropia", 0.0),
-            getattr(sv, "nivel_acoplado", "c136"))
+            getattr(sv, "nivel_acoplado", "c136"),
+            getattr(sv, "costo_vendedor", "lcoe"),
+            getattr(sv, "piso_juego", "minimo"))
 
 
 # D48: los campos del reposo, en el orden de `HourlyResult`. La recursion de la
@@ -1203,7 +1228,9 @@ def _resuelve_acoplado(
         factor_crecimiento: float = FACTOR_CRECIMIENTO_DOBLEZ,
         arranque: str = "iguales",
         criterio: str = "precio", tol_reparto: float = TOL_REPARTO,
-        mu_entropia: float = 0.0, nivel: str = "c136"):
+        mu_entropia: float = 0.0, nivel: str = "c136",
+        costo_vendedor: str = "lcoe", piso_j=None,
+        piso_juego: str = "minimo", despacho_vendedores: str = "piso"):
     """Resuelve una hora por la via acoplada (CAL-48), con las dos palancas
     de la sonda de H-79 (D35, D26).
 
@@ -1211,6 +1238,12 @@ def _resuelve_acoplado(
     regularizada de `solve_coupled_for_hour`, las mismas en todas las
     vueltas; con sus defectos (0.0, "c136") la resolucion es la de siempre,
     al bit.
+
+    `costo_vendedor`, `piso_j` y `piso_juego` (D68) son las dos palancas con
+    que se le pregunta a la dinamica si llega al reposo de produccion, y el
+    vector de pisos de la hora que hace falta para usarlas. Tambien las mismas
+    en todas las vueltas; con sus defectos ("lcoe", "minimo") la resolucion es
+    la de siempre, al bit, se pase `piso_j` o no.
 
     `rtol_aco` aprieta la tolerancia relativa del integrador
     (`solve_coupled_for_hour`); la absoluta no se toca (H-51). Con
@@ -1306,7 +1339,17 @@ def _resuelve_acoplado(
             # H-85 / D45: la regla del arranque; "iguales" es el de siempre.
             arranque=arranque,
             # D49 / D50: la dinamica regularizada; apagada por defecto.
-            mu_entropia=mu_entropia, nivel=nivel)
+            mu_entropia=mu_entropia, nivel=nivel,
+            # D68: el costo del vendedor y el piso del juego, apagados por
+            # defecto. Las mismas en todas las vueltas, por la misma razon que
+            # el arranque y el criterio.
+            costo_vendedor=costo_vendedor, piso_j=piso_j,
+            piso_juego=piso_juego,
+            # Menor 5 de la revision: con `piso_juego="marginal"` la caminata
+            # del acoplado usa la MISMA regla de despacho que la corrida del
+            # reposo con la que se compara, de modo que el piso del juego es el
+            # mismo numero en las dos. Solo actua con "marginal".
+            despacho_vendedores=despacho_vendedores)
         n = int(getattr(tr, "nfev", 0) or 0)
         gastado += n
         if horizonte_max_aco is None:
@@ -1409,6 +1452,11 @@ def _run_hour_worker(args):
     # resuelve exactamente igual que antes de D49.
     if len(args) == 36:
         args = args + (0.0, "c136")
+    # D68: las dos palancas del piso y del costo del vendedor de la via
+    # acoplada. El shim rellena con sus defectos, que las apagan: una tupla de
+    # 38 campos resuelve exactamente igual que antes de D68.
+    if len(args) == 38:
+        args = args + ("lcoe", "minimo")
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
@@ -1418,7 +1466,7 @@ def _run_hour_worker(args):
      rtol_aco, horizonte_max_aco, presupuesto_aco, arranque_aco,
      criterio_aco, tol_reparto_aco,
      modo_pres, sigma_nivel, regla_precio, despacho_vend,
-     mu_entropia, nivel_aco) = args
+     mu_entropia, nivel_aco, costo_vend_aco, piso_juego_aco) = args
     # D48: la via y las opciones del reposo, en todas las horas y antes de
     # mirar si hay mercado, como el arranque y el criterio de abajo. D64: el
     # alias "merito" pasa a "costo" antes de validar.
@@ -1426,8 +1474,8 @@ def _run_hour_worker(args):
         raise ValueError(f"metodo {metodo!r}; use uno de {METODOS}")
     despacho_vend = normaliza_despacho(despacho_vend)
     _valida_reposo(modo_pres, sigma_nivel, regla_precio, despacho_vend)
-    # D49 / D50: y las de la dinamica regularizada, igual.
-    _valida_dinamica(mu_entropia, nivel_aco)
+    # D49 / D50 / D68: y las de la dinamica regularizada, igual.
+    _valida_dinamica(mu_entropia, nivel_aco, costo_vend_aco, piso_juego_aco)
     # H-85 / D45: una regla desconocida falla en voz alta en todas las horas,
     # tambien en las que no tienen mercado, y no como excepcion del acoplado
     # por hora (C-190). `SolverParams` ya la valida; esto cubre la tupla
@@ -1493,7 +1541,17 @@ def _run_hour_worker(args):
                 # D47: que mira el criterio de parada, y con que umbral.
                 criterio=criterio_aco, tol_reparto=tol_reparto_aco,
                 # D49 / D50: la dinamica regularizada; apagada por defecto.
-                mu_entropia=mu_entropia, nivel=nivel_aco)
+                mu_entropia=mu_entropia, nivel=nivel_aco,
+                # D68: el costo del vendedor y el piso del juego, apagados por
+                # defecto. El vector de pisos de la hora es el que la hora ya
+                # tiene (`pi_gb_j`, H-49), el mismo que la liquidacion y que la
+                # participacion; con None y los defectos no se usa.
+                costo_vendedor=costo_vend_aco, piso_j=pi_gb_j,
+                piso_juego=piso_juego_aco,
+                # Menor 5: y la regla de despacho del reposo, ya traducida por
+                # `normaliza_despacho` mas arriba, para que el piso marginal
+                # del acoplado sea el de la corrida con la que se compara.
+                despacho_vendedores=despacho_vend)
         except Exception as e:
             # Fallar en voz alta (regla principal de CLAUDE.md, fila
             # "cifras que salen sin error pero son falsas"): antes esta hora
@@ -1749,7 +1807,11 @@ def _run_hour_worker(args):
                  # conjunto reducido se resuelva con la misma regla.
                  modo_pres, sigma_nivel, regla_precio, despacho_vend,
                  # D49 / D50: y la misma dinamica regularizada.
-                 mu_entropia, nivel_aco))
+                 mu_entropia, nivel_aco,
+                 # D68: y las mismas palancas del costo y del piso. El vector
+                 # de pisos del conjunto reducido viaja mas arriba, en el campo
+                 # `pi_gb_j` de esta misma tupla (`piso_v[quedan]`).
+                 costo_vend_aco, piso_juego_aco))
             # D47: las dos resoluciones las pago esta hora, de modo que su
             # costo es la suma. Se acumula antes de mirar si el conjunto
             # reducido dio mercado, porque lo que gasto lo gasto igual.

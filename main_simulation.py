@@ -216,6 +216,39 @@ def linea_dinamica_regularizada(solver):
               "produccion (D48)")
 
 
+def linea_palancas_del_piso(solver):
+    """D68: la linea [D68] de la via acoplada cuando alguna de las dos palancas
+    del piso marginal esta activa (el costo del vendedor, o el escalar de piso
+    que recibe el juego). None si las dos estan apagadas, que es el defecto y
+    no se anuncia."""
+    costo = getattr(solver, "costo_vendedor", "lcoe")
+    piso = getattr(solver, "piso_juego", "minimo")
+    if costo == "lcoe" and piso == "minimo":
+        return None
+    partes = []
+    if costo == "alternativa":
+        partes.append("el costo del vendedor es su alternativa piso_j, no su "
+                      "costo nivelado b_j, en la aptitud del replicador y en "
+                      "el termino de la ecuacion 16 (D64)")
+    if piso == "marginal":
+        # N5 (tarea 5b): la caminata corre con la regla de despacho del reposo
+        # (menor 5), y el piso que sale depende de ella: con "piso" es el p*
+        # de la caminata competitiva; con "costo" o "llenado" es el maximo de
+        # los pisos de los despachados. La linea dice cual fue.
+        regla = getattr(solver, "despacho_vendedores", "piso")
+        if regla == "piso":
+            que = "el p* de la caminata competitiva del nucleo"
+        else:
+            que = "el maximo de los pisos de los despachados"
+        partes.append(f"el piso del juego es el del vendedor marginal, {que} "
+                      f"con el despacho '{regla}', no el menor de los pisos "
+                      f"(D63)")
+    return ("Palancas del piso marginal en el acoplado: " + "; ".join(partes)
+            + ". Sirven para preguntarle a la dinamica si llega al reposo de "
+              "produccion (M-A, M-B); no cambian la via de produccion, que "
+              "resuelve en forma cerrada (D48)")
+
+
 def columnas_reposo(r, nombres) -> dict:
     """D48: las columnas del reposo para la tabla de horas del almacen.
 
@@ -582,6 +615,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          # defecto. Solo actua con metodo="acoplado".
          mu_entropia: float = 0.0,
          nivel_acoplado: str = "c136",
+         # D68: las dos palancas del piso marginal en el acoplado, apagadas
+         # por defecto. Solo actuan con metodo="acoplado".
+         costo_vendedor: str = "lcoe",
+         piso_juego: str = "minimo",
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -916,6 +953,22 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
                       pi_gb_agente=pi_gb_agente)
+    # D68: el costo del vendedor por su alternativa necesita el piso medido de
+    # CADA vendedor, que es la matriz `pi_gb_agente`. Aqui ya se sabe si la
+    # corrida la trae, cosa que `SolverParams` no puede saber al construirse.
+    # Se rechaza en voz alta antes de resolver ninguna hora: sin esta compuerta
+    # la corrida arrancaba, cargaba los datos y moria hora por hora con la
+    # excepcion del acoplado (C-190), y salia con el codigo 3 de D38 despues de
+    # haber gastado el horizonte entero. Ese camino por hora SE CONSERVA como
+    # red, para quien arme la tupla del trabajador a mano.
+    if costo_vendedor == "alternativa" and metodo == "acoplado" \
+            and pi_gb_agente is None:
+        raise ValueError(
+            "--costo-vendedor alternativa necesita el piso medido de cada "
+            "vendedor (la matriz pi_gb_agente), y esta corrida no lo tiene: "
+            "solo lo traen las corridas CON CALENDARIO, es decir --data real "
+            "con --full o con --day. Sin esa matriz la via acoplada no tiene "
+            "con que sustituir el costo nivelado b_j (D64, D68)")
     if use_real_data:
         _t = np.atleast_2d(np.asarray(pi_gs_arg, dtype=float))
         print(f"    [C-146] El juego usa el techo de cada agente: "
@@ -1004,6 +1057,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # inerte en las otras vias. `SolverParams` la valida.
                           mu_entropia=mu_entropia,
                           nivel_acoplado=nivel_acoplado,
+                          # D68: las dos palancas del piso marginal del
+                          # acoplado; inertes en las otras vias.
+                          costo_vendedor=costo_vendedor,
+                          piso_juego=piso_juego,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -1054,6 +1111,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         _linea_d49 = linea_dinamica_regularizada(solver)
         if _linea_d49:
             print(f"    [D49] {_linea_d49}")
+        _linea_d68 = linea_palancas_del_piso(solver)
+        if _linea_d68:
+            print(f"    [D68] {_linea_d68}")
     if metodo == "reposo":
         print(f"    [D48] {linea_inicio_reposo(solver)}")
     _plazo_txt = f"{plazo_hora:g} min" if plazo_hora else "sin plazo"
@@ -2889,7 +2949,10 @@ if __name__ == "__main__":
                          "minusculo sube el piso de toda la hora: es la "
                          "subasta de precio uniforme, y se mide en M-J. "
                          "'merito' es el nombre viejo de 'costo' y se acepta "
-                         "con aviso. Solo con --metodo reposo.")
+                         "con aviso. Actua con --metodo reposo, y tambien con "
+                         "--metodo acoplado y --piso-juego marginal, donde "
+                         "fija la regla con que corre la caminata del piso "
+                         "(D68).")
     ap.add_argument("--permitir-alternado", dest="permitir_alternado",
                     action="store_true",
                     help="CAL-48: permite el horizonte completo por la via "
@@ -2967,6 +3030,26 @@ if __name__ == "__main__":
                          "C-136: una hora con algun techo bajo el piso lanza "
                          "un error y queda sin resolver, con su motivo "
                          "(C-190). Solo con --metodo acoplado.")
+    # D68: las dos palancas del piso marginal en el acoplado. None como
+    # centinela, por la misma razon que las de D49.
+    ap.add_argument("--costo-vendedor", dest="costo_vendedor",
+                    choices=["lcoe", "alternativa"], default=None,
+                    help="D68: que costo del vendedor entra en la dinamica del "
+                         "acoplado. 'lcoe' (defecto) es el costo nivelado b_j, "
+                         "el de siempre; 'alternativa' pone el piso piso_j de "
+                         "cada vendedor en su lugar, que es lo que D64 usa "
+                         "para despachar, en la aptitud del replicador y en el "
+                         "termino de la ecuacion 16. Es la palanca de M-B, y "
+                         "necesita el piso por vendedor. Solo con --metodo "
+                         "acoplado.")
+    ap.add_argument("--piso-juego", dest="piso_juego",
+                    choices=["minimo", "marginal"], default=None,
+                    help="D68: que escalar de piso recibe el juego del "
+                         "acoplado. 'minimo' (defecto) es el menor de los "
+                         "pisos de la hora, el de siempre (H-49); 'marginal' "
+                         "es el piso del vendedor marginal, el p* de la "
+                         "caminata competitiva del nucleo (D63). Es la palanca "
+                         "de M-A. Solo con --metodo acoplado.")
     ap.add_argument("--competencia", dest="buyer_competition",
                     choices=["aggregate", "matlab", "matrix"],
                     default="aggregate",
@@ -3053,11 +3136,25 @@ if __name__ == "__main__":
     _pedidas = [nombre for nombre, v in (
         ("--modo-presupuesto", args.modo_presupuesto),
         ("--sigma-nivel", args.sigma_nivel),
-        ("--regla-precio", args.regla_precio),
-        ("--despacho-vendedores", args.despacho_vendedores)) if v is not None]
+        ("--regla-precio", args.regla_precio)) if v is not None]
+    # N2 (tarea 5b): el despacho NO es solo del reposo. Por la via acoplada con
+    # --piso-juego marginal la caminata del piso corre con esa misma regla
+    # (D68, menor 5), y es justo la combinacion de las mediciones de M-A:
+    # avisar ahi que «no tiene efecto» seria mentir. Se avisa solo cuando de
+    # verdad no actua, y el aviso dice donde si actua.
+    _despacho_actua = (args.metodo == "reposo"
+                       or (args.metodo == "acoplado"
+                           and args.piso_juego == "marginal"))
     if _pedidas and args.metodo != "reposo":
         print(f"    [D48] AVISO: {', '.join(_pedidas)} no tiene efecto sin "
               f"--metodo reposo: la via {args.metodo} no usa esas reglas")
+    if args.despacho_vendedores is not None and not _despacho_actua:
+        _falta = (" sin --piso-juego marginal" if args.metodo == "acoplado"
+                  else "")
+        print(f"    [D48] AVISO: --despacho-vendedores no tiene efecto con "
+              f"--metodo {args.metodo}{_falta}: actua con --metodo reposo, o "
+              f"con --metodo acoplado y --piso-juego marginal, donde fija la "
+              f"regla de la caminata del piso (D68)")
     if args.modo_presupuesto is None:
         args.modo_presupuesto = "sigma"
     if args.regla_precio is None:
@@ -3156,6 +3253,20 @@ if __name__ == "__main__":
         args.mu_entropia = 0.0
     if args.nivel_acoplado is None:
         args.nivel_acoplado = "c136"
+    # D68: las dos palancas del piso marginal, con su propio aviso: pedirlas
+    # sin la via acoplada no tiene efecto, y decirlo bajo [D49] nombraria la
+    # decision que no es. `argparse` ya rechaza los valores desconocidos.
+    _pedidas_d68 = [nombre for nombre, v in (
+        ("--costo-vendedor", args.costo_vendedor),
+        ("--piso-juego", args.piso_juego)) if v is not None]
+    if _pedidas_d68 and args.metodo != "acoplado":
+        print(f"    [D68] AVISO: {', '.join(_pedidas_d68)} no tiene efecto "
+              f"sin --metodo acoplado: la via {args.metodo} no integra la "
+              f"dinamica")
+    if args.costo_vendedor is None:
+        args.costo_vendedor = "lcoe"
+    if args.piso_juego is None:
+        args.piso_juego = "minimo"
 
     # CAL-48, activado el 2026-09-07: la corrida canonica va ACOPLADA.
     #
@@ -3231,6 +3342,9 @@ if __name__ == "__main__":
              despacho_vendedores=args.despacho_vendedores,
              mu_entropia=args.mu_entropia,
              nivel_acoplado=args.nivel_acoplado,
+             # D68: las dos palancas del piso marginal del acoplado.
+             costo_vendedor=args.costo_vendedor,
+             piso_juego=args.piso_juego,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -3263,6 +3377,9 @@ if __name__ == "__main__":
              despacho_vendedores=args.despacho_vendedores,
              mu_entropia=args.mu_entropia,
              nivel_acoplado=args.nivel_acoplado,
+             # D68: las dos palancas del piso marginal del acoplado.
+             costo_vendedor=args.costo_vendedor,
+             piso_juego=args.piso_juego,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,

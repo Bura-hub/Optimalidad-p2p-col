@@ -48,7 +48,10 @@ from core.replicator_buyers import VEL_WI, VEL_GPC, PGB, PGS
 # D50: el presupuesto de precios del reposo. El arranque `nivel="sigma"` lo
 # toma del nucleo en vez de repetir la formula. El nucleo es puro y no importa
 # nada del motor, de modo que no hay importacion circular.
-from core.reposo_mercado import presupuesto_precios
+# D68: y la caminata competitiva, para que `piso_juego="marginal"` use el MISMO
+# p* que la via de produccion en vez de repetir la caminata aqui.
+from core.reposo_mercado import (DESPACHOS_VENDEDORES, despacho_competitivo,
+                                 presupuesto_precios)
 
 
 class _LadoDerechoNoFinito(Exception):
@@ -216,16 +219,64 @@ NIVELES = ("c136", "sigma")
 # `tests/test_dinamica_regularizada.py`.
 CLAVES_ESTADO = ("P", "pi")
 
+# D68: de donde sale el costo del vendedor que entra en la dinamica. La primera
+# es el defecto y es la de siempre: el costo nivelado b_j del modelo base. La
+# segunda es la ALTERNATIVA piso_j de cada vendedor, que es lo que D64 usa para
+# despachar; sirve para preguntarle a la dinamica si llega al mismo reposo
+# (M-B).
+COSTOS_VENDEDOR = ("lcoe", "alternativa")
+
+# D68: que escalar de piso recibe el juego. La primera es el defecto y es la de
+# siempre: el escalar `pi_gb` que llega, que por el motor es el MENOR de los
+# pisos de los vendedores de la hora (H-49). La segunda es el piso del vendedor
+# MARGINAL, el p* de la caminata competitiva del nucleo (D63, D65); sirve para
+# preguntarle a la dinamica si llega al reposo con el piso de produccion (M-A).
+PISOS_JUEGO = ("minimo", "marginal")
+
+# D68 (medio 1 de la revision): el polvo que se le perdona a un neto antes de
+# darselo a la caminata competitiva del nucleo (kWh).
+#
+# POR QUE HAY DOS CONSTANTES IGUALES. El motor tiene la suya,
+# `core/ems_p2p.py:TOL_NETO_REPOSO`, que limpia los netos de la via de
+# produccion en `_entradas_reposo`. Esta es su gemela y vale lo mismo A
+# PROPOSITO: las dos vias tienen que aceptar exactamente las mismas horas, o la
+# comparacion de D68 mediria la diferencia entre dos filtros en vez de la
+# diferencia entre dos mercados. No se importa la del motor porque este modulo
+# es de los que el motor importa, y traerla de vuelta cerraria el ciclo. Si una
+# cambia, la otra tambien.
+TOL_NETO_CAMINATA = 1e-9
+
+
+def _sin_polvo_neto(x: np.ndarray) -> np.ndarray:
+    """Una COPIA del neto con el polvo negativo de `TOL_NETO_CAMINATA` llevado
+    a cero (medio 1).
+
+    Los netos de una hora real se calculan restando dos medidas y traen
+    briznas de signo negativo del orden de 1e-10: un comprador con demanda cero
+    y una brizna de generacion llega con deficit -5e-10. El nucleo las rechaza
+    (`_no_negativo`), de modo que sin esto la hora reventaria por la vIa
+    acoplada mientras el reposo la resuelve. Gemela de `_entradas_reposo` del
+    motor. Lo que se limpia es lo que ve LA CAMINATA; el estado que se integra
+    no se toca.
+    """
+    x = np.array(x, dtype=float, copy=True)
+    x[(x < 0.0) & (x >= -TOL_NETO_CAMINATA)] = 0.0
+    return x
+
 
 def valida_opciones_dinamica(mu_entropia, nivel,
-                             nombre_nivel: str = "nivel") -> None:
-    """D49 / D50: las dos opciones de la dinamica regularizada, en voz alta.
+                             nombre_nivel: str = "nivel",
+                             costo_vendedor: str = "lcoe",
+                             piso_juego: str = "minimo") -> None:
+    """D49 / D50 / D68: las opciones de la dinamica regularizada, en voz alta.
 
     `mu_entropia` es un numero real finito y no negativo (COP/kWh); 0 apaga el
-    termino. `nivel` es uno de NIVELES. La usan `solve_coupled_for_hour` y,
-    por `core/ems_p2p.py`, `SolverParams` y la tupla del trabajador, que la
-    llaman con `nombre_nivel="nivel_acoplado"` para que el mensaje nombre su
-    campo.
+    termino. `nivel` es uno de NIVELES. `costo_vendedor` es uno de
+    COSTOS_VENDEDOR y `piso_juego` uno de PISOS_JUEGO (D68), los dos con su
+    defecto apagado. La usan `solve_coupled_for_hour` y, por `core/ems_p2p.py`,
+    `SolverParams` y la tupla del trabajador, que la llaman con
+    `nombre_nivel="nivel_acoplado"` para que el mensaje nombre su campo; los
+    dos campos de D68 se llaman igual en las tres capas y no necesitan alias.
     """
     if (isinstance(mu_entropia, bool)
             or not isinstance(mu_entropia, (int, float, np.integer,
@@ -238,6 +289,74 @@ def valida_opciones_dinamica(mu_entropia, nivel,
         raise ValueError(f"{nombre_nivel}={nivel!r}; use 'c136' (el arranque "
                          f"de precios de siempre) o 'sigma' (el presupuesto "
                          f"del reposo, D50)")
+    if costo_vendedor not in COSTOS_VENDEDOR:
+        raise ValueError(f"costo_vendedor={costo_vendedor!r}; use 'lcoe' (el "
+                         f"costo nivelado b_j, el de siempre) o 'alternativa' "
+                         f"(el piso piso_j de cada vendedor, el que despacha "
+                         f"D64) (D68)")
+    if piso_juego not in PISOS_JUEGO:
+        raise ValueError(f"piso_juego={piso_juego!r}; use 'minimo' (el menor "
+                         f"de los pisos, el de siempre) o 'marginal' (el piso "
+                         f"del vendedor marginal, el p* de "
+                         f"`despacho_competitivo`, D63) (D68)")
+
+
+def _valida_piso_j(piso_j, J: int,
+                   costo_vendedor: str) -> Optional[np.ndarray]:
+    """D68: el piso de cada vendedor (COP/kWh), comprobado.
+
+    Devuelve una copia float64 de forma (J,), o None si no llego y nadie lo
+    necesita. Con `costo_vendedor="alternativa"` es OBLIGATORIO: sin el no hay
+    con que sustituir a b_j, y rellenarlo con el escalar seria despachar por
+    un costo que nadie declaro. Con `piso_juego="marginal"` no lo es: si no
+    llega, la caminata corre con el escalar `pi_gb` repetido, y entonces el
+    unico nivel es ese escalar y el piso marginal COINCIDE con el minimo, que
+    es la respuesta correcta cuando todos los vendedores tienen el mismo piso.
+    """
+    if piso_j is None:
+        if costo_vendedor == "alternativa":
+            raise ValueError(
+                "costo_vendedor='alternativa' exige piso_j, la alternativa de "
+                "cada uno de los J vendedores (COP/kWh): sin ella no hay con "
+                "que sustituir el costo nivelado b_j (D64, D68)")
+        return None
+    try:
+        arr = np.array(piso_j, dtype=float, copy=True)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"piso_j no es numerico: {exc}") from None
+    if arr.ndim != 1 or arr.shape[0] != J:
+        raise ValueError(f"piso_j tiene forma {arr.shape}; se esperaba "
+                         f"({J},), un piso por vendedor (COP/kWh)")
+    if not np.all(np.isfinite(arr)):
+        raise ValueError(f"piso_j tiene valores no finitos: {arr}")
+    return arr
+
+
+def _trayectoria_sin_mercado(t_span, n_points: int, I: int, J: int,
+                             pi_gb: float, mensaje: str) -> CoupledTrajectory:
+    """La trayectoria de una hora SIN MERCADO: precios en el piso que llego,
+    oferta y bienestar en cero, `success=True` y la causa en `message`.
+
+    La construyen dos salidas de `solve_coupled_for_hour`: el caso degenerado
+    de siempre (sin oferta o sin demanda, o sin agentes), con su mensaje de
+    siempre, y la hora que la caminata competitiva declara sin ganancia con
+    `piso_juego="marginal"` (N1 de la re-revision de la tarea 5b, D61, D68).
+    Una sola funcion para las dos, de modo que el motor las trata igual: es
+    una hora sin mercado, no un integrador que fallo ni una excepcion.
+    """
+    t = np.linspace(t_span[0], t_span[1], n_points)
+    return CoupledTrajectory(
+        t=t,
+        pi_t=np.full((I, n_points), pi_gb),
+        P_t=np.zeros((J, I, n_points)),
+        Wj_t=np.zeros(n_points),
+        Wi_t=np.zeros(n_points),
+        W_t=np.zeros(n_points),
+        pi_star=np.full(I, pi_gb),
+        P_star=np.zeros((J, I)),
+        success=True,
+        message=mensaje,
+    )
 
 
 def _precios_sigma(gs_i: np.ndarray, pi_gb: float) -> np.ndarray:
@@ -358,6 +477,19 @@ def solve_coupled_for_hour(
     # D49: arrancar desde un estado dado (`_valida_estado_inicial`). None
     # (defecto) es el arranque de siempre, al bit.
     estado_inicial: Optional[dict] = None,
+    # D68: que costo del vendedor entra en la dinamica. "lcoe" (defecto) es
+    # b_j, el de siempre, identico al bit.
+    costo_vendedor: str = "lcoe",
+    # D68: el piso de cada vendedor (COP/kWh). Obligatorio con
+    # `costo_vendedor="alternativa"`; opcional con `piso_juego="marginal"`.
+    piso_j:      Optional[np.ndarray] = None,
+    # D68: que escalar de piso recibe el juego. "minimo" (defecto) es el
+    # `pi_gb` que llega, el de siempre, identico al bit.
+    piso_juego:  str = "minimo",
+    # D68 (menor 5): la regla de despacho con que corre la caminata cuando
+    # `piso_juego="marginal"`. "piso" (defecto) es la de produccion (D64).
+    # Solo actua con "marginal"; con "minimo" no se corre ninguna caminata.
+    despacho_vendedores: str = "piso",
 ) -> CoupledTrajectory:
     """Integra el sistema acoplado [buyer_state ; seller_state] en una sola
     llamada ``solve_ivp``, replicando estructuralmente JoinFinal.m:join().
@@ -413,6 +545,84 @@ def solve_coupled_for_hour(
                lado derecho ya la lee con ese piso, D40). No se combina con
                `arranque="factible"` (ValueError). None (defecto): identico
                al bit.
+    costo_vendedor : D68, que costo del vendedor entra en la dinamica.
+               "lcoe" (defecto) es el costo nivelado b_j del modelo base,
+               identico al bit. "alternativa" pone piso_j en su lugar EN LOS
+               DOS SITIOS donde el costo entra en el lado derecho: la aptitud
+               del replicador del vendedor (H = 2·a_j·sum_i P_ji + c_j) y el
+               termino de la ecuacion 16 que alimenta a gamma
+               (H_j = a_j·(sum_i P_ji)² + c_j·sum_i P_ji). Es la palanca de
+               M-B: despachar por costo nivelado frente a despachar por costo
+               de oportunidad, que es lo que D64 hace en el reposo. Exige
+               `piso_j`.
+
+               EL BIENESTAR NO CAMBIA, Y HAY QUE TENERLO PRESENTE.
+               `_compute_welfare_trajectory` sigue contando el costo real b_j,
+               que es la definicion publicada y no se toca por una opcion de
+               validacion. De modo que con "alternativa" la DINAMICA y la
+               CONTABILIDAD DEL BIENESTAR cuentan costos distintos: uno
+               despacha por costo de oportunidad y el otro liquida por costo
+               nivelado. No es un descuido. M-B compara EL REPARTO ENTRE
+               VENDEDORES, no el bienestar; cualquier medicion que quiera
+               comparar excedentes tiene que usar el excedente del mercado,
+               con techo y piso, y no `seller_welfare`.
+    piso_j   : D68, la alternativa de cada uno de los J vendedores (COP/kWh).
+               Hace falta porque esta via solo recibia el ESCALAR `pi_gb`.
+               Con None y `costo_vendedor="lcoe"` nada cambia.
+    piso_juego : D68, que escalar de piso recibe el juego. "minimo" (defecto)
+               es el `pi_gb` que llega, que por el motor es el menor de los
+               pisos de la hora (H-49), identico al bit. "marginal" lo
+               sustituye por el p* de `despacho_competitivo` del nucleo,
+               calculado con las MISMAS entradas de la hora (G_net_j, D_net_i,
+               los techos y piso_j), que es el piso del vendedor marginal de
+               D63. Ese escalar es el que recibe la barrera del juego,
+               (pi_gs_i - pi_i)·(pi_i - piso), la proyeccion sobre la cota
+               baja, el termino de pago del comprador, el arranque de precios
+               y el recorte final: es decir, se pasa p* como `pi_gb` (D68,
+               apartado «Motor» de la especificacion).
+
+               ENTRA EN TODO EL JUEGO A PROPOSITO, y no solo en la barrera: en
+               la forma cerrada la banda de la hora es [piso marginal,
+               techo_i], de modo que si el escalar entrara unicamente en la
+               barrera la dinamica jugaria en una banda DISTINTA de la que se
+               esta validando y la comparacion no probaria nada. No se
+               estreche.
+
+               Con un solo nivel de piso las dos opciones dan el mismo numero.
+
+               UN COMPRADOR CON techo_i < p* SIGUE TRANSANDO, Y A SU TECHO.
+               Aqui la dinamica y la forma cerrada DIFIEREN A PROPOSITO, y es
+               una de las cosas que M-A viene a medir. El reposo lo EXCLUYE:
+               por debajo del piso marginal no le vende nadie. La dinamica no
+               lo excluye: su banda queda invertida, el recorte lo deja en su
+               techo y desde ahi se lleva energia igual, es decir compra por
+               debajo del piso del juego. Medido sobre el caso del cruce de
+               cotas (s = (1; 1), pisos = (300; 700), d = (1,5; 1), techos =
+               (800; 650), p* = 700), al horizonte 0,05 y con el arranque de
+               esta funcion: precios (738,25; 650,00) y reparto (1,5; 0,5) de
+               2,0 (kWh), de modo que el comprador de techo 650 se lleva la
+               cuarta parte del volumen. Al horizonte 0,01 se lleva el 30,7 %,
+               es decir la fraccion depende de cuanto se integre.
+
+               Con `nivel="sigma"` esa misma hora se rechaza en voz alta (el
+               nucleo no admite un techo bajo el piso), de modo que el arranque
+               sigma y el piso marginal solo se combinan donde todos los techos
+               alcanzan.
+
+               LA HORA SIN GANANCIA. Si la caminata declara la hora
+               «sin_ganancia» (D61), produccion la deja sin mercado, y esta
+               via hace lo simetrico: NO integra y devuelve la trayectoria de
+               hora sin mercado (`_trayectoria_sin_mercado`), con la causa en
+               `message`. No lanza excepcion: una excepcion contaria en la
+               linea de C-190 y haria salir la corrida con el codigo 3 de D38,
+               y en las corridas de M-A ese contador tiene que seguir diciendo
+               «algo se rompio», no «esta hora no tenia ganancia».
+
+               NOMBRE REPETIDO, OBJETOS DISTINTOS (menor 9): aqui `piso_juego`
+               es una CADENA, la regla con que se elige el escalar; en
+               `HourlyResult.piso_juego` y en la tabla de horas del almacen es
+               un NUMERO (COP/kWh), el piso que rigio esa hora. No se leen ni
+               se comparan entre si.
     pi_gb    : COP/kWh, precio compra a la red (limite inferior π)
     tau_sellers : tau filtro Lagrange (matching JoinFinal.m linea 132)
     tau_buyers  : tau3 filtro buyer (matching JoinFinal.m linea 133)
@@ -447,9 +657,10 @@ def solve_coupled_for_hour(
     if arranque not in ARRANQUES:
         raise ValueError(f"arranque={arranque!r}; use 'iguales' (el de "
                          "siempre, como JoinFinal.m) o 'factible' (H-85, D45)")
-    # D49 / D50: lo mismo con las opciones de la dinamica regularizada y con
-    # el estado inicial, tambien en la hora sin mercado.
-    valida_opciones_dinamica(mu_entropia, nivel)
+    # D49 / D50 / D68: lo mismo con las opciones de la dinamica regularizada y
+    # con el estado inicial, tambien en la hora sin mercado.
+    valida_opciones_dinamica(mu_entropia, nivel, costo_vendedor=costo_vendedor,
+                             piso_juego=piso_juego)
     mu = float(mu_entropia)
     if nivel == "sigma" and peso_virtual == "precio":
         # Menor 4 de la revision de la tarea 3: con el peso de precio el
@@ -469,6 +680,25 @@ def solve_coupled_for_hour(
     sum_D = float(np.sum(D_net_i))
     simplex = min(sum_G, sum_D)
 
+    # D68: el piso por vendedor, comprobado tambien en la hora sin mercado, de
+    # modo que pedir "alternativa" sin el falla igual en todas las horas y no
+    # solo en las que integran.
+    piso_v = _valida_piso_j(piso_j, J, costo_vendedor)
+    # D68 (menor 5): la regla de despacho de la caminata. Se comprueba aqui, en
+    # todas las horas, y no dentro del nucleo, que solo la veria en las que
+    # corren la caminata. El alias "merito" de D64 NO se traduce aqui: quien
+    # llega por el motor ya viene traducido (`normaliza_despacho`), y esa
+    # funcion vive en el motor, que importa este modulo.
+    if despacho_vendedores not in DESPACHOS_VENDEDORES:
+        raise ValueError(f"despacho_vendedores={despacho_vendedores!r}; use "
+                         f"uno de {DESPACHOS_VENDEDORES} (D64; el alias "
+                         f"'merito' lo traduce el motor, no esta via); solo "
+                         f"actua con piso_juego='marginal'")
+    # D68: el costo del vendedor que entra en la dinamica. Con "lcoe" es el
+    # MISMO objeto `b_j` de siempre, de modo que el lado derecho es identico al
+    # bit.
+    c_j = b_j if costo_vendedor == "lcoe" else piso_v
+
     estado = None
     if estado_inicial is not None:
         if arranque == "factible":
@@ -482,19 +712,8 @@ def solve_coupled_for_hour(
 
     # Caso degenerado: sin mercado P2P
     if simplex < 1e-10 or J == 0 or I == 0:
-        t = np.linspace(t_span[0], t_span[1], n_points)
-        return CoupledTrajectory(
-            t=t,
-            pi_t=np.full((I, n_points), pi_gb),
-            P_t=np.zeros((J, I, n_points)),
-            Wj_t=np.zeros(n_points),
-            Wi_t=np.zeros(n_points),
-            W_t=np.zeros(n_points),
-            pi_star=np.full(I, pi_gb),
-            P_star=np.zeros((J, I)),
-            success=True,
-            message="No P2P market (simplex < 1e-10)",
-        )
+        return _trayectoria_sin_mercado(t_span, n_points, I, J, pi_gb,
+                                        "No P2P market (simplex < 1e-10)")
 
     # ── El techo, por comprador ───────────────────────────────
     # H-45: el techo es lo que CADA comprador le paga a la red, y en esta
@@ -522,6 +741,71 @@ def solve_coupled_for_hour(
     gs_i      = np.broadcast_to(np.asarray(pi_gs, dtype=float), (I,)).copy()
     pi_gs_all = np.append(gs_i, float(np.max(gs_i)))
     pi_gs_max = float(np.max(gs_i))
+
+    # ── El piso del juego ─────────────────────────────────────
+    # D68: hasta aqui el piso del juego era siempre el escalar `pi_gb`, que por
+    # el motor es el MENOR de los pisos de los vendedores de la hora (H-49).
+    # Con `piso_juego="marginal"` pasa a ser el p* de la caminata competitiva
+    # del nucleo (D63, D65), calculado con las mismas entradas de la hora. Se
+    # LLAMA AL NUCLEO en vez de repetir la caminata, para que la via acoplada y
+    # la de produccion anclen en el mismo numero por construccion.
+    #
+    # De aqui para abajo `piso_barrera` sustituye a `pi_gb` en todo el juego:
+    # el arranque de precios, la barrera, la proyeccion sobre la cota baja, el
+    # termino de pago del comprador y el recorte final. Con "minimo" vale
+    # exactamente `float(pi_gb)` y todo queda identico al bit.
+    #
+    # La hora sin mercado ya volvio mas arriba con `pi_gb`, sin pasar por aqui:
+    # sin mercado no hay caminata que correr.
+    piso_barrera = float(pi_gb)
+    if piso_juego == "marginal":
+        # El polvo de los netos (medio 1 de la revision). El nucleo rechaza un
+        # neto negativo, y los netos de una hora real traen briznas de signo
+        # negativo del orden de 1e-10: un comprador con demanda cero y una
+        # brizna de generacion llega con deficit -5e-10. Sin limpiarlo, la
+        # caminata lanza ValueError y la hora REVIENTA POR LA ACOPLADA mientras
+        # el reposo la resuelve sin inmutarse, que es justo la comparacion que
+        # D68 viene a hacer. Se limpia en COPIAS y solo para la caminata: el
+        # estado que se integra sigue siendo el que llego, al bit.
+        s_caminata = _sin_polvo_neto(G_net_j)
+        d_caminata = _sin_polvo_neto(D_net_i)
+        desp = despacho_competitivo(
+            s_caminata, d_caminata, gs_i,
+            float(pi_gb) if piso_v is None else piso_v,
+            # Menor 5 de la revision: el piso del acoplado sigue la MISMA regla
+            # de despacho que la corrida de produccion con la que se compara.
+            # Con "piso" (el defecto, D64) es la caminata competitiva; quien
+            # compare contra "costo" o "llenado" recibe el piso de esa regla.
+            despacho_vendedores, b=b_j)
+        # N1 de la re-revision: una hora que la caminata declara sin ganancia
+        # (D61) es una hora que produccion deja SIN MERCADO, en un regimen
+        # previsto. La dinamica hace lo simetrico: no la integra, y devuelve la
+        # MISMA trayectoria de hora sin mercado que el caso degenerado de mas
+        # arriba, con la causa en el mensaje. No se lanza excepcion a
+        # proposito: una excepcion sube al trabajador, cuenta en la linea de
+        # C-190 y hace salir la corrida con el codigo 3 de D38, y en las
+        # corridas de M-A ese contador tiene que seguir significando «algo se
+        # rompio», no «esta hora no tenia ganancia». El precio es el piso que
+        # llego, como en el caso degenerado: sin mercado no hay p* que anclar.
+        if desp.causa:
+            return _trayectoria_sin_mercado(
+                t_span, n_points, I, J, pi_gb,
+                f"No P2P market (caminata competitiva: {desp.causa}, D61; "
+                f"piso_juego='marginal', D68)")
+        piso_barrera = float(desp.piso)
+        if not np.isfinite(piso_barrera):
+            raise ValueError(f"la caminata competitiva devolvio un piso no "
+                             f"finito ({desp.piso!r}) con causa "
+                             f"{desp.causa!r} (D68)")
+        if estado is not None and np.any(estado["pi"] < piso_barrera):
+            # `_valida_estado_inicial` comprobo la banda contra el piso que
+            # llego, que con "marginal" es el mas bajo de los dos. Un precio
+            # bajo p* arrancaria fuera de la barrera del juego que se va a
+            # integrar, y alli el peso vale cero: se rechaza en voz alta en vez
+            # de dejar ese precio congelado sin decirlo.
+            raise ValueError(f"estado_inicial['pi'] = {estado['pi']} tiene "
+                             f"precios bajo el piso del vendedor marginal "
+                             f"{piso_barrera} (piso_juego='marginal', D68)")
 
     # ── Indices del estado ────────────────────────────────────
     n_pi_all = I + 1
@@ -564,12 +848,12 @@ def solve_coupled_for_hour(
         # piso + (I-1)/I·(techo_i - piso), del nucleo, y el virtual en su
         # techo, donde la barrera lo congela: la suma de los precios reales es
         # el presupuesto sigma y la dinamica la conserva.
-        pi_all_0 = np.append(_precios_sigma(gs_i, float(pi_gb)), pi_gs_max)
+        pi_all_0 = np.append(_precios_sigma(gs_i, piso_barrera), pi_gs_max)
     else:
-        ci_i = np.where((pi_gb < ci) & (ci < gs_i), ci,
-                        pi_gb + (gs_i - pi_gb) * I / n_pi_all)
-        ci_v = (ci if pi_gb < ci < pi_gs_max
-                else pi_gb + (pi_gs_max - pi_gb) * I / n_pi_all)
+        ci_i = np.where((piso_barrera < ci) & (ci < gs_i), ci,
+                        piso_barrera + (gs_i - piso_barrera) * I / n_pi_all)
+        ci_v = (ci if piso_barrera < ci < pi_gs_max
+                else piso_barrera + (pi_gs_max - piso_barrera) * I / n_pi_all)
         pi_all_0 = np.append(ci_i, ci_v)
     gamma_0  = 0.1 * np.ones(J)
     y_filt_0 = np.ones(J)
@@ -661,7 +945,7 @@ def solve_coupled_for_hour(
         sumP_j = P.sum(axis=1)   # (J,) suma sobre i
 
         # ── BUYER DYNAMICS (replicating solve_buyers loop body) ──
-        pagos = -pi_gb * sumP_i / (pi_real + 1.0)
+        pagos = -piso_barrera * sumP_i / (pi_real + 1.0)
         trestris = (y_filt[:, None] * P).sum(axis=0)
         if buyer_competition == "aggregate":
             compe = etha_s * sumP_i
@@ -675,7 +959,7 @@ def solve_coupled_for_hour(
         # H-45: el peso de barrera lleva el techo de CADA comprador. Es lo
         # que hace que el precio de un comprador se detenga en SU techo y no
         # en el mayor de la hora.
-        pi_hat = (pi_gs_all - pi_all) * (-pi_gb + pi_all)
+        pi_hat = (pi_gs_all - pi_all) * (-piso_barrera + pi_all)
         # H-46: en el fichero original el jugador virtual NO lleva la
         # barrera, lleva su propio precio. Esta traduccion se la aplica a el
         # tambien. Opt-in para medir la diferencia sin mover el defecto.
@@ -690,18 +974,26 @@ def solve_coupled_for_hour(
         # pi_i flotando dentro pero no hace cumplir pi_gb estricto en la
         # presencia de ruido numerico. La proyeccion garantiza que el
         # equilibrio del solver coupled coincida con el alternante en pi_i.
-        at_low_real  = (pi_all[:I] <= pi_gb + 1e-9) & (d_pi_all[:I] < 0)
+        at_low_real  = (pi_all[:I] <= piso_barrera + 1e-9) & (d_pi_all[:I] < 0)
         at_high_real = (pi_all[:I] >= gs_i - 1e-9) & (d_pi_all[:I] > 0)
         d_pi_all[:I] = np.where(at_low_real | at_high_real, 0.0, d_pi_all[:I])
 
         re = (P * pi_real[None, :]).sum(axis=1)
-        Hj_buyer = a_j * sumP_j**2 + b_j * sumP_j
+        # D68, SITIO 2 DEL COSTO DEL VENDEDOR: el termino de la ecuacion 16,
+        # el costo total del vendedor j que el auxiliar gamma compara con su
+        # ingreso. Con `costo_vendedor="alternativa"`, `c_j` es piso_j; con
+        # "lcoe" es el mismo `b_j` de siempre, al bit.
+        Hj_buyer = a_j * sumP_j**2 + c_j * sumP_j
         raw_gamma = VEL_GPC * gamma * (Hj_buyer - re) + 1000.0
         d_gamma = raw_gamma
         d_y_filt = (raw_gamma - y_filt) / tau_buyers
 
         # ── SELLER DYNAMICS (replicating _sellers_ode) ──
-        H = 2.0 * a_j * sumP_j + b_j
+        # D68, SITIO 1 DEL COSTO DEL VENDEDOR: el costo marginal que entra en
+        # la aptitud del replicador del vendedor. Con
+        # `costo_vendedor="alternativa"`, `c_j` es piso_j (el costo de
+        # oportunidad con que D64 despacha); con "lcoe" es `b_j`, al bit.
+        H = 2.0 * a_j * sumP_j + c_j
         F = (pi_real[None, :] - H[:, None]
              - lam_filt[:, None] - bet_filt[None, :] + BGRANDE)
         F_bar_sellers = float(np.sum(P * F)) / simplex
@@ -775,7 +1067,15 @@ def solve_coupled_for_hour(
         njev = int(getattr(sol, "njev", 0) or 0)
 
     n_t = y_sol.shape[1]
-    pi_t_real = np.clip(y_sol[:I, :], pi_gb, gs_i[:, None])
+    # D68: el recorte usa el mismo piso del juego que la barrera. Menor 4 de la
+    # revision: con `piso_juego="marginal"` ese piso puede quedar POR ENCIMA
+    # del techo de algun comprador, y entonces la banda esta invertida y no hay
+    # intervalo que respetar: ese comprador se queda en su techo. Se escribe
+    # explicito con `minimum` en vez de confiar en lo que `np.clip` hace con
+    # las cotas al reves (devuelve la alta). El resultado es el mismo, al bit,
+    # en los dos casos; lo que cambia es que ahora el codigo lo dice.
+    piso_i = np.minimum(piso_barrera, gs_i)[:, None]
+    pi_t_real = np.clip(y_sol[:I, :], piso_i, gs_i[:, None])
     P_t = np.clip(
         y_sol[idx0_P:idx0_lam, :].reshape(J, I, n_t),
         0.0, None,

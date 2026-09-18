@@ -235,6 +235,13 @@ CASOS = [(n, a) for n in ("escalar", "h874") for a in ("iguales", "factible")]
 # ─── con los defectos, identico al bit ─────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    not EN_EL_ENTORNO_DEL_LOCK,
+    reason=f"las huellas se calcularon en Windows con numpy {LOCK['numpy']} y "
+           f"scipy {LOCK['scipy']} (requirements-lock.txt); ni el estado "
+           f"inicial ni el lado derecho son identicos al bit entre "
+           f"plataformas, porque las reducciones de numpy suman en otro orden "
+           f"(H-84). Para este entorno, regenerarlas con `_genera()`")
 @pytest.mark.parametrize("nombre, arranque", CASOS)
 @pytest.mark.parametrize("explicitos", [False, True],
                          ids=["omitidos", "explicitos"])

@@ -46,7 +46,8 @@ AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
 def carga(cobertura: str, comercializador: str | None = None,
-          piso: str = "tramo", factor_generacion: float | None = None):
+          piso: str = "tramo", factor_generacion: float | None = None,
+          factor_cv: float | None = 1.0):
     """Series, tarifas por agente, bolsa y estado de permuta.
 
     `comercializador` es un CONTRAFACTUAL de H-45: pone a las cinco con el
@@ -61,6 +62,23 @@ def carga(cobertura: str, comercializador: str | None = None,
     el orquestador (spec 4.11), antes del tramo, el piso y el techo. La
     capacidad instalada sigue al factor y decide el numeral del art. 25 del
     piso, igual que en produccion. Con None todo queda identico al bit.
+
+    `factor_cv` (D7) multiplica el componente de comercializar publicado, que
+    es lo que hace el caso CV2 de la matriz (`--factor-cv 2`). En produccion
+    el factor entra en DOS sitios de `main_simulation.py`: en el bloque del
+    piso (`cvm_m = cvm_per_agent_hourly(...) * factor_cv`), que fija el piso de
+    quien esta en permuta, y en `component_c_arg`, que alimenta la liquidacion
+    de C1, de C4 y de los residuales del mercado y del contrato. Aqui entra
+    SOLO en el primero, y le basta a quien carga esta sonda: el mercado de una
+    hora (el juego y su reposo en forma cerrada) solo ve la demanda, la
+    generacion, el techo y el piso de cada agente, y de esos cuatro el factor
+    solo mueve el piso. El segundo sitio cambia lo que cada escenario
+    regulatorio le paga a cada uno, no quien vende a quien ni a que precio, y
+    esta sonda no liquida escenarios. Multiplica Cv y nada mas, de modo que el
+    techo, el peaje, el tramo de permuta y la bolsa no se mueven, y lo unico
+    que cambia es la deduccion del art. 25 y, con ella, el piso de quien esta
+    en permuta. Con 1.0 (el defecto) o None la rama no corre y la carga queda
+    IDENTICA AL BIT (`tests/test_arnes_consenso.py` lo comprueba).
     """
     from core.opciones_externas import (deduccion_art25, piso_por_vendedor,
                                         residual_proporcional, tramo_permuta)
@@ -91,6 +109,16 @@ def carga(cobertura: str, comercializador: str | None = None,
     techo = pi_gs_per_agent_hourly(nombres, idx)          # (N, T)
     comp = cu_components_per_agent_hourly(nombres, idx)
     cvm = comp["Cvm"]
+    # D7: el componente de comercializar por un factor, que es el caso CV2 de
+    # la matriz. Solo multiplica Cv: el techo, el peaje, el tramo de permuta y
+    # la bolsa se quedan como estan, igual que en produccion. Con 1.0 o None la
+    # rama no corre y `cvm` es el mismo objeto de siempre, al bit.
+    if factor_cv is not None and float(factor_cv) != 1.0:
+        f = float(factor_cv)
+        if not np.isfinite(f) or f <= 0.0:
+            raise ValueError(f"factor_cv={factor_cv!r}; tiene que ser un "
+                             f"numero finito y positivo")
+        cvm = cvm * f
     peaje = comp["T"] + comp["D"] + comp["PR"] + comp["R"]
 
     b = pd.read_csv(RAIZ / "data" / "precios_bolsa_xm_api.csv")

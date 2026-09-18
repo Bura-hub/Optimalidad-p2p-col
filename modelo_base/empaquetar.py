@@ -107,6 +107,24 @@ SONDAS = [
     # (M-F). Las corre el lanzador y las importan sus pruebas.
     "reformateo/documento/scripts/sonda/compuertas_matriz_reposo.py",
     "reformateo/documento/scripts/sonda/compara_matriz_reposo.py",
+    # M-A a M-G (2026-09-17): el arnes acelerado de la sonda del consenso y sus
+    # guiones de medicion, que corre la accion `validacion_reposo`. El arnes es
+    # una copia del lado derecho del motor con la aceleracion k, y su primera
+    # orden de la noche comprueba que no se desvio; sin estos ficheros la
+    # accion no arranca. `paso_a_paso.py` (arriba) es su cargador de horas.
+    "reformateo/documento/scripts/sonda/consenso/arnes.py",
+    "reformateo/documento/scripts/sonda/consenso/caso_publicado_chacon.py",
+    "reformateo/documento/scripts/sonda/consenso/preparacion.py",
+    "reformateo/documento/scripts/sonda/consenso/corre_mediciones.py",
+    "reformateo/documento/scripts/sonda/consenso/veredicto.py",
+    "reformateo/documento/scripts/sonda/consenso/selecciona_horas.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_regimenes.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_merito_vendedores.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_suma_no_cabe.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_estabilidad.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_mu.py",
+    "reformateo/documento/scripts/sonda/consenso/medicion_chacon.py",
+    "reformateo/documento/scripts/sonda/consenso/README.md",
     # Los pasos 4 y 5 de `matriz` (y de `oficial`): la liquidacion por
     # institucion y las figuras del foro de E0.
     "reformateo/documento/scripts/liquidacion.py",
@@ -167,6 +185,10 @@ COMPUERTAS = [
     # menor 2). La prueba importa la compuerta, de modo que las dos viajan.
     "tests/test_dinamica_regularizada.py",
     "tests/gate_reposo_cero_dinamica.py",
+    # M-A a M-G: que el arnes de la validacion no se desvio del motor. Rapida y
+    # sin datos reales (usa el caso publicado y los literales de
+    # `test_reposo_mercado.py`, que ya viaja).
+    "tests/test_arnes_consenso.py",
 ]
 LANZADOR = [
     "modelo_base/run_servidor.sh",
@@ -283,6 +305,7 @@ def main() -> None:
     print("    bash modelo_base/run_servidor.sh convergencia   # H-86/D47: el costo del criterio del reparto")
     print("    bash modelo_base/run_servidor.sh matriz_reposo  # D48: las 13 corridas por reposo, con su compuerta de salida")
     print("    bash modelo_base/run_servidor.sh barrido_sigma  # D50: las 13 con sigma 0, 0,5 y 1, despues")
+    print("    bash modelo_base/run_servidor.sh validacion_reposo  # M-A a M-G: reposo verificado o regla declarada")
     print("  (antes de nada, SECO=1 bash modelo_base/run_servidor.sh matriz imprime")
     print("   las ordenes sin ejecutar ninguna)")
 

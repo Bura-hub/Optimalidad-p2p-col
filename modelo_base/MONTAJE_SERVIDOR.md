@@ -1201,6 +1201,281 @@ En total, **del orden de una hora**, casi toda de compuertas. El barrido son
 
 ---
 
+## La validación del reposo (M-A a M-G)
+
+Contexto en una frase: la matriz por reposo ya corrió y sus cifras están; lo
+que falta es decidir **cómo se cuentan**. Si la dinámica del juego,
+regularizada, llega al mismo reposo que ahora se calcula en forma cerrada, cada
+régimen se publica en la tesis como «el reposo al que la dinámica llega»; si no
+llega, se publica como «regla declarada», con su porcentaje. Eso, y solo eso,
+es lo que decide esta noche. **Ninguna cifra de la matriz cambia.**
+
+```bash
+SECO=1 bash modelo_base/run_servidor.sh validacion_reposo   # antes: imprime las órdenes
+bash modelo_base/run_servidor.sh validacion_reposo
+```
+
+**Esto no se hace con el motor.** En una hora rígida, llegar al reposo
+integrando cuesta del orden de 1e9 evaluaciones del lado derecho. Se hace con
+el **arnés acelerado** de la sonda del consenso, en
+`reformateo/documento/scripts/sonda/consenso/`, que multiplica por un factor k
+los bloques lentos (los compradores y el replicador del vendedor) sin mover los
+ceros del lado derecho: el reposo es el mismo y lo único que cambia es el
+tiempo en que se llega. Por eso todo resultado acelerado va rotulado con su k y
+con su «teq», el tiempo equivalente sin acelerar, y por eso la tolerancia se
+afloja donde la aceleración solo es aproximada. El motor no hace esto ni debe
+hacerlo. El `README.md` de esa carpeta dice qué mide cada guion, qué escribe y
+qué cuesta.
+
+**Antes de lanzarla.** Necesita los almacenes de `matriz_reposo` (de ahí salen
+las horas de cada régimen) y el entorno de `requirements-lock.txt` (H-84). Con
+`ALMACENES=<ruta>` se apunta a una entrega desempaquetada en vez de a
+`SALIDAS_SERVIDOR/matriz_reposo`. Todo lo que escribe va a
+`SALIDAS_SERVIDOR/validacion_reposo/`.
+
+El paquete lleva `paso_a_paso.py` con una línea nueva: el cargador de la sonda
+acepta `factor_cv`, sin el cual el arnés no podría cargar el caso CV2 que M-C
+necesita. Lo aplica solo al piso. En producción, `--factor-cv 2` entra además
+en `component_c_arg`, que alimenta la liquidación de C1, de C4 y de los
+residuales; al mercado de una hora, que es lo que mide el arnés, solo le llega
+el piso. **Sin el factor la
+carga es idéntica al bit a la de siempre**, y eso lo fija
+`tests/test_arnes_consenso.py`, que viaja con el paquete. **Esa prueba todavía
+no está en la acción `compuertas`** (es un pendiente declarado de la revisión
+de la tarea 4c): en el servidor se corre a mano, en segundos, antes de la
+noche:
+
+```bash
+.venv/bin/python -u -m pytest tests/test_arnes_consenso.py -q -p no:cacheprovider
+```
+
+### El orden, y qué decide cada paso
+
+| Paso | Qué hace | Qué escribe | Qué cuesta |
+|---|---|---|---|
+| 1 | **El arnés frente al motor.** Su lado derecho tiene que coincidir al bit con el que el motor evalúa en diez ramas: los cuatro defectos (peso del jugador virtual por arranque), el término entrópico, el costo del vendedor por su alternativa, el piso del vendedor marginal, las tres juntas y las dos configuraciones de M-G (competencia `matlab` y oferta a partes iguales). Sobre el caso publicado, una hora sintética de pisos distintos (la que ejerce de verdad el piso marginal) y cuatro horas reales; con perturbación aditiva por bloque y desde un estado con los filtros de los multiplicadores cargados | su registro | segundos |
+| 2 | **La muestra de horas** de cada régimen, sobre los almacenes de E0, K1, E4, E5 y CV2, comprobando cada hora contra lo que el almacén guardó | `horas_<caso>.json` | ~1 (min) por caso |
+| 3 | **M-A**, la forma cerrada frente a la dinámica, régimen por régimen, con las dos aceleraciones y, en los grupos libres, sin acelerar | `m_a_regimenes.json`, `veredicto_m_a.txt` | 140 corridas (120 aceleradas de 1 a 10 (min) y 20 sin acelerar, del orden de un minuto); tope de 3 600 (s) cada una y de 4 (h) la medición |
+| 4 | **M-B**, con qué regla reparte la dinámica cuando sobran vendedores | `m_b_merito.json`, `veredicto_m_b.txt` | 120 corridas, igual |
+| 5 | **M-C**, la regla de «la suma no cabe» desde cuatro arranques, con las horas de E0 y las de CV2 | `m_c_no_cabe.json`, `veredicto_m_c.txt` | 260 corridas de las baratas; tope de 2 (h) |
+| 6 | **M-D**, la estabilidad: el jacobiano del reducido en el reposo | `m_d_estabilidad.json` | segundos |
+| 7 | **M-E**, sensibilidad a μ, y el censo de empates sobre los almacenes | `m_e_mu.json`, `veredicto_m_e.txt`, `m_e_empates_<caso>.json` | 36 corridas; el censo, segundos |
+| 8 | **M-G**, el caso publicado de Chacón, más la prueba dorada sin cambio | `m_g_chacon.json`, `veredicto_m_g.txt` | 8 corridas |
+| 9 | **Las dos horas lentas** de `gate_reposo_cero_dinamica.py` (874 y 4766), etapa 1 | sus registros | de 1,5 a 8 (h), según lo que tarden |
+| 10 | La recogida | el tar | minutos |
+
+**El paso 1 es el único que detiene la acción.** Si el arnés se desvió del
+motor, ninguna medición de esa noche significa nada, y la acción sale con
+código 3 diciendo en qué bloque del estado difiere. En todo lo demás,
+`PARA_EN_FALLO=0` a propósito: **una medición que no converge es un
+resultado**, no un fallo.
+
+**Lo esperado.** Sin el paso 9, del orden de dos a seis horas, con el costo
+por corrida que midió la sonda del consenso (de 1e6 a 1e7 evaluaciones, de 1 a
+10 (min) en el servidor); con el paso 9, una noche. `LENTAS=0` lo salta.
+
+**El peor caso, con la cuenta.** Si cada medición agotara su tope, en serie:
+
+| Paso | Tope de la medición (s) | Más las corridas en vuelo (s) |
+|---|---|---|
+| M-A | 14 400 | + 3 600 |
+| M-B | 14 400 | + 3 600 |
+| M-C | 7 200 | + 1 800 |
+| M-E | 7 200 | + 3 600 |
+| M-G | 7 200 | + 3 600 |
+| horas lentas, etapa 1 | (5 000 + 10 000) × 2 = 30 000 | — |
+| **Suma** | **80 400 (22,3 (h))** | **96 600 (26,8 (h))** |
+
+La segunda columna existe porque el tope de una medición deja de lanzar
+corridas, pero las que ya están en marcha terminan con su propio tope (3 600
+(s), o 1 800 en M-C). El arnés, la selección, M-D, el censo, los veredictos,
+la dorada y la recogida son minutos y no cuentan.
+
+**Por eso la acción lleva un tope global**, `TOPE_GLOBAL_S`, con un defecto de
+43 200 (s), 12 (h). Cada medición cara recibe como tope lo menor entre el suyo y
+lo que quede, y si al empezar quedan menos de 10 (min) se **salta**: su nombre
+sale en `CODIGOS` como «saltada» y en una línea final de saltadas. Lo que tarda
+segundos corre siempre. Con el tope global la acción termina, en el peor caso,
+hacia las 13 (h): las 12 del tope más, como mucho, la hora de las corridas que
+estaban en vuelo cuando se cumplió.
+
+**Qué se corta primero.** El orden de los pasos es fijo, de modo que se corta
+lo último: primero las **horas lentas** (paso 9), después **M-G** y **M-E**, y
+después se recorta **M-C**. En el peor caso de la tabla, M-A y M-B agotan sus
+topes con sus corridas en vuelo (unas 10 (h)), M-C recibe las 2 (h) que quedan,
+y M-D (segundos), el censo y la dorada corren; M-E, M-G y las horas lentas se
+saltan. Con el costo esperado no se salta nada, salvo quizá una parte de las
+horas lentas. Lo saltado se corre suelto:
+
+```bash
+python -u reformateo/documento/scripts/sonda/consenso/corre_mediciones.py \
+    --medicion medicion_chacon --salida SALIDAS_SERVIDOR/validacion_reposo/m_g_chacon.json \
+    --procesos 30 --tope-total 7200 --horas SALIDAS_SERVIDOR/validacion_reposo
+python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
+    SALIDAS_SERVIDOR/validacion_reposo/m_g_chacon.json \
+    --salida SALIDAS_SERVIDOR/validacion_reposo/veredicto_m_g.txt
+```
+
+(`medicion_mu` para M-E, `medicion_suma_no_cabe` para M-C), o se repite la
+acción otra noche con `TOPE_GLOBAL_S` mayor.
+
+### Los veredictos se vuelven a correr sobre la noche
+
+La primera noche se lanzó con la capa del veredicto anterior a la re-revisión
+de la tarea 4c. Lo que se mide y lo que se guarda estaban bien, y los JSON
+traen todo lo necesario, así que **ningún `veredicto_*.txt` de esa noche se lee
+como definitivo**: al traerla, se vuelve a correr `veredicto.py` sobre sus
+JSON, en casa y en segundos:
+
+```bash
+for M in m_a_regimenes m_b_merito m_c_no_cabe m_e_mu m_g_chacon; do
+  python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
+      SALIDAS_SERVIDOR/validacion_reposo/$M.json \
+      --horas SALIDAS_SERVIDOR/validacion_reposo \
+      --salida SALIDAS_SERVIDOR/validacion_reposo/veredicto_${M:0:3}.txt
+done
+```
+
+Los JSON de esa noche no guardan `plan_total`: `veredicto.py` deduce el plan de
+los `horas_<caso>.json` (de `--horas`) y del guion de cada medición, que son
+deterministas, y si falta alguna corrida imprime «MEDICIÓN INCOMPLETA: N de M»
+encima de la tabla y sale con 4. Por eso **ni los `horas_<caso>.json` ni los
+guiones de medición se tocan** entre la noche y esa relectura.
+
+### Qué se lee de cada JSON, y qué decide
+
+- **Cómo cuenta cualquier veredicto.** Una fila por régimen, referencia y
+  **familia**. La familia es el modelo que se prueba: las dos aceleraciones de
+  M-A, o los cuatro arranques de M-C, son un modelo y se juzgan juntas (todas
+  dentro); los dos costos de M-B, los tres μ de M-E o las dos formas del
+  jugador virtual de M-G son modelos distintos y se cuentan aparte. Una hora se
+  juzga con las corridas que llegaron al tiempo equivalente 160; las que se
+  cortaron antes por su tope se publican como **cortadas**. **El denominador
+  son todas las horas del grupo**: una hora sin ninguna corrida en teq 160
+  cuenta como «no llega» (columna `nolleg`). Con menos de **cinco horas** el
+  rótulo es **muestra insuficiente**, nunca reposo verificado, y siempre sale
+  el n. Una hora cuyo recorte movió el reposo se aparta y se dice.
+- **Medición incompleta.** Si el tope total dejó corridas del plan sin hacer,
+  la medición sale con código 4, el lanzador la anota como `m_x=incompleta`, su
+  veredicto avisa «MEDICIÓN INCOMPLETA: N de M» y el cierre dice **INCOMPLETA**
+  (también si algo se saltó por el tope global). Si la selección de horas de
+  algún caso salió con 1, el cierre lo repite: las mediciones corrieron igual
+  con esa muestra.
+- **`veredicto_m_a.txt`** es la tabla que se lleva a la tesis: cuántas horas se
+  juzgaron, cuántas cumplen el criterio de consenso, cuántas están dentro de su
+  tolerancia en el tiempo equivalente 80 y en el 160, y el rótulo. Con el 95 % o
+  más, **reposo verificado**; por debajo, **regla declarada**, con su
+  porcentaje. La familia «V3a acelerada» se juzga con 1 % de E (kWh) y 0,5
+  (COP/kWh); la familia «V3a sin acelerar», que solo existe en los grupos
+  libres, con la **tolerancia estricta** del plan, 1e-3·E y 0,05 (COP/kWh).
+- **`veredicto_m_b.txt`** decide D64. Compara el reparto entre vendedores con
+  las tres reglas del núcleo (por piso, por costo nivelado y por llenado) y con
+  los dos costos del vendedor en la dinámica. Su juicio propio, al final del
+  fichero, da **por cada costo** cuántas horas reproduce cada regla
+  (|dP_ji| ≤ 1e-3·E en teq 80 y 160), sobre todas las horas y sobre las que
+  **discriminan** (las que la regla del piso y la del costo despachan a más de
+  1e-3·E: en las demás las dos reglas se cumplen a la vez y no deciden nada).
+  Una regla **gana solo si reproduce el 95 % de las horas que discriminan, con
+  al menos cinco**; si no, dice «ninguna regla alcanza el 95 %» o «muestra
+  insuficiente», y cuántas horas se apartaron y cuántas no llegaron. Si con el
+  costo de la alternativa gana la del piso y con el costo nivelado la del
+  costo, la dinámica distingue las dos y D64 se decide por el costo que el
+  modelo adopte; si gana el llenado, la dinámica no distingue y el orden de
+  mérito es una decisión del modelo, no un resultado.
+- **`veredicto_m_c.txt`** decide D53, con la tolerancia que el plan declara para
+  M-C (1e-3·E y 0,5 (COP/kWh)). Además de la tabla, compara **los cuatro
+  arranques entre sí**, pero solo los que **llegaron**: a teq 160 y con el
+  estado quieto (derivadas bajo 1e-3 en sus dos últimos puntos). Separa las
+  horas que llegaron al mismo sitio, las que **llegaron a sitios distintos**
+  (varios reposos, con la **energía afectada** y su fracción de la muestra) y
+  las que **no llegaron**, que no son multiplicidad. Con multiplicidad, la
+  regla del paso 5 se publica como declarada, con esa energía.
+- **El registro de M-D** trae, por hora, el residuo y los valores propios.
+  **El residuo se lee antes que los valores propios**: donde es grande, ese
+  punto no es de reposo para los multiplicadores, que crecen mientras la
+  restricción muerda, y el jacobiano describe la vecindad de un punto por el
+  que la trayectoria pasa. Esas horas se cuentan aparte. Si en las horas
+  quietas todas las direcciones son estables, la frase de la tesis es «el
+  reposo al que la dinámica llega»; si no, «único reposo, estable en lo
+  medido».
+- **`veredicto_m_e.txt` y `m_e_empates_<caso>.json`.** El primero compara
+  **los tres μ de cada hora entre sí** (solo los quietos en teq 160) y dice en
+  cuántas horas coinciden, en cuántas el reposo cambia con μ y cuántas no se
+  pueden comparar; su tabla genérica no rotula, porque con dos horas por grupo
+  cada fila tendría n = 2. El segundo, cuánta energía está en horas con dos
+  techos o dos pisos a menos de 3 μ. Si pasa del 2 %, la forma cerrada
+  tendría que adoptar en esas horas el reposo con μ = 1 en vez del límite
+  estricto.
+- **`veredicto_m_g.txt`** es la tabla de la comparación con el artículo base,
+  la que se presenta a los asesores antes del artículo de revista (D59). **No
+  se juzga con los puntos de teq** sino contra su tabla, variante por variante,
+  sobre el estado final del brazo que llegó más lejos **estando quieto**; si
+  ningún brazo está quieto, dice «no llegó» y no lee la tabla, porque un
+  transitorio no es el reposo. Los dos brazos se publican con su alcance, su
+  costo y si están quietos, y que el brazo k = 1 se detenga en teq 40 no es un
+  fallo. Corre en la **configuración del código de la autora**
+  (competencia `matlab`, oferta a partes iguales), que es la de la sonda del
+  consenso y la de H-88; con los defectos del arnés un resultado distinto no se
+  podría leer. Con el peso de barrera a las 22:00, la predicción es 833,3
+  (COP/kWh) en tres compradores y 1 250 en dos (±0,5), reparto [0,3037 x 3;
+  0,262; 0,208] (±1e-3 (kWh)) y **parte del vendedor 0,758**, la del núcleo. El
+  0,77 que traía el plan era el valor transitorio de la sonda a t = 0,3 (0,772),
+  no el reposo, y ya no está en la aceptación. A las 14:00, lo que da la forma
+  cerrada, fijado antes de medir. Con el peso de precio del fichero original,
+  el guion escribe **dos lecturas** y el veredicto dice cuál se cumple: (a)
+  nivel 225 ± 1 (COP/kWh) y parte 0,098 ± 0,002, el costo del vendedor que la
+  ec. 16 hace cubrir en ese caso (H-88), y la Tabla IV sería el reposo; o (b)
+  todos en el piso (114 y 0), y entonces 225 y 0,098 describen un transitorio o
+  las tablas del código de la autora, no el reposo, que es como se escribirá en
+  la tesis.
+
+### El paso 9, que va en dos etapas
+
+La compuerta `gate_reposo_cero_dinamica.py` ya corre sus dos horas rápidas en
+`compuertas`. Las dos lentas (874, con topados, y 4766, con compradores
+cortos) cuestan horas y su costo no está medido, de modo que van en dos
+etapas, como dice su propio docstring. La **etapa 1** corre los cortes
+intermedios (t = 0,5 y t = 1) y la lanza esta acción. De sus registros sale la
+estimación: con p = ln(N(1)/N(0,5))/ln 2, lo de t = 5 son N(1)·5^p
+evaluaciones. La **etapa 2**, la compuerta entera, no se lanza sola porque su
+tope sale de esa estimación:
+
+```bash
+ETAPA2=1 TOPE_874=<segundos> TOPE_4766=<segundos> \
+    bash modelo_base/run_servidor.sh validacion_reposo
+```
+
+Las dos órdenes sueltas del docstring de la compuerta hacen lo mismo y pueden
+correr a la vez.
+
+### Cómo retomar
+
+Cada medición escribe su JSON **después de cada corrida**, de modo que una
+parada no deja la noche en blanco. Si el tope total corta una medición, su
+registro dice con qué `--desde` se retoma y en qué fichero, y `veredicto.py`
+acepta los dos JSON juntos:
+
+```bash
+python -u reformateo/documento/scripts/sonda/consenso/corre_mediciones.py \
+    --medicion medicion_regimenes \
+    --salida SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes_resto.json \
+    --desde 84 --procesos 30 --horas SALIDAS_SERVIDOR/validacion_reposo
+python -u reformateo/documento/scripts/sonda/consenso/veredicto.py \
+    SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes.json \
+    SALIDAS_SERVIDOR/validacion_reposo/m_a_regimenes_resto.json \
+    --salida SALIDAS_SERVIDOR/validacion_reposo/veredicto_m_a.txt
+```
+
+### Lo que esta validación no alcanza
+
+- **Las horas rígidas sin acelerar.** No caben, y por eso la tolerancia se
+  afloja donde hay topados o aceleración. Es una limitación declarada.
+- **M-F y M-H** no están aquí: M-F es la matriz entera, que ya corrió con sus
+  compuertas de salida, y la segunda mitad de M-H es la compuerta de cero
+  retiros.
+
+---
+
 ## Lo que este paquete NO hace
 
 - **No decide por ti.** Las tres mediciones nuevas dejan cifras; la

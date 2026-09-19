@@ -173,14 +173,19 @@ def veredicto(resultados) -> str:
         no_llegan = sum(1 for c in hs.values()
                         if reproduce(c, "cerrada") is None) - fallidas
         discr = [h for h, c in hs.items() if discrimina(c)]
+        # La coletilla va aparte: una cadena formateada partida en varias
+        # lineas solo compila desde 3.12, y la compuerta de portabilidad a
+        # 3.10 la rechaza (gate_python310).
+        coletilla = ("" if not fallidas else
+                     " (de las fallidas no se sabe si discriminan: no guardan "
+                     "su reposo cerrado)")
         lineas.append(f"  {fam}: {n} horas; {len(apartadas.get(fam, ()))} "
                       f"apartadas (el recorte movio el reposo); {no_llegan} sin "
                       f"ninguna corrida en teq 160 y {fallidas} con todas sus "
                       f"corridas FALLIDAS{texto_muertas(muertas)} (cuentan "
                       f"como que no reproducen); "
                       f"{len(discr)} discriminan entre el piso y el costo"
-                      f"{' (de las fallidas no se sabe si discriminan: no '
-                         'guardan su reposo cerrado)' if fallidas else ''}")
+                      f"{coletilla}")
         lineas.append(f"    {'regla':<12s} {'todas':>12s} {'discriminan':>14s}")
         cuenta = {}
         for regla in REFERENCIAS:

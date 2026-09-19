@@ -1,4 +1,7 @@
 mes,pei_cop_kwh,pe_cop_kwh,pes_cop_kwh,fuente,nota
+2025-04,336.12,739.80,928.33,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 30 dias del mes
+2025-05,338.54,724.31,891.22,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 31 dias del mes
+2025-06,345.38,673.74,858.79,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 30 dias del mes
 2025-07,350.08,699.17,865.22,xm.com.co/noticias/8119,Informe XM jul-2025
 2025-08,343.86,746.17,898.02,xm.com.co/noticias/8184,Informe XM ago-2025
 2025-09,339.20,711.27,893.85,sinergox.xm.com.co/2025/09/03_Informe_Precios,Excel sheet Comportamiento_PBNal_Horario

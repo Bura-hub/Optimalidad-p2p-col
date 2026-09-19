@@ -37,6 +37,10 @@ NUCLEO = [
     "data/tarifas_asc_mensual.csv",      # tarifas de ASC
     "data/xm_prices.py",                 # H-50: el techo de escasez y su guarda
     "data/precios_bolsa_xm_api.csv",     # la serie de bolsa, que el techo acota
+    # Tarea P (2026-09-18): la tabla de techos trae ya abril a junio de 2025.
+    # Con la vieja, el xm_prices.py nuevo se niega a correr el horizonte de la
+    # tesis (defecto 3: un mes fuera de la tabla es un error).
+    "data/precios_escasez_creg.csv",
     # La serie de contratos de XM que usa C5 (precios_contratos.py). El
     # .gitignore excluye los .xlsx, asi que no llega con el clon: sin ella
     # toda corrida con --include-c5 falla al arrancar (humo de Linux,

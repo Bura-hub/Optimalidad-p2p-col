@@ -27,14 +27,17 @@ DATOS REALES VERIFICADOS (informes mensuales xm.com.co):
 """
 
 import os
-import warnings
 import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Optional
 from datetime import datetime, timedelta
 
-warnings.filterwarnings("ignore")
+# Aqui habia un `warnings.filterwarnings("ignore")` global: al importar este
+# modulo se callaban TODOS los avisos del proceso, incluido el del alias de
+# despacho de core/ems_p2p.py, y el modulo MTE lo importa en cada hora. Se
+# quito en la tarea P (2026-09-19). Si hace falta callar un aviso concreto,
+# se filtra solo ese, con un `warnings.catch_warnings()` local.
 
 # ── Promedios mensuales REALES verificados (COP/kWh) ─────────────────────────
 # PB_PROM oficial XM (media ponderada por demanda) por mes para los 7 meses
@@ -560,8 +563,33 @@ def print_price_summary(prices, t_start="2025-07-01", label="Precios XM"):
 
 # ── Calibración parámetro b ───────────────────────────────────────────────────
 
-def calibrate_b_parameters(agent_names, capacity_kw=None,
-                             irradiance_kwh_m2_day=4.2):
+# Inversor de cada institucion, es decir la clave de B_CALIBRATED que le toca.
+# Los nombres se comparan TAL CUAL: un nombre que no este aqui escrito
+# exactamente igual es un error (defecto 4a del informe del modulo MTE,
+# 2026-09-17). Antes caia en silencio al valor por defecto, y con los nombres
+# en minusculas las cinco salian con el mismo b, sin error ni aviso: se perdia
+# la heterogeneidad de CAL-6 que el arreglo del 2026-05-06 habia recuperado.
+INVERTER_BY_AGENT = {
+    "Udenar":  "Udenar_fronius",
+    "Mariana": "Mariana_fronius",
+    "UCC":     "UCC_fronius",
+    "HUDN":    "HUDN_fronius",
+    "Cesmag":  "Cesmag_inv",
+}
+
+# Irradiancia de referencia del ajuste de b y la que se supone por defecto
+# (kWh/m2/dia).
+_IRR_REF_B = 4.5
+_IRR_DEFECTO_B = 4.2
+
+
+def _ajuste_irradiancia(irradiance_kwh_m2_day: float) -> float:
+    """Factor que multiplica la tabla B_CALIBRATED (CAL-6)."""
+    return _IRR_REF_B / max(irradiance_kwh_m2_day, 1.0)
+
+
+def calibrate_b_parameters(agent_names, *,
+                           irradiance_kwh_m2_day=_IRR_DEFECTO_B):
     """LCOE empírico por agente (CAL-6 corregido 2026-05-06).
 
     El lookup original `B_CALIBRATED.get(f"{n.lower()}_fronius", ...)`
@@ -572,27 +600,51 @@ def calibrate_b_parameters(agent_names, capacity_kw=None,
     intencional de CAL-6 (Cesmag = 210 por inversor distinto).
 
     Fix: dict explícito INVERTER_BY_AGENT que matchea las claves reales
-    de B_CALIBRATED. Ahora b = {225, 225, 225, 225, 210} × adj.
+    de B_CALIBRATED.
+
+    Qué devuelve de verdad (defecto 4c, 2026-09-18): la tabla por el ajuste
+    de irradiancia, ``B_CALIBRATED[inversor] × adj`` con
+    ``adj = 4,5 / max(irradiancia, 1)``. Con la irradiancia por defecto,
+    4,2 kWh/m2/dia, ``adj = 1,0714...`` y el vector de las cinco es
+    ``{241,07 × 4; 225,00}``: los cuatro Fronius a 241,0714... y Cesmag a
+    225,00 exactos. **No** es la tabla ``{225, 225, 225, 225, 210}``. Que
+    Cesmag salga en 225 es una coincidencia del ajuste (210 × 4,5 / 4,2), no
+    un vector sin escalar. El ajuste es una decision de calibracion
+    documentada y no se cambia: moveria el b de todas las horas.
+
+    Un nombre que no este en ``INVERTER_BY_AGENT`` escrito exactamente igual
+    lanza ``ValueError`` (defecto 4a). ``capacity_kw`` se elimino (defecto
+    4d): b no depende de la capacidad instalada y ningun llamador lo pasaba;
+    la irradiancia va por nombre, para que un segundo argumento posicional
+    falle en vez de leerse como irradiancia.
     """
-    irr_ref = 4.5
-    adj = irr_ref / max(irradiance_kwh_m2_day, 1.0)
-    INVERTER_BY_AGENT = {
-        "Udenar":  "Udenar_fronius",
-        "Mariana": "Mariana_fronius",
-        "UCC":     "UCC_fronius",
-        "HUDN":    "HUDN_fronius",
-        "Cesmag":  "Cesmag_inv",
-    }
-    b = [B_CALIBRATED.get(INVERTER_BY_AGENT.get(n, "default_pasto"),
-                            B_CALIBRATED["default_pasto"]) * adj
-         for n in agent_names]
+    desconocidos = [n for n in agent_names if n not in INVERTER_BY_AGENT]
+    if desconocidos:
+        pistas = {n: k for n in desconocidos for k in INVERTER_BY_AGENT
+                  if str(n).strip().lower() == k.lower()}
+        raise ValueError(
+            f"Agentes sin inversor conocido: {desconocidos}. Los nombres "
+            f"validos son {list(INVERTER_BY_AGENT)}, escritos exactamente asi"
+            + (f"; quiza quiso decir {pistas}" if pistas else "")
+            + ". Antes caian en silencio al valor por defecto y se perdia la "
+              "heterogeneidad de b (defecto 4a).")
+    adj = _ajuste_irradiancia(irradiance_kwh_m2_day)
+    b = [B_CALIBRATED[INVERTER_BY_AGENT[n]] * adj for n in agent_names]
     return np.array(b, dtype=float)
 
 
 def get_b_for_real_data(N, agent_names):
+    """Vector b (N,) en COP/kWh para el modo real.
+
+    Si hay menos nombres que agentes, los que faltan llevan el valor por
+    defecto de la tabla con el MISMO ajuste de irradiancia que los demas
+    (defecto 4b): antes quedaban sin ajustar, en otra escala.
+    """
     b = calibrate_b_parameters(agent_names)
     if len(b) < N:
-        b = np.pad(b, (0, N-len(b)), constant_values=B_CALIBRATED["default_pasto"])
+        relleno = (B_CALIBRATED["default_pasto"]
+                   * _ajuste_irradiancia(_IRR_DEFECTO_B))
+        b = np.pad(b, (0, N-len(b)), constant_values=relleno)
     return b[:N]
 
 
@@ -771,37 +823,67 @@ _CEILING_LEVEL_COL = {
 }
 
 
+def _hora_local(t, nombre: str = "t_start") -> pd.Timestamp:
+    """Instante como hora local de America/Bogota, sin zona (defecto 6).
+
+    Una fecha u hora SIN zona ya es hora local de Bogota y se devuelve tal
+    cual: no se toca ni se reinterpreta (el modulo MTE depende de eso). Una
+    CON zona designa un instante absoluto y se convierte a America/Bogota
+    antes de quitarle la zona; antes lanzaba un ``TypeError`` al compararla
+    con la fecha de vigencia. Una hora UTC escrita sin zona no se puede
+    distinguir de una local: el llamador tiene que pasarla con su zona.
+    """
+    ts = pd.Timestamp(t)
+    if ts is pd.NaT:
+        raise ValueError(f"{nombre}={t!r} no es una fecha")
+    if ts.tz is not None:
+        ts = ts.tz_convert("America/Bogota").tz_localize(None)
+    return ts
+
+
 def load_creg_ceiling(
     t_start: str,
     t_end: str,
     level: str = "PES",
     csv_path: Optional[str] = None,
+    return_info: bool = False,
 ) -> pd.Series:
     """
     Carga la tabla mensual de precios de escasez CREG 101 066/2024.
 
     Parameters
     ----------
-    t_start, t_end : str
-        Rango ISO ``"YYYY-MM-DD"`` del horizonte solicitado.
+    t_start, t_end : str o Timestamp
+        Horizonte ``[t_start, t_end)``, con ``t_end`` EXCLUSIVO y con su
+        hora: el ultimo mes es el que contiene el ultimo instante anterior a
+        ``t_end``. ``"2026-02-01"`` llega hasta enero; ``"2025-12-01 01:00"``
+        cubre diciembre. Hora local de America/Bogota; una fecha con zona se
+        convierte (ver ``_hora_local``).
     level : {"PEI", "PE", "PES"}
         Nivel de techo a devolver. Default ``"PES"`` (techo absoluto superior).
     csv_path : str, optional
         Ruta al CSV. Default ``data/precios_escasez_creg.csv``.
+    return_info : bool
+        Si True devuelve ``(serie, info)``, con ``info["meses_tabla"]`` (los
+        meses que traen valor en el fichero) e ``info["meses_interpolados"]``
+        (los que no lo traen y se interpolaron entre dos que si).
 
     Returns
     -------
     pd.Series
         Serie indexada por ``pd.Period(freq="M")`` con el techo en COP/kWh
-        para cada mes del rango ``[t_start, t_end)``. Meses sin valor en el
-        CSV se interpolan linealmente entre adyacentes con valor.
+        para cada mes del horizonte. Un mes sin valor ENTRE dos meses con
+        valor se interpola linealmente en el tiempo.
 
     Raises
     ------
     FileNotFoundError
         Si el CSV no existe.
     ValueError
-        Si ``level`` no esta en ``{"PEI", "PE", "PES"}``.
+        Si ``level`` no esta en ``{"PEI", "PE", "PES"}``; si el horizonte
+        esta vacio; o si pide un mes anterior al primero o posterior al
+        ultimo con valor en la tabla (defecto 3: antes se le daba el techo
+        del mes mas cercano, sin aviso).
     """
     if level not in _CEILING_LEVEL_COL:
         raise ValueError(
@@ -823,39 +905,64 @@ def load_creg_ceiling(
     df = df.set_index("mes").sort_index()
 
     col = _CEILING_LEVEL_COL[level]
-    # t_end es exclusivo: el ultimo periodo es el mes que contiene t_end - 1 dia.
-    last_period = (pd.Timestamp(t_end) - pd.Timedelta(days=1)).to_period("M")
-    target_idx = pd.period_range(
-        start=pd.Timestamp(t_start).to_period("M"),
-        end=last_period,
-        freq="M",
-    )
-    # H-50: la interpolacion se hace sobre la UNION del rango pedido con el
-    # indice del fichero, no sobre el rango pedido a secas.
-    #
-    # Con el rango a secas, el resultado dependia de la ventana: pedir de
-    # abril de 2025 a enero de 2026 devolvia 865,22 para mayo, rellenado
-    # hacia atras desde julio, que es el primer mes con dato; pedir solo
-    # mayo devolvia un unico valor no numerico, porque una serie de un solo
-    # hueco no tiene de donde interpolar. Y quien lo consume aplica el techo
-    # con un minimo, que propaga ese valor a la serie de bolsa entera sin
-    # avisar: la corrida terminaba con precios de bolsa no numericos.
-    #
-    # Sobre la union, el techo de un mes es el mismo se pida como se pida.
-    union = target_idx.union(df.index)
-    serie = df[col].reindex(union)
+    # Defecto 2: t_end llega con su hora y es exclusivo. Antes llegaba
+    # truncado a la fecha y aqui se le restaba un dia entero a ciegas, de
+    # modo que un horizonte que terminaba el dia 1 de un mes antes de la
+    # medianoche pedia hasta el mes ANTERIOR y el techo del ultimo mes no
+    # estaba: KeyError tres lineas despues.
+    t0 = _hora_local(t_start, "t_start")
+    t1 = _hora_local(t_end, "t_end")
+    if t1 <= t0:
+        raise ValueError(
+            f"Horizonte vacio para el techo {level}: t_end={t1} no es "
+            f"posterior a t_start={t0}.")
+    last_period = (t1 - pd.Timedelta(1, "ns")).to_period("M")
+    target_idx = pd.period_range(start=t0.to_period("M"), end=last_period,
+                                 freq="M")
+    if len(target_idx) == 0:
+        raise ValueError(
+            f"El horizonte [{t0}, {t1}) no contiene ningun mes para el "
+            f"techo {level}.")
+
+    con_valor = df.index[df[col].notna()]
+    if len(con_valor) == 0:
+        raise ValueError(
+            f"El fichero {path.name} no trae ningun valor del techo {level}. "
+            f"Antes esto devolvia valores no numericos que el minimo "
+            f"propagaba en silencio a la serie de bolsa. Ver H-50.")
+    primero, ultimo = con_valor.min(), con_valor.max()
+    fuera = [str(p) for p in target_idx if p < primero or p > ultimo]
+    if fuera:
+        raise ValueError(
+            f"El techo {level} no esta publicado para {fuera}: "
+            f"{path.name} lo trae de {primero} a {ultimo}. Un mes fuera de "
+            f"la tabla no se deduce de los vecinos; hay que anadir su fila "
+            f"con el valor oficial (defecto 3: antes se propagaba el mes mas "
+            f"cercano sin aviso).")
+
+    # H-50 y defecto 3: la interpolacion solo rellena huecos INTERIORES, y se
+    # hace sobre el calendario mensual completo de la tabla, de modo que el
+    # techo de un mes es el mismo se pida como se pida (antes se hacia sobre
+    # la union del rango pedido con el indice del fichero, y con una fila
+    # ausente el peso de cada vecino dependia de la ventana).
+    calendario = pd.period_range(primero, ultimo, freq="M")
+    serie = df[col].reindex(calendario)
+    meses_tabla = [str(p) for p in target_idx if pd.notna(serie.loc[p])]
     if serie.isna().any():
-        serie = serie.interpolate(method="linear", limit_direction="both")
+        serie = serie.interpolate(method="linear", limit_area="inside")
     serie = serie.reindex(target_idx)
+    meses_interp = [str(p) for p in target_idx if str(p) not in meses_tabla]
 
     if serie.isna().any():
         faltan = [str(p) for p in serie.index[serie.isna()]]
         raise ValueError(
-            f"El techo {level} queda sin valor para {faltan} y el fichero "
-            f"{path.name} no tiene ningun mes del que deducirlo. Antes esto "
-            f"devolvia valores no numericos que el minimo propagaba en "
-            f"silencio a la serie de bolsa. Ver H-50.")
+            f"El techo {level} queda sin valor para {faltan} en {path.name}. "
+            f"Antes esto devolvia valores no numericos que el minimo "
+            f"propagaba en silencio a la serie de bolsa. Ver H-50.")
 
+    if return_info:
+        return serie, {"meses_tabla": meses_tabla,
+                       "meses_interpolados": meses_interp}
     return serie
 
 
@@ -892,9 +999,15 @@ def apply_creg101066_ceiling(
     Parameters
     ----------
     pi_bolsa : np.ndarray  shape (T,)
-        Serie horaria de precios de bolsa en COP/kWh.
-    t_start : str
-        Fecha de inicio del horizonte ``"YYYY-MM-DD"``.
+        Serie horaria de precios de bolsa en COP/kWh. Tiene que ser finita:
+        un NaN o un infinito es un ``ValueError`` (defecto 5; el minimo con
+        el techo dejaba pasar el NaN sin aviso).
+    t_start : str o Timestamp
+        Inicio del horizonte, ``"YYYY-MM-DD"`` o con hora. **Hora local de
+        America/Bogota sin zona**, y asi se interpreta siempre: una fecha sin
+        zona no se toca. Una con zona se convierte a America/Bogota y se le
+        quita la zona (defecto 6; antes lanzaba ``TypeError``). Una hora UTC
+        escrita sin zona se leeria como local: pasela con su zona.
     level : {"PEI", "PE", "PES"}
         Nivel del techo. Default ``"PES"`` (techo absoluto superior).
     effective_date : str
@@ -912,20 +1025,52 @@ def apply_creg101066_ceiling(
         Serie con techo aplicado.
     dict (opcional)
         Diagnosticos: ``hours_capped``, ``fraction``, ``delta_cop_total``,
-        ``by_month``.
+        ``by_month``, y ``meses_tabla`` / ``meses_interpolados``: que meses
+        tomaron el techo de su fila de la tabla y cuales de una interpolacion
+        entre dos filas (defecto 3).
+
+    Raises
+    ------
+    ValueError
+        Serie vacia o no finita; o un mes del horizonte, desde la vigencia,
+        fuera de la tabla de techos (ver ``load_creg_ceiling``).
     """
     pi = np.asarray(pi_bolsa, dtype=float).copy()
+    if pi.ndim != 1:
+        raise ValueError(f"pi_bolsa tiene que ser un vector (T,); llego con "
+                         f"forma {pi.shape}")
     T = len(pi)
+    if T == 0:
+        raise ValueError("pi_bolsa esta vacia: no hay horizonte al que "
+                         "aplicarle el techo")
+    # Defecto 5: el minimo propaga el NaN; la serie de bolsa se valida antes.
+    no_finitos = np.flatnonzero(~np.isfinite(pi))
+    if no_finitos.size:
+        raise ValueError(
+            f"pi_bolsa tiene {no_finitos.size} de {T} valores no finitos "
+            f"(NaN o infinito), el primero en la posicion {no_finitos[0]}. "
+            f"El minimo con el techo los dejaria pasar sin aviso. Ver H-50.")
 
     # CAL-46: antes el eje se reconstruia suponiendo una hora por posicion.
     # Con T pasos de quince minutos eso construia un horizonte cuatro veces
     # mas largo y buscaba el techo de meses que la serie nunca alcanza.
-    idx = pd.date_range(t_start, periods=T, freq=_paso(dt))
-    eff = pd.Timestamp(effective_date)
-    t_end = (idx[-1] + pd.Timedelta(hours=dt)).strftime("%Y-%m-%d")
+    t0 = _hora_local(t_start, "t_start")
+    idx = pd.date_range(t0, periods=T, freq=_paso(dt))
+    eff = _hora_local(effective_date, "effective_date")
+    # Defecto 2: el final del horizonte viaja con su hora y es exclusivo.
+    # Antes se truncaba a la fecha, y un horizonte que acababa el dia 1 de un
+    # mes antes de la medianoche perdia ese mes: KeyError.
+    t_end = idx[-1] + pd.Timedelta(hours=dt)
 
-    ceil_monthly = load_creg_ceiling(t_start, t_end, level=level,
-                                      csv_path=csv_path)
+    # Solo necesitan techo los pasos desde la vigencia de la resolucion.
+    rige = idx >= eff
+    if rige.any():
+        ceil_monthly, info_tabla = load_creg_ceiling(
+            idx[rige][0], t_end, level=level, csv_path=csv_path,
+            return_info=True)
+    else:
+        ceil_monthly = None
+        info_tabla = {"meses_tabla": [], "meses_interpolados": []}
     # Vector horario de techo: misma longitud que pi
     ceil_per_hour = np.array([
         ceil_monthly.loc[ts.to_period("M")] if ts >= eff else np.inf
@@ -953,6 +1098,8 @@ def apply_creg101066_ceiling(
         "fraction":        float(mask.mean()),
         "delta_cop_total": float((pi_pre - pi).sum()),
         "by_month":        {},
+        "meses_tabla":        info_tabla["meses_tabla"],
+        "meses_interpolados": info_tabla["meses_interpolados"],
     }
     serie = pd.Series(pi_pre - pi, index=idx)
     for period, sub in serie.groupby(serie.index.to_period("M")):

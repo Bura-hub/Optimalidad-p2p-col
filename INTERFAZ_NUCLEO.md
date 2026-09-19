@@ -204,8 +204,39 @@ ok = all(ingreso[j] >= piso_j[j] * r.s_despachado[j] - 1e-9 * max(1, piso_j[j])
 ## 9. Lo que todavía puede mover esta interfaz antes del 26 de septiembre
 
 - **M-B**, la medición que decide si la dinámica despacha por la alternativa del
-  vendedor o por su costo nivelado. Si dijera lo segundo, cambiaría el defecto
-  de `despacho_vendedores`, **no la firma**.
-- Los arreglos de precios en `data/xm_prices.py`, que cambian valores, no
-  interfaces.
+  vendedor o por su costo nivelado. Si dijera lo segundo, cambiaría el valor por
+  defecto de `despacho_vendedores` a `"costo"`, **no la firma**. Con `"costo"`
+  el núcleo **no necesita ningún insumo nuevo**: usa el `b` que ya recibe (el de
+  `get_b_for_real_data`), que entonces decide el orden de despacho: Cesmag, con
+  225,00, antes que los otros cuatro, con 241,07.
+- **Las horas frágiles**, en las que el precio común queda muy cerca del techo
+  de un comprador que no recibe energía. Si pasan del 2 % de la energía, en
+  ellas el reposo usaría la respuesta cuantal, también en forma cerrada.
+  Cambiaría el resultado de esas horas, no la interfaz.
+- **Los arreglos de precios (commit P1)**, en las dos funciones que importa el
+  módulo. **Los valores que ve hoy no cambian**, comprobado al bit contra
+  05ed9c3:
+  - el vector `b` de los cinco nombres;
+  - la llamada `apply_creg101066_ceiling(np.full(24, p), "YYYY-MM-DD",
+    level="PES", csv_path=<tabla de una fila>)`, el día 1 y el último día del
+    mes.
+
+  Lo que cambia:
+  - **Ahora fallan en voz alta** tres casos que antes daban un número inventado:
+    - **un mes fuera de la tabla de techos.** La fila única tiene que llevar la
+      etiqueta **del mes pedido**, con su valor arrastrado si es el caso. Si
+      lleva la del mes del que se arrastra, 05ed9c3 propagaba el valor y ahora
+      lanza `ValueError`: es el único punto de su uso actual en que P1 se nota;
+    - un `pi_bolsa` con NaN o infinito;
+    - un nombre de agente que no está exactamente en la tabla.
+  - **Ahora funcionan** dos casos que antes fallaban o se equivocaban:
+    - un horizonte que no llega a la medianoche del día siguiente devuelve el
+      techo correcto, y no un `KeyError`;
+    - una fecha con zona horaria se convierte a la hora de Bogotá.
+  - **Una fecha sin zona sigue significando hora local de Bogotá**, como antes.
+
+  Además, importar `data/xm_prices.py` ya no silencia los avisos de todo el
+  proceso.
+- **La caché de bolsa (commit P2)** no alcanza al módulo por código: es de la
+  tesis.
 - Nada más está previsto.

@@ -72,6 +72,11 @@ comp/
 # === Backups defensivos de CSV (regenerables vía pydataxm) ===
 data/*.bak_*
 data/*.csv.bak_*
+# Caches de bolsa de un horizonte que la canonica no cubre (tarea P, defecto 1):
+# get_pi_bolsa las escribe con el horizonte en el nombre. La canonica,
+# data/precios_bolsa_xm_api.csv, si se versiona.
+data/precios_bolsa_xm_api_*.csv
+data/precios_bolsa_xm_api*.csv.tmp
 
 # Presentación generada
 presentation/*.pptx

@@ -1522,21 +1522,27 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # ── CAL-37 (ADR-0037): PES horario para el diagnóstico LBC de C5 ────
     pi_escasez_arr = None
     if include_c5 and isinstance(month_labels, np.ndarray):
-        try:
-            import pandas as _pd
-            _pes_df = _pd.read_csv(os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "data", "precios_escasez_creg.csv"))
-            _pes_map = {int(str(m).replace("-", "")): float(v)
-                        for m, v in zip(_pes_df["mes"],
-                                        _pes_df["pes_cop_kwh"])}
-            pi_escasez_arr = np.array(
-                [_pes_map.get(int(m), np.inf) for m in month_labels])
-            _n_pes = int(np.isfinite(pi_escasez_arr).sum())
-            print(f"    [CAL-37] C5 AGR activo: PES cargado para "
-                  f"{_n_pes}/{len(pi_escasez_arr)} horas (LBC diagnóstico)")
-        except Exception as _e:                          # noqa: BLE001
-            print(f"    [CAL-37] PES no cargado ({_e}) → LBC sin trigger")
+        # Revision de la tarea P (O-1, 2026-09-19): antes un `except
+        # Exception` convertia cualquier fallo de la tabla en «LBC sin
+        # trigger» con solo una linea impresa, y un mes ausente en un techo
+        # infinito. Ahora la tabla cubre de 2025-04 a 2026-01 con los valores
+        # oficiales, y un mes del horizonte que no este falla en voz alta.
+        import pandas as _pd
+        _pes_df = _pd.read_csv(os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "data", "precios_escasez_creg.csv"))
+        _pes_map = {int(str(m).replace("-", "")): float(v)
+                    for m, v in zip(_pes_df["mes"],
+                                    _pes_df["pes_cop_kwh"])}
+        _faltan = sorted({int(m) for m in month_labels} - set(_pes_map))
+        if _faltan:
+            raise ValueError(
+                f"[CAL-37] la tabla data/precios_escasez_creg.csv no tiene el "
+                f"PES de los meses {_faltan} del horizonte; completala con los "
+                f"valores oficiales de XM (no se inventan)")
+        pi_escasez_arr = np.array([_pes_map[int(m)] for m in month_labels])
+        print(f"    [CAL-37] C5 AGR activo: PES cargado para "
+              f"{len(pi_escasez_arr)}/{len(pi_escasez_arr)} horas (LBC diagnóstico)")
 
     # ── C-179: el precio del contrato de la autogeneracion remota ─────────
     # Art. 16 ii de la CREG 101 099: el consumo se atiende como no regulado

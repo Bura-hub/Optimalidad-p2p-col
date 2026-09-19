@@ -4,15 +4,16 @@ xm_prices.py  — Precios de bolsa XM y calibración del parámetro b
 Brayan S. Lopez-Mendez · Udenar 2026
 
 FUENTES DE DATOS (prioridad):
-  1. API pydataxm  →  pip install pydataxm  (automática, sin descarga manual)
+  1. API de XM (servapibi.xm.com.co, POST directo; ya no hace falta
+     pydataxm), a traves de la cache data/precios_bolsa_xm_api.csv
   2. CSV descargado de Sinergox XM (descarga manual)
-  3. Sintético calibrado con promedios mensuales REALES XM
+  3. Sintético calibrado con promedios mensuales REALES XM (solo sin API)
 
-CÓMO INSTALAR pydataxm:
-  pip install pydataxm
-  El sistema la usa automáticamente en la próxima ejecución.
+REGENERAR LA CACHE (una peticion por segundo, cada una anotada):
+  python data/xm_prices.py --regenera-cache 2025-04-04 2026-02-01
+      --registro outputs/run_<fecha>_descargas_xm.log   (en la misma linea)
 
-DESCARGA MANUAL (si no quieres instalar pydataxm):
+DESCARGA MANUAL:
   1. Ir a sinergox.xm.com.co
   2. Históricos → Precios → Precio de Bolsa Nacional (Col$/kWh)
   3. Seleccionar Jul 2025 - Ene 2026, exportar como Excel
@@ -112,282 +113,325 @@ B_CALIBRATED = {
 }
 
 
-# ── 1. API pydataxm (automática) ──────────────────────────────────────────────
+# ── 1. API de XM (servapibi.xm.com.co) ───────────────────────────────────────
+#
+# Defecto 1 del informe del modulo MTE (2026-09-17): la cache de bolsa llevaba
+# FECHAS FABRICADAS. pydataxm 0.3.16 pasa TODAS las columnas por
+# `pd.to_numeric(errors="coerce")`, fecha incluida, de modo que la fecha
+# llegaba siempre vacia; el parser la reconstruia por la posicion de la fila,
+# los bloques de 28 dias pedian dos veces el dia frontera, y cada frontera
+# corria un dia todo lo que venia despues. Desde el 2025-07-30 la cache estaba
+# corrida de 1 a 7 dias, y la cola real se perdia al recortar.
+#
+# Ahora la peticion se hace directamente al API (POST, el mismo cuerpo que usa
+# pydataxm por dentro) y la fecha se lee del JSON, que la trae en texto. Los
+# bloques no se solapan, la fecha repetida se comprueba y se descarta, y el
+# calendario se exige completo, 24 horas por dia. Una peticion por segundo
+# como mucho, y cada una queda impresa (y en `registro`, si se da).
 
-def _find_metric_id(obj) -> str:
-    """
-    Autodescubre el MetricId correcto para precio de bolsa en la API XM.
-    Usa get_collections() para consultar el catálogo disponible.
-    Nombres conocidos en distintas versiones de pydataxm:
-      - 'PrecBolsNaci'               (API actual verificado 2025)
-      - 'PrecioOfertaBolsa'           (versiones anteriores)
-      - 'PrecioBolsaNacional'         (nombre largo)
-      - 'PrecioTransaccionBolsa'      (PTB)
-    """
-    candidatos = [
-        "PrecBolsNaci",
-        "PrecioBolsaNacional",
-        "PrecioOfertaBolsa",
-        "PrecioTransaccionBolsa",
-        "PrecioOfertaBolsaNacional",
-        "Precio_Bolsa",
-    ]
+XM_API_HORARIO = "https://servapibi.xm.com.co/hourly"
+XM_METRICA_BOLSA = "PrecBolsNaci"      # Precio Bolsa Nacional por Sistema
+XM_ENTIDAD_BOLSA = "Sistema"
+_XM_DIAS_POR_PETICION = 28             # el API admite 31 (MaxDays)
+_XM_PAUSA_S = 1.0                      # una peticion por segundo como mucho
+_XM_ULTIMA_PETICION = [0.0]
+# Decimales de la cache: los de la cache de la tesis desde df80cbe. La serie
+# que devuelve la descarga es la misma que se guarda, redondeada aqui.
+_DECIMALES_CACHE = 2
+
+
+def _xm_post(url: str, cuerpo: dict, registro: Optional[str] = None) -> dict:
+    """Una peticion al API de XM, con pausa y registro. Falla en voz alta."""
+    import json
+    import time
+    import urllib.error
+    import urllib.request
+
+    espera = _XM_PAUSA_S - (time.monotonic() - _XM_ULTIMA_PETICION[0])
+    if espera > 0:
+        time.sleep(espera)
+    peticion = urllib.request.Request(
+        url, data=json.dumps(cuerpo).encode("utf-8"), method="POST",
+        headers={"Content-Type": "application/json"})
+    cuando = datetime.now().astimezone().isoformat(timespec="seconds")
+    _XM_ULTIMA_PETICION[0] = time.monotonic()
     try:
-        colecciones = obj.get_collections()
-        if colecciones is not None and not colecciones.empty:
-            # Buscar en el catálogo por nombre que contenga 'bolsa' o 'precio'
-            cols_df = colecciones.copy()
-            cols_df.columns = [c.lower() for c in cols_df.columns]
-            id_col   = next((c for c in cols_df.columns if "id" in c), None)
-            name_col = next((c for c in cols_df.columns
-                             if any(k in c for k in ["name","nombre","metric"])), None)
-            if id_col and name_col:
-                mask = (cols_df[name_col].str.lower().str.contains("bolsa", na=False) |
-                        cols_df[name_col].str.lower().str.contains("precio", na=False))
-                matches = cols_df[mask]
-                if not matches.empty:
-                    metric_id = str(matches.iloc[0][id_col])
-                    print(f"  [xm_api] Métrica encontrada en catálogo: {metric_id}")
-                    return metric_id
-    except Exception:
-        pass
-    # Fallback: probar candidatos en orden
-    return candidatos[0]
+        with urllib.request.urlopen(peticion, timeout=60) as r:
+            codigo, contenido = r.status, r.read()
+    except urllib.error.HTTPError as e:
+        codigo, contenido = e.code, e.read()
+    linea = (f"{cuando}\tPOST {url}\t{json.dumps(cuerpo)}\t{codigo}\t"
+             f"{len(contenido)} bytes")
+    print(f"    [xm_api] {linea}")
+    if registro:
+        with open(registro, "a", encoding="utf-8") as f:
+            f.write(linea + "\n")
+    if codigo != 200:
+        raise RuntimeError(f"El API de XM respondio {codigo} a {cuerpo}: "
+                           f"{contenido[:300]!r}")
+    return json.loads(contenido)
+
+
+def _parse_api_items(items, metrica: str = XM_METRICA_BOLSA) -> pd.DataFrame:
+    """Items del API horario a una tabla ancha: fecha real + Hour01..Hour24.
+
+    La fecha se lee del campo ``Date`` con formato estricto: nunca se
+    reconstruye por la posicion de la fila (defecto 1).
+    """
+    filas = []
+    for it in items:
+        entidades = it.get("HourlyEntities") or []
+        if len(entidades) != 1:
+            raise ValueError(f"{metrica} {it.get('Date')!r}: se esperaba una "
+                             f"entidad, llegaron {len(entidades)}")
+        valores = entidades[0]["Values"]
+        filas.append({"Date": it["Date"],
+                      **{f"Hour{h:02d}": valores.get(f"Hour{h:02d}")
+                         for h in range(1, 25)}})
+    df = pd.DataFrame(filas, columns=["Date"]
+                      + [f"Hour{h:02d}" for h in range(1, 25)])
+    return _parse_api_df(df)
+
+
+def _parse_api_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Tabla ancha (Date, Hour01..Hour24) con la fecha como indice.
+
+    La fecha tiene que venir en el dato (``YYYY-MM-DD``). Si falta o no se
+    puede leer, es un error: antes se fabricaba por la posicion de la fila.
+    """
+    if "Date" not in df.columns:
+        raise ValueError(f"La respuesta de XM no trae la columna Date "
+                         f"({list(df.columns)}): sin fecha no se puede "
+                         f"ubicar ningun precio")
+    fechas = pd.to_datetime(df["Date"], format="%Y-%m-%d", errors="coerce")
+    if fechas.isna().any():
+        malas = df.loc[fechas.isna(), "Date"].tolist()[:5]
+        raise ValueError(f"Fechas de XM ilegibles: {malas}. No se reconstruyen "
+                         f"por posicion (defecto 1)")
+    horas = [f"Hour{h:02d}" for h in range(1, 25)]
+    tabla = df[horas].apply(pd.to_numeric, errors="coerce")
+    tabla.index = pd.DatetimeIndex(fechas, name="Date")
+    return tabla
+
+
+def _deduplica_fechas(tabla: pd.DataFrame) -> pd.DataFrame:
+    """Quita las fechas repetidas si son identicas; si difieren, falla."""
+    rep = tabla.index.duplicated(keep=False)
+    if not rep.any():
+        return tabla.sort_index()
+    for fecha, grupo in tabla[rep].groupby(level=0):
+        if not all(grupo.iloc[i].equals(grupo.iloc[0])
+                   for i in range(1, len(grupo))):
+            raise ValueError(f"La fecha {fecha.date()} aparece {len(grupo)} "
+                             f"veces con valores distintos")
+    return tabla[~tabla.index.duplicated(keep="first")].sort_index()
+
+
+def _serie_horaria(tabla: pd.DataFrame, dt_start, dt_end) -> pd.Series:
+    """Tabla ancha por dia -> serie horaria en [dt_start, dt_end), completa.
+
+    Exige el calendario entero y 24 horas con valor en cada dia: un dia o una
+    hora que falte es un error, no se rellena (defecto 1).
+    """
+    dias = pd.date_range(dt_start, dt_end, freq="D", inclusive="left")
+    fuera = tabla.index[(tabla.index < dias[0]) | (tabla.index > dias[-1])]
+    if len(fuera):
+        raise ValueError(f"XM devolvio dias fuera de lo pedido: "
+                         f"{[str(d.date()) for d in fuera[:5]]}")
+    tabla = tabla.reindex(dias)
+    faltan_dia = tabla.index[tabla.isna().all(axis=1)]
+    if len(faltan_dia):
+        raise ValueError(f"Faltan {len(faltan_dia)} dias de {XM_METRICA_BOLSA} "
+                         f"en [{dias[0].date()}, {dt_end}): "
+                         f"{[str(d.date()) for d in faltan_dia[:10]]}")
+    incompletos = tabla.index[tabla.isna().any(axis=1)]
+    if len(incompletos):
+        raise ValueError(f"{len(incompletos)} dias sin las 24 horas: "
+                         f"{[str(d.date()) for d in incompletos[:10]]}")
+    valores = tabla.to_numpy(dtype=float).reshape(-1)
+    idx = pd.date_range(dias[0], periods=len(valores), freq="1h")
+    return pd.Series(valores, index=idx, name="Precio_COP_kWh")
+
+
+def _redondea_cache(serie: pd.Series) -> pd.Series:
+    """Redondeo de la cache, con el ``round`` de Python como el de siempre."""
+    return pd.Series([round(float(v), _DECIMALES_CACHE) for v in serie],
+                     index=serie.index, name=serie.name, dtype=float)
 
 
 def download_via_api(t_start="2025-07-01", t_end="2026-02-01",
-                     save_path=None):
+                     save_path=None, registro=None, as_series=False):
     """
-    Descarga precios de bolsa usando la API oficial XM (pydataxm).
-    Requiere: pip install pydataxm
-    Documentación: github.com/EquipoAnaliticaXM/API_XM
+    Descarga el precio de bolsa horario del API de XM (``PrecBolsNaci``).
+
+    Horizonte ``[t_start, t_end)`` en dias enteros (``"YYYY-MM-DD"``, t_end
+    exclusivo). Devuelve la serie redondeada a ``_DECIMALES_CACHE``, la misma
+    que se guarda en ``save_path``; ``as_series=True`` la devuelve con su
+    indice horario. Pide bloques de hasta 28 dias SIN solape, a una peticion
+    por segundo como mucho, e imprime cada peticion (y la anota en
+    ``registro``, si se da). Cualquier fallo es un error: no hay datos a
+    medias ni fechas reconstruidas (defecto 1).
     """
-    try:
-        from pydataxm.pydataxm import ReadDB
-    except ImportError:
-        print("  [xm_api] pydataxm no instalado.")
-        print("  Instalar con: (.venv) pip install pydataxm")
-        return None
+    dt_start = datetime.strptime(t_start, "%Y-%m-%d")
+    dt_end = datetime.strptime(t_end, "%Y-%m-%d")
+    if dt_end <= dt_start:
+        raise ValueError(f"Horizonte vacio: [{t_start}, {t_end})")
+    ultimo_dia = dt_end - timedelta(days=1)
 
-    try:
-        print("  [xm_api] Conectando a API XM (pydataxm)...")
-        obj = ReadDB()
-        dt_start = datetime.strptime(t_start, "%Y-%m-%d")
-        dt_end   = datetime.strptime(t_end,   "%Y-%m-%d")
+    print(f"  [xm_api] {XM_METRICA_BOLSA} {t_start} -> {t_end} (exclusivo), "
+          f"bloques de {_XM_DIAS_POR_PETICION} dias")
+    bloques = []
+    actual = dt_start
+    while actual <= ultimo_dia:
+        fin = min(actual + timedelta(days=_XM_DIAS_POR_PETICION - 1),
+                  ultimo_dia)
+        cuerpo = {"MetricId": XM_METRICA_BOLSA,
+                  "StartDate": actual.strftime("%Y-%m-%d"),
+                  "EndDate": fin.strftime("%Y-%m-%d"),     # inclusivo
+                  "Entity": XM_ENTIDAD_BOLSA, "Filter": []}
+        respuesta = _xm_post(XM_API_HORARIO, cuerpo, registro=registro)
+        bloque = _parse_api_items(respuesta.get("Items") or [])
+        pedidos = pd.date_range(actual, fin, freq="D")
+        if not bloque.index.isin(pedidos).all():
+            raise ValueError(f"El bloque {cuerpo['StartDate']}..."
+                             f"{cuerpo['EndDate']} trajo dias fuera de lo "
+                             f"pedido")
+        bloques.append(bloque)
+        actual = fin + timedelta(days=1)
 
-        # PrecBolsNaci es el MetricId verificado en la API XM (2025).
-        # Los demás son fallbacks para versiones anteriores de la API.
-        # Filtramos contra el inventario para suprimir mensajes "No existe".
-        todos_candidatos = [
-            "PrecBolsNaci",
-            "PrecioBolsaNacional",
-            "PrecioOfertaBolsa",
-            "PrecioTransaccionBolsa",
-            "PrecioOfertaBolsaNacional",
-        ]
-        try:
-            ids_validos = set(obj.inventario_metricas["MetricId"].values)
-            candidatos = [c for c in todos_candidatos if c in ids_validos] or todos_candidatos
-        except Exception:
-            candidatos = todos_candidatos
-
-        all_series = []
-        metric_ok  = None
-        current    = dt_start
-
-        while current < dt_end:
-            block_end = min(current + timedelta(days=28), dt_end)
-            s = current.strftime("%Y-%m-%d")
-            e = block_end.strftime("%Y-%m-%d")
-            success = False
-
-            for metric in candidatos:
-                try:
-                    df = obj.request_data(metric, "Sistema", s, e)
-                except Exception:
-                    df = None
-                # Fix CAL-28b (2026-05-06): el print con caracteres no-ASCII
-                # ('✓', '→') estaba DENTRO del try; un UnicodeEncodeError
-                # bajo stdout cp1252 (Windows) era atrapado por
-                # 'except Exception: pass' silenciosamente, dejando
-                # success=False aunque los datos ya se hubieran cargado.
-                # Ahora la captura de excepciones se limita a
-                # request_data; success/break/print viven fuera del try.
-                if df is not None and not df.empty:
-                    all_series.append(df)
-                    metric_ok = metric
-                    success = True
-                    candidatos = [metric]   # estabilizar metrica
-                    print(f"    [OK] {s}->{e}  ({metric})")
-                    break
-            if not success:
-                print(f"    [FAIL] {s}->{e}: ninguna metrica funciono")
-            current = block_end
-
-        if not all_series:
-            print("  [xm_api] Sin datos. Verifica la conexión a internet.")
-            print("  [xm_api] Para ver métricas disponibles:")
-            print("    from pydataxm.pydataxm import ReadDB")
-            print("    obj = ReadDB()")
-            print("    print(obj.get_collections())")
-            return None
-
-        print(f"  [xm_api] Métrica usada: {metric_ok}")
-        df_all = pd.concat(all_series, ignore_index=True)
-        prices = _parse_api_df(df_all, dt_start, dt_end)
-        if prices is not None and save_path:
-            _save_csv(prices, dt_start, save_path)
-            print(f"  [xm_api] Cache guardado en: {save_path}")
-        return prices
-
-    except Exception as e:
-        print(f"  [xm_api] Error inesperado: {e}")
-        return None
+    tabla = _deduplica_fechas(pd.concat(bloques))
+    serie = _redondea_cache(_serie_horaria(tabla, dt_start, dt_end))
+    print(f"  [xm_api] {len(serie)} h, media={serie.mean():.0f} COP/kWh")
+    if save_path:
+        _save_csv(serie, save_path)
+        print(f"  [xm_api] Cache guardada en: {save_path}")
+    return serie if as_series else serie.to_numpy(dtype=float)
 
 
-def _parse_api_df(df, dt_start, dt_end):
-    """
-    Parsea DataFrame de pydataxm a array (T,) en COP/kWh.
-    Soporta formato wide (Date + Values_Hour01..Hour24) con fechas NaT
-    — pydataxm ≥ pandas-3 convierte Date a numérico antes de la fecha,
-    así que reconstruimos fechas por índice de fila cuando es necesario.
-    """
-    try:
-        n_target = int((dt_end - dt_start).total_seconds() / 3600)
-        hour_cols = [c for c in df.columns
-                     if "hour" in c.lower() or "hora" in c.lower()]
-        date_col  = next((c for c in df.columns
-                          if "date" in c.lower() or "fecha" in c.lower()), None)
-        val_col   = next((c for c in df.columns
-                          if any(k in c.lower()
-                                 for k in ["value","valor","precio","price"])
-                          and "hour" not in c.lower()), None)
+# ── 2. CSV de precios (cache del API o descarga manual de Sinergox) ──────────
 
-        # ── Formato wide: Hour01..Hour24 (una fila por día) ───────────────────
-        if len(hour_cols) >= 10:
-            hc = sorted(hour_cols,
-                        key=lambda x: int("".join(d for d in x if d.isdigit()) or "0"))[:24]
-            for c in hc:
-                df[c] = pd.to_numeric(df[c], errors="coerce")
+def _lee_csv_precios(path: Path) -> pd.Series:
+    """Lee un CSV de precios a una serie horaria indexada por su hora REAL.
 
-            # Reconstruir fechas: intentar Date primero; si NaT, usar dt_start + fila
-            if date_col:
-                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-                if df[date_col].notna().any():
-                    df = df.sort_values(date_col)
-                else:
-                    # pydataxm convirtió las fechas a NaN → reconstruir
-                    df = df.reset_index(drop=True)
-                    df[date_col] = [dt_start + timedelta(days=i) for i in range(len(df))]
-            else:
-                df["_date"] = [dt_start + timedelta(days=i) for i in range(len(df))]
-                date_col = "_date"
-
-            df = df.set_index(date_col).sort_index()
-            prices = df[hc].values.astype(float).flatten()
-            prices = prices[:n_target] if len(prices) >= n_target else np.pad(
-                prices, (0, n_target - len(prices)), constant_values=np.nanmedian(prices))
-            med = np.nanmedian(prices[~np.isnan(prices)]) if np.isnan(prices).any() else 0
-            prices[np.isnan(prices)] = med
-            print(f"  [xm_api] {len(prices)}h, media={np.nanmean(prices):.0f} COP/kWh")
-            return prices.astype(float)
-
-        # ── Formato long: Date + Hour + Value ────────────────────────────────
-        if date_col and val_col:
-            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-            df[val_col]  = pd.to_numeric(df[val_col],  errors="coerce")
-            df = df.dropna(subset=[date_col, val_col]).set_index(date_col).sort_index()
-            idx  = pd.date_range(dt_start, dt_end, freq="1h", inclusive="left")
-            serie = df[val_col].resample("1h").mean().reindex(idx)
-            serie = serie.interpolate("time", limit=6).fillna(serie.median())
-            print(f"  [xm_api] {len(serie)}h, media={serie.mean():.0f} COP/kWh")
-            return serie.values.astype(float)
-
-    except Exception as e:
-        print(f"  [xm_api] Parse error: {e}")
-    return None
-
-
-# ── 2. CSV descargado de Sinergox ─────────────────────────────────────────────
-
-def load_xm_prices(csv_path, t_start="2025-07-01", t_end="2026-02-01"):
-    """
-    Carga precios XM desde CSV descargado manualmente de Sinergox.
-
-    Formatos aceptados automáticamente:
+    Formatos aceptados:
       Wide:  Fecha ; Variable ; Hora 1 ; Hora 2 ; ... ; Hora 24
-      Long:  Fecha , Hora , Precio_COP_kWh
+      Long:  Fecha , Hora (1 a 24) , Precio_COP_kWh
       SIMEM: Date , Values.Hour01 , ... , Values.Hour24
+    Una hora repetida con valores distintos, una hora fuera de 1..24 o una
+    fecha ilegible son errores. Las horas que faltan no se inventan: quedan
+    ausentes del indice.
+    """
+    with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
+        first = f.readline()
+    sep = ";" if first.count(";") > first.count(",") else ","
+    df = pd.read_csv(path, sep=sep, encoding="utf-8-sig", low_memory=False)
+    df.columns = [str(c).strip() for c in df.columns]
+    print(f"  [xm_csv] {path.name} — {len(df)} filas, cols: {list(df.columns[:6])}")
+
+    fecha_col = next((c for c in df.columns
+                      if any(k in c.lower() for k in ["fecha", "date", "time"])), None)
+    hora_cols = [c for c in df.columns
+                 if any(c.strip().lower().startswith(p)
+                        for p in ["hora ", "hour ", "h0", "h1", "h2",
+                                  "values.hour", "value.hour"])]
+    price_col = next((c for c in df.columns
+                      if any(k in c.lower()
+                             for k in ["precio", "price", "valor", "bolsa", "kwh"])), None)
+    hour_col = next((c for c in df.columns
+                     if c.strip().lower() in ["hora", "hour", "h", "hh"]), None)
+    if fecha_col is None:
+        raise ValueError(f"{path.name}: sin columna de fecha. Columnas: "
+                         f"{list(df.columns[:10])}")
+    fechas = pd.to_datetime(df[fecha_col], errors="coerce")
+    if fechas.isna().any():
+        raise ValueError(f"{path.name}: {int(fechas.isna().sum())} fechas "
+                         f"ilegibles, p. ej. "
+                         f"{df.loc[fechas.isna(), fecha_col].tolist()[:3]}")
+
+    if len(hora_cols) >= 10:
+        def hn(c):
+            digits = "".join(x for x in c if x.isdigit())
+            return int(digits) if digits else 99
+        hc = sorted(hora_cols, key=hn)
+        if [hn(c) for c in hc] != list(range(1, 25)):
+            raise ValueError(f"{path.name}: las columnas de hora no son 1..24: "
+                             f"{hc}")
+        tabla = df[hc].apply(pd.to_numeric, errors="coerce")
+        tabla.index = pd.DatetimeIndex(fechas.dt.normalize())
+        tabla = _deduplica_fechas(tabla)
+        valores = tabla.to_numpy(dtype=float).reshape(-1)
+        idx = (tabla.index.repeat(24)
+               + pd.to_timedelta(np.tile(np.arange(24), len(tabla)), unit="h"))
+        serie = pd.Series(valores, index=idx)
+    elif price_col is not None:
+        valores = pd.to_numeric(df[price_col], errors="coerce")
+        if hour_col:
+            h = pd.to_numeric(df[hour_col], errors="coerce")
+            if h.isna().any() or not h.between(1, 24).all() \
+                    or not (h == h.round()).all():
+                raise ValueError(f"{path.name}: la columna {hour_col!r} tiene "
+                                 f"horas fuera de 1..24 o vacias")
+            idx = fechas.dt.normalize() + pd.to_timedelta(h - 1, unit="h")
+        else:
+            idx = fechas
+        serie = pd.Series(valores.to_numpy(dtype=float),
+                          index=pd.DatetimeIndex(idx))
+    else:
+        raise ValueError(f"{path.name}: formato no reconocido. Columnas: "
+                         f"{list(df.columns[:10])}")
+
+    serie = serie[~serie.isna()]
+    rep = serie.index.duplicated(keep=False)
+    if rep.any():
+        distintas = serie[rep].groupby(level=0).nunique()
+        if (distintas > 1).any():
+            raise ValueError(f"{path.name}: {int((distintas > 1).sum())} horas "
+                             f"repetidas con precios distintos, p. ej. "
+                             f"{distintas[distintas > 1].index[0]}")
+        serie = serie[~serie.index.duplicated(keep="first")]
+    return serie.sort_index()
+
+
+def load_xm_prices(csv_path, t_start="2025-07-01", t_end="2026-02-01",
+                   estricto=False):
+    """
+    Precios horarios de ``[t_start, t_end)`` leidos de un CSV, por su fecha.
+
+    Devuelve un vector con exactamente una hora por cada hora del horizonte,
+    o ``None`` si el fichero no existe o no tiene ninguna hora del horizonte.
+    Si cubre el horizonte solo en parte, devuelve ``None`` (la cache se
+    vuelve a pedir) o, con ``estricto=True``, falla nombrando las horas que
+    faltan. Nunca rellena con la mediana (defecto 7): antes pedir del
+    2026-01-28 al 2026-02-05 devolvia las 96 horas inexistentes de febrero a
+    196,79, y un rango del todo fuera devolvia un vector de NaN en vez de
+    ``None``, con lo que el defecto 1 no se veia nunca.
     """
     path = Path(csv_path)
     if not path.exists():
         return None
-    try:
-        with open(path, "r", encoding="utf-8-sig", errors="replace") as f:
-            first = f.readline()
-        sep = ";" if first.count(";") > first.count(",") else ","
-        df  = pd.read_csv(path, sep=sep, encoding="utf-8-sig",
-                          low_memory=False, on_bad_lines="skip")
-        df.columns = [str(c).strip() for c in df.columns]
-        print(f"  [xm_csv] {path.name} — {len(df)} filas, cols: {list(df.columns[:6])}")
-
-        fecha_col = next((c for c in df.columns
-                          if any(k in c.lower() for k in ["fecha","date","time"])), None)
-        hora_cols = [c for c in df.columns
-                     if any(c.strip().lower().startswith(p)
-                            for p in ["hora ","hour ","h0","h1","h2","values.hour","value.hour"])]
-        price_col = next((c for c in df.columns
-                          if any(k in c.lower()
-                                 for k in ["precio","price","valor","bolsa","kwh"])), None)
-        hour_col  = next((c for c in df.columns
-                          if c.strip().lower() in ["hora","hour","h","hh"]), None)
-
-        if len(hora_cols) >= 10 and fecha_col:
-            # Formato Wide
-            df[fecha_col] = pd.to_datetime(df[fecha_col], errors="coerce")
-            df = df.dropna(subset=[fecha_col]).sort_values(fecha_col)
-            mask = (df[fecha_col] >= t_start) & (df[fecha_col] < t_end)
-            df   = df[mask]
-            if df.empty:
-                return None
-            def hn(c):
-                digits = "".join(x for x in c if x.isdigit())
-                return int(digits) if digits else 99
-            hc = sorted(hora_cols, key=hn)[:24]
-            for c in hc:
-                df[c] = pd.to_numeric(df[c], errors="coerce")
-            prices = df[hc].values.astype(float).flatten()
-            n = int((pd.Timestamp(t_end) - pd.Timestamp(t_start)).total_seconds() / 3600)
-            if len(prices) > n:
-                prices = prices[:n]
-            elif len(prices) < n:
-                prices = np.pad(prices, (0, n-len(prices)), constant_values=np.nanmedian(prices))
-            prices[np.isnan(prices)] = np.nanmedian(prices[~np.isnan(prices)])
-            print(f"  [xm_csv] Wide {len(prices)}h, media={prices.mean():.0f} COP/kWh")
-            return prices.astype(float)
-
-        if fecha_col and price_col:
-            # Formato Long
-            df[fecha_col]  = pd.to_datetime(df[fecha_col], errors="coerce")
-            df[price_col]  = pd.to_numeric(df[price_col],  errors="coerce")
-            df = df.dropna(subset=[fecha_col, price_col])
-            if hour_col:
-                df[hour_col] = pd.to_numeric(df[hour_col], errors="coerce").fillna(1) - 1
-                df["_dt"] = df[fecha_col] + pd.to_timedelta(
-                    df[hour_col].clip(0,23).astype(int), unit="h")
-            else:
-                df["_dt"] = df[fecha_col]
-            df = df.set_index("_dt").sort_index()
-            idx   = pd.date_range(t_start, t_end, freq="1h", inclusive="left")
-            serie = df[price_col].resample("1h").mean().reindex(idx)
-            serie = serie.interpolate("time", limit=6).fillna(serie.median())
-            print(f"  [xm_csv] Long {len(serie)}h, media={serie.mean():.0f} COP/kWh")
-            return serie.values.astype(float)
-
-        print(f"  [xm_csv] Formato no reconocido. Columnas: {list(df.columns[:10])}")
-    except Exception as e:
-        print(f"  [xm_csv] Error: {e}")
-    return None
+    serie = _lee_csv_precios(path)
+    t0 = pd.Timestamp(t_start)
+    t1 = pd.Timestamp(t_end)
+    if t1 <= t0:
+        raise ValueError(f"Horizonte vacio: [{t_start}, {t_end})")
+    idx = pd.date_range(t0, t1, freq="1h", inclusive="left")
+    horizonte = serie.reindex(idx)
+    faltan = idx[horizonte.isna().to_numpy()]
+    if len(faltan) == len(idx):
+        print(f"  [xm_csv] {path.name} no tiene ninguna hora de "
+              f"[{t_start}, {t_end})")
+        return None
+    if len(faltan):
+        msg = (f"{path.name} no cubre [{t_start}, {t_end}): faltan "
+               f"{len(faltan)} de {len(idx)} horas, de {faltan[0]} a "
+               f"{faltan[-1]}")
+        if estricto:
+            raise ValueError(msg + ". No se rellenan (defecto 7)")
+        print(f"  [xm_csv] {msg}; no se usa")
+        return None
+    prices = horizonte.to_numpy(dtype=float)
+    print(f"  [xm_csv] {len(prices)}h, media={prices.mean():.0f} COP/kWh")
+    return prices
 
 
 # ── 3. Sintético calibrado ────────────────────────────────────────────────────
@@ -438,7 +482,9 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
     """
     Obtiene vector de precios bolsa pi_bolsa (T,) en COP/kWh.
 
-    Prioridad de fuentes: API pydataxm → CSV local → sintético calibrado.
+    Prioridad de fuentes: API de XM (por su cache, que tiene que cubrir el
+    horizonte entero) → CSV local → sintético calibrado. Con ``use_api``, un
+    fallo de la descarga es un error: ya no cae a los sinteticos.
 
     Parameters
     ----------
@@ -471,40 +517,51 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
     prices = None
     ULTIMA_FUENTE = None
 
-    # Intento 1: API pydataxm (con cache)
+    # Intento 1: API de XM, a traves de su cache. La cache canonica
+    # (`precios_bolsa_xm_api.csv`, versionada) solo vale si cubre el horizonte
+    # ENTERO, por fecha (defecto 1: antes valia cualquier fichero con ese
+    # nombre, sin mirar sus fechas, y lo que faltara se rellenaba con la
+    # mediana). Si no lo cubre, se descarga ese horizonte a una cache que
+    # lleva el horizonte en el nombre; la canonica solo se reescribe a mano,
+    # con `--regenera-cache`. Un fallo de la descarga es un error: no cae en
+    # silencio a los precios sinteticos.
     if use_api:
-        cache = base_dir / "precios_bolsa_xm_api.csv"
-        if cache.exists():
-            prices = load_xm_prices(str(cache), t_start, t_end)
+        cache = base_dir / CACHE_BOLSA
+        prices = load_xm_prices(str(cache), t_start, t_end)
+        if prices is not None:
+            ULTIMA_FUENTE = f"cache_api:{cache.name}"
+        else:
+            cache_h = _cache_de_horizonte(base_dir, t_start, t_end)
+            prices = load_xm_prices(str(cache_h), t_start, t_end)
             if prices is not None:
-                ULTIMA_FUENTE = f"cache_api:{cache.name}"
-        if prices is None:
-            prices = download_via_api(t_start, t_end, save_path=str(cache))
-            if prices is not None:
-                ULTIMA_FUENTE = "api_pydataxm"
+                ULTIMA_FUENTE = f"cache_api:{cache_h.name}"
+            else:
+                prices = download_via_api(t_start, t_end,
+                                          save_path=str(cache_h))
+                ULTIMA_FUENTE = f"api_xm:{cache_h.name}"
 
-    # Intento 2: CSV explícito
+    # Intento 2: CSV explícito. Si cubre el horizonte solo en parte, error.
     if prices is None and csv_path:
-        prices = load_xm_prices(csv_path, t_start, t_end)
+        prices = load_xm_prices(csv_path, t_start, t_end, estricto=True)
         if prices is not None:
             ULTIMA_FUENTE = f"csv:{Path(csv_path).name}"
 
-    # Intento 3: CSV automático en data/
+    # Intento 3: CSV automático en data/. Igual: en parte, error.
     if prices is None:
         for name in ["precios_bolsa_xm.csv", "xm_precios_bolsa.csv",
                       "precio_bolsa_xm.csv", "PrecioBolsa.csv",
                       "Precio_Bolsa_Nacional.csv"]:
             p = base_dir / name
             if p.exists():
-                prices = load_xm_prices(str(p), t_start, t_end)
+                prices = load_xm_prices(str(p), t_start, t_end, estricto=True)
                 if prices is not None:
                     ULTIMA_FUENTE = f"csv_auto:{name}"
                     break
 
-    # Intento 4: sintético calibrado
+    # Intento 4: sintético calibrado (solo sin API, use_api=False)
     if prices is None:
         print(f"  [xm] Sintético calibrado. Para datos reales:")
-        print(f"    pip install pydataxm  (descarga automática)")
+        print(f"    use_api=True (descarga del API de XM, servapibi.xm.com.co)")
         print(f"    o descargar CSV de sinergox.xm.com.co → Históricos → Precios")
         print(f"    y guardarlo como: {base_dir}/precios_bolsa_xm.csv")
         # CAL-43: la sustitucion por precios SINTETICOS solo dejaba rastro
@@ -532,17 +589,49 @@ def get_pi_bolsa(T, t_start="2025-07-01", t_end="2026-02-01",
 
 
 def _adj(prices, T):
-    if len(prices) >= T:
-        return prices[:T]
-    return np.pad(prices, (0, T-len(prices)), constant_values=np.nanmedian(prices))
+    """Las T primeras horas del horizonte, que empieza en t_start.
+
+    Si la serie trae menos de T horas es un error (defecto 7): antes se
+    rellenaba el final con la mediana, sin aviso.
+    """
+    prices = np.asarray(prices, dtype=float)
+    if len(prices) < T:
+        raise ValueError(
+            f"La serie de bolsa trae {len(prices)} horas y el horizonte pide "
+            f"{T}. No se rellena con la mediana (defecto 7).")
+    return prices[:T]
 
 
-def _save_csv(prices, dt_start, path):
-    rows = [{"Fecha": (dt_start + timedelta(hours=i)).strftime("%Y-%m-%d"),
-             "Hora": (dt_start + timedelta(hours=i)).hour + 1,
-             "Precio_COP_kWh": round(float(p), 2)}
-            for i, p in enumerate(prices)]
-    pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig")
+# Cache canonica de la bolsa horaria (versionada; ver `--regenera-cache`).
+CACHE_BOLSA = "precios_bolsa_xm_api.csv"
+
+
+def _cache_de_horizonte(base_dir: Path, t_start, t_end) -> Path:
+    """Cache de una descarga que la canonica no cubre: el horizonte en el nombre."""
+    d0 = pd.Timestamp(t_start).strftime("%Y-%m-%d")
+    d1 = pd.Timestamp(t_end).strftime("%Y-%m-%d")
+    return base_dir / f"precios_bolsa_xm_api_{d0}_{d1}.csv"
+
+
+def _save_csv(serie: pd.Series, path):
+    """Escribe la cache con la hora REAL de cada precio (defecto 1).
+
+    Antes recibia un vector y le ponia fechas por posicion desde el inicio
+    pedido, de modo que el fichero salia denso y contiguo aunque los datos
+    estuvieran corridos. Ahora exige la serie con su indice horario, y el
+    fichero se escribe entero a un temporal antes de sustituir al anterior.
+    """
+    if not isinstance(serie, pd.Series) \
+            or not isinstance(serie.index, pd.DatetimeIndex):
+        raise TypeError("_save_csv necesita una serie con indice horario "
+                        "(DatetimeIndex): sin la hora real no se escribe")
+    rows = [{"Fecha": ts.strftime("%Y-%m-%d"),
+             "Hora": ts.hour + 1,
+             "Precio_COP_kWh": round(float(p), _DECIMALES_CACHE)}
+            for ts, p in serie.items()]
+    tmp = Path(str(path) + ".tmp")
+    pd.DataFrame(rows).to_csv(tmp, index=False, encoding="utf-8-sig")
+    os.replace(tmp, path)
 
 
 def print_price_summary(prices, t_start="2025-07-01", label="Precios XM"):
@@ -1101,11 +1190,18 @@ def apply_creg101066_ceiling(
         "meses_tabla":        info_tabla["meses_tabla"],
         "meses_interpolados": info_tabla["meses_interpolados"],
     }
+    # Defecto 8: `delta_mean` es el recorte medio de las horas RECORTADAS del
+    # mes (0,0 si ninguna), que es como se lee junto a `hours_capped`. Antes
+    # promediaba sobre todas las horas del mes: diez horas recortadas en 100
+    # (COP/kWh) en un mes de 720 salian como 1,39. `delta_total` es la suma.
     serie = pd.Series(pi_pre - pi, index=idx)
     for period, sub in serie.groupby(serie.index.to_period("M")):
+        recortadas = sub[sub > 0]
         diag["by_month"][str(period)] = {
-            "hours_capped": int((sub > 0).sum()),
-            "delta_mean":   float(sub.mean()),
+            "hours_capped": int(len(recortadas)),
+            "delta_mean":   (float(recortadas.mean()) if len(recortadas)
+                             else 0.0),
+            "delta_total":  float(sub.sum()),
         }
     return pi, diag
 
@@ -1119,7 +1215,7 @@ def _print_ceiling_summary(diag: dict, level: str = "PES") -> None:
     if diag["by_month"] and diag["hours_capped"] > 0:
         print(f"  [creg-101-066] Por mes:")
         print(f"                  {'Mes':<10} {'Horas-cap':>10} "
-              f"{'Delta-medio COP/kWh':>22}")
+              f"{'Recorte medio COP/kWh':>22}")
         for mes, m in diag["by_month"].items():
             if m["hours_capped"] > 0:
                 print(f"                  {mes:<10} {m['hours_capped']:>10} "
@@ -1135,11 +1231,23 @@ if __name__ == "__main__":
     ap.add_argument("--synth", action="store_true")
     ap.add_argument("--csv",   default=None)
     ap.add_argument("--T",     type=int, default=5160)
+    ap.add_argument("--regenera-cache", nargs=2, metavar=("INICIO", "FIN"),
+                    default=None,
+                    help="descarga [INICIO, FIN) del API de XM y REESCRIBE "
+                         f"data/{CACHE_BOLSA}")
+    ap.add_argument("--registro", default=None,
+                    help="fichero al que se anade cada peticion al API")
     args = ap.parse_args()
 
+    if args.regenera_cache:
+        inicio, fin = args.regenera_cache
+        download_via_api(inicio, fin,
+                         save_path=str(Path(__file__).parent / CACHE_BOLSA),
+                         registro=args.registro)
+        raise SystemExit(0)
+
+    # Ya no escribe `precios_bolsa_generados.csv`: nadie lo leia, y la copia
+    # que habia en el arbol era la cache corrida del defecto 1.
     prices = get_pi_bolsa(T=args.T, use_api=args.api or (not args.synth),
                            csv_path=args.csv)
     print_price_summary(prices)
-    out = Path(__file__).parent / "precios_bolsa_generados.csv"
-    _save_csv(prices, datetime(2025, 7, 1), str(out))
-    print(f"\n  Guardado en: {out}")

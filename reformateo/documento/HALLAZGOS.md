@@ -7424,3 +7424,58 @@ Se apoya en el otro hecho que C-198 dejó anotado: **el piso del juego nunca sub
 - **`c136` con el piso marginal.** Si se quiere comparar con la dinámica en las horas que ahora rechaza, hay que decidir si el presupuesto se relaja o se declara. No bloquea la matriz.
 
 **Consecuencia.** El piso del juego pasa a ser una definición del mecanismo, y no un subproducto del despacho: con pisos heterogéneos la única regla que cubre a todos con un precio interior y sigue siendo el reposo de la dinámica es el piso del vendedor marginal. La participación deja de ser un filtro que quita energía y pasa a ser una alarma que no debería sonar.
+
+## H-92 · La caché de precios de bolsa llevaba fechas fabricadas: desde el 30 de julio de 2025 estaba corrida de 1 a 7 días, y el tramo que no casaba es una versión anterior de los datos de XM
+
+**Estado: registrado el 2026-09-18, con la caché regenerada del API de XM y el descargador arreglado (C-200); ampliado el 2026-09-19 con la tabla de techos a precisión completa y la medida de los ficheros de auditoría anual. Sale del informe del módulo de la plataforma MTE del 2026-09-17 (`SALIDAS_SERVIDOR/entrega_informe_precios_2026-09-18/informe-defectos-precios-tesis.md`, defecto 1 y anexo), de su descarga de `PrecBolsNaci` hora a hora (7 296 horas, del 2025-04-03 al 2026-01-31) y del trabajo de la tarea P (`.superpowers/sdd/2026-09-16-reposo/task-P-report.md`). Cada afirmación dice si está medida o inferida. Las descargas propias, a una petición por segundo, están anotadas en `outputs/run_2026-09-18_tareaP_descargas_xm.log`.**
+
+El módulo encontró que `data/precios_bolsa_xm_api.csv`, la serie de bolsa de la tesis, coincide con XM hasta el 29 de julio de 2025 y a partir de ahí está corrida un día más en cada frontera de 28 días, salvo un tramo del 4 de octubre de 2025 al 6 de enero de 2026 (95 días contando los dos extremos; el informe dice 94) que no casa con ningún desfase. Lo dejó como pregunta abierta: otra métrica o una caché ensamblada a mano. **No es ninguna de las dos: es el mismo descargador, en la misma corrida, sobre una versión de los datos de octubre a diciembre de 2025 que XM revisó después.**
+
+### El mecanismo
+
+Leído en el código y confirmado con los datos. pydataxm 0.3.16 pasa **todas** las columnas de la respuesta por `pd.to_numeric(errors="coerce")`, la fecha incluida, de modo que la fecha llegaba siempre vacía. `_parse_api_df` la reconstruía entonces por la posición de la fila, desde el inicio pedido. El bucle de `download_via_api` pedía bloques de 28 días con `current = block_end`, y el API devuelve el rango inclusivo en los dos extremos, de modo que el día frontera llegaba dos veces y todo lo posterior quedaba etiquetado un día tarde por cada frontera. `prices[:n_target]` recortaba la cola sin mirar lo que recortaba, y `_save_csv` volvía a etiquetar por posición, con lo que el fichero salía denso y contiguo. La caché tenía un nombre fijo y nunca se comprobaba su horizonte, y `load_xm_prices` rellenaba con la mediana lo que faltara, de modo que nada delataba el corrimiento (defecto 7 del informe).
+
+### Lo medido
+
+**1. El modelo del descargador reproduce la caché hora a hora** (medido; `origen_tramo.py` de la tarea P). Con bloques de 28 días desde el 1 de julio de 2025, día frontera repetido y fechas por posición, cada día etiquetado de la caché se asigna a un día de XM. Fuera del tramo, del 1 de julio de 2025 al 31 de enero de 2026, **2 880 de 2 880 horas** son iguales a lo que XM sirve hoy (tolerancia 0,0051 (COP/kWh)). La caché tiene **siete pares de días consecutivos idénticos**: 29 y 30 de julio, 27 y 28 de agosto, 25 y 26 de septiembre, 24 y 25 de octubre, 22 y 23 de noviembre, 21 y 22 de diciembre, y 19 y 20 de enero. Son exactamente los siete días frontera que predice el modelo, y **tres de ellos están dentro del tramo**. El tramo salió, por tanto, del mismo descargador y de la misma corrida que el resto: no se ensambló a mano ni de otra fuente.
+
+**2. El tramo son los días de XM del 1 de octubre al 31 de diciembre de 2025, en una versión anterior** (medido, salvo la causa, que es inferida). Con la asignación del modelo, el tramo difiere de lo que XM sirve hoy en centavos: en **77 de 95 días** la diferencia es un desplazamiento constante en al menos 20 de las 24 horas, con mediana por día de −0,04 (COP/kWh) y cuartiles de −0,05 y −0,03; **unas 2 080 de 2 280 horas** difieren en 0,20 (COP/kWh) o menos (2 079 o 2 080 según cómo se trate una diferencia que cae justo en el umbral), y 15 horas en más de 10, hasta 544,15. El día del ejemplo del informe, el 10 de octubre de la caché, es el 7 de octubre de XM: 231,1, 279,1 y 459,1 frente a 231,13, 279,13 y 459,13 (COP/kWh). La comparación del módulo, con tolerancia 0,005 y un único desfase para todo el tramo, no podía encontrarlo: el tramo suma dos efectos, el corrimiento de 3 a 6 días según el bloque y la revisión de centavos. Que la diferencia sea una revisión de XM posterior a la descarga es inferido: el API solo sirve la versión vigente, y la caché se descargó antes del 12 de abril de 2026, fecha del commit que la introdujo (df80cbe). Las medias mensuales de lo descargado entonces, por día de XM, fueron 170,80, 225,19 y 278,76 (COP/kWh) en octubre, noviembre y diciembre, frente a 170,90, 219,00 y 278,47 hoy; la de noviembre la mueven las horas con diferencias grandes.
+
+**3. Las hipótesis que el módulo no probó quedan descartadas** (medido).
+
+| Hipótesis | Prueba | Resultado |
+|---|---|---|
+| Otra métrica | `PrecTransBolsa`, el mismo día de XM (el módulo ya había descartado `PrecBolsNaciTX1`, `MaxPrecOferNal` y las de contratos) | 0 de 331 horas publicadas iguales |
+| Desfase de un año | cada día del tramo contra XM, con desfases de −400 a −330 y de 330 a 400 días | 0 días con 20 o más horas iguales |
+| Cualquier otro día | cada día del tramo contra los 989 días de XM del 2024-01-01 al 2026-09-15 | máximo 22 de 24 horas en un solo día; mediana 0 |
+| Otro año de los ficheros de auditoría | contra `data/precios_bolsa_xm_audit_{2019,2021,2023,2024}.csv`, por contenido | máximo 6 de 24 horas |
+| Serie sintética | `generate_synthetic_prices`, semillas 0 a 100, los cinco escenarios, arranques del 2025-07-01 y del 2025-04-04 | máximo 3 de 2 280 horas; un día sintético tiene 21 valores distintos, uno del tramo 6,5 |
+| Bloques fallidos que corrieran lo siguiente | posición de los días frontera | un bloque ausente movería las fronteras 28 días; las siete caen donde predice el modelo sin fallos |
+
+**4. La caché regenerada coincide con la del módulo** (medido). Del 2025-04-04 al 2026-01-31, 7 272 horas con el calendario completo, 24 por día y sin fechas repetidas. En las 7 272 horas de solape con la descarga del módulo, la mayor diferencia es 0,00499 (COP/kWh), que es el redondeo a dos decimales que la caché lleva desde que existe. Las **2 808 primeras horas**, del 4 de abril al 29 de julio de 2025, son idénticas byte a byte a la caché vieja: la primera línea distinta es la del 30 de julio a las 00 h. Los meses de abril a junio de 2025 no venían de este descargador, sino de un guion aparte que leía la fecha de cada fila (`scripts/extend_xm_cache.py`, CAL-17b, ya retirado), y por eso estaban bien.
+
+### Efecto en la tesis
+
+Medido sobre el horizonte de la tesis, del 2025-04-04 al 2025-12-15 (6 144 horas), con la serie de bolsa ya recortada por el techo de escasez, vieja frente a nueva (caché y tabla de techos nuevas frente a las de HEAD). Cambian **3 345 horas**: 3 336 por la caché, desde el 30 de julio, y 9 solo por la tabla de techos (C-200), es decir 7 de abril y 1 de mayo por los meses que faltaban y 1 de julio por la precisión completa. La tabla sola mueve 18 horas recortadas del horizonte; las otras 9 ya cambiaban por la caché. La media del horizonte pasa de 181,78 a 181,33 (COP/kWh), con una diferencia absoluta media de 42,24 y máxima de 762,64 (COP/kWh). Las horas recortadas por el techo pasan de 20 a 18.
+
+| Mes | Media vieja (COP/kWh) | Media nueva (COP/kWh) | Horas distintas |
+|---|---:|---:|---:|
+| 2025-04 | 131,79 | 132,48 | 7 |
+| 2025-05 | 126,49 | 126,52 | 1 |
+| 2025-06 | 112,51 | 112,51 | 0 |
+| 2025-07 | 133,14 | 134,69 | 49 |
+| 2025-08 | 234,55 | 237,69 | 744 |
+| 2025-09 | 294,40 | 293,10 | 720 |
+| 2025-10 | 189,91 | 170,90 | 744 |
+| 2025-11 | 207,02 | 218,64 | 720 |
+| 2025-12 (al 15) | 223,57 | 223,51 | 360 |
+
+La serie de bolsa entra en C1, C3, C4 (el exceso a bolsa horaria) y C5, y en el piso de los vendedores que liquidan en bolsa desde la hora de corte del artículo 25. **Toda cifra que dependa de la bolsa después del 29 de julio de 2025 salió de la serie corrida**: la matriz del 17 de septiembre, que se repite con la caché nueva, y los cánones de junio y de agosto, que C-175 ya había invalidado. Las medias mensuales quedan más cerca de los promedios oficiales de XM: con la caché nueva el mayor desvío es noviembre, 219,00 frente a 234,87 (COP/kWh), un 6,76 %, que es la diferencia entre la media aritmética y la ponderada por demanda; con la vieja, octubre salía en 189,93 frente a 176,90.
+
+### Lo que queda abierto
+
+- **La tabla de techos traía noviembre de 2025 redondeado a enteros, y se corrigió** (C-200). El API de XM da 331,88241, 658,63049 y 829,27159 (COP/kWh) para los tres niveles, y la tabla traía 332,00, 659,00 y 829,00, del boletín de prensa de ese mes; julio truncaba el nivel intermedio (699,17 frente a 699,17640). La tabla lleva ahora los valores del API a precisión completa en los diez meses y los tres niveles. Fuera de noviembre, ningún valor se mueve más de 0,0064 (COP/kWh); en noviembre, −0,11759, −0,36951 y +0,27159.
+- **Los ficheros `data/precios_bolsa_xm_audit_{2019,2021,2023,2024}.csv` y su resumen `data/audit_xm_yearly_summary.csv` son obsoletos, y no se tocaron.** Se bajaron con el mismo descargador (`scripts/audit_xm_yearly_means.py`, 2026-04-30) y llevan el mismo defecto: medido contra XM, solo coinciden por fecha unas 700 de las 8 760 horas de cada año, es decir el primer bloque. Ningún código los lee. Solo los cita la tabla del factor f empírico de CAL-11 en `Documentos/notas_modelo_tesis.md` y el ADR 0011, con las medias anuales de bolsa. Medido: 225,71 frente a 228,31 (COP/kWh) en 2019 (−1,14 %), 139,33 frente a 150,07 en 2021 (−7,15 %), 564,20 frente a 558,12 en 2023 (+1,09 %) y 682,48 frente a 676,08 en 2024 (+0,95 %). Con las medias correctas, el f empírico de esa tabla sigue siendo negativo en los mismos casos, y el de 2021 pasa de +0,029 a +0,010 (derivado a mano con la fórmula de la tabla), de modo que su conclusión no cambia.
+- **Lo que XM revisó en octubre a diciembre de 2025 no se puede reconstruir**: el API sirve solo la versión vigente, que es la que ahora lleva la caché.
+
+**Consecuencia.** La serie de bolsa de la tesis vuelve a ser la de XM, fecha por fecha, y el descargador ya no puede corrirla: pide bloques sin solape, lee la fecha del dato, exige el calendario completo y falla en voz alta si algo falta. Hay que repetir la matriz antes de citar cualquier cifra que toque la bolsa.

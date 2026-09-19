@@ -29,10 +29,10 @@ def test_load_csv_returns_series_indexed_by_month():
     s = load_creg_ceiling("2025-07-01", "2026-02-01", level="PES")
     assert isinstance(s, pd.Series)
     assert len(s) == 7
-    # Valor exacto del Excel XM para sep-2025
-    assert s.loc[pd.Period("2025-09", freq="M")] == pytest.approx(893.85)
-    assert s.loc[pd.Period("2025-07", freq="M")] == pytest.approx(865.22)
-    assert s.loc[pd.Period("2026-01", freq="M")] == pytest.approx(830.34)
+    # Valores del API de XM (PrecEscaSup), a precision completa (tarea P)
+    assert s.loc[pd.Period("2025-09", freq="M")] == pytest.approx(893.85368)
+    assert s.loc[pd.Period("2025-07", freq="M")] == pytest.approx(865.22053)
+    assert s.loc[pd.Period("2026-01", freq="M")] == pytest.approx(830.33514)
 
 
 def test_load_csv_supports_pei_pe_pes_levels():
@@ -78,10 +78,10 @@ def test_load_csv_handles_empty_cell_with_interpolation(tmp_path):
 
 def test_ceiling_caps_values_above_PES():
     """Valores > PES del mes se recortan a PES exacto."""
-    # 24 horas del 2025-07-01 (PES jul = 865.22)
+    # 24 horas del 2025-07-01 (PES jul = 865.22053)
     pi = np.array([100.0, 1500.0, 200.0, 2000.0] + [100.0] * 20)
     capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
-    assert capped.max() == pytest.approx(865.22)
+    assert capped.max() == pytest.approx(865.22053)
     # Valores no afectados quedan iguales
     assert capped[0] == 100.0
     assert capped[2] == 200.0
@@ -101,14 +101,14 @@ def test_ceiling_uses_correct_month_for_each_hour():
     T = 24 * 31 + 24
     pi = np.full(T, 1000.0)
     capped = apply_creg101066_ceiling(pi, "2025-07-01", level="PES")
-    # Hora 0 (jul-01 00:00) debe topar a PES jul = 865.22
-    assert capped[0] == pytest.approx(865.22)
+    # Hora 0 (jul-01 00:00) debe topar a PES jul = 865.22053
+    assert capped[0] == pytest.approx(865.22053)
     # Hora 743 (jul-31 23:00) sigue en jul
-    assert capped[743] == pytest.approx(865.22)
-    # Hora 744 (ago-01 00:00) debe topar a PES ago = 898.02
-    assert capped[744] == pytest.approx(898.02)
+    assert capped[743] == pytest.approx(865.22053)
+    # Hora 744 (ago-01 00:00) debe topar a PES ago = 898.02172
+    assert capped[744] == pytest.approx(898.02172)
     # Ultima hora (ago-01 23:00) tambien ago
-    assert capped[-1] == pytest.approx(898.02)
+    assert capped[-1] == pytest.approx(898.02172)
 
 
 def test_ceiling_skips_hours_before_effective_date():
@@ -132,7 +132,7 @@ def test_ceiling_skips_hours_before_effective_date():
 
 def test_ceiling_returns_diagnostics_when_requested():
     """return_diagnostics=True devuelve tupla con metricas correctas."""
-    # 48 horas en jul-2025: 5 horas > PES jul (865.22), resto bajo
+    # 48 horas en jul-2025: 5 horas > PES jul (865.22053), resto bajo
     pi = np.array([100.0] * 5 + [1500.0] * 5 + [100.0] * 38)
     result = apply_creg101066_ceiling(pi, "2025-07-01", level="PES",
                                        return_diagnostics=True)
@@ -140,7 +140,7 @@ def test_ceiling_returns_diagnostics_when_requested():
     capped, diag = result
     assert diag["hours_capped"] == 5
     assert diag["fraction"] == pytest.approx(5 / 48)
-    assert diag["delta_cop_total"] == pytest.approx((1500.0 - 865.22) * 5)
+    assert diag["delta_cop_total"] == pytest.approx((1500.0 - 865.22053) * 5)
     assert "2025-07" in diag["by_month"]
     assert diag["by_month"]["2025-07"]["hours_capped"] == 5
 
@@ -151,8 +151,8 @@ def test_get_pi_bolsa_applies_ceiling_by_default():
     """get_pi_bolsa(apply_ceiling=True) topa la serie a max(PES) del horizonte."""
     pi = get_pi_bolsa(T=5160, t_start="2025-07-01",
                       use_api=True, apply_ceiling=True)
-    # max(PES) jul-ene = 898.02 (ago-2025)
-    assert pi.max() <= 898.02 + 1e-6
+    # max(PES) jul-ene = 898.02172 (ago-2025)
+    assert pi.max() <= 898.02172 + 1e-6
 
 
 def test_get_pi_bolsa_respects_disable_flag():

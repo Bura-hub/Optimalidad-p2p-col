@@ -51,11 +51,13 @@ CABECERA = "mes,pei_cop_kwh,pe_cop_kwh,pes_cop_kwh,fuente,nota\n"
 B_05ED9C3_HEX = ["0x1.e224924924924p+7"] * 4 + ["0x1.c200000000000p+7"]
 
 # El techo superior (PES) de la tabla de la tesis, en los meses que usan las
-# pruebas de abajo. Solo estas cifras dependen del contenido de la tabla.
-PES = {"2025-04": 928.33, "2025-05": 891.22, "2025-06": 858.79,
-       "2025-11": 829.00, "2025-12": 864.91, "2026-01": 830.34}
-PEI_ABR_JUN = [336.12, 338.54, 345.38]
-PE_ABR_JUN = [739.80, 724.31, 673.74]
+# pruebas de abajo. Solo estas cifras dependen del contenido de la tabla: son
+# las del API de XM a precision completa (PrecEscaSup, PrecEscaInf y PrecEsca,
+# descargadas el 2026-09-18). Noviembre era 829,00, redondeado en la tabla.
+PES = {"2025-04": 928.32872, "2025-05": 891.21776, "2025-06": 858.79013,
+       "2025-11": 829.27159, "2025-12": 864.90885, "2026-01": 830.33514}
+PEI_ABR_JUN = [336.12004, 338.544, 345.37596]
+PE_ABR_JUN = [739.79576, 724.30773, 673.73573]
 
 # Filas de UNA sola fila como las escribe el modulo con su propia tabla
 # (`mercado.tope_creg`): son suyas, no de la tesis, y no cambian cuando cambia

@@ -1,11 +1,11 @@
 mes,pei_cop_kwh,pe_cop_kwh,pes_cop_kwh,fuente,nota
-2025-04,336.12,739.80,928.33,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 30 dias del mes
-2025-05,338.54,724.31,891.22,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 31 dias del mes
-2025-06,345.38,673.74,858.79,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup,API XM descargada 2026-09-18; valor unico en los 30 dias del mes
-2025-07,350.08,699.17,865.22,xm.com.co/noticias/8119,Informe XM jul-2025
-2025-08,343.86,746.17,898.02,xm.com.co/noticias/8184,Informe XM ago-2025
-2025-09,339.20,711.27,893.85,sinergox.xm.com.co/2025/09/03_Informe_Precios,Excel sheet Comportamiento_PBNal_Horario
-2025-10,334.17,675.82,857.21,xm.com.co/noticias/8442,Informe XM oct-2025
-2025-11,332.00,659.00,829.00,xm.com.co/noticias/8584,Informe XM nov-2025
-2025-12,329.43,625.20,864.91,sinergox.xm.com.co/2025/12/03_Informe_Precios,Excel sheet Comportamiento_PBNal_Horario
-2026-01,327.67,590.56,830.34,xm.com.co/noticias/8759,Informe XM ene-2026
+2025-04,336.12004,739.79576,928.32872,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 30 dias del mes
+2025-05,338.54400,724.30773,891.21776,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes
+2025-06,345.37596,673.73573,858.79013,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 30 dias del mes
+2025-07,350.08270,699.17640,865.22053,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes; antes Informe XM jul-2025 (xm.com.co/noticias/8119)
+2025-08,343.85606,746.16783,898.02172,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes; antes Informe XM ago-2025 (xm.com.co/noticias/8184)
+2025-09,339.20186,711.27403,893.85368,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 30 dias del mes; antes Excel sheet Comportamiento_PBNal_Horario (sinergox.xm.com.co/2025/09/03_Informe_Precios)
+2025-10,334.17500,675.81630,857.21111,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes; antes Informe XM oct-2025 (xm.com.co/noticias/8442)
+2025-11,331.88241,658.63049,829.27159,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 30 dias del mes; antes Informe XM nov-2025 (xm.com.co/noticias/8584)
+2025-12,329.42744,625.19765,864.90885,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes; antes Excel sheet Comportamiento_PBNal_Horario (sinergox.xm.com.co/2025/12/03_Informe_Precios)
+2026-01,327.66678,590.56469,830.33514,servapibi.xm.com.co/daily PrecEscaInf-PrecEsca-PrecEscaSup (Sistema),API XM descargada 2026-09-18; valor unico en los 31 dias del mes; antes Informe XM ene-2026 (xm.com.co/noticias/8759)

@@ -34,7 +34,12 @@ prueba cubre su conexion al motor (`core/ems_p2p.py`) y a la linea de ordenes
     negativo de los netos; la hora queda con su motivo, sin anotarse como
     resuelta, y cuenta para el codigo de salida 3;
   - la linea [D48] y las columnas del almacen, con una corrida SINTETICA
-    minima de `main` en una carpeta temporal.
+    minima de `main` en una carpeta temporal;
+  - D71 (tarea Q): la hora 12 de E0 por la tupla del trabajador (la de 36 y
+    40 campos rellenan la mu de produccion, 1,0; la de 41 con 0,0 da la forma
+    cerrada) y por `run_single_hour`, exactamente el nucleo; la mu inerte en
+    las otras vias; las tres columnas nuevas, el regimen «cuantal» en el
+    resumen y `--mu-cuantal` en la linea de ordenes.
 
 SIN DATOS REALES. La hora sale del caso sintetico de la compuerta C-165 (la
 misma `_hora` de `test_criterio_reparto.py`), y las horas de participacion y
@@ -1551,7 +1556,9 @@ COLUMNAS_HORAS = ("regimen", "presupuesto", "precio_comun", "precio_uniforme",
                   "orden_merito",
                   # D63, D65 y D69 (tarea 5a)
                   "piso_marginal", "renta_inframarginal", "parte_juego",
-                  "vendedores_no_despachados")
+                  "vendedores_no_despachados",
+                  # D71 (tarea Q)
+                  "regimen_cerrado", "apartamiento", "mu_cuantal")
 
 
 def _sintetico_con_a_cero(monkeypatch, ms):
@@ -1583,6 +1590,9 @@ def test_la_corrida_sintetica_escribe_la_linea_d48_y_las_columnas(
               "sigma base ((I-1)/I), liquidacion uniforme, despacho piso")
     if metodo == "reposo":
         assert inicio in salida
+        # D71: la linea dice la rama cuantal y su mu.
+        assert ("reparto cuantal en las horas fragiles, mu = 1 (COP/kWh)"
+                in salida)
         assert "[D48] Horas por regimen: interiores" in salida
         # D67 y D69: los retiros de la via, que deben ser 0, y la prima
         # descompuesta, en la linea final.
@@ -1613,6 +1623,16 @@ def test_la_corrida_sintetica_escribe_la_linea_d48_y_las_columnas(
         assert (resueltas[["piso_marginal", "renta_inframarginal",
                            "parte_juego"]] == 0.0).all().all()
         assert (resueltas["vendedores_no_despachados"] == "").all()
+        # Y las de D71.
+        assert (resueltas["regimen_cerrado"] == "").all()
+        assert (resueltas[["apartamiento", "mu_cuantal"]] == 0.0).all().all()
+    if metodo == "reposo":
+        # D71: el regimen cerrado es el regimen fuera de «cuantal», y la mu
+        # de produccion viaja a cada hora.
+        no_c = resueltas[resueltas["regimen"] != "cuantal"]
+        assert (no_c["regimen_cerrado"] == no_c["regimen"]).all()
+        assert (resueltas["mu_cuantal"] == 1.0).all()
+        assert (resueltas["apartamiento"] >= 0.0).all()
 
 
 def test_una_hora_que_revienta_en_main_no_se_anota_resuelta_y_da_codigo_3(
@@ -1661,3 +1681,164 @@ def test_la_linea_de_ordenes_rechaza_el_reposo_con_el_sintetico_del_modelo_base(
     res = _cli("--metodo", "reposo")
     assert res.returncode == 2, (res.returncode, res.stdout[-500:])
     assert "CAL-32" in res.stderr
+
+
+# ─── D71: la rama cuantal por el motor (tarea Q) ───────────────────────────
+
+
+def _hora_12():
+    """La hora 12 de E0 (los literales de `test_reposo_mercado.py`): vende
+    Udenar y HUDN; compran Mariana, UCC y Cesmag. Es la hora fragil de los
+    literales. Devuelve (G, D, sids, bids, techo, piso_j, b, s, d)."""
+    import test_reposo_mercado as TRM
+    s, d, b, techo, piso_j = TRM._entradas(12)
+    G = np.array([s[0], s[1], 0.0, 0.0, 0.0])
+    D = np.array([0.0, 0.0, d[0], d[1], d[2]])
+    b5 = np.concatenate([b, np.full(3, 241.07)])
+    return G, D, [0, 1], [2, 3, 4], techo, piso_j, b5, s, d
+
+
+def test_d71_la_hora_12_por_el_motor_es_el_nucleo_con_y_sin_la_rama():
+    """Por la tupla del trabajador: la de 36 campos (y la de 40) rellena la mu
+    de produccion, 1,0, y la hora sale «cuantal», exactamente la del nucleo;
+    con el campo 41 en 0,0 sale la forma cerrada. La participacion sigue
+    inerte (cero retiros) y la captura es la del reposo cuantal."""
+    G, D, sids, bids, techo, piso_j, b5, s, d = _hora_12()
+    t36 = _tupla_mano(G, D, sids, bids, techo, piso_j, b=b5)
+    t40 = t36 + (0.0, "c136", "lcoe", "minimo")
+    assert len(t36) == 36 and len(t40) == 40
+    for mu, tupla in ((1.0, t36), (1.0, t40), (1.0, t40 + (1.0,)),
+                      (0.0, t40 + (0.0,))):
+        res = _run_hour_worker(tupla)
+        rep = resuelve_reposo(s, d, b5[sids], techo, piso_j, mu_cuantal=mu)
+        assert res.motivo == "" and res.retirados == []
+        assert res.retiros_reposo == 0
+        assert np.array_equal(res.P_star, rep.P)
+        assert np.array_equal(res.pi_star, rep.p_liquidado)
+        assert np.array_equal(res.pi_reposo, rep.pi_reposo)
+        assert res.regimen == rep.regimen
+        assert res.regimen_cerrado == rep.regimen_cerrado == "excluidos"
+        assert res.apartamiento == rep.apartamiento
+        assert res.mu_cuantal == rep.mu_cuantal == mu
+        assert res.excluidos == [bids[i] for i in rep.excluidos]
+        optimo, _ = cotas_optimalidad(s, d, techo, piso_j, rep.E)
+        assert res.captura == captura(rep.excedente, optimo)
+    cuantal = _run_hour_worker(t36)
+    cerrado = _run_hour_worker(t40 + (0.0,))
+    assert cuantal.regimen == "cuantal" and cerrado.regimen == "excluidos"
+    assert cuantal.captura == pytest.approx(0.823774, abs=1e-6)
+    assert cerrado.captura == pytest.approx(1.0, abs=1e-9)
+    assert cuantal.excluidos == [] and cerrado.excluidos == [2, 3]
+    # La tupla de 40 da lo mismo que la de 41 con 1,0, campo por campo.
+    _igual_al_bit(_run_hour_worker(t40), _run_hour_worker(t40 + (1.0,)),
+                  CAMPOS_DE_SIEMPRE + CAMPOS_REPOSO)
+
+
+@pytest.mark.parametrize("mu", [1.0, 0.0])
+def test_d71_run_single_hour_da_exactamente_el_nucleo(mu):
+    G, D, sids, bids, techo, piso_j, b5, s, d = _hora_12()
+    N = G.size
+    te = np.full((N, 1), 900.0)
+    te[bids, 0] = techo
+    pj = np.full((N, 1), 900.0)
+    pj[sids, 0] = piso_j
+    ems = EMSP2P(AgentParams(N=N, a=np.zeros(N), b=b5, c=np.zeros(N),
+                             lam=np.full(N, 100.0), theta=np.full(N, 0.5),
+                             etha=np.full(N, 0.1)),
+                 GridParams(PGS, PGB, te, pj),
+                 SolverParams(parallel=False, metodo="reposo", mu_cuantal=mu))
+    res = ems.run_single_hour(0, D[:, None], G[:, None])
+    rep = resuelve_reposo(s, d, b5[sids], techo, piso_j, mu_cuantal=mu)
+    assert res.seller_ids == sids and res.buyer_ids == bids
+    assert np.array_equal(res.P_star, rep.P)
+    assert np.array_equal(res.pi_star, rep.p_liquidado)
+    assert res.regimen == ("cuantal" if mu else "excluidos")
+    assert (res.regimen_cerrado, res.apartamiento, res.mu_cuantal) == (
+        rep.regimen_cerrado, rep.apartamiento, rep.mu_cuantal)
+    # Y el lote de `run` da lo mismo que la hora sola.
+    lote, _, _ = ems.run(D[:, None], G[:, None])
+    _igual_al_bit(lote[0], res, CAMPOS_DE_SIEMPRE + CAMPOS_REPOSO)
+
+
+def test_d71_solver_params_y_la_tupla_validan_la_mu():
+    assert SolverParams().mu_cuantal == 1.0
+    for mu in (0.0, 0, 2.5, np.float64(1.0)):
+        SolverParams(mu_cuantal=mu)
+    for mu in (-1.0, float("nan"), float("inf"), True, "1.0", None, 1e-7):
+        with pytest.raises(ValueError, match="mu_cuantal"):
+            SolverParams(mu_cuantal=mu)
+    G, D, sids, bids, techo, piso_j, b5, _, _ = _hora_12()
+    t40 = _tupla_mano(G, D, sids, bids, techo, piso_j, b=b5) + (
+        0.0, "c136", "lcoe", "minimo")
+    # Tambien en una hora sin mercado, antes de mirar si hay mercado.
+    for tupla in (t40, t40[:4] + ([], ) + t40[5:]):
+        with pytest.raises(ValueError, match="mu_cuantal"):
+            _run_hour_worker(tupla + (-1.0,))
+
+
+@pytest.mark.parametrize("metodo", ["alternado", "acoplado"])
+def test_d71_la_mu_cuantal_es_inerte_en_las_otras_vias(metodo):
+    h = _hora()
+    base = _args32(h, metodo, pi_gb_j=PISO_H43) + DEFECTOS_REPOSO + (
+        0.0, "c136", "lcoe", "minimo")
+    viejo = _run_hour_worker(base)
+    for mu in (0.0, 1.0, 3.0):
+        r = _run_hour_worker(base + (mu,))
+        _igual_al_bit(viejo, r, CAMPOS_DE_SIEMPRE)
+        assert r.regimen == r.regimen_cerrado == "" and r.mu_cuantal == 0.0
+        assert r.apartamiento == 0.0
+
+
+def test_d71_columnas_y_resumen_del_regimen_cuantal():
+    import main_simulation as ms
+    G, D, sids, bids, techo, piso_j, b5, s, d = _hora_12()
+    res = _run_hour_worker(_tupla_mano(G, D, sids, bids, techo, piso_j,
+                                       b=b5))
+    nombres = ["Udenar", "HUDN", "Mariana", "UCC", "Cesmag"]
+    col = ms.columnas_reposo(res, nombres)
+    assert col["regimen"] == "cuantal"
+    assert col["regimen_cerrado"] == "excluidos"
+    assert col["apartamiento"] == pytest.approx(0.289056, abs=1e-4)
+    assert col["mu_cuantal"] == 1.0 and col["excluidos"] == ""
+    # Fuera del reposo, los valores neutros.
+    neutra = ms.columnas_reposo(HourlyResult(k=0), nombres)
+    assert (neutra["regimen_cerrado"], neutra["apartamiento"],
+            neutra["mu_cuantal"]) == ("", 0.0, 0.0)
+    te = np.full(5, 900.0)
+    te[bids] = techo
+    resumen = ms.resumen_reposo([res], te)
+    assert resumen["regimenes"]["cuantal"] == [1, pytest.approx(
+        float(res.P_star.sum()))]
+    assert resumen["regimenes"]["excluidos"] == [0, 0.0]
+    assert "cuantal 1 h" in ms.linea_resumen_reposo(resumen)
+
+
+def test_d71_la_linea_de_inicio_dice_la_rama():
+    import main_simulation as ms
+    uno = ms.linea_inicio_reposo(SolverParams(metodo="reposo"))
+    assert uno.startswith("Mercado por reposo en forma cerrada: presupuesto "
+                          "sigma, sigma base ((I-1)/I), liquidacion "
+                          "uniforme, despacho piso")
+    assert "reparto cuantal en las horas fragiles, mu = 1 (COP/kWh)" in uno
+    assert "(D71)" in uno
+    cero = ms.linea_inicio_reposo(SolverParams(metodo="reposo",
+                                               mu_cuantal=0.0))
+    assert "rama cuantal apagada (mu = 0)" in cero
+
+
+def test_d71_la_linea_de_ordenes_valida_la_mu_cuantal():
+    res = _cli("--help")
+    assert res.returncode == 0 and "--mu-cuantal" in res.stdout
+    for valor in ("-1", "nan", "inf"):
+        res = _cli("--data", "real", "--metodo", "reposo", "--mu-cuantal",
+                   valor)
+        assert res.returncode == 2, (valor, res.stdout[-500:])
+        assert ("--mu-cuantal tiene que ser un numero finito y no negativo"
+                in res.stderr), res.stderr[-800:]
+        assert "Cargando datos" not in res.stdout
+    # M-1 de la revision: bajo 1e-6 la biseccion no resuelve; se rechaza
+    # antes de cargar nada, con la pista de usar 0.
+    res = _cli("--data", "real", "--metodo", "reposo", "--mu-cuantal", "1e-9")
+    assert res.returncode == 2, res.stdout[-500:]
+    assert "use 0 para apagar la rama cuantal" in res.stderr, res.stderr[-800:]
+    assert "Cargando datos" not in res.stdout

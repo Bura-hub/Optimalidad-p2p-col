@@ -49,6 +49,27 @@ del emparejamiento de rango uno, y `_comprueba` lo verifica en cada hora. La
 prima de los vendedores se publica descompuesta en renta inframarginal y parte
 del juego (D69).
 
+La rama cuantal de las horas FRAGILES (D71, 2026-09-19). La forma cerrada es el
+limite mu -> 0+ de la regularizacion entropica: reparte por prioridad estricta.
+En la mayoria de las horas coincide con el reposo de la dinamica regularizada
+con mu = 1 (D49) dentro de 1e-3·E; en unas pocas, no, y alli la forma cerrada
+no es un reposo estable (M-D: la hora 12 de E0 tiene cuatro valores propios
+inestables). Son las horas en que el precio del grupo interior queda a pocos
+mu por encima del techo de un comprador que no recibe (o un piso de vendedor a
+pocos mu de otro). En esas horas el nucleo publica el reposo del juego
+regularizado con mu = `mu_cuantal`: los mismos estados de precios y el mismo
+paso 1, y el reparto por la RESPUESTA CUANTAL CON CAPACIDADES,
+q~_i = min(d_i, exp((pi_i - C)/mu)) con sum q~ = E del lado comprador, y
+s~_j = min(s_j, exp((-c_j - C')/mu)) con sum s~ = E del lado vendedor, con c_j
+la clave del despacho (el piso con "piso", D64). La hora es FRAGIL si la
+respuesta cuantal con los precios del reposo cerrado se aparta del reparto
+cerrado en mas de TOL_FRAGIL_REL·E (`apartamiento`); su regimen pasa a ser
+«cuantal», con el rotulo cerrado al lado (`regimen_cerrado`). En las horas no
+fragiles todo es identico al bit a la forma cerrada, y con `mu_cuantal=0.0` la
+rama se apaga y la forma cerrada se publica en todas las horas. El diseno, con
+sus ecuaciones y sus pruebas, esta en
+`.superpowers/sdd/2026-09-16-reposo/diseno-rama-cuantal.md`.
+
 Tres decisiones de esta implementacion, a la vista en `n_soluciones`:
   - con mas de un reposo del paso 3 (en una exploracion aleatoria de 40 000
     horas sinteticas solo aparecio con deficits empatados) se publica el de
@@ -69,6 +90,7 @@ dan la captura y el precio de la justicia de la actividad 3.3.
 """
 from __future__ import annotations
 
+import functools
 import itertools
 from dataclasses import dataclass
 from typing import Optional
@@ -85,7 +107,21 @@ REGLAS_PRECIO = ("uniforme", "puja")
 DESPACHOS_VENDEDORES = ("piso", "costo", "llenado")
 REGIMENES = ("interiores", "topados", "excluidos", "mixto", "suma_no_cabe",
              "compradores_cortos", "un_comprador", "sin_mercado",
-             "sin_ganancia")
+             "sin_ganancia", "cuantal")
+# D71 (2026-09-19): la temperatura de la respuesta cuantal de las horas
+# fragiles, mu (COP/kWh). Es la de D49, la exploracion entropica con que se
+# midio y se valido la dinamica regularizada (M-A a M-G); no se deriva del
+# modelo ni de la norma, y la tesis la declara como eleccion de modelado con su
+# sensibilidad. `resuelve_reposo(mu_cuantal=...)` la cambia; 0.0 apaga la rama.
+MU_CUANTAL = 1.0
+# D71: la menor mu admitida, salvo 0 (ver `valida_mu_cuantal`).
+MU_CUANTAL_MIN = 1e-6
+# D71: una hora es fragil si la respuesta cuantal con los precios del reposo
+# cerrado se aparta del reparto cerrado en mas de esta fraccion de E, del lado
+# de los compradores o del de los vendedores. Es la tolerancia con que se juzga
+# todo lo demas del reposo (la aceptacion de M-A y M-B, el «quieta» de M-D), y
+# la del censo de M-E; no es una opcion.
+TOL_FRAGIL_REL = 1e-3
 
 # Tolerancias. Los precios del reposo salen de sumas y restas de techos y
 # pisos del orden de 700 (COP/kWh), con error de redondeo del orden de 1e-13;
@@ -117,6 +153,22 @@ MAX_VUELTAS_LAZO = 64
 # La enumeracion de estados crece como 3^I; la comunidad tiene a lo sumo
 # cuatro compradores y el caso de Chacon cinco.
 MAX_COMPRADORES = 10
+# D71: la biseccion de la respuesta cuantal para cuando el corchete mide
+# TOL_BISECCION_REL·max(1, |hi|) (con precios de 700 (COP/kWh), unas 41
+# vueltas), con un tope de MAX_VUELTAS_BISECCION. Tras el reparto del resto, la
+# suma de la respuesta es E a un ulp; si se aparta mas de TOL_ENERGIA_REL
+# relativo, o si alguna entrada pasa su capacidad en mas de 1e-12 relativo,
+# ValueError.
+TOL_BISECCION_REL = 1e-13
+MAX_VUELTAS_BISECCION = 200
+# D71: las identidades nuevas de la hora «cuantal» en `_comprueba`. La suma del
+# reparto es E a TOL_SUMA_CUANTAL_REL·max(1, E) (el reparto del resto la deja a
+# un ulp); y entre los agentes no topados (por debajo de su capacidad en mas de
+# 1e-9 relativo) la cantidad pi_i - mu·ln q_i (del lado vendedor, -c_j - mu·ln
+# s_j) es la misma a TOL_REPOSO_CUANTAL_REL·max(1, |precio|): es la condicion
+# del reposo del bloque del reparto, el residuo de admisibilidad de M-D.
+TOL_SUMA_CUANTAL_REL = 1e-12
+TOL_REPOSO_CUANTAL_REL = 1e-9
 
 
 @dataclass(frozen=True)
@@ -160,10 +212,16 @@ class ReposoHora:
                       mercado porque el piso de TODOS los vendedores activos
                       supera el techo de todos los compradores con deficit:
                       ningun vendedor puede vender a ningun comprador. Su
-                      energia posible es min(sum s, sum d) de la entrada
+                      energia posible es min(sum s, sum d) de la entrada.
+                      «cuantal» (D71) es una hora FRAGIL: el reparto es la
+                      respuesta cuantal con mu = `mu_cuantal`, y la familia de
+                      precios queda en `regimen_cerrado`
     excluidos         indices de los compradores en el juego que quedan en
                       su techo sin recibir energia (regimen «no cabe»: el
-                      vendedor sirve primero a precios mas altos y no le queda)
+                      vendedor sirve primero a precios mas altos y no le
+                      queda). En «cuantal» los del techo reciben su parte y la
+                      lista suele quedar vacia aunque `regimen_cerrado` sea
+                      «excluidos»
     excluidos_bajo_piso  indices de los compradores con deficit que salen de la
                       hora porque su techo queda bajo el piso del juego (D61
                       parcial; con "piso", techo_i < p*): sin energia, fuera de
@@ -213,6 +271,18 @@ class ReposoHora:
     sigma             la sigma usada en el modo "sigma": la dada o (I-1)/I con
                       I los compradores en el juego (los activos sin mercado;
                       None si no hay ninguno); None en los otros modos
+    regimen_cerrado   D71: el rotulo que dio la forma cerrada, uno de los
+                      nueve de REGIMENES sin «cuantal». En toda hora que no
+                      es «cuantal» (y sin mercado) es igual a `regimen`
+    apartamiento      D71: max(max_i |q~_i - q_i|, max_j |s~_j - s_j|)/E, la
+                      respuesta cuantal frente al reparto cerrado CON LOS
+                      PRECIOS DEL REPOSO CERRADO (la cifra del censo de M-E).
+                      Se publica siempre: en las horas no fragiles vale de
+                      1e-15 a 1e-11 (el residuo de admisibilidad de M-D); la
+                      hora es «cuantal» si pasa de TOL_FRAGIL_REL. 0.0 sin
+                      mercado y con `mu_cuantal = 0`
+    mu_cuantal        D71: la mu usada (COP/kWh); MU_CUANTAL (1.0) por
+                      defecto, 0.0 con la rama apagada
     """
     P: np.ndarray
     q: np.ndarray
@@ -241,6 +311,9 @@ class ReposoHora:
     sigma: Optional[float]
     regla_precio: str
     despacho_vendedores: str
+    regimen_cerrado: str
+    apartamiento: float
+    mu_cuantal: float
 
 
 @dataclass(frozen=True)
@@ -397,6 +470,127 @@ def _despacho(s: np.ndarray, clave: Optional[np.ndarray], total: float,
     return x
 
 
+def _respuesta_cuantal(E: float, cap: np.ndarray, z: np.ndarray,
+                       mu: float) -> np.ndarray:
+    """D71: la respuesta cuantal con capacidades, x_k = min(cap_k,
+    exp((z_k - C)/mu)) con sum x = E (sec. 3.1 del diseno).
+
+    Es el reposo del bloque del reparto de la dinamica regularizada, dados los
+    precios `z` (del lado comprador, los del reposo; del lado vendedor, menos
+    la clave del despacho). Con z iguales es el llenado por niveles, sin
+    desempate por indice. Si E cubre todas las capacidades, devuelve las
+    capacidades (todos topados), sin iterar.
+
+    1. C por biseccion en el corchete del censo de M-E: en `lo` cada
+       exponencial pasa su capacidad y la suma es sum cap >= E; en `hi` cada
+       una queda bajo E·e^-60. El exponente se recorta a 700 (evita el
+       desbordamiento en los primeros pasos sin cambiar la monotonia). Para
+       cuando hi - lo <= TOL_BISECCION_REL·max(1, |hi|), con un tope de
+       MAX_VUELTAS_BISECCION vueltas.
+    2. EL RESTO E - sum x (del orden de 1e-11·E) se reparte entre las entradas
+       no topadas en proporcion a su valor: equivale a un ajuste infinitesimal
+       de C y deja sum x = E a un ulp. No es cosmetico: la aptitud media del
+       replicador lleva BGRANDE = 1e6 y se normaliza por el simplejo, de modo
+       que un error de 1e-11 relativo en la suma deja un residuo |dP/dt| de
+       6e-5 en el punto cuantal, en vez de 1e-10.
+    3. Falla en voz alta si algun valor no es finito, si la suma se aparta de E
+       mas de TOL_ENERGIA_REL·max(1, E), o si alguna entrada pasa su capacidad
+       en mas de 1e-12 relativo.
+
+    LA PLATAFORMA (revision de la tarea Q, O-1). `np.exp` y `np.log` no
+    redondean correctamente y NumPy los despacha segun la CPU, de modo que
+    esta respuesta, y con ella el `apartamiento` de toda hora y el reparto de
+    las horas «cuantal», pueden diferir en el ultimo bit entre maquinas. Es lo
+    UNICO del nucleo que usa funciones trascendentes: en las horas no
+    frageles todo lo demas que se publica sale de sumas, productos y cocientes
+    (y `_comprueba_cuantal` usa el logaritmo solo para comprobar).
+    """
+    cap = np.asarray(cap, dtype=float)
+    z = np.asarray(z, dtype=float)
+    if cap.size == 0:
+        return cap.copy()
+    if E >= float(cap.sum()) * (1.0 - 1e-12):
+        return cap.copy()
+
+    def g(C):
+        return np.minimum(cap, np.exp(np.minimum((z - C) / mu, 700.0)))
+
+    lo = float(z.min()) - mu * (60.0 + abs(np.log(max(float(cap.max()),
+                                                        1e-300))))
+    hi = float(z.max()) + mu * (60.0 + abs(np.log(max(float(E), 1e-300))))
+    for _ in range(MAX_VUELTAS_BISECCION):
+        C = 0.5 * (lo + hi)
+        if float(g(C).sum()) > E:
+            lo = C
+        else:
+            hi = C
+        if hi - lo <= TOL_BISECCION_REL * max(1.0, abs(hi)):
+            break
+    x = g(0.5 * (lo + hi))
+    libres = x < cap * (1.0 - 1e-12)
+    resto = float(E) - float(x.sum())
+    suma_libres = float(x[libres].sum())
+    if libres.any() and suma_libres > 0.0:
+        x[libres] = x[libres] * (1.0 + resto / suma_libres)
+    if not np.all(np.isfinite(x)):
+        raise ValueError(f"D71: la respuesta cuantal dio valores no finitos: "
+                         f"{x}")
+    if abs(float(x.sum()) - E) > TOL_ENERGIA_REL * max(1.0, float(E)):
+        raise ValueError(f"D71: la respuesta cuantal suma {float(x.sum())!r} "
+                         f"y el volumen de la hora es {float(E)!r} (kWh)")
+    if np.any(x > cap * (1.0 + 1e-12)):
+        raise ValueError(f"D71: la respuesta cuantal {x} pasa alguna "
+                         f"capacidad {cap} (kWh)")
+    return x
+
+
+def _clave_cuantal(despacho: str, piso_j: np.ndarray,
+                   b: np.ndarray) -> np.ndarray:
+    """D71: la clave de cada vendedor en la respuesta cuantal del lado
+    vendedor, la misma con que despacha la forma cerrada, de modo que la forma
+    cerrada sigue siendo el limite mu -> 0+ con cada opcion: el piso con
+    "piso" (D64; es el costo de la dinamica con `costo_vendedor="alternativa"`,
+    D68), el costo b_j con "costo" (el de la dinamica con "lcoe") y una clave
+    comun con "llenado", cuya respuesta cuantal es el llenado por niveles."""
+    if despacho == "piso":
+        return piso_j
+    if despacho == "costo":
+        return b
+    return np.zeros(piso_j.size)
+
+
+def _sin_despacho_sobre_el_piso(s_t: np.ndarray, pisos: np.ndarray,
+                                pueden: np.ndarray, piso: float,
+                                despacho: str) -> None:
+    """D71, revision de la tarea Q (I-1): la respuesta cuantal del lado
+    vendedor no puede despachar a un vendedor con el piso sobre el piso del
+    juego.
+
+    Con "piso" no ocurre: pueden vender solo los de piso_j <= p*. Con
+    "llenado" tampoco: la forma cerrada despacha a todos los que pueden
+    vender, el piso del juego es el mayor de sus pisos y la respuesta cuantal
+    es el llenado mismo. Con "costo" si: pueden vender todos los que tienen
+    ganancia posible, pero el piso del juego es el mayor de los que despacha
+    la FORMA CERRADA por b_j, y la respuesta cuantal con la clave b_j da
+    energia a vendedores que la cerrada no despachaba, quiza con el piso mas
+    alto. Esa hora no tiene reposo cuantal compatible con el piso del juego
+    de la opcion, y la rama no esta definida para ella: ValueError, antes de
+    que D63 lo descubra con otro nombre. Los despachados son los de
+    `_despachan` (el polvo de redondeo no cuenta)."""
+    desp = _despachan(s_t)
+    sobre = desp & (pisos > piso + TOL_PISO * max(1.0, abs(piso)))
+    if np.any(sobre):
+        k = int(np.flatnonzero(sobre)[0])
+        raise ValueError(
+            f"D71 con despacho {despacho!r}: la respuesta cuantal del lado "
+            f"vendedor despacharia al vendedor {int(pueden[k])}, con "
+            f"{float(s_t[k]):.6g} (kWh) y piso {float(pisos[k]):.6f} "
+            f"(COP/kWh), sobre el piso del juego {piso:.6f}; la rama cuantal "
+            f"no esta definida para esta combinacion (con 'costo' el piso del "
+            f"juego es el de los que despacha la forma cerrada). Compare por "
+            f"costo con mu_cuantal=0.0")
+
+
 def _orden_aptitud(q: np.ndarray, techo: np.ndarray, tol_q: float) -> list:
     """Paso 5: los compradores por aptitud decreciente, es decir por lo que
     reciben creciente. Empate (dentro de `tol_q`): primero el techo mas alto,
@@ -448,11 +642,15 @@ def _regla_saturacion(q_orden: np.ndarray, techo: np.ndarray, piso: float,
 
 
 def _estados_reposo(E: float, d: np.ndarray, techo: np.ndarray, piso: float,
-                    S: float, *, q_fijo: Optional[np.ndarray]) -> list:
+                    S: float, *, q_fijo: Optional[np.ndarray],
+                    sirve=_sirve) -> list:
     """Enumera los estados (T, N, F) que son reposo (docstring del modulo).
 
     `q_fijo`: lo que recibe cada comprador si no depende de los precios
-    (compradores cortos); si es None, sale por prioridad de precio.
+    (compradores cortos); si es None, sale de `sirve(E, d, precios)`: por
+    prioridad de precio (`_sirve`, la forma cerrada) o, en la rama cuantal de
+    las horas fragiles (D71), por la respuesta cuantal. Las condiciones de
+    estado son las mismas: solo dependen del reparto a traves de q.
     Devuelve los estados distintos, sin repetir precios y reparto. Si el mismo
     estado sale con F vacio y con F no vacio (todos en el piso, por ejemplo),
     se guarda la version con F vacio, la del paso 3.
@@ -478,7 +676,7 @@ def _estados_reposo(E: float, d: np.ndarray, techo: np.ndarray, piso: float,
         z = techo.copy()
         z[N] = ell
         z[F] = piso
-        q = _sirve(E, d, z) if q_fijo is None else q_fijo
+        q = sirve(E, d, z) if q_fijo is None else q_fijo
         qN = q[N]
         if float(qN.max() - qN.min()) > tol_q:
             continue
@@ -913,11 +1111,43 @@ def presupuesto_precios(techo, piso: float, *, modo: str = "sigma",
     return float(np.sum(ci_i) + ci_v - techo_mayor)
 
 
+def valida_mu_cuantal(mu_cuantal) -> float:
+    """D71: `mu_cuantal` es un numero real finito: 0, que apaga la rama
+    cuantal, o al menos MU_CUANTAL_MIN (COP/kWh). Un booleano o un texto se
+    rechazan, como `valida_opciones_dinamica` con `mu_entropia`. Devuelve el
+    float.
+
+    Por que el piso (revision de la tarea Q, M-1): la biseccion para con una
+    tolerancia relativa al nivel de los precios (unos 7e-11 (COP/kWh) con
+    precios de 700), no a mu. Con mu del orden de 1e-9 la exponencial ya no se
+    resuelve: la entrada interior se topa, las demas quedan en cero y no hay
+    entradas libres que absorban el resto, de modo que la respuesta falla en
+    voz alta incluso en horas no frageles (con 1e-12, 516 de 1 251 horas al
+    azar). Con 1e-6 o mas, ninguna. Para aproximar la forma cerrada, 0."""
+    if (isinstance(mu_cuantal, bool)
+            or not isinstance(mu_cuantal, (int, float, np.integer,
+                                           np.floating))
+            or not np.isfinite(mu_cuantal) or float(mu_cuantal) < 0.0):
+        raise ValueError(f"mu_cuantal={mu_cuantal!r}; tiene que ser un numero "
+                         f"finito y no negativo (COP/kWh); 0 apaga la rama "
+                         f"cuantal y publica la forma cerrada en todas las "
+                         f"horas (D71)")
+    if 0.0 < float(mu_cuantal) < MU_CUANTAL_MIN:
+        raise ValueError(f"mu_cuantal={mu_cuantal!r}; entre 0 y "
+                         f"{MU_CUANTAL_MIN:g} (COP/kWh) la biseccion de la "
+                         f"respuesta cuantal no resuelve la exponencial: use "
+                         f"0 para apagar la rama (la forma cerrada, que es el "
+                         f"limite mu -> 0+) o un valor de al menos "
+                         f"{MU_CUANTAL_MIN:g} (D71)")
+    return float(mu_cuantal)
+
+
 def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
                     sigma: Optional[float] = None,
                     pi_gs: Optional[float] = None,
                     regla_precio: str = "uniforme",
-                    despacho_vendedores: str = "piso") -> ReposoHora:
+                    despacho_vendedores: str = "piso",
+                    mu_cuantal: float = MU_CUANTAL) -> ReposoHora:
     """El mercado de una hora en el reposo (sec. 5.1, pasos 1 a 6 y 8).
 
     Entradas: `s` excedentes de los J vendedores (kWh); `d` deficits de los I
@@ -958,6 +1188,23 @@ def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
         los modos, y S es ese piso: con "piso", el piso marginal p*.
     D69. La prima de los vendedores se descompone en renta inframarginal y
         parte del juego.
+    D71, la rama cuantal (entre el cierre de las ramas y el paso 4). Con
+        `mu_cuantal` > 0 (defecto MU_CUANTAL = 1), en toda hora con mercado se
+        calcula la respuesta cuantal de los dos lados con los precios del
+        reposo cerrado: la de los compradores de `dentro` con sus precios, y
+        la de los vendedores que pueden vender con menos su clave de despacho
+        (`_clave_cuantal`). `apartamiento` es la mayor diferencia con el
+        reparto cerrado, relativa a E. Si pasa de TOL_FRAGIL_REL la hora es
+        FRAGIL y su regimen, «cuantal»:
+          - lado comprador (solo con vendedores cortos e I >= 2): se vuelven a
+            enumerar los estados con la respuesta cuantal como funcion de
+            servicio y se elige con `_elige_paso3`; sin estado del paso 3, la
+            regla del paso 5 declarada, con el servicio cuantal;
+          - lado vendedor (solo con compradores cortos): lo despachado es la
+            respuesta cuantal de los que pueden vender.
+        Los precios, S, el piso del juego y quien entra no se tocan. En las
+        horas no fragiles no se asigna nada: todo es identico al bit a la
+        forma cerrada. Con `mu_cuantal=0.0` el bloque no corre.
     Sin vendedores o sin compradores con cantidad: "sin_mercado". Sin mercado
         (tambien «sin_ganancia»), energias y dinero en cero y precios en el
         techo de cada comprador.
@@ -981,6 +1228,7 @@ def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
         sg = float(sigma)
         if not np.isfinite(sg) or sg < 0.0 or sg > 1.0:
             raise ValueError(f"sigma={sigma!r} fuera de [0, 1]")
+    mu_cuantal = valida_mu_cuantal(mu_cuantal)
 
     s = _vector("s", s)
     J = s.size
@@ -991,7 +1239,8 @@ def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
     piso_j = _vector("piso_j", piso_j, J, escalar=True)
     _no_negativo("s", s)
     _no_negativo("d", d)
-    opciones = (modo_presupuesto, sigma, regla_precio, despacho_vendedores)
+    opciones = (modo_presupuesto, sigma, regla_precio, despacho_vendedores,
+                mu_cuantal)
 
     # Paso 1 (D61, D63 a D65): quien entra de cada lado, el piso del juego y
     # lo que vende cada vendedor.
@@ -1083,10 +1332,54 @@ def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
             regimen = "compradores_cortos"
         n_sol = len(estados)
 
+    # D71, la rama cuantal de las horas fragiles. Con los precios del reposo
+    # cerrado se mide cuanto se aparta la respuesta cuantal del reparto
+    # cerrado, de los dos lados (en cada rama uno de los dos es trivial y
+    # devuelve las capacidades sin iterar). En una hora no fragil no se asigna
+    # nada: `z`, `qa`, `ell`, `n_sol` y `s_desp` siguen siendo los de la forma
+    # cerrada, al bit. Con `mu_cuantal = 0` el bloque no corre.
+    regimen_cerrado = regimen
+    apartamiento = 0.0
+    clave = _clave_cuantal(despacho_vendedores, piso_j, b)
+    s_desp = paso1.s_despachado.copy()
+    if mu_cuantal > 0.0:
+        q_t = _respuesta_cuantal(E, da, z, mu_cuantal)
+        s_t = _respuesta_cuantal(E, sa, -clave[pueden], mu_cuantal)
+        dq = float(np.max(np.abs(q_t - qa)))
+        ds = float(np.max(np.abs(s_t - s_desp[pueden])))
+        # El apartamiento se anota con los precios CERRADOS (la cifra del
+        # censo de M-E), aunque el estado cuantal tuviera otros.
+        apartamiento = max(dq, ds) / E
+        if apartamiento > TOL_FRAGIL_REL:
+            if dq / E > TOL_FRAGIL_REL:
+                # Solo con vendedores cortos e I >= 2: con compradores cortos
+                # q = d en las dos formas, y con un comprador q = E.
+                sirve = functools.partial(_respuesta_cuantal, mu=mu_cuantal)
+                estados = _estados_reposo(E, da, ta, piso, S, q_fijo=None,
+                                          sirve=sirve)
+                paso3 = [h for h in estados if not h["F"].size]
+                if paso3:
+                    elegido = _elige_paso3(paso3)
+                    z, qa, ell = elegido["z"], elegido["q"], elegido["ell"]
+                else:
+                    llenado = _llenado_por_niveles(da, E)
+                    z, _, ell = _regla_saturacion(llenado, ta, piso, S,
+                                                  tol_q)
+                    qa = sirve(E, da, z)
+                    _regla_entre_estados(z, qa, estados, tol_q,
+                                         "paso 5 cuantal")
+                n_sol = len(estados)
+            if ds / E > TOL_FRAGIL_REL:
+                # Solo con compradores cortos: con vendedores cortos todos los
+                # que pueden vender venden lo suyo en las dos formas.
+                _sin_despacho_sobre_el_piso(s_t, piso_j[pueden], pueden,
+                                            piso, despacho_vendedores)
+                s_desp[pueden] = s_t
+            regimen = "cuantal"
+
     # Paso 4: emparejamiento de rango uno sobre lo despachado.
     q = np.zeros(I)
     q[dentro] = qa
-    s_desp = paso1.s_despachado.copy()
     P = np.outer(s_desp, q) / E
 
     pi_reposo = techo.copy()
@@ -1125,20 +1418,26 @@ def resuelve_reposo(s, d, b, techo, piso_j, *, modo_presupuesto: str = "sigma",
         parte_vendedor=float(parte), renta_inframarginal=renta,
         parte_juego=parte_juego, modo_presupuesto=modo_presupuesto,
         sigma=sigma_usada, regla_precio=regla_precio,
-        despacho_vendedores=despacho_vendedores)
-    _comprueba(resultado, s, d, techo, dentro, piso_j, paso1.pueden_vender)
+        despacho_vendedores=despacho_vendedores,
+        regimen_cerrado=regimen_cerrado, apartamiento=float(apartamiento),
+        mu_cuantal=mu_cuantal)
+    _comprueba(resultado, s, d, techo, dentro, piso_j, paso1.pueden_vender,
+               clave_cuantal=clave)
     return resultado
 
 
 def _sin_mercado(paso1: DespachoHora, techo: np.ndarray, n_comp: int,
-                 modo: str, sigma, regla: str, despacho: str) -> ReposoHora:
+                 modo: str, sigma, regla: str, despacho: str,
+                 mu_cuantal: float) -> ReposoHora:
     """La hora sin mercado: «sin_mercado» (sin vendedores o sin compradores con
     cantidad) o «sin_ganancia» (D61), con la causa en `paso1.causa`. La
     convencion de precios es la de un comprador fuera del juego en una hora con
     mercado: su techo. El piso es el minimo de los vendedores activos, o 0 sin
     ellos; el orden de merito queda vacio porque nadie vende; la renta y la
     parte del juego, en cero. `vendedores_excluidos`: en «sin_ganancia», todos
-    los activos. `n_comp`: los compradores con deficit, para la sigma."""
+    los activos. `n_comp`: los compradores con deficit, para la sigma. D71: sin
+    mercado no hay reparto que apartar; `regimen_cerrado` es la causa y el
+    apartamiento, 0.0."""
     J, I = paso1.s_despachado.size, techo.size
     sigma_usada = None
     if modo == "sigma":
@@ -1156,12 +1455,15 @@ def _sin_mercado(paso1: DespachoHora, techo: np.ndarray, n_comp: int,
         n_soluciones=0, excedente=0.0, ingreso_vendedores=np.zeros(J),
         parte_vendedor=0.0, renta_inframarginal=0.0, parte_juego=0.0,
         modo_presupuesto=modo, sigma=sigma_usada,
-        regla_precio=regla, despacho_vendedores=despacho)
+        regla_precio=regla, despacho_vendedores=despacho,
+        regimen_cerrado=paso1.causa, apartamiento=0.0,
+        mu_cuantal=float(mu_cuantal))
 
 
 def _comprueba(r: ReposoHora, s: np.ndarray, d: np.ndarray,
                techo: np.ndarray, dentro: np.ndarray,
-               piso_j: np.ndarray, pueden_vender: tuple) -> None:
+               piso_j: np.ndarray, pueden_vender: tuple, *,
+               clave_cuantal: Optional[np.ndarray] = None) -> None:
     """Fallar en voz alta (H-50, CAL-28b): las identidades de la hora.
 
     Con D63 se anaden cuatro: el piso del juego no queda bajo el mayor piso de
@@ -1171,6 +1473,10 @@ def _comprueba(r: ReposoHora, s: np.ndarray, d: np.ndarray,
     descomposicion de la prima de D69 (renta + parte del juego = prima,
     TOL_PRIMA_REL). Los despachados son los de `_despachan`: el polvo de
     redondeo no cuenta.
+
+    Con D71, todas las de arriba siguen valiendo en la hora «cuantal» (solo
+    usan el rango uno, precios en su banda y el piso marginal), y se anaden
+    las de `_comprueba_cuantal`.
     """
     tol_q = 1e-6 * max(1.0, r.E)
     campos = (r.P, r.q, r.s_despachado, r.pi_reposo, r.p_liquidado,
@@ -1255,6 +1561,91 @@ def _comprueba(r: ReposoHora, s: np.ndarray, d: np.ndarray,
                          f"{r.renta_inframarginal:.9f} + parte del juego "
                          f"{r.parte_juego:.9f} no es la prima {prima:.9f} "
                          f"(COP)")
+    _comprueba_cuantal(r, s, d, dentro, pueden_vender, clave_cuantal)
+
+
+def _dispersion_libres(valor: np.ndarray, x: np.ndarray,
+                       cap: np.ndarray) -> float:
+    """D71: la dispersion (max - min) de `valor` entre las entradas no
+    topadas, las que quedan por debajo de su capacidad en mas de 1e-9
+    relativo. Las entradas bajo el menor normal de float64 (una exponencial
+    que se fue a cero) no cuentan: su logaritmo no tiene precision."""
+    libres = (x < cap * (1.0 - 1e-9)) & (x >= np.finfo(float).tiny)
+    if not libres.any():
+        return 0.0
+    v = valor[libres]
+    return float(v.max() - v.min())
+
+
+def _comprueba_cuantal(r: ReposoHora, s: np.ndarray, d: np.ndarray,
+                       dentro: np.ndarray, pueden_vender: tuple,
+                       clave: Optional[np.ndarray]) -> None:
+    """D71: las identidades de la rama cuantal (sec. 4 del diseno).
+
+    1. Coherencia de los campos: `mu_cuantal` y `apartamiento` finitos y no
+       negativos; con la rama apagada, apartamiento 0 y ninguna hora
+       «cuantal». Una hora «cuantal» tiene el apartamiento sobre
+       TOL_FRAGIL_REL y su `regimen_cerrado` es un regimen de mercado de la
+       forma cerrada; cualquier otra, el apartamiento a lo sumo TOL_FRAGIL_REL
+       y `regimen_cerrado` igual a `regimen`.
+    2. En «cuantal», sum q y sum s despachado son E a
+       TOL_SUMA_CUANTAL_REL·max(1, E).
+    3. En «cuantal», la condicion del reposo del bloque del reparto: entre los
+       compradores de `dentro` no topados, pi_i - mu·ln q_i es el mismo a
+       TOL_REPOSO_CUANTAL_REL·max(1, |pi|); entre los que pueden vender no
+       topados, -c_j - mu·ln s_j, con c_j la clave del despacho.
+    """
+    mu, apart = r.mu_cuantal, r.apartamiento
+    if not (np.isfinite(mu) and mu >= 0.0 and np.isfinite(apart)
+            and apart >= 0.0):
+        raise ValueError(f"D71: mu_cuantal = {mu!r} y apartamiento = "
+                         f"{apart!r}: tienen que ser finitos y no negativos")
+    if mu == 0.0 and (apart != 0.0 or r.regimen == "cuantal"):
+        raise ValueError(f"D71: con la rama cuantal apagada (mu_cuantal = 0) "
+                         f"la hora sale «{r.regimen}» con apartamiento "
+                         f"{apart!r}")
+    if r.regimen != "cuantal":
+        if apart > TOL_FRAGIL_REL or r.regimen_cerrado != r.regimen:
+            raise ValueError(f"D71: la hora «{r.regimen}» (cerrado "
+                             f"«{r.regimen_cerrado}») tiene un apartamiento "
+                             f"de {apart:.3e}·E; sobre {TOL_FRAGIL_REL:g} "
+                             f"tendria que ser «cuantal»")
+        return
+    de_mercado = set(REGIMENES) - {"cuantal", "sin_mercado", "sin_ganancia"}
+    if not apart > TOL_FRAGIL_REL or r.regimen_cerrado not in de_mercado:
+        raise ValueError(f"D71: la hora «cuantal» tiene un apartamiento de "
+                         f"{apart:.3e}·E y el regimen cerrado "
+                         f"«{r.regimen_cerrado}»: tendria que pasar de "
+                         f"{TOL_FRAGIL_REL:g} y ser de mercado")
+    E = r.E
+    tol = TOL_SUMA_CUANTAL_REL * max(1.0, E)
+    for nombre, x in (("lo que reciben los compradores", r.q),
+                      ("lo despachado", r.s_despachado)):
+        if abs(float(x.sum()) - E) > tol:
+            raise ValueError(f"D71: en la hora «cuantal» {nombre} suma "
+                             f"{float(x.sum())!r} y E = {E!r} (kWh)")
+    pi = r.pi_reposo[dentro]
+    qd = r.q[dentro]
+    with np.errstate(divide="ignore"):
+        v = pi - mu * np.log(qd)
+    disp = _dispersion_libres(v, qd, d[dentro])
+    if disp > TOL_REPOSO_CUANTAL_REL * max(1.0, float(np.max(np.abs(pi)))):
+        raise ValueError(f"D71: en la hora «cuantal» pi - mu·ln q de los "
+                         f"compradores no topados se dispersa {disp:.3e} "
+                         f"(COP/kWh): el reparto no es el reposo cuantal")
+    if clave is None:
+        raise ValueError("D71: la hora «cuantal» se comprueba con la clave "
+                         "del despacho de los vendedores, y no llego")
+    pueden = np.asarray(pueden_vender, dtype=int)
+    cv = clave[pueden]
+    sp = r.s_despachado[pueden]
+    with np.errstate(divide="ignore"):
+        w = -cv - mu * np.log(sp)
+    disp = _dispersion_libres(w, sp, s[pueden])
+    if disp > TOL_REPOSO_CUANTAL_REL * max(1.0, float(np.max(np.abs(cv)))):
+        raise ValueError(f"D71: en la hora «cuantal» -c - mu·ln s de los "
+                         f"vendedores no topados se dispersa {disp:.3e} "
+                         f"(COP/kWh): el despacho no es el reposo cuantal")
 
 
 def ingreso_por_vendedor(P, p_liquidado) -> np.ndarray:

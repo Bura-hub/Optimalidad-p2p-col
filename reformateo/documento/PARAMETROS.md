@@ -3,7 +3,8 @@
 **Estado al 2026-09-08, ampliado el 2026-09-17** con los cuatro parámetros de la
 vía por reposo (D48 a D62; CAL-53, que es el ADR 0060) y, el mismo día por la
 tarde, con la regla del **piso del vendedor marginal** (D63 a D70; H-91,
-C-199; la enmienda del 2026-09-17 al ADR 0060). Material de sustentación. Un
+C-199; la enmienda del 2026-09-17 al ADR 0060); **y el 2026-09-19** con la
+temperatura del reparto cuantal de las horas frágiles (D71; H-93, C-201). Material de sustentación. Un
 apartado por parámetro, con lo que vale, de dónde sale, qué evidencia lo
 respalda y **qué contestar si lo preguntan**.
 
@@ -264,10 +265,11 @@ empuja suavemente hacia el reparto uniforme: una fricción (D49).
 
 **De dónde sale.** Es un apartamiento declarado, análogo en espíritu al filtro
 que la autora añadió en la sección III-E de su documento extenso para mejorar
-la convergencia. **Se añade como opción apagada de la vía acoplada**, y solo
-allí, para validar el reposo y dibujar su convergencia; al escribir esto está
-en implementación. La forma cerrada no lo usa: toma el límite μ → 0⁺, es
-decir prioridad estricta y empates solo exactos (ADR 0060).
+la convergencia. **Se añade como opción apagada de la vía acoplada**
+(`--mu-entropia`), para validar el reposo y dibujar su convergencia. La forma
+cerrada toma el límite μ → 0⁺, es decir prioridad estricta y empates solo
+exactos (ADR 0060), **salvo en las horas frágiles**, donde desde el 2026-09-19
+publica el reposo con este mismo μ = 1: ver el apartado siguiente (D71).
 
 **Evidencia.** Sin el término, con un vendedor y varios compradores la
 dinámica oscila sin llegar (H-87). Con él llega al reposo y se queda en las
@@ -276,9 +278,47 @@ de E0, con μ de 0,3 a 5 el reposo es el mismo, y con 0,05 no llega a t = 40
 (H-90, punto 5). La sensibilidad a μ y los empates a menos de 3μ son la
 medición M-E, pendiente.
 
-**Si lo preguntan.** «No entra en las cifras: las cifras salen de la forma
-cerrada. Entra en la validación, para que la dinámica llegue al punto que la
-forma cerrada calcula, y su valor solo cambia cuánto tarda en llegar.»
+**Si lo preguntan.** «En la dinámica solo cambia cuánto tarda en llegar. En
+las cifras entra solo en las horas frágiles, que son el apartado siguiente.»
+
+### La temperatura del reparto cuantal · vale 1 (COP/kWh), en las horas frágiles
+
+**Qué es.** La μ con que el núcleo reparte en las horas **frágiles**, aquellas
+en que la respuesta cuantal con los precios del reposo, q_i = min(d_i,
+e^{(π_i − C)/μ}) con Σ q = E, se aparta del reparto cerrado en más de 1e-3·E.
+En ellas se publica el reposo del juego regularizado con esa μ: la misma
+energía, los mismos precios (medido en las 216 horas reales; en horas
+sintéticas adversarias el estado de precios cambió en 33 de 1 588) y el
+reparto cuantal; el régimen de la hora es «cuantal» (D71). Opción: `--mu-cuantal`, con defecto 1; con 0 se publica la
+forma cerrada en todas las horas, al bit la de antes; entre 0 y 1e-6 no se
+admite, porque la bisección no la resuelve. En el núcleo,
+`resuelve_reposo(mu_cuantal=1.0)`. Con el despacho de comparación `costo`
+la rama no está definida cuando despacharía a un vendedor sobre el piso del
+juego, y lo dice en voz alta.
+
+**De dónde sale.** Es la μ de D49, la exploración entrópica con que se midió y
+se validó la dinámica regularizada (M-A a M-G). No se deriva del modelo ni de
+la norma: es la escala de diferencia de precio a la que el vendedor deja de
+distinguir entre compradores, el 0,14 % del nivel de 700 (COP/kWh) y del orden
+de las brechas que hacen frágil una hora (1,59 y 6,62 (COP/kWh)).
+
+**Evidencia.** En las horas frágiles la forma cerrada no es un reposo estable
+de la dinámica con μ = 1 (M-D: cuatro valores propios inestables en la hora
+12 de E0) y el punto cuantal sí lo es (cero inestables; con la rama, 50 de 50
+horas estables en la muestra de M-D). Son 216 de 15 363 horas con mercado, el
+0,40 % de la energía, y cambian de manos 48,5 (kWh), el 0,034 % (H-93). **El
+reparto de esas horas depende de μ**: en la hora 12, la parte de E que sale del
+comprador interior es el 0,34 % con μ = 0,25, el 28,9 % con μ = 1 y el 47,4 %
+con μ = 2; sobre los trece casos cambiarían de manos 10,9, 48,5 y 137,6 (kWh)
+con μ = 0,5, 1 y 2.
+
+**Si lo preguntan.** «En las horas en que el precio del interior queda a
+menos de unos siete pesos por kilovatio hora del techo de un comprador que no
+recibe, la forma cerrada no es un reposo estable de la dinámica regularizada, y
+publicamos el reposo con μ = 1, que sí lo es. El reparto de esas horas depende
+de μ, que es una elección de modelado, y publicamos esa sensibilidad; en todas
+las demás horas la forma cerrada es el reposo con μ = 1 dentro de 1e-3 de la
+energía, y μ no cambia nada.»
 
 ### La liquidación · uniforme, que conserva el ingreso
 
@@ -401,6 +441,7 @@ por eso la prima se publica descompuesta en renta y parte del juego (D69).»
 | **techo y piso** | **medidos** | **sí, y deciden** | **tarifario y CREG 174** |
 | **presupuesto de precios σ** | **(I − 1)/I, con barrido** | **sí: nivel y reparto, no volumen** | **Algoritmo 3 y ec. (24) del documento extenso; D50, H-90** |
 | exploración entrópica μ | 1 (COP/kWh) | solo en la validación | D49, H-90: solo cambia la velocidad |
+| temperatura del reparto cuantal | 1 (COP/kWh) | sí, solo en las 216 horas frágiles: reparto entre compradores | D71, H-93: sensibilidad publicada |
 | liquidación | uniforme, conserva el ingreso | sí: reparto entre compradores | D51; CAL-53 (ADR 0060) |
 | despacho de sobrantes | por la alternativa piso_j (`piso`, el defecto; `costo` y `llenado`, de comparación; `merito` es alias de `costo`) | sí: quién vende | D64, H-91; M-B decide qué costo usa la dinámica |
 | **piso del juego** | **el del vendedor marginal** | **sí: nivel del precio y quién entra** | **D63, D65, H-91: teorema de cobertura** |

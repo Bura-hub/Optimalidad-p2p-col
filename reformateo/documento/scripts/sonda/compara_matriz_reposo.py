@@ -94,6 +94,22 @@ eso, antes de medir, se exige que sean finitos `kwh`, `valor`, `precio`,
 `faltante` de los agentes, el `valor` de los escenarios y, en las horas con
 regimen, `captura` y `excedente_optimo`. Si no, sale con 2 y dice donde.
 
+HORA A HORA (D71, `--por-hora`). La rama cuantal del reposo cambia el reparto
+de las horas fragiles y de ninguna mas: frente a la matriz del 17 (la forma
+cerrada), la nueva tiene que diferir exactamente en las 216 horas del censo de
+M-E y ser identica AL BIT (float32 del almacen) en las demas. `horas_distintas`
+lo mide hora a hora, en dos pasos:
+  1. las ENTRADAS de la hora (sobrante, faltante, techo y piso de cada agente,
+     tabla `agentes`): una hora con alguna entrada distinta no es comparable
+     por D71 (por ejemplo, las que cambio la cache nueva de bolsa, H-92, en
+     los casos con pisos de bolsa) y se cuenta aparte;
+  2. en las horas con las mismas entradas, el MERCADO: el regimen de la tabla
+     de horas y lo que transa cada pareja (vendedor, comprador) de `flujos`.
+Con `--tol-kwh 0` (defecto) la igualdad es al bit. Imprime, por caso, las
+horas con entradas distintas, las del mercado distinto (con la energia que
+cambia de manos, sum ½·sum_i |q nueva - q vieja|, y los regimenes de las dos),
+y escribe la lista en `<salida sin .csv>_horas.csv`.
+
 Es una MEDICION: sale con 0 si compara al menos un caso. Sale con 2 si un caso
 pedido con `--casos` no tiene almacen en alguna de las dos raices, si no hay
 ningun caso que comparar o si algun almacen trae valores no finitos.
@@ -293,6 +309,105 @@ def metricas(tablas: dict, tol_precio: float = TOL_PRECIO_D48):
     return filas, por_escenario, avisos
 
 
+# ─── hora a hora (D71) ─────────────────────────────────────────────────────
+
+# Las entradas de la hora que decide el nucleo, por agente.
+ENTRADAS = ("sobrante", "faltante", "techo", "piso")
+
+
+def _por_hora_y_agente(ag: pd.DataFrame) -> pd.DataFrame:
+    d = ag[["hora", "agente", "papel"] + list(ENTRADAS)].copy()
+    d["agente"] = d["agente"].astype(str)
+    d["papel"] = d["papel"].astype(str)
+    for c in ENTRADAS:
+        d[c] = pd.to_numeric(d[c], errors="raise").astype(float)
+    return d.set_index(["hora", "agente"]).sort_index()
+
+
+def horas_distintas(vieja: dict, nueva: dict,
+                    tol_kwh: float = 0.0) -> tuple:
+    """Las horas en que la nueva difiere de la vieja (D71). Devuelve
+    (entradas, mercado): dos DataFrames con una fila por hora.
+
+    `entradas`: las horas con alguna entrada distinta (sobrante, faltante,
+    techo, piso o papel de algun agente, o un agente que solo esta en una), con
+    la mayor diferencia; no se comparan por el mercado.
+    `mercado`: entre las horas con las mismas entradas, las que tienen otro
+    regimen o alguna pareja (vendedor, comprador) con |kwh nueva - kwh vieja|
+    > `tol_kwh` (una pareja que falta en un lado cuenta con 0), con el regimen
+    de cada una, la mayor diferencia por pareja y la energia que cambia de
+    manos, `kwh_movida`. Con `tol_kwh=0` es al bit.
+
+    `kwh_movida` MIDE EL LADO COMPRADOR: ½·sum_i |q nueva - q vieja|, con q lo
+    que recibe cada comprador, que es la energia que cambia de manos entre
+    compradores (la del censo de M-E en las horas frageles del lado
+    comprador, que son todas las de los trece casos). Una hora que solo
+    cambiara lo que vende cada vendedor (la rama cuantal del lado vendedor)
+    saldria con `max_dif_kwh` > 0 y `kwh_movida` en 0.
+    """
+    av = _por_hora_y_agente(vieja["agentes"])
+    an = _por_hora_y_agente(nueva["agentes"])
+    ambos = av.join(an, how="outer", lsuffix="_v", rsuffix="_n")
+    # Un agente que solo esta en un lado; un NaN en los dos lados es lo mismo.
+    falta = (ambos["papel_v"].isna() | ambos["papel_n"].isna()).to_numpy()
+    difs = []
+    for c in ENTRADAS:
+        a = ambos[f"{c}_v"].to_numpy(dtype=float)
+        b = ambos[f"{c}_n"].to_numpy(dtype=float)
+        dd = np.abs(b - a)
+        difs.append(np.where(np.isnan(a) & np.isnan(b), 0.0,
+                             np.where(np.isnan(dd), np.inf, dd)))
+    dif_ent = pd.Series(np.max(np.column_stack(difs), axis=1),
+                        index=ambos.index)
+    papel = (ambos["papel_v"].astype(str) != ambos["papel_n"].astype(str))
+    otra = (dif_ent.to_numpy() > 0.0) | falta | papel.to_numpy()
+    horas_ent = sorted(set(ambos.index[otra].get_level_values("hora")))
+    con_otra_entrada = set(horas_ent)
+    entradas = pd.DataFrame(dict(
+        hora=horas_ent,
+        max_dif=[float(dif_ent.loc[h].max()) for h in horas_ent]))
+
+    def _regimen(t):
+        h = t["horas"][["hora", "regimen"]].copy()
+        h["regimen"] = h["regimen"].where(h["regimen"].notna(), "") \
+            .astype(str)
+        return h.set_index("hora")["regimen"]
+
+    rv, rn = _regimen(vieja), _regimen(nueva)
+    reg = pd.concat([rv.rename("regimen_vieja"), rn.rename("regimen_nueva")],
+                    axis=1).fillna("")
+
+    def _flujos(t):
+        f = t["flujos"][["hora", "vendedor", "comprador", "kwh"]].copy()
+        f["vendedor"] = f["vendedor"].astype(str)
+        f["comprador"] = f["comprador"].astype(str)
+        f["kwh"] = pd.to_numeric(f["kwh"], errors="raise").astype(float)
+        return f.groupby(["hora", "vendedor", "comprador"])["kwh"].sum()
+
+    fl = pd.concat([_flujos(vieja).rename("v"), _flujos(nueva).rename("n")],
+                   axis=1).fillna(0.0)
+    fl["dif"] = (fl["n"] - fl["v"]).abs()
+    por_hora = fl.groupby(level="hora")["dif"].max()
+    q = fl.groupby(level=["hora", "comprador"])[["v", "n"]].sum()
+    movida = 0.5 * (q["n"] - q["v"]).abs().groupby(level="hora").sum()
+    horas = sorted(set(reg.index) | set(por_hora.index))
+    filas = []
+    for h in horas:
+        if h in con_otra_entrada:
+            continue
+        rv_h = reg["regimen_vieja"].get(h, "")
+        rn_h = reg["regimen_nueva"].get(h, "")
+        d = float(por_hora.get(h, 0.0))
+        if rv_h != rn_h or d > tol_kwh:
+            filas.append(dict(hora=int(h), regimen_vieja=rv_h,
+                              regimen_nueva=rn_h, max_dif_kwh=d,
+                              kwh_movida=float(movida.get(h, 0.0))))
+    mercado = pd.DataFrame(filas, columns=["hora", "regimen_vieja",
+                                           "regimen_nueva", "max_dif_kwh",
+                                           "kwh_movida"])
+    return entradas, mercado
+
+
 # ─── la comparacion ────────────────────────────────────────────────────────
 
 
@@ -427,6 +542,14 @@ def main(argv=None) -> int:
     ap.add_argument("--sufijo-nueva", default="")
     ap.add_argument("--tol-cop", type=float, default=1.0)
     ap.add_argument("--tol-rel", type=float, default=1e-6)
+    ap.add_argument("--por-hora", action="store_true",
+                    help="D71: ademas, hora a hora, las horas con entradas "
+                         "distintas y, entre las demas, las del mercado "
+                         "distinto (regimen o flujos); lista en "
+                         "<salida>_horas.csv")
+    ap.add_argument("--tol-kwh", type=float, default=0.0,
+                    help="D71: diferencia de kwh por pareja que cuenta como "
+                         "distinta con --por-hora; 0 (defecto) es al bit")
     ap.add_argument("--salida", required=True, help="CSV de la comparacion")
     a = ap.parse_args(argv)
     # CAL-28b: una consola cp1252 revienta con un caracter fuera de su tabla.
@@ -479,15 +602,28 @@ def main(argv=None) -> int:
           f"{a.tol_rel:g} x beneficio)")
     print("=" * 78)
     partes = []
+    por_hora = []
     for caso in casos:
         try:
-            vieja = metricas(carga(a.vieja, caso, a.cobertura,
-                                   a.sufijo_vieja))
-            nueva = metricas(carga(a.nueva, caso, a.cobertura,
-                                   a.sufijo_nueva))
+            t_vieja = carga(a.vieja, caso, a.cobertura, a.sufijo_vieja)
+            t_nueva = carga(a.nueva, caso, a.cobertura, a.sufijo_nueva)
+            vieja = metricas(t_vieja)
+            nueva = metricas(t_nueva)
         except DatosNoFinitos as e:
             print(f"  NO SE PUEDE COMPARAR {caso}: {e}")
             return 2
+        if a.por_hora:
+            entradas, mercado = horas_distintas(t_vieja, t_nueva, a.tol_kwh)
+            cambios = sorted({(str(x), str(y)) for x, y in zip(
+                mercado["regimen_vieja"], mercado["regimen_nueva"])})
+            print(f"  --- {caso}, hora a hora (D71): {len(entradas)} horas "
+                  f"con entradas distintas (no se comparan); {len(mercado)} "
+                  f"con las mismas entradas y el mercado distinto, "
+                  f"{_num(float(mercado['kwh_movida'].sum()))} (kWh) que "
+                  f"cambian de manos; regimenes "
+                  f"{', '.join(f'{x} -> {y}' for x, y in cambios) or '-'}")
+            por_hora += [entradas.assign(caso=caso, que="entradas"),
+                         mercado.assign(caso=caso, que="mercado")]
         for lado, (_, _, avisos) in (("vieja", vieja), ("nueva", nueva)):
             for aviso in avisos:
                 if lado == "vieja" and aviso.startswith("NO MEDIDO"):
@@ -507,6 +643,10 @@ def main(argv=None) -> int:
                 f"beneficio)\n")
         todo.to_csv(f, index=False)
     print(f"\n  {len(casos)} caso(s); tabla en {salida}")
+    if a.por_hora:
+        horas_csv = salida.with_name(salida.stem + "_horas.csv")
+        pd.concat(por_hora, ignore_index=True).to_csv(horas_csv, index=False)
+        print(f"  horas distintas en {horas_csv}")
     return 0
 
 

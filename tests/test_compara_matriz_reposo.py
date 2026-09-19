@@ -353,3 +353,91 @@ def test_main_sale_con_2_sin_casos(tmp_path):
     vieja, nueva = _raices(tmp_path, [], [])
     assert cmp.main(["--vieja", str(vieja), "--nueva", str(nueva),
                      "--salida", str(tmp_path / "c.csv")]) == 2
+
+
+# ─── D71: hora a hora (tarea Q) ────────────────────────────────────────────
+
+
+def _con_entradas(t, techo=800.0, piso=700.0):
+    """Las tablas de `_tablas` con el techo y el piso de cada agente, que
+    `horas_distintas` compara como entradas de la hora."""
+    t = {k: v.copy() for k, v in t.items()}
+    t["agentes"] = t["agentes"].assign(techo=techo, piso=piso)
+    return t
+
+
+def test_por_hora_la_vieja_contra_si_misma_no_difiere():
+    t = _con_entradas(_tablas())
+    entradas, mercado = cmp.horas_distintas(t, _con_entradas(_tablas()))
+    assert entradas.empty and mercado.empty
+
+
+def test_por_hora_el_reparto_cuantal_de_una_hora_se_ve_con_su_energia():
+    vieja = _con_entradas(_tablas())
+    nueva = _con_entradas(_tablas())
+    # La hora 0 pasa a «cuantal»: UCC cede 0,5 (kWh) a Mariana.
+    h, fl = nueva["horas"], nueva["flujos"]
+    h.loc[h["hora"] == 0, "regimen"] = "cuantal"
+    fl.loc[(fl["hora"] == 0) & (fl["comprador"] == "Mariana"), "kwh"] += 0.5
+    fl.loc[(fl["hora"] == 0) & (fl["comprador"] == "UCC"), "kwh"] -= 0.5
+    entradas, mercado = cmp.horas_distintas(vieja, nueva)
+    assert entradas.empty
+    assert mercado["hora"].tolist() == [0]
+    fila = mercado.iloc[0]
+    assert (fila["regimen_vieja"], fila["regimen_nueva"]) == ("interiores",
+                                                              "cuantal")
+    assert fila["max_dif_kwh"] == pytest.approx(0.5)
+    assert fila["kwh_movida"] == pytest.approx(0.5)
+
+
+def test_por_hora_es_al_bit_salvo_con_tolerancia():
+    vieja = _con_entradas(_tablas())
+    nueva = _con_entradas(_tablas())
+    fl = nueva["flujos"]
+    fl.loc[(fl["hora"] == 1) & (fl["comprador"] == "Mariana"), "kwh"] += 1e-7
+    assert cmp.horas_distintas(vieja, nueva)[1]["hora"].tolist() == [1]
+    assert cmp.horas_distintas(vieja, nueva, tol_kwh=1e-6)[1].empty
+    # Una pareja que solo esta en un lado cuenta con cero.
+    nueva["flujos"] = pd.concat([fl, fl[fl["hora"] == 0].iloc[[0]].assign(
+        comprador="HUDN", kwh=0.25)], ignore_index=True)
+    assert 0 in cmp.horas_distintas(vieja, nueva, 1e-6)[1]["hora"].tolist()
+
+
+def test_por_hora_una_hora_con_otras_entradas_va_aparte():
+    """La cache nueva de bolsa (H-92) cambia el piso de los vendedores de
+    bolsa: esa hora no se compara por D71, aunque su mercado cambie."""
+    vieja = _con_entradas(_tablas())
+    nueva = _con_entradas(_tablas())
+    ag, fl = nueva["agentes"], nueva["flujos"]
+    ag.loc[(ag["hora"] == 1) & (ag["agente"] == "Cesmag"), "piso"] = 650.0
+    fl.loc[fl["hora"] == 1, "kwh"] *= 0.5
+    entradas, mercado = cmp.horas_distintas(vieja, nueva)
+    assert entradas["hora"].tolist() == [1]
+    assert entradas["max_dif"].iloc[0] == pytest.approx(50.0)
+    assert mercado.empty
+    # Un agente que falta en un lado tambien es otra entrada.
+    nueva["agentes"] = ag[~((ag["hora"] == 2) & (ag["agente"] == "UCC"))]
+    assert cmp.horas_distintas(vieja, nueva)[0]["hora"].tolist() == [1, 2]
+
+
+def test_main_por_hora_escribe_la_lista(tmp_path, monkeypatch, capsys):
+    vieja, nueva = _raices(tmp_path, ["E0"], ["E0"])
+
+    def carga(raiz, caso, cobertura="m1", sufijo=""):
+        t = _con_entradas(_tablas())
+        if Path(raiz) == nueva:
+            t["horas"].loc[t["horas"]["hora"] == 0, "regimen"] = "cuantal"
+        return t
+
+    monkeypatch.setattr(cmp, "carga", carga)
+    salida = tmp_path / "compara.csv"
+    assert cmp.main(["--vieja", str(vieja), "--nueva", str(nueva),
+                     "--salida", str(salida), "--por-hora"]) == 0
+    texto = capsys.readouterr().out
+    assert ("E0, hora a hora (D71): 0 horas con entradas distintas (no se "
+            "comparan); 1 con las mismas entradas y el mercado distinto") \
+        in texto
+    assert "interiores -> cuantal" in texto
+    lista = pd.read_csv(tmp_path / "compara_horas.csv")
+    assert lista["hora"].tolist() == [0] and lista["que"].tolist() == [
+        "mercado"]

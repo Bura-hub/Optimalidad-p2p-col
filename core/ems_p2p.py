@@ -65,9 +65,10 @@ from .coupled_ode_convergence import (ARRANQUES, solve_coupled_for_hour,
 # el motor: la participacion de los vendedores (C-151, paso 7) y las cotas de
 # optimalidad calculadas DESPUES de ella (D55).
 from .reposo_mercado import (DESPACHOS_VENDEDORES, MODOS_PRESUPUESTO,
-                             REGLAS_PRECIO, TOL_COBERTURA_REL,
+                             MU_CUANTAL, REGLAS_PRECIO, TOL_COBERTURA_REL,
                              captura as captura_reposo,
-                             cotas_optimalidad, resuelve_reposo)
+                             cotas_optimalidad, resuelve_reposo,
+                             valida_mu_cuantal)
 
 # CAL-48 y D48: las tres vias del mercado. Un nombre mal escrito caia antes en
 # la alternada sin avisar, porque el trabajador solo preguntaba por
@@ -513,6 +514,13 @@ class SolverParams:
     nivel_acoplado: str = "c136"
     costo_vendedor: str = "lcoe"
     piso_juego: str = "minimo"
+    # D71 (2026-09-19): la rama cuantal del reposo en las horas fragiles. En
+    # la hora en que la respuesta cuantal con mu = `mu_cuantal` (COP/kWh) se
+    # aparta del reparto cerrado en mas de 1e-3·E, el nucleo publica el reposo
+    # del juego regularizado con esa mu (regimen «cuantal»). 1.0 (defecto) es
+    # la mu de D49; 0.0 apaga la rama y publica la forma cerrada en todas las
+    # horas, al bit la de antes de D71. Solo actua con `metodo="reposo"`.
+    mu_cuantal: float = MU_CUANTAL
 
     def __post_init__(self):
         # D48: la via se valida al construir. Antes un nombre desconocido
@@ -527,6 +535,8 @@ class SolverParams:
         # D49 / D50 / D68: y las opciones de la dinamica regularizada.
         _valida_dinamica(self.mu_entropia, self.nivel_acoplado,
                          self.costo_vendedor, self.piso_juego)
+        # D71: y la mu de la rama cuantal, con la misma regla que mu_entropia.
+        valida_mu_cuantal(self.mu_cuantal)
         # D36: un presupuesto que no es un entero positivo no se corrige en
         # silencio. Se rechaza al construir, antes de someter ninguna hora:
         # dentro del trabajador se convertiria en una excepcion por hora.
@@ -758,6 +768,14 @@ class HourlyResult:
     #                         de cobertura); uno solo es un hallazgo y la
     #                         corrida sale con el codigo 3 de D38. 0 en las
     #                         otras vias
+    #   regimen_cerrado       D71: el rotulo de la forma cerrada; igual a
+    #                         `regimen` salvo en las horas «cuantal», donde
+    #                         dice la familia de precios. "" fuera de la via
+    #   apartamiento          D71: la respuesta cuantal frente al reparto
+    #                         cerrado, relativa a E; la hora es «cuantal» si
+    #                         pasa de 1e-3
+    #   mu_cuantal            D71: la mu de la rama cuantal (COP/kWh); 0.0
+    #                         fuera de la via por reposo o con la rama apagada
     regimen: str = ""
     presupuesto: float = 0.0
     precio_comun: float = 0.0
@@ -777,6 +795,9 @@ class HourlyResult:
     excedente_peor: float = 0.0
     captura: float = 0.0
     retiros_reposo: int = 0
+    regimen_cerrado: str = ""
+    apartamiento: float = 0.0
+    mu_cuantal: float = 0.0
 
 
 def _opciones_reposo(sv) -> tuple:
@@ -803,14 +824,24 @@ def _opciones_dinamica(sv) -> tuple:
             getattr(sv, "piso_juego", "minimo"))
 
 
+def _opcion_cuantal(sv) -> tuple:
+    """D71: la mu de la rama cuantal del reposo, el campo 41 de la tupla del
+    trabajador. El respaldo del `getattr` es el defecto de `SolverParams`
+    (MU_CUANTAL, 1.0), como el de `_opciones_reposo`: la rama es la de
+    produccion y solo actua con `metodo="reposo"`."""
+    return (getattr(sv, "mu_cuantal", MU_CUANTAL),)
+
+
 # D48: los campos del reposo, en el orden de `HourlyResult`. La recursion de la
-# participacion los copia del conjunto reducido con esta lista.
+# participacion los copia del conjunto reducido con esta lista. D71: y los tres
+# de la rama cuantal.
 CAMPOS_REPOSO = ("regimen", "presupuesto", "precio_comun", "precio_uniforme",
                  "pi_reposo", "piso_juego", "piso_marginal", "excluidos",
                  "excluidos_bajo_piso", "vendedores_excluidos",
                  "vendedores_no_despachados", "orden_merito", "n_soluciones",
                  "renta_inframarginal", "parte_juego",
-                 "excedente_optimo", "excedente_peor", "captura")
+                 "excedente_optimo", "excedente_peor", "captura",
+                 "regimen_cerrado", "apartamiento", "mu_cuantal")
 
 
 def _anota_reposo(res: "HourlyResult", rep, seller_ids, buyer_ids) -> None:
@@ -836,6 +867,10 @@ def _anota_reposo(res: "HourlyResult", rep, seller_ids, buyer_ids) -> None:
     # D69: la prima descompuesta.
     res.renta_inframarginal = float(rep.renta_inframarginal)
     res.parte_juego = float(rep.parte_juego)
+    # D71: la rama cuantal de las horas fragiles.
+    res.regimen_cerrado = str(rep.regimen_cerrado)
+    res.apartamiento = float(rep.apartamiento)
+    res.mu_cuantal = float(rep.mu_cuantal)
 
 
 # ── Worker (top-level para pickle en multiprocessing) ────────────────────────
@@ -1457,6 +1492,12 @@ def _run_hour_worker(args):
     # 38 campos resuelve exactamente igual que antes de D68.
     if len(args) == 38:
         args = args + ("lcoe", "minimo")
+    # D71: la mu de la rama cuantal del reposo. El shim rellena con el defecto
+    # de produccion, MU_CUANTAL (1.0), como D64 rellena el despacho con "piso":
+    # una tupla de 40 campos resuelve por la via del reposo con la rama
+    # encendida, y por las otras vias exactamente igual que antes de D71.
+    if len(args) == 40:
+        args = args + (MU_CUANTAL,)
 
     (k, G_klim_k, D_k, G_raw_k, seller_ids, buyer_ids,
      a_all, b_all, lam_all, theta_all, etha_all,
@@ -1466,7 +1507,8 @@ def _run_hour_worker(args):
      rtol_aco, horizonte_max_aco, presupuesto_aco, arranque_aco,
      criterio_aco, tol_reparto_aco,
      modo_pres, sigma_nivel, regla_precio, despacho_vend,
-     mu_entropia, nivel_aco, costo_vend_aco, piso_juego_aco) = args
+     mu_entropia, nivel_aco, costo_vend_aco, piso_juego_aco,
+     mu_cuantal) = args
     # D48: la via y las opciones del reposo, en todas las horas y antes de
     # mirar si hay mercado, como el arranque y el criterio de abajo. D64: el
     # alias "merito" pasa a "costo" antes de validar.
@@ -1476,6 +1518,8 @@ def _run_hour_worker(args):
     _valida_reposo(modo_pres, sigma_nivel, regla_precio, despacho_vend)
     # D49 / D50 / D68: y las de la dinamica regularizada, igual.
     _valida_dinamica(mu_entropia, nivel_aco, costo_vend_aco, piso_juego_aco)
+    # D71: y la mu de la rama cuantal, igual.
+    valida_mu_cuantal(mu_cuantal)
     # H-85 / D45: una regla desconocida falla en voz alta en todas las horas,
     # tambien en las que no tienen mercado, y no como excepcion del acoplado
     # por hora (C-190). `SolverParams` ya la valida; esto cubre la tupla
@@ -1647,7 +1691,9 @@ def _run_hour_worker(args):
                 pi_gs=(float(np.max(pi_gs)) if modo_pres == "algoritmo3"
                        else None),
                 regla_precio=regla_precio,
-                despacho_vendedores=despacho_vend)
+                despacho_vendedores=despacho_vend,
+                # D71: la rama cuantal de las horas fragiles.
+                mu_cuantal=mu_cuantal)
         except ValueError as e:
             # Fallar en voz alta sin tumbar la corrida, como C-190: el nucleo
             # lanza ValueError cuando se rompe una identidad de la hora
@@ -1811,7 +1857,9 @@ def _run_hour_worker(args):
                  # D68: y las mismas palancas del costo y del piso. El vector
                  # de pisos del conjunto reducido viaja mas arriba, en el campo
                  # `pi_gb_j` de esta misma tupla (`piso_v[quedan]`).
-                 costo_vend_aco, piso_juego_aco))
+                 costo_vend_aco, piso_juego_aco,
+                 # D71: y la misma mu de la rama cuantal.
+                 mu_cuantal))
             # D47: las dos resoluciones las pago esta hora, de modo que su
             # costo es la suma. Se acumula antes de mirar si el conjunto
             # reducido dio mercado, porque lo que gasto lo gasto igual.
@@ -2095,7 +2143,10 @@ class EMSP2P:
                          *_opciones_reposo(sv),
                          # D49 / D50: la dinamica regularizada del acoplado;
                          # apagada por defecto, identica al bit.
-                         *_opciones_dinamica(sv)))
+                         *_opciones_dinamica(sv),
+                         # D71: la rama cuantal del reposo; inerte en las
+                         # otras vias.
+                         *_opcion_cuantal(sv)))
 
         # ── Ejecutar con barra de progreso ────────────────────────────
         rmap = {}
@@ -2396,4 +2447,6 @@ class EMSP2P:
                                   # D48: las opciones de la via por reposo.
                                   *_opciones_reposo(sv),
                                   # D49 / D50: la dinamica regularizada.
-                                  *_opciones_dinamica(sv)))
+                                  *_opciones_dinamica(sv),
+                                  # D71: la rama cuantal del reposo.
+                                  *_opcion_cuantal(sv)))

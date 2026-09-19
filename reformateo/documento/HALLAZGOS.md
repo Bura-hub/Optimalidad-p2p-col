@@ -7479,3 +7479,86 @@ La serie de bolsa entra en C1, C3, C4 (el exceso a bolsa horaria) y C5, y en el 
 - **Lo que XM revisó en octubre a diciembre de 2025 no se puede reconstruir**: el API sirve solo la versión vigente, que es la que ahora lleva la caché.
 
 **Consecuencia.** La serie de bolsa de la tesis vuelve a ser la de XM, fecha por fecha, y el descargador ya no puede corrirla: pide bloques sin solape, lee la fecha del dato, exige el calendario completo y falla en voz alta si algo falta. Hay que repetir la matriz antes de citar cualquier cifra que toque la bolsa.
+
+## H-93 · En 216 horas la forma cerrada no es un reposo estable de la dinámica regularizada: son las horas frágiles, y en ellas el núcleo publica el reposo con μ = 1
+
+**Estado: registrado el 2026-09-19, con la decisión del autor (D71) implementada en el núcleo, el motor, la línea de órdenes, la compuerta de salida y la comparación de matrices (C-201), sin commit y sin la matriz repetida. Sale de cuatro piezas de `.superpowers/sdd/2026-09-16-reposo/`: la investigación de M-E y M-D (`investigacion-me-md.md`), el censo y M-D corregido de la tarea 4e (`task-4e-report.md` y `task-4e-salidas/`), el diseño de la rama (`diseno-rama-cuantal.md`) y su implementación (`task-Q-report.md`). Cada afirmación dice si está medida o derivada. Las cifras de la matriz son de los almacenes del 17 de septiembre, con la caché vieja de bolsa (H-92); el contrafáctico de la tarea 4e dice que la caché nueva no cambia ninguna hora de frágil a no frágil ni al revés.**
+
+La forma cerrada del reposo es el límite μ → 0⁺ de la regularización entrópica (D48, D49): reparte por prioridad estricta. La pregunta de M-E era en cuántas horas ese límite se aparta del reposo que la dinámica con μ = 1 alcanza de verdad. **La respuesta es: en pocas horas, casi todas de abril de 2025, pero en esas la forma cerrada no es un reposo estable, y publicarla allí como «el reposo al que la dinámica llega» sería falso.**
+
+### Qué es una hora frágil
+
+Con los precios del reposo cerrado, la respuesta cuantal con capacidades es q̃_i = min(d_i, e^{(π_i − C)/μ}) con Σ q̃ = E del lado de los compradores y s̃_j = min(s_j, e^{(−piso_j − C′)/μ}) con Σ s̃ = E del lado de los vendedores. Es el cero del replicador entrópico del vendedor con los multiplicadores de capacidad en su valor de reposo (derivado, sección 1 del diseño): **si q̃ = q y s̃ = s, la forma cerrada es el reposo con μ = 1**. Una hora es **frágil** si
+
+    máx(máx_i |q̃_i − q_i|, máx_j |s̃_j − s_j|) > 1e-3·E.
+
+El censo anterior contaba toda hora con dos techos o dos pisos a menos de 3μ, con la diferencia cero incluida, y salía el 100 % de la energía: los cuatro compradores de ASC tienen el mismo techo al bit todos los meses. Un empate exacto es inocuo, porque con precios iguales la respuesta cuantal es el llenado por niveles de la forma cerrada. **La fragilidad está en otro sitio: el precio común del grupo interior a pocos (COP/kWh) por encima del techo de un comprador que no recibe**, o un piso de vendedor pegado a otro.
+
+### Lo medido
+
+**1. El censo de los trece casos** (medido; `censo_fragiles.py` sobre los almacenes de la matriz del 17, con todas las horas de mercado reproducidas y la forma cerrada `mu_cuantal=0.0`).
+
+| Caso | Horas con mercado | Horas frágiles | E del caso (kWh) | E frágil (kWh) | E frágil (% de E) | Cambiaría de manos (kWh) |
+|---|---:|---:|---:|---:|---:|---:|
+| E0 | 1 126 | 57 | 4 592,0 | 158,3 | 3,45 | 19,53 |
+| E1 | 1 740 | 22 | 16 601,9 | 61,3 | 0,37 | 2,77 |
+| E2 | 1 599 | 14 | 17 271,6 | 25,0 | 0,14 | 0,10 |
+| E3 | 1 366 | 4 | 15 086,8 | 12,5 | 0,08 | 0,74 |
+| E4 | 1 151 | 0 | 12 807,7 | 0,0 | 0,00 | 0 |
+| E5 | 883 | 0 | 9 264,8 | 0,0 | 0,00 | 0 |
+| K1 | 590 | 50 | 3 718,5 | 207,5 | 5,58 | 0,82 |
+| CV2 | 1 126 | 0 | 4 592,0 | 0,0 | 0,00 | 0 |
+| I1 | 1 782 | 9 | 17 555,8 | 13,6 | 0,08 | 2,58 |
+| N1 | 1 121 | 11 | 6 074,3 | 18,0 | 0,30 | 1,01 |
+| P1 | 1 151 | 3 | 1 829,7 | 2,9 | 0,16 | 0,46 |
+| P2 | 1 126 | 0 | 32 144,1 | 0,0 | 0,00 | 0 |
+| SINU | 602 | 46 | 917,6 | 74,4 | 8,11 | 20,51 |
+| **Los 13** | **15 363** | **216** | **142 457,0** | **573,4** | **0,40** | **48,5** |
+
+«Cambiaría de manos» es Σ ½·(Σ_i |q̃ − q| + Σ_j |s̃ − s|): el 0,034 % de la energía de los trece casos, el 0,43 % en E0 y el 2,24 % en SINU. Las 216 son del régimen «excluidos» o «topados» y **todas del lado de los compradores**; ninguna del lado de los vendedores. Todas son de abril de 2025 salvo una de E1 y cinco de SINU, de agosto.
+
+**2. Las horas frágiles son una familia con forma cerrada** (derivado y reproducido por el censo). Con k compradores de ASC en su techo y el interior a una brecha g sobre él, el apartamiento es a(k, g) = k·e^{−g/μ}/(1 + k·e^{−g/μ}), y con el presupuesto σ la brecha es g = k·Δ/(k + 1) − Cv, con Δ la diferencia de techos entre Cesmag y ASC y Cv el cargo de comercializar de ASC. Con μ = 1 la brecha crítica es de 6,91, 7,60 y 8,01 (COP/kWh) para k = 1, 2 y 3. Las 216 horas se reparten en cuatro familias (medido, clasificando cada hora del censo por su régimen, su mes y su apartamiento):
+
+| Familia | Horas | Apartamiento | Por caso |
+|---|---:|---|---|
+| Abril, k = 2, g = 1,59 (COP/kWh) | 61 | 0,289 (0,274 en una hora de I1 con UCC topada) | SINU 41, E0 12, N1 3, I1 2, E1 1, E3 1, P1 1 |
+| Abril, k = 3, g = 6,62 (COP/kWh) | 140 | 0,00398 | K1 49, E0 42, E1 17, E2 14, N1 8, I1 6, E3 3, P1 1 |
+| Agosto, k = 1, g = 6,49 (COP/kWh) | 6 | 0,00152 | SINU 5, E1 1 |
+| Topados, con el interior sin topar en la cuantal | 9 | de 0,0021 a 0,180 | E0 3, E1 3, I1 1, K1 1, P1 1 |
+
+La hora 12 de E0 es de la primera familia. El grupo de k = 3 queda por encima del umbral por un factor de 4, no «justo sobre» él (punto 7). La cifra de la tarea 4e, «en E0 son 15 horas» con 0,289·E, junta las 12 de k = 2 con las 3 topadas.
+
+**3. Las horas frágiles son las inestables, y solo ellas** (medido; M-D con los filtros de los multiplicadores en su valor de reposo, tarea 4e, sobre la muestra de 50 horas de E0). Con la forma cerrada, **las cuatro horas NO estables de la muestra son exactamente las cuatro frágiles**: tres de «excluidos», con 0,289·E y cuatro valores propios inestables de parte real 5,8 a 6,5, y una de «topados», con 0,152·E, que además no está quieta. En la hora 12 literal son cuatro, el mayor en +6,84. Son las entradas nulas del reparto, que la regularización hace crecer. Las otras 46 horas son estables.
+
+**4. El punto cuantal sí es un reposo estable** (medido; M-D sobre el punto cuantal, el diseño y la tarea Q). En la hora 12, cero valores propios inestables, la mayor parte real fuera de las dos direcciones neutras en −0,615 y un residuo |dP/dt| de 7,5e-11 (kWh por unidad de tiempo), el mismo orden que el de las horas no frágiles. **Sin el reparto del resto de la bisección el residuo sería 6e-5**: la aptitud media lleva BGRANDE = 1e6 y se normaliza por el simplejo, de modo que un error de 1e-11 relativo en la suma del reparto se ve. Los sintéticos del diseño dan lo mismo: k = 3 en «excluidos» pasa de tres inestables en +4,30 a estable en −0,797; «topados» con Cesmag interior pasa de no quieto (|dP| = 0,66 y un multiplicador que tendría que ser negativo, 0,92) a quieto y estable en −0,548. **Con la rama, la muestra de 50 horas da 50 de 50 estables y quietas**, y las cuatro frágiles son estables.
+
+**5. Del lado de los vendedores, el reposo cuantal es el de la dinámica con el costo en el piso** (medido; sintético del diseño). Con compradores cortos y dos vendedores de pisos a 2 (COP/kWh), la hora es frágil (0,0192·E) y la forma cerrada despacha (4,5; 0,5) (kWh) frente a (4,404; 0,596) de la cuantal. Con el costo del vendedor en su piso (D68), el punto cerrado no está quieto (|dP| = 0,053) y el cuantal sí (3e-10), estable en −0,167. Con el costo nivelado b_j los dos puntos son inestables: es la pregunta de M-B (H-89), no la de la rama. En los trece casos no hay ninguna hora frágil de ese lado.
+
+**6. El reparto de las horas frágiles depende de μ, y μ no tiene ancla empírica** (medido con el núcleo). En la hora 12, la parte de E que sale del comprador interior es:
+
+| μ (COP/kWh) | 0,1 | 0,25 | 0,5 | 1 | 2 | 4 |
+|---|---:|---:|---:|---:|---:|---:|
+| Parte de E | 2,4e-7 (no es frágil) | 0,34 % | 7,6 % | 28,9 % | 47,4 % | 57,3 % |
+
+Sobre los trece casos (censo con la forma cerrada), con μ = 0,5 serían frágiles 61 horas y cambiarían de manos 10,9 (kWh); con μ = 1, 216 horas y 48,5 (kWh); con μ = 2, 327 horas y 137,6 (kWh), el 0,097 % de la energía. **Nada en el modelo ni en la norma fija μ**: es la temperatura de la exploración entrópica de D49, con la que se midió y se validó la dinámica.
+
+**7. El umbral de 1e-3·E se conserva, y el conteo apenas depende de él** (medido; censo). Con 5e-4 serían 254 horas; con 1e-3, 216; con 2e-3, 210; con 5e-3, 68, y la energía que cambia de manos casi no se mueve: 48,55, 48,52, 48,52 y 47,07 (kWh). El grupo de k = 3 queda dentro con 1e-3 por un factor de 4 sobre el umbral (0,00398 frente a 0,001), no «justo sobre»: con 5e-3 K1 pasaría de 5,58 % a 0 % y E0 de 3,45 % a 1,93 %. El umbral es el mismo con que se juzga todo lo demás del reposo (la aceptación de M-A y M-B, el «quieta» de M-D): dos umbrales distintos introducirían dos nociones de «lo mismo».
+
+### La decisión (D71) y lo que da
+
+En las horas frágiles el núcleo publica **el reposo del juego regularizado con μ = 1**: la misma enumeración de estados de precios, el mismo presupuesto, el mismo piso del juego y el mismo paso 1, con el reparto por la respuesta cuantal en el lado que es frágil. Que el estado elegido sea el de la forma cerrada está medido en las 216 horas reales, donde el estado de precios es al bit el de la forma cerrada; en horas sintéticas adversarias la reenumeración eligió otro estado en 33 de 1 588 frágiles, que el núcleo trata como la forma cerrada trata sus estados (`_elige_paso3` o la regla declarada, con `n_soluciones` anotado). El régimen de la hora se publica «cuantal», con el rótulo de la forma cerrada al lado (`regimen_cerrado`) y el apartamiento (C-201). **La regla del 2 % del plan queda sin función**: servía para decidir si se tocaba el núcleo, y la decisión es hora a hora.
+
+- **Las 216 horas, exactamente** (medido; el núcleo sobre los trece almacenes). La rama publica «cuantal» en las 216 horas del censo y en ninguna más, con el apartamiento del censo al 1e-9 relativo. En las 216 **el estado de precios es el de la forma cerrada, al bit**, con un solo estado cuantal en cada una; lo despachado no cambia, porque todas son del lado de los compradores; y `excluidos` se vacía, porque los del techo reciben su parte.
+- **Todo lo demás, al bit** (medido contra HEAD, f21205e). Con la rama apagada el núcleo es idéntico al de antes en todas las horas probadas: 240 literales con sus opciones, 6 000 al azar y 15 557 de los almacenes. Con la rama encendida también lo es en las 15 147 horas no frágiles de los almacenes, y en las literales salvo la hora 12 con el presupuesto σ.
+- **La hora 12, antes y después.** El ingreso de los vendedores casi no cambia (4 954,0 → 4 950,9 (COP)) y el precio uniforme es el mismo, 735,89 (COP/kWh). El excedente baja de 666,1 a 548,7 (COP) y la captura de 1,000 a 0,824, porque la exploración reparte energía a compradores de menor valor; la parte del vendedor sube de 0,406 a 0,488. Mariana y UCC, en su techo, reciben 0,973 (kWh) cada una, y Cesmag 4,786 en vez de 6,732.
+- **Las garantías se conservan con el despacho de producción, `"piso"`, y con `"llenado"`; con `"costo"`, no** (medido; revisión de la tarea Q). La cobertura de cada vendedor, la conservación del ingreso, la descomposición de la prima de D69 y la participación inerte de D67 solo usan el rango uno, los precios en su banda y que ningún despachado tenga el piso sobre el del juego. Con `"piso"` eso vale por construcción, porque pueden vender solo los de piso ≤ p*. Con `"llenado"` también, porque la forma cerrada despacha a todos los que pueden vender y su respuesta cuantal es el llenado mismo: nunca es frágil del lado vendedor (0 de 3 000 horas con pisos a menos de 12 (COP/kWh)). **Con `"costo"` no vale**: el piso del juego es el mayor de los que despacha la forma cerrada por b_j, y la respuesta cuantal con la clave b_j puede dar energía a un vendedor con el piso más alto. La revisión lo encontró en 31 de 1 828 horas al azar con despacho por costo (b sorteado uniforme entre 220 y 230 (COP/kWh)). El núcleo lo rechaza ahora con un `ValueError` propio de D71, que manda comparar por costo con `mu_cuantal=0.0`, y no con uno de D63. Con los b reales (225 y 241,07) no ocurre. El núcleo comprueba además la condición del reposo cuantal, que π_i − μ·ln q̃_i sea la misma entre los compradores no topados.
+
+### Lo que queda abierto
+
+- **La matriz se repite.** Las 216 horas cambian de reparto, y los escenarios C1 a C5 dependen de los flujos. La comparación hora a hora con la del 17 (`compara_matriz_reposo.py --por-hora`) tiene que dar exactamente las 216 entre las horas con las mismas entradas. **La matriz repetida lleva también la caché nueva de bolsa (H-92)**, que cambia el piso de los vendedores de bolsa en unas 2 000 horas de E1 a E5, I1, N1 y P1: esas horas salen aparte, como horas con otras entradas, y no cuentan contra D71.
+- **El reparto de las horas frágiles es una elección de modelado.** La tesis tiene que decirlo, con la sensibilidad a μ del punto 6: en las horas en que el precio del interior queda a menos de unos siete pesos por kilovatio hora del techo de un comprador que no recibe, la forma cerrada no es un reposo estable de la dinámica regularizada y se publica el reposo con μ = 1; en todas las demás, la forma cerrada es ese reposo dentro de 1e-3·E.
+- **Que la dinámica se quede en el punto cuantal.** M-D linealiza, no integra. La integración con μ = 1 desde el punto cerrado recorrió el 88 % del camino hacia el cuantal en teq = 5 y seguía moviéndose (investigación, §1.e). Queda, opcional, integrar la hora 12 desde el punto cuantal en el servidor, con la aceptación de M-A.
+- **El lado de los vendedores es el de la dinámica con el costo en el piso.** Si M-B dijera que la dinámica despacha por el costo nivelado, la clave de ese lado cambia a b_j junto con `despacho_vendedores`; ningún caso real está en juego, porque no hay horas frágiles de ese lado. Pero entonces habría que definir antes el piso del juego del despacho por costo con la respuesta cuantal, que hoy la rama rechaza (el punto anterior).
+- **El último bit depende de la máquina.** `np.exp` y `np.log` no redondean correctamente y NumPy los despacha según la CPU. El `apartamiento`, que se publica en todas las horas, y el reparto de las horas «cuantal» pueden diferir en el último bit entre el servidor y la estación de trabajo. Todo lo demás que se publica en las horas no frágiles sale de sumas, productos y cocientes, sin funciones trascendentes: es la forma cerrada. Antes de comparar huellas de la matriz entre las dos máquinas hay que esperar esas diferencias. En principio también podría cambiar de lado una hora con el apartamiento a un ulp de 1e-3, algo que no se ha visto.
+
+**Consecuencia.** La frase «el reposo al que la dinámica llega» vale en toda hora: en las 15 147 no frágiles es la forma cerrada, y en las 216 frágiles es el reposo cuantal con μ = 1, que es donde la dinámica regularizada es estable. Lo que se publica en esas 216 horas depende de μ, y así se dice.

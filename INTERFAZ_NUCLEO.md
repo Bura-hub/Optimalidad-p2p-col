@@ -50,6 +50,7 @@ r = resuelve_reposo(
         pi_gs=None,                   # solo con "algoritmo3"
         regla_precio="uniforme",      # "uniforme" | "puja"
         despacho_vendedores="piso",   # "piso" | "costo" | "llenado"
+        mu_cuantal=1.0,               # 0.0 = la forma cerrada estricta de 05ed9c3
 )
 ```
 
@@ -88,7 +89,10 @@ el apartado 5.
 | `pi_reposo` | (I,) precio del reposo de cada comprador (COP/kWh) |
 | `p_u` | precio uniforme de la hora que conserva el ingreso (COP/kWh) |
 | `p_liquidado` | (I,) lo que paga cada comprador: `min(p_u, techo_i)` con la regla uniforme |
-| `regimen` | `interiores`, `topados`, `excluidos`, `suma_no_cabe`, `compradores_cortos`, `un_comprador`, `mixto`, `sin_ganancia`, `sin_mercado` |
+| `regimen` | `interiores`, `topados`, `excluidos`, `suma_no_cabe`, `compradores_cortos`, `un_comprador`, `mixto`, `sin_ganancia`, `sin_mercado` y, desde D71, `cuantal` |
+| `regimen_cerrado` | el régimen que habría dado la forma cerrada; igual a `regimen` salvo en las horas cuantales |
+| `apartamiento` | cuánto se aparta, en fracción de E, la respuesta cuantal del reparto cerrado; la hora es frágil si pasa de 1e-3. Se publica siempre |
+| `mu_cuantal` | con qué μ se resolvió la rama cuantal (0 = apagada) |
 | `excluidos`, `excluidos_bajo_piso` | compradores sin energía: en su techo, o fuera por quedar bajo el piso del juego |
 | `vendedores_excluidos`, `vendedores_no_despachados` | vendedores sin ganancia posible, y los que el mercado deja fuera por piso alto |
 | `orden_merito` | el orden en que se despachó |
@@ -117,7 +121,7 @@ permuta cobraba bajo su alternativa.
 
 ---
 
-## 5. La tupla del trabajador: 40 campos
+## 5. La tupla del trabajador: 41 campos
 
 En este orden:
 
@@ -134,12 +138,15 @@ En este orden:
 10 theta_all            24 pi_gb_j               38 nivel_acoplado
 11 etha_all             25 guarda_trayectorias   39 costo_vendedor
 12 pi_gs                26 (reservado)           40 piso_juego
-13 pi_gb                27 rtol_acoplado
+13 pi_gb                27 rtol_acoplado         41 mu_cuantal
 14 tau_buyers           28 horizonte_max_acoplado
 ```
 
 **Compatibilidad hacia atrás.** Las longitudes 22, 24, 25, 26, 28, 29, 30, 32,
-36 y 38 se rellenan solas con los defectos históricos. Una tupla de 22 campos
+36, 38 y 40 se rellenan solas con los defectos. La de 40 rellena
+`mu_cuantal = 1,0`, igual que D64 rellenó el despacho de producción: una tupla
+de 40 campos resuelve con la rama cuantal en las horas frágiles, y para el
+comportamiento de 05ed9c3 hay que pasar 0,0. Una tupla de 22 campos
 resuelve hoy igual que en `a392cbd`, al bit. Para pedir el mercado nuevo basta
 llegar a 36 (los campos 37 a 40 solo actúan por la vía acoplada), o llamar al
 núcleo directamente.
@@ -166,8 +173,9 @@ integración que guardar. El almacén escribe la tabla de trayectorias vacía.
 **Rechazado en voz alta.** Un costo cuadrático `a_j` distinto de cero (CAL-32):
 el reposo lo supone cero y no lo silencia.
 
-**Nuevos y con efecto.** `modo_presupuesto`, `sigma_nivel`, `regla_precio` y
-`despacho_vendedores`. `merito` se acepta como alias de `costo`, con aviso.
+**Nuevos y con efecto.** `modo_presupuesto`, `sigma_nivel`, `regla_precio`,
+`despacho_vendedores` y `mu_cuantal` (D71). `merito` se acepta como alias de
+`costo`, con aviso.
 
 ---
 
@@ -192,7 +200,11 @@ ok = all(ingreso[j] >= piso_j[j] * r.s_despachado[j] - 1e-9 * max(1, piso_j[j])
 
 ## 8. Determinismo y tolerancias
 
-- El resultado **no depende de la plataforma**: no hay integrador.
+- El resultado **no depende de la plataforma** en las horas no frágiles: no hay
+  integrador. En las horas cuantales (D71), la respuesta usa `exp` y `log`, que
+  dependen de la CPU: el reparto de esas horas y el `apartamiento`, que se
+  publica en todas, pueden diferir en el último bit entre máquinas. Para
+  comparar entre máquinas, en esos campos se usa tolerancia y no igualdad.
 - Identidad de energía: 1e-9 relativa al volumen de la hora.
 - Precios: 1e-7 (COP/kWh) separan dos precios distintos.
 - Conservación del ingreso en la liquidación: 1e-9 relativa.
@@ -201,18 +213,31 @@ ok = all(ingreso[j] >= piso_j[j] * r.s_despachado[j] - 1e-9 * max(1, piso_j[j])
 
 ---
 
-## 9. Lo que todavía puede mover esta interfaz antes del 26 de septiembre
+## 9. Lo que cambió o puede cambiar antes del 26 de septiembre
 
-- **M-B**, la medición que decide si la dinámica despacha por la alternativa del
-  vendedor o por su costo nivelado. Si dijera lo segundo, cambiaría el valor por
-  defecto de `despacho_vendedores` a `"costo"`, **no la firma**. Con `"costo"`
-  el núcleo **no necesita ningún insumo nuevo**: usa el `b` que ya recibe (el de
-  `get_b_for_real_data`), que entonces decide el orden de despacho: Cesmag, con
-  225,00, antes que los otros cuatro, con 241,07.
-- **Las horas frágiles**, en las que el precio común queda muy cerca del techo
-  de un comprador que no recibe energía. Si pasan del 2 % de la energía, en
-  ellas el reposo usaría la respuesta cuantal, también en forma cerrada.
-  Cambiaría el resultado de esas horas, no la interfaz.
+- **`despacho_vendedores` NO cambia** (decisión del 2026-09-19). La medición M-B
+  no pudo decidir D64 porque los regímenes que discriminan son rígidos y la
+  dinámica no llega al reposo en un tiempo de cómputo razonable. D64 queda como
+  regla declarada, sostenida por el costo de oportunidad del vendedor. Si algún
+  día pasara a `"costo"`, el núcleo no necesitaría ningún insumo nuevo: usa el
+  `b` que ya recibe.
+- **La rama cuantal (D71), adoptada.** En las horas frágiles, la forma cerrada
+  no es un reposo estable de la dinámica, y el núcleo publica el reposo del
+  juego regularizado con μ = 1, también en forma cerrada (una bisección por
+  hora, sin integrar):
+  - **Cuándo pasa:** el precio común queda muy cerca del techo de un comprador
+    que no recibe energía. En los datos ocurre cuando el interior (Cesmag)
+    queda a menos de ~7-8 (COP/kWh) sobre el techo de ASC, casi siempre en
+    abril de 2025.
+  - **Cuántas horas:** 216 de 15 363 horas con mercado en los 13 casos de la
+    tesis (0,40 % de la energía; cambia de manos el 0,034 %).
+  - **Cómo se reconocen:** por `regimen == "cuantal"`. `regimen_cerrado` dice
+    qué habría dado la forma cerrada, y `apartamiento`, cuánto se aparta.
+  - **La llamada no cambia:** `mu_cuantal=1.0` es el defecto. **Las horas no
+    frágiles dan lo mismo al bit.** Con `mu_cuantal=0.0` todo es igual que en
+    05ed9c3.
+  - **Límite declarado:** el reparto de esas horas depende de μ, y μ = 1 es una
+    elección de modelado (D49), no una medida.
 - **Los arreglos de precios (commit P1)**, en las dos funciones que importa el
   módulo. **Los valores que ve hoy no cambian**, comprobado al bit contra
   05ed9c3:

@@ -55,6 +55,15 @@ y reproduce los promedios de la dinamica de
 esperados que traia el encargo para esas dos horas salian de un segundo lazo
 del prototipo y se retiraron (decision del controlador tras la revision).
 
+LA RAMA CUANTAL (D71, tarea Q, 2026-09-19). En las horas fragiles el nucleo
+publica el reposo con mu = 1 (regimen «cuantal»); de los literales, solo la
+hora 12 con el presupuesto sigma. Las aserciones de antes de la hora 12 se
+conservan sin cambiar un caracter con `mu_cuantal=0.0`, y las nuevas son los
+esperados de la sec. 6 de `.superpowers/sdd/2026-09-16-reposo/
+diseno-rama-cuantal.md`. `test_identidades` y las horas al azar comprueban que
+en toda hora no fragil los campos de antes son identicos al bit con la rama
+encendida y apagada, y las identidades de la sec. 4 en las fragiles.
+
 Grupos:
   - la huella de los literales;
   - las horas reales de E0 y la evidencia de la dinamica;
@@ -73,6 +82,7 @@ Grupos:
 """
 from __future__ import annotations
 
+import dataclasses
 import hashlib
 import sys
 from pathlib import Path
@@ -83,10 +93,12 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
+import core.reposo_mercado as RM  # noqa: E402
 from core.reposo_mercado import (  # noqa: E402
-    DESPACHOS_VENDEDORES, REGIMENES, DespachoHora, ReposoHora, captura,
-    cotas_optimalidad, despacho_competitivo, ingreso_por_vendedor,
-    presupuesto_precios, resuelve_reposo)
+    DESPACHOS_VENDEDORES, MU_CUANTAL, REGIMENES, TOL_FRAGIL_REL,
+    DespachoHora, ReposoHora, captura, cotas_optimalidad,
+    despacho_competitivo, ingreso_por_vendedor, presupuesto_precios,
+    resuelve_reposo)
 
 TOL_P = 0.01      # precios (COP/kWh)
 TOL_Q = 1e-3      # energias (kWh)
@@ -390,12 +402,76 @@ def test_877_la_suma_no_cabe_precios_de_la_regla_del_paso_5():
 
 
 def test_12_dos_vendedores_mariana_y_ucc_excluidos():
-    r = _resuelve(12)
+    # D71: la forma cerrada de la hora 12, con la rama cuantal apagada. Las
+    # aserciones de antes de D71, sin cambiar un caracter.
+    r = _resuelve(12, mu_cuantal=0.0)
     assert r.regimen == "excluidos" and r.excluidos == (0, 1)
     assert np.all(r.q[:2] == 0.0) and abs(r.q[2] - 6.732) <= TOL_Q
     assert abs(r.pi_reposo[2] - 735.89) <= TOL_P
     assert abs(r.parte_vendedor - 0.406) <= TOL_PARTE
     assert _cerca(r.s_despachado, _entradas(12)[0], 1e-12)
+    assert r.regimen_cerrado == "excluidos" and r.apartamiento == 0.0
+    assert r.mu_cuantal == 0.0
+
+
+def test_12_es_fragil_y_el_nucleo_publica_el_reposo_cuantal():
+    """D71 (sec. 6.1 del diseno de la rama cuantal). La hora 12 de E0 es la
+    fragil de los literales: Cesmag, interior, queda a 1,59 (COP/kWh) sobre el
+    techo de Mariana y UCC, que en la forma cerrada no reciben nada. Con
+    mu = 1 el nucleo publica el reposo cuantal: los mismos precios, S, ell y
+    despacho, y el reparto por la respuesta cuantal."""
+    s, d, b, techo, piso_j = _entradas(12)
+    r = _resuelve(12)
+    cerrado = _resuelve(12, mu_cuantal=0.0)
+    assert r.regimen == "cuantal" and r.regimen_cerrado == "excluidos"
+    assert r.excluidos == () and r.n_soluciones == 1 and r.mu_cuantal == 1.0
+    assert r.apartamiento == pytest.approx(0.289056, abs=1e-4)
+    assert _cerca(r.q, [0.97295922, 0.97295922, 4.78605365], 1e-6)
+    assert _cerca(r.P, [[0.72728070, 0.72728070, 3.57754404],
+                        [0.24567852, 0.24567852, 1.20850961]], 1e-6)
+    # Los precios, S, ell y lo despachado, AL BIT los de la forma cerrada.
+    assert np.array_equal(r.pi_reposo, cerrado.pi_reposo)
+    assert _cerca(r.pi_reposo, [734.30078125, 734.30078125, 735.8939006],
+                  1e-6)
+    assert r.ell == cerrado.ell and r.S == cerrado.S
+    assert r.p_u == pytest.approx(735.893901, abs=1e-6)
+    assert np.array_equal(r.s_despachado, s)
+    assert abs(float(r.q.sum()) - r.E) <= 1e-12 * r.E
+    # El dinero: el ingreso casi no cambia; el excedente y la captura bajan y
+    # la parte del vendedor sube.
+    assert r.ingreso_vendedores.sum() == pytest.approx(4950.917, abs=1e-3)
+    assert r.excedente == pytest.approx(548.678, abs=1e-3)
+    assert r.parte_vendedor == pytest.approx(0.487739, abs=1e-6)
+    assert r.renta_inframarginal == 0.0
+    assert r.parte_juego == pytest.approx(267.611, abs=1e-3)
+    medio = r.ingreso_vendedores / r.s_despachado
+    assert medio == pytest.approx([735.4334, 735.4334], abs=1e-4)
+    assert medio[0] == pytest.approx(medio[1], rel=1e-15)
+    assert np.all(medio >= 695.68)
+    optimo, peor = cotas_optimalidad(s, d, techo, piso_j, r.E)
+    assert optimo == pytest.approx(666.054, abs=1e-3)
+    assert peor == pytest.approx(259.987, abs=1e-3)
+    assert captura(r.excedente, optimo) == pytest.approx(0.823774, abs=1e-6)
+    # La condicion del reposo: pi_i - ln q_i, la misma para los tres.
+    v = r.pi_reposo - np.log(r.q)
+    assert float(v.max() - v.min()) <= 1e-9
+
+
+@pytest.mark.parametrize("mu, parte", [(0.25, 0.0034), (0.5, 0.0763),
+                                       (1.0, 0.2891), (2.0, 0.4742),
+                                       (4.0, 0.5732)])
+def test_12_el_reparto_cuantal_depende_de_mu(mu, parte):
+    """D71, sec. 8.1 del diseno: la parte de E que sale del comprador interior
+    en la hora 12 depende de mu, que no tiene ancla empirica. Con mu -> 0 se
+    recupera la forma cerrada (con 0,1 ya no es fragil)."""
+    r = _resuelve(12, mu_cuantal=mu)
+    assert r.regimen == "cuantal" and r.mu_cuantal == mu
+    assert r.apartamiento == pytest.approx(parte, abs=1e-4)
+    # En la forma cerrada Cesmag recibe todo E: lo que sale de el es el
+    # apartamiento.
+    assert (r.E - r.q[2]) / r.E == pytest.approx(r.apartamiento, rel=1e-9)
+    casi = _resuelve(12, mu_cuantal=0.1)
+    assert casi.regimen == "excluidos" and casi.apartamiento < 1e-6
 
 
 def test_58_un_vendedor_dos_compradores_parte_un_medio_exacta():
@@ -1147,9 +1223,18 @@ def test_teorema_de_cobertura_en_horas_al_azar(despacho):
     y techos al azar, ningun vendedor despachado cobra de media bajo su piso,
     la prima se descompone en renta y parte del juego, la parte del vendedor no
     es negativa y el piso del juego es el mayor piso de los que despachan. Con
-    "costo" el lazo puede oscilar y lanzar en voz alta (se cuenta aparte)."""
+    "costo" el lazo puede oscilar y lanzar en voz alta (se cuenta aparte).
+
+    D71 (revision de la tarea Q, I-1). La mitad de los b se sortea en [220,
+    230] (COP/kWh), a menos de los 7 que hacen fragil una hora con mu = 1:
+    con los b de antes, a 16 o mas, «costo» nunca tenia una hora fragil del
+    lado vendedor y la prueba no podia ver que la rama la tumbaba con un D63.
+    Con «costo» la rama lanza el ValueError propio de D71 cuando despacharia
+    a un vendedor sobre el piso del juego, y la forma cerrada resuelve esa
+    hora (se cuenta aparte)."""
     rng = np.random.default_rng(20260917)
-    con_mercado = oscilan = varios_pisos = 0
+    con_mercado = oscilan = varios_pisos = sin_rama = 0
+    fragiles = {"compradores": 0, "vendedores": 0}
     for _ in range(2000):
         J, I = int(rng.integers(1, 5)), int(rng.integers(1, 5))
         s = rng.uniform(0.0, 10.0, J) * (rng.random(J) > 0.15)
@@ -1157,16 +1242,42 @@ def test_teorema_de_cobertura_en_horas_al_azar(despacho):
         techo = rng.uniform(600.0, 1250.0, I)
         piso_j = rng.choice([150.0, 330.0, 415.0, 616.46, 677.28, 693.0,
                              rng.uniform(100.0, 1200.0)], J)
-        b = rng.choice([200.0, 225.0, 241.07], J)
+        b = np.where(rng.random(J) < 0.5,
+                     rng.choice([200.0, 225.0, 241.07], J),
+                     rng.uniform(220.0, 230.0, J))
         kw = dict(despacho_vendedores=despacho,
                   regla_precio=str(rng.choice(["uniforme", "puja"])),
                   sigma=rng.choice([None, 0.0, 0.5, 1.0]))
         try:
             r = resuelve_reposo(s, d, b, techo, piso_j, **kw)
         except ValueError as e:
-            assert despacho == "costo" and "oscila" in str(e), (despacho, e)
+            assert despacho == "costo", (despacho, e)
+            if "D71 con despacho 'costo'" in str(e):
+                assert "mu_cuantal=0.0" in str(e)
+                cerrada = resuelve_reposo(s, d, b, techo, piso_j, **kw,
+                                          mu_cuantal=0.0)
+                assert cerrada.regimen in ("compradores_cortos",
+                                           "un_comprador")
+                sin_rama += 1
+                continue
+            assert "oscila" in str(e), (despacho, e)
+            with pytest.raises(ValueError, match="oscila"):
+                resuelve_reposo(s, d, b, techo, piso_j, **kw, mu_cuantal=0.0)
             oscilan += 1
             continue
+        # D71: la forma cerrada de la misma hora. En las horas no fragiles,
+        # todo al bit; en las fragiles, las identidades de la sec. 4.
+        r0 = resuelve_reposo(s, d, b, techo, piso_j, **kw, mu_cuantal=0.0)
+        if r.regimen == "cuantal":
+            _identidades_cuantales(r, r0, s, d, techo, piso_j, b=b)
+            lado = ("compradores" if np.array_equal(r.s_despachado,
+                                                    r0.s_despachado)
+                    else "vendedores")
+            fragiles[lado] += 1
+        else:
+            _identicos_al_bit(r, r0)
+            assert r.regimen_cerrado == r.regimen
+            assert r.apartamiento <= TOL_FRAGIL_REL
         if r.regimen in ("sin_mercado", "sin_ganancia"):
             assert r.renta_inframarginal == r.parte_juego == 0.0
             continue
@@ -1175,18 +1286,77 @@ def test_teorema_de_cobertura_en_horas_al_azar(despacho):
         varios_pisos += len(set(piso_j[desp])) > 1
         medio = r.ingreso_vendedores[desp] / r.s_despachado[desp]
         assert np.all(medio >= piso_j[desp] * (1.0 - 1e-9)), (s, d, piso_j)
-        assert r.piso == float(piso_j[desp].max())
+        if r.regimen == "cuantal" and despacho == "costo":
+            # Con «costo» el despacho cuantal puede dejar en polvo al
+            # vendedor que fijaba el piso en la forma cerrada: el piso del
+            # juego queda sobre los despachados, que es la desigualdad de D63.
+            assert r.piso >= float(piso_j[desp].max())
+        else:
+            assert r.piso == float(piso_j[desp].max())
         prima = float(r.ingreso_vendedores.sum()
                       - np.dot(piso_j, r.s_despachado))
         assert abs(r.renta_inframarginal + r.parte_juego - prima) <= \
             1e-9 * max(1.0, float(r.ingreso_vendedores.sum()))
         assert r.renta_inframarginal >= -1e-9 and r.parte_juego >= -1e-6
         assert r.parte_vendedor >= -1e-12
-        opt, _ = cotas_optimalidad(s, d, techo, piso_j, r.E)
+        opt, peor = cotas_optimalidad(s, d, techo, piso_j, r.E)
         assert r.excedente <= opt + 1e-6
+        # D71: la cota del peor, relativa.
+        assert r.excedente >= peor - 1e-9 * max(1.0, abs(peor))
     assert con_mercado > 1000 and varios_pisos > 300
     if despacho != "costo":
-        assert oscilan == 0
+        assert oscilan == 0 and sin_rama == 0
+    # D71: con techos al azar aparecen horas fragiles del lado comprador. Del
+    # lado vendedor: con «llenado» ninguna, porque la respuesta cuantal es el
+    # llenado mismo; con «costo», con los b cercanos, unas que resuelven y
+    # otras que la rama rechaza con su propio ValueError; con «piso», las que
+    # den los pisos del sorteo, casi nunca a menos de 7 (COP/kWh) entre si
+    # (ese lado lo cubre `test_la_rama_cuantal_del_lado_vendedor_en_horas_al_
+    # azar`).
+    assert fragiles["compradores"] > 0, fragiles
+    if despacho == "llenado":
+        assert fragiles["vendedores"] == 0, fragiles
+    if despacho == "costo":
+        assert fragiles["vendedores"] > 0 and sin_rama > 0, (fragiles,
+                                                             sin_rama)
+
+
+def test_la_rama_cuantal_del_lado_vendedor_en_horas_al_azar():
+    """D71: compradores cortos con los pisos de los vendedores a pocos
+    (COP/kWh) entre si, al azar. Las fragiles del lado vendedor cumplen las
+    identidades de la sec. 4 (cobertura, piso marginal, D69, la condicion
+    del reposo con la clave del piso) y las demas son la forma cerrada al
+    bit."""
+    rng = np.random.default_rng(20260919)
+    fragiles = otras = 0
+    for _ in range(1500):
+        J, I = int(rng.integers(2, 5)), int(rng.integers(1, 4))
+        s = rng.uniform(1.0, 8.0, J)
+        d = rng.uniform(0.2, 1.0, I) * s.sum() / I * 0.8
+        piso_j = 690.0 + rng.uniform(0.0, 12.0, J)
+        techo = rng.uniform(720.0, 800.0, I)
+        b = np.full(J, 241.07)
+        r = resuelve_reposo(s, d, b, techo, piso_j)
+        r0 = resuelve_reposo(s, d, b, techo, piso_j, mu_cuantal=0.0)
+        if r.regimen != "cuantal":
+            _identicos_al_bit(r, r0)
+            otras += 1
+            continue
+        fragiles += 1
+        _identidades_cuantales(r, r0, s, d, techo, piso_j)
+        assert np.array_equal(r.q, r0.q)
+        assert r.regimen_cerrado in ("compradores_cortos", "un_comprador")
+        desp = r.s_despachado > 1e-9 * r.s_despachado.sum()
+        medio = r.ingreso_vendedores[desp] / r.s_despachado[desp]
+        assert np.all(medio >= piso_j[desp] * (1.0 - 1e-9))
+        assert r.piso >= float(piso_j[desp].max()) - 1e-9
+        prima = float(r.ingreso_vendedores.sum()
+                      - np.dot(piso_j, r.s_despachado))
+        assert abs(r.renta_inframarginal + r.parte_juego - prima) <= \
+            1e-9 * max(1.0, float(r.ingreso_vendedores.sum()))
+        opt, peor = cotas_optimalidad(s, d, techo, piso_j, r.E)
+        assert peor - 1e-9 * max(1.0, abs(peor)) <= r.excedente <= opt + 1e-9
+    assert fragiles > 100 and otras > 100, (fragiles, otras)
 
 
 # ─── identidades ───────────────────────────────────────────────────────────
@@ -1215,6 +1385,56 @@ def _casos():
         yield f"sintetico{n}", tuple(np.asarray(c[x], float) for x in CAMPOS)
 
 
+# D71: los campos de antes de la rama cuantal, que en las horas no fragiles
+# son identicos al bit con la rama encendida y apagada.
+CAMPOS_ANTES_DE_D71 = tuple(
+    f.name for f in dataclasses.fields(ReposoHora)
+    if f.name not in ("regimen_cerrado", "apartamiento", "mu_cuantal"))
+
+
+def _identicos_al_bit(a, b, nombre=""):
+    for campo in CAMPOS_ANTES_DE_D71:
+        x, y = getattr(a, campo), getattr(b, campo)
+        if isinstance(x, np.ndarray):
+            assert isinstance(y, np.ndarray) and x.dtype == y.dtype, \
+                (nombre, campo)
+            assert np.array_equal(x, y), (nombre, campo)
+        else:
+            assert type(x) is type(y) and x == y, (nombre, campo)
+
+
+def _identidades_cuantales(r, cerrado, s, d, techo, piso_j, nombre="",
+                           b=None):
+    """D71, sec. 4 del diseno: lo que cumple una hora «cuantal». La condicion
+    del reposo del lado vendedor usa la clave del despacho: el piso con
+    "piso", b_j con "costo" (si se da `b`) y una comun con "llenado".
+    `cerrado` es la misma hora con `mu_cuantal=0.0`."""
+    assert r.regimen == "cuantal" and r.regimen_cerrado == cerrado.regimen
+    assert r.apartamiento > TOL_FRAGIL_REL and r.mu_cuantal > 0.0
+    for campo in ("piso", "S", "E", "excluidos_bajo_piso",
+                  "vendedores_excluidos", "vendedores_no_despachados",
+                  "orden_merito"):
+        assert getattr(r, campo) == getattr(cerrado, campo), (nombre, campo)
+    assert abs(float(r.q.sum()) - r.E) <= 1e-12 * max(1.0, r.E), nombre
+    assert abs(float(r.s_despachado.sum()) - r.E) <= 1e-12 * max(1.0, r.E)
+    mu = r.mu_cuantal
+    juego = (d > 0) & (techo >= r.piso)
+    libres = juego & (r.q < d * (1 - 1e-9))
+    if libres.sum() > 1:
+        v = r.pi_reposo[libres] - mu * np.log(r.q[libres])
+        assert float(v.max() - v.min()) <= 1e-9 * max(
+            1.0, float(np.abs(r.pi_reposo).max())), nombre
+    fuera = list(r.vendedores_excluidos) + list(r.vendedores_no_despachados)
+    pueden = (s > 0) & ~np.isin(np.arange(s.size), fuera)
+    libres_v = pueden & (r.s_despachado < s * (1 - 1e-9))
+    clave = {"piso": piso_j, "costo": b,
+             "llenado": np.zeros(s.size)}[r.despacho_vendedores]
+    if libres_v.sum() > 1 and clave is not None:
+        w = -clave[libres_v] - mu * np.log(r.s_despachado[libres_v])
+        assert float(w.max() - w.min()) <= 1e-9 * max(
+            1.0, float(np.abs(clave).max())), nombre
+
+
 @pytest.mark.parametrize("modo", ["sigma", "c136"])
 @pytest.mark.parametrize("regla", ["uniforme", "puja"])
 @pytest.mark.parametrize("despacho", DESPACHOS_VENDEDORES)
@@ -1222,6 +1442,30 @@ def test_identidades(modo, regla, despacho):
     for nombre, (s, d, b, techo, piso_j) in _casos():
         r = resuelve_reposo(s, d, b, techo, piso_j, modo_presupuesto=modo,
                             regla_precio=regla, despacho_vendedores=despacho)
+        # D71: la forma cerrada, con la rama apagada. De las 14 literales y
+        # los sinteticos, solo la hora 12 con el presupuesto sigma es fragil;
+        # en todas las demas, todo al bit.
+        r0 = resuelve_reposo(s, d, b, techo, piso_j, modo_presupuesto=modo,
+                             regla_precio=regla, despacho_vendedores=despacho,
+                             mu_cuantal=0.0)
+        assert r0.mu_cuantal == 0.0 and r0.apartamiento == 0.0, nombre
+        assert r0.regimen_cerrado == r0.regimen, nombre
+        fragil = nombre == "hora12" and modo == "sigma"
+        assert (r.regimen == "cuantal") is fragil, nombre
+        if fragil:
+            _identidades_cuantales(r, r0, s, d, techo, piso_j, nombre)
+        else:
+            _identicos_al_bit(r, r0, nombre)
+            assert r.regimen_cerrado == r.regimen, nombre
+            # Con las opciones de produccion el apartamiento de una hora no
+            # fragil es ruido de la biseccion (medido: hasta 3,9e-12). Con
+            # "costo" la clave es b_j y dos b a 16 (COP/kWh) dejan 1e-7; con
+            # "c136" la 3804 queda a unos 13 (COP/kWh) y deja 1,8e-6: son
+            # apartamientos de verdad, bajo el umbral.
+            if modo == "sigma" and despacho != "costo":
+                assert 0.0 <= r.apartamiento <= 3e-11, (nombre,
+                                                        r.apartamiento)
+            assert 0.0 <= r.apartamiento <= TOL_FRAGIL_REL, nombre
         assert isinstance(r, ReposoHora) and r.regimen in REGIMENES, nombre
         for campo in ("P", "q", "s_despachado", "pi_reposo", "p_liquidado",
                       "ingreso_vendedores"):
@@ -1266,8 +1510,263 @@ def test_identidades(modo, regla, despacho):
         assert abs(ingreso - reposo) <= 1e-9 * abs(reposo), nombre
         assert abs(r.ingreso_vendedores.sum() - ingreso) <= 1e-9 * abs(reposo)
         opt, peor = cotas_optimalidad(s, d, techo, piso_j, r.E)
-        assert opt + 1e-9 >= r.excedente >= peor - 1e-9, nombre
+        # D71: la cota del peor, relativa (sec. 4 del diseno): con el
+        # despacho cuantal del lado vendedor el excedente puede ser el peor a
+        # 1e-11 relativo.
+        assert opt + 1e-9 >= r.excedente, nombre
+        assert r.excedente >= peor - 1e-9 * max(1.0, abs(peor)), nombre
         assert 0.0 <= captura(r.excedente, opt) <= 1.0 + 1e-12, nombre
+
+
+# ─── la rama cuantal (D71, tarea Q) ────────────────────────────────────────
+
+
+@pytest.mark.parametrize("mu", [-1.0, float("nan"), float("inf"), True,
+                                "1.0", None, 1e-7, 1e-10, 1e-12])
+def test_mu_cuantal_invalido_lanza(mu):
+    with pytest.raises(ValueError, match="mu_cuantal"):
+        resuelve_reposo(**VALIDA, mu_cuantal=mu)
+
+
+def test_mu_cuantal_tiene_un_piso_salvo_el_cero():
+    """Revision de la tarea Q, M-1: con mu por debajo de 1e-6 la biseccion no
+    resuelve la exponencial y la respuesta fallaba en voz alta hasta en horas
+    no frageles (la 2120 con 1e-10). Se rechaza al validar, con la pista de
+    usar 0; con 1e-6 las literales resuelven y la hora 12 ya no es fragil."""
+    assert RM.MU_CUANTAL_MIN == 1e-6
+    with pytest.raises(ValueError, match="use 0 para apagar la rama"):
+        _resuelve(2120, mu_cuantal=1e-10)
+    for k in HORAS:
+        r = _resuelve(k, mu_cuantal=1e-6)
+        assert r.regimen != "cuantal" and r.mu_cuantal == 1e-6, k
+    assert _resuelve(2120, mu_cuantal=0.0).regimen == "excluidos"
+
+
+def test_con_costo_la_rama_no_despacha_sobre_el_piso_del_juego():
+    """Revision de la tarea Q, I-1. Con «costo» pueden vender todos los que
+    tienen ganancia posible, pero el piso del juego es el mayor de los que
+    despacha la forma cerrada por b_j. Aqui la cerrada despacha solo al de
+    b = 225 (piso 600), y la respuesta cuantal con la clave b_j (el otro esta
+    a 2 (COP/kWh)) le daria 0,596 (kWh) al de piso 695,68, sobre el piso del
+    juego: sin la guarda, D63 lanzaba con otro nombre. La rama no esta
+    definida para esa combinacion; la forma cerrada resuelve la hora."""
+    kw = dict(s=[5.5, 4.0], d=[2.0, 3.0], b=[225.0, 227.0],
+              techo=[734.30, 794.62], piso_j=[600.0, 695.68],
+              despacho_vendedores="costo")
+    with pytest.raises(ValueError, match="D71 con despacho 'costo'") as e:
+        resuelve_reposo(**kw)
+    assert "piso 695.680000" in str(e.value)
+    assert "sobre el piso del juego 600.000000" in str(e.value)
+    assert "mu_cuantal=0.0" in str(e.value) and "D63" not in str(e.value)
+    r = resuelve_reposo(**kw, mu_cuantal=0.0)
+    assert r.regimen == "compradores_cortos" and r.piso == 600.0
+    assert _cerca(r.s_despachado, [5.0, 0.0], 0.0)
+    # Con «piso» la misma hora no tiene ese problema: pueden vender solo los
+    # de piso <= p*.
+    r = resuelve_reposo(**{**kw, "despacho_vendedores": "piso"})
+    assert r.regimen != "cuantal" or r.piso >= 695.68
+
+
+def test_mu_cuantal_admite_enteros_y_numpy():
+    base = _resuelve(12)
+    for mu in (1, np.float64(1.0), np.int64(1)):
+        r = _resuelve(12, mu_cuantal=mu)
+        assert r.mu_cuantal == 1.0 and np.array_equal(r.P, base.P)
+    assert MU_CUANTAL == 1.0 and TOL_FRAGIL_REL == 1e-3
+
+
+def test_la_respuesta_cuantal_con_precios_iguales_es_el_llenado():
+    q = RM._respuesta_cuantal(4.0, np.array([1.0, 5.0]),
+                              np.array([700.0, 700.0]), 1.0)
+    assert np.allclose(q, [1.0, 3.0], rtol=0, atol=1e-12)
+    # Tres iguales sin tope: exactamente lo mismo, sin desempate por indice.
+    q = RM._respuesta_cuantal(3.0, np.array([5.0, 5.0, 5.0]),
+                              np.full(3, 735.0), 1.0)
+    assert q[0] == q[1] == q[2] and abs(float(q.sum()) - 3.0) <= 4e-16
+    # Si la energia cubre las capacidades, las capacidades, sin iterar.
+    cap = np.array([1.0, 2.0])
+    assert np.array_equal(RM._respuesta_cuantal(3.0, cap,
+                                                np.array([0.0, 9.0]), 1.0),
+                          cap)
+    assert RM._respuesta_cuantal(3.0, np.array([]), np.array([]),
+                                 1.0).size == 0
+
+
+def test_la_respuesta_cuantal_reparte_el_resto_y_suma_e_a_un_ulp():
+    """Sin el reparto del resto la suma queda a 1e-11 relativo de E, y el
+    residuo de la dinamica en el punto cuantal seria 6e-5 en vez de 1e-10
+    (sec. 3.1 del diseno)."""
+    E, cap = 6.731972098350525, np.array([3.78, 38.8, 8.27])
+    z = np.array([734.30078125, 734.30078125, 735.8939005534])
+    q = RM._respuesta_cuantal(E, cap, z, 1.0)
+    assert abs(float(q.sum()) - E) <= 2 * np.spacing(E)
+    assert np.all(q <= cap) and np.all(q > 0)
+    # Con pesos exp(dz/mu): el de precio mayor recibe e^1,59 veces mas.
+    assert q[2] / q[0] == pytest.approx(np.exp(z[2] - z[0]), rel=1e-12)
+    # Con topes: el topado recibe su capacidad y el resto se reparte.
+    q = RM._respuesta_cuantal(10.0, np.array([1.0, 20.0, 20.0]),
+                              np.array([800.0, 700.0, 700.0]), 1.0)
+    assert q[0] == 1.0 and q[1] == q[2] == pytest.approx(4.5, abs=1e-12)
+
+
+def test_la_respuesta_cuantal_falla_en_voz_alta(monkeypatch):
+    # Una exponencial que no sale finita no pasa en silencio.
+    with pytest.raises(ValueError, match="D71"):
+        RM._respuesta_cuantal(1.0, np.array([2.0, 2.0]),
+                              np.array([700.0, np.nan]), 1.0)
+
+
+def test_estados_reposo_con_el_servicio_de_siempre_es_el_de_antes():
+    # `sirve` por defecto es `_sirve`: la enumeracion de la forma cerrada.
+    s, d, b, techo, piso_j = _entradas(12)
+    r = _resuelve(12, mu_cuantal=0.0)
+    uno = RM._estados_reposo(r.E, d, techo, r.piso, r.S, q_fijo=None)
+    dos = RM._estados_reposo(r.E, d, techo, r.piso, r.S, q_fijo=None,
+                             sirve=RM._sirve)
+    assert len(uno) == len(dos) == 1
+    assert np.array_equal(uno[0]["q"], dos[0]["q"])
+    assert np.array_equal(uno[0]["z"], dos[0]["z"])
+
+
+# Los sinteticos del diseno (sec. 6.3), con la tarifa de abril de 2025: techo
+# de ASC 734,30, de Cesmag 794,62, piso de permuta 695,68 (techo - Cv).
+TA, TC, PA = 734.30, 794.62, 734.30 - 38.62
+
+
+@pytest.mark.parametrize("caso, regimen, apartamiento, q_cuantal", [
+    # k = 3 de ASC en su techo, Cesmag interior a 6,62 (COP/kWh).
+    (([5.0], [8.0, 9.0, 7.0, 6.0], [241.07], [TA, TA, TA, TC], [PA]),
+     "excluidos", 0.003984, [0.00664, 0.00664, 0.00664, 4.98008]),
+    # topados: Cesmag con 0,86·E, topado en la cerrada y no en la cuantal.
+    (([6.0], [8.0, 9.0, 5.16], [241.07], [TA, TA, TC], [PA]),
+     "topados", 0.149012, [0.86704, 0.86704, 4.26593]),
+])
+def test_los_sinteticos_fragiles_del_lado_comprador(caso, regimen,
+                                                    apartamiento, q_cuantal):
+    s, d, b, techo, piso_j = (np.asarray(x, float) for x in caso)
+    r = resuelve_reposo(s, d, b, techo, piso_j)
+    r0 = resuelve_reposo(s, d, b, techo, piso_j, mu_cuantal=0.0)
+    assert r.regimen == "cuantal" and r.regimen_cerrado == regimen
+    assert r.apartamiento == pytest.approx(apartamiento, abs=1e-6)
+    assert _cerca(r.q, q_cuantal, 1e-5)
+    assert np.array_equal(r.pi_reposo, r0.pi_reposo) and r.n_soluciones == 1
+    _identidades_cuantales(r, r0, s, d, techo, piso_j)
+    # Con Cesmag topada tambien en la cuantal (0,5·E), no es fragil.
+    if regimen == "topados":
+        r = resuelve_reposo(s, [8.0, 9.0, 3.0], b, techo, piso_j)
+        assert r.regimen == "topados" and r.apartamiento < 1e-10
+
+
+def test_el_sintetico_fragil_del_lado_vendedor():
+    """Compradores cortos con dos vendedores de pisos a 2 (COP/kWh): la forma
+    cerrada despacha primero el de piso menor; la cuantal, s~_j proporcional a
+    exp(-piso_j/mu). Los compradores reciben lo mismo."""
+    s, d = np.array([4.5, 4.0]), np.array([2.0, 3.0])
+    b, techo = np.array([241.07, 241.07]), np.array([TA, TC])
+    piso_j = np.array([PA - 2.0, PA])
+    r = resuelve_reposo(s, d, b, techo, piso_j)
+    r0 = resuelve_reposo(s, d, b, techo, piso_j, mu_cuantal=0.0)
+    assert r0.regimen == "compradores_cortos"
+    assert _cerca(r0.s_despachado, [4.5, 0.5], 1e-12)
+    assert r.regimen == "cuantal" and r.regimen_cerrado == "compradores_cortos"
+    assert r.apartamiento == pytest.approx(0.019203, abs=1e-6)
+    assert _cerca(r.s_despachado, [4.40399, 0.59601], 1e-5)
+    assert np.array_equal(r.q, r0.q) and np.array_equal(r.pi_reposo,
+                                                        r0.pi_reposo)
+    assert r.s_despachado[0] / r.s_despachado[1] == pytest.approx(
+        np.exp(2.0), rel=1e-12)
+    _identidades_cuantales(r, r0, s, d, techo, piso_j)
+    # Los dos cobran lo mismo (rango uno), sobre su piso; el de piso bajo,
+    # con renta.
+    medio = r.ingreso_vendedores / r.s_despachado
+    assert medio[0] == pytest.approx(medio[1], rel=1e-12)
+    assert np.all(medio >= piso_j) and r.renta_inframarginal > 0.0
+
+
+def test_la_clave_del_lado_vendedor_es_la_del_despacho():
+    """La rama cuantal regulariza el despacho de cada opcion (D71): la forma
+    cerrada sigue siendo su limite mu -> 0. Con "llenado" la respuesta
+    cuantal es el llenado mismo y nunca es fragil; con "costo" la clave es
+    b_j, de modo que dos vendedores de b iguales y pisos a 2 (COP/kWh) no son
+    fragiles, y con b a 2 (COP/kWh) si."""
+    s, d = np.array([4.5, 4.0]), np.array([2.0, 3.0])
+    techo, piso_j = np.array([TA, TC]), np.array([PA - 2.0, PA])
+    igual_b = np.array([241.07, 241.07])
+    for despacho in ("llenado", "costo"):
+        r = resuelve_reposo(s, d, igual_b, techo, piso_j,
+                            despacho_vendedores=despacho)
+        r0 = resuelve_reposo(s, d, igual_b, techo, piso_j,
+                             despacho_vendedores=despacho, mu_cuantal=0.0)
+        assert r.regimen == "compradores_cortos" and r.apartamiento < 1e-12
+        _identicos_al_bit(r, r0, despacho)
+    # Por costo, b a 2 (COP/kWh), y los dos con el mismo piso: fragil.
+    r = resuelve_reposo(s, d, [239.07, 241.07], techo, [PA, PA],
+                        despacho_vendedores="costo")
+    assert r.regimen == "cuantal" and r.apartamiento == pytest.approx(
+        0.019203, abs=1e-6)
+    assert r.s_despachado[0] / r.s_despachado[1] == pytest.approx(
+        np.exp(2.0), rel=1e-12)
+
+
+def test_con_un_comprador_solo_el_lado_vendedor_puede_ser_fragil():
+    s, piso_j = np.array([4.5, 4.0]), np.array([PA - 2.0, PA])
+    r = resuelve_reposo(s, [5.0], [241.07, 241.07], [TC], piso_j)
+    assert r.regimen == "cuantal" and r.regimen_cerrado == "un_comprador"
+    assert r.q[0] == 5.0 and r.pi_reposo[0] == r.piso == PA
+    assert r.s_despachado.sum() == pytest.approx(5.0, abs=1e-12)
+    # Con vendedores cortos, un comprador recibe E en las dos formas.
+    r = resuelve_reposo([3.0], [5.0], [241.07], [TC], [PA])
+    assert r.regimen == "un_comprador" and r.apartamiento < 1e-12
+
+
+def test_sin_mercado_los_campos_de_la_rama_son_neutros():
+    for mu in (1.0, 0.0):
+        r = resuelve_reposo([0.0], [5.0], [241.0], [730.0], [690.0],
+                            mu_cuantal=mu)
+        assert r.regimen == r.regimen_cerrado == "sin_mercado"
+        assert r.apartamiento == 0.0 and r.mu_cuantal == mu
+        r = resuelve_reposo([2.0], [5.0], [241.0], [700.0], [710.0],
+                            mu_cuantal=mu)
+        assert r.regimen == r.regimen_cerrado == "sin_ganancia"
+
+
+def test_comprueba_falla_si_la_hora_cuantal_no_es_el_reposo(monkeypatch):
+    """Las identidades nuevas de `_comprueba` (D71): una respuesta cuantal
+    corrida (la condicion del reposo, pi - mu ln q, deja de ser la misma) o
+    una hora con el apartamiento sobre el umbral que no se publica «cuantal»
+    fallan en voz alta."""
+    original = RM._respuesta_cuantal
+
+    def torcida(E, cap, z, mu):
+        x = original(E, cap, z, mu)
+        if x.size == 3 and not np.array_equal(x, cap):
+            x = x * np.array([1.001, 0.999, 1.0])
+            x *= E / x.sum()
+        return x
+
+    monkeypatch.setattr(RM, "_respuesta_cuantal", torcida)
+    with pytest.raises(ValueError, match="pi - mu·ln q"):
+        _resuelve(12)
+    monkeypatch.undo()
+    import dataclasses as dc
+    r = _resuelve(12)
+    s, d, b, techo, piso_j = _entradas(12)
+    otra = dc.replace(r, regimen="excluidos")
+    with pytest.raises(ValueError, match="tendria que ser «cuantal»"):
+        RM._comprueba_cuantal(otra, s, d, np.arange(3), (0, 1), piso_j)
+    otra = dc.replace(r, apartamiento=5e-4)
+    with pytest.raises(ValueError, match="tendria que pasar"):
+        RM._comprueba_cuantal(otra, s, d, np.arange(3), (0, 1), piso_j)
+    otra = dc.replace(r, regimen_cerrado="cuantal")
+    with pytest.raises(ValueError, match="ser de mercado"):
+        RM._comprueba_cuantal(otra, s, d, np.arange(3), (0, 1), piso_j)
+    otra = dc.replace(r, q=r.q * 1.01)
+    with pytest.raises(ValueError, match="suma"):
+        RM._comprueba_cuantal(otra, s, d, np.arange(3), (0, 1), piso_j)
+    cerrado = _resuelve(12, mu_cuantal=0.0)
+    otra = dc.replace(cerrado, apartamiento=0.2)
+    with pytest.raises(ValueError, match="rama cuantal apagada"):
+        RM._comprueba_cuantal(otra, s, d, np.arange(3), (0, 1), piso_j)
 
 
 # ─── entradas invalidas y sin mercado ──────────────────────────────────────

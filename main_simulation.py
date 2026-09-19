@@ -189,9 +189,19 @@ def linea_inicio_reposo(solver) -> str:
         sigma = "base ((I-1)/I)"
     else:
         sigma = f"{float(solver.sigma_nivel):g}"
+    # D71: la rama cuantal de las horas fragiles, con su mu, o apagada.
+    mu = float(getattr(solver, "mu_cuantal", 0.0))
+    if mu > 0.0:
+        cuantal = (f"reparto cuantal en las horas fragiles, mu = {mu:g} "
+                   f"(COP/kWh), las que se apartan de la forma cerrada en "
+                   f"mas de 1e-3·E (D71)")
+    else:
+        cuantal = ("rama cuantal apagada (mu = 0): la forma cerrada en todas "
+                   "las horas (D71)")
     return (f"Mercado por reposo en forma cerrada: presupuesto "
             f"{solver.modo_presupuesto}, sigma {sigma}, liquidacion "
-            f"{solver.regla_precio}, despacho {solver.despacho_vendedores}")
+            f"{solver.regla_precio}, despacho {solver.despacho_vendedores}; "
+            f"{cuantal}")
 
 
 def linea_dinamica_regularizada(solver):
@@ -273,6 +283,11 @@ def columnas_reposo(r, nombres) -> dict:
         piso_marginal=float(getattr(r, "piso_marginal", 0.0)),
         renta_inframarginal=float(getattr(r, "renta_inframarginal", 0.0)),
         parte_juego=float(getattr(r, "parte_juego", 0.0)),
+        # D71: la rama cuantal de las horas fragiles, con los mismos valores
+        # neutros fuera del reposo.
+        regimen_cerrado=str(getattr(r, "regimen_cerrado", "") or ""),
+        apartamiento=float(getattr(r, "apartamiento", 0.0)),
+        mu_cuantal=float(getattr(r, "mu_cuantal", 0.0)),
         n_soluciones=int(getattr(r, "n_soluciones", 0)),
         excedente_optimo=float(getattr(r, "excedente_optimo", 0.0)),
         excedente_peor=float(getattr(r, "excedente_peor", 0.0)),
@@ -619,6 +634,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          # por defecto. Solo actuan con metodo="acoplado".
          costo_vendedor: str = "lcoe",
          piso_juego: str = "minimo",
+         # D71: la mu de la rama cuantal del reposo en las horas fragiles;
+         # 0.0 la apaga. Solo actua con metodo="reposo".
+         mu_cuantal: float = 1.0,
          almacen: str = None,
          procesos: int = None,
          plazo_hora: float = 15.0,
@@ -1061,6 +1079,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                           # acoplado; inertes en las otras vias.
                           costo_vendedor=costo_vendedor,
                           piso_juego=piso_juego,
+                          # D71: la rama cuantal del reposo; inerte en las
+                          # otras vias. `SolverParams` la valida.
+                          mu_cuantal=mu_cuantal,
                           buyer_competition=buyer_competition,   # CAL-49
                           # C-161: con almacen, cada hora conserva su
                           # trayectoria con multiplicadores en vez de tirarla.
@@ -2959,6 +2980,18 @@ if __name__ == "__main__":
                          "--metodo acoplado y --piso-juego marginal, donde "
                          "fija la regla con que corre la caminata del piso "
                          "(D68).")
+    # D71: la rama cuantal. None como centinela, para avisar solo si se pidio
+    # sin la via por reposo.
+    ap.add_argument("--mu-cuantal", dest="mu_cuantal", type=float,
+                    default=None, metavar="MU",
+                    help="D71: la temperatura (COP/kWh) del reparto cuantal "
+                         "de las horas fragiles, las que la respuesta cuantal "
+                         "aparta de la forma cerrada en mas de 1e-3·E; en "
+                         "ellas se publica el reposo del juego regularizado "
+                         "con esa mu (regimen «cuantal»). 1 (defecto) es la "
+                         "mu de D49; 0 apaga la rama y publica la forma "
+                         "cerrada en todas las horas. Solo con --metodo "
+                         "reposo.")
     ap.add_argument("--permitir-alternado", dest="permitir_alternado",
                     action="store_true",
                     help="CAL-48: permite el horizonte completo por la via "
@@ -3161,6 +3194,26 @@ if __name__ == "__main__":
               f"--metodo {args.metodo}{_falta}: actua con --metodo reposo, o "
               f"con --metodo acoplado y --piso-juego marginal, donde fija la "
               f"regla de la caminata del piso (D68)")
+    # D71: la mu de la rama cuantal. La misma regla de NaN e infinito de las
+    # palancas de abajo; el aviso sale solo si se pidio sin la via por reposo,
+    # que es la unica que la usa.
+    if args.mu_cuantal is not None and (not math.isfinite(args.mu_cuantal)
+                                        or args.mu_cuantal < 0):
+        ap.error("--mu-cuantal tiene que ser un numero finito y no negativo "
+                 "(COP/kWh); 0 apaga la rama cuantal")
+    # Revision de la tarea Q, M-1: por debajo de este piso la biseccion no
+    # resuelve la exponencial y la corrida acabaria con el codigo 3.
+    from core.reposo_mercado import MU_CUANTAL_MIN
+    if args.mu_cuantal is not None and 0 < args.mu_cuantal < MU_CUANTAL_MIN:
+        ap.error(f"--mu-cuantal entre 0 y {MU_CUANTAL_MIN:g} (COP/kWh) no se "
+                 f"resuelve: use 0 para apagar la rama cuantal (la forma "
+                 f"cerrada) o un valor de al menos {MU_CUANTAL_MIN:g}")
+    if args.mu_cuantal is not None and args.metodo != "reposo":
+        print(f"    [D71] AVISO: --mu-cuantal no tiene efecto sin --metodo "
+              f"reposo: la via {args.metodo} no pasa por el reposo en forma "
+              f"cerrada")
+    if args.mu_cuantal is None:
+        args.mu_cuantal = 1.0
     if args.modo_presupuesto is None:
         args.modo_presupuesto = "sigma"
     if args.regla_precio is None:
@@ -3351,6 +3404,8 @@ if __name__ == "__main__":
              # D68: las dos palancas del piso marginal del acoplado.
              costo_vendedor=args.costo_vendedor,
              piso_juego=args.piso_juego,
+             # D71: la rama cuantal del reposo.
+             mu_cuantal=args.mu_cuantal,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,
@@ -3386,6 +3441,8 @@ if __name__ == "__main__":
              # D68: las dos palancas del piso marginal del acoplado.
              costo_vendedor=args.costo_vendedor,
              piso_juego=args.piso_juego,
+             # D71: la rama cuantal del reposo.
+             mu_cuantal=args.mu_cuantal,
              almacen=args.almacen,
              procesos=_procesos_pedidos(args),
              plazo_hora=args.plazo_hora,

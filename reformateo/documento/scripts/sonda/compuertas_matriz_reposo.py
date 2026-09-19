@@ -47,6 +47,15 @@ Falla con codigo distinto de cero en cuanto una hora no cumple:
                renta_inframarginal + parte_juego de la tabla de horas es la
                prima de los vendedores de sus flujos, sum (precio -
                piso_vendedor)·kwh.
+  cuantal      D71: en toda hora con regimen, «cuantal» si y solo si el
+               apartamiento pasa de TOL_FRAGIL_REL (1e-3, con la holgura del
+               float32); una hora «cuantal» tiene un regimen cerrado de mercado
+               y mu_cuantal > 0; cualquier otra, el regimen cerrado igual a su
+               regimen. Informa, sin fallar, cuantas horas son «cuantal», cuantas
+               de ellas con n_soluciones distinto de 1 (sec. 8.3 del diseno,
+               esperado 0) y cuantas del lado de los vendedores (regimen
+               cerrado de compradores cortos o de un comprador; sec. 8.2: si
+               alguna, se mide M-D con el costo en el piso antes de publicar).
   p2p_c2       del caso entero, no de una hora (sintesis §6): el beneficio
                P2P y el de C2 de la tabla `escenarios` NO coinciden en todas
                las instituciones con energia P2P mayor que cero. Que coincidan
@@ -87,7 +96,7 @@ Uso, desde la raiz del repositorio:
 
 Codigos de salida: 0 en verde; 1 si alguna hora (o el caso, en p2p_c2) no
 cumple; 2 si no se puede comprobar (no hay almacen, no trae las columnas del
-reposo ni las de D63 y D69, ninguna hora resuelta trae regimen porque el
+reposo ni las de D63, D69 y D71, ninguna hora resuelta trae regimen porque el
 almacen es de otra via, o la tabla de escenarios no trae P2P y C2).
 """
 from __future__ import annotations
@@ -104,7 +113,7 @@ RAIZ = Path(__file__).resolve().parents[4]
 if str(RAIZ) not in sys.path:
     sys.path.insert(0, str(RAIZ))
 
-from core.reposo_mercado import REGIMENES  # noqa: E402
+from core.reposo_mercado import REGIMENES, TOL_FRAGIL_REL  # noqa: E402
 
 # Epsilon de float32: el almacen guarda todo en precision sencilla.
 EPS32 = float(np.finfo(np.float32).eps)
@@ -129,7 +138,7 @@ SIN_IDS = "(sin ids)"
 
 IDENTIDADES = ("volumen", "excedente", "ingreso", "precios", "vendedores",
                "captura", "finitud", "sin_mercado", "estado", "cero_retiros",
-               "prima_descompuesta", "p2p_c2")
+               "prima_descompuesta", "cuantal", "p2p_c2")
 # La «hora» con que se anota un fallo del caso entero (p2p_c2).
 DEL_CASO = -1
 
@@ -139,7 +148,9 @@ COLUMNAS = {
               "n_soluciones", "renta_inframarginal", "parte_juego",
               "excedente_optimo", "excedente_peor", "captura", "excluidos",
               "excluidos_bajo_piso", "vendedores_excluidos",
-              "vendedores_no_despachados"),
+              "vendedores_no_despachados",
+              # D71: la rama cuantal de las horas fragiles.
+              "regimen_cerrado", "apartamiento", "mu_cuantal"),
     "flujos": ("hora", "vendedor", "comprador", "kwh", "precio", "valor",
                "precio_reposo", "techo_comprador", "ahorro_comprador",
                "piso_vendedor", "prima_vendedor"),
@@ -149,7 +160,10 @@ COLUMNAS = {
 NUMERICAS_HORAS = ("presupuesto", "precio_comun", "precio_uniforme",
                    "piso_juego", "piso_marginal", "n_soluciones",
                    "renta_inframarginal", "parte_juego", "excedente_optimo",
-                   "excedente_peor", "captura")
+                   "excedente_peor", "captura", "apartamiento", "mu_cuantal")
+# D71: los regimenes cerrados de una hora «cuantal» del lado de los vendedores
+# (con compradores cortos, que es donde ese lado puede ser fragil).
+CERRADOS_LADO_VENDEDOR = ("compradores_cortos", "un_comprador")
 NUMERICAS_FLUJOS = ("kwh", "precio", "valor", "precio_reposo",
                     "techo_comprador", "ahorro_comprador", "piso_vendedor",
                     "prima_vendedor")
@@ -182,6 +196,10 @@ class Informe:
     # D69: la prima de los vendedores de las horas resueltas, descompuesta
     # (COP): (renta inframarginal, parte del juego, prima de los flujos).
     prima: tuple = (0.0, 0.0, 0.0)
+
+    # D71: (horas «cuantal», de ellas con n_soluciones != 1, de ellas del lado
+    # de los vendedores).
+    cuantal: tuple = (0, 0, 0)
 
     @property
     def verde(self) -> bool:
@@ -220,6 +238,11 @@ def _exige(tabla: pd.DataFrame, nombre: str) -> None:
             pista = (" La tabla de horas no trae el piso marginal ni la prima "
                      "descompuesta: el almacen es anterior a D63 y D69 (el "
                      "piso del juego era el minimo de los que despachan).")
+        elif nombre == "horas" and "regimen_cerrado" in faltan:
+            pista = (" La tabla de horas no trae la rama cuantal: el almacen "
+                     "es anterior a D71 (2026-09-19), de la forma cerrada en "
+                     "todas las horas. Para compararlo con uno posterior, "
+                     "compara_matriz_reposo.py --por-hora.")
         if nombre == "flujos" and "techo_comprador" in faltan:
             pista = (" El almacen escribe el techo y el piso de cada flujo "
                      "solo con --full o --day.")
@@ -703,6 +726,57 @@ def comprueba(horas: pd.DataFrame, flujos: pd.DataFrame,
     inf.prima = (float(chk["renta"].sum()), float(chk["parte_juego"].sum()),
                  float(chk["prima"].sum()))
 
+    # ── la rama cuantal (D71) ───────────────────────────────────────────
+    # El apartamiento se guarda en float32: la frontera de 1e-3 se juzga con
+    # dos epsilon de holgura, para no fallar por el redondeo del almacen.
+    cr = h.loc[h["regimen"] != "", ["regimen", "regimen_cerrado"]].copy()
+    cr["regimen_cerrado"] = cr["regimen_cerrado"].where(
+        cr["regimen_cerrado"].notna(), "").astype(str)
+    cr["apart"] = hn.loc[cr.index, "apartamiento"]
+    cr["mu"] = hn.loc[cr.index, "mu_cuantal"]
+    cr["n_sol"] = hn.loc[cr.index, "n_soluciones"]
+    es_c = cr["regimen"] == "cuantal"
+    alto = cr["apart"] > TOL_FRAGIL_REL * (1.0 + 2.0 * EPS32)
+    bajo = cr["apart"] <= TOL_FRAGIL_REL * (1.0 - 2.0 * EPS32)
+    de_mercado = set(REGIMENES) - {"cuantal"} - set(SIN_MERCADO)
+    for k in cr.index[es_c & bajo]:
+        _anota(inf, "cuantal", [k], [
+            f"hora «cuantal» con apartamiento {_cie(cr.loc[k, 'apart'])}·E, "
+            f"que no pasa de {TOL_FRAGIL_REL:g}"])
+    for k in cr.index[~es_c & alto]:
+        _anota(inf, "cuantal", [k], [
+            f"hora «{cr.loc[k, 'regimen']}» con apartamiento "
+            f"{_cie(cr.loc[k, 'apart'])}·E, sobre {TOL_FRAGIL_REL:g}: tendria "
+            f"que ser «cuantal»"])
+    for k in cr.index[es_c & ~cr["regimen_cerrado"].isin(de_mercado)]:
+        _anota(inf, "cuantal", [k], [
+            f"hora «cuantal» con regimen cerrado "
+            f"{cr.loc[k, 'regimen_cerrado']!r}, que no es de mercado"])
+    for k in cr.index[es_c & ~(cr["mu"] > 0.0)]:
+        _anota(inf, "cuantal", [k], [
+            f"hora «cuantal» con mu_cuantal {cr.loc[k, 'mu']}: con la rama "
+            f"apagada no hay horas cuantales"])
+    for k in cr.index[~es_c & (cr["regimen_cerrado"] != cr["regimen"])]:
+        _anota(inf, "cuantal", [k], [
+            f"hora «{cr.loc[k, 'regimen']}» con regimen cerrado "
+            f"{cr.loc[k, 'regimen_cerrado']!r}: fuera de «cuantal» son el "
+            f"mismo"])
+    otra_sol = es_c & (cr["n_sol"] != 1)
+    lado_v = es_c & cr["regimen_cerrado"].isin(CERRADOS_LADO_VENDEDOR)
+    n_c, n_sol, n_vend = int(es_c.sum()), int(otra_sol.sum()), \
+        int(lado_v.sum())
+    inf.cuantal = (n_c, n_sol, n_vend)
+    if n_sol:
+        inf.avisos.append(
+            f"{n_sol} de las {n_c} horas «cuantal» tienen n_soluciones "
+            f"distinto de 1 (D71, sec. 8.3: esperado 0): "
+            f"{[int(k) for k in cr.index[otra_sol][:10]]}")
+    if n_vend:
+        inf.avisos.append(
+            f"{n_vend} horas «cuantal» del lado de los vendedores (D71, sec. "
+            f"8.2): medir M-D con el costo del vendedor en su piso antes de "
+            f"publicar: {[int(k) for k in cr.index[lado_v][:10]]}")
+
     # ── captura ─────────────────────────────────────────────────────────
     chk = t[t["resuelta"] & (t["optimo"] > 0.0)]
     t["exceso_captura"] = 0.0
@@ -790,6 +864,9 @@ def imprime(inf: Informe) -> None:
     print()
     print(f"  Retiros de la participacion (D67, deben ser 0): "
           f"{inf.retiros[0]} vendedores en {inf.retiros[1]} horas")
+    print(f"  Horas «cuantal» (D71): {inf.cuantal[0]}; con n_soluciones "
+          f"distinto de 1: {inf.cuantal[1]} (esperado 0); del lado de los "
+          f"vendedores: {inf.cuantal[2]}")
     renta, juego, prima = inf.prima
     print(f"  Prima de los vendedores de las horas resueltas (D69): renta "
           f"inframarginal {_num(renta)} (COP) + parte del juego "

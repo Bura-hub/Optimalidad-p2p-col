@@ -1196,6 +1196,29 @@ la matriz.
       --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \
       --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_matriz_reposo.csv
   ```
+- **La repetición con los precios corregidos y la rama cuantal (D71, H-92,
+  septiembre de 2026).** La matriz nueva difiere de la del 17 por dos causas,
+  y la comparación hora a hora las separa:
+
+  ```bash
+  python -u reformateo/documento/scripts/sonda/compara_matriz_reposo.py \
+      --vieja SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-17/SALIDAS_SERVIDOR/matriz_reposo \
+      --nueva SALIDAS_SERVIDOR/entrega_<nombre>/SALIDAS_SERVIDOR/matriz_reposo \
+      --salida SALIDAS_SERVIDOR/entrega_<nombre>/compara_matriz_reposo.csv --por-hora
+  ```
+
+  - Las horas **con entradas distintas** son las que cambió la caché de bolsa
+    (H-92), en los casos con pisos de bolsa. No son comparables por D71 y se
+    cuentan aparte.
+  - En las horas **con las mismas entradas**, el mercado tiene que ser idéntico
+    al bit salvo en las horas cuantales, que en la tabla de horas llevan
+    `regimen == "cuantal"` y `regimen_cerrado` con el régimen de antes. Con los
+    almacenes del 17 eran 216, y la caché nueva no cambia cuáles son (tarea
+    4e). **Una hora con las mismas entradas que difiera sin ser cuantal es un
+    hallazgo.**
+  - Un almacén del 17 no tiene las columnas nuevas (`regimen_cerrado`,
+    `apartamiento`, `mu_cuantal`): la compuerta de salida lo rechaza con código
+    2, y es lo esperado.
 - **M-H, sin guion aparte.** La línea final `[D48]` de cada caso ya da la
   energía en horas con un solo comprador sobre la energía transada, y de los
   retirados, **la energía ofrecida y la comerciable**; el resumen de la

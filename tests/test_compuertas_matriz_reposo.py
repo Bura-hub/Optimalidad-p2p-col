@@ -29,6 +29,12 @@ inframarginal) y un vendedor que la caminata competitiva deja sin despachar
 (D65). Despues se rompe a proposito cada identidad y se comprueba que la
 compuerta falla con su mensaje.
 
+TAREA Q (D71). La hora 14 es FRAGIL (la familia de la hora 12 de E0): el
+nucleo la publica «cuantal», con Mariana y UCC recibiendo su parte, y la
+compuerta la acepta en verde. La identidad nueva `cuantal` (regimen «cuantal»
+si y solo si el apartamiento pasa de 1e-3) se rompe a proposito en sus cinco
+formas; las tres columnas de D71 son exigidas.
+
 TAREA 5A (D63 a D69). Con el piso del vendedor marginal la participacion no
 retira a nadie: la hora 8, que antes retiraba a Mariana (cobraba 750 con piso
 760), ahora la despacha a 780 con los dos compradores. El almacen en verde no
@@ -104,6 +110,13 @@ HORAS = {
     # no despachada, fuera de la oferta (sin descontarla, E daria 5)
     12: ([4, 12, 0, 0, 3], [1, 2, 2, 3, 3], [800, 800, 800, 700, 800],
          [600, 750, 600, 600, 600]),
+    # D71, una hora FRAGIL, la familia de la hora 12 de E0 con la tarifa de
+    # abril: vende Udenar 10 (kWh) con piso 695,68; Mariana y UCC compran en
+    # su techo de 734,30 y Cesmag, con 12 (kWh) de deficit, queda interior a
+    # 1,59 (COP/kWh) por encima. La forma cerrada la da toda a Cesmag
+    # («excluidos»); la rama cuantal le da a Mariana y a UCC su parte.
+    14: ([12, 0, 0, 1, 0], [2, 6, 7, 1, 12], [800, 734.30, 734.30, 800, 794.62],
+         [695.68] * 5),
 }
 # La hora con un retiro FORZADO (D67): la de la hora 8 con Mariana retirada,
 # como la anotaria el motor si la participacion la retirara. Solo va en el
@@ -207,7 +220,11 @@ def escribe_hora(alm, k, G, D, techo, piso, forzados=()):
                                     for j in rep.vendedores_excluidos),
         vendedores_no_despachados=_texto(
             quedan[j] for j in rep.vendedores_no_despachados),
-        orden_merito=_texto(quedan[j] for j in rep.orden_merito))
+        orden_merito=_texto(quedan[j] for j in rep.orden_merito),
+        # D71: la rama cuantal, como `columnas_reposo` de main_simulation.py.
+        regimen_cerrado=str(rep.regimen_cerrado),
+        apartamiento=float(rep.apartamiento),
+        mu_cuantal=float(rep.mu_cuantal))
     if rep.regimen in SIN_MERCADO:
         alm.anota_hora(k, resuelta=False, motivo="sin mercado esa hora",
                        **columnas)
@@ -821,6 +838,92 @@ def test_main_sin_columnas_sale_con_2(tablas, monkeypatch, capsys):
     monkeypatch.setattr(cm, "carga", lambda almacen, cobertura: tablas)
     assert cm.main(["x/K1/almacen", "--caso", "K1"]) == 2
     assert "NO SE PUEDE COMPROBAR" in capsys.readouterr().out
+
+
+# ─── D71: la rama cuantal (tarea Q) ────────────────────────────────────────
+
+
+def test_la_hora_fragil_sale_cuantal_y_la_compuerta_la_acepta(tablas, capsys):
+    """La hora 14, de la familia de la hora 12 de E0: la forma cerrada es
+    «excluidos» (todo a Cesmag) y el nucleo publica el reposo cuantal, con
+    Mariana y UCC recibiendo su parte. La compuerta la acepta en verde: el
+    volumen, el excedente, los precios y la cobertura valen igual."""
+    h = tablas["horas"].set_index("hora")
+    assert h.loc[14, "regimen"] == "cuantal"
+    assert h.loc[14, "regimen_cerrado"] == "excluidos"
+    assert h.loc[14, "apartamiento"] == pytest.approx(0.289, abs=1e-3)
+    assert h.loc[14, "mu_cuantal"] == 1.0
+    assert h.loc[14, "excluidos"] == ""
+    # Fuera de la hora fragil, el regimen cerrado es el regimen y el
+    # apartamiento no pasa del umbral.
+    otras = h[(h.index != 14) & (h["regimen"].fillna("") != "")]
+    assert (otras["regimen_cerrado"] == otras["regimen"]).all()
+    assert (otras["apartamiento"] <= 1e-3).all()
+    fl = tablas["flujos"]
+    recibe = fl[fl["hora"] == 14].groupby("comprador")["kwh"].sum()
+    assert recibe["Mariana"] > 1.0 and recibe["UCC"] > 1.0
+    inf = _corre(tablas)
+    assert inf.verde, {k: v for k, v in inf.fallos.items() if v}
+    assert inf.cuantal == (1, 0, 0)
+    cm.imprime(inf)
+    salida = capsys.readouterr().out
+    assert ("Horas «cuantal» (D71): 1; con n_soluciones distinto de 1: 0 "
+            "(esperado 0); del lado de los vendedores: 0") in salida
+    assert "cuantal" in inf.resumen["regimen"].tolist()
+
+
+@pytest.mark.parametrize("hora,columna,valor,mensaje", [
+    (14, "apartamiento", 5e-4, "que no pasa de 0.001"),
+    (0, "apartamiento", 0.01, "tendria que ser «cuantal»"),
+    (14, "regimen_cerrado", "cuantal", "que no es de mercado"),
+    (14, "regimen_cerrado", "sin_ganancia", "que no es de mercado"),
+    (14, "mu_cuantal", 0.0, "con la rama apagada"),
+    (0, "regimen_cerrado", "topados", "fuera de «cuantal» son el mismo"),
+])
+def test_falla_la_identidad_cuantal(tablas, hora, columna, valor, mensaje):
+    h = tablas["horas"]
+    if isinstance(valor, float):
+        valor = np.float32(valor)
+    h.loc[_fila(h, hora), columna] = valor
+    inf = _corre(tablas)
+    assert [k for k, _ in inf.fallos["cuantal"]] == [hora]
+    assert mensaje in _mensajes(inf, "cuantal")
+    for otra in cm.IDENTIDADES:
+        if otra != "cuantal":
+            assert not inf.fallos[otra], otra
+
+
+def test_la_frontera_del_umbral_admite_el_redondeo_float32(tablas):
+    # Un apartamiento de 1e-3 guardado en float32 queda a medio epsilon del
+    # umbral; ni la hora cuantal ni una que no lo es fallan por eso.
+    h = tablas["horas"]
+    h.loc[_fila(h, 14), "apartamiento"] = np.float32(1e-3)
+    h.loc[_fila(h, 0), "apartamiento"] = np.float32(1e-3)
+    inf = _corre(tablas)
+    assert not inf.fallos["cuantal"]
+
+
+def test_avisa_de_las_horas_cuantales_con_otros_estados_y_del_lado_vendedor(
+        tablas):
+    h = tablas["horas"]
+    h.loc[_fila(h, 14), "n_soluciones"] = np.float32(2.0)
+    inf = _corre(tablas)
+    assert inf.verde and inf.cuantal == (1, 1, 0)
+    assert any("n_soluciones distinto de 1" in a and "[14]" in a
+               for a in inf.avisos)
+    h.loc[_fila(h, 14), "regimen_cerrado"] = "compradores_cortos"
+    inf = _corre(tablas)
+    assert inf.verde and inf.cuantal == (1, 1, 1)
+    assert any("del lado de los vendedores" in a for a in inf.avisos)
+
+
+def test_un_almacen_anterior_a_d71_no_se_puede_comprobar(tablas):
+    with pytest.raises(cm.AlmacenIncompleto, match="anterior a D71"):
+        cm.comprueba(tablas["horas"].drop(columns=["regimen_cerrado",
+                                                   "apartamiento",
+                                                   "mu_cuantal"]),
+                     tablas["flujos"], tablas["agentes"],
+                     tablas["escenarios"])
 
 
 def test_el_nombre_del_caso_sale_de_la_carpeta():

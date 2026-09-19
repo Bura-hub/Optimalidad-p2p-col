@@ -1,9 +1,9 @@
 # El modelo definitivo
 
-**Estado al 2026-09-17.** Recoge la configuración con la que el modelo quedó
+**Estado al 2026-09-19.** Recoge la configuración con la que el modelo quedó
 tras la jornada del régimen del piso (2026-09-08), comprobada contra el código
-y no contra la memoria, con los cambios del 2026-09-16 y el 2026-09-17. Cada
-afirmación lleva dónde se verifica.
+y no contra la memoria, con los cambios del 2026-09-16, el 2026-09-17 y el
+2026-09-19. Cada afirmación lleva dónde se verifica.
 
 **Qué cambió el 2026-09-16 y el 2026-09-17.** El autor decidió resolver el
 mercado de cada hora en el reposo del juego regularizado, en forma cerrada
@@ -21,6 +21,15 @@ ordena por la alternativa de cada vendedor, no por su costo nivelado (D63 a
 D70; H-91, C-199; la enmienda del 2026-09-17 al ADR 0060). Las tres filas de
 la sección del mercado que eso toca lo dicen, y la restricción de
 participación pasa a ser una guarda que debe quedar inerte.
+
+**Y qué cambió el 2026-09-19.** En 216 de las 15 363 horas con mercado de la
+matriz del 17, la forma cerrada no es un reposo estable de la dinámica
+regularizada: son las horas **frágiles**, casi todas de abril de 2025, en que
+el precio del grupo interior queda a pocos pesos del techo de un comprador que
+no recibe. En ellas el núcleo publica el reposo del juego regularizado con
+μ = 1 (COP/kWh), con el régimen «cuantal»; en las demás nada cambia, al bit
+(D71; H-93, C-201). La fila del reparto y la nueva de las horas frágiles lo
+dicen.
 
 Este documento es el compañero de `HALLAZGOS.md` y `CORRECCIONES.md`: aquellos
 registran lo que se encontró y lo que se corrigió; este dice **qué es el
@@ -64,7 +73,8 @@ queda para validarlo y dibujarlo (D48, D49).
 
 | | Elección | Se verifica en |
 |---|---|---|
-| Reparto | prioridad por precio; llenado por niveles del grupo marginal; topados y excluidos en su techo; regla de saturación cuando la suma no cabe sobre el piso | H-90, D53 |
+| Reparto | prioridad por precio; llenado por niveles del grupo marginal; topados y excluidos en su techo; regla de saturación cuando la suma no cabe sobre el piso. Es el límite μ → 0⁺ de la regularización, y el reposo con μ = 1 en todas las horas salvo las frágiles | H-90, D53, H-93 |
+| Horas frágiles | las que la respuesta cuantal con μ = 1 aparta del reparto cerrado en más de 1e-3·E: se publica el **reposo con μ = 1**, con los mismos precios (medido en las 216 horas reales; en horas sintéticas adversarias el estado de precios cambió en 33 de 1 588) y el reparto por la respuesta cuantal con capacidades; régimen «cuantal», con el cerrado al lado. 216 horas de 15 363 en los trece casos, el 0,40 % de la energía; cambian de manos 48,5 (kWh). El reparto de esas horas depende de μ, que es una elección de modelado (`--mu-cuantal`; 0 publica la forma cerrada en todas) | D71, H-93, C-201 |
 | Emparejamiento | de rango uno: cada vendedor reparte en proporción a lo que recibe cada comprador | H-90 |
 | Nivel del precio | presupuesto que suma, por comprador, el piso más (I − 1)/I de su banda, con barrido; con un solo comprador, el piso del vendedor marginal, que es el precio competitivo del lado vendedor | D50, D66, H-90, H-91 |
 | Liquidación | precio uniforme de la hora que conserva el ingreso del reposo | D51 |
@@ -78,6 +88,19 @@ cobertura del costo del vendedor, queda bajo el piso (H-88). Por eso el nivel
 se declara y se barre.
 
 Se verifica en CAL-53 (ADR 0060), ADR 0059 y C-197.
+
+**En las horas frágiles, el reposo con μ = 1** (D71, desde el 2026-09-19). La
+forma cerrada es el límite μ → 0⁺ del reposo regularizado, y en casi todas las
+horas coincide con el reposo con μ = 1 dentro de 1e-3·E. En 216 horas no: M-D
+da allí valores propios inestables (cuatro en la hora 12 de E0, el mayor en
++6,84), y el punto cuantal es estable (−0,615, residuo 7,5e-11). En esas horas
+se publica el reposo cuantal; el presupuesto, el piso del juego y la energía
+son los de la forma cerrada, y en las 216 horas reales también los precios, de
+modo que cambia solo el reparto entre compradores: los del techo reciben su
+parte. En horas sintéticas adversarias la reenumeración eligió otro estado de
+precios en 33 de 1 588. El reparto de esas horas depende
+de μ (en la hora 12, del 0,3 % de E con μ = 0,25 al 47 % con μ = 2), y la
+tesis lo declara como elección de modelado con esa sensibilidad (H-93).
 
 **El piso del juego es el del vendedor marginal** (D63, desde el 2026-09-17).
 Con pisos distintos por vendedor y un precio uniforme, anclar el juego al piso

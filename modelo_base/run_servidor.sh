@@ -92,6 +92,9 @@ set -euo pipefail
 #
 #   CONTENCION=0          la desactiva (solo con la plataforma parada o avisada)
 #   NUCLEOS_TESIS=24-31   otro tramo de nucleos
+#   MEMORIA_TESIS=16G     el tope duro de memoria del arbol (tarea 4f), con
+#                         systemd-run --user --scope; corre_mediciones abre
+#                         como mucho MEMORIA_TESIS / 1,5 GB procesos
 #
 # Si el operador ya la lanzo con la afinidad restringida, se respeta: solo se
 # restringe cuando el proceso ve la maquina entera. Solo en Linux; en seco
@@ -108,6 +111,55 @@ if [[ "${CONTENCION:-1}" == "1" && -z "${CONTENIDO:-}" \
   _todos="$(nproc --all 2>/dev/null || echo 0)"
   _visibles="$(OMP_NUM_THREADS= OMP_THREAD_LIMIT= nproc 2>/dev/null || echo 0)"
   _previo=()
+  # Tarea 4f: un TOPE DURO de memoria para todo el arbol. El relanzamiento del
+  # 2026-09-18 (ec6ac35) se comio la RAM y arrastro a servicios de la
+  # plataforma: oom_score_adj elige a quien mata el nucleo, pero no pone techo.
+  # Con un scope de systemd de usuario (sin sudo) el arbol entero queda en un
+  # cgroup con MemoryMax, sin swap, y si se pasa el nucleo mata DENTRO de el
+  # (un trabajador, que corre_mediciones sobrevive), no a la plataforma. Se
+  # comprueba antes con las mismas propiedades y una orden inocua; si no
+  # funciona, se sigue sin el y se avisa. MEMORIA_TESIS cambia el tope (16G).
+  #
+  # Dos trampas del scope (revision de 4f), las dos capaces de matar la noche:
+  #  - OOMPolicy: desde systemd 253 un scope que no es de sesion toma
+  #    DefaultOOMPolicy=stop, y un solo trabajador muerto por MemoryMax para
+  #    el scope ENTERO. Se pide OOMPolicy=continue; si ese systemd no conoce la
+  #    propiedad (anterior a 253, donde los scopes no la aplican), se prueba
+  #    sin ella antes de rendirse.
+  #  - linger: el scope vive en el gestor de usuario, que logind para al
+  #    cerrarse la ULTIMA sesion del usuario si no tiene linger. Con «nohup ...
+  #    &» y salir de SSH, la noche moriria al desconectar. Sin linger, solo se
+  #    acepta dentro de tmux o screen (la sesion sigue abierta); si no, se para
+  #    aqui en voz alta (en seco solo se avisa). SIN_LINGER_OK=1 lo fuerza.
+  _mem=(-p "MemoryMax=${MEMORIA_TESIS:-16G}" -p MemorySwapMax=0)
+  _scope=()
+  if command -v systemd-run >/dev/null 2>&1; then
+    if systemd-run --user --scope -q "${_mem[@]}" -p OOMPolicy=continue \
+         true >/dev/null 2>&1; then
+      _scope=(systemd-run --user --scope -q "${_mem[@]}" -p OOMPolicy=continue)
+    elif systemd-run --user --scope -q "${_mem[@]}" true >/dev/null 2>&1; then
+      _scope=(systemd-run --user --scope -q "${_mem[@]}")
+    fi
+  fi
+  if [[ ${#_scope[@]} -gt 0 ]]; then
+    export MEMORIA_TESIS="${MEMORIA_TESIS:-16G}"
+    _linger="$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null \
+               || echo desconocido)"
+    if [[ "$_linger" != "yes" && -z "${TMUX:-}" && -z "${STY:-}" ]]; then
+      echo "[contencion] AVISO: el usuario no tiene linger (Linger=$_linger) y" \
+           "esto no corre dentro de tmux ni screen: el scope de memoria MORIRIA" \
+           "al cerrar la sesion SSH. Lanzalo dentro de tmux (tmux new -s tesis)" \
+           "y deja tmux vivo, o con SIN_LINGER_OK=1 si la sesion no se cierra." >&2
+      if [[ "${SECO:-0}" != "1" && "${SIN_LINGER_OK:-0}" != "1" ]]; then
+        exit 2
+      fi
+    fi
+    _previo+=("${_scope[@]}")
+  else
+    echo "[contencion] AVISO: systemd-run --user --scope no funciona aqui: SIN" \
+         "tope duro de memoria (quedan oom_score_adj y el tope por proceso de" \
+         "corre_mediciones)" >&2
+  fi
   if [[ "$_todos" -ge 4 && "$_visibles" -eq "$_todos" ]] \
       && command -v taskset >/dev/null 2>&1; then
     _previo+=(taskset -c "${NUCLEOS_TESIS:-$(( _todos / 2 ))-$(( _todos - 1 ))}")
@@ -1784,6 +1836,13 @@ print(" ".join(sorted(palancas)))
     echo "    MTE_ROOT  = $MTE_ROOT"
     echo "    procesos  = $PROCS   (corre_mediciones.py los baja si la memoria"
     echo "                no da ${MEMORIA_POR_PROCESO_GB:-1.5} GB a cada uno)"
+    if [[ -n "${MEMORIA_TESIS:-}" ]]; then
+      echo "    memoria   = tope duro de $MEMORIA_TESIS para todo el arbol"
+      echo "                (MEMORIA_TESIS; como mucho $MEMORIA_TESIS / ${MEMORIA_POR_PROCESO_GB:-1.5} GB procesos)"
+    else
+      echo "    memoria   = SIN tope duro (MEMORIA_TESIS: lo pone la contencion"
+      echo "                con systemd-run, solo en Linux)"
+    fi
     echo "    almacenes = $ALMACENES   (de ahi salen las horas de cada regimen)"
     echo "    salidas   = $VAL"
     echo "    pasos     = $PASOS   (PASOS; el 1 y la recogida corren siempre,"

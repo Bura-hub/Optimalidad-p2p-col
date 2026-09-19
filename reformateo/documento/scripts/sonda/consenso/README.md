@@ -101,7 +101,13 @@ la noche en blanco; si el tope total corta, el propio guion dice con qué
 
 Antes de abrir cada pool, los procesos se reducen si `MemAvailable` no da
 1,5 GB a cada uno (`--memoria-por-proceso`, o `MEMORIA_POR_PROCESO_GB`; 0 lo
-quita).
+quita), y tampoco pasan del tope del cgroup entre 1,5 GB (`MEMORIA_TESIS`, que
+el lanzador pone con `systemd-run`, o el `memory.max` propio; tarea 4f).
+
+**La memoria de cada corrida no crece con los pasos** (tarea 4f):
+`arnes.integra_tramos` avanza el integrador con `step()` y guarda solo el
+último estado, al bit igual que con `solve_ivp`, que guardaba cada paso
+aceptado y llevó a cada trabajador a ~3,3 GB.
 
 ## Cómo se escribe un guion de medición
 

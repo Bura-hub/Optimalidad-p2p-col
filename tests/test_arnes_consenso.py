@@ -43,6 +43,13 @@ Y, desde la tarea 4d (la noche del 2026-09-18, que murio con BrokenProcessPool):
      con 1. Reduce los procesos a los que caben en MemAvailable antes de abrir
      cada pool. El veredicto dice cuantas fallidas son de la maquina.
 
+Y, desde la tarea 4f (el relanzamiento que se comio la RAM):
+
+ 14. `arnes.integra_tramos` avanza el resolvedor con step() sin guardar cada
+     paso aceptado, y da el mismo estado y las mismas evaluaciones AL BIT que
+     con `solve_ivp`; su memoria no crece con los pasos. Y los procesos no
+     pasan del tope del cgroup (MEMORIA_TESIS o memory.max) / 1,5 GB.
+
 RAPIDA Y SIN DATOS REALES: todo se hace sobre el caso publicado de Chacon, que
 son literales, una hora sintetica y registros escritos a mano. No carga MTE ni
 escribe nada fuera de `tmp_path`.
@@ -1657,7 +1664,9 @@ def test_4d_los_procesos_se_reducen_a_los_que_caben(tmp_path, disponible,
                                                     pedidos, esperados,
                                                     reduce):
     ruta = _meminfo(tmp_path, disponible)
-    n, texto = CM.procesos_por_memoria(pedidos, 1.5, ruta)
+    # Sin cgroup (tarea 4f): la prueba no depende de donde corra.
+    n, texto = CM.procesos_por_memoria(pedidos, 1.5, ruta, entorno={},
+                                       proc_cgroup=tmp_path / "no_esta")
     assert n == esperados
     assert ("SE REDUCEN A" in texto) is reduce
     assert "MemAvailable" in texto
@@ -1665,8 +1674,11 @@ def test_4d_los_procesos_se_reducen_a_los_que_caben(tmp_path, disponible,
 
 
 def test_4d_sin_meminfo_o_sin_tope_no_se_reduce(tmp_path):
-    n, texto = CM.procesos_por_memoria(16, 1.5, tmp_path / "no_esta")
+    n, texto = CM.procesos_por_memoria(16, 1.5, tmp_path / "no_esta",
+                                       entorno={},
+                                       proc_cgroup=tmp_path / "no_esta")
     assert n == 16 and "no se puede leer MemAvailable" in texto
+    assert "sin tope de cgroup" in texto
     n, texto = CM.procesos_por_memoria(16, 0, _meminfo(tmp_path, 1.0))
     assert n == 16 and "sin tope" in texto
 
@@ -1760,3 +1772,218 @@ def test_4d_el_veredicto_dice_cuantas_fallidas_son_de_la_maquina():
     assert "fallo de la maquina, no del modelo" in texto
     assert ("NO LLEGO: fallaron todos sus brazos (por trabajador muerto"
             in texto)
+
+
+# ═══════════════ tarea 4f: integrar sin acumular los pasos ════════════════
+# El relanzamiento del 2026-09-18 (ec6ac35) llevo cada trabajador a ~3,3 GB:
+# `integra_tramos` llamaba a `solve_ivp` sin `t_eval`, que guarda cada paso
+# aceptado, y solo se usaba el ultimo. Ahora avanza el resolvedor con step().
+import time as _time                                  # noqa: E402
+import tracemalloc as _tracemalloc                    # noqa: E402
+
+
+def _integra_tramos_con_solve_ivp(rhs, X0, cortes, tope_s=300.0,
+                                  method="LSODA"):
+    """La version de `arnes.integra_tramos` de ec6ac35, copiada tal cual:
+    la referencia contra la que la nueva tiene que dar lo mismo al bit."""
+    t_ini = _time.perf_counter()
+    nf = [0]
+
+    def f(t, Y):
+        nf[0] += 1
+        if nf[0] % 2000 == 0 and _time.perf_counter() - t_ini > tope_s:
+            raise A._Tope()
+        return rhs(t, Y)
+    X = np.array(X0, float)
+    out = [(cortes[0], X.copy(), 0, 0.0)]
+    msg = "ok"
+    for ta, tb in zip(cortes[:-1], cortes[1:]):
+        try:
+            sol = A._solve_ivp_real(f, (ta, tb), X, method=method, rtol=1e-6,
+                                    atol=1e-6)
+        except A._Tope:
+            msg = f"tope {tope_s:.0f} s en [{ta}; {tb}]"
+            break
+        except Exception as exc:                       # noqa: BLE001
+            msg = f"excepcion {type(exc).__name__}: {exc} en [{ta}; {tb}]"
+            break
+        if not sol.success:
+            msg = f"sin exito en [{ta}; {tb}]: {sol.message}"
+            break
+        if not np.all(np.isfinite(sol.y[:, -1])):
+            msg = f"no finito en [{ta}; {tb}]"
+            break
+        X = sol.y[:, -1].copy()
+        out.append((tb, X.copy(), nf[0], _time.perf_counter() - t_ini))
+    return out, msg
+
+
+def _iguales_al_bit(viejo, nuevo):
+    (ov, mv), (on, mn) = viejo, nuevo
+    assert mv == mn
+    assert len(ov) == len(on)
+    for a, b in zip(ov, on):
+        assert a[0] == b[0]                       # el corte
+        assert np.array_equal(a[1], b[1])         # el estado, al bit
+        assert a[2] == b[2]                       # las evaluaciones
+
+
+_CONFIG_AUTORA = dict(mu_ent=1.0, k_lento=100.0, comp="matlab",
+                      arranque="iguales")
+
+
+@pytest.mark.parametrize("caso,fecha,var,cortes", [
+    ("CHACON", "22", _CONFIG_AUTORA, [0, 0.0005, 0.001, 0.002]),
+    ("CHACON", "22", dict(k_lento=1000.0), [0, 0.0002, 0.0005]),
+    ("SINTETICA", "-", dict(mu_ent=1.0, k_lento=100.0), [0, 0.0001, 0.0003]),
+])
+def test_4f_integra_tramos_al_bit_con_solve_ivp(caso, fecha, var, cortes):
+    """El estado de cada corte y las evaluaciones, iguales al bit que con
+    `solve_ivp`, sobre el caso publicado y la hora sintetica (sin datos
+    reales). Es el mismo bucle que `solve_ivp` hace por dentro."""
+    e = A.hora_de(caso, fecha)
+    rhs, X0, _ix = A.construye(e, **var)
+    viejo = _integra_tramos_con_solve_ivp(rhs, X0, cortes, tope_s=1e9)
+    nuevo = A.integra_tramos(rhs, X0, cortes, tope_s=1e9)
+    assert nuevo[1] == "ok"
+    _iguales_al_bit(viejo, nuevo)
+
+
+def test_4f_integra_tramos_al_bit_tambien_cuando_falla():
+    """El resolvedor que falla (RK45 ante una explosion) y la excepcion del
+    lado derecho dan el mismo mensaje y el mismo estado hasta ahi."""
+    def explota(t, y):
+        return y ** 2
+
+    def rompe(t, y):
+        if t > 0.7:
+            raise ValueError("prueba")
+        return -y
+    X0 = np.array([1.0, 0.5])
+    for rhs, method in ((explota, "RK45"), (rompe, "LSODA")):
+        viejo = _integra_tramos_con_solve_ivp(rhs, X0, [0, 0.5, 2.0],
+                                              tope_s=1e9, method=method)
+        nuevo = A.integra_tramos(rhs, X0, [0, 0.5, 2.0], tope_s=1e9,
+                                 method=method)
+        _iguales_al_bit(viejo, nuevo)
+    assert nuevo[1] == "excepcion ValueError: prueba en [0.5; 2.0]"
+    assert viejo[1].startswith("excepcion")
+
+
+def test_4f_integra_tramos_no_acumula_los_pasos():
+    """Con `solve_ivp` la memoria crece con los pasos aceptados (unos 680 B
+    cada uno, con el apilado del final); con `step()`, no. En un tramo de la
+    hora de las 22 con unos cientos de pasos la diferencia ya es de un orden de
+    magnitud; en los tramos rigidos de la noche eran millones."""
+    e = A.hora_de("CHACON", "22")
+    rhs, X0, _ix = A.construye(e, **_CONFIG_AUTORA)
+    picos = []
+    for fn in (_integra_tramos_con_solve_ivp, A.integra_tramos):
+        _tracemalloc.start()
+        fn(rhs, X0, [0, 0.002], tope_s=1e9)
+        picos.append(_tracemalloc.get_traced_memory()[1])
+        _tracemalloc.stop()
+    viejo, nuevo = picos
+    assert nuevo * 10 < viejo, picos
+
+
+# ── tarea 4f: los procesos, tambien por el tope del cgroup ─────────────────
+@pytest.mark.parametrize("texto,esperado", [
+    ("16G", 16 * 2**30), ("16384M", 16 * 2**30), ("17179869184", 16 * 2**30),
+    ("16GiB", 16 * 2**30), ("1.5G", int(1.5 * 2**30)), ("max", None),
+    ("infinity", None), ("9223372036854771712", None), ("nada", None),
+    ("", None),
+])
+def test_4f_bytes_de_lee_los_tamanos_de_systemd(texto, esperado):
+    assert CM.bytes_de(texto) == esperado
+
+
+def test_4f_bytes_de_con_porcentaje_usa_la_memoria_total():
+    assert CM.bytes_de("50%", total_kb=32 * 2**20) == 16 * 2**30
+    assert CM.bytes_de("50%") is None
+
+
+def _cgroup_v2(tmp_path, tope_scope="17179869184", tope_padre="max"):
+    """Un /proc/self/cgroup y un /sys/fs/cgroup falsos, de cgroup v2, con el
+    scope de systemd-run dentro de su slice de usuario."""
+    rel = "user.slice/user-1000.slice/user@1000.service/app.slice/run-r1.scope"
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    proc = tmp_path / "cgroup"
+    proc.write_text(f"0::/{rel}\n", encoding="ascii")
+    raiz = tmp_path / "sys_fs_cgroup"
+    scope = raiz / rel
+    scope.mkdir(parents=True)
+    (scope / "memory.max").write_text(tope_scope + "\n", encoding="ascii")
+    (scope.parent / "memory.max").write_text(tope_padre + "\n",
+                                             encoding="ascii")
+    return proc, raiz
+
+
+def test_4f_el_tope_del_cgroup_se_lee_de_memory_max(tmp_path):
+    proc, raiz = _cgroup_v2(tmp_path)
+    tope, fuente = CM.tope_cgroup({}, proc, raiz, tmp_path / "no_esta")
+    assert tope == 16 * 2**30 and "memory.max" in fuente
+    # Manda el menor: un ancestro mas estrecho, o MEMORIA_TESIS.
+    proc, raiz = _cgroup_v2(tmp_path / "b", tope_padre="8G")
+    assert CM.tope_cgroup({}, proc, raiz, tmp_path / "x")[0] == 8 * 2**30
+    proc, raiz = _cgroup_v2(tmp_path / "c")
+    tope, fuente = CM.tope_cgroup({"MEMORIA_TESIS": "12G"}, proc, raiz,
+                                  tmp_path / "x")
+    assert tope == 12 * 2**30 and fuente == "MEMORIA_TESIS=12G"
+    # Sin nada: sin tope.
+    tope, fuente = CM.tope_cgroup({}, tmp_path / "no_esta", raiz,
+                                  tmp_path / "x")
+    assert tope is None and "sin tope de cgroup" in fuente
+
+
+def test_4f_el_tope_del_cgroup_v1(tmp_path):
+    proc = tmp_path / "cgroup"
+    proc.write_text("7:cpu,cpuacct:/tesis\n5:memory:/tesis\n",
+                    encoding="ascii")
+    d = tmp_path / "raiz" / "memory" / "tesis"
+    d.mkdir(parents=True)
+    (d / "memory.limit_in_bytes").write_text(str(8 * 2**30), encoding="ascii")
+    (d.parent / "memory.limit_in_bytes").write_text("9223372036854771712",
+                                                    encoding="ascii")
+    tope, fuente = CM.tope_cgroup({}, proc, tmp_path / "raiz", tmp_path / "x")
+    assert tope == 8 * 2**30 and "memory.limit_in_bytes" in fuente
+
+
+def test_4f_con_16g_y_1_5_gb_salen_10_procesos(tmp_path):
+    """El ejemplo del encargo: MEMORIA_TESIS=16G y 1,5 GB por proceso dan 10,
+    aunque MemAvailable diera para 16; y el registro lo dice."""
+    n, texto = CM.procesos_por_memoria(
+        16, 1.5, _meminfo(tmp_path, 40.0), entorno={"MEMORIA_TESIS": "16G"},
+        proc_cgroup=tmp_path / "no_esta")
+    assert n == 10
+    assert "el tope del cgroup es 16.0 GB (MEMORIA_TESIS=16G" in texto
+    # Menor de la revision de 4f: pedido pero sin cgroup que lo aplique, se dice.
+    assert "ningun memory.max del cgroup lo aplica" in texto
+    assert "SE REDUCEN A 10 PROCESOS" in texto
+    # Leido del memory.max del scope, lo mismo.
+    proc, raiz = _cgroup_v2(tmp_path)
+    n, texto = CM.procesos_por_memoria(16, 1.5, _meminfo(tmp_path, 40.0),
+                                       entorno={}, proc_cgroup=proc,
+                                       raiz_cgroup=raiz)
+    assert n == 10 and "memory.max de" in texto
+    # Si MemAvailable es aun menor, manda MemAvailable.
+    n, _t = CM.procesos_por_memoria(16, 1.5, _meminfo(tmp_path, 6.0),
+                                    entorno={"MEMORIA_TESIS": "16G"},
+                                    proc_cgroup=tmp_path / "no_esta")
+    assert n == 4
+    # Y con los pedidos por debajo del tope, se quedan los pedidos.
+    n, texto = CM.procesos_por_memoria(8, 1.5, _meminfo(tmp_path, 40.0),
+                                       entorno={"MEMORIA_TESIS": "16G"},
+                                       proc_cgroup=tmp_path / "no_esta")
+    assert n == 8 and "caben 10 procesos de 1.5 GB, se usan 8" in texto
+
+
+def test_4f_con_empate_manda_el_memory_max_que_el_nucleo_aplica(tmp_path):
+    """Menor de la revision de 4f: MEMORIA_TESIS=16G y un memory.max de 16 GiB
+    empatan; la fuente es el memory.max (lo que se APLICA), sin aviso."""
+    proc, raiz = _cgroup_v2(tmp_path)
+    tope, fuente = CM.tope_cgroup({"MEMORIA_TESIS": "16G"}, proc, raiz,
+                                  tmp_path / "no_esta")
+    assert tope == 16 * 2**30
+    assert fuente.startswith("memory.max de ")
+    assert "AVISO" not in fuente

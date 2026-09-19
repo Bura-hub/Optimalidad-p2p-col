@@ -87,6 +87,13 @@ de `--memoria-por-proceso` (1,5 GB por omision, o MEMORIA_POR_PROCESO_GB en el
 entorno; 0 lo quita), los procesos se reducen a los que caben, y se dice en el
 registro: mejor ir lento que matar trabajadores o a la plataforma. Donde no hay
 `/proc/meminfo` (Windows) no hay tope, y tambien se dice.
+
+Y EL DEL CGROUP (tarea 4f). El lanzador encierra el arbol en un scope de
+systemd con MemoryMax (MEMORIA_TESIS, 16G por omision). Los procesos tampoco
+pasan de ese tope / `--memoria-por-proceso`: con 16G y 1,5 GB, 10. El tope se
+lee de MEMORIA_TESIS y del `memory.max` del cgroup propio (de
+`/proc/self/cgroup`, subiendo por sus ancestros), y manda el menor; el registro
+dice cual y de donde sale.
 """
 import argparse
 import importlib
@@ -118,6 +125,9 @@ MEMORIA_POR_PROCESO_GB = 1.5
 MUESTREO_S = 30.0
 MEMINFO = "/proc/meminfo"
 PROC = "/proc"
+# Tarea 4f: de donde se lee el tope del cgroup propio (v2, o v1 de respaldo).
+PROC_CGROUP = "/proc/self/cgroup"
+RAIZ_CGROUP = "/sys/fs/cgroup"
 
 
 def carga_horas(directorio) -> dict:
@@ -367,21 +377,130 @@ def texto_memoria(ruta=MEMINFO) -> str:
     return "memoria: " + "; ".join(partes)
 
 
+_SUFIJOS = {"K": 2**10, "M": 2**20, "G": 2**30, "T": 2**40, "P": 2**50}
+
+
+def bytes_de(texto, total_kb=None):
+    """Un tamano como lo escribe systemd o el cgroup ("16G", "16384M",
+    "17179869184", "50%", "max", "infinity") en bytes; None si no hay tope o
+    no se entiende. Los sufijos son de base 1024, como en systemd. Un
+    porcentaje necesita la memoria total (`total_kb`). Los valores enormes del
+    cgroup v1 sin tope (~2**63) cuentan como sin tope."""
+    t = str(texto).strip()
+    if not t or t.lower() in ("max", "infinity"):
+        return None
+    try:
+        if t.endswith("%"):
+            if total_kb is None:
+                return None
+            return int(float(t[:-1]) / 100.0 * total_kb * 1024)
+        u = t.upper()
+        for fin in ("IB", "B"):
+            if u.endswith(fin) and len(u) > len(fin):
+                u = u[:-len(fin)]
+                break
+        mult = 1
+        if u and u[-1] in _SUFIJOS:
+            mult, u = _SUFIJOS[u[-1]], u[:-1]
+        valor = int(float(u) * mult)
+    except ValueError:
+        return None
+    return valor if 0 < valor < 2**60 else None
+
+
+def tope_cgroup(entorno=None, proc_cgroup=PROC_CGROUP, raiz=RAIZ_CGROUP,
+                ruta=MEMINFO) -> tuple:
+    """(bytes, fuente) del tope de memoria del arbol, o (None, motivo).
+
+    De MEMORIA_TESIS (lo que el lanzador puso en el scope) y del limite del
+    cgroup propio: en v2, el menor `memory.max` del cgroup de
+    `/proc/self/cgroup` y sus ancestros; en v1, `memory.limit_in_bytes`. Si
+    los dos se leen, manda el menor."""
+    entorno = os.environ if entorno is None else entorno
+    m = memoria(ruta) or {}
+    candidatos = []
+    pedido = entorno.get("MEMORIA_TESIS")
+    if pedido:
+        b = bytes_de(pedido, m.get("MemTotal"))
+        if b:
+            candidatos.append((b, f"MEMORIA_TESIS={pedido}"))
+    try:
+        lineas = Path(proc_cgroup).read_text(encoding="ascii",
+                                             errors="replace").splitlines()
+    except OSError:
+        lineas = []
+    for linea in lineas:
+        partes = linea.split(":", 2)
+        if len(partes) != 3:
+            continue
+        _id, controles, ruta_cg = partes
+        if controles == "":
+            base, fichero = Path(raiz), "memory.max"               # v2
+        elif "memory" in controles.split(","):
+            base, fichero = Path(raiz) / "memory", "memory.limit_in_bytes"
+        else:
+            continue
+        rel = [x for x in ruta_cg.strip().split("/") if x]
+        for i in range(len(rel), -1, -1):
+            d = base.joinpath(*rel[:i])
+            try:
+                b = bytes_de((d / fichero).read_text(encoding="ascii"))
+            except OSError:
+                continue
+            if b:
+                candidatos.append((b, f"{fichero} de {d.as_posix()}"))
+    if not candidatos:
+        return None, "sin tope de cgroup (ni MEMORIA_TESIS ni memory.max)"
+    # Menor de la revision de 4f: con empate manda el del cgroup, que es el que
+    # el nucleo APLICA; MEMORIA_TESIS solo dice lo que se pidio. Y si se pidio
+    # pero ningun cgroup lo aplica (controlador de memoria no delegado, o v1),
+    # el registro lo dice en vez de dar el pedido por puesto.
+    b, fuente = min(candidatos,
+                    key=lambda x: (x[0], x[1].startswith("MEMORIA_TESIS")))
+    if pedido and not any(not f.startswith("MEMORIA_TESIS")
+                          for _b, f in candidatos):
+        fuente += " (AVISO: ningun memory.max del cgroup lo aplica)"
+    return b, fuente
+
+
 def procesos_por_memoria(pedidos, por_proceso_gb=MEMORIA_POR_PROCESO_GB,
-                         ruta=MEMINFO) -> tuple:
+                         ruta=MEMINFO, entorno=None, proc_cgroup=PROC_CGROUP,
+                         raiz_cgroup=RAIZ_CGROUP) -> tuple:
     """(procesos, texto): los pedidos, o menos si no caben en la memoria.
 
-    Si MemAvailable / pedidos baja de `por_proceso_gb`, se reducen a los que
-    caben (uno como minimo, con aviso si ni ese cabe). Sin /proc/meminfo, o con
-    `por_proceso_gb` <= 0, se quedan los pedidos. El texto va al registro."""
+    Dos topes, y manda el menor (el registro dice los dos):
+      - MemAvailable: si MemAvailable / pedidos baja de `por_proceso_gb`, se
+        reducen a los que caben (uno como minimo, con aviso si ni ese cabe);
+        sin /proc/meminfo no hay tope;
+      - el cgroup (tarea 4f): como mucho tope / `por_proceso_gb`, con el tope
+        de `tope_cgroup` (MEMORIA_TESIS o memory.max).
+    Con `por_proceso_gb` <= 0 no hay ninguno. El texto va al registro."""
     pedidos = max(1, int(pedidos))
     if por_proceso_gb <= 0:
         return pedidos, (f"  memoria: sin tope por proceso "
                          f"(--memoria-por-proceso 0); {pedidos} procesos")
+    n, texto = _por_memoria_disponible(pedidos, por_proceso_gb, ruta)
+    tope, fuente = tope_cgroup(entorno, proc_cgroup, raiz_cgroup, ruta)
+    if tope is None:
+        return n, texto + f"\n  memoria: {fuente}"
+    tope_gb = tope / 2**30
+    caben = int(tope_gb // por_proceso_gb)
+    if caben >= n:
+        return n, texto + (f"\n  memoria: tope del cgroup {tope_gb:.1f} GB "
+                           f"({fuente}); caben {caben} procesos de "
+                           f"{por_proceso_gb:g} GB, se usan {n}")
+    m = max(1, caben)
+    return m, texto + (f"\n  === MEMORIA: el tope del cgroup es {tope_gb:.1f} "
+                       f"GB ({fuente}); caben {caben} procesos de "
+                       f"{por_proceso_gb:g} GB: SE REDUCEN A {m} PROCESOS ===")
+
+
+def _por_memoria_disponible(pedidos, por_proceso_gb, ruta) -> tuple:
+    """El tope por MemAvailable de `procesos_por_memoria`."""
     m = memoria(ruta)
     if not m or "MemAvailable" not in m:
         return pedidos, (f"  memoria: no se puede leer MemAvailable de {ruta} "
-                         f"(no es Linux); sin tope de memoria, {pedidos} "
+                         f"(no es Linux); sin tope por MemAvailable, {pedidos} "
                          f"procesos")
     disponible_gb = m["MemAvailable"] / 2**20
     caben = int(disponible_gb // por_proceso_gb)

@@ -28,7 +28,55 @@ nada, se vuelve a lanzar a sí misma con tres cosas:
 - con **la prioridad mínima de disco** (`ionice`, clase ociosa).
 - y **marcada como la primera víctima si falta memoria** (`oom_score_adj` 500):
   `taskset` limita la CPU, no la memoria, y así el sistema mata antes a un
-  trabajador de la tesis, que la medición sobrevive, que a PostgreSQL.
+  trabajador de la tesis, que la medición sobrevive, que a PostgreSQL;
+- y, desde la tarea 4f, **con un tope duro de memoria para todo el árbol**:
+  `systemd-run --user --scope -p MemoryMax=16G -p MemorySwapMax=0`, delante
+  del `taskset`. No pide sudo. El árbol entero queda en un cgroup con ese
+  techo y sin swap, y si se pasa, el núcleo mata **dentro** de él (un
+  trabajador, que la medición sobrevive), no a la plataforma. El
+  `oom_score_adj` elige a quién mata el núcleo, pero no pone techo: el
+  relanzamiento del 2026-09-18 (ec6ac35), con cada trabajador creciendo hasta
+  ~3,3 GB, se comió la RAM y arrastró a servicios de la plataforma.
+
+**El tope de memoria, en detalle** (tarea 4f):
+
+- `MEMORIA_TESIS=12G` lo cambia; por omisión, 16G.
+- **Antes de usarlo, la contención lo prueba** con las mismas propiedades y una
+  orden inocua (`true`). Si `systemd-run --user --scope` no funciona (sin
+  sesión de usuario de systemd, o sin el controlador de memoria delegado),
+  sigue sin él y lo avisa en consola: «[contencion] AVISO: systemd-run --user
+  --scope no funciona aqui: SIN tope duro de memoria».
+- **Dos trampas del scope, las dos capaces de matar la noche** (revisión de
+  4f), que la contención ya evita:
+  - *OOMPolicy.* Desde systemd 253, un solo trabajador muerto por el tope
+    pararía el scope entero (`DefaultOOMPolicy=stop`). La contención pide
+    `-p OOMPolicy=continue`; si ese systemd no conoce la propiedad (anterior a
+    253, donde los scopes no la aplican), prueba sin ella antes de rendirse.
+  - *linger.* El scope vive en el gestor de usuario de systemd, que logind
+    para al cerrarse la última sesión del usuario si no tiene *linger*: con
+    `nohup … &` y salir de SSH, la noche moriría al desconectar. Por eso
+    **las corridas largas se lanzan dentro de tmux, y tmux se deja vivo**. Sin
+    linger y fuera de tmux o screen, la contención **se para en voz alta**,
+    con código 2 y el aviso en la consola; en seco solo avisa.
+    `SIN_LINGER_OK=1` lo fuerza, solo si la sesión no se va a cerrar. Para
+    verlo: `loginctl show-user "$(id -un)" -p Linger`.
+  - *systemd-oomd.* Si está activo (`systemctl is-active systemd-oomd`), con
+    presión de memoria mata cgroups enteros; ningún ajuste de aquí lo cubre.
+  - *¿Se aplica de verdad?* `systemctl --user status 'run-*.scope'` muestra
+    «Memory: … (max: 16.0G)». Y el registro de cada medición avisa si
+    `MEMORIA_TESIS` se pidió pero ningún `memory.max` del cgroup lo aplica.
+- **Los procesos se dimensionan por él.** `corre_mediciones.py` abre como
+  mucho `MEMORIA_TESIS / 1,5 GB` procesos: con 16G, 10, aunque la mitad de los
+  núcleos sean 16. Lee el tope de `MEMORIA_TESIS` y del `memory.max` de su
+  propio cgroup, y manda el menor. El margen por proceso lo cambia
+  `MEMORIA_POR_PROCESO_GB`. El registro de cada medición lo dice: «=== MEMORIA:
+  el tope del cgroup es 16.0 GB (MEMORIA_TESIS=16G); caben 10 procesos de 1.5
+  GB: SE REDUCEN A 10 PROCESOS ===».
+- **La cabecera de `validacion_reposo`** lo repite: «memoria = tope duro de
+  16G para todo el arbol».
+- **La causa de los 3,3 GB ya está arreglada** en el arnés: `integra_tramos`
+  guardaba cada paso aceptado del integrador y ahora solo el último. El tope
+  es la segunda línea de defensa.
 
 Los procesos hijos lo heredan. **El número de procesos es, como mucho, la
 mitad de los núcleos (16 en esta máquina)**: es el valor por defecto de todas
@@ -36,12 +84,13 @@ las acciones, también de `oficial`, y un `PROCS` mayor pedido a mano se recorta
 a 16 y se avisa. La consola lo dice en su primera línea:
 
 ```
-[contencion] taskset -c 16-31 nice -n 19 ionice -c 3 -t (el servidor es compartido ...)
+[contencion] systemd-run --user --scope -q -p MemoryMax=16G -p MemorySwapMax=0 taskset -c 16-31 nice -n 19 ionice -c 3 -t (el servidor es compartido ...)
 ```
 
 - `CONTENCION=0` la quita. Solo se usa con la plataforma parada o con su
   responsable avisado.
 - `NUCLEOS_TESIS=24-31` cambia el tramo.
+- `MEMORIA_TESIS=12G` cambia el tope duro de memoria (16G por omisión).
 - Si la acción ya se lanzó con la afinidad restringida, no se ensancha.
 - **Subir el `nice` no se deshace sin sudo.** La afinidad sí la puede ensanchar
   el dueño: `taskset -a -p -c 0-31 <pid>`.
@@ -1706,12 +1755,20 @@ export MTE_ROOT=$PWD/MedicionesMTE_v3
 SECO=1 PASOS="3 4 5 7" bash modelo_base/run_servidor.sh validacion_reposo
 ```
 
-**5. El lanzamiento:**
+**5. El lanzamiento, DENTRO DE TMUX** (el scope de memoria moriría al cerrar
+SSH si el usuario no tiene linger; ver «El servidor es compartido»):
 
 ```bash
+tmux new -s tesis                        # o tmux attach -t tesis si ya existe
+cd ~/bslopez/sistemabl
+export MTE_ROOT=$PWD/MedicionesMTE_v3
 PASOS="3 4 5 7" nohup bash modelo_base/run_servidor.sh validacion_reposo \
     > consola_validacion_reposo_2026-09-18b.txt 2>&1 &
+head -3 consola_validacion_reposo_2026-09-18b.txt   # la línea [contencion], con systemd-run y MemoryMax
 ```
+
+Se sale de tmux con `Ctrl-b d`, sin cerrarlo, y se vuelve con
+`tmux attach -t tesis`.
 
 M-D y lo que M-G y las horas lentas alcanzaran a escribir la primera noche
 siguen en `validacion_reposo_2026-09-18a/`; el censo de empates va con el

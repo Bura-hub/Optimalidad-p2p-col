@@ -384,6 +384,36 @@ class _Tope(Exception):
     pass
 
 
+def _avanza_tramo(f, ta, tb, X, method="LSODA", rtol=1e-6, atol=1e-6):
+    """Un tramo [ta, tb] con el MISMO bucle que `solve_ivp` sin `t_eval` ni
+    eventos, pero SIN GUARDAR CADA PASO ACEPTADO (tarea 4f).
+
+    `solve_ivp` sin `t_eval` acumula (t, y) de cada paso aceptado para
+    devolverlos, y aqui solo se usa el ultimo. En las horas rigidas son
+    millones de pasos por tramo, de unos 330 B cada uno con 41 estados: el
+    relanzamiento del 2026-09-18 (ec6ac35) llevo cada trabajador a ~3,3 GB.
+    Aqui se crea el mismo resolvedor que `solve_ivp` (la clase de `method`,
+    con t0 y tf en float, `vectorized=False` y las mismas tolerancias) y se le
+    llama a `step()` hasta que deja de estar «running», que es lo que
+    `solve_ivp` hace por dentro: el estado final y las evaluaciones son los
+    mismos AL BIT (`tests/test_arnes_consenso.py` lo comprueba contra la
+    version con `solve_ivp`).
+
+    Devuelve (exito, mensaje, y final). Con `failed`, el mensaje es el del
+    ultimo `step()`, como el `sol.message` de `solve_ivp`.
+    """
+    import scipy.integrate as _si
+    clase = getattr(_si, method) if isinstance(method, str) else method
+    solver = clase(f, float(ta), X, float(tb), vectorized=False,
+                   rtol=rtol, atol=atol)
+    mensaje = None
+    while solver.status == "running":
+        mensaje = solver.step()
+    if solver.status == "failed":
+        return False, mensaje, None
+    return True, None, solver.y
+
+
 def integra_tramos(rhs, X0, cortes, tope_s=300.0, method="LSODA"):
     t_ini = time.perf_counter()
     nf = [0]
@@ -398,20 +428,20 @@ def integra_tramos(rhs, X0, cortes, tope_s=300.0, method="LSODA"):
     msg = "ok"
     for ta, tb in zip(cortes[:-1], cortes[1:]):
         try:
-            sol = _solve_ivp_real(f, (ta, tb), X, method=method, rtol=1e-6, atol=1e-6)
+            exito, mensaje, y = _avanza_tramo(f, ta, tb, X, method=method)
         except _Tope:
             msg = f"tope {tope_s:.0f} s en [{ta}; {tb}]"
             break
         except Exception as exc:                       # noqa: BLE001
             msg = f"excepcion {type(exc).__name__}: {exc} en [{ta}; {tb}]"
             break
-        if not sol.success:
-            msg = f"sin exito en [{ta}; {tb}]: {sol.message}"
+        if not exito:
+            msg = f"sin exito en [{ta}; {tb}]: {mensaje}"
             break
-        if not np.all(np.isfinite(sol.y[:, -1])):
+        if not np.all(np.isfinite(y)):
             msg = f"no finito en [{ta}; {tb}]"
             break
-        X = sol.y[:, -1].copy()
+        X = np.array(y, float)
         out.append((tb, X.copy(), nf[0], time.perf_counter() - t_ini))
     return out, msg
 

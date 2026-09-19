@@ -235,8 +235,10 @@ def trabajo(spec):
     base = pre["base"]
     # Medio 3: la tolerancia que la medicion declara, si la declara; si no, la
     # de M-A, que depende de la aceleracion y del regimen.
+    # D71: la rigidez de una hora «cuantal» es la de su familia de precios.
     tol = PR.tolerancias(base["regimen"], k,
-                         declarada=spec.get("tolerancia"))
+                         declarada=spec.get("tolerancia"),
+                         regimen_cerrado=base.get("regimen_cerrado"))
     E = float(base["E"])
     veredicto = {}
     for nombre in refs:
@@ -257,7 +259,9 @@ def trabajo(spec):
                 nfev=(filas[-1]["nfev"] if filas else 0),
                 # Medio 5: si el recorte movio el reposo, la hora no cuenta.
                 recorte_movio=bool(pre.get("recorte_movio", False)),
-                regimen=base["regimen"], E=E, piso_juego=pre["piso_juego"],
+                regimen=base["regimen"],
+                regimen_cerrado=base.get("regimen_cerrado", base["regimen"]),
+                E=E, piso_juego=pre["piso_juego"],
                 modo_piso=pre["modo_piso"], vend=e["vend"], comp=e["comp"],
                 gn=e["gn"], dn=e["dn"], techo=e["techo"], piso_j=e["piso_j"],
                 sel_j=pre["sel_j"], sel_i=pre["sel_i"],

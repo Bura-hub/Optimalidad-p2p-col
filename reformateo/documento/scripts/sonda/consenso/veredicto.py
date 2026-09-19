@@ -131,7 +131,11 @@ def tolerancia_de(res) -> tuple:
     reg = res.get("regimen")
     if reg:
         k = float(sp.get("var", {}).get("k_lento", 1.0))
-        return (_prep().tolerancias(reg, k, declarada=sp.get("tolerancia")),
+        # D71: con la rigidez de la familia de precios si la hora es
+        # «cuantal» (un registro de antes de D71 no trae regimen_cerrado).
+        return (_prep().tolerancias(reg, k, declarada=sp.get("tolerancia"),
+                                    regimen_cerrado=res.get(
+                                        "regimen_cerrado")),
                 "recalculada")
     guardada = res.get("tolerancia")
     if guardada:

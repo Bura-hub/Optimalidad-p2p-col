@@ -1987,3 +1987,409 @@ def test_4f_con_empate_manda_el_memory_max_que_el_nucleo_aplica(tmp_path):
     assert tope == 16 * 2**30
     assert fuente.startswith("memory.max de ")
     assert "AVISO" not in fuente
+
+
+# ═══════════════ tarea 4e: el censo de horas frágiles y M-D corregido ══════
+# Sin datos reales: las horas son los literales de tests/test_reposo_mercado.py
+# (copiados al bit de los almacenes) y un almacen sintetico armado con ellos.
+import pandas as _pd                                      # noqa: E402
+import test_reposo_mercado as TRM                         # noqa: E402
+import censo_fragiles as CF                               # noqa: E402
+from core.reposo_mercado import resuelve_reposo as _rr    # noqa: E402
+
+_FECHAS_LIT = {12: "2025-04-04 12:00", 853: "2025-05-09 13:00",
+               874: "2025-05-10 10:00", 2120: "2025-07-01 08:00"}
+
+
+def test_4e_la_respuesta_cuantal_con_precios_iguales_es_el_llenado():
+    q = CF.respuesta_cuantal(4.0, [1.0, 5.0], [700.0, 700.0])
+    assert np.allclose(q, [1.0, 3.0], atol=1e-9)
+    # Con precios distintos, reparte con pesos exp(dz/mu).
+    q = CF.respuesta_cuantal(2.0, [5.0, 5.0], [700.0, 700.0 + np.log(3.0)])
+    assert np.allclose(q, [0.5, 1.5], atol=1e-9)
+    # Si la energia cubre todas las capacidades, son las capacidades.
+    assert np.allclose(CF.respuesta_cuantal(10.0, [1.0, 2.0], [0.0, 5.0]),
+                       [1.0, 2.0])
+
+
+@pytest.mark.parametrize("hora,fragil", [
+    (12, True), (853, False), (874, False), (2120, False), (3804, False),
+    (3086, False), (877, False), (58, False), (540, False), (4766, False),
+    (226, False), ("E4-133", False)])
+def test_4e_el_censo_marca_solo_la_hora_12_de_los_literales(hora, fragil):
+    """La hora 12 (excluidos, brecha de 1,59 (COP/kWh)) sale frágil, con el
+    29 % de E; las demas horas literales con mercado, no (sec. 1.f de la
+    investigacion). El censo anterior las marcaba todas. D71: la fragilidad
+    se mide sobre la FORMA CERRADA (`mu_cuantal=0.0`)."""
+    s, d, b, techo, piso_j = TRM._entradas(hora)
+    r = _rr(s, d, b, techo, piso_j, mu_cuantal=0.0)
+    f = CF.fragilidad(r, s, d, piso_j)
+    assert f["fragil"] is fragil
+    if fragil:
+        assert f["dq"] / r.E == pytest.approx(0.289, abs=0.002)
+        assert f["lado"] == "compradores"
+    else:
+        assert max(f["dq"], f["ds"]) < 1e-9 * max(1.0, r.E)
+
+
+def test_4e_un_empate_exacto_de_techos_no_es_fragil():
+    """Techos iguales al bit (los de ASC): la forma cerrada llena por niveles,
+    que es la respuesta cuantal con precios iguales. Inocuo."""
+    s, d, techo, piso = np.array([6.0]), np.array([5.0, 5.0]), \
+        np.array([800.0, 800.0]), np.array([700.0])
+    r = _rr(s, d, np.zeros(1), techo, piso, mu_cuantal=0.0)
+    assert not CF.fragilidad(r, s, d, piso)["fragil"]
+    assert _rr(s, d, np.zeros(1), techo, piso).regimen != "cuantal"
+
+
+def _almacen_de_literales(horas, estropea=None, mu=0.0):
+    """(agentes, flujos, horas) de un almacen sintetico con las horas
+    literales dadas, con la forma que escribe `core.almacen`. D71: con
+    `mu=0.0` (defecto) es un almacen de ANTES de la rama cuantal, como la
+    matriz del 17: la forma cerrada y sin las columnas de D71; con `mu` > 0,
+    uno de la rama cuantal, con `regimen_cerrado`, `apartamiento` y
+    `mu_cuantal` en la tabla de horas."""
+    ag, fl, hs = [], [], []
+    for h in horas:
+        lit = TRM.HORAS[h]
+        s, d, b, techo, piso_j = TRM._entradas(h)
+        r = _rr(s, d, b, techo, piso_j, mu_cuantal=mu)
+        fecha = _pd.Timestamp(_FECHAS_LIT[h])
+        base = dict(cobertura="m1", hora=h, fecha=fecha,
+                    mes=fecha.strftime("%Y-%m"))
+        for j, nom in enumerate(lit["vendedores"]):
+            ag.append(dict(base, agente=nom, papel="vendedor",
+                           sobrante=float(s[j]), faltante=0.0,
+                           generacion=float(s[j]), techo=float(techo.max()),
+                           piso=float(piso_j[j])))
+        for i, nom in enumerate(lit["compradores"]):
+            ag.append(dict(base, agente=nom, papel="comprador", sobrante=0.0,
+                           faltante=float(d[i]), generacion=0.0,
+                           techo=float(techo[i]), piso=float(piso_j.min())))
+            for j, vn in enumerate(lit["vendedores"]):
+                kwh = float(r.P[j, i])
+                if estropea == (h, nom):
+                    kwh += 0.5
+                fl.append(dict(base, vendedor=vn, comprador=nom, kwh=kwh,
+                               precio_reposo=float(r.pi_reposo[i])))
+        fila = dict(base, resuelta=True, regimen=r.regimen,
+                    volumen=float(r.E))
+        if mu > 0.0:
+            fila.update(regimen_cerrado=r.regimen_cerrado,
+                        apartamiento=float(r.apartamiento),
+                        mu_cuantal=float(r.mu_cuantal))
+        hs.append(fila)
+    return _pd.DataFrame(ag), _pd.DataFrame(fl), _pd.DataFrame(hs)
+
+
+def test_4e_censo_de_un_almacen_sintetico():
+    """Horas, energia frágil, su fraccion, el desglose por regimen y por mes,
+    y la comprobacion contra lo que guardo el almacen."""
+    tablas = _almacen_de_literales([12, 853, 874, 2120])
+    c = CF.censo_almacen("sintetico", tablas=tablas)
+    E = {h: _rr(*TRM._entradas(h)).E for h in (12, 853, 874, 2120)}
+    assert c["horas_con_mercado"] == 4 and c["horas_fragiles"] == 1
+    assert c["energia_fragil"] == pytest.approx(E[12])
+    assert c["fraccion"] == pytest.approx(E[12] / sum(E.values()))
+    assert c["pasa_del_2"] is True
+    assert c["por_regimen"]["excluidos"]["fragiles"] == 1
+    assert c["por_regimen"]["excluidos"]["horas"] == 2
+    assert c["por_mes"]["2025-04"]["fragiles"] == 1
+    assert c["por_hora"][12]["fragil"] and not c["por_hora"][853]["fragil"]
+    assert c["no_reproduce"] == 0
+    # Una hora cuyo reparto guardado no se reproduce no se juzga.
+    tablas = _almacen_de_literales([12, 853], estropea=(853, "UCC"))
+    c = CF.censo_almacen("sintetico", tablas=tablas)
+    assert c["no_reproduce"] == 1 and c["horas_con_mercado"] == 1
+    assert "UCC recibe" in c["no_reproduce_ejemplos"][0]["motivo"]
+
+
+def test_4e_la_hora_del_almacen_tiene_la_forma_del_arnes():
+    ag, _fl, _hs = _almacen_de_literales([12])
+    e0 = CF.hora_del_almacen(ag, "2025-04-04 12:00")
+    s, d, b, techo, piso_j = TRM._entradas(12)
+    assert e0["vend"] == TRM.HORAS[12]["vendedores"]
+    assert e0["comp"] == TRM.HORAS[12]["compradores"]
+    assert np.array_equal(e0["gn"], s) and np.array_equal(e0["dn"], d)
+    assert np.array_equal(e0["techo"], techo)
+    assert np.array_equal(e0["piso_j"], piso_j)
+    assert e0["piso"] == float(piso_j.min())
+    # El costo es el de los datos reales por nombre, el del arnes.
+    from data.xm_prices import get_b_for_real_data
+    nombres = list(ag["agente"])
+    b_all = get_b_for_real_data(len(nombres), nombres)
+    assert np.allclose(e0["b"], [b_all[nombres.index(v)] for v in e0["vend"]])
+
+
+def _e0_literal(h):
+    """La hora literal con la forma de `arnes.entradas`."""
+    lit = TRM.HORAS[h]
+    s, d, b, techo, piso_j = TRM._entradas(h)
+    J, I = s.size, d.size
+    return dict(s=list(range(J)), bb=list(range(J, J + I)),
+                vend=list(lit["vendedores"]), comp=list(lit["compradores"]),
+                gn=s, dn=d, a=np.zeros(J), b=b, gk=np.zeros(I), techo=techo,
+                piso_j=piso_j, piso=float(piso_j.min()), fecha=str(h))
+
+
+@pytest.mark.parametrize("hora,arranque_grande", [
+    (874, True), (3086, True), (4766, True), (853, False)])
+def test_4e_md_con_los_filtros_en_su_reposo_el_residuo_desaparece(
+        hora, arranque_grande):
+    """En el arranque de antes (lambda_filt = beta_filt = 0, y_filt = 1) el
+    residuo de la 874 era 86,3 y daba inestables espurios; con los filtros en
+    su reposo, el residuo es de 1e-10 y la hora es estable (sec. 2.c)."""
+    r = MD.analiza(dict(caso="LIT", fecha=str(hora), nivel="sigma",
+                        piso_juego="marginal"), e0=_e0_literal(hora))
+    assert (r["residuo_P_arranque"] > 1.0) is arranque_grande
+    assert r["residuo_P"] < 1e-8
+    assert r["quieta"] and r["estable"] and not r["fragil"]
+    assert r["admisibilidad"]["cuantal_rel"] < 1e-9
+    assert r["admisibilidad"]["multiplicador_negativo"] == 0.0
+
+
+def test_4e_md_el_suelo_del_recorte_no_quita_la_quietud():
+    """La 2120 (excluidos) tiene compradores sin energia: el recorte de P a
+    1e-10 deja un residuo de unos 3e-4 (kWh por unidad de tiempo), que es el
+    suelo, no un movimiento. Con E pequeno, sin descontarlo saldria «no
+    quieta»."""
+    r = MD.analiza(dict(caso="LIT", fecha="2120", nivel="sigma",
+                        piso_juego="marginal"), e0=_e0_literal(2120))
+    assert r["residuo_P"] == pytest.approx(r["suelo_P"], rel=0.05)
+    assert r["suelo_P"] > 1e-4
+    assert r["quieta"] and r["estable"] and not r["fragil"]
+
+
+def test_4e_md_la_hora_12_es_inestable_y_fragil():
+    """La unica hora literal fragil es tambien la unica inestable en el
+    reposo verdadero: sus cuatro entradas nulas crecen con la regularizacion.
+    Es lo esperado: estable salvo en las horas frágiles. D71: es el punto de
+    la FORMA CERRADA, que M-D analiza con `cerrada=dict(mu_cuantal=0.0)`; el
+    de la rama cuantal, en `test_q_md_el_punto_cuantal_de_la_hora_12`."""
+    r = MD.analiza(dict(caso="LIT", fecha="12", nivel="sigma",
+                        piso_juego="marginal",
+                        cerrada=dict(mu_cuantal=0.0)), e0=_e0_literal(12))
+    assert r["fragil"] and not r["estable"] and r["n_inestables"] == 4
+    assert r["mayores"][0]["re"] == pytest.approx(6.8, abs=0.3)
+    assert r["admisibilidad"]["cuantal_rel"] == pytest.approx(0.289,
+                                                               abs=0.002)
+    assert r["quieta"]                  # su residuo es el suelo del recorte
+
+
+def test_4e_md_filtros_de_reposo_admisibles_y_el_bloque_del_costo():
+    e = _e0_literal(874)
+    r = _rr(e["gn"], e["dn"], e["b"], e["techo"], e["piso_j"])
+    cerrada = dict(p=r.pi_reposo, P=r.P, q=r.q, E=r.E, regimen=r.regimen)
+    f = MD.filtros_de_reposo(e, cerrada)
+    assert np.all(f["lam_filt"] >= 0) and np.all(f["bet_filt"] >= 0)
+    assert np.all(f["y_filt"] == 0)
+    # gamma anula el bloque del costo: VEL_GPC·gamma·(b·s - p·P) + 1000 = 0.
+    re = r.P @ r.pi_reposo
+    sj = r.P.sum(axis=1)
+    assert np.allclose(A.VEL_GPC * f["gamma"] * (e["b"] * sj - re) + 1000.0,
+                       0.0, atol=1e-6)
+    # El estado de arranque de antes sigue disponible para comparar.
+    X = MD.estado_en_el_reposo(e, cerrada, None, filtros="arranque")
+    J = len(e["gn"])
+    I = len(e["dn"])
+    assert np.all(X[I + 1 + J:I + 1 + 2 * J] == 1.0)       # y_filt = 1
+    with pytest.raises(ValueError):
+        MD.estado_en_el_reposo(e, cerrada, None, filtros="otro")
+
+
+# ═══════════════ tarea Q: la rama cuantal del nucleo (D71) ═════════════════
+# El diseno: .superpowers/sdd/2026-09-16-reposo/diseno-rama-cuantal.md, sec. 6.
+
+
+def test_q_el_censo_y_la_rama_dan_la_misma_respuesta_cuantal():
+    """Sec. 6.1: la respuesta cuantal del censo, con la forma cerrada, es la
+    del nucleo en la hora 12 (misma biseccion; el reparto del resto del
+    nucleo es de 1e-11 y se admite 1e-9 relativo). Y el apartamiento del
+    nucleo es el del censo."""
+    s, d, b, techo, piso_j = TRM._entradas(12)
+    cerrado = _rr(s, d, b, techo, piso_j, mu_cuantal=0.0)
+    rama = _rr(s, d, b, techo, piso_j)
+    f = CF.fragilidad(cerrado, s, d, piso_j)
+    assert f["fragil"] and rama.regimen == "cuantal"
+    assert np.allclose(f["q_cuantal"], rama.q, rtol=1e-9, atol=0.0)
+    assert rama.apartamiento == pytest.approx(f["dq"] / cerrado.E, rel=1e-9)
+
+
+def test_q_md_el_punto_cuantal_de_la_hora_12():
+    """Sec. 6.3: con la rama (el defecto), M-D analiza el reposo cuantal de la
+    hora 12: estable, sin inestables, quieto, con el residuo del reparto de
+    7,5e-11 (sin el reparto del resto de la biseccion seria 6e-5) y sin
+    residuo de admisibilidad. La hora sigue siendo FRAGIL: se decide con la
+    forma cerrada."""
+    r = MD.analiza(dict(caso="LIT", fecha="12", nivel="sigma",
+                        piso_juego="marginal"), e0=_e0_literal(12))
+    assert r["regimen"] == "cuantal" and r["regimen_cerrado"] == "excluidos"
+    assert r["estable"] and r["n_inestables"] == 0 and r["quieta"]
+    assert r["mayor_fuera_de_neutras"] == pytest.approx(-0.615, abs=0.05)
+    assert r["residuo_P"] < 1e-8
+    adm = r["admisibilidad"]
+    assert adm["dispersion_compradores"] == 0.0
+    assert adm["multiplicador_negativo"] == 0.0
+    assert adm["cuantal_rel"] < 1e-9
+    assert r["fragil"] and r["lado_fragil"] == "compradores"
+    assert r["apartamiento_cerrado"] == pytest.approx(0.289, abs=0.002)
+    assert r["costo_vendedor"] == "lcoe"
+    # Y la forma cerrada, la de antes, con su mayor Re fuera de las neutras.
+    c = MD.analiza(dict(caso="LIT", fecha="12", nivel="sigma",
+                        piso_juego="marginal",
+                        cerrada=dict(mu_cuantal=0.0)), e0=_e0_literal(12))
+    assert c["mayor_fuera_de_neutras"] == pytest.approx(6.84, abs=0.05)
+    assert c["regimen"] == c["regimen_cerrado"] == "excluidos"
+
+
+def _e0_sintetica(s, d, b, techo, piso_j, fecha="sintetica"):
+    s, d, b, techo, piso_j = (np.asarray(x, float)
+                              for x in (s, d, b, techo, piso_j))
+    J, I = s.size, d.size
+    return dict(s=list(range(J)), bb=list(range(J, J + I)),
+                vend=[f"V{j}" for j in range(J)],
+                comp=[f"C{i}" for i in range(I)], gn=s, dn=d, a=np.zeros(J),
+                b=b, gk=np.zeros(I), techo=techo, piso_j=piso_j,
+                piso=float(piso_j.min()), fecha=fecha)
+
+
+_TA, _TC, _PA, _BB = 734.30, 794.62, 734.30 - 38.62, 241.07
+
+
+@pytest.mark.parametrize("caso, cerrado, cuantal", [
+    # k = 3 excluidos: cerrado 3 inestables en +4,30; cuantal estable
+    # (-0,797), residuo 5e-10.
+    (([5.0], [8.0, 9.0, 7.0, 6.0], [_BB], [_TA, _TA, _TA, _TC], [_PA]),
+     dict(estable=False, n=3, re=4.30, quieta=True),
+     dict(re=-0.797, residuo=1e-9)),
+    # topados fragil (Cesmag con 0,86·E): el cerrado NO esta quieto (|dP| =
+    # 0,66 y un multiplicador que tendria que ser negativo, 0,92).
+    (([6.0], [8.0, 9.0, 5.16], [_BB], [_TA, _TA, _TC], [_PA]),
+     dict(estable=True, n=0, re=-0.213, quieta=False, dP=0.66, neg=0.92),
+     dict(re=-0.548, residuo=1e-9)),
+])
+def test_q_md_los_sinteticos_del_lado_comprador(caso, cerrado, cuantal):
+    e0 = _e0_sintetica(*caso)
+    base = dict(caso="S", fecha="x", nivel="sigma", piso_juego="marginal")
+    c = MD.analiza(dict(base, cerrada=dict(mu_cuantal=0.0)), e0=e0)
+    assert c["fragil"] and c["lado_fragil"] == "compradores"
+    assert c["estable"] is cerrado["estable"]
+    assert c["n_inestables"] == cerrado["n"]
+    assert c["mayor_fuera_de_neutras"] == pytest.approx(cerrado["re"],
+                                                        abs=0.01)
+    assert c["quieta"] is cerrado["quieta"]
+    if "dP" in cerrado:
+        assert c["residuo_P"] == pytest.approx(cerrado["dP"], abs=0.01)
+        assert c["admisibilidad"]["multiplicador_negativo"] == \
+            pytest.approx(cerrado["neg"], abs=0.01)
+    q = MD.analiza(base, e0=e0)
+    assert q["regimen"] == "cuantal" and q["fragil"]
+    assert q["estable"] and q["n_inestables"] == 0 and q["quieta"]
+    assert q["mayor_fuera_de_neutras"] == pytest.approx(cuantal["re"],
+                                                        abs=0.01)
+    assert q["residuo_P"] < cuantal["residuo"]
+    assert q["admisibilidad"]["multiplicador_negativo"] == 0.0
+
+
+def test_q_md_el_sintetico_del_lado_vendedor_corre_con_el_costo_en_el_piso():
+    """Sec. 6.3 y 8.2: compradores cortos con dos vendedores de pisos a 2
+    (COP/kWh). Fragil del lado vendedor (0,0192·E), y M-D corre con el costo
+    del vendedor en su piso (D68): el cerrado no esta quieto (|dP| = 0,053,
+    multiplicador negativo 0,197) y el cuantal si (3e-10), estable
+    (-0,167). Con el costo nivelado b los dos puntos salen inestables: es la
+    pregunta de M-B (H-89), no la de la rama."""
+    e0 = _e0_sintetica([4.5, 4.0], [2.0, 3.0], [_BB, _BB], [_TA, _TC],
+                       [_PA - 2.0, _PA])
+    base = dict(caso="S", fecha="x", nivel="sigma", piso_juego="marginal")
+    c = MD.analiza(dict(base, cerrada=dict(mu_cuantal=0.0)), e0=e0)
+    q = MD.analiza(base, e0=e0)
+    for r in (c, q):
+        assert r["fragil"] and r["lado_fragil"] == "vendedores"
+        assert r["costo_vendedor"] == "alternativa"
+        assert r["apartamiento_cerrado"] == pytest.approx(0.0192, abs=1e-4)
+    assert not c["quieta"]
+    assert c["residuo_P"] == pytest.approx(0.053, abs=0.002)
+    assert c["admisibilidad"]["multiplicador_negativo"] == pytest.approx(
+        0.197, abs=0.002)
+    assert q["regimen"] == "cuantal" and q["quieta"] and q["estable"]
+    assert q["residuo_P"] < 1e-8
+    assert q["mayor_fuera_de_neutras"] == pytest.approx(-0.167, abs=0.01)
+    # Con el costo nivelado b (el de la dinamica por defecto), inestables.
+    for mu in (0.0, 1.0):
+        pre = PR.prepara(dict(base, cerrada=dict(mu_cuantal=mu)), e0=e0)
+        e, cerr = pre["e"], pre["referencias"]["cerrada"]
+        rhs, _X0, ix = A.construye(e, mu_ent=1.0, precios0=pre["precios0"])
+        X = MD.estado_en_el_reposo(e, cerr, pre["precios0"])
+        Jac, _ = MD.jacobiano_reducido(rhs, X, ix)
+        assert MD.clasifica_valores_propios(Jac, ix["I"],
+                                            ix["J"])["inestables"]
+
+
+def test_q_el_censo_de_un_almacen_de_la_rama_cuantal():
+    """Un almacen de la rama cuantal (trae `mu_cuantal`): la guarda lo compara
+    con el nucleo con esa mu, y se reproduce; el censo mide con la forma
+    cerrada (la hora 12 sigue en «excluidos» y fragil) y cruza con el nucleo
+    sin discrepancias."""
+    tablas = _almacen_de_literales([12, 853, 874, 2120], mu=1.0)
+    assert (tablas[2]["regimen"] == "cuantal").sum() == 1
+    c = CF.censo_almacen("sintetico", tablas=tablas)
+    assert c["almacen_cuantal"] and c["no_reproduce"] == 0
+    assert c["horas_con_mercado"] == 4 and c["horas_fragiles"] == 1
+    assert c["discrepancias"] == 0
+    h12 = c["por_hora"][12]
+    assert h12["regimen"] == "excluidos" and h12["fragil"]
+    assert h12["regimen_nucleo"] == "cuantal"
+    assert h12["apartamiento_nucleo"] == pytest.approx(0.289056, abs=1e-5)
+    # El de antes (la forma cerrada, sin las columnas de D71), tambien.
+    c = CF.censo_almacen("sintetico",
+                         tablas=_almacen_de_literales([12, 853, 874, 2120]))
+    assert not c["almacen_cuantal"] and c["no_reproduce"] == 0
+    assert c["horas_fragiles"] == 1 and c["discrepancias"] == 0
+    # La sensibilidad: con 5e-3 la 12 (0,289·E) sigue fragil; con mu = 0,5
+    # tambien (0,076·E); todas las horas cuentan en cada fila.
+    assert c["sensibilidad_umbral"]["0.005"]["fragiles"] == 1
+    assert c["sensibilidad_mu"]["0.5"]["fragiles"] == 1
+    assert c["sensibilidad_mu"]["1"]["movida"] == pytest.approx(
+        c["energia_movida"])
+    assert all(x["horas"] == 4 for x in c["sensibilidad_mu"].values())
+
+
+def test_q_el_cruce_del_censo_con_el_nucleo_detecta_una_discrepancia(
+        monkeypatch):
+    """Si el nucleo y el censo no dijeran lo mismo, la hora va a
+    `discrepancias` (un hallazgo, que la linea del censo grita)."""
+    import core.reposo_mercado as RM
+    original = RM.resuelve_reposo
+
+    def sin_rama(*a, **kw):
+        # Un nucleo que no publicara la rama cuantal en ninguna hora.
+        kw["mu_cuantal"] = 0.0
+        return original(*a, **kw)
+
+    monkeypatch.setattr(RM, "resuelve_reposo", sin_rama)
+    c = CF.censo_almacen("sintetico", tablas=_almacen_de_literales([12]))
+    assert c["discrepancias"] == 1
+    assert c["discrepancias_ejemplos"][0]["regimen_nucleo"] == "excluidos"
+    assert any("HALLAZGO" in x for x in CF.desglose(c))
+
+
+def test_q_la_rigidez_de_una_hora_cuantal_es_la_de_su_familia():
+    assert PR.tolerancias("cuantal", 1.0, regimen_cerrado="topados")[
+        "clase"] == "floja"
+    assert PR.tolerancias("cuantal", 1.0, regimen_cerrado="excluidos")[
+        "clase"] == "estricta"
+    assert "topados (cuantal)" in PR.tolerancias(
+        "cuantal", 1.0, regimen_cerrado="topados")["motivo"]
+    with pytest.raises(ValueError, match="cuantal"):
+        PR.tolerancias("cuantal", 1.0)
+    # La declarada manda, sea cual sea el regimen.
+    assert PR.tolerancias("cuantal", 1.0, declarada=dict(
+        tol_q_rel=0.1, tol_p=1.0))["clase"] == "declarada"
+    # Y la hora preparada lleva su regimen cerrado.
+    pre = PR.prepara(dict(caso="LIT", fecha="12", nivel="sigma",
+                          piso_juego="marginal"), e0=_e0_literal(12))
+    base = pre["base"]
+    assert base["regimen"] == "cuantal"
+    assert base["regimen_cerrado"] == "excluidos"
+    assert base["apartamiento"] == pytest.approx(0.289, abs=0.001)
+    assert base["mu_cuantal"] == 1.0

@@ -47,7 +47,10 @@ MIN_MUESTRA = 5
 TOL_RECORTE_REL = 1e-9
 
 # Los regimenes en que la aceleracion no es exacta, aunque k sea 1: hay un
-# multiplicador que crece sin tope y la hora es rigida.
+# multiplicador que crece sin tope y la hora es rigida. D71: una hora «cuantal»
+# no es un regimen de precios, sino la forma cerrada de una familia con el
+# reparto cuantal; su rigidez la decide su `regimen_cerrado` (una hora cuantal
+# de la familia topados sigue siendo rigida), ver `tolerancias`.
 REGIMENES_RIGIDOS = ("topados", "mixto", "compradores_cortos")
 SIN_MERCADO = ("sin_mercado", "sin_ganancia")
 
@@ -82,7 +85,10 @@ def precios_sigma(techo, piso: float, sigma=None) -> np.ndarray:
 
 
 def resuelve(e, **opciones):
-    """El reposo en forma cerrada de una hora del arnes."""
+    """El reposo en forma cerrada de una hora del arnes. Las opciones pasan al
+    nucleo tal cual; entre ellas `mu_cuantal` (D71): sin ella, la de
+    produccion, que en las horas fragiles publica el reposo cuantal; con
+    `mu_cuantal=0.0`, la forma cerrada de antes en todas las horas."""
     op = dict(CERRADA_PRODUCCION)
     op.update(opciones)
     return resuelve_reposo(e["gn"], e["dn"], e["b"], e["techo"], e["piso_j"],
@@ -114,11 +120,21 @@ def _cerrada_a_dict(r) -> dict:
                 ell=(None if r.ell is None else float(r.ell)),
                 p_u=float(r.p_u), n_soluciones=int(r.n_soluciones),
                 excluidos=tuple(int(k) for k in r.excluidos),
-                parte_vendedor=float(r.parte_vendedor))
+                parte_vendedor=float(r.parte_vendedor),
+                # D71: la familia de precios de la forma cerrada y cuanto se
+                # aparta de ella la respuesta cuantal.
+                regimen_cerrado=str(r.regimen_cerrado),
+                apartamiento=float(r.apartamiento),
+                mu_cuantal=float(r.mu_cuantal))
 
 
-def prepara(spec) -> dict:
+def prepara(spec, e0=None) -> dict:
     """La hora lista para integrar, y contra que se compara.
+
+    `e0`, opcional (tarea 4e): la hora ya armada, con la forma de
+    `arnes.entradas`, en vez de cargarla con `arnes.hora_de`. M-D la arma del
+    almacen de la matriz (`censo_fragiles.hora_del_almacen`) para no cargar
+    las mediciones de todo el caso. Sin ella, todo como siempre.
 
     Claves de `spec` que se leen aqui:
       caso, fecha          la hora (`arnes.hora_de`);
@@ -136,7 +152,8 @@ def prepara(spec) -> dict:
 
     Devuelve dict(e, precios0, referencias, base, avisos, sin_mercado).
     """
-    e0 = A.hora_de(spec["caso"], spec["fecha"])
+    if e0 is None:
+        e0 = A.hora_de(spec["caso"], spec["fecha"])
     avisos = []
     op_base = dict(spec.get("cerrada", {}))
     if spec.get("sigma") is not None:
@@ -235,7 +252,7 @@ def prepara(spec) -> dict:
 
 
 def tolerancias(regimen: str, k: float, estricta_si_libre=True,
-                declarada=None):
+                declarada=None, regimen_cerrado=None):
     """Que tolerancia le toca a esta hora, y por que.
 
     Con `declarada` (un dict con tol_q_rel y tol_p, y opcionalmente motivo),
@@ -244,6 +261,11 @@ def tolerancias(regimen: str, k: float, estricta_si_libre=True,
     Sin ella, la de M-A: estricta (1e-3·E y 0,05 (COP/kWh)) solo sin
     aceleracion y sin topados; floja (1 % de E y 0,5) en cuanto hay
     aceleracion o la hora es rigida.
+
+    D71: la rigidez la decide `regimen_cerrado` si se da (el rotulo de la
+    forma cerrada, `ReposoHora.regimen_cerrado`), y si no, `regimen`. Una hora
+    «cuantal» sin su regimen cerrado no se puede juzgar: ValueError, en vez de
+    darla por libre en silencio.
     """
     if declarada is not None:
         tol = dict(declarada)
@@ -256,7 +278,11 @@ def tolerancias(regimen: str, k: float, estricta_si_libre=True,
         tol.setdefault("clase", "declarada")
         tol.setdefault("motivo", "la que fija la medicion")
         return tol
-    rigida = regimen in REGIMENES_RIGIDOS
+    familia = regimen_cerrado if regimen_cerrado else regimen
+    if familia == "cuantal":
+        raise ValueError("la hora es «cuantal» (D71) y no se dio su regimen "
+                         "cerrado: la rigidez es la de su familia de precios")
+    rigida = familia in REGIMENES_RIGIDOS
     if estricta_si_libre and float(k) == 1.0 and not rigida:
         return dict(tol_q_rel=TOL_Q_REL_ESTRICTA, tol_p=TOL_P_ESTRICTA,
                     clase="estricta",
@@ -265,7 +291,8 @@ def tolerancias(regimen: str, k: float, estricta_si_libre=True,
     if float(k) != 1.0:
         motivo.append(f"acelerada k = {k:g}")
     if rigida:
-        motivo.append(f"regimen {regimen}")
+        motivo.append(f"regimen {familia}"
+                      + (" (cuantal)" if regimen == "cuantal" else ""))
     return dict(tol_q_rel=TOL_Q_REL_FLOJA, tol_p=TOL_P_FLOJA, clase="floja",
                 motivo=" y ".join(motivo) or "por defecto")
 

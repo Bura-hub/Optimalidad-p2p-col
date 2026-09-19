@@ -1,12 +1,14 @@
-"""M-E: cuanto depende el reposo del parametro de la regularizacion, y cuantos
-empates hay por debajo de el.
+"""M-E: cuanto depende el reposo del parametro de la regularizacion, y en
+cuantas horas lo mueve (el censo de horas frágiles).
 
 QUE DECIDE. Si mu (la exploracion entropica del vendedor, D49) es solo un
 parametro de velocidad, como se midio en la hora 109, o si mueve el reposo. Y,
 si lo mueve, en cuantas horas: el reposo en forma cerrada es el limite mu -> 0,
-con prioridad estricta y empate solo exacto, de modo que dos techos o dos
-costos separados por menos de unos 3·mu son justo donde el limite y la
-regularizacion pueden discrepar.
+con prioridad estricta y empate solo exacto, y discrepa de la regularizacion
+donde un precio del reposo queda a pocos mu de otro que decide el reparto
+(por ejemplo, el precio comun del grupo interior a menos de unos 7·mu del
+techo de un comprador que no recibe). No en los empates exactos de techos, que
+son inocuos (tarea 4e).
 
 COMO, dos partes.
 
@@ -16,23 +18,33 @@ COMO, dos partes.
 
        python -u corre_mediciones.py --medicion medicion_mu --salida <json>
 
-   ACEPTACION: el mismo reposo dentro de 1e-3·E (kWh), salvo en las horas con
-   dos techos o dos costos a menos de 3·mu.
+   ACEPTACION: el mismo reposo dentro de 1e-3·E (kWh), salvo en las horas
+   FRAGILES del censo (punto 2).
 
-2. EL CENSO DE EMPATES, que se lee del almacen y no integra nada:
+2. EL CENSO DE HORAS FRAGILES (tarea 4e), que se lee del almacen y no integra
+   nada:
 
        python -u medicion_mu.py --censo --almacen <ruta> --caso E0 \\
            --salida <json>
 
-   Cuenta las horas con mercado en que dos compradores tienen el techo a menos
-   de 3·mu, o dos vendedores el piso a menos de 3·mu, y cuanta energia mueven.
-   ACEPTACION (informativa): si pasan del 2 % de la energia, la forma cerrada
-   adopta en esas horas el reposo con mu = 1 (respuesta cuantal) en vez del
-   limite estricto.
+   Es `censo_fragiles.censo_almacen`: una hora es fragil si la respuesta
+   cuantal con mu = 1 y los precios del reposo se aparta del reparto cerrado
+   en mas de 1e-3·E (ver el docstring de `censo_fragiles.py`). Con D71
+   (2026-09-19) el nucleo publica en CADA hora fragil el reposo con mu = 1
+   (regimen «cuantal»), sea cual sea el peso del caso: la regla del 2 % del
+   plan, que decidia por caso, queda sin funcion y el porcentaje se publica
+   solo como diagnostico.
+
+   ANTES contaba las horas con dos techos o dos pisos a menos de 3·mu,
+   diferencia cero incluida, y salia el 100 % de la energia: los cuatro
+   compradores de ASC tienen el mismo techo al bit, y un empate exacto es
+   inocuo (investigacion-me-md.md, sec. 1). Con aquel censo, ademas, la
+   excepcion de la aceptacion de la parte 1 cubria el 100 % de las horas y no
+   podia fallar.
 
 COSTO. La sensibilidad son seis grupos por dos horas por tres mu, treinta y
-seis corridas de 1 a 10 (min). El censo son segundos: solo lee dos tablas del
-almacen.
+seis corridas de 1 a 10 (min). El censo son segundos: lee tres tablas del
+almacen y resuelve cada hora en forma cerrada.
 """
 import argparse
 import json
@@ -194,8 +206,8 @@ def veredicto(resultados) -> str:
                       f"solo dos mu: el tercero no llego)")
     if mueven:
         lineas.append("  => mu NO es solo un parametro de velocidad en esas "
-                      "horas: cruzalas con el censo de empates por debajo de "
-                      "3*mu (m_e_empates_<caso>.json)")
+                      "horas: cruzalas con el censo de horas frágiles "
+                      "(m_e_empates_<caso>.json; censo_fragiles.py)")
     elif coinciden and len(coinciden) >= 5:
         lineas.append("  => en las horas comparables, mu solo cambia la velocidad")
     else:
@@ -206,47 +218,20 @@ def veredicto(resultados) -> str:
 
 # ─────────────────────────────── el censo ──────────────────────────────────
 def censo(almacen, cobertura: str, mu: float) -> dict:
-    """Horas con empates por debajo de 3·mu, y la energia que mueven."""
-    import numpy as np
-    from core.almacen import lee
-
-    agentes = lee(Path(almacen), cobertura, "agentes")
-    flujos = lee(Path(almacen), cobertura, "flujos")
-    umbral = 3.0 * float(mu)
-    energia = (flujos.groupby("hora")["kwh"].sum().to_dict()
-               if len(flujos) else {})
-    total = float(sum(energia.values()))
-    con_empate, energia_empate = [], 0.0
-    detalle = {"techos": 0, "pisos": 0}
-    for h, sub in agentes.groupby("hora"):
-        h = int(h)
-        if energia.get(h, 0.0) <= 0.0:
-            continue
-        techos = np.sort(sub.loc[sub["papel"] == "comprador", "techo"]
-                         .to_numpy(dtype=float))
-        pisos = np.sort(sub.loc[sub["papel"] == "vendedor", "piso"]
-                        .to_numpy(dtype=float))
-        empate_t = bool(techos.size >= 2 and np.min(np.diff(techos)) < umbral)
-        empate_p = bool(pisos.size >= 2 and np.min(np.diff(pisos)) < umbral)
-        if empate_t:
-            detalle["techos"] += 1
-        if empate_p:
-            detalle["pisos"] += 1
-        if empate_t or empate_p:
-            con_empate.append(h)
-            energia_empate += float(energia[h])
-    return dict(almacen=str(almacen), cobertura=cobertura, mu=float(mu),
-                umbral=umbral, horas_con_mercado=len(energia),
-                horas_con_empate=len(con_empate), detalle=detalle,
-                energia_total=total, energia_con_empate=energia_empate,
-                fraccion=(energia_empate / total) if total > 0 else 0.0,
-                horas=con_empate[:500])
+    """El censo de horas frágiles de un almacen (tarea 4e): el de
+    `censo_fragiles.censo_almacen`, sin la lista hora a hora."""
+    from censo_fragiles import censo_almacen
+    c = censo_almacen(almacen, cobertura, mu)
+    fragiles = [x for x in c.pop("por_hora").values() if x["fragil"]]
+    c["horas"] = fragiles[:500]
+    return c
 
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--censo", action="store_true",
-                    help="cuenta los empates; sin esto no hay nada que hacer "
+                    help="censa las horas frágiles; sin esto no hay nada que "
+                         "hacer "
                          "aqui, porque la sensibilidad la corre "
                          "corre_mediciones.py")
     ap.add_argument("--almacen", required=True)
@@ -256,7 +241,8 @@ def main(argv=None) -> int:
     ap.add_argument("--salida", required=True)
     args = ap.parse_args(argv)
     if not args.censo:
-        print("  este guion ejecutado solo hace el censo de empates: pasa "
+        print("  este guion ejecutado solo hace el censo de horas "
+              "frágiles: pasa "
               "--censo. La sensibilidad a mu la corre corre_mediciones.py "
               "--medicion medicion_mu")
         return 2
@@ -265,17 +251,19 @@ def main(argv=None) -> int:
     salida = Path(args.salida)
     salida.parent.mkdir(parents=True, exist_ok=True)
     salida.write_text(json.dumps(r, indent=1), encoding="utf-8")
-    print(f"  {args.caso or args.almacen}: {r['horas_con_empate']} horas con "
-          f"empate por debajo de {r['umbral']:g} (COP/kWh) de "
+    print(f"  {args.caso or args.almacen}: {r['horas_fragiles']} horas "
+          f"frágiles frente a mu = {r['mu']:g} (1e-3·E) de "
           f"{r['horas_con_mercado']} con mercado", flush=True)
-    print(f"  energia afectada {r['energia_con_empate']:.1f} de "
-          f"{r['energia_total']:.1f} (kWh) = {100 * r['fraccion']:.2f} %",
-          flush=True)
-    print(f"  (por techos: {r['detalle']['techos']} horas; por pisos: "
-          f"{r['detalle']['pisos']})", flush=True)
-    if r["fraccion"] > 0.02:
-        print("  PASA DEL 2 %: la forma cerrada tendria que adoptar el reposo "
-              "con mu = 1 en esas horas (M-E)", flush=True)
+    print(f"  energia de esas horas {r['energia_fragil']:.1f} de "
+          f"{r['energia']:.1f} (kWh) = {100 * r['fraccion']:.2f} %; la que "
+          f"cambiaria de manos, {r['energia_movida']:.2f} (kWh)", flush=True)
+    if r["no_reproduce"]:
+        print(f"  AVISO: {r['no_reproduce']} horas no se reproducen desde el "
+              f"almacen y no se juzgan", flush=True)
+    if r["pasa_del_2"]:
+        print("  pasa del 2 % (diagnostico): con D71 el nucleo ya publica el "
+              "reposo con mu = 1 en cada hora fragil, sea cual sea el peso "
+              "del caso", flush=True)
     print(f"  escrito {salida}", flush=True)
     return 0
 

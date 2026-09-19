@@ -194,7 +194,13 @@ def main(argv=None) -> int:
                 return (None, f"el arnes no la resuelve ({type(exc).__name__})",
                         f"la hora {h} ({fecha}) no se pudo resolver con el "
                         f"arnes: {type(exc).__name__}: {exc}")
-            mismo = (r.regimen == reg_alm.get(h, ""))
+            # D71: un almacen anterior a la rama cuantal (la matriz del 17)
+            # guarda el regimen de la forma cerrada, y el nucleo de hoy dice
+            # «cuantal» en las horas frageles con ese rotulo en
+            # `regimen_cerrado`: la hora coincide si el almacen trae uno de los
+            # dos. Sin esto, las frageles se descartaban como «otro regimen».
+            mismo = reg_alm.get(h, "") in (
+                r.regimen, getattr(r, "regimen_cerrado", r.regimen))
             dif_piso = abs(float(r.piso) - piso_alm.get(h, float("nan")))
             if not mismo or not (dif_piso <= TOL_PISO):
                 return (None,
@@ -203,7 +209,9 @@ def main(argv=None) -> int:
                         f"regimen {r.regimen} frente a {reg_alm.get(h, '')}, "
                         f"piso {float(r.piso):.4f} frente a "
                         f"{piso_alm.get(h, float('nan')):.4f}")
-            return (dict(hora=h, fecha=fecha, regimen=r.regimen, grupo=g,
+            return (dict(hora=h, fecha=fecha, regimen=r.regimen,
+                         regimen_cerrado=getattr(r, "regimen_cerrado",
+                                                 r.regimen), grupo=g,
                          E=float(r.E), piso=float(r.piso), S=float(r.S),
                          n_soluciones=int(r.n_soluciones),
                          vendedores=vend.get(h, []),

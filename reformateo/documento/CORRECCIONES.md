@@ -9545,3 +9545,62 @@ El 2026-09-27, al lanzar la segunda tanda del GSA directo, el paso 2 de la acci�
 
 - Con un `muestras_E0_n2048_s42.meta.json` simulado en `SALIDAS_SERVIDOR/gsa_directo/E0/`: sin el arreglo, la prueba de NBASE falla como en el servidor; con él pasan las 15 del lanzador. El simulado se borró después.
 - Las otras 75 pruebas rápidas del paquete pasan.
+
+## C-206 · El caso del artículo 20 se decide con la capacidad por usuario del artículo 18, no con la planta mayor (CREG 101 072; decisión del autor, 2026-09-27)
+
+### Qué se vio
+
+El artículo 18 de la Resolución CREG 101 072 define la capacidad instalada por usuario del autogenerador colectivo para fines comerciales como la suma de las capacidades instaladas entre el número de usuarios, es decir de fronteras, **contando también las que solo consumen**. Es la magnitud que el artículo 20 compara con los 100 kW para separar el caso 1 del caso 2. El proyecto ya lo había leído así el 2026-09-13 (HALLAZGOS, «Lo que dice la norma sobre el porcentaje y el número de miembros»), pero al pasarlo a código se confundió con el umbral de 100 kW **por planta** del artículo 25, numeral 2, de la CREG 174, que es otro criterio. El mismo criterio tenía cuatro lecturas:
+
+| Sitio | Qué comparaba con 100 kW |
+|---|---|
+| `resolve_caso_art20` (`scenarios/scenario_c4_creg101072.py`) | la planta mayor |
+| `_caso_11`, contrafáctico de 11 fronteras (`scenarios/comparison_engine.py`) | la planta mayor |
+| FA-2, hoja `FA_CREG101072` (`analysis/feasibility.py`) | el pico de generación de cada agente |
+| FA-4 (`analysis/feasibility.py`) | la media del artículo 18, pero de los picos de generación y entre los prosumidores solos; y, agente por agente, su pico escalado |
+| `regulatory_risk_c4` (sin uso) | la suma de capacidades |
+
+La consecuencia en el canon: en E4, E5, P2, I1 y N1 el contrafáctico de 11 fronteras caía en el caso 2 y coincidía al peso con C4. Con el artículo 18, por ejemplo en E4, 5 × 122,85 / 11 = 55,8 (kW), y pasa al caso 1.
+
+### Qué se cambió
+
+- `scenarios/scenario_c4_creg101072.py`: función nueva `capacidad_por_usuario_art18(capacity, n_fronteras)`, que devuelve la suma entre el número de fronteras y falla en voz alta con una capacidad no finita o negativa, con un número de fronteras no entero o menor que el de plantas. `resolve_caso_art20` gana `n_fronteras` (por defecto, una frontera por porcentaje) y su prueba de capacidad pasa por esa función. `regulatory_risk_c4` compara la capacidad por usuario y la informa.
+- `scenarios/comparison_engine.py`: `_caso_11` con `resolve_caso_art20` y 11 fronteras (o N, si hubiera más de once miembros). `run_p2p_colectivo` no decide el caso por su cuenta: recibe `_caso_11` o, con «auto», lo resuelve `run_c4_creg101072` con la misma función.
+- `analysis/feasibility.py`: FA-2 recibe `capacity` y `n_fronteras`, compara la capacidad por usuario de la capacidad **instalada** y la informa (`capacidad_por_usuario_kw`, `n_fronteras`, `capacidad_fuente`); sin capacidad aproxima con el pico y avisa. Como el criterio es de la comunidad, si se supera lo superan todos los usuarios. FA-3 le pasa la misma capacidad con que liquida C4. FA-4 recibe `capacity`, calcula el CAPU con la función común y todas las fronteras en el denominador, y la escala de cada agente con el CAPU del colectivo con su planta escalada.
+- `main_simulation.py`: FA-2 y FA-4 reciben `capacity=cap`; la fila COMUNIDAD de `FA_CREG101072` añade la capacidad por usuario, las fronteras y el caso, y `FA4_Robustez_Escala` añade la capacidad instalada.
+- `gsa_directo/evaluador.py`: `evalua_comparacion`, que devuelve además el `ComparisonResult`, sin tocar `evalua` ni `evalua_detalle`.
+- Pruebas: `tests/test_art18_capacidad_usuario.py`, nueva (18); `tests/test_c4_creg101072.py` y `tests/test_c4_mensual_norma.py`, que codificaban la lectura de la planta mayor, actualizadas.
+- Especificación `docs/superpowers/specs/2026-09-13-motor-conforme-norma-design.md`: la fila de la capacidad por usuario de la tabla de umbrales, con una nota fechada, y la verificación 9.
+- `reformateo/documento/scripts/contrafacticos_art18.py`, nuevo: recalcula los cinco contrafácticos de los trece casos con el evaluador del GSA en el punto base y los compara con la hoja `Contrafacticos` del canon. Salidas en `SALIDAS_SERVIDOR/contrafacticos_art18_2026-09-27/`.
+
+El umbral de 100 kW por planta del artículo 25, numeral 2 (C1, piso, residual, contrato; el que cruzan E3 y E4 con 98,3 y 122,9 kW) **no cambia**.
+
+### Qué se comprobó
+
+Cambian las diez filas esperadas y ninguna más: las dos de 11 fronteras en E4, E5, P2, I1 y N1, que pasan del caso 2 al 1. Las otras 55 quedan al peso (diferencia máxima 0,0), y también C4, el mercado por la vía del colectivo, el mercado y C1 de la hoja `Resumen` en los trece casos.
+
+| Caso | Capacidad por usuario con 11 fronteras (kW) | Contrafáctico | Canon (MCOP) | Con el art. 18 (MCOP) | Diferencia (MCOP) |
+|---|---:|---|---:|---:|---:|
+| E4 | 55,8 | colectivo | 198,45 | 236,00 | +37,55 (+18,9 %) |
+| E4 | 55,8 | mercado por el colectivo | 198,01 | 234,99 | +36,98 (+18,7 %) |
+| E5 | 79,8 | colectivo | 236,60 | 275,08 | +38,49 (+16,3 %) |
+| E5 | 79,8 | mercado por el colectivo | 236,51 | 274,87 | +38,36 (+16,2 %) |
+| P2 | 55,8 | colectivo | 311,40 | 323,02 | +11,61 (+3,7 %) |
+| P2 | 55,8 | mercado por el colectivo | 311,53 | 323,13 | +11,60 (+3,7 %) |
+| I1 | 20,0 | colectivo | 108,75 | 126,73 | +17,99 (+16,5 %) |
+| I1 | 20,0 | mercado por el colectivo | 107,70 | 124,15 | +16,46 (+15,3 %) |
+| N1 | 38,9 | colectivo | 170,77 | 204,15 | +33,39 (+19,6 %) |
+| N1 | 38,9 | mercado por el colectivo | 173,65 | 210,27 | +36,62 (+21,1 %) |
+
+- Compuerta del punto base del GSA contra la matriz del canon: `COMPUERTA GSA PUNTO BASE EN VERDE: 748 comprobaciones en 14 evaluaciones, todas al peso`.
+- Las tres compuertas del canon: `CANON 2026-09 INTACTO`, `CANON 2026-08 INTACTO`, `CANON INTACTO`.
+- Pruebas: la nueva, las del colectivo (horario y mensual), del mercado por la vía del colectivo, de la comparación, de FA-3, del evaluador del GSA (sin la que corre `main()`) y las seis filtradas del preflight: 145 pasan.
+
+### Lo que queda
+
+- Registrar la tabla en el canon (punto E1): la hoja `Contrafacticos` de la matriz del 19 de septiembre queda superada en esas diez filas. Hasta entonces, las cifras de 11 fronteras de E4, E5, P2, I1 y N1 se citan desde `SALIDAS_SERVIDOR/contrafacticos_art18_2026-09-27/`, no desde la matriz.
+- Las hojas `FA_CREG101072` y `FA4_Robustez_Escala` solo cambian en la próxima corrida con `--analysis`; la figura de escalamiento de `reformateo/documento/scripts/gen_cap12.py` («Capacidad por usuario», eje «Pico de generación al escalar») y el párrafo de `sections/11-robustez.tex` sobre el «límite de 100 kW por usuario» todavía leen el pico por agente.
+
+### Ronda de revisión (2026-09-27)
+
+La revisión del cambio (`.superpowers/sdd/2026-09-16-reposo/preparacion/revision-A1-A2.md`, aprobado con observaciones) encontró que la hoja `FA_CREG101072` y la tabla FA-2 del informe seguían poniendo la capacidad de la planta de cada institución junto a «Cumple 100kW», que tras este cambio es un veredicto de la comunidad: invitaba a leer «la institución X supera los 100 kW» cuando lo que supera el umbral es la capacidad por usuario del colectivo. Se separaron: por institución, `Capacidad_planta_kW` y `Planta_hasta_100kW_art25` (su numeral del art. 25 como autogenerador); en la fila COMUNIDAD, `Cumple_100kW_art20` junto a la capacidad por usuario, las fronteras y el caso. El informe Markdown dice lo mismo. Ningún guion leía las columnas viejas. Pruebas: las 45 del C4, del art. 18, del comercializador y del preflight filtrado.

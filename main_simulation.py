@@ -2036,9 +2036,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                   "mercado (§3.12)")
 
         # FA-2: cumplimiento CREG 101 072
+        # C-206: la condición ii con la capacidad instalada (art. 18).
         fa_creg_rep = analyze_creg_101072_compliance(
             D=D, G=G, agent_names=agent_names,
-            prosumer_ids=prosumer_ids, verbose=True,
+            prosumer_ids=prosumer_ids, verbose=True, capacity=cap,
         )
 
         # FA-3: Robustez — retiro de participante
@@ -2066,7 +2067,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         )
         sc_risk = analyze_scaling_risk(
             G=G, prosumer_ids=prosumer_ids, agent_names=agent_names,
-            D=D, verbose=True,
+            D=D, verbose=True, capacity=cap,                # C-206
         )
 
         if not analisis_ligero:
@@ -2445,11 +2446,23 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                     "Agente": name,
                     "Participacion_pct": fa_creg.max_supply_share_by_agent.get(name, 0),
                     "Cumple_10pct": name not in fa_creg.rule_10pct_violations,
-                    "Capacidad_max_kW": fa_creg.max_capacity_by_agent.get(name, 0),
-                    "Cumple_100kW": name not in fa_creg.rule_100kw_violations,
+                    # C-206: la capacidad de la planta de cada una decide su
+                    # numeral del art. 25 como autogenerador, NO el caso del
+                    # colectivo; el veredicto de 100 kW del art. 20 es de la
+                    # comunidad y va en su fila.
+                    "Capacidad_planta_kW": fa_creg.max_capacity_by_agent.get(name, 0),
+                    "Planta_hasta_100kW_art25":
+                        fa_creg.max_capacity_by_agent.get(name, 0) <= 100.0,
                 })
             rows.append({"Agente": "COMUNIDAD",
-                          "Robustez_C4": fa_creg.robustness_score})
+                          "Robustez_C4": fa_creg.robustness_score,
+                          # C-206: la magnitud que decide la condición ii.
+                          "Capacidad_por_usuario_art18_kW":
+                              fa_creg.capacidad_por_usuario_kw,
+                          "Fronteras_art18": fa_creg.n_fronteras,
+                          "Cumple_100kW_art20":
+                              not fa_creg.rule_100kw_violations,
+                          "Caso_art20": fa_creg.caso_art20})
             pd.DataFrame(rows).to_excel(w, sheet_name="FA_CREG101072", index=False)
 
         pd.DataFrame([thresholds]).to_excel(w, sheet_name="Umbrales", index=False)
@@ -2508,6 +2521,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                     "Agente":         name,
                     "G_mean_kW":      d["g_mean_kw"],
                     "G_max_kW":       d["g_max_kw"],
+                    "Cap_instalada_kW": d["cap_kw"],        # C-206
                     "Share_actual_%": d["share_pct"],
                     "2x_cumple":      d["2x_ok"],
                     "3x_cumple":      d["3x_ok"],
@@ -2748,16 +2762,23 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
             "",
             "### FA-2: Cumplimiento CREG 101 072/2025",
             "",
-            f"| Institución | Participación (%) | Cumple 10% | Cap. max (kW) | Cumple 100kW |",
-            "|-------------|------------------|-----------|--------------|-------------|",
+            f"| Institución | Participación (%) | Cumple 10% | Planta (kW) | Planta ≤ 100 kW (art. 25) |",
+            "|-------------|------------------|-----------|-------------|---------------------------|",
         ]
         for name in agent_names:
             sh  = fa_creg.max_supply_share_by_agent.get(name, 0)
             cap = fa_creg.max_capacity_by_agent.get(name, 0)
             c10 = "✓" if name not in fa_creg.rule_10pct_violations else "✗"
-            c100= "✓" if name not in fa_creg.rule_100kw_violations  else "✗"
+            c100= "✓" if cap <= 100.0 else "✗"
             lines.append(f"| {name} | {sh:.2f}% | {c10} | {cap:.1f} | {c100} |")
+        # C-206: el umbral de 100 kW del art. 20 es de la comunidad (art. 18).
         lines += [
+            "",
+            f"**Capacidad por usuario (art. 18):** "
+            f"{fa_creg.capacidad_por_usuario_kw:.1f} kW con "
+            f"{fa_creg.n_fronteras} fronteras; cumple 100 kW del art. 20: "
+            f"**{'Sí' if not fa_creg.rule_100kw_violations else 'No'}**; "
+            f"caso {fa_creg.caso_art20}.",
             "",
             f"**Score de robustez C4:** {fa_creg.robustness_score:.2f} (1=máxima robustez)",
         ]

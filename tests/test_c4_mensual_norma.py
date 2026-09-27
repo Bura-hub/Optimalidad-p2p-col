@@ -103,14 +103,25 @@ def test_c4_es_el_mensual_y_el_alias_coincide():
 
 
 def test_contrafactico_de_11_fronteras_respeta_la_capacidad():
+    # C-206 (verificacion 9 corregida): el caso del contrafactico lo decide
+    # la capacidad por usuario del art. 18, la suma de las plantas entre las
+    # 11 fronteras. Cinco plantas de 122,85 kW (E4) dan 55,8 kW por usuario:
+    # caso 1, aunque cada planta pase de 100 kW (antes caia en el caso 2).
     chica = _cr(np.full(5, 17.55)).contrafacticos
     grande = _cr(np.full(5, 122.85)).contrafacticos
     assert chica["C4_11_fronteras"]["caso_art20"] == 1
-    assert grande["C4_11_fronteras"]["caso_art20"] == 2
+    assert grande["C4_11_fronteras"]["caso_art20"] == 1
     # Revision final (I-4): y el mercado por la via del colectivo en el
     # mismo caso favorable, que tambien sigue la capacidad.
     assert chica["P2P_colectivo_11_fronteras"]["caso_art20"] == 1
-    assert grande["P2P_colectivo_11_fronteras"]["caso_art20"] == 2
+    assert grande["P2P_colectivo_11_fronteras"]["caso_art20"] == 1
+    # El caso caro del contrafactico solo llega si la MEDIA pasa de 100 kW,
+    # es decir con mas de 1 100 kW entre las 11 fronteras: por encima del
+    # limite AGPE, donde el motor se detiene (caso 3, verificacion de abajo).
+    assert resolve_caso_art20(np.full(11, 1 / 11), np.full(5, 221.0),
+                              n_fronteras=11) == 2
+    assert resolve_caso_art20(np.full(11, 1 / 11), np.full(5, 219.0),
+                              n_fronteras=11) == 1
     assert set(chica) == {"C4_11_fronteras", "C4_regla_consumo",
                           "C4_regla_aporte", "C4_regla_generacion",
                           "P2P_colectivo_11_fronteras"}

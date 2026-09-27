@@ -124,6 +124,11 @@ class Insumos:
     fuente_bolsa: str
     dia: Optional[str] = None
     fechas: list = field(default_factory=list)
+    # A2 (2026-09-27): el comercializador forzado para las cinco al preparar
+    # el caso (contrafactico del art. 10 num. 1 de la CREG 101 072), o None
+    # con el reparto real (cuatro con ASC, Cesmag con CEDENAR), que es el
+    # canon.
+    comercializador: Optional[str] = None
 
     @property
     def N(self) -> int:
@@ -135,10 +140,34 @@ class Insumos:
 
 
 def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
-                 cache_dir=None, dia: Optional[str] = None) -> Insumos:
+                 cache_dir=None, dia: Optional[str] = None,
+                 comercializador: Optional[str] = None) -> Insumos:
     """Replica `main()` (lineas 656-970 y 1412-1580 del 2026-09-26) para
     `--data real --full --include-c5 --no-regulado` y la opcion del caso.
-    Con `dia`, replica `--day` en vez de `--full` (la prueba de un dia)."""
+    Con `dia`, replica `--day` en vez de `--full` (la prueba de un dia).
+
+    `comercializador` (A2, contrafactico del art. 10 num. 1 de la CREG
+    101 072): con "asc" o "cedenar", las cinco se preparan con ese
+    comercializador (`data.cedenar_tariff.forzar_comercializador`, llamado
+    justo DESPUES del regimen no regulado, que reescribe el perfil). Mueve el
+    techo, el Cv del piso y de la liquidacion, los componentes del CU, el
+    precio del contrato del colectivo y el escalar comunitario; `evalua` no
+    vuelve a leer tarifas, de modo que los `Insumos` llevan todo el cambio. El
+    reparto real se RESTITUYE al salir, tambien si algo falla (la excepcion
+    sigue su curso). Con None (el defecto) no se llama a nada nuevo y el
+    resultado es el de siempre, al bit: es el canon."""
+    if comercializador is None:
+        return _prepara_caso(caso, datos, mte_root, cache_dir, dia, None)
+    from data.cedenar_tariff import forzar_comercializador
+    try:
+        return _prepara_caso(caso, datos, mte_root, cache_dir, dia,
+                             comercializador)
+    finally:
+        forzar_comercializador(None)
+
+
+def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
+                  comercializador) -> Insumos:
     from data.xm_prices import get_pi_bolsa, get_b_for_real_data
     import data.xm_prices as _xmp
     from data.cedenar_tariff import (
@@ -170,6 +199,11 @@ def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
 
     # --no-regulado (CAL-47): estado GLOBAL; va antes de cualquier tarifa.
     aplicar_regimen_no_regulado(True)
+    if comercializador is not None:
+        # A2: despues del regimen (que reescribe el perfil) y antes de la
+        # primera tarifa. `prepara_caso` lo restituye al salir.
+        from data.cedenar_tariff import forzar_comercializador
+        forzar_comercializador(comercializador)
 
     N = D_full.shape[0]
     nombres = [n for n in todos if n not in fuera][:N]
@@ -250,7 +284,8 @@ def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
         cu_COT=np.asarray(cu["COT"], float), tolls=np.asarray(tolls, float),
         mem=np.asarray(mem, float), pi_G=np.asarray(pi_G, float), pes=pes,
         pi_c5=pi_c5, pi_gb=pi_gb, pi_ppa=float(pi_ppa), fuente_bolsa=fuente,
-        dia=dia, fechas=[str(idx[0]), str(idx[-1])])
+        dia=dia, fechas=[str(idx[0]), str(idx[-1])],
+        comercializador=comercializador)
 
 
 def inicia_proceso() -> None:
@@ -418,6 +453,15 @@ def evalua_detalle(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
     escenarios, para la compuerta del punto base (hoja `Por_agente`)."""
     with _silencio(silencio):
         return _evalua_con_agentes(ins, x, mu, bolsa_cruda)
+
+
+def evalua_comparacion(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
+                       silencio: bool = True) -> tuple:
+    """Como `evalua`, y ademas el `ComparisonResult` de `run_comparison`
+    entero (p. ej. `cr.contrafacticos`), sin tocar lo que devuelven `evalua`
+    ni `evalua_detalle` (C-206)."""
+    with _silencio(silencio):
+        return _evalua(ins, x, mu, bolsa_cruda, 1.0)
 
 
 def _evalua_con_agentes(ins, x, mu, bolsa_cruda):

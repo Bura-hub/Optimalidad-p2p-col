@@ -27,7 +27,8 @@ Marco regulatorio (CAL-15, 2026-05-01; renumeración corregida CAL-31,
 
     Caso 1 (num. 1) — exige las TRES condiciones:
         i.   fuentes FNCER y suma de capacidades <= límite AGPE (UPME 281)
-        ii.  capacidad instalada POR USUARIO <= 100 kW
+        ii.  capacidad instalada POR USUARIO <= 100 kW (la del art. 18:
+             suma de capacidades / número de fronteras; C-206)
         iii. PDE < 10 % PARA CADA UNO de los usuarios
       => permuta liquidada a (pi_gs - Cvm,i,j)          [art. 25 num. 1]
 
@@ -147,11 +148,66 @@ def compute_pde_weights(
 AGPE_LIMIT_KW = 1000.0
 
 
+def capacidad_por_usuario_art18(
+    capacity: np.ndarray,
+    n_fronteras: int,
+) -> float:
+    """
+    Capacidad instalada por usuario del AC para fines comerciales, en kW
+    (art. 18 de la Resolución CREG 101 072 de 2025; C-206).
+
+    El art. 18 la define como la suma de las capacidades instaladas del
+    autogenerador colectivo dividida entre el número de usuarios del AC, y
+    la declara una referencia «con el fin de aplicar los procedimientos
+    comerciales de que trata el artículo 20». Los usuarios son las
+    FRONTERAS del AC, contando también las que solo consumen: una frontera
+    sin planta suma cero al numerador y uno al denominador.
+
+    Es la magnitud que el art. 20 (num. 1 ii y num. 2 ii) compara con los
+    100 kW para decidir el caso. NO es la capacidad física de ninguna
+    planta y puede diferir mucho de ella: cinco plantas de 122,9 kW en un
+    AC de 11 fronteras dan 55,9 kW por usuario. El umbral de 100 kW POR
+    PLANTA del art. 25 num. 2 de la CREG 174 (numeral de la permuta de
+    cada autogenerador, piso, residual y contrato) es otro criterio y no
+    pasa por esta función.
+
+    Parámetros
+    ----------
+    capacity : (M,) capacidad instalada de cada planta del AC en kW,
+        finita y no negativa. Puede traer ceros (fronteras sin planta).
+    n_fronteras : número de usuarios (fronteras) del AC, incluidas las
+        que solo consumen. Debe ser >= M.
+
+    Falla en voz alta (ValueError) con una capacidad no finita o negativa,
+    o con menos fronteras que plantas.
+    """
+    cap = np.asarray(capacity, dtype=float).reshape(-1)
+    if not np.all(np.isfinite(cap)):
+        raise ValueError(
+            f"capacidad_por_usuario_art18: {int(np.sum(~np.isfinite(cap)))} "
+            f"capacidades no finitas: {cap.tolist()}")
+    if np.any(cap < 0):
+        raise ValueError(
+            f"capacidad_por_usuario_art18: capacidad negativa: {cap.tolist()}")
+    if isinstance(n_fronteras, bool) or int(n_fronteras) != n_fronteras:
+        raise ValueError(
+            f"capacidad_por_usuario_art18: n_fronteras debe ser entero; se "
+            f"recibió {n_fronteras!r}")
+    n = int(n_fronteras)
+    if n < 1 or n < cap.size:
+        raise ValueError(
+            f"capacidad_por_usuario_art18: {n} fronteras para {cap.size} "
+            f"plantas; cada planta es de una frontera, luego n_fronteras >= "
+            f"{max(cap.size, 1)}")
+    return float(cap.sum()) / n
+
+
 def resolve_caso_art20(
     pde: np.ndarray,
     capacity: Optional[np.ndarray] = None,
     max_capacity_kw: float = 100.0,
     pde_limit: float = 0.10,
+    n_fronteras: Optional[int] = None,
 ) -> int:
     """
     Decide si un AC cae en el Caso 1 o en el Caso 2 del art. 20 de la
@@ -170,15 +226,24 @@ def resolve_caso_art20(
     Caso 2 por sí solo, sea cual sea la capacidad. La condición de
     capacidad solo puede empujar hacia el Caso 2, nunca hacia el Caso 1.
 
+    C-206 (2026-09-27): la «Capacidad Instalada por Usuario» es la del
+    art. 18, `capacidad_por_usuario_art18` (suma de las capacidades del AC
+    entre el número de fronteras, contando las que solo consumen), y no la
+    planta mayor, que es lo que se comparaba hasta entonces. Consecuencia
+    aritmética: el Caso 1 exige U >= 11 (num. 1 iii) y suma <= 1 MW
+    (num. 1 i, UPME 281), luego la capacidad por usuario queda por debajo
+    de 1000/11 = 90,9 kW y el num. 1 ii nunca decide solo mientras el AC
+    esté dentro del art. 20 (nums. 1-2).
+
     Parámetros
     ----------
-    pde : (N,) fracciones que suman 1.0.
-    capacity : (N,) capacidad instalada POR USUARIO en kW. Si el llamador
-        pasa un proxy (p. ej. generación media) la prueba de capacidad
-        queda del lado permisivo; el PDE sigue siendo determinante.
-        `None` omite esa prueba.
-    max_capacity_kw : límite por usuario del num. 1 ii.
+    pde : (N,) fracciones que suman 1.0, una por frontera.
+    capacity : (M,) capacidad instalada de cada planta en kW. `None` omite
+        la prueba de capacidad.
+    max_capacity_kw : límite de la capacidad por usuario del num. 1 ii.
     pde_limit : umbral del num. 1 iii.
+    n_fronteras : número de usuarios del AC para el art. 18. Por defecto,
+        `len(pde)`: una frontera por porcentaje.
 
     Retorna
     -------
@@ -188,8 +253,8 @@ def resolve_caso_art20(
     if float(np.max(pde_arr)) >= pde_limit:
         return 2
     if capacity is not None:
-        cap = np.asarray(capacity, dtype=float)
-        if cap.size and float(np.max(cap)) > max_capacity_kw:
+        n = int(pde_arr.size) if n_fronteras is None else n_fronteras
+        if capacidad_por_usuario_art18(capacity, n) > max_capacity_kw:
             return 2
     return 1
 
@@ -452,8 +517,11 @@ def _run_c4_creg174_inheritance(
 
     _validate_capacity(capacity, max_capacity_kw)
     _warnings.warn(
-        "C4: se asume un único comercializador de respaldo. "
-        "Verificar con admin MTE antes de publicar.",
+        "C4: el art. 10 num. 1 de la CREG 101 072 exige que las fronteras "
+        "del autogenerador colectivo las represente un mismo comercializador; "
+        "aqui se liquida con la tarifa de cada institucion (el reparto real: "
+        "cuatro con ASC, Cesmag con CEDENAR). El contrafactico con un solo "
+        "comercializador esta medido en H-97.",
         UserWarning,
         stacklevel=3,
     )
@@ -583,8 +651,11 @@ def _run_c4_monthly_hx(
 
     _validate_capacity(capacity, max_capacity_kw)
     _warnings.warn(
-        "C4: se asume un único comercializador de respaldo. "
-        "Verificar con admin MTE antes de publicar.",
+        "C4: el art. 10 num. 1 de la CREG 101 072 exige que las fronteras "
+        "del autogenerador colectivo las represente un mismo comercializador; "
+        "aqui se liquida con la tarifa de cada institucion (el reparto real: "
+        "cuatro con ASC, Cesmag con CEDENAR). El contrafactico con un solo "
+        "comercializador esta medido en H-97.",
         UserWarning,
         stacklevel=3,
     )
@@ -699,8 +770,11 @@ def _run_c4_legacy(
 
     _validate_capacity(capacity, max_capacity_kw)
     _warnings.warn(
-        "C4: se asume un único comercializador de respaldo. "
-        "Verificar con admin MTE antes de publicar.",
+        "C4: el art. 10 num. 1 de la CREG 101 072 exige que las fronteras "
+        "del autogenerador colectivo las represente un mismo comercializador; "
+        "aqui se liquida con la tarifa de cada institucion (el reparto real: "
+        "cuatro con ASC, Cesmag con CEDENAR). El contrafactico con un solo "
+        "comercializador esta medido en H-97.",
         UserWarning,
         stacklevel=4,
     )
@@ -796,17 +870,25 @@ def regulatory_risk_c4(
 ) -> dict:
     """
     Evalúa riesgos regulatorios del esquema C4:
-      - Violación del límite de 100 kW
+      - Capacidad por usuario del art. 18 por encima de 100 kW (Caso 2)
       - Violación de la regla del 10 % de participación
+
+    C-206 (2026-09-27): `capacity_exceeded` comparaba la SUMA de
+    capacidades con 100 kW, que no es ninguna de las cotas del art. 20.
+    Ahora compara la capacidad por usuario del art. 18 (suma / N, con una
+    frontera por entrada de `agent_capacities`); `max_total_kw` conserva
+    su nombre por compatibilidad y es el límite por usuario.
 
     Este análisis es parte del Objetivo 4 de la tesis.
     """
     N = len(agent_capacities)
     total_cap = float(np.sum(agent_capacities))
     max_share = float(np.max(agent_capacities)) / total_cap if total_cap > 0 else 0.0
+    capu = capacidad_por_usuario_art18(agent_capacities, N)
 
     risks = {
-        "capacity_exceeded":      total_cap > max_total_kw,
+        "capacity_exceeded":      capu > max_total_kw,
+        "capacidad_por_usuario_kw": capu,
         "total_capacity_kw":      total_cap,
         "max_single_share":       max_share,
         "concentration_risk":     max_share > 0.10,

@@ -28,7 +28,8 @@ Cuatro análisis:
   FA-2: Riesgo regulatorio del escenario C4 (CREG 101 072/2025)
         La CREG 101 072 impone:
           - Regla 10%: un agente no puede suministrar >10% de la demanda
-          - Límite 100 kW por instalación de autogeneración colectiva
+          - Límite 100 kW de capacidad por usuario (art. 18: suma de
+            capacidades instaladas / número de fronteras; C-206)
         Se verifica si la comunidad MTE cumple estas restricciones
         y qué pasa si cambia la composición (nueva institución, más PV).
 
@@ -45,6 +46,7 @@ Cuatro análisis:
           - Escala máxima sin violar ninguna restricción CREG 101 072
 """
 
+import warnings
 import numpy as np
 from dataclasses import dataclass, field
 from typing import Optional
@@ -70,8 +72,13 @@ class FeasibilityReport:
     max_supply_share_by_agent: dict  = field(default_factory=dict)  # cobertura (diagnóstico)
     pde_by_agent:              dict  = field(default_factory=dict)  # CAL-41: el PDE real
     caso_art20:                int   = 1      # CAL-41: 1 o 2
-    max_capacity_by_agent:     dict  = field(default_factory=dict)
+    max_capacity_by_agent:     dict  = field(default_factory=dict)  # C-206: instalada
     robustness_score:          float = 1.0   # 1=máxima robustez, 0=ninguna
+    # C-206: la capacidad por usuario del art. 18 que decide la condición ii,
+    # el número de fronteras con que se calculó y de dónde sale la capacidad.
+    capacidad_por_usuario_kw:  float = float("nan")
+    n_fronteras:               int   = 0
+    capacidad_fuente:          str   = ""
 
 
 @dataclass
@@ -544,10 +551,25 @@ def analyze_creg_101072_compliance(
     capacity_limit_kw: float = 100.0,
     share_limit: float = 0.10,
     verbose: bool = True,
+    capacity: Optional[np.ndarray] = None,
+    n_fronteras: Optional[int] = None,
 ) -> FeasibilityReport:
     """
     FA-2: determina bajo qué Caso del art. 20 de la CREG 101 072/2025 queda
     la comunidad, y por tanto cómo se liquida su permuta.
+
+    C-206 (2026-09-27) — CAPACIDAD POR USUARIO DEL ART. 18
+    -------------------------------------------------------
+    La condición ii del art. 20 compara con 100 kW la capacidad por usuario
+    del art. 18: la suma de las capacidades INSTALADAS del AC entre el
+    número de fronteras (`n_fronteras`, por defecto las N filas de `D`,
+    contando las que solo consumen). Hasta C-206 esta función comparaba el
+    PICO DE GENERACIÓN de cada agente, que no es ni la capacidad instalada
+    ni la magnitud del art. 18. `capacity` es la capacidad instalada (N,)
+    en kW, la misma que recibe el escenario C4; sin ella se usa el pico de
+    generación como aproximación y se avisa (UserWarning). Como el criterio
+    es de la comunidad, si la capacidad por usuario supera el límite, todos
+    los usuarios quedan en `rule_100kw_violations`.
 
     CAL-41 (ADR-0041) — QUÉ CAMBIÓ Y POR QUÉ
     ----------------------------------------
@@ -579,12 +601,32 @@ def analyze_creg_101072_compliance(
     diagnóstico útil; simplemente no es el criterio del art. 20.
     """
     from scenarios.scenario_c4_creg101072 import (
-        compute_pde_weights, resolve_caso_art20,
+        compute_pde_weights, resolve_caso_art20, capacidad_por_usuario_art18,
     )
 
     report = FeasibilityReport()
     N = D.shape[0]
     T = D.shape[1]
+
+    # C-206: la capacidad instalada, no el pico de generación.
+    if capacity is None:
+        warnings.warn(
+            "FA-2: sin capacidad instalada; la capacidad por usuario del "
+            "art. 18 se aproxima con el pico de generación de cada agente "
+            "(C-206). Pase `capacity` para la cifra normativa.",
+            UserWarning, stacklevel=2)
+        cap_inst = np.array([float(G[n].max()) for n in range(N)])
+        report.capacidad_fuente = "pico de generacion (aproximacion)"
+    else:
+        cap_inst = np.asarray(capacity, dtype=float).reshape(-1)
+        if cap_inst.shape != (N,):
+            raise ValueError(f"FA-2: capacity trae {cap_inst.shape}, se "
+                             f"esperaba ({N},)")
+        report.capacidad_fuente = "capacidad instalada"
+    n_front = N if n_fronteras is None else n_fronteras
+    capu = capacidad_por_usuario_art18(cap_inst, n_front)
+    report.capacidad_por_usuario_kw = capu
+    report.n_fronteras = int(n_front)
 
     D_total_per_hour = D.sum(axis=0)              # demanda comunitaria (T,)
     D_total_mean     = float(D_total_per_hour.mean())
@@ -617,14 +659,16 @@ def analyze_creg_101072_compliance(
     report.rule_10pct_satisfied = len(violations_10pct) == 0
     report.rule_10pct_violations = violations_10pct
 
-    # Límite 100 kW
+    # Límite 100 kW sobre la capacidad por usuario del art. 18 (C-206). Es
+    # un criterio de la comunidad: la capacidad por usuario es la misma para
+    # todos, así que si la supera, la superan todos. `cap_by_agent` queda
+    # como diagnóstico: la capacidad instalada de cada agente.
     violations_100kw = []
     cap_by_agent = {}
     for n in prosumer_ids:
         name   = agent_names[n] if n < len(agent_names) else f"A{n+1}"
-        g_max  = float(G[n].max())
-        cap_by_agent[name] = round(g_max, 1)
-        if g_max > capacity_limit_kw:
+        cap_by_agent[name] = round(float(cap_inst[n]), 1)
+        if capu > capacity_limit_kw:
             violations_100kw.append(name)
 
     report.max_capacity_by_agent  = cap_by_agent
@@ -644,9 +688,8 @@ def analyze_creg_101072_compliance(
     # CAL-41: el Caso aplicable, derivado del art. 20 por el mismo helper
     # que usa el escenario C4, para que análisis y liquidación no puedan
     # discrepar.
-    caso = resolve_caso_art20(pde, np.array([float(G[n].max())
-                                             for n in range(N)]),
-                              capacity_limit_kw, share_limit)
+    caso = resolve_caso_art20(pde, cap_inst, capacity_limit_kw, share_limit,
+                              n_fronteras=n_front)
     report.pde_by_agent = pde_by_agent
     report.caso_art20 = caso
 
@@ -659,10 +702,13 @@ def analyze_creg_101072_compliance(
             status = "≥ 10 % → Caso 2" if name in violations_10pct else "< 10 %"
             print(f"      {name:<12}: {pct:>6.2f}%  {status}")
 
-        print(f"\n    Condición ii — Capacidad pico por usuario [kW]:")
+        status = ("> límite → Caso 2" if capu > capacity_limit_kw
+                  else "≤ límite")
+        print(f"\n    Condición ii — capacidad por usuario (art. 18, "
+              f"{report.capacidad_fuente}): {float(cap_inst.sum()):.1f} kW / "
+              f"{n_front} fronteras = {capu:.1f} kW  {status}")
         for name, cap in cap_by_agent.items():
-            status = "> límite → Caso 2" if name in violations_100kw else "≤ límite"
-            print(f"      {name:<12}: {cap:>7.1f} kW  {status}")
+            print(f"      {name:<12}: {cap:>7.1f} kW instalados")
 
         print(f"\n    Diagnóstico (NO es el criterio del art. 20) — "
               f"cuota de cobertura por agente:")
@@ -678,7 +724,7 @@ def analyze_creg_101072_compliance(
             if violations_10pct:
                 motivo.append(f"{len(violations_10pct)} usuario(s) con PDE ≥ 10 %")
             if violations_100kw:
-                motivo.append(f"{len(violations_100kw)} usuario(s) sobre "
+                motivo.append(f"capacidad por usuario {capu:.1f} kW sobre "
                               f"{capacity_limit_kw:.0f} kW")
             print(f"\n    CASO 2 (art. 20 num. 2): {' y '.join(motivo)}")
             print(f"    → permuta a (pi_gs − (T+D+Cvm+PR+Rm)), CREG 174 art. 25 num. 2")
@@ -874,11 +920,13 @@ def analyze_withdrawal_risk(
 
         # Verificar cumplimiento CREG 101 072 para la comunidad restante
         names_r = [agent_names[m] for m in mask]
+        # C-206: la condición ii con la misma capacidad que liquida C4 arriba.
         rep_r   = analyze_creg_101072_compliance(
             D_r, G_raw_r, names_r, pros_r,
             capacity_limit_kw=capacity_limit_kw,
             share_limit=share_limit,
             verbose=False,
+            capacity=cap_r,
         )
         # CAL-41 (ADR-0041): antes de esta revisión, quedar por encima del
         # 10 % se trataba como INVALIDEZ del AGRC y disparaba el fallback al
@@ -964,25 +1012,47 @@ def analyze_scaling_risk(
     share_limit:    float = 0.10,
     scales:         list  = None,
     verbose:        bool  = True,
+    capacity:       Optional[np.ndarray] = None,
+    n_fronteras:    Optional[int] = None,
 ) -> dict:
     """
     FA-4: Para cada prosumidor n, evalúa hasta qué escala puede crecer
-    su generación sin violar las restricciones de CREG 101 072.
+    su instalación sin cambiar de Caso en la CREG 101 072.
 
-    Restricciones verificadas:
-      - Regla 10%:   G_n_scaled.mean() / D_total.mean() ≤ share_limit
-      - Límite 100 kW: G_n_scaled.max() ≤ capacity_limit_kw
+    Restricción verificada (C-206): la capacidad por usuario del art. 18,
+    (suma de capacidades instaladas del AC, con la del agente n por el
+    factor) / número de fronteras, frente a `capacity_limit_kw`. Hasta
+    C-206 la prueba por agente comparaba su PICO DE GENERACIÓN escalado con
+    los 100 kW, que es la lectura por planta del art. 25 num. 2 de la
+    CREG 174 y no la del art. 20. `capacity` es la capacidad instalada (N,)
+    en kW; sin ella se aproxima con el pico de generación y se avisa.
+    `n_fronteras` cuenta también las que solo consumen (por defecto, N).
 
     Retorna dict: nombre → {'max_ok_scale': float, '2x_ok': bool, '3x_ok': bool}
     """
     if scales is None:
         scales = [1.5, 2.0, 2.5, 3.0]
 
-    from scenarios.scenario_c4_creg101072 import AGPE_LIMIT_KW
+    from scenarios.scenario_c4_creg101072 import (
+        AGPE_LIMIT_KW, capacidad_por_usuario_art18,
+    )
 
     N, T      = G.shape
     D_total   = float(D.sum(axis=0).mean())
     result    = {}
+
+    if capacity is None:
+        warnings.warn(
+            "FA-4: sin capacidad instalada; se aproxima con el pico de "
+            "generación de cada agente (C-206). Pase `capacity`.",
+            UserWarning, stacklevel=2)
+        cap_inst = np.array([float(G[n].max()) for n in range(N)])
+    else:
+        cap_inst = np.asarray(capacity, dtype=float).reshape(-1)
+        if cap_inst.shape != (N,):
+            raise ValueError(f"FA-4: capacity trae {cap_inst.shape}, se "
+                             f"esperaba ({N},)")
+    n_front = N if n_fronteras is None else n_fronteras
 
     # CAL-42b: las DOS cotas de capacidad del art. 20, con su objeto correcto.
     #   num. 1 i  -> la SUMA de capacidades contra el limite AGPE de la
@@ -996,22 +1066,25 @@ def analyze_scaling_risk(
     #                disparadores del Caso 2.
     # Antes de CAL-42b se comparaba el PICO INDIVIDUAL contra los 100 kW, que
     # no es ninguna de las dos.
-    picos_kw   = np.array([float(G[n].max()) for n in prosumer_ids])
-    cap_agreg  = float(picos_kw.sum())
-    capu       = cap_agreg / max(len(prosumer_ids), 1)
+    # C-206: el CAPU sale de la función común, con la capacidad INSTALADA y
+    # todas las fronteras en el denominador (antes, la suma de los picos de
+    # generación entre los prosumidores solos).
+    cap_agreg  = float(cap_inst.sum())
+    capu       = capacidad_por_usuario_art18(cap_inst, n_front)
     f_capu     = (capacity_limit_kw / capu) if capu > 1e-9 else float("inf")
     f_agpe     = (AGPE_LIMIT_KW / cap_agreg) if cap_agreg > 1e-9 else float("inf")
 
     if verbose:
         print("\n  FA-4: Robustez regulatoria — escalamiento de instalación")
-        print(f"    Cota num. 1 ii: CAPU (art. 18, = suma/U) = {capu:.2f} kW "
+        print(f"    Cota num. 1 ii: CAPU (art. 18, = suma/U) = {cap_agreg:.2f} "
+              f"kW / {n_front} = {capu:.2f} kW "
               f"≤ {capacity_limit_kw:.0f} kW  ->  se alcanza a {f_capu:.2f}x")
         print(f"    Cota num. 1 i : suma = {cap_agreg:.2f} kW ≤ "
               f"{AGPE_LIMIT_KW:.0f} kW (UPME 281/2015)  ->  a {f_agpe:.2f}x"
               f"  <- la que separa del Caso 3")
         print(f"    El PDE es invariante a un escalado común de todos los "
               f"miembros, luego la condición iii no depende del factor.")
-        print(f"    {'Agente':<12} {'G_pico':>9} {'→100kW':>8}  "
+        print(f"    {'Agente':<12} {'Cap_kW':>9} {'→100kW':>8}  "
               + "  ".join(f"{s}×" for s in scales))
         print(f"    {'─'*60}")
 
@@ -1019,6 +1092,7 @@ def analyze_scaling_risk(
         name    = agent_names[n] if n < len(agent_names) else f"A{n+1}"
         g_mean  = float(G[n].mean())
         g_max   = float(G[n].max())
+        cap_n   = float(cap_inst[n])
         share0  = g_mean / max(D_total, 1e-6)
 
         # CAL-41 (ADR-0041): antes se exigía además
@@ -1034,20 +1108,26 @@ def analyze_scaling_risk(
         # num. 1 ii: superarlo no invalida el AC, lo lleva al Caso 2.
         # `max_ok_scale` pasa a significar «hasta qué factor el usuario
         # permanece bajo los 100 kW», y ya no «antes de violar la norma».
+        # C-206: la capacidad por usuario es la del art. 18 del AC entero
+        # con la planta de n escalada, no el pico de n.
         scale_ok = {}
         max_ok   = 1.0
         for s in scales:
-            g_max_s = g_max * s
-            ok = g_max_s <= capacity_limit_kw
+            cap_s = cap_inst.copy()
+            cap_s[n] = cap_n * s
+            ok = capacidad_por_usuario_art18(cap_s, n_front) <= capacity_limit_kw
             scale_ok[s] = ok
             if ok:
                 max_ok = s
-        # Factor exacto al que este usuario alcanza el límite por usuario.
-        factor_limite = (capacity_limit_kw / g_max) if g_max > 1e-9 else float("inf")
+        # Factor exacto de la planta de n al que el AC alcanza el límite por
+        # usuario: (suma + (f - 1) cap_n) / U = límite.
+        factor_limite = (1.0 + (capacity_limit_kw * n_front - cap_agreg) / cap_n
+                         if cap_n > 1e-9 else float("inf"))
 
         result[name] = {
             "g_mean_kw":     round(g_mean, 2),
             "g_max_kw":      round(g_max, 2),
+            "cap_kw":        round(cap_n, 2),              # C-206: instalada
             "share_pct":     round(share0 * 100, 2),   # cobertura (diagnóstico)
             "max_ok_scale":  max_ok,
             "2x_ok":         scale_ok.get(2.0, False),
@@ -1059,7 +1139,7 @@ def analyze_scaling_risk(
 
         if verbose:
             flags = "  ".join("✓" if scale_ok[s] else "✗" for s in scales)
-            print(f"    {name:<12} {g_max:>9.2f} {factor_limite:>7.2f}×  {flags}  "
+            print(f"    {name:<12} {cap_n:>9.2f} {factor_limite:>7.2f}×  {flags}  "
                   f"→ max ok: {max_ok}×")
 
     return result

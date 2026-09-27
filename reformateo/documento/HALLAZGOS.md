@@ -7707,3 +7707,79 @@ Con 16 procesos y los 8 (s) que presupuesta el diseño, n = 2 048 (28 672 evalua
 
 - **La sensibilidad a μ podría no limitarse al reparto** (observación local, no oficial). En E0 el número de horas cuantales cambia con μ (12 con μ = 0,5; 57 con μ = 1; 75 con μ = 2), y el P2P agregado se mueve +941 y −1 718 (COP). El canon dice que con μ cambia el reparto y no el conjunto de horas. Lo medirá `deterministas.py` en los trece casos en el servidor, antes de redactar la salvedad.
 - Nada del GSA directo es canon hasta que la corrida termine y se registre en `Documentos/canon_2026-09/`. Hasta entonces, el análisis de sensibilidad global sigue en la lista de lo que el canon no cubre.
+
+## H-96 · Con la capacidad por usuario del artículo 18, el caso caro del colectivo castiga a la comunidad de cinco fronteras en todos los tamaños, y por encima de 100 (kW) por planta el colectivo favorable supera al mercado
+
+**Estado: registrado el 2026-09-27, con la corrección C-206 aplicada en el código y los contrafácticos recalculados en local con el evaluador del GSA en el punto base (`SALIDAS_SERVIDOR/contrafacticos_art18_2026-09-27/`), sin commit. No es canon hasta el punto E1.**
+
+El artículo 18 de la Resolución CREG 101 072 calcula la capacidad por usuario como la suma de las capacidades del colectivo entre el número de fronteras, contando las que solo consumen. El código comparaba la planta mayor, y en E4, E5, P2, I1 y N1 el contrafáctico de 11 fronteras caía en el caso caro y coincidía con C4: **el castigo a la comunidad pequeña parecía desaparecer por encima de 100 (kW) por planta**. Era un artefacto de la lectura.
+
+### Lo medido
+
+**La condición de capacidad no decide nunca sola.** El caso favorable exige al menos 11 fronteras (porcentajes bajo el 10 % que suman cien) y una suma de capacidades de 1 (MW) como máximo (numeral 1, literal i). Con esas dos, la capacidad por usuario queda por debajo de 1 000 / 11 = 90,9 (kW), luego el literal ii del numeral 1 nunca es el que separa el caso 1 del 2 mientras el colectivo esté dentro del artículo 20. En la matriz, con 11 fronteras, va de 6,4 (kW) en SINU a 79,8 (kW) en E5.
+
+**Lo que cuesta el caso caro a la comunidad de cinco** (colectivo con 11 fronteras menos C4, en millones de pesos):
+
+| Caso | E0 | E1 | E2 | E3 | E4 | E5 | P1 | P2 | K1 | I1 | N1 | CV2 | SINU |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Castigo (MCOP) | 1,66 | 18,59 | 27,36 | 35,34 | 37,55 | 38,49 | 5,36 | 11,61 | 1,04 | 17,99 | 33,39 | 1,66 | 0,31 |
+| Sobre C4 | 3,7 % | 16,1 % | 19,1 % | 20,0 % | 18,9 % | 16,3 % | 18,9 % | 3,7 % | 2,3 % | 16,5 % | 19,6 % | 3,8 % | 0,9 % |
+
+Crece con la escala y se aplana al saturar (E4 y E5), en vez de caer a cero en E4 como decía el canon.
+
+**Por encima de 100 (kW) por planta, el colectivo favorable supera al mercado.** En E4 da 236,00 millones frente a 202,01 del mercado; en E5, 275,08 frente a 239,45; en I1, 126,73 frente a 115,21; en N1, 204,15 frente a 197,64 (y 210,27 el mercado por la vía del colectivo); en P2, 323,02 frente a 322,49. En los otros casos el mercado sigue por encima, por entre 0,1 y 1,9 millones, salvo P1, donde el colectivo favorable lo supera por 0,06 sin que ninguna planta pase de 100 (kW). El motivo es regulatorio: en el caso 1 la permuta de todo el colectivo paga solo el componente de comercializar, mientras que cada planta de más de 100 (kW), sola o en el mercado, liquida su residual por el numeral 2 del artículo 25 de la CREG 174, con transmisión, distribución, pérdidas y restricciones. El promedio del artículo 18 deja que una comunidad de plantas grandes, con suficientes fronteras que solo consumen, liquide como si fueran pequeñas.
+
+### Lo que queda abierto
+
+- Si la lectura del caso 1 para plantas de más de 100 (kW) se sostiene frente al texto del artículo 20 y de su remisión al artículo 25 (que el caso 1 lleve a **todas** las plantas al numeral 1), es una pregunta regulatoria para el autor, que no se asume.
+- Las cifras de las filas de 11 fronteras de la matriz del 19 de septiembre quedan superadas en esos cinco casos; se citan desde la carpeta de arriba hasta que el punto E1 las registre en el canon.
+
+## H-97 · Con un solo comercializador para las cinco, como exige el artículo 10 de la CREG 101 072 al colectivo, ninguna conclusión de comunidad cambia; cambian el reparto por institución y las 216 horas cuantales, que desaparecen
+
+**Estado: registrado el 2026-09-27, medido en local con el evaluador del GSA en el punto base (los seis factores en 1, μ = 1), en los trece casos y en todos los mecanismos (`SALIDAS_SERVIDOR/contrafactico_comercializador_2026-09-27/`), sin commit. Es un contrafáctico: el canon no cambia.**
+
+El numeral 1 del artículo 10 de la Resolución CREG 101 072 dice: «Las fronteras comerciales para consumo de energía y entrega de excedentes pertenecientes a un mismo AC deberán ser representadas por el mismo agente comercializador». La comunidad tiene hoy dos: cuatro instituciones con ASC y Cesmag con CEDENAR (CAL-47, H-75). **Decisión del autor (2026-09-27):** el canon sigue con el reparto real para todos los mecanismos, porque es la situación de hoy y la comparación justa, es decir, todos los mecanismos contra la misma tarifa. Se declara que constituir el colectivo exige un solo comercializador y se mide el contrafáctico con las cinco en ASC y con las cinco en CEDENAR.
+
+Forzar el comercializador cambia el perfil tarifario entero. Se mueven el techo, el componente de comercializar del piso y de la liquidación, el componente G y el COT (que solo publica CEDENAR). También se mueven las pérdidas (PR) y las restricciones (R): los cargos de transmisión y distribución coinciden entre las dos tablas, pero PR y R no, y T+D+PR+R de CEDENAR queda en promedio 3,4 (COP/kWh) por encima del de ASC.
+
+### Lo medido
+
+**La variante real reproduce el canon al peso** en los trece casos: 694 comprobaciones, las de `gsa_directo/compuerta_punto_base.py` (Resumen, Por_agente, energía, parte del vendedor, horas cuantales y retiros).
+
+Brechas de comunidad, en millones de pesos (real / ASC / CEDENAR); en negrita, un signo distinto del real (con medio peso como cero):
+
+| Caso | P2P − C1 | P2P − C4 | P2P − C5 | colectivo − C1 | C4 − C1 | colectivo − C4 |
+|---|---:|---:|---:|---:|---:|---:|
+| E0 | +0,30 / +0,18 / +0,80 | +2,01 / +1,83 / +2,49 | +2,23 / +2,17 / +2,10 | −1,72 / −1,65 / −1,69 | −1,71 / −1,65 / −1,69 | −0,01 / **0,00** / **0,00** |
+| E1 | +2,57 / +2,32 / +4,42 | +18,71 / +18,05 / +20,70 | +32,46 / +32,70 / +29,40 | −16,22 / −16,28 / −16,70 | −16,14 / −15,73 / −16,29 | −0,09 / −0,55 / −0,42 |
+| E2 | +4,85 / +4,60 / +6,49 | +29,29 / +28,80 / +31,42 | +52,24 / +52,71 / +46,95 | −23,73 / −23,83 / −24,64 | −24,44 / −24,21 / −24,93 | +0,71 / +0,38 / +0,29 |
+| E3 | +6,76 / +6,66 / +7,93 | +35,85 / +35,70 / +38,19 | +68,98 / +69,73 / +61,67 | −29,19 / −29,16 / −30,37 | −29,08 / −29,04 / −30,26 | −0,11 / −0,12 / −0,11 |
+| E4 | +6,17 / +6,13 / +7,26 | +3,56 / +3,52 / +5,47 | +41,17 / +42,00 / +32,65 | +2,17 / +2,15 / +1,49 | +2,61 / +2,61 / +1,80 | −0,44 / −0,45 / −0,31 |
+| E5 | +3,24 / +3,23 / +4,35 | +2,86 / +2,84 / +4,16 | +45,86 / +46,75 / +36,01 | +0,29 / +0,29 / +0,12 | +0,38 / +0,38 / +0,18 | −0,09 / −0,09 / −0,06 |
+| P1 | +0,76 / +0,76 / +0,92 | +5,29 / +5,28 / +5,61 | +10,67 / +10,78 / +9,50 | −4,59 / −4,59 / −4,74 | −4,53 / −4,53 / −4,69 | −0,06 / −0,06 / −0,04 |
+| P2 | +10,66 / +10,06 / +14,67 | +11,08 / +10,06 / +14,67 | +12,66 / +12,50 / +11,88 | −0,29 / **0,00** / **0,00** | −0,42 / **0,00** / **0,00** | +0,13 / **0,00** / **0,00** |
+| K1 | +0,28 / +0,14 / +0,65 | +1,37 / +1,17 / +1,71 | +1,22 / +1,11 / +1,12 | −1,15 / −1,03 / −1,06 | −1,08 / −1,03 / −1,06 | −0,07 / **0,00** / **0,00** |
+| I1 | +7,34 / +7,05 / +9,14 | +6,47 / +5,36 / +8,20 | +19,14 / +19,14 / +16,12 | −0,18 / **+0,09** / −0,31 | +0,87 / +1,69 / +0,94 | −1,05 / −1,60 / −1,25 |
+| N1 | +1,12 / +0,96 / +1,75 | +26,88 / +26,49 / +26,82 | +59,61 / +60,19 / +51,26 | −22,87 / −22,85 / −23,17 | −25,75 / −25,53 / −25,07 | +2,88 / +2,68 / +1,90 |
+| CV2 | +0,48 / +0,35 / +1,61 | +2,32 / +2,00 / +3,30 | +2,15 / +2,12 / +1,85 | −1,79 / −1,65 / −1,69 | −1,84 / −1,65 / −1,69 | +0,05 / **0,00** / **0,00** |
+| SINU | +0,08 / +0,04 / +0,16 | +0,38 / +0,34 / +0,47 | +0,40 / +0,38 / +0,37 | −0,31 / −0,31 / −0,31 | −0,31 / −0,31 / −0,31 | −0,01 / **0,00** / **0,00** |
+
+- **El mercado sigue por encima de C1, de C4 y de C5 en los trece casos y con los dos comercializadores.** La ventaja sobre C1 escala con el ancho de banda (H-70): en E0 pasa de 0,30 a 0,18 millones con ASC y a 0,80 con CEDENAR.
+- **C4 sigue por debajo de C1 donde hoy lo está, salvo en P2**, donde C4, C1 y el colectivo quedan iguales al peso con un solo comercializador. En E4, E5 e I1 C4 sigue por encima de C1.
+- **El colectivo con el mercado coincide al peso con C4** en E0, K1, CV2, SINU y P2 con cualquiera de los dos comercializadores. La diferencia que el canon da en esos casos, de −65 882 a +131 639 (COP), desaparece con un solo comercializador. En I1 con ASC el colectivo pasa por encima de C1 por 0,09 millones.
+- **Los niveles se mueven con la tarifa, no las conclusiones.** Con ASC los mecanismos bajan entre 0,07 y 3,86 millones, salvo C4 en I1, que sube 0,35; con CEDENAR todos suben, entre 0,35 y 28,60 millones (C5 en P2). El beneficio se mide contra un costo unitario medio que pasa de 737,9 a 723,1 y a 797,1 (COP/kWh).
+- **La energía transada no cambia con ASC en ningún caso.** Con CEDENAR cambia en cuatro casos, los que tienen vendedores en bolsa, y como mucho un 0,43 %: +10,0 (kWh) en E3, +31,1 en E4, +39,5 en E5 y +4,4 en P1.
+- **El ancho de banda nominal**, es decir, el componente de comercializar medio, pasa de 65,7 a 38,4 (COP/kWh) con ASC y a 175,1 con CEDENAR (en CV2, el doble). El efectivo, es decir, el excedente del mercado por kWh transado, pasa en E0 de 64,4 a 38,4 y a 174,9, y en la media de los trece casos, de 228,9 a 206,4 y a 340,7.
+- **Las 216 horas cuantales (D71) desaparecen**: cero en los trece casos con los dos comercializadores. La parte del vendedor en E0 pasa de 0,542 a 0,546 con los dos.
+
+**Por institución.** Los pares institución-caso con P2P por debajo de C4 son 25 de 64 con el reparto real (CANON §12, reproducido), 28 con ASC y 18 con CEDENAR. Ningún par queda por debajo de C1 en ninguna variante. Cambian 14 signos:
+
+- **Con ASC, Cesmag pierde** la ventaja del mercado frente a C4 en E1, N1 y CV2, y frente a C5 en K1;
+- **con CEDENAR, UCC gana** frente a C4 en E1, E4, E5, P2 y CV2. HUDN gana en P2 (por 4 966 COP) y en CV2, Mariana en SINU (por 20 588 COP), y Cesmag pierde en N1 (por 13 605 COP) y, frente a C5, en K1.
+- **El signo frágil de Cesmag en N1** (CANON §8, +3 669,5 COP frente a C4) se invierte con los dos: −384 223 (COP) con ASC y −13 605 con CEDENAR. Frente a C1, Cesmag gana con el mercado en los trece casos y en las tres variantes.
+
+### Lo que queda abierto
+
+- Las cifras de este hallazgo son de un contrafáctico y no entran al canon. Donde el documento o la tesis digan que el colectivo exige un solo comercializador, se cita que con él las conclusiones de comunidad se sostienen y el reparto por institución cambia en los pares de arriba.
+- Por qué las horas cuantales desaparecen y por qué el colectivo coincide con C4 en cinco casos queda **interpretado, no medido**. Las 216 horas cuantales venían de los regímenes «excluidos» y «topados» (CANON §7). La lectura probable es que esa fragilidad la crean los techos distintos entre compradores, y con un solo comercializador los cinco comparten techo. Del mismo modo, repartir el crédito del colectivo entre miembros con el mismo Cv no movería el total.
+- El contrafáctico mantiene el cargo de comercializar de la tabla publicada de cada comercializador. Un contrato único negociado para el colectivo no se modeló.

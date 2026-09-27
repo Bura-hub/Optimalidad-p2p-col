@@ -276,9 +276,13 @@ def test_c4_resolve_caso_art20_literal_de_la_norma():
     # Todos por debajo del 10 % exige >= 11 usuarios (el PDE suma 1,0).
     pde_11 = np.full(11, 1.0 / 11)               # 9,09 % cada uno
     assert resolve_caso_art20(pde_11) == 1
-    # ...y basta un usuario sobre 100 kW para volver al Caso 2.
+    # C-206: la capacidad por usuario es la del art. 18 (suma / fronteras),
+    # no la planta mayor. Una planta de 120 kW entre diez de 5 kW da
+    # 170 / 11 = 15,5 kW por usuario: sigue en el Caso 1.
     cap = np.full(11, 5.0); cap[0] = 120.0
-    assert resolve_caso_art20(pde_11, capacity=cap) == 2
+    assert resolve_caso_art20(pde_11, capacity=cap) == 1
+    # ...y solo vuelve al Caso 2 si la MEDIA supera los 100 kW.
+    assert resolve_caso_art20(pde_11, capacity=np.full(11, 101.0)) == 2
 
 
 # ─── 7. Slicing en feasibility (regression CAL-9.1 + CAL-15) ─────────────────

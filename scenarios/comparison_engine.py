@@ -24,7 +24,7 @@ from .scenario_c2_bilateral  import run_c2_bilateral
 from .scenario_c3_spot       import run_c3_spot
 from .scenario_c4_creg101072 import (
     run_c4_creg101072, compute_pde_weights, static_spread_c4_vs_p2p,
-    pde_por_regla,
+    pde_por_regla, resolve_caso_art20,
 )
 from core.settlement import gini_index, compute_net_benefit
 from analysis.fairness import FairnessResult, compute_pof, print_pof_report
@@ -409,9 +409,13 @@ def run_comparison(
                     month_labels=month_labels, dt=dt)
     _igual = compute_pde_weights(np.ones(N), method="equal")
     # Con 11 fronteras iguales cada una tendria 1/11 < 10 %: caso 1, salvo
-    # que alguna planta supere los 100 kW (art. 20 num. 2 ii).
-    _caso_11 = (1 if capacity is None
-                or float(np.max(capacity)) <= 100.0 else 2)
+    # que la capacidad por usuario del art. 18 (suma de las plantas entre
+    # las 11 fronteras, contando las que solo consumen) supere los 100 kW
+    # (art. 20 num. 2 ii). C-206: antes se comparaba la planta mayor. Con
+    # mas de once miembros reales, el contrafactico son ellos mismos.
+    _n11 = max(11, N)
+    _caso_11 = resolve_caso_art20(np.full(_n11, 1.0 / _n11), capacity,
+                                  n_fronteras=_n11)
     _r = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, _igual, capacity,
                            caso=_caso_11, **_base_c4)
     _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])

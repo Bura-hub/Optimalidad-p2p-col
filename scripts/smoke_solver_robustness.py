@@ -46,7 +46,7 @@ def _metrics(ds, results, G_klim):
     money = _p2p_monetary_benefit(results, ds["D"], G_klim, pi_gs_m,
                                   float(ds["grid"].pi_gb),
                                   ds["prosumer_ids"],
-                                  pi_bolsa=ds["pi_bolsa"], mode="canonical")
+                                  pi_bolsa=ds["pi_bolsa"])
     kwh = pis = vol = 0.0
     ies = []
     for k in active_hours(results):

@@ -173,17 +173,23 @@ def main() -> None:
 
     print("[B3-paper] Analizando dominancia P2P vs C4 hora a hora...")
     pde = compute_pde_weights(np.maximum(G_scaled.mean(axis=1), 0.0))
+    # D72: el beneficio horario es el que liquida el motor, no una
+    # reconstruccion aparte (H-94, C-202). Las cifras de este guion dejan de
+    # ser las del articulo del WEEF, que queda congelado con las suyas.
+    from scenarios.comparison_engine import run_comparison
+    cr = run_comparison(D, G_klim, G_scaled, p2p_results, pi_gs=pi_gs_eff,
+                        pi_gb=pi_gb, pi_bolsa=params["pi_bolsa"],
+                        prosumer_ids=list(range(D.shape[0])),
+                        consumer_ids=[], pde=pde)
     summary = analyze_hourly_dominance(
+        p2p_horario=cr.neto_horario["P2P"],
+        c4_horario=cr.neto_horario["C4"],
+        p2p_results=p2p_results,
         D=D,
         G_klim=G_klim,
-        p2p_results=p2p_results,
-        pde=pde,
-        pi_gs=pi_gs_eff,
-        pi_gb=pi_gb,
-        pi_bolsa=params["pi_bolsa"],
-        prosumer_ids=list(range(D.shape[0])),
-        consumer_ids=[],
         threshold_cop=None,
+        referencia_liquidacion={"P2P": cr.net_benefit["P2P"],
+                                "C4": cr.net_benefit["C4"]},
     )
 
     print("[B3-paper] Agregando por hora-del-dia...")

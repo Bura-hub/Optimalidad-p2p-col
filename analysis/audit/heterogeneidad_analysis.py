@@ -84,17 +84,22 @@ def run_heterogeneidad_audit(outdir: Path) -> OptimalitySummary:
     print(f"[B3] EMS listo en {elapsed_ems:.1f}s | horas activas: {active_hrs}/{T}")
 
     print("[B3] Calculando dominancia horaria P2P vs C4 ...")
+    # D72: el beneficio horario es el que liquida el motor, no una
+    # reconstruccion aparte (H-94, C-202).
+    from scenarios.comparison_engine import run_comparison
+    cr = run_comparison(D, G_klim, G_klim, p2p_results, pi_gs=float(PGS),
+                        pi_gb=float(PGB), pi_bolsa=pi_bolsa,
+                        prosumer_ids=prosumer_ids, consumer_ids=consumer_ids,
+                        pde=pde)
     summary = analyze_hourly_dominance(
+        p2p_horario=cr.neto_horario["P2P"],
+        c4_horario=cr.neto_horario["C4"],
+        p2p_results=p2p_results,
         D=D,
         G_klim=G_klim,
-        p2p_results=p2p_results,
-        pde=pde,
-        pi_gs=float(PGS),
-        pi_gb=float(PGB),
-        pi_bolsa=pi_bolsa,
-        prosumer_ids=prosumer_ids,
-        consumer_ids=consumer_ids,
         threshold_cop=None,   # umbral adaptativo (5 % beneficio medio)
+        referencia_liquidacion={"P2P": cr.net_benefit["P2P"],
+                                "C4": cr.net_benefit["C4"]},
     )
 
     rows = [

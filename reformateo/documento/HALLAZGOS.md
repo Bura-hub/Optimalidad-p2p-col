@@ -7562,3 +7562,107 @@ En las horas frágiles el núcleo publica **el reposo del juego regularizado con
 - **El último bit depende de la máquina.** `np.exp` y `np.log` no redondean correctamente y NumPy los despacha según la CPU. El `apartamiento`, que se publica en todas las horas, y el reparto de las horas «cuantal» pueden diferir en el último bit entre el servidor y la estación de trabajo. Todo lo demás que se publica en las horas no frágiles sale de sumas, productos y cocientes, sin funciones trascendentes: es la forma cerrada. Antes de comparar huellas de la matriz entre las dos máquinas hay que esperar esas diferencias. En principio también podría cambiar de lado una hora con el apartamiento a un ulp de 1e-3, algo que no se ha visto.
 
 **Consecuencia.** La frase «el reposo al que la dinámica llega» vale en toda hora: en las 15 147 no frágiles es la forma cerrada, y en las 216 frágiles es el reposo cuantal con μ = 1, que es donde la dinámica regularizada es estable. Lo que se publica en esas 216 horas depende de μ, y así se dice.
+
+## H-94 · El análisis de optimalidad no usaba el beneficio liquidado del P2P: su total no coincidía con la hoja `Resumen` en ninguno de los trece casos, y la dominancia de C4 hora a hora la fabricaba la reconstrucción
+
+**Estado: registrado el 2026-09-26, con la decisión del autor (D72) aplicada en el código, el posproceso del canon y el verificador (C-202), sin commit y sin repetir la matriz. Sale de la tarea R de `.superpowers/sdd/2026-09-16-reposo/` (`task-R-report.md`, rondas 1 a 3, y `task-R-tabla.csv`). `task-R-reconcilia.py` es una **sonda histórica**: llama a `analyze_hourly_dominance` con el API anterior a D72 (el de `8f07eb1:analysis/optimality.py`) y ya no corre con el módulo actual; no se arregla. Las cifras que sostiene están en `task-R-tabla.csv`, y las de D72 las recalcula el verificador del canon.**
+
+Al registrar el canon del 19 de septiembre se vieron dos defectos en el análisis de optimalidad (`analysis/optimality.py`, actividad 4.2).
+
+**El primero, de presentación.** Mezclaba conjuntos de horas: `B_P2P` y `B_C4` sumaban las 6 144 horas, pero la diferencia, y con ella el veredicto, solo las horas con mercado. E4 decía «P2P superior» con `B_P2P` 24,9 millones de COP por debajo de `B_C4`.
+
+**El segundo, de fondo.** `B_C4` coincidía al peso con la hoja `Resumen`, porque desde I-6 se tomaba del motor. **`B_P2P` no coincidía en ninguno de los trece casos**: el análisis lo reconstruía por su cuenta.
+
+### Lo medido
+
+Se rehízo el análisis fuera del motor, desde el almacén de cada caso (demanda, generación limitada, techo, flujos y la tabla `escenarios`). **Reproduce al peso el bloque de los trece registros**: B_P2P, B_C4, la diferencia de las horas activas y los conteos. En E0 son 45 424 198, 1 024 016 y 398/44/684.
+
+La diferencia con la liquidación se descompone **exactamente** en cuatro causas. La tabla da el total de cada una, en COP y sobre el horizonte:
+
+| Caso | B_P2P del análisis | P2P de `Resumen` | Diferencia | (a) tarifa escalar | (b) falta 280·V | (c) autoconsumo del vendedor a bolsa | (d) residual a bolsa y no por el art. 25 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| E0 | 45 424 198 | 46 495 474 | −1 071 276 | −177 417 | −1 285 765 | 1 182 165 | −790 258 |
+| E1 | 109 898 929 | 134 188 504 | −24 289 575 | −183 865 | −4 648 540 | 7 006 896 | −26 464 066 |
+| E2 | 130 320 239 | 172 356 813 | −42 036 574 | −133 909 | −4 836 052 | 8 081 806 | −45 148 420 |
+| E3 | 155 492 718 | 212 515 257 | −57 022 538 | −77 370 | −4 225 061 | 8 108 675 | −60 828 782 |
+| E4 | 173 540 918 | 202 011 426 | −28 470 508 | −45 959 | −3 585 284 | 7 222 565 | −32 061 830 |
+| E5 | 208 298 422 | 239 454 040 | −31 155 618 | −18 022 | −2 596 391 | 5 628 801 | −34 170 006 |
+| P1 | 24 791 560 | 33 645 009 | −8 853 449 | −6 788 | −512 183 | 1 031 795 | −9 366 273 |
+| P2 | 317 969 386 | 322 485 557 | −4 516 170 | −988 068 | −9 000 358 | 8 275 152 | −2 802 895 |
+| K1 | 45 471 528 | 46 613 173 | −1 141 645 | −235 173 | −1 041 189 | 134 717 | 0 |
+| I1 | 105 809 500 | 115 212 958 | −9 403 458 | 80 377 | −4 915 634 | 8 419 721 | −12 987 921 |
+| N1 | 147 609 269 | 197 641 899 | −50 032 630 | −62 372 | −1 700 801 | 6 467 561 | −54 737 018 |
+| CV2 | 45 424 198 | 46 408 323 | −984 125 | −146 512 | −1 285 765 | 1 182 165 | −734 013 |
+| SINU | 35 219 018 | 34 949 105 | 269 914 | −155 831 | −256 936 | 794 380 | −111 699 |
+
+**Las cuatro causas.**
+
+- **(a) La tarifa escalar.** El análisis valoraba el autoconsumo y la energía recibida con el escalar comunitario, 729,5 (COP/kWh); en SINU, 730,5. La liquidación usa la matriz de cada agente y mes (CAL-9). Es la causa que menos pesa.
+- **(b) La prima del vendedor sobre la bolsa nominal.** El vendedor contaba (π* − π_gb)·kWh con π_gb = 280 (COP/kWh), el modo «premium» anterior a CAL-30, y nada sumaba después esos 280 por kWh transado. Un kWh vendido valía para la comunidad π_gs − 280 y no π_gs.
+- **(c) El autoconsumo del vendedor, dos veces.** En las horas con mercado, el «excedente no vendido» se calculaba como `G_klim − vendido` y no como `(G − D) − vendido`. El autoconsumo del vendedor entraba a tarifa en el primer término y otra vez a bolsa en el último. Es un error aritmético.
+- **(d) El residual a bolsa.** El excedente que el mercado no coloca, tanto en las horas activas como en las horas sin mercado, iba a la bolsa horaria. La liquidación lo valora por el art. 25 sobre las series residuales, con el cupo del mes (C-177, D2, C-175). Esa valoración da crédito a la tarifa media menos la deducción, y exceso a bolsa desde el corte hx. La columna es el neto de las dos valoraciones y **es la mayor causa en los casos escalados**.
+
+Lo que **no** influye:
+
+- **El techo por comprador (CAL-35) y la rama cuantal (D71).** Mueven dinero entre vendedor y comprador, y el precio se cancela en el total de la comunidad.
+- **Las horas sin resolver.** No hay ninguna: las horas inactivas son todas «sin mercado esa hora».
+
+**No era otra medida legítima.** La fórmula mezclaba la convención del vendedor del modo premium con la del comprador del modo canónico, y la comparaba contra un C4 que sí era el canónico. En las horas sin mercado suponía además que P2P y C4 daban lo mismo. Con el cupo mensual eso ya no es cierto: la liquidación da una diferencia distinta de cero en 501 a 1 323 horas sin mercado de los casos escalados.
+
+**La clasificación hora a hora cambia con el beneficio liquidado**, con la misma regla del 5 % del beneficio medio:
+
+- **El C4 dominante casi desaparece**: pasa de entre el 0 y el 39 % de las horas con mercado (entre el 9 y el 39 % en E1 a E5, I1, N1 y P1) a entre el 0 y el 5 %.
+- **El P2P dominante sube en once casos y baja en dos:**
+  - sube en E0 (de 35 a 58 %), N1 (de 38 a 55 %), I1 (de 39 a 74 %) y K1 (de 12 a 81 %), entre otros;
+  - baja en E5 (de 57 a 48 %) y SINU (de 49 a 20 %).
+- **El signo del horizonte se invierte en ocho casos:** E1 a E5, I1, N1 y P1. Con la liquidación, el P2P supera al C4 en los trece, como ya decía `Resumen`.
+
+### La lectura: el mes, no la hora
+
+Con el cupo mensual, el dinero de una hora depende del resto de su mes: el corte hx del Anexo 4 decide qué parte del excedente del mes se acredita a tarifa y qué parte va a bolsa. Por eso la clasificación hora a hora es una **atribución**, y depende de la convención con que el motor anota ese crédito en cada hora. El mes es la unidad en que la liquidación se cierra.
+
+Rehecho mes a mes, con el beneficio liquidado y desde los almacenes (`optimalidad_D72/`; el total del horizonte cuadra con `Resumen` a 0,112 (COP) como máximo):
+
+- **La comunidad gana con P2P en 116 de los 117 meses de los trece casos.** El único mes en contra es diciembre de 2025 en I1, con −41 804 (COP).
+- **En el horizonte, la comunidad gana en los trece.**
+
+**Por institución, el resultado es otro, y es un resultado de la tesis: el mercado mejora a la comunidad, pero no a cada uno de sus miembros.**
+
+- En el caso base, **E0, cuatro de las cinco instituciones quedan por debajo de C4** en el horizonte: Mariana, UCC, HUDN y Cesmag. Solo Udenar queda por encima.
+- En E0, P2, K1, I1 y CV2, que son cinco de los trece casos, la mayoría de las instituciones queda por debajo.
+- En total son **25 de los 64 pares institución-caso** (39 %). En ningún caso la comunidad pierde.
+
+Es reparto, no agregado: el colectivo reparte el crédito por partes iguales (D5), y el mercado paga a cada una por lo que vende y compra.
+
+| Caso | Por debajo de C4 | Instituciones (P2P − C4 del horizonte, COP; meses P2P/C4) | Comunidad (P2P − C4) |
+|---|---:|---|---:|
+| E0 | 4 de 5 | Mariana −379 141 (1/8); UCC −327 561 (1/8); HUDN −160 436 (2/7); Cesmag −108 351 (2/7) | 2 009 419 |
+| E1 | 1 de 5 | UCC −363 668 (2/7) | 18 706 364 |
+| E2 | 0 de 5 | — | 29 286 974 |
+| E3 | 0 de 5 | — | 35 846 181 |
+| E4 | 2 de 5 | UCC −1 203 888 (0/9); Cesmag −2 786 281 (1/8) | 3 560 335 |
+| E5 | 2 de 5 | UCC −672 324 (5/4); Cesmag −5 559 565 (0/9) | 2 858 187 |
+| P1 | 0 de 5 | — | 5 294 853 |
+| P2 | 4 de 5 | Mariana −2 245 211 (0/9); UCC −812 025 (1/8); HUDN −938 317 (3/6); Cesmag −438 731 (3/6) | 11 083 170 |
+| K1 | 4 de 5 | Mariana −305 400 (0/9); UCC −305 397 (0/9); HUDN −305 397 (0/9); Cesmag −148 550 (2/7) | 1 365 667 |
+| I1 | 4 de 5 | Udenar −1 759 312 (1/8); Mariana −4 432 351 (0/9); HUDN −4 477 438 (0/9); Cesmag −3 492 336 (0/9) | 6 467 627 |
+| N1 | 0 de 5 | — | 26 875 492 |
+| CV2 | 3 de 5 | Mariana −325 857 (1/8); UCC −252 983 (1/8); HUDN −112 989 (2/7) | 2 316 818 |
+| SINU | 1 de 4 | Mariana −3 251 (3/6) | 384 676 |
+| **Los 13** | **25 de 64** | | |
+
+Fuente: `optimalidad_D72/resumen_13casos.csv`, filas de las instituciones; «meses P2P/C4» son los meses que domina cada uno. El verificador del canon (bloque 8) recalcula este conjunto desde el almacén y lo compara con la constante `BAJO_C4`.
+
+### La decisión (D72)
+
+1. El beneficio del P2P en el análisis de optimalidad es el de la liquidación, `cr.neto_horario["P2P"]`, igual que el de C4 (I-6).
+2. El resultado principal es mes a mes y en el horizonte, por institución y en la comunidad.
+3. La clasificación hora a hora se publica como **descriptiva**, declarando que depende de la convención del corte hx con el cupo mensual. Las horas con mercado y sin mercado se informan aparte.
+
+**Lo que se retira.** No se citan:
+
+- el bloque de optimalidad de los registros de la matriz;
+- la clasificación horaria de esos registros;
+- la Fig. 14 de `graficas/`.
+
+Las cifras salen de `optimalidad_D72/` (CANON.md, sección 12).

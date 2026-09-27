@@ -2091,26 +2091,39 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             else:
                 print("    (sin horas activas para análisis de convergencia)")
 
-        # Activity 4.2: Análisis cualitativo de optimalidad P2P vs C4
-        print(f"\n  Activity 4.2: Análisis de optimalidad P2P vs C4 hora a hora...")
-        from analysis.optimality import analyze_hourly_dominance, print_optimality_report
+        # Activity 4.2: optimalidad P2P vs C4. D72: con el beneficio que
+        # liquida el motor (C-165), mes a mes y en el horizonte; la hora a
+        # hora queda como descripcion.
+        print(f"\n  Activity 4.2: Análisis de optimalidad P2P vs C4 "
+              f"(mes a mes; hora a hora descriptivo)...")
+        from analysis.optimality import (analyze_hourly_dominance,
+                                         print_optimality_report,
+                                         exporta_optimalidad)
         from visualization.plots import plot_optimality
         opt_summary = analyze_hourly_dominance(
-            D=D, G_klim=G_klim,
-            p2p_results=p2p_results,
-            pde=pde,
-            pi_gs=grid_params["pi_gs"],
-            pi_gb=grid_params["pi_gb"],
-            pi_bolsa=pi_bolsa,
-            prosumer_ids=prosumer_ids,
-            consumer_ids=consumer_ids,
-            # I-6: el colectivo mensual hora a hora del motor (C-165).
+            p2p_horario=cr.neto_horario.get("P2P"),
             c4_horario=cr.neto_horario.get("C4"),
+            p2p_results=p2p_results,
+            D=D, G_klim=G_klim,
+            month_labels=month_labels,
+            agent_names=agent_names,
+            # D72: el total del horizonte tiene que ser el liquidado; si no,
+            # ValueError y la corrida no escribe una figura que miente.
+            # M-1: si falta alguna, la comprobacion falla; no se salta.
+            referencia_liquidacion={
+                "P2P": cr.net_benefit.get("P2P"),
+                "C4": cr.net_benefit.get("C4"),
+                "P2P_por_agente": cr.net_benefit_per_agent.get("P2P"),
+                "C4_por_agente": cr.net_benefit_per_agent.get("C4")},
         )
-        print_optimality_report(opt_summary, agent_names=agent_names, currency=currency)
+        print_optimality_report(opt_summary, agent_names=agent_names,
+                                currency=currency)
+        for _r in exporta_optimalidad(opt_summary,
+                                      os.path.join(base_dir, "outputs")):
+            print(f"    ✓ {os.path.basename(_r)}")
         p = plot_optimality(opt_summary, out_dir=plots_dir, currency=currency)
         if p:
-            print(f"    ✓ Fig 14 — Análisis de optimalidad P2P vs C4")
+            print(f"    ✓ Fig 14 — Optimalidad P2P vs C4 mes a mes (D72)")
 
         if not analisis_ligero:
             # Actividad 4.3: Análisis de sub-períodos (laborable/finde × jul/ene)

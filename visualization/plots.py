@@ -1495,127 +1495,166 @@ def plot_optimality(
     summary,           # OptimalitySummary
     out_dir: str,
     currency: str = "COP",
+    nombre: str = "fig14_optimalidad_mensual.png",
+    estricto: bool = False,
 ) -> str:
     """
-    Fig 14 — Análisis de optimalidad P2P vs C4 hora a hora.
+    Fig 14 — Optimalidad P2P vs C4 (D72): el mes primero, la hora después.
 
-    Panel A (superior): timeline de categoría por hora (barras coloreadas)
-    Panel B (medio)   : cumsum de Delta = B_P2P - B_C4 acumulado
-    Panel C (inferior): GDR por hora activa + distribución categorial (pie)
+    Panel A : P2P − C4 de la comunidad en cada mes, con el total del
+              horizonte y cuántos meses domina cada uno.
+    Panel B : lo mismo por institución y mes (rejilla con el valor escrito).
+    Panel C : DESCRIPTIVO. La categoría de cada hora con mercado; las horas
+              sin mercado en gris. Depende de cómo se anota en cada hora el
+              crédito del corte hx del mes (ADVERTENCIA_HORARIA).
+
+    Los datos van en los hermanos ``__mensual.csv``, ``__resumen.csv`` y
+    ``__horaria.csv`` y en el ``.mat``. Con ``estricto=True`` (el posproceso
+    del canon, M-5) un fallo al exportarlos lanza la excepcion en vez de
+    quedarse en un aviso.
     """
+    from analysis.optimality import (COMUNIDAD, ADVERTENCIA_HORARIA,
+                                     TOL_COP, tabla_horaria)
+    mm = getattr(summary, "mensual", None)
     hourly = summary.hourly_data
-    if not hourly:
+    if not hourly or mm is None:
         return ""
 
     os.makedirs(out_dir, exist_ok=True)
     T = len(hourly)
+    c_p2p, c_c4 = COLORS_ESC["P2P"], COLORS_ESC["C4"]
+    c_empate = "#9A9A9A"   # M-6: el empate (|Delta| <= TOL_COP) no es de C4
 
-    # ── Vectores ─────────────────────────────────────────────────────────────
-    hours   = np.arange(T)
-    deltas  = np.array([h.delta   for h in hourly])
-    gdrs    = np.array([h.gdr     for h in hourly])
-    cats    = [h.category for h in hourly]
+    delta = mm.delta
+    escala_max = float(np.max(np.abs(delta))) if delta.size else 0.0
+    if escala_max >= 1e6:
+        div, unidad = 1e6, f"millones de {currency}"
+    else:
+        div, unidad = 1e3, f"miles de {currency}"
+    # Un solo codigo de color en toda la figura: P2P arriba de cero en su
+    # color, C4 abajo en el suyo, y el blanco es el empate.
+    from matplotlib.colors import LinearSegmentedColormap
+    cmap_div = LinearSegmentedColormap.from_list(
+        "c4_p2p", [c_c4, "#FFFFFF", c_p2p])
 
-    cat_colors = {
-        "P2P_dom":  "#534AB7",   # violeta (P2P)
-        "C4_dom":   "#D4537E",   # rosa   (C4)
-        "neutral":  "#F0C040",   # amarillo (empate)
-        "inactive": "#CCCCCC",   # gris (inactivo)
-    }
-    cat_labels = {
-        "P2P_dom":  "P2P dominante",
-        "C4_dom":   "C4 dominante",
-        "neutral":  "Neutral",
-        "inactive": "Inactivo",
-    }
+    fig = plt.figure(figsize=(13, 11))
+    gs = GridSpec(3, 1, figure=fig, hspace=0.55,
+                  height_ratios=[1.15, 1.0 + 0.12 * len(mm.agentes), 0.55])
 
-    color_arr = np.array([cat_colors[c] for c in cats])
-
-    fig = plt.figure(figsize=(13, 10))
-    gs  = GridSpec(3, 2, figure=fig, hspace=0.45, wspace=0.35,
-                   width_ratios=[3, 1])
-
-    # ── Panel A: timeline de categorías ─────────────────────────────────────
-    ax_a = fig.add_subplot(gs[0, :])
-    bar_h = np.ones(T)
-    for cat, clr in cat_colors.items():
-        mask = np.array([c == cat for c in cats])
-        if mask.any():
-            ax_a.bar(hours[mask], bar_h[mask], color=clr, width=1.0,
-                     label=cat_labels[cat], alpha=0.85)
-    ax_a.set_xlim(0, T)
-    ax_a.set_ylim(0, 1.2)
-    ax_a.set_yticks([])
-    ax_a.set_xlabel("Hora k")
-    threshold = float(getattr(summary, "threshold_cop", 0.0))
+    # ── Panel A: la comunidad, mes a mes ─────────────────────────────────────
+    ax_a = fig.add_subplot(gs[0])
+    i_com = mm.fila(COMUNIDAD)
+    d_com = delta[i_com] / div
+    x = np.arange(len(mm.meses))
+    d_crudo = delta[i_com]
+    colores = [c_p2p if v > TOL_COP else (c_c4 if v < -TOL_COP else c_empate)
+               for v in d_crudo]
+    ax_a.bar(x, d_com, color=colores, width=0.7, edgecolor="white")
+    ax_a.axhline(0, color="#555", lw=0.8)
+    for xi, v in zip(x, d_com):
+        ax_a.annotate(f"{v:+,.2f}", (xi, v), ha="center",
+                      va="bottom" if v >= 0 else "top", fontsize=8,
+                      xytext=(0, 2 if v >= 0 else -2),
+                      textcoords="offset points")
+    ax_a.set_xticks(x)
+    ax_a.set_xticklabels(mm.meses, fontsize=9)
+    ax_a.set_ylabel(f"P2P − C4 ({unidad})")
+    cuenta = mm.cuenta(COMUNIDAD)
+    p_tot, c_tot, d_tot = mm.total(COMUNIDAD)
     ax_a.set_title(
-        f"A — Dominancia horaria: P2P vs C4  "
-        f"(umbral = ±{threshold:,.0f} {currency}/h)",
-        fontweight="bold")
-    ax_a.legend(loc="upper right", ncol=4, fontsize=9)
-    ax_a.axhline(1, color="#888", lw=0.4, ls="--")
+        f"A — Comunidad, mes a mes: P2P domina {cuenta['P2P']} de "
+        f"{len(mm.meses)} meses, C4 {cuenta['C4']}; horizonte "
+        f"P2P − C4 = {d_tot / div:+,.2f} {unidad}",
+        fontweight="bold", fontsize=10)
+    ax_a.legend(handles=[mpatches.Patch(color=c_p2p, label="P2P > C4"),
+                         mpatches.Patch(color=c_c4, label="C4 > P2P"),
+                         mpatches.Patch(color=c_empate,
+                                        label=f"empate (±{TOL_COP:.0f} "
+                                              f"{currency})")],
+                fontsize=8, loc="best")
+    lim = max(float(np.max(np.abs(d_com))) if d_com.size else 0.0, 1e-9)
+    ax_a.set_ylim(-1.25 * lim if d_com.min() < 0 else -0.1 * lim,
+                  1.25 * lim if d_com.max() > 0 else 0.1 * lim)
 
-    # ── Panel B: Delta acumulado ─────────────────────────────────────────────
-    ax_b = fig.add_subplot(gs[1, :2])
-    cumsum = np.cumsum(deltas)
-    clr_line = "#534AB7" if cumsum[-1] >= 0 else "#D4537E"
-    ax_b.plot(hours, cumsum / 1e3, color=clr_line, lw=1.5)
-    ax_b.axhline(0, color="#555", lw=0.8, ls="--", alpha=0.7)
-    ax_b.fill_between(hours, cumsum / 1e3, 0,
-                      where=cumsum >= 0, color="#534AB7", alpha=0.15, label="P2P > C4")
-    ax_b.fill_between(hours, cumsum / 1e3, 0,
-                      where=cumsum < 0,  color="#D4537E", alpha=0.15, label="C4 > P2P")
-    ax_b.set_xlabel("Hora k")
-    ax_b.set_ylabel(f"ΔB acumulado (k{currency})")
-    ax_b.set_title("B — Ventaja diferencial acumulada P2P − C4", fontweight="bold")
-    ax_b.legend(fontsize=8)
-    ax_b.set_xlim(0, T)
+    # ── Panel B: institución por mes ─────────────────────────────────────────
+    ax_b = fig.add_subplot(gs[1])
+    filas = [a for a in mm.agentes if a != COMUNIDAD]
+    Z = np.array([delta[mm.fila(a)] for a in filas]) / div
+    vmax = max(float(np.max(np.abs(Z))) if Z.size else 0.0, 1e-9)
+    im = ax_b.imshow(Z, aspect="auto", cmap=cmap_div, vmin=-vmax, vmax=vmax)
+    ax_b.grid(visible=False)
+    for r in range(Z.shape[0]):
+        for c in range(Z.shape[1]):
+            v = Z[r, c]
+            ax_b.text(c, r, f"{v:+,.2f}", ha="center", va="center",
+                      fontsize=7.5,
+                      color="white" if abs(v) > 0.6 * vmax else "#222")
+    ax_b.set_xticks(np.arange(len(mm.meses)))
+    ax_b.set_xticklabels(mm.meses, fontsize=9)
+    ax_b.set_yticks(np.arange(len(filas)))
+    rot = []
+    for a in filas:
+        cu = mm.cuenta(a)
+        rot.append(f"{a}  ({mm.total(a)[2] / div:+,.2f}; "
+                   f"{cu['P2P']}/{cu['C4']} meses)")
+    ax_b.set_yticklabels(rot, fontsize=8.5)
+    cb = fig.colorbar(im, ax=ax_b, fraction=0.025, pad=0.01)
+    cb.set_label(f"P2P − C4 ({unidad})", fontsize=8)
+    ax_b.set_title("B — Por institución y mes (entre paréntesis: horizonte; "
+                   "meses que domina P2P/C4)", fontweight="bold", fontsize=10)
 
-    # ── Panel C-izq: GDR por hora ────────────────────────────────────────────
-    ax_cl = fig.add_subplot(gs[2, 0])
-    active_mask = np.array([h.active for h in hourly])
-    if active_mask.any():
-        ax_cl.scatter(hours[active_mask], gdrs[active_mask],
-                      s=4, c="#1D9E75", alpha=0.55, label="GDR hora activa")
-        ax_cl.axhline(summary.gdr_mean, color="#1D9E75", lw=1.2, ls="--",
-                      label=f"μ={summary.gdr_mean:.3f}")
-    ax_cl.set_xlim(0, T)
-    ax_cl.set_ylim(-0.05, 1.05)
-    ax_cl.set_xlabel("Hora k")
-    ax_cl.set_ylabel("GDR")
-    ax_cl.set_title("C — Global Dispatch Ratio por hora", fontweight="bold")
-    ax_cl.legend(fontsize=8)
+    # ── Panel C: descriptivo, hora a hora ────────────────────────────────────
+    ax_c = fig.add_subplot(gs[2])
+    cat_colors = {"P2P_dom": c_p2p, "C4_dom": c_c4, "neutral": "#F0C040",
+                  "inactive": "#DDDDDD"}
+    cat_labels = {"P2P_dom": "P2P dominante", "C4_dom": "C4 dominante",
+                  "neutral": "Neutral", "inactive": "Sin mercado"}
+    cats = np.array([h.category for h in hourly])
+    hours = np.arange(T)
+    for cat, clr in cat_colors.items():
+        m = cats == cat
+        if m.any():
+            ax_c.bar(hours[m], np.ones(int(m.sum())), color=clr, width=1.0,
+                     linewidth=0, label=f"{cat_labels[cat]} ({int(m.sum())} h)")
+    ax_c.set_xlim(0, T)
+    ax_c.set_ylim(0, 1.05)
+    ax_c.set_yticks([])
+    ax_c.grid(visible=False)
+    ax_c.set_xlabel("Hora del horizonte")
+    ax_c.set_title(
+        f"C — Descriptivo: categoría de cada hora (umbral "
+        f"±{summary.threshold_cop:,.0f} {currency}); con mercado "
+        f"{summary.delta_total / div:+,.2f} {unidad}, sin mercado "
+        f"{summary.delta_inactivas / div:+,.2f} {unidad}",
+        fontweight="bold", fontsize=10)
+    ax_c.legend(loc="upper center", bbox_to_anchor=(0.5, -0.35), ncol=4,
+                fontsize=8, frameon=False)
 
-    # ── Panel C-der: torta resumen ────────────────────────────────────────────
-    ax_cr = fig.add_subplot(gs[2, 1])
-    cat_order = ["P2P_dom", "C4_dom", "neutral", "inactive"]
-    counts = [cats.count(c) for c in cat_order]
-    nonzero_idx = [i for i, c in enumerate(counts) if c > 0]
-    wedge_sizes  = [counts[i] for i in nonzero_idx]
-    wedge_colors = [cat_colors[cat_order[i]] for i in nonzero_idx]
-    wedge_labels = [f"{cat_labels[cat_order[i]]}\n{counts[i]}h" for i in nonzero_idx]
-    ax_cr.pie(wedge_sizes, labels=wedge_labels, colors=wedge_colors,
-              autopct="%1.0f%%", startangle=90,
-              textprops={"fontsize": 7.5},
-              wedgeprops={"edgecolor": "white", "linewidth": 0.8})
-    ax_cr.set_title("D — Distribución categorial", fontweight="bold")
-
-    # ── Anotación de resultados clave ─────────────────────────────────────────
-    info = (f"B_P2P total = {summary.B_p2p_total/1e6:,.1f} M{currency}\n"
-            f"B_C4  total = {summary.B_c4_total/1e6:,.1f} M{currency}\n"
-            f"ΔTotal      = {summary.delta_total/1e3:,.0f} k{currency}\n"
-            f"GDR medio   = {summary.gdr_mean:.3f}  (std {summary.gdr_std:.3f})\n"
-            f"Umbral      = ±{summary.threshold_cop:,.0f} {currency}")
-    fig.text(0.01, 0.01, info, fontsize=8, family="monospace",
-             va="bottom", ha="left",
-             bbox=dict(boxstyle="round,pad=0.4", fc="lightyellow", alpha=0.85))
-
-    fig.suptitle("Fig 14 — Análisis de optimalidad horaria: P2P vs C4 (AGRC)\n"
-                 "Clasificación por dominancia y eficiencia de clearing",
+    fig.text(0.01, 0.005, "Nota: " + ADVERTENCIA_HORARIA, fontsize=7.5,
+             style="italic", color="#444", wrap=True, va="bottom")
+    fig.suptitle("Fig 14 — Optimalidad P2P vs C4 con el beneficio liquidado "
+                 "(D72): el resultado es mensual; la hora es descriptiva",
                  fontsize=11, fontweight="bold")
 
-    path = os.path.join(out_dir, "fig14_optimalidad_horaria.png")
-    return _save(fig, path)
+    path = os.path.join(out_dir, nombre)
+    saved = _save(fig, path)
+    if estricto:
+        from visualization.matlab_export import export_figure_data
+        exporta = export_figure_data
+    else:
+        exporta = safe_export
+    exporta(
+        "fig14",
+        {"mensual": mm.tabla(), "resumen": mm.resumen(),
+         "horaria": tabla_horaria(summary)},
+        path,
+        metadata={"activity_ref": "Act 4.2",
+                  "units": f"{currency}",
+                  "description": ("D72: P2P - C4 con el beneficio liquidado, "
+                                  "por mes e institucion; la clasificacion "
+                                  "horaria es descriptiva")},
+    )
+    return saved
 
 
 def plot_sensitivity_pgs(sa_pgs_results: list, out_dir: str,

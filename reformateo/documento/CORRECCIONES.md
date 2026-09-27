@@ -9375,3 +9375,88 @@ El núcleo del reposo (C-197, C-199) publicaba en toda hora la forma cerrada, qu
 - **La plataforma.** El `apartamiento` y el reparto de las horas «cuantal» usan `np.exp` y `np.log`, que dependen de la CPU, y pueden diferir en el último bit entre máquinas. Lo demás de las horas no frágiles no usa funciones trascendentes.
 
 **Lo que queda:** repetir la matriz en el servidor y compararla hora a hora con la del 17 (H-93); integrar, opcional, la hora 12 desde el punto cuantal; y actualizar `INTERFAZ_NUCLEO.md` con la firma, los tres campos, el campo 41 de la tupla y la tolerancia nueva, que lleva el controlador.
+
+## C-202 · La optimalidad usa el beneficio liquidado y se lee mes a mes; la hora a hora queda como descripción (H-94; D72)
+
+**2026-09-26 · tipo: `codigo` y `canon` · aplicada, con pruebas, sin commit y sin repetir la matriz**
+
+### Qué hacía el código
+
+**La reconstrucción del P2P.** `analysis/optimality.py` reconstruía el beneficio horario del P2P por su cuenta:
+
+- tarifa escalar;
+- prima del vendedor sobre la bolsa nominal de 280 (COP/kWh);
+- el autoconsumo del vendedor contado dos veces;
+- el residual a bolsa.
+
+Lo comparaba contra el C4 del motor (I-6). Su total no coincidía con la hoja `Resumen` en ninguno de los trece casos del canon (H-94).
+
+**El bloque «Beneficios acumulados totales».** Sumaba los beneficios sobre todas las horas y la diferencia solo sobre las activas, y sacaba el veredicto de la diferencia. En E4 decía «P2P superior» con B_P2P 24,9 millones por debajo de B_C4.
+
+**La Fig. 14.** Repetía el mismo cruce en su recuadro.
+
+### Qué cambia
+
+- **`analysis/optimality.py`, reescrito (D72).**
+  - `analyze_hourly_dominance(p2p_horario, c4_horario, p2p_results, D, G_klim, month_labels, agent_names, threshold_cop, referencia_liquidacion)`:
+    - el beneficio es obligatorio y es el liquidado, `cr.neto_horario`;
+    - `p2p_results` solo decide qué horas tuvieron mercado, los kWh y el GDR;
+    - **se borraron la reconstrucción y sus parámetros** (`pde`, `pi_gs`, `pi_gb`, `pi_bolsa`, `prosumer_ids`, `consumer_ids`); no quedan como opción.
+  - Con `referencia_liquidacion`, un total del horizonte que se aparte más de 1 (COP) del liquidado lanza `ValueError`; con `"P2P_por_agente"` y `"C4_por_agente"`, también el de cada agente.
+  - **La referencia no se omite en silencio (ronda 3, M-1).** Sin ella hace falta `sin_referencia=True`, que imprime un AVISO. Con ella, `"P2P"` y `"C4"` son obligatorios.
+  - Un beneficio no finito, una forma distinta o unas etiquetas de otra longitud también lanzan error.
+  - **Nuevo `analyze_monthly_dominance`** y la clase `MonthlyDominance`, por institución y en la comunidad:
+    - P2P − C4 de cada mes y quién domina, con empate si |Δ| ≤ 1 (COP);
+    - cuántos meses domina cada uno;
+    - el total del horizonte;
+    - `tabla()` y `resumen()` para exportar.
+  - `OptimalitySummary` gana:
+    - `mensual`;
+    - `delta_horizonte`, `B_p2p_activas`, `B_c4_activas` y `delta_inactivas`;
+    - `_comprueba_conjuntos`, que exige que cada diferencia sea la de sus totales y que el mensual sume lo mismo que el horario.
+  - `delta_total` conserva su significado (horas con mercado).
+  - `print_optimality_report` imprime por este orden:
+    1. el mes, por comunidad y por institución;
+    2. el horizonte, con su veredicto;
+    3. la hora a hora, rotulada DESCRIPTIVA con la advertencia del corte hx, con las horas con mercado y sin mercado por separado.
+  - `tabla_horaria` y `exporta_optimalidad` escriben el mensual, el resumen y el horario en CSV.
+- **`main_simulation.py`.** Pasa `cr.neto_horario["P2P"]` y `["C4"]`, el calendario, los nombres y la referencia de la liquidación, con el reparto por agente. Escribe `outputs/optimalidad_{mensual,resumen,horaria}.csv`.
+- **`visualization/plots.py`.** La Fig. 14 pasa a `fig14_optimalidad_mensual.png`, con tres paneles:
+  - A, la comunidad mes a mes;
+  - B, la institución por mes;
+  - C, la hora a hora como panel descriptivo.
+
+  Lleva la advertencia en la nota y un solo código de color en toda la figura, con el empate en gris propio (ronda 3, M-6). Sus datos van en `__mensual.csv`, `__resumen.csv`, `__horaria.csv` y el `.mat`. Con `estricto=True`, un fallo al exportarlos lanza la excepción (M-5).
+- **`scenarios/comparison_engine.py` (ronda 3).** `_p2p_monetary_benefit` pierde el modo «premium» y el parámetro `mode`: queda la fórmula canónica y pasar `mode` es un `TypeError`. `pi_gb` sigue siendo el respaldo cuando falta `pi_bolsa`. Se quitó `mode="canonical"` de sus cuatro llamadores: `run_comparison` y los tres `scripts/smoke_*.py`.
+- **Los dos llamadores de auditoría** (`analysis/audit/heterogeneidad_analysis.py` y `scripts/run_heterogeneidad_paper.py`) toman el beneficio de `run_comparison`. Las cifras del segundo dejan de ser las del artículo del WEEF, que sigue congelado con las suyas.
+- **El canon, sin repetir la matriz.**
+  - `reformateo/documento/scripts/optimalidad_d72.py` lee la tabla `escenarios` de los trece almacenes y escribe `SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/optimalidad_D72/`:
+    - un mensual y un horario por caso;
+    - `resumen_13casos.csv`;
+    - la Fig. 14 de cada caso y la figura resumen, con sus CSV, `.mat` y `.fuente.txt`;
+    - `procedencia.txt`.
+  - Comprueba que el horizonte de P2P y C4 de la comunidad y de cada institución cuadre con `Resumen` y `Por_agente` a un peso; la diferencia máxima es de 0,112 (COP). La exportación de las figuras no se traga errores y la procedencia no admite un commit «desconocido» (M-5).
+  - **Las huellas sobreviven a una regeneración (ronda 3, I-1).** Entran en `HUELLAS.csv` los 95 ficheros deterministas (CSV, PNG y `.fuente.txt`), con 518 huellas en total. Quedan fuera los 13 `.mat`, que llevan la hora, y `procedencia.txt`, que lleva el commit y ya no la hora. Una regeneración completa en el scratchpad da los 95 idénticos bit a bit y deja el verificador en INTACTO.
+  - `verificar_canon_2026-09.py` gana el bloque 8 (ampliado en la ronda 3, I-2). Recalcula de la tabla `escenarios` cada agente por mes, la comunidad incluida, y el horizonte de cada institución. Los compara al peso con `Resumen`, `Por_agente`, `<caso>_mensual.csv` y `resumen_13casos.csv`, y comprueba las constantes de lo que se cita: `MESES_EN_CONTRA` (diciembre de I1) y `BAJO_C4` (25 pares institución-caso). En una copia del canon, un cambio en el diciembre de I1 o en el signo de Udenar en I1 lo detecta el bloque 8 aunque se rehaga la huella del fichero.
+  - CANON.md gana la sección 12 y deja de citar el bloque de optimalidad, la clasificación horaria y la Fig. 14 de las salidas originales.
+
+### Estado
+
+**Aplicada en el código, sin commit.**
+
+- **Pruebas.** `tests/test_optimality_conjuntos.py` pasa sus 11 pruebas:
+  - los conjuntos de horas, con el caso de E4 en sintético;
+  - el mensual por institución y comunidad, con el empate;
+  - el orden del informe;
+  - los fallos en voz alta;
+  - la comprobación contra la liquidación, con `run_comparison` sobre datos sintéticos.
+
+  `tests/test_analisis_ligero.py` (`main` sintético) también pasa. En la ronda 3 se añadieron la referencia obligatoria (M-1) y el retiro de `mode` (13 pruebas en el fichero).
+- **Lectura por institución (ronda 3, M-4): el mercado mejora a la comunidad, pero no a cada uno de sus miembros.** En E0 cuatro de las cinco instituciones quedan por debajo de C4, y en total 25 de los 64 pares institución-caso (39 %; tabla en H-94). En ningún caso la comunidad pierde.
+- **Compuertas.** `verificar_canon_2026-09.py` imprime `CANON 2026-09 INTACTO`; las del canon de agosto y de junio, intactas.
+
+**Lo que queda.**
+
+- **La Fig. 14 de `graficas/`.** Una corrida nueva de la matriz la produciría sola con el código nuevo. Hasta entonces, la de cada caso está en `optimalidad_D72/figuras/`.
+- **`procedencia.txt` se regenera después del commit**, para que cite el commit real; no está en las huellas.
+- **La propagación a la tesis** (la Fig. 14 retirada, que todavía citan `tesis.md`, la matriz de trazabilidad y `main.tex`) va en otra tarea (M-8).

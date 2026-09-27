@@ -80,7 +80,7 @@ def run_checks(tier: int, datasets: list) -> list:
         t0 = time.time()
         engine = _p2p_monetary_benefit(
             results, D, G_klim, pi_gs_m, pi_gb,
-            ds["prosumer_ids"], pi_bolsa=ds["pi_bolsa"], mode="canonical")
+            ds["prosumer_ids"], pi_bolsa=ds["pi_bolsa"])
         indep = _recompute_net_independent(
             results, D, G_klim, pi_gs_m, ds["pi_bolsa"], ds["prosumer_ids"])
         denom = np.maximum(np.abs(engine), 1.0)

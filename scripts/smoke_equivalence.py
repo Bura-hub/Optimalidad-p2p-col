@@ -397,8 +397,7 @@ def check_c4(tier, ds, results) -> CheckResult:
         return _p2p_monetary_benefit(res, ds["D"], gk, pi_gs_m,
                                      float(ds["grid"].pi_gb),
                                      ds["prosumer_ids"],
-                                     pi_bolsa=ds["pi_bolsa"],
-                                     mode="canonical")
+                                     pi_bolsa=ds["pi_bolsa"])
     w_def = float(np.sum(_money(res_def, G_klim_d)))
     w_str = float(np.sum(_money(res_strict, G_klim)))
     dW = abs(w_str - w_def) / max(abs(w_def), 1e-9)

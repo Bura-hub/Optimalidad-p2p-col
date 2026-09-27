@@ -7666,3 +7666,44 @@ Fuente: `optimalidad_D72/resumen_13casos.csv`, filas de las instituciones; «mes
 - la Fig. 14 de `graficas/`.
 
 Las cifras salen de `optimalidad_D72/` (CANON.md, sección 12).
+
+## H-95 · El análisis de sensibilidad global corre directo sobre el modelo, sin emulador: una evaluación del horizonte cuesta 3,5 (s) en un proceso, y `gsa_real/` se retira
+
+**Estado: registrado el 2026-09-26, con las decisiones del autor D73 a D79 aplicadas en `gsa_directo/`, en la acción `gsa_directo` de `modelo_base/run_servidor.sh` y en sus pruebas (C-203), sin commit. La corrida en el servidor queda para el 3 al 5 de octubre. Sale de la tarea G de `.superpowers/sdd/2026-09-16-reposo/` (`task-G-report.md`, con su ronda de arreglos, y `task-G-review.md`) y del diseño `docs/superpowers/specs/2026-09-26-gsa-directo-design.md`.**
+
+D17 (2026-09-13) planteó el análisis de sensibilidad global en dos niveles, con un emulador del mercado en el primero, porque una hora de mercado costaba 47,2 (s) en la vía acoplada: unas 38 horas-CPU por evaluación del horizonte. Con el reposo en forma cerrada (D48) esa razón desapareció.
+
+### Lo medido
+
+**El costo de una evaluación.** Una evaluación entera del modelo sobre las 6 144 horas (el piso por vendedor, el mercado por reposo, C1 a C5, el colectivo y el P2P por la vía del colectivo), en un solo proceso:
+
+- mediana de **3,54 (s)** en los trece casos, de 1,93 (s) en SINU a 4,94 (s) en I1;
+- dentro de un pool de seis procesos en el portátil, 8,15 (s) de mediana (p90 de 9,37 (s)) y 160 (MB) de memoria residente por trabajador;
+- la carga de las mediciones del MTE, 20 (s) la primera vez y 0,1 (s) desde la caché.
+
+Con 16 procesos y los 8 (s) que presupuesta el diseño, n = 2 048 (28 672 evaluaciones) son unas 4 (h) por caso: el Sobol directo cabe en tres noches.
+
+**La compuerta del punto base.** Con los seis factores en 1, el evaluador reproduce **al peso** las hojas `Resumen` y `Por_agente` de los trece casos del canon del 19 de septiembre: diferencia relativa máxima de 4,3e-16 en 748 comprobaciones de 14 evaluaciones. La energía transada coincide a 0,0073 (kWh), la parte del vendedor del almacén a 4,8e-10, las horas cuantales son las mismas y los retiros son cero. E0 con el descuento de comercializar por dos reproduce CV2 al peso. Esta compuerta sustituye al criterio del 1 % del emulador.
+
+**La réplica.** Ocho puntos de E0 evaluados dos veces en procesos distintos dan salidas iguales al bit. La deriva del índice de equidad de agosto (el precio degenerado) queda cerrada por construcción: sin integrador, el reparto es determinista.
+
+**El piloto** (E0, del 1 de agosto al 1 de octubre de 2025, n = 64, 896 evaluaciones, 213 (s), cero fallos) es un instrumento de diseño y **no se cita como resultado**:
+
+- fijó el n: el semiancho máximo del índice total fue 0,538, 0,368 y 0,274 con n = 16, 32 y 64, que sigue 1/√n; con n = 2 048 se proyecta ±0,05;
+- mostró qué manda en E0: la tarifa en los niveles, el descuento de comercializar en P2P − C1 (la identidad de H-70), los peajes en las brechas del colectivo y la bolsa en P2P − C5.
+
+**Salvedad del piloto.** El piloto escalaba también C5 (y el precio de su contrato) con el descuento de comercializar; la corrida no lo hace, igual que `main()` con `--factor-cv` según D7. Su índice total de 0,18 sobre P2P − C5 no es comparable con lo que dará la corrida.
+
+### Dos supuestos del diseño que no se sostienen
+
+- **La energía transada sí depende del descuento de comercializar** (índice total de 0,077 en el piloto), porque el piso decide quién entra al mercado. La comprobación «energía sin efecto de los factores de precio» se informa y no detiene; tampoco detiene P2P − C1 = excedente (H-70). Detienen C2 = P2P y retiros = 0.
+- **CV2 no cabe en el Sobol.** Es E0 con el costo de comercializar por dos, y el factor del Sobol lo multiplica otra vez: el descuento efectivo recorre [0,5; 4] veces el publicado, fuera del rango aprobado. Sobre la muestra de CV2 (n = 512), 21 filas dan piso negativo en Cesmag y 6 de 512 bloques se descartan (1,17 %): el análisis se detendría y cortaría la cadena antes de SINU. CV2 sale del Sobol y queda como contraste determinista, que es lo que el diseño ya le asignaba.
+
+### La retirada de `gsa_real/`
+
+`gsa_real/` midió la vía alternada con el precio de bolsa nominal como parámetro (PGB), y sus índices son del canon de agosto. Sus 40 ficheros pasaron a `_cuarentena/2026-09-26/gsa_real/`, con un manifiesto de huellas md5 que cuadra; no se borró nada. Siguen leyéndolo guiones históricos (`gen_cap11.py`, `figuras_tesis_invariancia.py` y verificadores de la auditoría de agosto), que ahora fallan en voz alta al ejecutar la función que lo lee; ninguna compuerta del canon los usa.
+
+### Lo que queda abierto
+
+- **La sensibilidad a μ podría no limitarse al reparto** (observación local, no oficial). En E0 el número de horas cuantales cambia con μ (12 con μ = 0,5; 57 con μ = 1; 75 con μ = 2), y el P2P agregado se mueve +941 y −1 718 (COP). El canon dice que con μ cambia el reparto y no el conjunto de horas. Lo medirá `deterministas.py` en los trece casos en el servidor, antes de redactar la salvedad.
+- Nada del GSA directo es canon hasta que la corrida termine y se registre en `Documentos/canon_2026-09/`. Hasta entonces, el análisis de sensibilidad global sigue en la lista de lo que el canon no cubre.

@@ -1822,6 +1822,209 @@ corrida terminada.
 
 ---
 
+## El GSA directo, sin emulador (D73 a D79)
+
+Contexto en una frase: con el reposo en forma cerrada (D48) una evaluación
+entera del modelo sobre las 6 144 horas (piso, mercado, C1 a C5, el colectivo y
+el P2P por la vía del colectivo) cuesta unos segundos en un solo proceso, así
+que el análisis de sensibilidad de Sobol corre **directo sobre el modelo**, sin
+el emulador de D17. El diseño aprobado es
+`docs/superpowers/specs/2026-09-26-gsa-directo-design.md`; el paquete,
+`gsa_directo/` (su `LEEME.md` dice qué es cada pieza). `gsa_real/`, el de
+agosto, está en `_cuarentena/2026-09-26/` (D79).
+
+**Seis entradas uniformes** (D74): el descuento de comercializar sobre la
+permuta (art. 25) [0,25; 2] (`f_cv`: **no** es el Cv de la tarifa, es el factor
+sobre el componente de comercializar que el art. 25 descuenta para el piso del
+vendedor), bolsa [0,75; 4,0] con el techo PES después, tarifa ±10 %, peajes
+±15 %, error de G y de D ±5 %.
+**Catorce salidas de comunidad** (D75): P2P, P2P por el colectivo, C1, C3, C4,
+C5, energía, excedente, la parte del vendedor **del almacén** y cinco brechas;
+C2 y los conteos se guardan para comprobar identidades, y las brechas por
+institución solo dan su probabilidad de inversión. **Saltelli de segundo
+orden**, 14 filas por bloque, semilla 42; **n = 2 048 en E0, E2 y E4 y 512 en
+los otros nueve** (D77). μ = 1: la sensibilidad a μ va aparte (D76).
+
+**El Sobol corre en doce casos: CV2 queda fuera** (ronda de arreglos de la
+tarea G, I-1). CV2 es E0 con el costo de comercializar ×2, y el Sobol de E0 ya
+recorre `f_cv` hasta 2; sobre CV2, `f_cv` volvería a multiplicar un Cv que ya
+viene ×2 y lo sacaría del rango aprobado (6 de 512 bloques con el piso de
+Cesmag negativo, 1,17 %: el análisis se detendría y cortaría la cadena antes de
+SINU). CV2 sigue en la compuerta del punto base (el contraste con E0 a
+`f_cv = 2`) y en las deterministas; la acción y `correr.py` lo rechazan si se
+pide.
+
+### Qué necesita
+
+- El entorno de `requirements-lock.txt` (H-84), con **SALib 1.5.2**.
+- `MTE_ROOT` y los ficheros de `data/` de siempre.
+- **La matriz por reposo del canon, EXPLÍCITA**: `MATRIZ_CANON` es
+  obligatoria y no tiene defecto, porque `SALIDAS_SERVIDOR/matriz_reposo` no
+  tiene por qué seguir siendo la del 2026-09-19 si después se relanzó algo. En
+  el servidor, `MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo` si es la que quedó
+  del 19; si no, la entrega desempaquetada,
+  `MATRIZ_CANON=SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/SALIDAS_SERVIDOR/matriz_reposo`.
+  **La compuerta comprueba la huella** (sha256) del libro
+  `outputs/resultados_comparacion.xlsx` de cada caso contra la del canon
+  2026-09, embebida en el código porque `Documentos/` no viaja con el clon: una
+  matriz reescrita para con código 2. Lee además `outputs/p2p_breakdown_flujos.csv`,
+  `almacen/m1/` (flujos y horas) y el registro de la compuerta de salida de la
+  matriz (`modelo_base/logs/matriz_reposo_compuerta_<caso>_*.log`). **Si ese
+  registro no está, la comprobación de horas cuantales contra él cuenta como
+  diferencia** y la compuerta sale en rojo; `OMITIR_SIN_REFERENCIA=1` la deja
+  pasar con aviso, solo a sabiendas.
+
+### Las órdenes
+
+```bash
+tmux new -s tesis                        # el scope de memoria muere con la sesion SSH
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo   # la del 19-09; la compuerta lo comprueba
+SECO=1 bash modelo_base/run_servidor.sh gsa_directo            # antes: imprime las ordenes
+
+# 3 de octubre, de dia: pruebas, punto base y humo (unos minutos), sin Sobol
+SOLO_HUMO=1 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
+# noche del 3
+CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
+# noche del 4 (lo que no quepa lo dice el humo y pasa a la del 5)
+CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" bash modelo_base/run_servidor.sh gsa_directo
+```
+
+A 8 (s) por evaluación y 16 procesos, la noche del 4 da para E4 a 2 048 y
+E1, E3, E5, P1 y P2 (8,96 h); K1, I1, N1 y SINU (unas 4 h) pasan a la del 5, y
+la acción imprime la orden. A 5,5 (s) caben todos.
+
+**Con un caso a medias no se hace `git pull`.** El `.meta.json` guarda la
+huella del diseño y la del dato, pero no la de `core/` ni la de `scenarios/`:
+un `git pull` entre la noche del 3 y la del 4 con E0 o E2 sin terminar mezclaría
+bajo `--reanudar` filas de dos versiones del modelo. La meta guarda la lista de
+versiones del código (`codigos`) y `--reanudar` avisa si cambió, pero no lo
+impide. Tampoco se corre otra acción que escriba en `modelo_base/` o en
+`SALIDAS_SERVIDOR/` mientras corre esta: el paso 2 compara sus listados y
+pararía la noche.
+
+**Del 27 de septiembre al 2 de octubre de 2026 la acción se niega a correr**
+(las noches son de la reconstrucción 9B del módulo); `RESERVA_OK=1` lo fuerza,
+con el responsable avisado. En seco solo avisa.
+
+### Qué hace, en orden, y **para en el primer fallo**
+
+1. **La contención** es la heredada del relanzamiento del principio del
+   lanzador (mitad alta de los núcleos, `nice 19`, `ionice` ociosa,
+   `MemoryMax=16G`, `PROCS` = 16); aquí solo se imprime. Cada trabajador usa
+   unos 160 (MB) (medido en local), de modo que 16 caben de sobra.
+2. **Las pruebas del paquete**, `tests/test_gsa_directo_*.py` con
+   `-k "not lenta"` (la lenta compara un día con `main()`).
+3. **La compuerta del punto base**
+   (`gsa_directo/compuerta_punto_base.py`): los trece casos con los seis
+   factores en 1 contra el canon, **al peso** (la menor entre 1e-6 relativa
+   y medio peso) en `Resumen` y `Por_agente`, 0,01 (kWh) en la energía, 5e-4
+   en la parte del vendedor, exactas las horas cuantales y los retiros (0), y
+   el contraste de E0 con f_cv = 2 frente a CV2, después de comprobar que los
+   libros son los del canon (huella). Tiene que imprimir
+   `COMPUERTA GSA PUNTO BASE EN VERDE`; si no, **nada sigue**, porque el
+   evaluador habría derivado de `main()`. Medido en local el 2026-09-26: verde
+   en los trece, diferencia relativa máxima 4,3e-16, 3,5 (s) de mediana por
+   evaluación en un proceso.
+4. **El humo**: 32 evaluaciones de E0 con `PROCS` procesos. Imprime la mediana
+   por evaluación y la memoria por trabajador, y **planifica la noche** con
+   `TOPE_NOCHE_H` (9 h): primero los casos de diseño con `NBASE` (2 048, D77)
+   y después los demás, todos en su orden; entra lo que cabe, y el primero
+   que no cabe pasa a la noche siguiente **con su n intacto**, con todos los
+   de detrás (la acción imprime la orden al final). **Solo se recorta el n si
+   el primer caso de la noche ni solo cabe**, y se avisa: por M-4 ese recorte
+   ya no se deshace. Así, lanzar los doce sin `CASOS` a 8 (s) corre E0 y E2
+   a 2 048 esa noche, y no los tres recortados a 1 024 (ronda 2, m-1).
+   `FORZAR=1` ni recorta ni aplaza. Medido en local: 8,15 (s) de mediana con
+   seis procesos en el portátil.
+5. **Por caso**, `gsa_directo/correr.py --reanudar` dentro de `timeout`
+   (el único esperador; tope = 1,5 veces lo proyectado más 15 (min)), y
+   detrás `gsa_directo/analizar.py`. El CSV se escribe fila a fila con
+   `fsync`, los índices se someten en orden con una ventana acotada, y el
+   `.meta.json` guarda la huella del diseño, la del dato y el punto base.
+   **Parada temprana**: `correr.py` para con **código 8** y los motivos, en
+   vez de terminar y dejar que el análisis lo rechace a la mañana, por uno de
+   dos motivos que el registro distingue. **SEGURO**: los bloques con alguna
+   evaluación fallida ya pasan del 1 % de n_base, y el análisis lo rechazará.
+   **TASA**: tras 128 bloques terminados con n = 512 y 256 con n = 2 048, los
+   fallidos terminados pasan de 4 veces el umbral (4 %); sugiere un fallo
+   sistemático, pero el análisis aún podría aceptar el caso (ronda 2, R-1: con
+   el 1 % simple paraba uno de cada cuatro casos buenos con un 0,5 % de
+   fallos; con el 4 %, ninguno en el Monte Carlo). Las evaluaciones son
+   deterministas: retomar sin más vuelve a parar en el mismo punto. Si es
+   TASA y los motivos no muestran un defecto, `TOLERA_FALLOS=1` sigue hasta
+   el final y deja decidir al análisis.
+6. **La réplica** (ocho puntos evaluados dos veces en pools distintos: al
+   bit) y **las deterministas** (μ = 0,5, 1 y 2 y la bolsa de 2024 en los
+   trece casos). No detienen: ya hay resultados escritos. `DETERMINISTAS=0`
+   las salta.
+7. **La recogida** (`recoger gsa_directo`).
+
+**La rama de 4 096 de D77 no está automatizada.** Solo se toma si el humo da menos de 6 (s) por evaluación, y se decide antes de arrancar E0. Se lanza a mano y **solo para E0**: `CASOS="E0" NBASE=4096 bash modelo_base/run_servidor.sh gsa_directo` (dentro de tmux, como siempre). `NBASE` sube a la vez todos los casos de diseño que se pidan, y la orden de la noche siguiente que imprime la acción **no lleva el `NBASE`**: al retomar, se repite a mano.
+
+Variables: `CASOS`, `DESDE`, `NBASE` (2048), `NBASE_RESTO` (512),
+`TOPE_NOCHE_H` (9), `FORZAR`, `SOLO_HUMO`, `DETERMINISTAS`, `MATRIZ_CANON`
+(obligatoria), `OMITIR_SIN_REFERENCIA`, `TOLERA_FALLOS`, `RESERVA_OK`,
+`PROCS`. Ninguna se cuela en las pruebas del paso 2: cada prueba del lanzador
+parte de un entorno sin ellas (ronda 2, R-2), de modo que la orden de día del
+3 de octubre, con `SOLO_HUMO=1 CASOS="E0 E2"` delante, pasa el paso 2.
+
+### Qué deja
+
+```
+SALIDAS_SERVIDOR/gsa_directo/<caso>/muestras_<caso>_n<N>_s42.csv       (M = 14·N filas)
+SALIDAS_SERVIDOR/gsa_directo/<caso>/muestras_<caso>_n<N>_s42.meta.json
+SALIDAS_SERVIDOR/gsa_directo/<caso>/indices_<caso>.csv    (S1, ST por n anidado)
+SALIDAS_SERVIDOR/gsa_directo/<caso>/s2_<caso>.csv
+SALIDAS_SERVIDOR/gsa_directo/<caso>/inversion_<caso>.csv
+SALIDAS_SERVIDOR/gsa_directo/<caso>/INFORME_<caso>.md
+SALIDAS_SERVIDOR/gsa_directo/base/punto_base.csv, replica.json, deterministas.csv
+SALIDAS_SERVIDOR/gsa_directo/cache/carga_mte_<huella>.npz   (la carga del MTE)
+modelo_base/logs/gsa_directo_*.log
+```
+
+### Qué mirar
+
+- `gsa_directo_punto_base_<fecha>.log`: `EN VERDE`.
+- `gsa_directo_humo_<fecha>.log`: la mediana, la memoria y el plan de la noche
+  (`CASOS_NOCHE`, `CASOS_SIGUIENTE`, y si hubo `RECORTE`).
+- En cada `INFORME_<caso>.md`: los bloques descartados (**más del 1 % detiene
+  el análisis**, código 3, y hay que leer los motivos), los ST con su
+  semiancho, los S2 de más de 0,02, la curva de convergencia con el criterio
+  del apartado 6.3 (brechas: |ΔST| ≤ 0,02 y semiancho ≤ 0,05; niveles: 0,03
+  y 0,08), la probabilidad de inversión con su intervalo y las identidades.
+  **C2 == P2P y retiros = 0 detienen** (código 1); **P2P − C1 == excedente
+  (H-70) y la energía sin efecto de f_cv, f_bolsa, f_tarifa y f_peaje solo se
+  informan**: el piloto ya mostró que la energía sí depende de f_cv (ST 0,08),
+  porque el piso decide quién entra al mercado.
+- `replica.json`: `cumple: true`.
+
+### Cómo retomar
+
+Dentro de un caso, `--reanudar` sigue donde quedó (reintenta las filas
+fallidas y no duplica índices) con el n con el que empezó, que se lee de su
+`.meta.json`. Entre casos, la acción imprime la orden:
+
+```bash
+CASOS="E0 E2" DESDE=E2 bash modelo_base/run_servidor.sh gsa_directo
+```
+
+Si cambian el dato o el diseño, `correr.py` **aborta** en vez de mezclar
+poblaciones (código 2). Si el pool se rompe (un trabajador muerto), sale con
+4: se baja `PROCS` y se retoma. El `.bak` que deja cada `--reanudar` ya no
+puede quedar truncado: el prefijo se reescribe por un temporal y
+`os.replace`.
+
+**Un caso recortado no se amplía reutilizando sus filas.** Si el humo recortó
+E0 a 1 024 y después se quiere 2 048 (o 4 096, como prevé el 6.3 del diseño),
+la acción retoma E0 con el n con que empezó y avisa; y `correr.py` rechaza una
+corrida de otro n mientras la anterior siga en `SALIDAS_SERVIDOR/gsa_directo/E0/`
+(código 2). Aunque los primeros bloques de la muestra de 2 048 sean los de la de
+1 024, la de 2 048 se corre **entera**: se mueve la anterior a otra carpeta y
+se relanza.
+
+---
+
 ## Lo que este paquete NO hace
 
 - **No decide por ti.** Las tres mediciones nuevas dejan cifras; la

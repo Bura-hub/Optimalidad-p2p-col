@@ -49,6 +49,16 @@
 #   TOPE_GLOBAL_S=86400 bash modelo_base/run_servidor.sh validacion_reposo   <- tope global de 24 h (defecto 12 h)
 #   ETAPA2=1 TOPE_874=<s> TOPE_4766=<s> bash modelo_base/run_servidor.sh validacion_reposo   <- y con la compuerta entera
 #
+#   --- el GSA directo, sin emulador (2026-09-26): D73 a D79 ---------------
+#   MATRIZ_CANON=<matriz del 19-09> bash modelo_base/run_servidor.sh gsa_directo   <- compuertas, punto base, humo y Sobol de doce casos (E0/E2/E4 a 2048, el resto a 512; CV2 solo en la compuerta); el humo mete esta noche lo que cabe, en orden y con su n, y el resto lo deja para la siguiente
+#   TOLERA_FALLOS=1 ... gsa_directo                               <- sin la parada temprana por bloques fallidos (codigo 8)
+#   CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo   <- solo esos (la noche del 3)
+#   DESDE=E4 bash modelo_base/run_servidor.sh gsa_directo        <- retoma por caso; dentro del caso, --reanudar
+#   NBASE=4096 NBASE_RESTO=512 TOPE_NOCHE_H=9 bash modelo_base/run_servidor.sh gsa_directo
+#   FORZAR=1 bash modelo_base/run_servidor.sh gsa_directo        <- sin recortar n ni aplazar casos
+#   SOLO_HUMO=1 bash modelo_base/run_servidor.sh gsa_directo     <- de dia: pruebas, punto base y humo, sin Sobol
+#   SECO=1 bash modelo_base/run_servidor.sh gsa_directo          <- imprime las ordenes, no toca el disco
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
@@ -56,6 +66,7 @@
 #   bash modelo_base/run_servidor.sh recoger matriz_reposo <- y lo de matriz_reposo
 #   bash modelo_base/run_servidor.sh recoger barrido_sigma <- y lo del barrido
 #   bash modelo_base/run_servidor.sh recoger validacion_reposo <- y lo de la validacion
+#   bash modelo_base/run_servidor.sh recoger gsa_directo <- y lo del GSA directo
 #
 # El segundo argumento es la frontera (M1 o M3) y el tercero el tamano de la
 # muestra en horas. `todo` toma solo el tamano y recorre las dos fronteras.
@@ -175,7 +186,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|barrido_sigma|validacion_reposo|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|barrido_sigma|validacion_reposo|gsa_directo|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -275,6 +286,25 @@ MATRIZ_VIEJA="SALIDAS_SERVIDOR/matriz"
 # SIGMAS acota el barrido; la sigma base, (I-1)/I, es la de `matriz_reposo`.
 SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
 
+# D73 a D79 (2026-09-26): donde escribe `gsa_directo` y los casos que corre,
+# en el orden de prioridad del apartado 5.4 del diseno (los tres puntos de
+# diseno primero). Viven aqui por la misma razon que los de arriba: `recoger`
+# los necesita para saber que esperar. CASOS acota la lista.
+#
+# CV2 NO corre el Sobol (ronda de arreglos de la tarea G, I-1): es E0 con el
+# costo de comercializar x2, y el Sobol de E0 ya recorre f_cv en [0,25; 2];
+# sobre CV2, f_cv multiplicaria un cvm que ya viene x2 y saldria del rango
+# aprobado (6 de 512 bloques con el piso de Cesmag negativo, 1,17 %: el
+# analisis se detendria y cortaria la cadena). Sigue en la compuerta del
+# punto base (contraste con E0 a f_cv = 2) y en las deterministas. Es la
+# lista de gsa_directo/comun.py:CASOS_SOBOL (una prueba lo comprueba).
+GSA_DIR="SALIDAS_SERVIDOR/gsa_directo"
+CASOS_GSA="E0 E2 E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU"
+CASOS_DISENO_GSA=" E0 E2 E4 "
+# Presupuesto del diseno por evaluacion (ms), para los topes en seco: el humo
+# lo sustituye por lo medido.
+PRESUPUESTO_EVAL_MS=8000
+
 # La etiqueta de una sigma en el nombre de la carpeta: 0 -> 0, 0.5 -> 05, 1 -> 1.
 etiqueta_sigma() {
   printf '%s' "${1//./}"
@@ -301,10 +331,18 @@ valida_sigmas() {
 
 # Fallar en voz alta, ANTES de las compuertas, si DESDE no es ninguno de los
 # trece casos: si no, la cadena saltaria todos en silencio despues de gastar las
-# compuertas.
+# compuertas. Con argumentos (`gsa_directo`), DESDE tiene que estar entre ELLOS,
+# que son los casos pedidos esa noche.
 valida_desde() {
-  local par
+  local par c
   [[ -z "${DESDE:-}" ]] && return 0
+  if [[ $# -gt 0 ]]; then
+    for c in "$@"; do
+      [[ "$c" == "$DESDE" ]] && return 0
+    done
+    echo "  DESDE=$DESDE no es ninguno de los casos pedidos: $*"
+    exit 2
+  fi
   for par in "${CASOS_MATRIZ[@]}"; do
     [[ "${par%%:*}" == "$DESDE" ]] && return 0
   done
@@ -2210,6 +2248,337 @@ print(" ".join(sorted(palancas)))
     echo "  como regla declarada, y eso es lo que decide esta noche."
     ;;
 
+  gsa_directo)
+    # D73 a D79 (2026-09-26): el analisis de sensibilidad global de Sobol,
+    # DIRECTO sobre el modelo por reposo y sin emulador. El diseno esta en
+    # docs/superpowers/specs/2026-09-26-gsa-directo-design.md (apartado 7.2) y
+    # el paquete en gsa_directo/ (su LEEME dice que es cada pieza).
+    #
+    # Siete pasos, todos por corre() y con PARA_EN_FALLO=1:
+    #   1. la contencion heredada (taskset, nice, ionice, MemoryMax): ya la
+    #      puso el relanzamiento del principio; aqui solo se dice cual es;
+    #   2. las pruebas del paquete, sin las lentas;
+    #   3. la COMPUERTA DEL PUNTO BASE: los trece casos con los seis factores
+    #      en 1 tienen que reproducir AL PESO la hoja Resumen de la matriz por
+    #      reposo del canon (MATRIZ_CANON, OBLIGATORIA y sin defecto: la
+    #      compuerta comprueba ademas que sus libros tengan la huella del
+    #      canon 2026-09); si no, para. OMITIR_SIN_REFERENCIA=1 deja pasar con
+    #      aviso una comprobacion cuyo dato de referencia falta;
+    #   4. el HUMO: 32 evaluaciones de E0 con PROCS procesos; mide la mediana
+    #      por evaluacion y la memoria por trabajador, y planifica la noche
+    #      (TOPE_NOCHE_H, 9 h): los casos de diseno primero y con NBASE (D77),
+    #      despues los demas, todos en su orden; entra lo que cabe y lo demas
+    #      pasa a la noche siguiente CON SU n, y se imprime la orden. Solo si el
+    #      primero ni solo cabe se recorta su n a la mayor potencia de dos que
+    #      quepa, y se avisa (ronda 2, m-1). FORZAR=1 no recorta ni aplaza;
+    #   5. por caso: correr.py con --reanudar dentro de `timeout` (un solo
+    #      esperador, tope = 1,5 veces lo proyectado mas 15 min) y analizar.py
+    #      detras; un caso que falla detiene la cadena con la orden de retoma;
+    #   6. la replica al bit y las deterministas (mu y la bolsa de 2024),
+    #      unos minutos; DETERMINISTAS=0 las salta. No detienen: ya hay
+    #      resultados escritos;
+    #   7. la recogida.
+    #
+    # La noche del 3 de octubre: CASOS="E0 E2"; la del 4: CASOS="E4 E1 E3 E5
+    # P1 P2 K1 I1 N1 SINU" (CV2 no corre el Sobol). Retomar un caso:
+    # DESDE=<caso> con la misma lista de CASOS; dentro del caso, --reanudar
+    # sigue donde quedo, con el n con el que empezo (se lee de su .meta.json).
+    # Un caso NO se amplia reutilizando sus filas: si ya tiene una corrida
+    # con un n, sigue con ese n; otro n exige mover la corrida anterior.
+    # Con un caso a medias, NO se hace git pull (las filas nuevas y las viejas
+    # serian de dos versiones del modelo).
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    # M-8: la matriz del canon se pasa EXPLICITA; SALIDAS_SERVIDOR/matriz_reposo
+    # no tiene por que ser la del 19 de septiembre si despues se relanzo algo.
+    if [[ -z "${MATRIZ_CANON:-}" ]]; then
+      echo "  MATRIZ_CANON no esta definido: la compuerta del punto base necesita"
+      echo "  la matriz por reposo del canon (la del 19 de septiembre), explicita."
+      echo "  En el servidor, donde se produjo:"
+      echo "    MATRIZ_CANON=$MATRIZ_REPOSO"
+      echo "  o la entrega desempaquetada:"
+      echo "    MATRIZ_CANON=SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/SALIDAS_SERVIDOR/matriz_reposo"
+      echo "  La compuerta comprueba las huellas de sus libros contra el canon."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      MATRIZ_CANON="<MATRIZ_CANON>"
+      echo "  [SECO] se sigue con '$MATRIZ_CANON'"
+    fi
+    # CLAUDE.md: las noches del 27 de septiembre al 2 de octubre de 2026 son
+    # para la reconstruccion 9B del modulo; nada pesado de la tesis.
+    HOY="$(date +%Y-%m-%d)"
+    if [[ ! "$HOY" < "2026-09-27" && "$HOY" < "2026-10-03" \
+          && "${RESERVA_OK:-0}" != "1" ]]; then
+      echo "  Del 27 de septiembre al 2 de octubre de 2026 las noches estan"
+      echo "  reservadas para la reconstruccion 9B del modulo MTE (CLAUDE.md)."
+      echo "  RESERVA_OK=1 lo fuerza, con el responsable de la plataforma avisado."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+    fi
+
+    read -r -a PEDIDOS <<< "${CASOS:-$CASOS_GSA}"
+    for c in "${PEDIDOS[@]}"; do
+      _ok=0
+      for par in "${CASOS_MATRIZ[@]}"; do
+        [[ "${par%%:*}" == "$c" ]] && _ok=1
+      done
+      if [[ $_ok -ne 1 ]]; then
+        echo "  CASOS: '$c' no es ninguno de los trece casos de la matriz"
+        exit 2
+      fi
+      if [[ " $CASOS_GSA " != *" $c "* ]]; then
+        echo "  CASOS: '$c' no corre el Sobol (casos: $CASOS_GSA). CV2 es E0 con el"
+        echo "  costo de comercializar x2 y el Sobol de E0 ya recorre f_cv hasta 2;"
+        echo "  queda solo como contraste en la compuerta del punto base (I-1)."
+        exit 2
+      fi
+    done
+    valida_desde "${PEDIDOS[@]}"
+    if [[ -n "${DESDE:-}" ]]; then
+      _resto=(); _ya=0
+      for c in "${PEDIDOS[@]}"; do
+        [[ "$c" == "$DESDE" ]] && _ya=1
+        if [[ $_ya -eq 1 ]]; then _resto+=("$c"); else echo "  ... salta $c (DESDE=$DESDE)"; fi
+      done
+      PEDIDOS=("${_resto[@]}")
+    fi
+    NBASE="${NBASE:-2048}"
+    NBASE_RESTO="${NBASE_RESTO:-512}"
+    TOPE_NOCHE_H="${TOPE_NOCHE_H:-9}"
+    for n in "$NBASE" "$NBASE_RESTO"; do
+      if ! [[ "$n" =~ ^[0-9]+$ ]] || (( n < 16 || (n & (n - 1)) != 0 )); then
+        echo "  NBASE y NBASE_RESTO tienen que ser potencias de dos (>= 16): $n"
+        exit 2
+      fi
+    done
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    # El n con que corre un caso: el de su .meta.json si ya empezo (retomar con
+    # otro n mezclaria disenos, y correr.py abortaria); si no, el del plan. Un
+    # caso recortado NO se amplia reutilizando sus filas (M-4): si su n no es
+    # el del plan, se dice; con dos corridas de n distinto, se para.
+    n_de_caso() {
+      local caso="$1" plan="$2" metas=()
+      shopt -s nullglob
+      metas=("$GSA_DIR/$caso"/muestras_"${caso}"_n*_s42.meta.json)
+      shopt -u nullglob
+      if [[ ${#metas[@]} -gt 1 ]]; then
+        echo "  $caso tiene ${#metas[@]} corridas con n distinto en $GSA_DIR/$caso:" >&2
+        echo "  ${metas[*]}" >&2
+        echo "  Deja solo la que se retoma (mueve las otras a otra carpeta)." >&2
+        exit 2
+      fi
+      if [[ ${#metas[@]} -eq 1 ]]; then
+        local base="${metas[0]##*_n}"
+        base="${base%%_s42.meta.json}"
+        if [[ "$base" != "$plan" ]]; then
+          echo "  AVISO: $caso ya empezo con n = $base; se retoma con ese n y no con $plan." >&2
+          echo "  Ampliarlo exige correr la muestra de $plan ENTERA, tras mover la" >&2
+          echo "  corrida anterior: sus filas no se reutilizan." >&2
+        fi
+        printf '%s' "$base"
+      else
+        printf '%s' "$plan"
+      fi
+    }
+
+    echo "=== GSA DIRECTO (D73 a D79) · Sobol sobre el modelo por reposo, sin emulador ==="
+    echo "    MTE_ROOT   = $MTE_ROOT"
+    echo "    casos      = ${PEDIDOS[*]}"
+    echo "    n          = $NBASE en E0/E2/E4, $NBASE_RESTO en los demas; tope de la noche $TOPE_NOCHE_H h"
+    echo "    procesos   = $PROCS (como mucho $PROCS_MAX)"
+    echo "    canon      = $MATRIZ_CANON"
+    echo "    salidas    = $GSA_DIR"
+    echo
+
+    echo "--- 1/7 · la contencion (heredada del relanzamiento del principio)"
+    if [[ -n "${CONTENIDO:-}" ]]; then
+      echo "  contenida: afinidad $(taskset -p $$ 2>/dev/null | sed 's/.*: //' || echo '?')," \
+           "nice $(nice), memoria ${MEMORIA_TESIS:-sin tope duro}"
+    else
+      echo "  AVISO: sin contencion (CONTENCION=0, o no es Linux). En bunnygirl"
+      echo "  solo con la plataforma avisada."
+    fi
+
+    echo
+    echo "--- 2/7 · las pruebas del paquete (sin las lentas)"
+    corre "gsa_directo_pruebas" -m pytest tests/test_gsa_directo_comun.py \
+          tests/test_gsa_directo_evaluador.py tests/test_gsa_directo_correr.py \
+          tests/test_gsa_directo_analizar.py \
+          tests/test_gsa_directo_compuertas.py \
+          tests/test_gsa_directo_lanzador.py -q -k "not lenta"
+
+    echo
+    echo "--- 3/7 · la compuerta del punto base (trece casos al peso contra $MATRIZ_CANON)"
+    if [[ ! -d "$MATRIZ_CANON" && "${SECO:-0}" != "1" ]]; then
+      echo "  FALTA $MATRIZ_CANON: la compuerta necesita la matriz por reposo del"
+      echo "  canon (outputs/ y almacen/ de los trece casos). Apunta MATRIZ_CANON a"
+      echo "  la entrega desempaquetada, por ejemplo:"
+      echo "    MATRIZ_CANON=SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/SALIDAS_SERVIDOR/matriz_reposo"
+      exit 2
+    fi
+    crea_dir "$GSA_DIR/base"
+    OMITIR=()
+    if [[ "${OMITIR_SIN_REFERENCIA:-0}" == "1" ]]; then OMITIR=(--permite-omitir); fi
+    corre "gsa_directo_punto_base" gsa_directo/compuerta_punto_base.py \
+          --matriz "$MATRIZ_CANON" --salida "$GSA_DIR/base/punto_base.csv" \
+          ${OMITIR[@]+"${OMITIR[@]}"} || {
+      cod=$?
+      echo
+      echo "  La compuerta del punto base NO esta en verde (codigo $cod): el"
+      echo "  evaluador no reproduce el canon al peso, o el canon no se pudo leer."
+      echo "  Ningun indice valdria. Mira la lista de diferencias al final de"
+      echo "  $LOGS/gsa_directo_punto_base_<fecha>.log."
+      exit "$cod"
+    }
+
+    echo
+    echo "--- 4/7 · el humo: 32 evaluaciones de E0 y el plan de la noche"
+    PROYECTA=""
+    for c in "${PEDIDOS[@]}"; do
+      if [[ "$CASOS_DISENO_GSA" == *" $c "* ]]; then n="$NBASE"; else n="$NBASE_RESTO"; fi
+      PROYECTA+="$c:$(n_de_caso "$c" "$n") "
+    done
+    FORZAR_N=()
+    if [[ "${FORZAR:-0}" == "1" ]]; then FORZAR_N=(--forzar-n); fi
+    corre "gsa_directo_humo" gsa_directo/correr.py --caso E0 --humo 32 \
+          --procesos "$PROCS" --salidas "$GSA_DIR" --proyecta "${PROYECTA% }" \
+          --tope-noche-h "$TOPE_NOCHE_H" ${FORZAR_N[@]+"${FORZAR_N[@]}"} || {
+      cod=$?
+      echo
+      if [[ $cod -eq 7 ]]; then
+        echo "  Los casos de diseno pedidos no caben en $TOPE_NOCHE_H h ni con el n"
+        echo "  minimo. Pide menos casos por noche (CASOS=...) o FORZAR=1."
+      else
+        echo "  El humo fallo (codigo $cod); mira $LOGS/gsa_directo_humo_<fecha>.log."
+      fi
+      exit "$cod"
+    }
+    if [[ "${SECO:-0}" == "1" ]]; then
+      MED_MS="$PRESUPUESTO_EVAL_MS"
+      NB="$NBASE"
+      NOCHE="${PEDIDOS[*]}"
+      SIGUIENTE=""
+      echo "  [SECO] sin humo: topes con el presupuesto del diseno, $MED_MS ms por evaluacion"
+      echo "  [SECO] se listan TODOS los casos pedidos con su n (E0/E2/E4 a $NBASE). En la"
+      echo "  corrida, el humo decide cuales caben esta noche; los demas pasan a la"
+      echo "  siguiente CON SU n, y solo se recorta si el primero ni solo cabe (m-1)."
+      echo "  A 8 s y 16 procesos, los doce de golpe dan E0 y E2 esta noche."
+    else
+      LOG_HUMO="$(ultimo_registro gsa_directo_humo)"
+      MED_MS="$(grep -E '^HUMO_MEDIANA_MS=' "$LOG_HUMO" | tail -n 1 | cut -d= -f2)"
+      NB="$(grep -E '^NBASE_PROPUESTO=' "$LOG_HUMO" | tail -n 1 | cut -d= -f2)"
+      NOCHE="$(grep -E '^CASOS_NOCHE=' "$LOG_HUMO" | tail -n 1 | cut -d= -f2-)"
+      SIGUIENTE="$(grep -E '^CASOS_SIGUIENTE=' "$LOG_HUMO" | tail -n 1 | cut -d= -f2-)"
+      if [[ -z "$MED_MS" || -z "$NB" || -z "$NOCHE" ]]; then
+        echo "  El humo no dejo la mediana, el n o los casos de la noche en $LOG_HUMO"
+        exit 2
+      fi
+      echo "  mediana $MED_MS ms por evaluacion; n de diseno $NB; esta noche: $NOCHE"
+      if [[ -n "$SIGUIENTE" ]]; then
+        echo "  pasan a la noche siguiente: $SIGUIENTE"
+      fi
+    fi
+    # El 3 de octubre de dia (apartado 7.3): solo los pasos 1 a 4.
+    if [[ "${SOLO_HUMO:-0}" == "1" ]]; then
+      echo
+      echo "=== SOLO_HUMO=1: compuertas, punto base y humo hechos; el Sobol no se lanza ==="
+      exit 0
+    fi
+
+    echo
+    echo "--- 5/7 · el Sobol de cada caso, y su analisis"
+    # R-1 (ronda 2): TOLERA_FALLOS=1 apaga la parada temprana por bloques
+    # fallidos (codigo 8); el analisis sigue rechazando mas del 1 %.
+    TOLERA=()
+    if [[ "${TOLERA_FALLOS:-0}" == "1" ]]; then
+      TOLERA=(--tolera-fallos)
+      echo "  TOLERA_FALLOS=1: sin parada temprana; decide el analisis"
+    fi
+    read -r -a NOCHE_A <<< "$NOCHE"
+    for CASO in "${NOCHE_A[@]}"; do
+      if [[ "$CASOS_DISENO_GSA" == *" $CASO "* ]]; then n="$NB"; else n="$NBASE_RESTO"; fi
+      n="$(n_de_caso "$CASO" "$n")"
+      M=$(( n * 14 ))
+      TOPE_S=$(( 3 * M * MED_MS / (2 * PROCS * 1000) + 900 ))
+      echo
+      echo "  --- $CASO  n = $n  M = $M  tope $(( TOPE_S / 60 )) min  ->  $GSA_DIR/$CASO"
+      ENVOLTURA=()
+      if [[ "$TIMEOUT_GNU" == "1" ]]; then
+        ENVOLTURA=(timeout --kill-after=300 "$TOPE_S")
+      fi
+      corre "gsa_directo_correr_${CASO}" gsa_directo/correr.py --caso "$CASO" \
+            --n-base "$n" --procesos "$PROCS" --reanudar --salidas "$GSA_DIR" \
+            ${TOLERA[@]+"${TOLERA[@]}"} || {
+        cod=$?
+        ENVOLTURA=()
+        echo
+        if [[ $cod -eq 124 || $cod -eq 137 ]]; then
+          echo "  $CASO paso de su tope de $TOPE_S s (codigo $cod). Lo escrito vale."
+        else
+          echo "  $CASO salio con codigo $cod (2 guarda de diseno o de dato, 3 el"
+          echo "  punto base no evalua, 4 pool roto, 5 faltan filas, 6 colgado,"
+          echo "  8 PARADA TEMPRANA por bloques con una evaluacion fallida)."
+          if [[ $cod -eq 8 ]]; then
+            echo "  El registro dice el motivo: SEGURO (ya pasa del 1 % de n_base: el"
+            echo "  analisis lo rechazara) o TASA (la tasa sugiere un fallo sistematico;"
+            echo "  el analisis aun podria aceptarlo). Las evaluaciones son deterministas:"
+            echo "  retomar sin mas volveria a parar en el mismo punto. Mira los motivos"
+            echo "  (columna motivo del CSV). Si es TASA y no hay defecto, TOLERA_FALLOS=1"
+            echo "  sigue hasta el final y deja decidir al analisis:"
+            echo "    TOLERA_FALLOS=1 CASOS=\"${NOCHE}\" DESDE=$CASO bash $0 gsa_directo"
+          fi
+        fi
+        echo "  Mira $LOGS/gsa_directo_correr_${CASO}_<fecha>.log y retoma con:"
+        echo "    CASOS=\"${NOCHE}\" DESDE=$CASO bash $0 gsa_directo"
+        exit "$cod"
+      }
+      ENVOLTURA=()
+      corre "gsa_directo_analizar_${CASO}" gsa_directo/analizar.py --caso "$CASO" \
+            --n-base "$n" --salidas "$GSA_DIR" || {
+        cod=$?
+        echo
+        echo "  El analisis de $CASO no termino (codigo $cod: 3 mas del 1 % de bloques"
+        echo "  descartados, 1 una identidad dura rota, 2 procedencia). Las muestras"
+        echo "  estan escritas; mira el INFORME_${CASO}.md y el registro. Retoma con:"
+        echo "    CASOS=\"${NOCHE}\" DESDE=$CASO bash $0 gsa_directo"
+        exit "$cod"
+      }
+    done
+
+    echo
+    echo "--- 6/7 · la replica al bit y las deterministas (mu y bolsa de 2024)"
+    CODIGOS=()
+    if [[ "${DETERMINISTAS:-1}" != "0" ]]; then
+      PARA_EN_FALLO=0 corre "gsa_directo_replica" gsa_directo/replica.py \
+            --casos E0 --procesos "$PROCS" --salida "$GSA_DIR/base/replica.json"
+      CODIGOS+=("replica=${CODIGO_CORRE}")
+      PARA_EN_FALLO=0 corre "gsa_directo_deterministas" gsa_directo/deterministas.py \
+            --procesos "$PROCS" --salida "$GSA_DIR/base/deterministas.csv"
+      CODIGOS+=("deterministas=${CODIGO_CORRE}")
+    else
+      echo "  DETERMINISTAS=0: se saltan"
+      CODIGOS+=("deterministas=no pedidas")
+    fi
+
+    echo
+    echo "--- 7/7 · la recogida"
+    CASOS="$NOCHE" bash "$0" recoger gsa_directo
+    echo
+    echo "=== GSA DIRECTO: CASOS DE ESTA NOCHE COMPLETOS ==="
+    echo "  codigos: ${CODIGOS[*]:-ninguno}"
+    if [[ -n "${SIGUIENTE:-}" ]]; then
+      echo "  QUEDAN para la noche siguiente, con su n:"
+      echo "    CASOS=\"$SIGUIENTE\" bash $0 gsa_directo"
+    fi
+    echo "  En cada $GSA_DIR/<caso>/INFORME_<caso>.md: bloques descartados, ST con"
+    echo "  su semiancho, S2, la curva de convergencia, la probabilidad de inversion"
+    echo "  y las identidades."
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -2352,8 +2721,40 @@ print(" ".join(sorted(palancas)))
           echo "  PASOS=\"${PASOS}\": solo se espera lo de esos pasos"
         fi
         ;;
+      gsa_directo)
+        # D73: por caso pedido (CASOS, o los trece), el CSV de muestras, su
+        # meta, los indices, el informe y el registro del analisis; y lo de
+        # base/ (el punto base, la replica y las deterministas). Un CSV con
+        # menos de M filas se avisa. Nada aborta: recoger lo que hay sirve
+        # tambien cuando algo no corrio.
+        read -r -a _pedidos <<< "${CASOS:-$CASOS_GSA}"
+        for CASO in "${_pedidos[@]}"; do
+          shopt -s nullglob
+          _metas=("$GSA_DIR/$CASO"/muestras_"${CASO}"_n*_s42.meta.json)
+          shopt -u nullglob
+          if [[ ${#_metas[@]} -eq 0 ]]; then
+            ESPERADOS+=("$GSA_DIR/$CASO/muestras_${CASO}_n<n>_s42.csv")
+            continue
+          fi
+          _csv="${_metas[0]%.meta.json}.csv"
+          ESPERADOS+=("$_csv" "${_metas[0]}"
+                      "$GSA_DIR/$CASO/indices_${CASO}.csv"
+                      "$GSA_DIR/$CASO/INFORME_${CASO}.md"
+                      "$(ultimo_registro "gsa_directo_analizar_${CASO}")")
+          if [[ -f "$_csv" ]]; then
+            _n="${_metas[0]##*_n}"; _n="${_n%%_s42.meta.json}"
+            _filas=$(( $(wc -l < "$_csv") - 1 ))
+            if [[ $_filas -lt $(( _n * 14 )) ]]; then
+              echo "  === AVISO: $_csv tiene $_filas filas de $(( _n * 14 )) ==="
+            fi
+          fi
+        done
+        ESPERADOS+=("$GSA_DIR/base/punto_base.csv" "$GSA_DIR/base/replica.json"
+                    "$GSA_DIR/base/deterministas.csv"
+                    "$(ultimo_registro gsa_directo_punto_base)")
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, barrido_sigma o validacion_reposo"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, barrido_sigma, validacion_reposo o gsa_directo"
         exit 2
         ;;
     esac
@@ -2388,6 +2789,22 @@ print(" ".join(sorted(palancas)))
             echo "  === AVISO: la compuerta de salida NO termino EN VERDE: $esperado ==="
           fi
         fi
+      done
+    fi
+    # D73: en `gsa_directo`, tampoco basta con estar: el registro de la
+    # compuerta del punto base tiene que terminar EN VERDE, y el de cada
+    # analisis, TERMINADO.
+    if [[ "$DE" == "gsa_directo" ]]; then
+      for esperado in "${ESPERADOS[@]}"; do
+        [[ -f "$esperado" ]] || continue
+        case "$esperado" in
+          */gsa_directo_punto_base_*.log)
+            grep -q "^COMPUERTA GSA PUNTO BASE EN VERDE" "$esperado" \
+              || echo "  === AVISO: la compuerta del punto base NO termino EN VERDE: $esperado ===" ;;
+          */gsa_directo_analizar_*.log)
+            grep -qE "^ANALISIS GSA DIRECTO .* TERMINADO" "$esperado" \
+              || echo "  === AVISO: el analisis NO termino: $esperado ===" ;;
+        esac
       done
     fi
     echo "  recogiendo: ${QUE[*]}"

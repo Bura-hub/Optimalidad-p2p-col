@@ -1,0 +1,292 @@
+"""Lo que comparten todas las piezas del GSA directo (D73 a D79).
+
+Actividad 4.1. El diseno esta en
+`docs/superpowers/specs/2026-09-26-gsa-directo-design.md`; los valores de
+este modulo (entradas, rangos, salidas, n) son los aprobados, tal cual.
+
+- Seis entradas, todas incertidumbres y todas uniformes (D74).
+- Catorce salidas de comunidad que entran al Sobol (D75), mas las que se
+  guardan para comprobar identidades (C2, los conteos) y las brechas por
+  institucion, que solo se publican con su probabilidad de inversion.
+- Los trece casos de la matriz, con la MISMA opcion que `CASOS_MATRIZ` de
+  `modelo_base/run_servidor.sh` (una prueba lo comprueba), y el n de cada uno
+  (D77): 2 048 en E0, E2 y E4; 512 en los demas. El Sobol corre en doce
+  (`CASOS_SOBOL`): CV2 queda solo como contraste determinista.
+- Saltelli de segundo orden: bloques de 2D + 2 = 14 filas por punto base,
+  anidados con la misma semilla (los n' primeros bloques de la muestra de n
+  son la muestra de n').
+"""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import os
+import shlex
+import sys
+from pathlib import Path
+
+import numpy as np
+
+RAIZ = Path(__file__).resolve().parent.parent
+if str(RAIZ) not in sys.path:
+    sys.path.insert(0, str(RAIZ))
+
+# ── Entradas (D74) ──────────────────────────────────────────────────────────
+NOMBRES = ["f_cv", "f_bolsa", "f_tarifa", "f_peaje", "e_G", "e_D"]
+SOPORTES = [[0.25, 2.0],     # descuento de comercializar sobre la permuta
+            [0.75, 4.0],     # nivel de la bolsa (antes del techo PES)
+            [0.90, 1.10],    # nivel del costo unitario (el techo)
+            [0.85, 1.15],    # nivel de T+D+PR+R
+            [0.95, 1.05],    # error de medida de la generacion
+            [0.95, 1.05]]    # error de medida de la demanda
+# Como se rotula cada entrada en TODAS las salidas (indices, S2, informe,
+# deterministas). f_cv NO es el Cv de la tarifa: es el factor sobre el
+# componente de comercializar que el art. 25 descuenta de la permuta para el
+# piso del vendedor (y el mismo que usan C1, C4, el colectivo y los
+# residuales, como `--factor-cv` de `main()`, D7); no toca `cvm_component` de
+# C5 ni el techo.
+ROTULOS = {
+    "f_cv": "descuento de comercializar sobre la permuta (art. 25)",
+    "f_bolsa": "nivel de la bolsa (antes del techo PES)",
+    "f_tarifa": "nivel del costo unitario (el techo)",
+    "f_peaje": "nivel de T+D+PR+R",
+    "e_G": "error de medida de la generacion",
+    "e_D": "error de medida de la demanda",
+}
+PROBLEMA = {"num_vars": len(NOMBRES), "names": list(NOMBRES),
+            "bounds": [list(s) for s in SOPORTES]}
+D_ENTRADAS = len(NOMBRES)
+SEGUNDO_ORDEN = True
+B = 2 * D_ENTRADAS + 2           # filas por bloque de Saltelli: 14
+SEMILLA = 42
+PUNTO_BASE = np.ones(D_ENTRADAS)
+
+# ── Salidas (D75) ───────────────────────────────────────────────────────────
+NIVELES = ("P2P", "P2P_colectivo", "C1", "C3", "C4", "C5")
+CONTROLES = ("energia", "excedente")
+REPARTO = ("parte_vendedor",)
+# Brecha -> (minuendo, sustraendo). P2P - C1 es la identidad de H-70 (ancho
+# de banda por energia): se declara antes de leerla como hallazgo.
+BRECHAS = {
+    "P2P_menos_C1": ("P2P", "C1"),
+    "P2P_menos_C4": ("P2P", "C4"),
+    "P2Pcol_menos_C1": ("P2P_colectivo", "C1"),
+    "C4_menos_C1": ("C4", "C1"),
+    "P2P_menos_C5": ("P2P", "C5"),
+}
+SALIDAS = NIVELES + CONTROLES + REPARTO + tuple(BRECHAS)      # las 14
+# Se guardan y no entran al Sobol: C2 coincide con P2P en el agregado
+# (CAL-52) y se comprueba como identidad; los conteos son las guardas.
+IDENTIDADES = ("C2",)
+CONTEOS = ("n_horas_mercado", "n_cuantal", "n_sin_ganancia", "retiros")
+BRECHAS_INSTITUCION = {
+    "P2P_menos_C1": ("P2P", "C1"),
+    "P2P_menos_C4": ("P2P", "C4"),
+    "P2P_menos_C5": ("P2P", "C5"),
+}
+INSTITUCIONES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
+
+
+def salidas_institucion(nombres) -> list:
+    """Las brechas por institucion, `<brecha>__<institucion>`; 15 con las
+    cinco, 12 en SINU."""
+    return [f"{b}__{n}" for n in nombres for b in BRECHAS_INSTITUCION]
+
+
+def columnas_salida(nombres) -> list:
+    return (list(SALIDAS) + list(IDENTIDADES) + list(CONTEOS)
+            + salidas_institucion(nombres))
+
+
+# ── Los trece casos (misma opcion que CASOS_MATRIZ del lanzador) ────────────
+CASOS = {
+    "E0": "",
+    "E1": "--factor-generacion 3",
+    "E2": "--factor-generacion 4",
+    "E3": "--factor-generacion 5.6",
+    "E4": "--factor-generacion 7",
+    "E5": "--factor-generacion 10",
+    "P1": "--factor-demanda 1/7",
+    "P2": "--factor-generacion 7 --factor-demanda 7",
+    "K1": "--factor-demanda 2",
+    "I1": "--escala-agente UCC:neto_cero",
+    "N1": "--neto-cero",
+    "CV2": "--factor-cv 2",
+    "SINU": "--excluir-agente Udenar",
+}
+# Orden de prioridad del apartado 5.4: los tres puntos de diseno primero; si
+# el tiempo aprieta, los demas en este orden.
+ORDEN_CASOS = ("E0", "E2", "E4", "E1", "E3", "E5", "P1", "P2", "K1", "I1",
+               "N1", "CV2", "SINU")
+# Los casos que corren el Sobol (ronda de arreglos de la tarea G, I-1). CV2
+# NO: es E0 con el costo de comercializar x2, y el Sobol de E0 ya recorre
+# f_cv en [0,25; 2]. Sobre CV2, f_cv volveria a multiplicar un cvm que ya
+# viene x2 y sacaria el descuento del rango aprobado (D74): medido, 6 de 512
+# bloques con el piso de Cesmag negativo, 1,17 %, que detiene el analisis.
+# CV2 sigue en ORDEN_CASOS para la compuerta del punto base (y su contraste
+# con E0 a f_cv = 2) y para las deterministas.
+SOLO_DETERMINISTAS = ("CV2",)
+CASOS_SOBOL = tuple(c for c in ORDEN_CASOS if c not in SOLO_DETERMINISTAS)
+CASOS_DISENO = ("E0", "E2", "E4")
+N_BASE_DISENO = 2048
+N_BASE_RESTO = 512
+
+
+def n_base_de(caso: str, n_diseno: int = N_BASE_DISENO,
+              n_resto: int = N_BASE_RESTO) -> int:
+    return int(n_diseno if caso in CASOS_DISENO else n_resto)
+
+
+def opciones_caso(caso: str) -> dict:
+    """La opcion del caso, leida como la lee `main_simulation.py`, en los
+    argumentos de su `main()`."""
+    if caso not in CASOS:
+        raise ValueError(f"caso {caso!r} no es ninguno de los trece: "
+                         f"{', '.join(CASOS)}")
+    from data.escalado import lee_factor
+    ap = argparse.ArgumentParser(prog=f"caso {caso}", add_help=False)
+    ap.add_argument("--factor-generacion", default="1")
+    ap.add_argument("--factor-demanda", default="1")
+    ap.add_argument("--escala-agente", default=None)
+    ap.add_argument("--neto-cero", action="store_true")
+    ap.add_argument("--factor-cv", default="1")
+    ap.add_argument("--excluir-agente", default=None)
+    a = ap.parse_args(shlex.split(CASOS[caso]))
+    return dict(factor_generacion=lee_factor(a.factor_generacion),
+                factor_demanda=lee_factor(a.factor_demanda),
+                escala_agente=a.escala_agente, neto_cero=bool(a.neto_cero),
+                factor_cv=lee_factor(a.factor_cv),
+                excluir_agente=a.excluir_agente)
+
+
+def nombres_caso(caso: str) -> list:
+    fuera = [n.strip() for n in (opciones_caso(caso)["excluir_agente"] or "")
+             .split(",") if n.strip()]
+    return [n for n in INSTITUCIONES if n not in fuera]
+
+
+# ── Muestra ─────────────────────────────────────────────────────────────────
+def muestra(n_base: int, semilla: int = SEMILLA) -> np.ndarray:
+    """La muestra de Saltelli de segundo orden: n_base bloques de B filas."""
+    from SALib.sample import sobol as sobol_sample
+    X = sobol_sample.sample(PROBLEMA, int(n_base),
+                            calc_second_order=SEGUNDO_ORDEN, seed=semilla)
+    if X.shape != (int(n_base) * B, D_ENTRADAS):
+        raise ValueError(f"muestra {X.shape}, se esperaba "
+                         f"({int(n_base) * B}, {D_ENTRADAS})")
+    return X
+
+
+def es_potencia_de_dos(n: int) -> bool:
+    return n > 0 and (n & (n - 1)) == 0
+
+
+# ── Huellas y rutas ─────────────────────────────────────────────────────────
+def huella_diseno(caso: str, n_base: int, semilla: int = SEMILLA) -> str:
+    """Huella del diseno: si cambia una entrada, un rango, el caso, n o la
+    semilla, dos corridas no pueden mezclarse bajo los mismos indices."""
+    s = (f"{caso}|{CASOS.get(caso)}|{int(n_base)}|{int(semilla)}|"
+         f"{SEGUNDO_ORDEN}|{'/'.join(NOMBRES)}|{SOPORTES}")
+    return hashlib.sha256(s.encode()).hexdigest()[:16]
+
+
+def huella_datos(mte_root) -> str:
+    """Huella del dato: el inventario de MTE_ROOT (ruta relativa y tamano de
+    cada .csv/.xlsx, sin leerlos) y el contenido de los .py y .csv de `data/`
+    (tarifas, bolsa, PES, contratos, cargadores). Si cambia, el `.npz` de la
+    carga se rehace y `--reanudar` aborta en vez de mezclar poblaciones."""
+    h = hashlib.sha256()
+    raiz = Path(mte_root)
+    h.update(str(raiz.name).encode())
+    if not raiz.is_dir():
+        raise FileNotFoundError(f"MTE_ROOT no es una carpeta: {raiz}")
+    for p in sorted(raiz.rglob("*")):
+        if p.is_file() and p.suffix.lower() in (".csv", ".xlsx", ".xls"):
+            h.update(f"{p.relative_to(raiz).as_posix()}:{p.stat().st_size}|"
+                     .encode())
+    datos = RAIZ / "data"
+    for p in sorted(list(datos.glob("*.py")) + list(datos.glob("*.csv"))):
+        h.update(p.name.encode())
+        h.update(hashlib.sha256(p.read_bytes()).digest())
+    return h.hexdigest()[:16]
+
+
+def mte_root_defecto() -> str:
+    return os.environ.get("MTE_ROOT", str(RAIZ / "MedicionesMTE_v3"))
+
+
+def salidas_defecto() -> Path:
+    return RAIZ / "SALIDAS_SERVIDOR" / "gsa_directo"
+
+
+def nombre_muestras(caso: str, n_base: int, semilla: int = SEMILLA) -> str:
+    return f"muestras_{caso}_n{int(n_base)}_s{int(semilla)}.csv"
+
+
+def version_codigo() -> str:
+    """El commit del arbol, para el `.meta.json`. Sin git, lo dice."""
+    import subprocess
+    try:
+        r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=RAIZ,
+                           capture_output=True, text=True, timeout=10)
+        sucio = subprocess.run(["git", "status", "--porcelain",
+                                "--untracked-files=no"], cwd=RAIZ,
+                               capture_output=True, text=True, timeout=10)
+        if r.returncode == 0:
+            return r.stdout.strip() + ("+cambios" if sucio.stdout.strip()
+                                       else "")
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return "sin git"
+
+
+def rss_mb() -> float:
+    """Memoria residente maxima de ESTE proceso (MB). En Linux por
+    `resource`; en Windows por la API del sistema. Es una medida, no un
+    resultado: donde no se puede medir devuelve NaN y el humo lo dice."""
+    try:
+        import resource
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0
+    except ImportError:
+        pass
+    if sys.platform != "win32":
+        return float("nan")
+    import ctypes
+    from ctypes import wintypes
+
+    class _PMC(ctypes.Structure):
+        _fields_ = [("cb", wintypes.DWORD),
+                    ("PageFaultCount", wintypes.DWORD),
+                    ("PeakWorkingSetSize", ctypes.c_size_t),
+                    ("WorkingSetSize", ctypes.c_size_t),
+                    ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                    ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                    ("PagefileUsage", ctypes.c_size_t),
+                    ("PeakPagefileUsage", ctypes.c_size_t)]
+    c = _PMC()
+    c.cb = ctypes.sizeof(_PMC)
+    k32 = ctypes.WinDLL("kernel32")
+    psapi = ctypes.WinDLL("psapi")
+    k32.GetCurrentProcess.restype = wintypes.HANDLE
+    k32.GetCurrentProcess.argtypes = []
+    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+    psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE,
+                                           ctypes.POINTER(_PMC),
+                                           wintypes.DWORD]
+    if psapi.GetProcessMemoryInfo(k32.GetCurrentProcess(), ctypes.byref(c),
+                                  c.cb):
+        return c.PeakWorkingSetSize / (1024.0 * 1024.0)
+    return float("nan")
+
+
+def salida_utf8() -> None:
+    """Como `main_simulation.py`: en Windows la consola y la redireccion a
+    fichero salen en cp1252; se reconfigura en sitio a UTF-8."""
+    if sys.platform == "win32":
+        try:
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass

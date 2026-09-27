@@ -9460,3 +9460,49 @@ Lo comparaba contra el C4 del motor (I-6). Su total no coincidía con la hoja `R
 - **La Fig. 14 de `graficas/`.** Una corrida nueva de la matriz la produciría sola con el código nuevo. Hasta entonces, la de cada caso está en `optimalidad_D72/figuras/`.
 - **`procedencia.txt` se regenera después del commit**, para que cite el commit real; no está en las huellas.
 - **La propagación a la tesis** (la Fig. 14 retirada, que todavía citan `tesis.md`, la matriz de trazabilidad y `main.tex`) va en otra tarea (M-8).
+
+## C-203 · El análisis de sensibilidad global pasa a directo sobre el modelo por reposo, sin emulador, y `gsa_real/` sale a cuarentena (H-95; D73 a D79)
+
+**2026-09-26 · tipo: `codigo` y `documento` · aplicada, con pruebas, sin commit; la corrida, del 3 al 5 de octubre en el servidor**
+
+### Qué había
+
+- **D17**: un GSA en dos niveles con un emulador del mercado, validado contra la matriz con un criterio del 1 % en las brechas.
+- **`gsa_real/`**: el GSA de agosto sobre la vía alternada, con PGB como parámetro y resultados del canon de agosto.
+
+### Qué cambia
+
+- **El paquete `gsa_directo/`** (actividad 4.1):
+  - `comun.py`: las seis entradas y sus rangos (D74), las catorce salidas (D75), los trece casos con la misma opción que `CASOS_MATRIZ`, **`CASOS_SOBOL` con los doce que corren el Sobol**, el n de cada caso (D77), las huellas y los rótulos de las entradas;
+  - `evaluador.py`: lo que `main()` hace antes del mercado, una vez por proceso, y una evaluación por punto;
+  - `correr.py`: la muestra de un caso con un pool de ventana acotada en orden de índice, el CSV fila a fila con `fsync`, `--reanudar`, el humo que planifica la noche y la parada temprana;
+  - `analizar.py`: procedencia, descarte por bloques con umbral del 1 %, índices anidados, S2, convergencia, probabilidad de inversión, coeficiente de variación, identidades e informe;
+  - `compuerta_punto_base.py`, `replica.py` y `deterministas.py` (μ y la bolsa de 2024).
+- **La acción `gsa_directo` de `modelo_base/run_servidor.sh`**, con la contención heredada, las pruebas del paquete, la compuerta del punto base, el humo, el Sobol caso a caso dentro de `timeout`, la réplica y las deterministas, y `recoger gsa_directo`. La sección «El GSA directo, sin emulador» de `modelo_base/MONTAJE_SERVIDOR.md` la describe.
+- **`gsa_real/` a `_cuarentena/2026-09-26/gsa_real/`** (D79), con su manifiesto y su `LEEME.md`.
+
+**La ronda de arreglos de la revisión** (`task-G-review.md`):
+
+- **CV2 sale del Sobol (I-1).** `CASOS_GSA` del lanzador y `comun.CASOS_SOBOL` tienen doce casos; `correr.py`, `analizar.py` y la acción rechazan CV2, y una prueba falla si vuelve. Sigue en la compuerta del punto base y en las deterministas. La noche del 4 queda `E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU`.
+- **Parada temprana (I-2; ronda 2, R-1).** `correr.py` cuenta los bloques con alguna evaluación fallida mientras escribe y sale con código 8 por uno de dos motivos, que el mensaje distingue: SEGURO, si ya pasan del 1 % de n_base (el análisis lo rechazará), o TASA, si tras `max(16, min(n/4, 256))` bloques terminados los fallidos terminados pasan de 4 veces el umbral. Con el 1 % simple, un 0,5 % de fallos paraba uno de cada cuatro casos buenos; con el 4 %, ninguno en 2 000 repeticiones por punto, y un caso roto al 5 % se detecta igual de pronto. `--tolera-fallos` (`TOLERA_FALLOS=1` en la acción) la desactiva.
+- **Ronda 2 de la re-revisión.** Las pruebas del lanzador parten de un entorno sin ninguna variable de la acción, de modo que la orden de día del 3 de octubre (`SOLO_HUMO=1 CASOS="E0 E2"`) ya no hace fallar el paso 2 (R-2). El plan de la noche corre los casos de diseño con su n y aplaza el que no cabe; solo recorta si el primero ni solo cabe (m-1). La meta se escribe por temporal y `os.replace` (m-2). La compuerta toma el registro D71 de la matriz del 19 de septiembre por nombre y huella, no el último por nombre (m-3). D77: si la convergencia no cierra, el caso se publica con su semiancho y no se repite (m-4).
+- **El respaldo no puede truncarse (M-6).** El prefijo de filas buenas se escribe a un temporal con `fsync` y se cambia con `os.replace`; el `.bak`, igual.
+- **Ninguna comprobación se omite en silencio (M-7).** Un dato de referencia que falta en la compuerta cuenta como diferencia, salvo `--permite-omitir` (`OMITIR_SIN_REFERENCIA=1`), que la deja pasar con aviso.
+- **La matriz del canon, explícita (M-8).** `MATRIZ_CANON` es obligatoria en la acción y `--matriz` en la compuerta, que además comprueba la huella sha256 del libro de cada caso contra la del canon 2026-09.
+- **Un caso recortado no se amplía reutilizando sus filas (M-4).** `correr.py` rechaza una corrida de otro n mientras exista la anterior, y el lanzador retoma cada caso con su n y avisa si no es el del plan.
+- **La versión del código (M-5).** La meta guarda la lista `codigos`, y `--reanudar` avisa si cambió; MONTAJE prohíbe el `git pull` con un caso a medias.
+- **El rótulo de f_cv.** En todas las salidas es «descuento de comercializar sobre la permuta (art. 25)», no el Cv de la tarifa.
+
+### Estado
+
+- **Pruebas.** Seis ficheros `tests/test_gsa_directo_*.py` con 88 pruebas tras la ronda 2: pasan las 87 rápidas; la lenta (un día contra `main()`) pasó en la implementación y no se volvió a correr en la ronda de arreglos, que no tocó el evaluador.
+- **Compuerta del punto base en local**, contra la entrega del 19 de septiembre: `COMPUERTA GSA PUNTO BASE EN VERDE`, 748 comprobaciones en 14 evaluaciones, con las huellas del canon comprobadas.
+- **El seco de la acción** no escribe nada: el listado de `modelo_base/` y `SALIDAS_SERVIDOR/` es el mismo antes y después.
+- **Compuertas del canon**: `CANON 2026-09 INTACTO`, `CANON 2026-08 INTACTO` y `CANON INTACTO`.
+
+### Lo que queda
+
+- El commit y el push antes del 3 de octubre, cuando el autor los pida (I-3 de la revisión).
+- En `CLAUDE.md`, a decisión del autor: quitar `XM_PRICES_CSV`, que no existe en el código, y añadir la acción `gsa_directo` a los comandos clave.
+- Rehacer con el GSA directo las figuras del capítulo 11 que leían `gsa_real/salidas/`.
+- Registrar el canon del GSA después de la corrida.

@@ -1,3 +1,0 @@
-# El lanzador corre en Linux: un CRLF en la primera linea da
-# "bad interpreter: /usr/bin/env bash^M" y el servidor no arranca nada.
-*.sh text eol=lf

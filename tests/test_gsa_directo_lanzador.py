@@ -18,6 +18,7 @@ RAIZ = Path(__file__).resolve().parent.parent
 LANZADOR = RAIZ / "modelo_base" / "run_servidor.sh"
 MATRIZ = ("SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/"
           "SALIDAS_SERVIDOR/matriz_reposo")
+SIN_CORRIDAS = "modelo_base/_seco_sin_corridas/gsa_directo"
 # Las variables que la accion lee (ronda 2, R-2). En el servidor, el paso 2
 # corre ESTAS pruebas dentro de la accion y pytest hereda lo que el operador
 # puso delante de `bash` (SOLO_HUMO=1 CASOS="E0 E2" el 3 de octubre): cada
@@ -28,7 +29,7 @@ VARIABLES_DE_LA_ACCION = (
     "TOLERA_FALLOS", "CASOS", "DESDE", "MATRIZ_CANON", "EXTRA", "PASOS",
     "LENTAS", "ETAPA2", "SIGMAS", "ALMACENES", "GRUPOS", "OPTS",
     "PALANCAS_ARGS", "TOPE_GLOBAL_S", "TOPE_MEDICION", "TOPE_M_C",
-    "TOPE_M_E", "TOPE_M_G", "SONDA_DIR", "SIN_LINGER_OK")
+    "TOPE_M_E", "TOPE_M_G", "SONDA_DIR", "SIN_LINGER_OK", "GSA_DIR_PRUEBA")
 
 
 def _bash():
@@ -50,8 +51,11 @@ def _corre(*args, **env):
     e = dict(os.environ)
     for v in VARIABLES_DE_LA_ACCION:
         e.pop(v, None)
+    # C-205: una carpeta de salidas que no existe, para que el resultado no
+    # dependa de los casos que ya corrieron en la maquina (en el servidor, E0
+    # a 2 048 hacia fallar la prueba de NBASE). Solo vale en seco.
     e.update(SECO="1", MTE_ROOT=str(RAIZ / "MedicionesMTE_v3"), PROCS="4",
-             MATRIZ_CANON=MATRIZ)
+             MATRIZ_CANON=MATRIZ, GSA_DIR_PRUEBA=SIN_CORRIDAS)
     e.update({k: str(v) for k, v in env.items()})
     r = subprocess.run([BASH, str(LANZADOR), *args], cwd=RAIZ, env=e,
                        capture_output=True, text=True, encoding="utf-8",
@@ -202,6 +206,16 @@ def test_el_paso_2_no_hereda_las_variables_de_la_accion():
                        cwd=RAIZ, env=env, capture_output=True, text=True,
                        encoding="utf-8", errors="replace", timeout=600)
     assert r.returncode == 0, r.stdout[-3000:] + r.stderr[-2000:]
+
+
+def test_no_depende_de_las_corridas_de_la_maquina():
+    """C-205: con un E0 ya empezado a otro n en la carpeta de salidas, el
+    lanzador retoma con ese n (lo correcto); las pruebas no deben verlo."""
+    assert not (RAIZ / SIN_CORRIDAS).exists()
+    rc, out = _corre("gsa_directo", CASOS="E0")
+    assert rc == 0, out
+    assert f"salidas    = {SIN_CORRIDAS}" in out
+    assert "ya empezo con n" not in out
 
 
 def test_tolera_fallos_llega_a_correr():

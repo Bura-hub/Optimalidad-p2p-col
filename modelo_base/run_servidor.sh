@@ -299,6 +299,12 @@ SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
 # punto base (contraste con E0 a f_cv = 2) y en las deterministas. Es la
 # lista de gsa_directo/comun.py:CASOS_SOBOL (una prueba lo comprueba).
 GSA_DIR="SALIDAS_SERVIDOR/gsa_directo"
+# Solo en seco: las pruebas del lanzador leen una carpeta vacia propia, para
+# no depender de las corridas que ya haya en el servidor (C-205: con E0 ya
+# corrido a 2 048, la prueba que pide n = 4 096 veia el retome y fallaba).
+if [[ "${SECO:-0}" == "1" && -n "${GSA_DIR_PRUEBA:-}" ]]; then
+  GSA_DIR="$GSA_DIR_PRUEBA"
+fi
 CASOS_GSA="E0 E2 E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU"
 CASOS_DISENO_GSA=" E0 E2 E4 "
 # Presupuesto del diseno por evaluacion (ms), para los topes en seco: el humo

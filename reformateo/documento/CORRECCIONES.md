@@ -9529,3 +9529,19 @@ La primera noche (E0 y E2, n = 2 048) convergió sin un bloque descartado, pero 
 ### Lo que queda
 
 - Tras el `git pull` del 3 de octubre, volver a analizar E0 y E2 en el servidor para que su informe salga con el mismo texto que los otros diez.
+
+## C-205 · Las pruebas del lanzador ya no dependen de las corridas que haya en la máquina (2026-09-27)
+
+### Qué se vio
+
+El 2026-09-27, al lanzar la segunda tanda del GSA directo, el paso 2 de la acción `gsa_directo` se detuvo: fallaban `test_nbase_llega_a_los_casos_de_diseno` y, por anidar la anterior, `test_el_paso_2_no_hereda_las_variables_de_la_accion`. La prueba pide E0 con `NBASE=4096` y espera ver `--n-base 4096`. En el servidor, E0 ya había corrido la noche anterior con n = 2 048, y el lanzador hizo lo correcto (M-4): retomar con el n de su `.meta.json`. En la máquina de trabajo la prueba pasaba porque no hay corridas en `SALIDAS_SERVIDOR/gsa_directo`.
+
+### Qué se cambió
+
+- `modelo_base/run_servidor.sh`: **solo en seco**, `GSA_DIR_PRUEBA` sustituye la carpeta de salidas del GSA. Fuera del seco se ignora.
+- `tests/test_gsa_directo_lanzador.py`: `_corre` apunta a `modelo_base/_seco_sin_corridas/gsa_directo`, que no existe ni se crea. Prueba nueva: `test_no_depende_de_las_corridas_de_la_maquina`.
+
+### Qué se comprobó
+
+- Con un `muestras_E0_n2048_s42.meta.json` simulado en `SALIDAS_SERVIDOR/gsa_directo/E0/`: sin el arreglo, la prueba de NBASE falla como en el servidor; con él pasan las 15 del lanzador. El simulado se borró después.
+- Las otras 75 pruebas rápidas del paquete pasan.

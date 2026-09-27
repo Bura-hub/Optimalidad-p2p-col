@@ -21,9 +21,12 @@ Lee el CSV de `correr.py` y su `.meta.json`, y:
    sobre las filas A y B de cada bloque, que son las muestras independientes
    del hipercubo (las AB y BA son sus permutaciones);
 6. IDENTIDADES (6.5): C2 == P2P en todas las filas (CAL-52) y retiros = 0
-   (D67), que DETIENEN si fallan (codigo 1); P2P - C1 == excedente (H-70) y
-   la energia sin efecto de f_cv, f_bolsa, f_tarifa y f_peaje, que se miden
-   y se informan sin detener (ver el informe de la tarea G).
+   (D67), que DETIENEN si fallan (codigo 1); P2P - C1 == excedente (H-70),
+   que se informa sin detener y solo en los casos de `CASOS_H70` (el 6.5 la
+   limita a E0: con vendedores a bolsa deja de ser identidad). Aparte, el
+   ST de la energia frente a f_cv, f_bolsa, f_tarifa y f_peaje se informa
+   como SENSIBILIDAD MEDIDA, no como identidad: el piso y el techo deciden
+   quien entra al mercado (nota del 6.5; el piloto ya daba ST 0,077).
 
 Escribe `indices_<caso>.csv`, `s2_<caso>.csv`, `inversion_<caso>.csv` e
 `INFORME_<caso>.md` junto al CSV.
@@ -53,6 +56,10 @@ CRITERIOS = {
 }
 TOL_C2 = 1e-6
 TOL_H70 = 1e-6
+# 6.5: la identidad de H-70 se comprueba en E0. Con vendedores a bolsa (el
+# escalado de la generacion) P2P - C1 deja de ser el ancho de la banda por
+# la energia y pasa a ser una brecha mas.
+CASOS_H70 = ("E0",)
 
 
 def clase(salida: str) -> str:
@@ -119,7 +126,7 @@ def analiza(X: np.ndarray, Y: dict, validas: np.ndarray,
             problema: dict = comun.PROBLEMA, B: int = comun.B,
             salidas=comun.SALIDAS, extra_inversion=(),
             semilla: int = comun.SEMILLA, remuestreos: int = REMUESTREOS,
-            motivos=None) -> dict:
+            motivos=None, caso: str = None) -> dict:
     """El analisis entero sobre matrices ya leidas. `Y[s]` es (M,), con NaN
     donde la fila falta o fallo; `validas` y `presentes` son (M,)."""
     nombres_x = list(problema["names"])
@@ -201,7 +208,8 @@ def analiza(X: np.ndarray, Y: dict, validas: np.ndarray,
             y = Y[s][idx_ab]
             r["cv"][s] = float(np.std(y) / abs(np.mean(y)))
 
-    r["identidades"] = identidades(Y, filas_de(bv, B), df, ns, base)
+    r["identidades"] = identidades(Y, filas_de(bv, B), df, ns, base,
+                                   caso=caso)
     return r
 
 
@@ -227,23 +235,31 @@ def convergencia(df: pd.DataFrame, ns: list) -> list:
 
 
 def identidades(Y: dict, keep: np.ndarray, df: pd.DataFrame, ns: list,
-                base) -> list:
+                base, caso: str = None) -> list:
+    """Las identidades del 6.5 y la sensibilidad medida de la energia.
+
+    Cada fila lleva `clase`: «detiene» (C2 == P2P, retiros = 0), «se informa»
+    (H-70, solo en `CASOS_H70`) o «medida» (el ST de la energia frente a los
+    precios, que no es identidad y no tiene veredicto)."""
     out = []
     if "C2" in Y and "P2P" in Y:
         d = np.abs(Y["C2"][keep] - Y["P2P"][keep]) / np.maximum(
             np.abs(Y["P2P"][keep]), 1.0)
         out.append(dict(identidad="C2 == P2P (CAL-52)", dura=True,
+                        clase="detiene",
                         medida=float(d.max()) if d.size else 0.0,
                         tolerancia=TOL_C2,
                         cumple=bool(d.size == 0 or d.max() <= TOL_C2)))
     if "retiros" in Y:
         m = float(np.nanmax(Y["retiros"][keep])) if keep.any() else 0.0
-        out.append(dict(identidad="retiros = 0 (D67)", dura=True, medida=m,
+        out.append(dict(identidad="retiros = 0 (D67)", dura=True,
+                        clase="detiene", medida=m,
                         tolerancia=0.0, cumple=m == 0.0))
-    if "P2P_menos_C1" in Y and "excedente" in Y:
+    if caso in CASOS_H70 and "P2P_menos_C1" in Y and "excedente" in Y:
         d = np.abs(Y["P2P_menos_C1"][keep] - Y["excedente"][keep]) / \
             np.maximum(np.abs(Y["excedente"][keep]), 1.0)
         out.append(dict(identidad="P2P - C1 == excedente (H-70)", dura=False,
+                        clase="se informa",
                         medida=float(d.max()) if d.size else 0.0,
                         tolerancia=TOL_H70,
                         cumple=bool(d.size == 0 or d.max() <= TOL_H70)))
@@ -254,10 +270,10 @@ def identidades(Y: dict, keep: np.ndarray, df: pd.DataFrame, ns: list,
             if f.empty:
                 continue
             st, cf = float(f.ST.iloc[0]), float(f.ST_conf.iloc[0])
-            out.append(dict(identidad=f"energia sin efecto de {x} (ST = 0 "
-                                      f"dentro del intervalo)", dura=False,
-                            medida=st, tolerancia=cf,
-                            cumple=bool(abs(st) <= cf + 1e-12)))
+            out.append(dict(identidad=f"ST de la energia frente a {x} "
+                                      f"(sensibilidad medida)", dura=False,
+                            clase="medida", medida=st, tolerancia=cf,
+                            cumple=None))
     return out
 
 
@@ -354,8 +370,12 @@ def informe(r: dict, caso: str, meta: dict) -> str:
           "del vendedor (y el que usan C1, C4, el colectivo y los residuales, "
           "como `--factor-cv` de `main()`, D7). No mueve C5 ni el techo.", "",
           "## Antes de leer la tabla", "",
-          "- **P2P - C1 es una identidad** (H-70): el ancho de la banda por la "
-          "energia. Su ST sobre f_cv es una comprobacion, no un hallazgo.",
+          ("- **P2P - C1 es una identidad** (H-70): el ancho de la banda por "
+           "la energia. Su ST sobre f_cv es una comprobacion, no un hallazgo."
+           if caso in CASOS_H70 else
+           "- **P2P - C1 no es aqui la identidad de H-70**, que el diseno "
+           "comprueba solo en E0: en este caso es una brecha mas y se lee "
+           "como tal."),
           "- Los niveles miden sobre todo la tarifa (el autoconsumo se valora "
           "a ella); la comparacion de robustez se lee en el coeficiente de "
           "variacion y en las brechas.",
@@ -433,9 +453,22 @@ def informe(r: dict, caso: str, meta: dict) -> str:
           "| Identidad | Clase | Medida | Tolerancia | Cumple |",
           "|---|---|---:|---:|---|"]
     for f in r["identidades"]:
-        L.append(f"| {f['identidad']} | {'detiene' if f['dura'] else 'se informa'}"
+        if f["clase"] == "medida":
+            continue
+        L.append(f"| {f['identidad']} | {f['clase']}"
                  f" | {f['medida']:.3g} | {f['tolerancia']:.3g} | "
                  f"{'si' if f['cumple'] else '**NO**'} |")
+    medidas = [f for f in r["identidades"] if f["clase"] == "medida"]
+    if medidas:
+        L += ["", "## Sensibilidad de la energia a los precios", "",
+              "No es una identidad: el piso y el techo deciden quien entra al "
+              "mercado, de modo que los precios pueden mover la energia "
+              "transada (nota del apartado 6.5). Se informa el ST con su "
+              "semiancho al 95 %.", "",
+              "| Entrada | ST | semiancho |", "|---|---:|---:|"]
+        for f in medidas:
+            x = f["identidad"].split("frente a ")[1].split(" ")[0]
+            L.append(f"| {x} | {f['medida']:.3f} | {f['tolerancia']:.3f} |")
     return "\n".join(L) + "\n"
 
 
@@ -497,7 +530,8 @@ def ejecuta(argv=None) -> int:
     extra = [c for c in Y if "__" in c]
     r = analiza(X, Y, validas, presentes, base=meta.get("punto_base"),
                 extra_inversion=extra, semilla=args.semilla,
-                remuestreos=args.remuestreos, motivos=motivos)
+                remuestreos=args.remuestreos, motivos=motivos,
+                caso=args.caso)
     rutas = escribe(r, carpeta, args.caso, meta)
     for p in rutas:
         print(f"  escrito {p}")
@@ -506,6 +540,10 @@ def ejecuta(argv=None) -> int:
         return 3
     duras = [f for f in r["identidades"] if f["dura"] and not f["cumple"]]
     for f in r["identidades"]:
+        if f["clase"] == "medida":
+            print(f"  {f['identidad']}: ST {f['medida']:.3g} "
+                  f"(semiancho {f['tolerancia']:.3g})")
+            continue
         print(f"  identidad {f['identidad']}: {'cumple' if f['cumple'] else 'NO CUMPLE'}"
               f" (medida {f['medida']:.3g}, tolerancia {f['tolerancia']:.3g})"
               + ("" if f["dura"] else " [se informa]"))

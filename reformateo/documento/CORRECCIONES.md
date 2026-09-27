@@ -9506,3 +9506,26 @@ Lo comparaba contra el C4 del motor (I-6). Su total no coincidía con la hoja `R
 - En `CLAUDE.md`, a decisión del autor: quitar `XM_PRICES_CSV`, que no existe en el código, y añadir la acción `gsa_directo` a los comandos clave.
 - Rehacer con el GSA directo las figuras del capítulo 11 que leían `gsa_real/salidas/`.
 - Registrar el canon del GSA después de la corrida.
+
+## C-204 · El informe del GSA directo: la identidad de H-70 solo en E0 y la energía frente a los precios como sensibilidad medida (apartado 6.5 del diseño; primera noche, 2026-09-26)
+
+### Qué se vio
+
+La primera noche (E0 y E2, n = 2 048) convergió sin un bloque descartado, pero el informe de E2 marcaba cuatro «**NO**» en las identidades, y el de E0, dos. Ninguno era un defecto del modelo:
+
+- **P2P − C1 = excedente (H-70)** daba 1,35 en E2. El apartado 6.5 del diseño la limita a **E0**: con la generación escalada hay vendedores a bolsa y P2P − C1 deja de ser el ancho de la banda por la energía. El analizador la comprobaba en todos los casos.
+- **«Energía sin efecto de f_cv, f_bolsa, f_tarifa, f_peaje»** no es una identidad. El propio diseño (nota del 6.5) ya sabía que el piso decide quién entra al mercado; el piloto daba ST 0,077 frente a f_cv. Se presentaba con veredicto y salía «NO» cada vez que la energía se movía.
+
+### Qué se cambió
+
+- `gsa_directo/analizar.py`: `CASOS_H70 = ("E0",)`; `identidades(..., caso=)` y `analiza(..., caso=)`. Cada fila lleva `clase`: «detiene» (C2 == P2P, retiros = 0), «se informa» (H-70, solo en E0) o «medida». Las de la energía salen de la tabla de identidades a una sección propia, «Sensibilidad de la energía a los precios», con su ST y su semiancho y sin veredicto. En los casos que no son E0, el aviso de «Antes de leer la tabla» dice que P2P − C1 es una brecha más.
+- `tests/test_gsa_directo_analizar.py`: prueba nueva, `test_h70_solo_en_e0_y_energia_como_medida`.
+
+### Qué se comprobó
+
+- Las 78 pruebas rápidas del paquete pasan.
+- Reanálisis en local de E0 y E2 sobre los CSV de la entrega del 2026-09-27: `indices`, `s2` e `inversion` **idénticos al bit** a los del servidor (diferencia máxima 0,0); el informe cambia solo en esas dos secciones.
+
+### Lo que queda
+
+- Tras el `git pull` del 3 de octubre, volver a analizar E0 y E2 en el servidor para que su informe salga con el mismo texto que los otros diez.

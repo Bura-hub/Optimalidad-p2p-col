@@ -152,6 +152,31 @@ def test_identidades_duras(base256):
     assert not ids["retiros = 0 (D67)"]["cumple"]
 
 
+def test_h70_solo_en_e0_y_energia_como_medida(base256):
+    """6.5: H-70 se comprueba en E0 y no en los escalados (en E2 la primera
+    noche dio 1,35 y un «NO» que no era defecto); el ST de la energia frente
+    a los precios es sensibilidad medida, sin veredicto."""
+    X, _ = base256
+    M = X.shape[0]
+    Y = {"P2P": np.full(M, 4e7), "C2": np.full(M, 4e7),
+         "retiros": np.zeros(M), "P2P_menos_C1": np.full(M, 5.0),
+         "excedente": np.full(M, 2.0)}
+    df = an.pd.DataFrame({"salida": ["energia", "energia"], "n": [256, 256],
+                          "entrada": ["f_cv", "f_bolsa"], "ST": [0.1, 0.0],
+                          "ST_conf": [0.01, 0.0]})
+    e0 = {i["identidad"]: i for i in an.identidades(
+        Y, np.ones(M, bool), df, [256], None, caso="E0")}
+    assert not e0["P2P - C1 == excedente (H-70)"]["cumple"]
+    assert e0["P2P - C1 == excedente (H-70)"]["clase"] == "se informa"
+    e2 = {i["identidad"]: i for i in an.identidades(
+        Y, np.ones(M, bool), df, [256], None, caso="E2")}
+    assert "P2P - C1 == excedente (H-70)" not in e2
+    medidas = [i for i in e2.values() if i["clase"] == "medida"]
+    assert len(medidas) == 2
+    assert all(i["cumple"] is None and not i["dura"] for i in medidas)
+    assert medidas[0]["medida"] == 0.1
+
+
 # ── De punta a punta sobre la corrida falsa ─────────────────────────────────
 def _corrida_falsa(tmp):
     assert correr.ejecuta(["--caso", "E0", "--n-base", "16", "--procesos",

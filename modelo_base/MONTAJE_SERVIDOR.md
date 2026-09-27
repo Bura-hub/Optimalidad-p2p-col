@@ -1882,17 +1882,30 @@ export MTE_ROOT=$PWD/MedicionesMTE_v3
 export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo   # la del 19-09; la compuerta lo comprueba
 SECO=1 bash modelo_base/run_servidor.sh gsa_directo            # antes: imprime las ordenes
 
-# 3 de octubre, de dia: pruebas, punto base y humo (unos minutos), sin Sobol
+# de dia: pruebas, punto base y humo (unos minutos), sin Sobol
 SOLO_HUMO=1 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
-# noche del 3
+# primera noche (hecha el 2026-09-26)
 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
-# noche del 4 (lo que no quepa lo dice el humo y pasa a la del 5)
+# segunda noche, desde el 3 de octubre (lo que no quepa lo dice el humo)
 CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" bash modelo_base/run_servidor.sh gsa_directo
 ```
 
-A 8 (s) por evaluación y 16 procesos, la noche del 4 da para E4 a 2 048 y
-E1, E3, E5, P1 y P2 (8,96 h); K1, I1, N1 y SINU (unas 4 h) pasan a la del 5, y
-la acción imprime la orden. A 5,5 (s) caben todos.
+**Medido la primera noche (2026-09-26):** unos 2,5 (s) por evaluación con 16
+procesos; E0 y E2 a 2 048 tardaron 1,18 h cada uno, sin un fallo. A ese ritmo
+los diez casos restantes (E4 a 2 048 y nueve a 512) caben en una noche, unas
+4 h.
+
+**E0 y E2 se vuelven a analizar tras el `git pull` de C-204**, que solo cambia
+el texto del informe (la identidad de H-70 solo en E0 y la energía frente a los
+precios como sensibilidad medida); los índices salen al bit. Es un minuto por
+caso, encerrado como todo lo demás:
+
+```bash
+for c in E0 E2; do
+  taskset -c 16-31 nice -n 19 ionice -c 3 .venv/bin/python -u gsa_directo/analizar.py --caso $c --n-base 2048 > modelo_base/logs/gsa_directo_reanalizar_${c}_$(date +%F_%H%M).log 2>&1
+  tail -1 modelo_base/logs/gsa_directo_reanalizar_${c}_*.log
+done
+```
 
 **Con un caso a medias no se hace `git pull`.** El `.meta.json` guarda la
 huella del diseño y la del dato, pero no la de `core/` ni la de `scenarios/`:

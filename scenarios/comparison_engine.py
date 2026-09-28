@@ -30,6 +30,26 @@ from core.settlement import gini_index, compute_net_benefit
 from analysis.fairness import FairnessResult, compute_pof, print_pof_report
 
 
+def _energia_colectivo(res: dict, nombre: str) -> dict:
+    """La energia a credito y a bolsa (kWh, horizonte) de una liquidacion del
+    colectivo mensual, y su valor (COP) (C-209). La devuelve
+    `_run_c4_monthly_hx` en `aggregate`; si falta o no es finita, falla en
+    voz alta."""
+    agg = res.get("aggregate", {})
+    claves = dict(credito_kwh="total_E_permuta_t1",
+                  exceso_kwh="total_E_excedente_t2",
+                  credito_COP="total_pde_credits",
+                  exceso_COP="total_surplus_revenue")
+    faltan = [k for k in claves.values() if k not in agg]
+    if faltan:
+        raise ValueError(f"{nombre}: la liquidacion del colectivo no trae "
+                         f"{faltan} (se esperaba mode='monthly_hx')")
+    out = {k: float(agg[v]) for k, v in claves.items()}
+    if not all(np.isfinite(v) for v in out.values()):
+        raise ValueError(f"{nombre}: energia o valor del colectivo no finito")
+    return out
+
+
 @dataclass
 class ComparisonResult:
     net_benefit:           dict  = field(default_factory=dict)
@@ -46,8 +66,11 @@ class ComparisonResult:
     # PoF = (W_eff - W_fair) / W_eff — Bertsimas, Farias & Trichakis (2011).
     # W_eff = beneficio total del escenario más eficiente (max Σ B_n).
     # W_fair = beneficio total del escenario más equitativo (min Gini).
+    # Noción HORARIA retirada del spread (D4, C-175): no se cita. El spread
+    # vigente, con el colectivo mensual, sale de `c4_energia` y del
+    # contrafactico «C4_regla_importacion» (C-209).
     static_spread_24h:     Optional[np.ndarray] = None
-    hours:     int   = 24
+    hours:    int   = 24
     n_agents:  int   = 6
     pi_ppa:    float = 0.0
     pde:       Optional[np.ndarray] = None
@@ -108,6 +131,13 @@ class ComparisonResult:
     # tabla: miden cuanto pesa cada supuesto. {nombre: {"total",
     # "por_agente", "caso_art20"}}.
     contrafacticos: dict = field(default_factory=dict)
+    # C-209: los contrafacticos del colectivo llevan ademas `credito_kwh` y
+    # `exceso_kwh` (energia a credito y a bolsa en el horizonte) y su valor,
+    # `credito_COP` y `exceso_COP`, y aqui va
+    # lo mismo para C4 con el reparto igual del canon (D5). El spread de
+    # ineficiencia estatica mensual es c4_energia["exceso_kwh"] menos el
+    # exceso de contrafacticos["C4_regla_importacion"].
+    c4_energia: dict = field(default_factory=dict)
     # ── El factor de coincidencia (D20) ─────────────────────────────────
     # {escenario: [0, 1]}: de lo que cada mecanismo acredita como si
     # sustituyera importacion, que fraccion coincidio en la hora con esa
@@ -403,6 +433,8 @@ def run_comparison(
     cr.net_benefit["C4_mensual"]           = cr.net_benefit["C4"]
     cr.net_benefit_per_agent["C4_mensual"] = c4_net
     cr.neto_horario["C4_mensual"]          = c4["neto_horario"]
+    # C-209: la energia a credito y a bolsa del C4 del canon (reparto igual).
+    cr.c4_energia = _energia_colectivo(c4, "C4")
 
     # Los contrafacticos del colectivo (D5).
     _base_c4 = dict(component_c=component_c, tolls=tolls, mode="monthly_hx",
@@ -420,15 +452,20 @@ def run_comparison(
                            caso=_caso_11, **_base_c4)
     _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])
     cr.contrafacticos["C4_11_fronteras"] = dict(
-        total=float(_pa.sum()), por_agente=_pa, caso_art20=_caso_11)
-    for _regla in ("consumo", "aporte", "generacion"):
+        total=float(_pa.sum()), por_agente=_pa, caso_art20=_caso_11,
+        **_energia_colectivo(_r, "C4_11_fronteras"))
+    # C-209: «importacion» es la cota superior en energia del reparto
+    # estatico (el porcentaje de cada mes proporcional a la importacion de
+    # ese mes); con ella se mide el spread de ineficiencia estatica mensual.
+    for _regla in ("consumo", "aporte", "generacion", "importacion"):
         _pm = pde_por_regla(_regla, G_klim, D, month_labels)
         _r = run_c4_creg101072(D, G_klim, pi_gs_v, pi_bolsa, _igual, capacity,
                                pde_mensual=_pm, **_base_c4)
         _pa = np.array([_r["per_agent"][n]["net_benefit"] for n in range(N)])
         cr.contrafacticos[f"C4_regla_{_regla}"] = dict(
             total=float(_pa.sum()), por_agente=_pa,
-            caso_art20=int(_r["caso_art20"]))
+            caso_art20=int(_r["caso_art20"]),
+            **_energia_colectivo(_r, f"C4_regla_{_regla}"))
     # I-4 (revision final): el mercado por la via del colectivo en el mismo
     # caso favorable de 11 fronteras (spec 4.10, paso 3, y tabla de 4.11).
     from .scenario_p2p_colectivo import run_p2p_colectivo as _pc11
@@ -1216,8 +1253,15 @@ def print_comparison_report(cr: ComparisonResult) -> None:
               f"[eficiente={fr.eff_scenario} {fr.w_eff:,.0f} COP; "
               f"equitativo={fr.fair_scenario} {fr.w_fair:,.0f} COP]")
     if cr.static_spread_24h is not None:
-        print(f"  Spread inef. estática C4 total: "
+        # C-209: es la noción horaria retirada (D4, C-175); no se cita.
+        print(f"  [retirado, no citable] Spread horario C4 (D4): "
               f"{np.sum(cr.static_spread_24h):.3f} kWh")
+    _imp = cr.contrafacticos.get("C4_regla_importacion")
+    if cr.c4_energia and _imp is not None:
+        print(f"  Spread inef. estática mensual (C-209): "
+              f"{cr.c4_energia['exceso_kwh'] - _imp['exceso_kwh']:,.3f} kWh, "
+              f"{_imp['total'] - cr.net_benefit['C4']:,.0f} COP "
+              f"(cota superior en energía)")
     print("-"*68)
     print(f"  Distribución del excedente P2P (ref. Tabla VII Sofía Chacón):")
     print(f"    PS  (compradores):  {cr.ps_p2p:6.2f}%  "

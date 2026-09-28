@@ -122,8 +122,10 @@ def test_contrafactico_de_11_fronteras_respeta_la_capacidad():
                               n_fronteras=11) == 2
     assert resolve_caso_art20(np.full(11, 1 / 11), np.full(5, 219.0),
                               n_fronteras=11) == 1
+    # C-209: y la regla «importacion», la cota superior del reparto estatico.
     assert set(chica) == {"C4_11_fronteras", "C4_regla_consumo",
                           "C4_regla_aporte", "C4_regla_generacion",
+                          "C4_regla_importacion",
                           "P2P_colectivo_11_fronteras"}
 
 

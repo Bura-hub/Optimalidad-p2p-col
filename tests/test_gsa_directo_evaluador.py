@@ -183,3 +183,16 @@ def test_un_dia_contra_main_lenta(dia, tmp_path):
     y = evaluador.evalua(dia, comun.PUNTO_BASE)
     for e in ("P2P", "P2P_colectivo", "C1", "C2", "C3", "C4", "C5"):
         assert y[e] == pytest.approx(canon[e], rel=1e-9, abs=1e-6), e
+
+def test_despacho_defecto_y_valores():
+    """C-207 (revision C1-C8): el defecto de `despacho` es «piso», la regla
+    de la matriz canonica, en la funcion publica y en la interna (la que usa
+    la compuerta del punto base, que reproduce el canon al peso con el
+    defecto); un valor desconocido falla en voz alta antes de evaluar."""
+    import inspect
+    assert inspect.signature(
+        evaluador.evalua_comparacion).parameters["despacho"].default == "piso"
+    assert inspect.signature(
+        evaluador._evalua).parameters["despacho"].default == "piso"
+    with pytest.raises(ValueError, match="despacho"):
+        evaluador.evalua_comparacion(None, comun.PUNTO_BASE, despacho="merito")

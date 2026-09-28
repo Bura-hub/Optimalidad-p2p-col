@@ -335,7 +335,7 @@ def evalua(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
         return _evalua(ins, x, mu, bolsa_cruda, b_factor)[0]
 
 
-def _evalua(ins, x, mu, bolsa_cruda, b_factor) -> dict:
+def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> dict:
     from core.ems_p2p import EMSP2P, AgentParams, GridParams, SolverParams
     from core.opciones_externas import deduccion_art25, piso_residual
     from data.base_case_data import GRID_PARAMS_REAL
@@ -371,7 +371,7 @@ def _evalua(ins, x, mu, bolsa_cruda, b_factor) -> dict:
         presupuesto_eval_acoplado=None, arranque_acoplado="factible",
         criterio_estacionario="precio", tol_reparto=0.01,
         modo_presupuesto="sigma", sigma_nivel=None, regla_precio="uniforme",
-        despacho_vendedores="piso", mu_entropia=0.0, nivel_acoplado="c136",
+        despacho_vendedores=despacho, mu_entropia=0.0, nivel_acoplado="c136",
         costo_vendedor="lcoe", piso_juego="minimo", mu_cuantal=float(mu),
         buyer_competition="aggregate", guarda_trayectorias=False,
         procesos=None, plazo_hora_s=None)
@@ -456,12 +456,19 @@ def evalua_detalle(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
 
 
 def evalua_comparacion(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
-                       silencio: bool = True) -> tuple:
+                       silencio: bool = True, despacho: str = "piso") -> tuple:
     """Como `evalua`, y ademas el `ComparisonResult` de `run_comparison`
     entero (p. ej. `cr.contrafacticos`), sin tocar lo que devuelven `evalua`
-    ni `evalua_detalle` (C-206)."""
+    ni `evalua_detalle` (C-206).
+
+    `despacho` es la regla de despacho de vendedores (D64): "piso" es la de
+    la matriz canonica y el defecto; "costo" y "llenado", las alternativas
+    con que se mide el peso de la regla declarada (punto C1 de la
+    preparacion, C-207)."""
+    if despacho not in ("piso", "costo", "llenado"):
+        raise ValueError(f"despacho {despacho!r}; use piso, costo o llenado")
     with _silencio(silencio):
-        return _evalua(ins, x, mu, bolsa_cruda, 1.0)
+        return _evalua(ins, x, mu, bolsa_cruda, 1.0, despacho)
 
 
 def _evalua_con_agentes(ins, x, mu, bolsa_cruda):

@@ -9604,3 +9604,75 @@ Cambian las diez filas esperadas y ninguna más: las dos de 11 fronteras en E4, 
 ### Ronda de revisión (2026-09-27)
 
 La revisión del cambio (`.superpowers/sdd/2026-09-16-reposo/preparacion/revision-A1-A2.md`, aprobado con observaciones) encontró que la hoja `FA_CREG101072` y la tabla FA-2 del informe seguían poniendo la capacidad de la planta de cada institución junto a «Cumple 100kW», que tras este cambio es un veredicto de la comunidad: invitaba a leer «la institución X supera los 100 kW» cuando lo que supera el umbral es la capacidad por usuario del colectivo. Se separaron: por institución, `Capacidad_planta_kW` y `Planta_hasta_100kW_art25` (su numeral del art. 25 como autogenerador); en la fila COMUNIDAD, `Cumple_100kW_art20` junto a la capacidad por usuario, las fronteras y el caso. El informe Markdown dice lo mismo. Ningún guion leía las columnas viejas. Pruebas: las 45 del C4, del art. 18, del comercializador y del preflight filtrado.
+
+## C-207 · El evaluador del GSA admite la regla de despacho, para medir el peso de la regla declarada (punto C1, 2026-09-27)
+
+- `gsa_directo/evaluador.py`: `evalua_comparacion(..., despacho="piso")` y `_evalua(..., despacho="piso")`; «piso» es la regla de la matriz canónica y el defecto, de modo que todo lo que ya llamaba al evaluador da lo mismo al bit; «costo» y «llenado» son las alternativas de D64; otro valor falla en voz alta.
+- Guiones nuevos: `reformateo/documento/scripts/energia_por_regimen.py` (energía y excedente por régimen en los 13 almacenes) y `peso_regla_despacho.py` (las tres reglas en los 13 casos).
+- Comprobado: con «piso» el guion reproduce el `Resumen` del canon al peso en los 13 casos; las 11 pruebas rápidas del evaluador pasan. Resultado en H-98.
+
+## C-208 · «Precio de la justicia» tiene un solo significado: el de la propuesta (2026-09-27)
+
+**Qué se vio.** El nombre se usaba para dos magnitudes distintas. En la propuesta, en `tesis.md` (§2.6, ecuación 2.9), en `analysis/fairness.py`, en la figura 20 y en la hoja `PoF_Fairness` del canon es el de Bertsimas, Farias y Trichakis (2011): la pérdida relativa de bienestar al imponer el reparto más equitativo, entre mecanismos. En dos docstrings de `core/reposo_mercado.py` y en la línea de D55 de la especificación del motor era 1 − captura, la pérdida del reparto del mercado frente al óptimo de transporte dentro de cada hora. `CANON.md` y HALLAZGOS ya lo llamaban captura.
+
+**Qué se decidió** (Claude, por encargo del autor tras revisar el uso en todo el proyecto). «Precio de la justicia» es solo el de Bertsimas. La cifra que pide la propuesta es el par P2P frente a C4, `(W_P2P − W_C4) / W_P2P`, con la clase del caso (intercambio si C4 es más equitativo; «P2P domina» si el P2P gana en eficiencia y en equidad); la tabla general de la hoja `PoF_Fairness` la complementa. La magnitud de D55 se publica como **captura** y su complemento, **pérdida de asignación**.
+
+**Qué se cambió.** Solo texto: las dos docstrings de `core/reposo_mercado.py` y una nota fechada en la fila D55 de la especificación. Guion nuevo `reformateo/documento/scripts/precio_justicia_p2p_c4.py`, que lee el canon sin simular y escribe `SALIDAS_SERVIDOR/precio_justicia_2026-09-27/`: P2P domina en 8 de 13 casos; intercambio en E0 (4,3 %), E5 (1,2 %), K1 (2,9 %), I1 (5,6 %) y N1 (13,6 %).
+
+## C-209 · El spread de ineficiencia estática se redefine con el colectivo mensual (punto C3, 2026-09-27)
+
+**Qué se vio.** `static_spread_c4_vs_p2p` (`scenarios/scenario_c4_creg101072.py`) medía, hora a hora, el excedente ponderado por el porcentaje en las horas con déficit y excedente simultáneos. Es la lectura horaria del colectivo, retirada por D4 y C-175 (el colectivo se liquida por mes con el Anexo 4), y no depende del mecanismo: E0 y CV2 dan lo mismo, 1 186,75 (kWh). La corrida la seguía imprimiendo como «Spread inef. estática C4» en la consola, en el informe Markdown, en la hoja `Metricas_extra` (`Spread_C4_kWh`) y en la figura de ganancia por institución. El documento del 13 de septiembre decidió redefinirlo con el colectivo mensual y apoyar la respuesta en D8.
+
+**Qué se decidió** (el controlador, 2026-09-27). Cada mes el fondo común se reparte con el porcentaje; lo asignado a cada miembro es crédito hasta su importación del mes y el resto va a bolsa desde el corte hx. La ineficiencia estática es el excedente que el reparto manda a bolsa por encima de la importación de un miembro mientras otro aún tenía importación que cubrir. La regla «importación» (el porcentaje de cada mes proporcional a la importación de ese mes) la elimina y manda a bolsa el mínimo del mes, max(F − I, 0). El artículo 19 permite cambiar el porcentaje cada mes, pero esta regla conoce el mes por adelantado: es una cota superior.
+
+- Spread en energía (kWh): el exceso a bolsa de C4 con el reparto igual (D5) menos el de C4 con la regla «importación».
+- Spread en valor (COP): el beneficio de C4 con «importación» menos el de C4 con el reparto igual.
+- Lo que recupera el mercado por la vía legal (D8): P2P colectivo − C4, y su fracción del spread en valor; P2P − C4 como referencia.
+
+**Qué se cambió.**
+
+- `scenarios/scenario_c4_creg101072.py`: `pde_por_regla` acepta la regla `"importacion"`, con la cita del artículo 19 y la advertencia de cota superior en el docstring; un mes sin importación cae al reparto igual. La función falla en voz alta con valores no finitos o formas distintas en `G` y `D` (en todas las reglas; con datos finitos las cuatro anteriores dan lo mismo al bit). `static_spread_c4_vs_p2p` no se borra: su docstring la marca como noción horaria retirada, no citable, y remite aquí.
+- `scenarios/comparison_engine.py`: el contrafáctico `C4_regla_importacion` entra en el bucle de las reglas. Cada contrafáctico del colectivo (el de 11 fronteras y las cuatro reglas) guarda además `credito_kwh`, `exceso_kwh`, `credito_COP` y `exceso_COP`, que `_run_c4_monthly_hx` ya devolvía en `aggregate`; lo mismo para el C4 del canon en el campo nuevo `ComparisonResult.c4_energia`. Si faltan o no son finitos, falla. La consola rotula el spread horario como «[retirado, no citable]» e imprime al lado el mensual.
+- `main_simulation.py`: la columna de `Metricas_extra` pasa a `Spread_horario_C4_retirado_kWh` y la línea del informe Markdown dice «retirado, D4; no citable». Ningún guion leía la columna vieja. `visualization/plots.py`: el mismo rótulo en la figura. La hoja `Contrafacticos` gana una fila, `C4_regla_importacion`; sus columnas no cambian.
+- Pruebas: `tests/test_spread_estatico.py`, nueva (15): el caso de dos meses (el reparto igual manda 2 (kWh) a bolsa que «importación» acredita; con excedente mayor que la importación las dos saturan en 8), el exceso mínimo de cada mes en datos aleatorios y ninguna regla por debajo, el mes sin importación, los no finitos, las otras cuatro reglas al bit frente a una copia literal de la función anterior, y la energía que guarda la comparación. `tests/test_c4_mensual_norma.py`: el conjunto de contrafácticos incluye el nuevo.
+- Guion nuevo `reformateo/documento/scripts/spread_estatico.py`: en el punto base del GSA, con `evalua_comparacion`, los trece casos; escribe `SALIDAS_SERVIDOR/spread_estatico_2026-09-27/` (`spread_13casos.csv`, `testigos_resumen.csv`, `procedencia.txt` y una fila por caso en `por_caso/`). Además de lo pedido, descompone exactamente el spread en valor en energía rescatada, momento (el exceso cae en otras horas) y composición (cambia quién recibe el crédito), y comprueba que la descomposición cierra al peso.
+
+**Qué se comprobó.**
+
+- El guion reproduce al peso el `Resumen` del canon (P2P, P2P colectivo, C1 a C5) en los trece casos: 91 testigos, diferencia máxima 0,0.
+- Compuerta del punto base del GSA contra la matriz del canon: `COMPUERTA GSA PUNTO BASE EN VERDE: 748 comprobaciones en 14 evaluaciones, todas al peso`.
+- Las tres compuertas del canon: `CANON 2026-09 INTACTO`, `CANON 2026-08 INTACTO`, `CANON INTACTO`.
+- Pruebas: la nueva, las del colectivo horario y mensual, del artículo 18, del mercado por la vía del colectivo, del comercializador único, de la comparación, de FA-3, del evaluador del GSA (sin la que corre `main()`) y las seis filtradas del preflight: 164 pasan.
+
+Resultado en H-100.
+
+**Lo que queda.**
+
+- La regla «importación» es cota superior en energía, no en valor: «consumo» la supera en valor en E4, P1 e I1, y «aporte» en E0, P2, K1 y CV2, por el efecto de composición. El spread publicable en valor es su parte de energía rescatada; el total se cita con su descomposición.
+- `scripts/update_informe_avances.py` (histórico) aún escribe «Spread ineficiencia estática: 1 004,4 kWh/período» en una tabla del informe de avances viejo; no se tocó.
+- La próxima corrida de la matriz emitirá la fila `C4_regla_importacion` en la hoja `Contrafacticos`, pero no las energías: esa hoja no las escribe. Hasta entonces el spread se cita desde `SALIDAS_SERVIDOR/spread_estatico_2026-09-27/`, que no es canon.
+
+## C-210 · La descomposición monetaria del P2P se hace desde el almacén (punto C5, 2026-09-27)
+
+Guion nuevo `reformateo/documento/scripts/descomposicion_p2p.py`: P2P = C1 + banda + reclasificación, por institución y comunidad, leyendo `escenarios` y `flujos` de los almacenes del canon, con la comprobación de que la comunidad reproduce P2P y C1 del `Resumen` (0,5 COP o una millonésima relativa, porque el almacén va en float32: en E2 difiere 0,79 COP sobre 172 millones). Resultado en H-101. La figura del motor `fig13_desglose_flujos` queda para el punto D2.
+
+## C-211 · Subperíodos por condición desde el almacén (punto C6, 2026-09-27)
+
+Guion nuevo `reformateo/documento/scripts/subperiodos_condicion.py`: meses por condición con el dinero de la tabla `escenarios` (D72: la comparación regulatoria solo por mes) y días por condición con magnitudes del propio mercado (`flujos`, `horas`). Comprobado contra el canon: 1 mes de 117 con el mercado bajo C4, el mismo de D72. Resultado en H-102. El análisis de subperíodos viejo (`analysis/subperiod.py`, con la demanda de fin de semana sintética ×0,65 y el campo `ie_p2p` que guarda un Gini) no se cita.
+
+## C-212 · Infactibilidad y deserción desde las muestras del GSA (punto C7, 2026-09-27)
+
+Guion nuevo `reformateo/documento/scripts/infactibilidad_desercion.py`, que lee los CSV de muestras del GSA directo (canon, bloque 9) y el punto base, sin simular. Resultado en H-103. El instrumento viejo FA-1 (horas con el precio P2P bajo la bolsa) no se cita: la liquidación no tiene ningún kWh pagado bajo la bolsa (auditoría del objetivo 4; punto D1).
+
+## C-213 · El efecto del umbral de 100 kW desde el canon (punto C8, 2026-09-27)
+
+Guion nuevo `reformateo/documento/scripts/umbral_100kw.py` (E4 − 7 × P1 por mecanismo, de la hoja `Resumen`). Resultado en H-104. La lectura del umbral por el pico de generación de las hojas viejas de factibilidad queda superada por C-206.
+
+## Ronda de revisión de C-207 a C-213 (2026-09-27)
+
+Revisión del código sin commit de los puntos C1 a C10 (`.superpowers/sdd/2026-09-16-reposo/preparacion/revision-C1-C8.md`): **aprobado con observaciones**, sin hallazgos críticos. Arreglado:
+
+- `energia_por_regimen.py` rellenaba con cero el volumen antes de comprobar que fuera finito, un fallo mudo en potencia. Ahora exige volumen finito en las horas con intercambio y anota explícitamente como cero las «sin_mercado» y «sin_ganancia», que no traen volumen por construcción (14 horas en E1). Lo mismo en `subperiodos_condicion.py` para volumen, captura y óptimo. Las cifras no cambian.
+- `infactibilidad_desercion.py` comprueba que las brechas por institución sean finitas.
+- `precio_justicia_p2p_c4.py`: el docstring ya no promete una clase «empate» que el código no devuelve.
+- Prueba nueva `test_despacho_defecto_y_valores` en `tests/test_gsa_directo_evaluador.py`: el defecto de `despacho` es «piso» en la función pública y en la interna, y un valor desconocido falla. La compuerta del punto base, que pasa por `_evalua` con el defecto, reproduce el canon al peso (748 comprobaciones).

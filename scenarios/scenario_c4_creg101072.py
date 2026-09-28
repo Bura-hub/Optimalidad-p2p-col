@@ -297,11 +297,38 @@ def pde_por_regla(regla: str, G: np.ndarray, D: np.ndarray,
       consumo     la demanda del mes.
       aporte      el excedente del mes; un mes sin excedente cae al igual.
       generacion  la generacion media medida del horizonte, constante.
+      importacion la importacion del mes de cada miembro (C-209),
+                  I_n,m = sum_{k en m} max(D_n,k - G_n,k, 0); un mes sin
+                  importacion cae al igual.
+
+    La regla «importacion» es la que minimiza el exceso a bolsa del mes. El
+    fondo F_m se reparte en proporcion a I_n,m, de modo que si F_m <= sum I_m
+    ningun miembro recibe mas de lo que importo y todo el fondo es credito;
+    si F_m > sum I_m, todos se saturan en la misma proporcion y el exceso es
+    el minimo posible, F_m - sum I_m. El art. 19 de la CREG 101 072 permite
+    cambiar el porcentaje cada mes (suma cien, avisando al comercializador
+    antes del ciclo de facturacion), pero esta regla usa la importacion del
+    mismo mes, que no se conoce cuando se avisa: es una COTA SUPERIOR de lo
+    que un reparto estatico podria rescatar de la bolsa, no un reparto
+    realizable. Lo es en ENERGIA; en valor no, porque cada miembro valora el
+    credito a su tarifa menos su deduccion y el exceso cae en otras horas
+    (medido en H-100: «consumo» o «aporte» la superan en valor en varios
+    casos). Sirve para medir el «spread de ineficiencia estatica» con el
+    colectivo mensual (C-209, H-100).
+
+    Falla en voz alta (ValueError) si G o D traen valores no finitos o
+    formas distintas.
 
     Devuelve {etiqueta de mes como int: (N,)}; sin etiquetas, la clave es 0.
     """
-    G = np.maximum(np.asarray(G, dtype=float), 0.0)
-    D = np.maximum(np.asarray(D, dtype=float), 0.0)
+    G = np.asarray(G, dtype=float)
+    D = np.asarray(D, dtype=float)
+    if G.shape != D.shape or G.ndim != 2:
+        raise ValueError(f"G {G.shape} y D {D.shape} deben ser (N, T) iguales")
+    if not (np.all(np.isfinite(G)) and np.all(np.isfinite(D))):
+        raise ValueError("pde_por_regla: G o D con valores no finitos (C-209)")
+    G = np.maximum(G, 0.0)
+    D = np.maximum(D, 0.0)
     N, T = G.shape
     etiquetas = (np.zeros(T, dtype=int) if month_labels is None
                  else np.asarray(month_labels))
@@ -318,6 +345,11 @@ def pde_por_regla(regla: str, G: np.ndarray, D: np.ndarray,
             m = np.maximum(G[:, idx] - D[:, idx], 0.0).sum(axis=1)
         elif regla == "generacion":
             m = gen
+        elif regla == "importacion":
+            m = np.maximum(D[:, idx] - G[:, idx], 0.0).sum(axis=1)
+            if not float(m.sum()) > 0.0:
+                out[int(mes)] = compute_pde_weights(np.ones(N), method="equal")
+                continue
         else:
             raise ValueError(f"regla de porcentaje desconocida: {regla!r}")
         out[int(mes)] = compute_pde_weights(m, method="excedentes_proportional")
@@ -904,11 +936,23 @@ def static_spread_c4_vs_p2p(
     pde: np.ndarray,
 ) -> np.ndarray:
     """
-    Calcula el 'spread de ineficiencia estática' por hora:
-    cuánta energía podría reasignarse dinámicamente pero el
-    mecanismo PDE no puede capturar.
+    NOCIÓN HORARIA RETIRADA; NO CITABLE (D4, C-175, C-209).
 
-    Retorna array (T,) con el spread horario [kWh].
+    Calcula el antiguo 'spread de ineficiencia estática' por hora: el
+    excedente ponderado por el PDE en las horas con déficit y excedente
+    simultáneos. Es la lectura HORARIA del colectivo, que se retiró cuando
+    el colectivo pasó a liquidarse por mes con el Anexo 4 (D4, C-175), y no
+    depende del mecanismo (E0 y CV2 dan lo mismo, 1 186,75 kWh). Se conserva
+    solo por trazabilidad con las salidas viejas.
+
+    El spread vigente es el del colectivo mensual (C-209, H-100): el exceso
+    a bolsa de C4 con el reparto igual menos el de C4 con la regla
+    «importacion» de `pde_por_regla` (kWh), y la diferencia de beneficio
+    entre los dos (COP). Se mide con
+    `reformateo/documento/scripts/spread_estatico.py` a partir de
+    `ComparisonResult.c4_energia` y `contrafacticos["C4_regla_importacion"]`.
+
+    Retorna array (T,) con el spread horario retirado [kWh].
     """
     N, T = D.shape
     spread = np.zeros(T)

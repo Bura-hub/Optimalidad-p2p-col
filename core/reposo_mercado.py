@@ -86,7 +86,9 @@ Unidades: energia en (kWh), precios y costos en (COP/kWh), ingresos y
 excedentes en (COP).
 
 Actividad 2.2 (algoritmos de calculo del mercado); las cotas del paso 9 (D55)
-dan la captura y el precio de la justicia de la actividad 3.3.
+dan la captura y su complemento, la perdida de asignacion (actividad 3.3). El
+«precio de la justicia» del proyecto es otra cosa: el de Bertsimas entre
+mecanismos (P2P frente a C4), en `analysis/fairness.py` (C-208).
 """
 from __future__ import annotations
 
@@ -1701,8 +1703,9 @@ def cotas_optimalidad(s, d, techo, piso_j, E: float):
 
 
 def captura(excedente: float, optimo: float) -> float:
-    """Captura del reposo, excedente / optimo (D55; el precio de la justicia de
-    la actividad 3.3 es 1 - captura).
+    """Captura del reposo, excedente / optimo (D55; 1 - captura es la perdida
+    de asignacion, no el precio de la justicia, que se mide entre mecanismos
+    en `analysis/fairness.py`; C-208).
 
     Con optimo nulo (sin excedente que capturar: bandas nulas o volumen cero)
     la captura es 1 por convencion, si el excedente tambien es nulo. Fallan en

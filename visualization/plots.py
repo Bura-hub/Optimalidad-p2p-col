@@ -586,7 +586,10 @@ def plot_per_agent(cr, agent_names, out_dir, currency="COP"):
     if cr.static_spread_24h is not None:
         total_spread = float(np.sum(cr.static_spread_24h))
         ax_a.text(0.01, 0.97,
-                  f"Spread inef. estática C4: {total_spread:.2f} kWh/período",
+                  # C-209: noción horaria retirada (D4); no es el spread
+                  # vigente, que es el del colectivo mensual.
+                  f"Spread horario C4 (retirado, D4): {total_spread:.2f} "
+                  f"kWh/período",
                   transform=ax_a.transAxes, va="top", fontsize=8,
                   color="#D4537E",
                   bbox=dict(boxstyle="round,pad=0.3", facecolor="white",

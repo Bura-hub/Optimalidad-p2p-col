@@ -7783,3 +7783,169 @@ Brechas de comunidad, en millones de pesos (real / ASC / CEDENAR); en negrita, u
 - Las cifras de este hallazgo son de un contrafáctico y no entran al canon. Donde el documento o la tesis digan que el colectivo exige un solo comercializador, se cita que con él las conclusiones de comunidad se sostienen y el reparto por institución cambia en los pares de arriba.
 - Por qué las horas cuantales desaparecen y por qué el colectivo coincide con C4 en cinco casos queda **interpretado, no medido**. Las 216 horas cuantales venían de los regímenes «excluidos» y «topados» (CANON §7). La lectura probable es que esa fragilidad la crean los techos distintos entre compradores, y con un solo comercializador los cinco comparten techo. Del mismo modo, repartir el crédito del colectivo entre miembros con el mismo Cv no movería el total.
 - El contrafáctico mantiene el cargo de comercializar de la tabla publicada de cada comercializador. Un contrato único negociado para el colectivo no se modeló.
+
+## H-98 · La validación dinámica cubre entre el 35 y el 89 % de la energía, y la regla declarada que falta solo mueve el reparto del margen
+
+**Estado: MEDIDO el 2026-09-27 (punto C1 de la preparación), en local sobre los almacenes del canon y con el evaluador del GSA.**
+
+### La cobertura de la validación
+
+La validación del 2026-09-19 (M-A) confirmó la forma cerrada en 20 de 22 horas juzgadas, en los regímenes «interiores», «topados», «suma_no_cabe» y «un_comprador». En «compradores_cortos» y «excluidos» la dinámica no llegó en ninguna hora: ahí la forma cerrada es regla declarada. Parte de la energía transada en cada grupo (`reformateo/documento/scripts/energia_por_regimen.py`, salida en `SALIDAS_SERVIDOR/energia_por_regimen_2026-09-27/`):
+
+| Caso | Alcanzado por la dinámica | Regla declarada | Cuantal (D71) |
+|---|---:|---:|---:|
+| E0 | 72,9 % | 23,7 % | 3,5 % |
+| E1 a E5, P1, P2, CV2 | 76 a 86 % | 14 a 24 % | < 0,4 % |
+| K1 | 88,6 % | 5,8 % | 5,6 % |
+| N1 | 66,4 % | 33,3 % | 0,3 % |
+| I1 | 34,5 % | 65,4 % | 0,1 % |
+| SINU | 72,6 % | 19,3 % | 8,1 % |
+
+En los 13 casos juntos, «compradores_cortos» lleva el 24,3 % de la energía y «excluidos» el 0,6 %. Los totales cuadran con el canon (E0: 4 592,02 kWh y 295 652 COP de excedente, que es P2P − C1 por H-70).
+
+### Lo que decide la regla declarada, medido
+
+En «compradores_cortos» la energía la fija el lado corto; la regla declarada decide qué vendedor despacha (D64). Con el despacho por costo («costo») o por niveles («llenado») en lugar del de la matriz («piso»), en los 13 casos (`peso_regla_despacho.py`, `SALIDAS_SERVIDOR/peso_regla_despacho_2026-09-27/`; «piso» reproduce el `Resumen` del canon al peso):
+
+- **la energía no cambia** en ningún caso;
+- **ninguna brecha de comunidad cambia de signo**;
+- P2P − C1, el margen propio del mercado, cae hasta un 13 % (I1 −13,0 %, E2 −12,1 %, E1 −11,9 %, N1 −12,0 %), porque «piso» despacha primero a quien tiene la alternativa más barata y eso maximiza la banda; frente a C4 el cambio es de 2 % o menos salvo en I1 (−14,8 %);
+- tres pares institución-caso cambian de signo frente a C4: UCC en E2 con «llenado» y **Cesmag en N1 con las dos reglas**. Es la tercera vez que el signo de Cesmag en N1 se invierte (caja del GSA, comercializador único, despacho): es un resultado frágil y se cita así.
+
+### Qué significa para la tesis
+
+La frase de la validación debe ir con su cobertura: «cuando la dinámica llega al reposo, llega al de la forma cerrada (20 de 22 horas); esos regímenes llevan entre el 35 y el 89 % de la energía según el caso; en el resto la forma cerrada es regla declarada, y cambiarla no altera la energía ni el signo de ninguna brecha de comunidad, aunque mueve hasta un 13 % el margen del mercado sobre la autogeneración individual».
+
+## H-99 · El barrido de σ: el presupuesto de precios solo decide el reparto
+
+**Estado: MEDIDO el 2026-09-27 (punto B1 de la preparación; D50 y D78).** Corrida en el servidor con `cf34e56` (compuertas y `barrido_sigma` encadenados, 16 procesos contenidos, sin un solo FALLA); entrega en `SALIDAS_SERVIDOR/entrega_barrido_sigma_2026-09-27/` (39 corridas: 13 casos × σ ∈ {0; 0,5; 1}, cada una con su compuerta de salida). Comparación con la base del canon (σ_I = (I−1)/I) con `compara_matriz_reposo.py --sufijo-nueva _sigma<etiqueta>` (`compara_sigma{0,05,1}.csv` y `.log` en la entrega).
+
+- **La energía transada no cambia con σ**: diferencia máxima 6 × 10⁻⁶ kWh en los 39.
+- **El beneficio de la comunidad casi no cambia**: como mucho 0,16 % (K1 con σ = 0; E0 −0,08 %), coherente con H-33 (el excedente es el ancho de la banda por la energía, sea cual sea el precio).
+- **Lo que σ mueve es el reparto**: la parte del vendedor en E0 va de 0,049 (σ = 0, todos al piso, el «Chacón fiel») a 0,405 (σ = 0,5), 0,542 (canon) y 0,962 (σ = 1); en los 13 casos, de 0,000 a 0,365 con σ = 0 y de 0,389 a 1,000 con σ = 1.
+- **Ninguna brecha del mercado frente a C1, C3, C4 o C5 cambia de signo** con ningún σ. Solo cambia P2P colectivo − C4 donde ya era un empate (E0 y SINU con σ ≤ 0,5; CV2 y P2 con σ = 1; en E0 la base es −10 497 COP sobre 44,5 millones). Por institución cambian de 5 a 13 pares según σ (sin contar C2, que reparte al punto medio por construcción).
+
+**Consecuencia.** La elección de σ decide cómo se reparte la ganancia entre vendedores y compradores, no cuánta hay ni quién gana frente a la regulación. Es el puente medido entre el modelo fiel a la autora (σ = 0) y el publicado.
+
+## H-100 · El spread de ineficiencia estática del colectivo mensual es pequeño, y la ventaja del mercado sobre C4 no viene de él
+
+**Estado: MEDIDO el 2026-09-27 (punto C3 de la preparación; C-209), en local con el evaluador del GSA en el punto base (los seis factores en 1, μ = 1), en los trece casos (`reformateo/documento/scripts/spread_estatico.py`, salida en `SALIDAS_SERVIDOR/spread_estatico_2026-09-27/`), sin commit. El `Resumen` del canon se reproduce al peso en los trece casos (91 testigos). Es un contrafáctico: el canon no cambia.**
+
+La propuesta pide cuantificar el valor del mercado frente a C4 «cuando existe desbalance entre usuarios: excedente en unos y déficit en otros que el mecanismo estático no puede reasignar», con la noción de «spread de ineficiencia estática». Con el colectivo mensual (C-209), la ineficiencia es el excedente que el reparto igual manda a bolsa por encima de la importación del mes de un miembro mientras otro aún tenía importación que cubrir. La regla «importación» (el porcentaje de cada mes proporcional a la importación de ese mes) la elimina; es una cota superior, porque conoce el mes por adelantado.
+
+### Lo medido
+
+Energía en (kWh); valor en millones de pesos. «Energía», «momento» y «composición» son la descomposición exacta del spread en valor: el kWh que pasa de la bolsa al crédito, el exceso que cae en otras horas y paga otra bolsa, y el cambio de quién recibe el crédito, que cada institución valora a su tarifa menos su deducción. La fracción recuperada es (P2P colectivo − C4) / spread en valor.
+
+| Caso | Fondo (kWh) | Exceso, reparto igual (kWh) | Exceso, «importación» (kWh) | Spread (kWh) | Spread (MCOP) | % de C4 | Energía / momento / composición (MCOP) | Colectivo − C4 (MCOP) | P2P − C4 (MCOP) | Fracción recuperada |
+|---|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|
+| E0 | 6 006,5 | 0,0 | 0,0 | 0,0 | 0,045 | 0,10 | 0 / 0 / 0,045 | −0,010 | +2,009 | −0,23 |
+| E1 | 70 455,6 | 2 434,2 | 0,0 | 2 434,2 | 1,140 | 0,99 | 0,645 / 0 / 0,494 | −0,089 | +18,706 | −0,08 |
+| E2 | 117 637,3 | 17 374,6 | 3 134,7 | 14 239,9 | 3,886 | 2,72 | 3,548 / −0,082 / 0,420 | +0,712 | +29,287 | +0,18 |
+| E3 | 201 913,7 | 72 175,0 | 44 302,7 | 27 872,3 | 6,932 | 3,92 | 6,964 / −0,229 / 0,197 | −0,109 | +35,846 | −0,02 |
+| E4 | 281 060,5 | 143 215,5 | 126 923,4 | 16 292,1 | 3,743 | 1,89 | 4,073 / −0,417 / 0,087 | −0,441 | +3,560 | −0,12 |
+| E5 | 459 154,5 | 317 644,8 | 317 644,8 | 0,0 | 1,152 | 0,49 | 0 / 1,152 / 0 | −0,088 | +2,858 | −0,08 |
+| P1 | 40 151,5 | 20 459,4 | 18 131,9 | 2 327,4 | 0,535 | 1,89 | 0,582 / −0,060 / 0,012 | −0,063 | +5,295 | −0,12 |
+| P2 | 42 045,3 | 0,0 | 0,0 | 0,0 | 0,318 | 0,10 | 0 / 0 / 0,318 | +0,132 | +11,083 | +0,41 |
+| K1 | 3 718,5 | 0,0 | 0,0 | 0,0 | 0,028 | 0,06 | 0 / 0 / 0,028 | −0,066 | +1,366 | −2,39 |
+| I1 | 66 720,0 | 796,2 | 0,0 | 796,2 | 0,582 | 0,53 | 0,198 / 0 / 0,384 | −1,049 | +6,468 | −1,80 |
+| N1 | 159 878,7 | 37 416,8 | 23 338,7 | 14 078,1 | 3,460 | 2,03 | 3,601 / −0,348 / 0,207 | +2,883 | +26,875 | +0,83 |
+| CV2 | 6 006,5 | 0,0 | 0,0 | 0,0 | 0,139 | 0,32 | 0 / 0 / 0,139 | +0,050 | +2,317 | +0,36 |
+| SINU | 1 124,8 | 0,0 | 0,0 | 0,0 | 0,011 | 0,03 | 0 / 0 / 0,011 | −0,005 | +0,385 | −0,48 |
+
+- **En energía, el spread es cero en seis de trece casos.** En E0, P2, K1, CV2 y SINU el reparto igual no manda nada a bolsa: cada mes, la quinta parte del fondo queda por debajo de la importación de cada miembro. En E5 el fondo supera cada mes la importación de todos, y ninguna regla evita el exceso. El spread aparece en las escalas intermedias: de 796 (kWh) en I1 a 27 872 en E3, es decir, entre el 1,2 y el 13,8 % del fondo. En los trece casos suma 78 040 (kWh), el 5,4 % del fondo.
+- **En valor, el spread va de 0,011 a 6,93 millones, entre el 0,03 y el 3,9 % del beneficio de C4.** Donde hay spread en energía, esa parte domina: 19,6 de los 22,0 millones de los trece casos. La composición suma 2,3 millones: la regla lleva el crédito hacia quien más importa, que en esta comunidad tiene un crédito más caro (en E0, de 398,9 a 406,4 (COP/kWh) de media). El momento es negativo donde hay rescate, salvo en E5 (+1,15 millones con el mismo exceso en kWh): con la regla, el exceso de cada miembro se paga a una bolsa media de 160,9 (COP/kWh), en lugar de 157,3. La razón probable es que todos los miembros cortan en la misma hora del mes, mientras que con el reparto igual los que importan poco cortan antes. Esa razón está **interpretada, no medida**.
+- **La regla «importación» es cota superior en energía, no en valor.** La regla «consumo», que reparte con la demanda del mes, rescata del 88 al 100 % del spread en energía y cierra del 86 al 113 % del spread en valor. Supera en valor a «importación» en E4, P1 e I1. «Aporte» la supera en E0, P2, K1 y CV2 por composición.
+- **El mercado por la vía legal no recupera el spread de forma sistemática.** El colectivo con el mercado queda por encima de C4 solo en E2, P2, CV2 y N1, donde recupera el 18, el 41, el 36 y el 83 % del spread en valor. En los otros nueve queda por debajo.
+- **La ventaja del mercado sobre C4 no es el spread.** P2P − C4 vale entre 0,95 veces el spread (E4) y 49 veces (K1). Se descompone en (P2P − C1) + (C1 − C4): el margen propio del mercado (H-101) y lo que el colectivo pierde frente a la autogeneración individual, sobre todo los cargos de red del caso 2 sobre la permuta (H-96). En E0, 0,30 + 1,71; en E3, 6,77 + 29,08; en N1, 1,12 + 25,75 millones. Solo en E4, E5 e I1, donde C4 supera a C1, P2P − C4 es menor que P2P − C1.
+
+La noción horaria retirada daba 1 186,75 (kWh) en E0. Con el colectivo mensual el spread de E0 es cero: esa energía ya la acreditaba el colectivo dentro del mes.
+
+### Qué dice de la hipótesis de la propuesta
+
+La ineficiencia estática existe y se mide, pero es pequeña. Vale como mucho el 3,9 % del beneficio de C4 y el 13,8 % del fondo, y desaparece en los dos extremos: cuando la comunidad es deficitaria cada mes (el caso real, E0) y cuando está saturada (E5). Además, el propio colectivo puede cerrarla casi entera cambiando el porcentaje cada mes, como permite el artículo 19. La ventaja del mercado sobre C4 vale entre 0,95 y 49 veces el spread y viene de otra parte: de la banda que el mercado reparte y de los cargos que el caso 2 cobra al colectivo. Por la vía legal (D8) el mercado tampoco recupera ese spread de forma sistemática. La hipótesis, en su forma de «el mercado reasigna dinámicamente el excedente que el reparto estático no puede», **no se sostiene como la fuente del valor del mercado frente a C4**. Se sostiene en su magnitud solo en las escalas intermedias (E2, E3, E4 y N1), donde el spread vale entre el 2 y el 4 % de C4.
+
+### Lo que queda abierto
+
+- El spread publicable en valor es su parte de energía rescatada; el total se cita con la descomposición, porque la composición es un reparto entre tarifas y no una ineficiencia del mecanismo.
+- Las cifras son de un contrafáctico en el punto base y no entran al canon. La próxima corrida de la matriz emitirá la fila `C4_regla_importacion` de la hoja `Contrafacticos`, pero no las energías.
+- La lectura de la regla «consumo» como realizable es **interpretada**: también usa la demanda del mes, aunque esta se prevé mucho mejor que la importación. No se midió con la demanda de un mes anterior.
+
+## H-101 · Lo que el mercado le gana a C1 es la banda solo mientras nadie agota su cupo
+
+**Estado: MEDIDO el 2026-09-27 (punto C5 de la preparación), leyendo solo los almacenes del canon** (`reformateo/documento/scripts/descomposicion_p2p.py`, salida en `SALIDAS_SERVIDOR/descomposicion_p2p_2026-09-27/`; la comunidad reproduce P2P y C1 del `Resumen`, con la tolerancia del float32 del almacén).
+
+La descomposición exacta, por institución y para la comunidad, es P2P = C1 + banda del mercado + efecto de reclasificación, con la banda igual a la prima del vendedor sobre su piso más el ahorro del comprador bajo su techo (las del almacén, regla 2 del canon) y la reclasificación como el resto. En millones de COP, para la comunidad:
+
+| Caso | P2P − C1 | Banda | Reclasificación | Reclasificación / (P2P − C1) |
+|---|---:|---:|---:|---:|
+| E0 | 0,296 | 0,296 | 0,000 | 0 % |
+| E1 | 2,571 | 1,666 | 0,905 | 35 % |
+| E2 | 4,846 | 2,523 | 2,322 | 48 % |
+| E3 | 6,765 | 4,150 | 2,614 | 39 % |
+| E4 | 6,167 | 5,796 | 0,370 | 6 % |
+| E5 | 3,240 | 4,509 | −1,270 | −39 % |
+| P1 | 0,764 | 0,623 | 0,142 | 19 % |
+| P2 | 10,659 | 10,659 | 0,000 | 0 % |
+| K1 | 0,284 | 0,284 | 0,000 | 0 % |
+| I1 | 7,340 | 6,163 | 1,177 | 16 % |
+| N1 | 1,123 | 0,980 | 0,143 | 13 % |
+| CV2 | 0,482 | 0,482 | 0,000 | 0 % |
+| SINU | 0,079 | 0,079 | 0,000 | 0 % |
+
+**Lectura.** Donde ningún vendedor agota su cupo mensual de permuta (E0, P2, K1, CV2, SINU), la ventaja del mercado sobre C1 es exactamente la banda repartida: es H-70, ahora en los 13 casos. Donde alguno lo agota, vender dentro de la comunidad cambia además qué kWh del excedente residual quedan como crédito y cuáles van a bolsa (D3, C-177). Ese efecto de reclasificación no es banda: llega a la mitad de la ganancia (E2) y puede restar (E5, donde la venta interna desplaza a bolsa energía que individualmente habría sido crédito). En la tesis, «el mercado reparte la banda» solo es la explicación completa en los casos sin cupo agotado.
+
+**Sustituye** a `fig13_desglose_flujos` como fuente de la descomposición: aquella omitía el crédito del art. 25 (en E0, 44,24 frente a 46,50 millones) y medía la prima contra la bolsa (punto D2).
+
+## H-102 · Los subperíodos por condición: la ventaja del mercado crece con la generación y se estrecha con la bolsa cara
+
+**Estado: MEDIDO el 2026-09-27 (punto C6, actividad 3.2), sin volver a simular** (`reformateo/documento/scripts/subperiodos_condicion.py`, salida en `SALIDAS_SERVIDOR/subperiodos_2026-09-27/`). Por D72, el dinero frente a la regulación se compara por **mes**; por **día** solo se describen magnitudes del propio mercado. Cada mes y cada día se clasifica por tercil (dentro de su caso) de generación, demanda y bolsa media de la comunidad (caché corregida, H-92).
+
+**Meses (117 en los 13 casos).** El mercado queda bajo C1 en 1 mes, bajo C4 en 1 (el que ya registra D72) y bajo C5 en ninguno. La ventaja media por mes, sumando los 13 casos:
+
+| Tercil | P2P − C1 por generación | P2P − C4 por generación | P2P − C1 por bolsa | P2P − C4 por bolsa |
+|---|---:|---:|---:|---:|
+| bajo | 0,31 M | 1,12 M | 0,46 M | 1,41 M |
+| medio | 0,40 M | 1,28 M | 0,35 M | 1,23 M |
+| alto | 0,44 M | 1,35 M | 0,34 M | 1,11 M |
+
+La ventaja crece con la generación (más excedente que repartir) y se estrecha cuando la bolsa es cara (sube la alternativa de los vendedores que pasan su cupo, y con ella el piso), pero ningún subperíodo mensual la invierte en la comunidad.
+
+**Días (mediana entre casos).** Con bolsa cara la banda por kWh se estrecha de 253 a 121 COP/kWh; la parte del vendedor baja con la generación (0,53 a 0,41); la captura se mantiene entre 0,99 y 1,00; la energía en regímenes con regla declarada va del 15 al 24 % según el tercil. En E0: los días de bolsa cara transan 9,1 kWh/día frente a 26,6 en los baratos, con banda de 82 frente a 59 COP/kWh.
+
+**Lectura para la tesis.** Responde a la actividad 3.2 con subperíodos de condiciones diversas sin violar D72: la comparación regulatoria no se invierte en ningún tipo de mes, y el comportamiento del mercado sí cambia con las condiciones, sobre todo con el precio de bolsa, que estrecha la banda.
+
+## H-103 · El mercado no se vuelve infactible en la caja del GSA; el incentivo a desertar hacia C1 aparece con la bolsa por encima del doble
+
+**Estado: MEDIDO el 2026-09-27 (punto C7, actividad 4.1), sobre las 150 528 evaluaciones del GSA directo, sin simular** (`reformateo/documento/scripts/infactibilidad_desercion.py`, salida en `SALIDAS_SERVIDOR/infactibilidad_desercion_2026-09-27/`).
+
+- **Convergencia.** Cero evaluaciones fallidas en los 12 casos: el método por reposo no deja de resolver en ningún punto de la caja, con la bolsa hasta cuatro veces la de 2025.
+- **Deserción hora a hora.** Cero retiros en todas las filas (D67): la restricción de participación del motor impide que un vendedor venda bajo su alternativa.
+- **Cercanía a la infactibilidad.** El mercado nunca desaparece, pero se estrecha con la bolsa cara donde hay vendedores que pasan su cupo: con f_bolsa entre 3 y 4 la energía cae al 72,9 % del punto base en E5, al 82,6 % en P1 y al 83,2 % en E4, y las horas sin ganancia (D61) suben de 0,4 a 210 (E5), de 0,6 a 157 (E4) y de 2,5 a 159 (P1). En E0, P2 y K1 la bolsa no mueve la energía (ninguna institución vende a bolsa).
+- **Deserción unilateral hacia C1** (P2P − C1 de una institución negativo). En el punto base ninguna institución de ningún caso prefiere C1. En la caja aparece solo donde alguna institución agota su cupo y solo con la bolsa por encima de unas dos veces la de 2025: en E4, con f_bolsa entre 2 y 3, HUDN desertaría en el 27 % de los puntos y Cesmag en el 33 %; entre 3 y 4, en el 98 % y el 81 %. En la caja entera: E4 HUDN 38,6 %, Cesmag 35,2 %, Mariana 17,0 %; E5 Cesmag 21,4 %; E3, P1, E2 y N1 por debajo del 6 %. La bolsa de 2024 (El Niño), unas 3,7 veces la de 2025, cae en ese tramo, y los contrastes deterministas del GSA ya mostraban una institución que prefiere C1 en E3, E4, E5 y P1.
+
+**Lectura para la tesis.** Es la relación que pide la propuesta («bajo qué relación P_bolsa > P_P2P los vendedores tendrían incentivo a desertar»): mientras cada institución tenga cupo de permuta, su alternativa es la tarifa menos el componente de comercializar y la bolsa no la tienta; cuando lo agota, su alternativa pasa a ser la bolsa, y con la bolsa por encima del doble de la de 2025 el mercado deja de convenirle a alguna. El método no falla: lo que se estrecha es la economía del intercambio.
+
+## H-104 · Cruzar los 100 kW por planta castiga al autogenerador y al mercado, no al colectivo
+
+**Estado: MEDIDO el 2026-09-27 (punto C8, actividad 4.1), restando sobre el canon** (`reformateo/documento/scripts/umbral_100kw.py`, salida en `SALIDAS_SERVIDOR/umbral_100kw_2026-09-27/`). Por el diseño de la matriz (D10 a D12), E4 (generación × 7, plantas de 122,85 kW) y P1 (demanda ÷ 7, plantas de 17,55 kW) tienen el mismo patrón de cobertura; salvo en los umbrales, E4 = 7 × P1. La diferencia aísla el umbral de 100 kW del art. 25 num. 2 de la CREG 174.
+
+| Mecanismo | 7 × P1 (bajo el umbral) | E4 (sobre el umbral) | Efecto |
+|---|---:|---:|---:|
+| P2P | 235,52 M | 202,01 M | −33,50 M (−14,2 %) |
+| C1 | 230,17 M | 195,85 M | −34,32 M (−14,9 %) |
+| C3, C4, C5, P2P colectivo | iguales | iguales | 0 |
+
+- **La homogeneidad se confirma al peso** en los mecanismos que el umbral no toca (C3, C4, C5 y el colectivo: diferencia 0): el diseño de la matriz aísla lo que dice.
+- **El umbral cae sobre la permuta de cada planta** (pasa a pagar T + D + Cv + PR + R): castiga a C1 y al mercado, cuyo piso y cuyo residual siguen el art. 25; no toca a C4, que ya está en el caso 2 del art. 20 en los dos casos, ni a C5, exento por el art. 16 ii de la 101 099.
+- **Consecuencia:** la ventaja del mercado sobre C4 cae de 37,06 a 3,56 millones, y C4 − C1 pasa de −31,72 a +2,61 millones. Sobre el umbral, el colectivo se acerca al mercado y supera a la autogeneración individual; P2P − C1 casi no cambia (+0,82 M).
+
+**Lectura para la tesis.** Responde, con la norma vigente, a la «fragilidad regulatoria» que la propuesta atribuía a C4 ante el escalamiento: en esta comunidad el umbral de 100 kW no afecta al colectivo (ya en el caso 2), sino al autogenerador individual y al mercado. Junto con H-96 (el caso 2 le cuesta a la comunidad de cinco entre 1,7 y 38,5 millones), la regulación que muerde es el número de fronteras del colectivo, no su tamaño.
+
+## H-105 · Las horas cuantales existen porque la comunidad tiene dos comercializadores
+
+**Estado: MEDIDO el 2026-09-27 (punto C10)** en los almacenes del canon (`reformateo/documento/scripts/cuantal_techos.py`, salida en `SALIDAS_SERVIDOR/cuantal_techos_2026-09-27/`).
+
+Las **216** horas en que el núcleo publica el reposo cuantal (D71) tienen **todas** (100 %) al menos dos compradores con techos distintos, y en todas compra Cesmag, el único cliente de CEDENAR (costo unitario distinto del de ASC; CAL-47, H-75). Entre las 15 149 horas con mercado que no son cuantales, los techos difieren en el 45,6 %: los techos distintos son condición necesaria de la fragilidad, no suficiente. Con un solo comercializador los techos coinciden y las horas cuantales desaparecen en los 13 casos (H-97), lo que confirma la lectura.
+
+**Para la tesis.** La rama cuantal no es un artificio del método: responde a una heterogeneidad real de la comunidad (dos comercializadores con tarifas distintas), y el art. 10 num. 1 de la 101 072, que exige un solo comercializador al colectivo, la haría desaparecer.

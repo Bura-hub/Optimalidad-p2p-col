@@ -2343,7 +2343,8 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
             "PoF_W_fair_COP":         fr.w_fair if fr is not None else None,
             "PoF_escenario_eficiente": fr.eff_scenario if fr is not None else None,
             "PoF_escenario_equitativo": fr.fair_scenario if fr is not None else None,
-            "Spread_C4_kWh":         float(np.sum(cr.static_spread_24h))
+            # C-209: la noción horaria retirada (D4, C-175); no citable.
+            "Spread_horario_C4_retirado_kWh": float(np.sum(cr.static_spread_24h))
                                       if cr.static_spread_24h is not None else 0,
             # Act 3.3 — Bienestar de optimización (u.o.)
             "W_sellers_total_uo":    cr.W_sellers_total,
@@ -2666,7 +2667,10 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
     lines += [
         "",
         f"**RPE (P2P vs C4):** {rpe:.4f}",
-        f"**Spread ineficiencia estática C4:** {spread:.3f} kWh/período",
+        # C-209: la noción horaria retirada (D4, C-175); el spread vigente es
+        # el mensual, que mide reformateo/documento/scripts/spread_estatico.py.
+        f"**Spread horario C4 (retirado, D4; no citable):** {spread:.3f} "
+        f"kWh/período",
         "",
         "### 3.1 Ventaja P2P vs C4 por institución",
         "",

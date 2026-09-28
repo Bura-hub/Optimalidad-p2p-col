@@ -4,7 +4,7 @@
 vía por reposo (D48 a D62; CAL-53, que es el ADR 0060) y, el mismo día por la
 tarde, con la regla del **piso del vendedor marginal** (D63 a D70; H-91,
 C-199; la enmienda del 2026-09-17 al ADR 0060); **y el 2026-09-19** con la
-temperatura del reparto cuantal de las horas frágiles (D71; H-93, C-201). Material de sustentación. Un
+temperatura del reparto cuantal de las horas frágiles (D71; H-93, C-201); **y el 2026-09-27** con la corrección del origen del costo lineal y el barrido de σ medido (C-220; H-98, H-99). Material de sustentación. Un
 apartado por parámetro, con lo que vale, de dónde sale, qué evidencia lo
 respalda y **qué contestar si lo preguntan**.
 
@@ -168,8 +168,23 @@ hay.»
 aptitud del vendedor**, porque entra en ella directamente como su costo
 marginal.
 
-**De dónde sale.** No es un supuesto: es el **costo nivelado de la energía
-solar medido por inversor**, con la corrección de irradiancia de Pasto. CAL-6.
+**De dónde sale.** De la **literatura**, no de una medición por inversor
+(corrección del 2026-09-27, C-220). La tabla `B_CALIBRATED` de
+`data/xm_prices.py` toma el costo nivelado de la energía solar de la revisión
+bibliográfica de la actividad 1.2 (rango de 200 a 441 COP/kWh): 225 para las
+cuatro instalaciones con inversor Fronius y 210 para la de Cesmag, y lo
+multiplica por 4,5/4,2, el cociente entre la irradiancia de referencia del
+ajuste y una irradiancia **supuesta** para Pasto (4,2 kWh/m²/día, no medida),
+lo que da 241 y 225. CAL-6.
+
+**En la configuración publicada no entra.** Con el reposo (D48) y el despacho
+por el piso de cada vendedor (`--despacho-vendedores piso`, D64), el solucionador
+ordena y reparte por la alternativa de cada vendedor, no por b_j. b_j solo
+entra con el despacho «costo», que se midió como contraste: la energía no
+cambia, ninguna brecha de comunidad cambia de signo y P2P − C1 baja hasta un
+13 % (H-98). Lo mismo vale para λ, θ, η, a y c: **ningún parámetro del modelo
+base entra en el solucionador publicado**; lo gobiernan las dos cotas medidas y
+σ.
 
 **Y sin embargo tampoco movió el resultado en la medición de H-62**: con la
 mitad y con el doble de su valor, la diferencia en el precio fue de 7·10⁻⁸ y en
@@ -251,6 +266,13 @@ cobertura del costo del vendedor, queda bajo el piso (H-88; H-90, puntos 2 y
 3). Con bandas iguales, el vendedor se lleva (I − 1)/I del excedente. El
 barrido σ ∈ {0; 0,5; (I − 1)/I; 1} es la acción `barrido_sigma` del
 lanzador.
+
+**Medido el 2026-09-27 (H-99), en los 13 casos.** La energía transada no
+cambia con σ (diferencia máxima de 6·10⁻⁶ kWh en 39 corridas) y el beneficio
+de la comunidad se mueve como mucho un 0,16 %. Lo que σ mueve es el reparto:
+en E0 la parte del vendedor va de 0,049 (σ = 0) a 0,405 (σ = 0,5), 0,542 (la
+base) y 0,962 (σ = 1). Ninguna brecha del mercado frente a C1, C3, C4 o C5
+cambia de signo con ningún σ.
 
 **Si lo preguntan.** «El nivel del precio no lo produce la negociación: es una
 primitiva del mecanismo, como el costo del vendedor en el caso de la autora.

@@ -7727,7 +7727,7 @@ El artículo 18 de la Resolución CREG 101 072 calcula la capacidad por usuario 
 
 Crece con la escala y se aplana al saturar (E4 y E5), en vez de caer a cero en E4 como decía el canon.
 
-**Por encima de 100 (kW) por planta, el colectivo favorable supera al mercado.** En E4 da 236,00 millones frente a 202,01 del mercado; en E5, 275,08 frente a 239,45; en I1, 126,73 frente a 115,21; en N1, 204,15 frente a 197,64 (y 210,27 el mercado por la vía del colectivo); en P2, 323,02 frente a 322,49. En los otros casos el mercado sigue por encima, por entre 0,1 y 1,9 millones, salvo P1, donde el colectivo favorable lo supera por 0,06 sin que ninguna planta pase de 100 (kW). El motivo es regulatorio: en el caso 1 la permuta de todo el colectivo paga solo el componente de comercializar, mientras que cada planta de más de 100 (kW), sola o en el mercado, liquida su residual por el numeral 2 del artículo 25 de la CREG 174, con transmisión, distribución, pérdidas y restricciones. El promedio del artículo 18 deja que una comunidad de plantas grandes, con suficientes fronteras que solo consumen, liquide como si fueran pequeñas.
+**Por encima de 100 (kW) por planta, el colectivo favorable supera al mercado.** En E4 da 236,00 millones frente a 202,01 del mercado; en E5, 275,08 frente a 239,45; en I1, 126,73 frente a 115,21; en N1, 204,15 frente a 197,64 (y 210,27 el mercado por la vía del colectivo); en P2, 323,02 frente a 322,49. En los otros casos el mercado sigue por encima, por entre 0,08 y 1,93 millones, salvo P1, donde el colectivo favorable lo supera por 0,06 sin que ninguna planta pase de 100 (kW). El motivo es regulatorio: en el caso 1 la permuta de todo el colectivo paga solo el componente de comercializar, mientras que cada planta de más de 100 (kW), sola o en el mercado, liquida su residual por el numeral 2 del artículo 25 de la CREG 174, con transmisión, distribución, pérdidas y restricciones. El promedio del artículo 18 deja que una comunidad de plantas grandes, con suficientes fronteras que solo consumen, liquide como si fueran pequeñas.
 
 ### Lo que queda abierto
 
@@ -7809,7 +7809,7 @@ En «compradores_cortos» la energía la fija el lado corto; la regla declarada 
 
 - **la energía no cambia** en ningún caso;
 - **ninguna brecha de comunidad cambia de signo**;
-- P2P − C1, el margen propio del mercado, cae hasta un 13 % (I1 −13,0 %, E2 −12,1 %, E1 −11,9 %, N1 −12,0 %), porque «piso» despacha primero a quien tiene la alternativa más barata y eso maximiza la banda; frente a C4 el cambio es de 2 % o menos salvo en I1 (−14,8 %);
+- P2P − C1, el margen propio del mercado, cae hasta un 13 % (I1 −13,0 %, E2 −12,1 %, E1 −11,9 %, N1 −12,0 %), porque «piso» despacha primero a quien tiene la alternativa más barata y eso maximiza la banda; frente a C4 el cambio es de un 2,0 % o menos salvo en I1 (−14,8 %);
 - tres pares institución-caso cambian de signo frente a C4: UCC en E2 con «llenado» y **Cesmag en N1 con las dos reglas**. Es la tercera vez que el signo de Cesmag en N1 se invierte (caja del GSA, comercializador único, despacho): es un resultado frágil y se cita así.
 
 ### Qué significa para la tesis
@@ -7905,9 +7905,9 @@ La descomposición exacta, por institución y para la comunidad, es P2P = C1 + b
 
 | Tercil | P2P − C1 por generación | P2P − C4 por generación | P2P − C1 por bolsa | P2P − C4 por bolsa |
 |---|---:|---:|---:|---:|
-| bajo | 0,31 M | 1,12 M | 0,46 M | 1,41 M |
-| medio | 0,40 M | 1,28 M | 0,35 M | 1,23 M |
-| alto | 0,44 M | 1,35 M | 0,34 M | 1,11 M |
+| bajo | 0,31 M | 1,12 M | 0,45 M | 1,41 M |
+| medio | 0,40 M | 1,27 M | 0,35 M | 1,23 M |
+| alto | 0,44 M | 1,35 M | 0,33 M | 1,11 M |
 
 La ventaja crece con la generación (más excedente que repartir) y se estrecha cuando la bolsa es cara (sube la alternativa de los vendedores que pasan su cupo, y con ella el piso), pero ningún subperíodo mensual la invierte en la comunidad.
 
@@ -7933,10 +7933,11 @@ La ventaja crece con la generación (más excedente que repartir) y se estrecha 
 | Mecanismo | 7 × P1 (bajo el umbral) | E4 (sobre el umbral) | Efecto |
 |---|---:|---:|---:|
 | P2P | 235,52 M | 202,01 M | −33,50 M (−14,2 %) |
-| C1 | 230,17 M | 195,85 M | −34,32 M (−14,9 %) |
-| C3, C4, C5, P2P colectivo | iguales | iguales | 0 |
+| C1 | 230,17 M | 195,84 M | −34,32 M (−14,9 %) |
+| C3, C4, C5 | iguales | iguales | 0 |
+| P2P colectivo | 198,012 M | 198,010 M | −1 203,76 COP (0,0006 %) |
 
-- **La homogeneidad se confirma al peso** en los mecanismos que el umbral no toca (C3, C4, C5 y el colectivo: diferencia 0): el diseño de la matriz aísla lo que dice.
+- **La homogeneidad se confirma al peso** en los mecanismos que el umbral no toca (C3, C4 y C5: diferencia 0; el colectivo, −1 203,76 COP, un 0,0006 %): el diseño de la matriz aísla lo que dice.
 - **El umbral cae sobre la permuta de cada planta** (pasa a pagar T + D + Cv + PR + R): castiga a C1 y al mercado, cuyo piso y cuyo residual siguen el art. 25; no toca a C4, que ya está en el caso 2 del art. 20 en los dos casos, ni a C5, exento por el art. 16 ii de la 101 099.
 - **Consecuencia:** la ventaja del mercado sobre C4 cae de 37,06 a 3,56 millones, y C4 − C1 pasa de −31,72 a +2,61 millones. Sobre el umbral, el colectivo se acerca al mercado y supera a la autogeneración individual; P2P − C1 casi no cambia (+0,82 M).
 
@@ -7984,3 +7985,9 @@ Las **216** horas en que el núcleo publica el reposo cuantal (D71) tienen **tod
 - salidas de dos a la vez;
 - otras reglas de reparto tras la salida (se reacuerda el reparto igual);
 - la caja del GSA (solo el punto base).
+
+## Precisión a H-25 (2026-09-27, al reescribir el inventario de la actividad 1.0)
+
+Las horas sin lectura de los medidores netos son **337**, no 330: 330 entran como cero y 7 de Udenar, de día, entran como la generación reconstruida del inversor (CAL-44). El conteo de H-25 no cambia ninguna cifra del canon, que usa la serie ya reconstruida.
+
+**Precisiones del 2026-09-27 (registro en el canon, E1).** Al generar las constantes del bloque 10 desde los ficheros se corrigieron redondeos en H-96 (el rango del mercado sobre el colectivo favorable, 0,08 a 1,93 millones), H-98 (frente a C4, un 2,0 % o menos: en E2 con «llenado» es −2,0008 %), H-102 (tres celdas de la tabla de meses: 1,27, 0,45 y 0,33) y H-104 (C1 en E4, 195,84 millones; el colectivo difiere en −1 203,76 COP, no en cero). En H-102, «del 15 al 24 %» de energía en regímenes con regla declarada vale para los terciles de bolsa. Las cifras citables son las de `CANON.md`, sección 14.

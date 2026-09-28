@@ -154,7 +154,8 @@ la Resolución CREG 101 066 de 2024. Es el **contrafáctico declarado**, no un
 régimen que la comunidad elija.
 
 **La fórmula.** Autoconsumo valorado a la tarifa del agente, y todo el excedente
-a la bolsa de su hora. Sin componentes tarifarios.
+a la bolsa de su hora, con los costos del mercado mayorista que paga quien
+se expone a él (D28, C-185; corrección del 2026-09-27, C-223).
 
 **Granularidad: horaria pura.**
 

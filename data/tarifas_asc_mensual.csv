@@ -13,8 +13,8 @@
 # NO editar a mano: volver a correr el script.
 #
 # Diferencias con la tabla de CEDENAR, medidas sobre el horizonte:
-#   - los cargos de red coinciden (270,96 frente a 274,16), como debe ser
-#     porque los fija el operador de red y no el comercializador;
+#   - T y D coinciden (los fija el operador de red), pero PR y R no: la
+#     suma T+D+PR+R da 270,96 frente a 274,16 (H-97, C-217);
 #   - la generacion de ASC es mas cara (412,92 frente a 304,65);
 #   - la comercializacion de ASC es 4,6 veces mas barata (38,37 frente
 #     a 174,92), y ESE es el ancho de la banda del mercado entre pares.

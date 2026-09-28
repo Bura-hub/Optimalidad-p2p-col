@@ -9747,3 +9747,32 @@ Revisión (`.superpowers/sdd/2026-09-16-reposo/preparacion/revision-B2-D.md`): *
 - `visualization/plots.py` conservaba su propio filtro global de avisos, y como lo importa `main_simulation` habría vuelto a callarlo todo: se quitó. El único aviso nuevo que asoma es cosmético (`tight_layout` en la figura 3).
 - El evaluador del GSA calla el mismo aviso benigno de pandas, por su texto exacto.
 - `retiro_miembro.py`: el rótulo de la compuerta ya no es fijo, y el control «la salida de un miembro no mueve C1 de quien se queda» pasa a compuerta dura. Vuelto a correr: 640 comprobaciones al peso, |pérdida C1| máxima 0 COP, 182 de 216 pares más estables en el mercado (igual que H-106).
+
+## C-220 · `PARAMETROS.md`: el costo lineal no es una medición, no entra en el solucionador publicado, y el barrido de σ está medido (punto F2, 2026-09-27)
+
+- **El origen de b_n.** El documento decía que el costo lineal «no es un supuesto: es el costo nivelado de la energía solar medido por inversor». Es un valor de literatura (225 y 210 COP/kWh, `B_CALIBRATED` en `data/xm_prices.py`, dentro del rango de 200 a 441 de la revisión bibliográfica de la actividad 1.2) multiplicado por 4,5/4,2 con una irradiancia supuesta para Pasto. Corregido.
+- **No entra en la configuración publicada.** Con el reposo y el despacho por el piso, el solucionador no usa b_j; tampoco λ, θ, η, a ni c. Lo gobiernan las cotas medidas y σ. Se dice explícitamente, con la medición del despacho «costo» (H-98).
+- **σ, medido.** La sección del presupuesto de precios lleva el resultado del barrido (H-99).
+
+## C-221 · La compuerta de cifras, rutas y citas vetadas sobre el manuscrito (punto F3, 2026-09-27)
+
+Guion nuevo `reformateo/documento/scripts/compuerta_vetadas.py`: busca en `tesis.md` (o en los Markdown que se le pasen) 26 patrones vetados, cada uno con su motivo y su sustituto (cifras de los canon de junio y agosto, rutas y entregas superadas, M3, `C4_mensual`, el desglose y los instrumentos retirados, la vía acoplada como método, el colectivo horario, `C2 = C3`, el bootstrap y las citas corregidas en C-217). Sale con 0 si está limpio y con 1 si no; una línea que cita una cifra vieja a propósito se acepta con el comentario `<!-- vetada-ok: motivo -->`. Línea base del 2026-09-27 sobre `tesis.md`: **224 coincidencias** (84 de M3, 27 del método anterior, 23 del bootstrap, 16 del GSA viejo, 15 de los instrumentos retirados, 14 de `C2 = C3`, y cifras sueltas de junio). Se corre al cerrar cada capítulo y, al final, sobre el manuscrito entero; junto con las compuertas del canon, es la condición para entregar.
+
+## C-222 · La cadena de compilación de la tesis (punto F5, 2026-09-27)
+
+- **pandoc 3.11** instalado con winget (queda en `%LOCALAPPDATA%\Pandoc`).
+- **MiKTeX 24.1** no podía descargar paquetes («SSL connect error» contra el repositorio por defecto) y winget no puede actualizarlo. Se apuntó al espejo del MIT (`[MPM]RemoteRepository`), se activó la instalación automática y se instalaron los paquetes que faltaban (entre ellos `unicode-math`, `mdwtools`, `bookmark`, `upquote`, `polyglossia`, `selnolig`, `lm-math`, `footnotehyper`). La actualización del núcleo necesitaría permisos de administrador y no hizo falta.
+- **Dos defectos del texto** aparecieron al compilar `tesis.md` con XeLaTeX y babel en español: `\,\%` dentro de una fórmula choca con el tratamiento del porcentaje de babel (`Incompatible glue units`), y había un `\varphi` convertido en tabulador vertical por un heredoc (reparado con un guion que construye la barra con `chr(92)`, porque el heredoc volvió a comérsela en el primer intento: el problema ya conocido de la tabla de `CLAUDE.md`). La compuerta de vetadas detecta ahora los dos.
+- **Comprobado:** una copia de `tesis.md` sin `\,\%` compila a PDF (5,98 MB) con la bibliografía y las figuras; la salida a Word funciona sin LaTeX. Guion `reformateo/documento/scripts/compila_tesis.ps1` (PDF por defecto, `-Word` para .docx).
+
+## C-223 · Lo que el inventario nuevo encontró desfasado en otros ficheros (punto F1, 2026-09-27)
+
+`Documentos/Inventario_Act_1_0_2026-09.md` (fuera de git) sustituye al inventario del 9 de junio, que lleva un aviso de «superado»: 19 elementos comunes con tres tablas de apoyo, los siete mecanismos con sus insumos, norma y lo que no usan, los 13 casos con su capacidad, numeral y cupos agotados medidos en el canon, y 23 cambios frente a junio. Al escribirlo se corrigió en otros ficheros:
+
+- `ESCENARIOS.md`: C3 no va «sin componentes tarifarios»; carga los costos del mercado mayorista (D28). C3 sigue siendo el contrafáctico declarado, sin artículo propio.
+- `data/tarifas_asc_mensual.csv`: el comentario de cabecera decía que los cargos de red coinciden entre ASC y CEDENAR; T y D sí, PR y R no (solo comentario; el cargador salta las líneas con `#`).
+- La skill `tesis-p2p-context` apunta al inventario nuevo.
+- H-25: 337 horas sin lectura de los medidores netos, no 330 (precisión en HALLAZGOS).
+- Especificación del motor, D7: el Cv de CEDENAR es 174,92 de media simple (175,08 ponderado), no 174,3 (nota fechada).
+
+Queda anotado, sin cambiar: docstrings de `data/` que aún citan 5 160 horas y el respaldo de 650 COP/kWh, y los ADR 0006 y 0032, que citan líneas del inventario de junio como registro histórico.

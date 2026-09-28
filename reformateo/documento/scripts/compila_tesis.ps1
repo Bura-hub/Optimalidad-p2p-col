@@ -27,11 +27,17 @@ if (-not (Test-Path $pandoc)) { throw "no está pandoc en $pandoc" }
 if ($Salida -eq "") {
     $Salida = Join-Path $tesis ($(if ($Word) { "tesis.docx" } else { "tesis.pdf" }))
 }
-$args = @("tesis.md", "--citeproc", "--bibliography", $bib,
-          "--resource-path", $tesis, "-o", $Salida)
+# Figuras (2026-09-28): la tesis pone cada figura como ![alt](figuras/x.png)
+# seguida de su pie «**Figura N.M.** ...»; sin implicit_figures pandoc no
+# imprime el texto alternativo como un segundo pie. La caja de 6,5 in
+# (margen de 1 in en carta) es el ANCHO_COMPLETO con que se dibujan las
+# figuras en estilo.py, de modo que los rótulos salen a su tamaño.
+$args = @("tesis.md", "-f", "markdown-implicit_figures", "--citeproc",
+          "--bibliography", $bib, "--resource-path", $tesis, "-o", $Salida)
 if (-not $Word) {
     $args += @("--pdf-engine=xelatex", "-V", "lang=es",
-               "-V", "mainfont=Times New Roman")
+               "-V", "mainfont=Times New Roman",
+               "-V", "geometry:margin=1in", "-V", "papersize=letter")
 }
 Push-Location $tesis
 try {

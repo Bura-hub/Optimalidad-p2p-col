@@ -459,8 +459,34 @@ DEMANDA    = TINTA
 
 
 # ── Guardado con trazabilidad ────────────────────────────────────────────────
+def _guardar_mat(df: pd.DataFrame, ruta: Path) -> None:
+    """Hermano ``.mat`` de la figura: una variable por columna del CSV.
+
+    Las claves se sanean a identificadores de MATLAB; las columnas de texto
+    o de fecha van como texto. Falla en voz alta si dos columnas quedan con
+    el mismo nombre saneado.
+    """
+    import re
+    import numpy as np
+    import scipy.io as sio
+    salida = {}
+    for col in df.columns:
+        k = re.sub(r"[^A-Za-z0-9_]", "_", str(col))
+        if not k or not k[0].isalpha():
+            k = "v_" + k
+        k = k[:31]
+        if k in salida:
+            raise ValueError(f"columna repetida al sanear para MATLAB: {k}")
+        s = df[col]
+        if pd.api.types.is_numeric_dtype(s) and not pd.api.types.is_bool_dtype(s):
+            salida[k] = s.to_numpy(dtype=float)
+        else:
+            salida[k] = np.array(s.astype(str).tolist(), dtype=object)
+    sio.savemat(ruta, salida, do_compression=True)
+
+
 def guardar(fig, nombre: str, datos=None, procedencia=None,
-            cerrar: bool = True) -> Path:
+            cerrar: bool = True, directorio=None, mat: bool = False) -> Path:
     """
     Guarda la figura y su rastro.
 
@@ -471,19 +497,27 @@ def guardar(fig, nombre: str, datos=None, procedencia=None,
 
     El tercero es el que permite auditar la figura sin ejecutar el
     proyecto: dice literalmente qué archivo se leyó.
+
+    ``directorio`` cambia la carpeta de destino (las figuras de la tesis van
+    a ``Documentos/FinalTesisV2/figuras/``); sin él se conserva la del
+    documento de proceso. Con ``mat=True`` escribe además el hermano
+    ``<nombre>.mat`` con las mismas columnas del CSV.
     """
-    DIR_FIGURAS.mkdir(parents=True, exist_ok=True)
-    png = DIR_FIGURAS / f"{nombre}.png"
+    destino = DIR_FIGURAS if directorio is None else Path(directorio)
+    destino.mkdir(parents=True, exist_ok=True)
+    png = destino / f"{nombre}.png"
     fig.savefig(png)
 
     if datos is not None:
         df = datos if isinstance(datos, pd.DataFrame) else pd.DataFrame(datos)
-        df.to_csv(DIR_FIGURAS / f"{nombre}.csv", index=False,
+        df.to_csv(destino / f"{nombre}.csv", index=False,
                   encoding="utf-8-sig")
+        if mat:
+            _guardar_mat(df, destino / f"{nombre}.mat")
 
     if procedencia is not None:
         rutas = [procedencia] if isinstance(procedencia, str) else list(procedencia)
-        (DIR_FIGURAS / f"{nombre}.fuente.txt").write_text(
+        (destino / f"{nombre}.fuente.txt").write_text(
             "Figura: " + nombre + "\n"
             "Artefactos leidos:\n" + "\n".join(f"  - {r}" for r in rutas) + "\n",
             encoding="utf-8")

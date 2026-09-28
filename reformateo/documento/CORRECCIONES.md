@@ -9908,3 +9908,26 @@ Además, el capítulo 6 cita el art. 9, num. 5, lit. b, de la 101 072: el PDE po
 - `data/ASC_pdfs/README.md` es una copia del README de CEDENAR.
 
 **Dónde se aplicó.** `Documentos/FinalTesisV2/borradores/cap04_datos.md` (ronda 2); `Documentos/Inventario_Act_1_0_2026-09.md` (tabla A: horizonte, resolución y agregación, limpieza de las series, generación por nodo; apartado E, punto 3); `reformateo/documento/HALLAZGOS.md` (notas fechadas en H-7 y H-25). El canon no cambia y sus tres compuertas siguen intactas.
+
+## C-230 · Las cifras derivadas del capítulo 7 salen de un guion, y la inversión de E4 con las reglas de reparto (ronda 2 del capítulo 7, 2026-09-28)
+
+**2026-09-28 · tipo: `dato` y `código` (guion nuevo, sin tocar el motor) · aplicada, sin commit**
+
+**Decisión del controlador.** Toda cifra del capítulo 7 que `CANON.md` no escriba tal cual sale de un guion reproducible, como en C-229. El guion nuevo es `reformateo/documento/scripts/cifras_cap07.py`:
+- no simula nada; lee solo artefactos con huella en `Documentos/canon_2026-09/HUELLAS.csv` y, antes de leer cada uno, comprueba su tamaño y su `sha256` contra la huella (46 artefactos: los 13 libros de comparación, las 13 tablas `horas` de los almacenes, `compara_matriz_reposo.csv`, `optimalidad_D72/resumen_13casos.csv`, `foro_d1` y `foro_e3`, el registro de liquidación de E0, `spread_13casos.csv`, `meses_condicion.csv`, las `brechas_13casos.csv` del COT y las 12 `inversion_<caso>.csv` del GSA);
+- tiene compuertas antes de escribir: P2P = C2 y C4 = C4 mensual en la hoja `Resumen`; las horas con régimen del almacén igual a 6 144 − «sin ids» de CANON §4 en los 13 casos; la coincidencia de P2P igual a la de C2, C1 = 0, C5 = 1 y C3 sin valor; P2P − C4 por institución igual en `compara` y en D72 (diferencia 0,0); los precios de `foro_d1` iguales al bloque «EN UNA FRASE» del registro de liquidación a una décima y la energía de dentro igual a los 4 592,02 kWh de §4; P2P, C4 y el colectivo de `spread_13casos.csv` iguales a `Resumen` y la regla por consumo de E4 igual a la hoja `Contrafacticos`; la tabla de meses de CANON §14.9 reproducida al redondeo;
+- falla en voz alta: sin `except`, sin NaN rellenado; una huella que no cuadra, una cifra no finita o una clave repetida es un error;
+- escribe `SALIDAS_SERVIDOR/cifras_cap07_2026-09-28/cifras.csv` (399 cifras: clave, valor, unidad, definición y fuente) y `procedencia.txt` (commit, versiones, orden y la lista de artefactos leídos con su grupo de huella). Corre en menos de un minuto. El controlador lo registra en el canon después del commit.
+
+**Qué cubre.** Las brechas de la comunidad y sus porcentajes, el orden de los mecanismos, las horas con los dos lados, el factor de coincidencia de los 13 casos, el Gini de los siete mecanismos en E0 y los recuentos frente a C1, C3, C4 y C5, P2P − C1, P2P − C4 y P2P − C5 por institución con sus recuentos y extremos, los meses por institución de E0, la liquidación de E0 y el «mejor» de cada mes, el reparto del excedente de E0, las reglas de reparto de E0 y de E4 frente al mercado, el efecto del COT en E4, los terciles de demanda y los recuentos de signos frágiles del GSA.
+
+**Precisiones de cifras** (del borrador de la ronda 1, señaladas en `cap07-revision.md`):
+- el máximo de P2P − C1 por institución es **Udenar en P2, 4,90 MCOP** (4 898 837 COP), no la UCC en I1 (4,49, el segundo);
+- la síntesis de 7.4 generalizaba la mediana: en E0 la banda por kWh es **más ancha** con la bolsa cara (81,7 frente a 58,7 COP/kWh);
+- «regímenes con regla declarada» (CANON §14.9, columna `parte_regla_declarada`) es el grupo de compradores cortos y excluidos; desde C-225 todos los regímenes son regla declarada, y el rótulo de §14.9 conviene corregirlo al registrar;
+- E4 y E5 no son «los dos casos con plantas de más de 100 kW»: también P2, y la UCC en I1 y N1;
+- CANON §3.5 («no hay CSV ni hoja que la reproduzca») es inexacto para el agregado del horizonte de E0, que está en `figuras_foro/foro_d1_liquidacion_m1.csv` (§3.4); sigue siendo cierto para el mes a mes y los otros doce casos.
+
+**Hallazgo de E4** (nota del 2026-09-28 en H-100). En E4, las reglas de reparto por consumo y por importación superan al mercado por 0,36 y 0,18 (MCOP), el 0,18 y el 0,09 % de su beneficio; por aporte y por generación, no; en los otros 12 casos ninguna. Con C-224 son realizables con el acuerdo de reporte del art. 19, de modo que en E4 la mejor opción legal medida es un colectivo con reparto mensual. Es un contrafáctico al borde del empate, fuera de la caja del GSA; el COT sube P2P − C4 de E4 en 14 520 COP.
+
+**Dónde se aplicó.** `Documentos/FinalTesisV2/borradores/cap07_comparacion.md` (ronda 2: las trazas de las cifras derivadas dan su clave); `reformateo/documento/HALLAZGOS.md` (nota fechada en H-100); `reformateo/documento/CONDICIONES_HABILITANTES.md` (C5 no elegible, retiro de un miembro medido, H-96 a H-106 registrados, regla declarada en todos los regímenes, costo del caso 2 de 0,31 a 38,49 M y el caso de E4). El canon no cambia y sus tres compuertas siguen intactas.

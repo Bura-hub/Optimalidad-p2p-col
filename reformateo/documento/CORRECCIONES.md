@@ -9792,3 +9792,45 @@ Quedan anotados para los capítulos siguientes, sin cambiar aquí:
 - la regla del piso usa series residuales aproximadas (H-53);
 - algunos comentarios de `main_simulation.py` y `comparison_engine.py` atribuyen todavía C2 al art. 23 num. 2 lit. a, y `flow_breakdown["C2"]` usa el C2 viejo, fuera de la hoja `Resumen`;
 - los arts. 13 y 14 de la 101 087 y 15 a 22 de la 101 099 se verificaron contra el corpus.
+
+## C-225 · La validación dinámica no verificó ningún régimen: se retira la «cobertura del 35 al 89 %» (revisión del capítulo 5, 2026-09-27)
+
+**Qué se vio.** El revisor del capítulo 5 contrastó el canon con el registro de la validación del 19 (`.superpowers/sdd/2026-09-16-reposo/progress.md` y las relecturas de M-A, M-B y M-C). CANON §14.5 y H-98 llamaban «alcanzado por la dinámica» a la energía de cuatro regímenes (interiores, topados, suma que no cabe y un comprador) y citaban esa parte, entre el 35 y el 89 % según el caso, como «cobertura» de la validación. El registro dice otra cosa:
+
+- con el criterio fijado de antemano (al menos el 95 % de las horas de cada régimen dentro de tolerancia; ADR 0060, fable §6 y §11) **ningún régimen quedó verificado**, y los rótulos fueron «regla declarada» o «muestra insuficiente» en todos;
+- la suma que no cabe tiene su regla declarada (D53): su medición propia, M-C, dio 0 de 21 horas, y el propio §9 del canon la declaraba, así que el canon se contradecía;
+- un comprador tiene tres horas en la muestra y sostenía la mayor parte de la «cobertura» en siete casos;
+- la muestra es solo de E0 (abril a junio de 2025); los otros doce casos no se muestrearon;
+- «20 de 22» cuenta juicios por familia (acelerada y directa): son 17 de 18 horas distintas integradas hasta el final, sobre 41 muestreadas, y 17 de los 20 aciertos se juzgaron con la tolerancia ancha (1 % de la energía y 0,5 COP/kWh).
+
+La frase que decidió el autor el 19 («en los regímenes rígidos la forma cerrada es una regla declarada») sigue siendo cierta; fue H-98 el que identificó los rígidos solo con compradores cortos y excluidos.
+
+**Qué se cambió.**
+- `CANON.md` §9: precisión fechada; la forma cerrada es regla declarada en todos los regímenes, con confirmación puntual en la muestra de E0.
+- `CANON.md` §14.5: aviso de corrección y una partición nueva por grupo de regímenes, sumada sin recalcular a partir del CSV registrado `por_regimen_13casos.csv`. La tabla vieja se conserva como salida registrada y queda marcada como no citable. La frase citable se reescribe.
+- H-98: aviso de corrección; la segunda mitad (el peso de la regla de despacho) se mantiene.
+- `CLAUDE.md` regla 6, `Documentos/adenda_nota_comite_2026-09-27.md` y `CONDICIONES_HABILITANTES.md`: la frase corregida.
+- `energia_por_regimen.py`: comentario, sin cambio de comportamiento; las salidas registradas conservan su huella.
+- `compuerta_vetadas.py`: se vetan «35 y el 89 %» y el rótulo «alcanzado por la dinámica».
+
+Ninguna cifra de resultado del canon cambia, y las tres compuertas siguen intactas. Lo que cambia es cómo se describe el respaldo del método: la forma cerrada es el método declarado, con confirmación puntual. Donde la dinámica no llega, la robustez se apoya en que cambiar la regla de despacho no mueve la energía ni el signo de ninguna brecha de comunidad.
+
+**Registro de la validación en el canon (mismo día).** Los recuentos de la validación del 19 se citaban sin huella. Ahora son el punto «V» del bloque 10 del verificador:
+- 16 ficheros de `entrega_validacion_2026-09-19/SALIDAS_SERVIDOR/validacion_reposo/`, grupo `e1/V` de `HUELLAS.csv`, con lo que el bloque pasa de 883 a 899 huellas;
+- una función que relee la tabla por régimen de M-A, las 41 horas y las 18 integradas, todas de E0, y las conclusiones de M-B y M-C.
+
+La tabla por régimen está en CANON §14.5. El mínimo de cinco horas para rotular se fijó en la revisión de la tarea 4c, antes de la noche. El verificador imprime `CANON 2026-09 INTACTO`.
+
+## C-226 · `PARAMETROS.md` y `MODELO_DEFINITIVO.md` al día con C-220 y con el cierre de la validación (redacción del capítulo 5, 2026-09-27)
+
+El redactor del capítulo 5 encontró que los dos documentos se contradecían con C-220 y con el canon:
+
+- **`PARAMETROS.md`.**
+  - La tabla final seguía diciendo que el costo lineal «entra, y manda» como «costo nivelado medido». Ahora dice que no entra en el solucionador publicado: solo aparece en el límite de generación, sin recortar ninguna hora.
+  - La respuesta «Si lo preguntan» se marca como superada.
+  - La sensibilidad a μ ya no figura como «pendiente». La medición M-E se saltó, y μ queda cubierto solo como contraste determinista (CANON §13.6).
+- **`MODELO_DEFINITIVO.md`.**
+  - La comparación con el MATLAB de la autora (−1,56 %) lleva una nota: se hizo con la vía anterior al reposo, no está en el canon y no se cita como validación del método publicado.
+  - La fila del costo lineal ya no dice «calibrado, CAL-6».
+
+Solo cambia el texto; el código y las cifras siguen iguales.

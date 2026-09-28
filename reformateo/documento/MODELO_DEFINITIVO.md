@@ -59,6 +59,10 @@ no son los del fichero original. Con esa salvedad, la prueba dorada pasa
 **7 de 7** y la traducción se validó contra el MATLAB de la autora con una
 diferencia del −1,56 %.
 
+> **Nota del 2026-09-27 (C-226).** La comparación del −1,56 % se hizo con la vía de integración
+> anterior al reposo, no está en el canon y no se cita como validación del método publicado. La
+> validación del reposo es la de CANON §9 y §14.5 (C-225).
+
 ---
 
 ## Cómo se resuelve el mercado de cada hora (decidido el 2026-09-16; en producción desde C-198)
@@ -206,7 +210,7 @@ verifica en CAL-46 y `gate_cal46_paso_horario`.
 | Parámetro | Valor | Origen |
 |---|---|---|
 | Costo cuadrático del vendedor | 0 | fotovoltaica pura, CAL-32 |
-| Costo lineal del vendedor | costo nivelado por institución | calibrado, CAL-6 |
+| Costo lineal del vendedor | costo nivelado por institución | valor de la literatura por irradiancia supuesta; no entra en el solucionador publicado (C-220, C-226) |
 | Dotación | 100 | modelo base |
 | Saciedad | 0,5 | modelo base |
 | Aversión al riesgo | 0,1 | modelo base |

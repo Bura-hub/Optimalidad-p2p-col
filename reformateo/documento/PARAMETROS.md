@@ -198,6 +198,12 @@ la hora que barrimos ni él movió el resultado, porque el precio topaba en una
 cota. Repetir ese barrido sobre horas de precio interior está pendiente y
 declarado.»
 
+> **Superado el 2026-09-27 (C-220, C-226).** El costo lineal no es una medición: es un valor de la
+> literatura multiplicado por una irradiancia supuesta. Además, **no entra en el solucionador
+> publicado**: el reposo en forma cerrada no lo usa. Solo aparece en el límite de generación, y ahí
+> no recorta ninguna hora; la vía publicada rechaza además toda hora con costo cuadrático distinto
+> de cero. La respuesta de arriba no se usa.
+
 ### El costo fijo · vale cero
 
 **Evidencia.** CAL-32 lo declara **invariante en el equilibrio**: el reparto,
@@ -297,8 +303,9 @@ publica el reposo con este mismo μ = 1: ver el apartado siguiente (D71).
 dinámica oscila sin llegar (H-87). Con él llega al reposo y se queda en las
 horas medidas, y **μ solo cambia la velocidad**: en la hora 109 de la semana
 de E0, con μ de 0,3 a 5 el reposo es el mismo, y con 0,05 no llega a t = 40
-(H-90, punto 5). La sensibilidad a μ y los empates a menos de 3μ son la
-medición M-E, pendiente.
+(H-90, punto 5). La sensibilidad a μ y los empates a menos de 3μ eran la
+medición M-E, que el tope global de la noche del 19 saltó. **Actualizado el 2026-09-27 (C-226):** la sensibilidad a μ
+de la rama cuantal (D71) está cubierta solo como contraste determinista, μ = 0,5 y 2 (CANON §13.6).
 
 **Si lo preguntan.** «En la dinámica solo cambia cuánto tarda en llegar. En
 las cifras entra solo en las horas frágiles, que son el apartado siguiente.»
@@ -456,7 +463,7 @@ por eso la prima se publica descompuesta en renta y parte del juego (D69).»
 | saciedad | 0,5 | **no** | medido con factor veinte, sin efecto |
 | competencia y aversión al riesgo | 0,1 | sí, pero **inerte** | barrido de dos órdenes de magnitud |
 | costo cuadrático | 0 | sí | fotovoltaica pura |
-| **costo lineal** | **225 a 241** | **sí, y manda** | **costo nivelado medido** |
+| costo lineal | 225 a 241 | **no en el solucionador publicado** (solo el límite de generación, sin recortar) | literatura por irradiancia supuesta; C-220, C-226 |
 | costo fijo | 0 | sí | invariante en el equilibrio |
 | filtro | 0,001 | sí | del modelo base |
 | iteraciones | 2 | sí | verificado en dos regímenes |

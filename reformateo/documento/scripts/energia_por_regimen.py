@@ -44,8 +44,14 @@ SALIDA = RAIZ / "SALIDAS_SERVIDOR" / "energia_por_regimen_2026-09-27"
 CASOS = ["E0", "E1", "E2", "E3", "E4", "E5", "P1", "P2", "K1", "I1", "N1",
          "CV2", "SINU"]
 
-# M-A (2026-09-19): regímenes a los que la dinámica llegó y en los que la forma
-# cerrada se confirmó (20 de 22 horas juzgadas), y los que nunca alcanzó.
+# M-A (2026-09-19): regímenes con alguna hora en que la dinámica llegó a la
+# forma cerrada (20 de 22 juicios en una muestra de E0), y los que nunca
+# alcanzó. C-225: con el criterio de bloque (95 %) ningún régimen quedó
+# verificado, y la suma que no cabe tiene su regla declarada (D53). El rótulo
+# «alcanzado por la dinámica» de por_grupo_13casos.csv se conserva para que la
+# salida registrada no cambie de huella, pero no es una cobertura y no se cita;
+# lo citable es la partición por régimen de CANON §14.5, sacada de
+# por_regimen_13casos.csv.
 ALCANZADOS = {"interiores", "topados", "suma_no_cabe", "un_comprador"}
 DECLARADOS = {"compradores_cortos", "excluidos"}
 CUANTAL = {"cuantal"}

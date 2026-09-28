@@ -61,6 +61,12 @@ VETADAS = [
            "regla 2: la del almacén (E0: 0,542)"),
     Vetada(r"n_?base\s*=\s*128|n\s*=\s*128\b", "GSA de junio (n = 128)",
            "CANON §13 (n = 2 048 y 512)"),
+    Vetada(r"35\s*(?:y el|al|a)\s*89|35\s*[–-]\s*89", "«cobertura» de la validación "
+           "que dice más de lo medido (C-225): ningún régimen pasó el criterio de bloque",
+           "CANON §9 y §14.5: regla declarada en todos los regímenes; 17 de 18 horas "
+           "integradas en la muestra de E0"),
+    Vetada(r"alcanzad[oa]s? por la dinámica", "rótulo retirado de la validación (C-225)",
+           "CANON §14.5, partición por grupo de regímenes", ignora_mayusculas=True),
     # ── Rutas y objetos superados ──────────────────────────────────────────
     Vetada(r"entrega_canonica|entrega_matriz_2026-09-15|matriz_reposo_2026-09-17",
            "entregas superadas (regla 1 del canon)",

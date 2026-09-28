@@ -7788,6 +7788,8 @@ Brechas de comunidad, en millones de pesos (real / ASC / CEDENAR); en negrita, u
 
 **Estado: MEDIDO el 2026-09-27 (punto C1 de la preparación), en local sobre los almacenes del canon y con el evaluador del GSA.**
 
+> **Corregido el mismo 2026-09-27 (C-225, revisión del capítulo 5).** El título y la «cobertura» de este hallazgo dicen más de lo medido. Con el criterio fijado de antemano (95 % de las horas por bloque) **ningún régimen quedó verificado** en la validación del 19: el registro rotuló «regla declarada» en todos. La suma que no cabe tiene su regla declarada (D53; M-C, 0 de 21 horas) y un comprador tiene tres horas en la muestra. La muestra es solo de E0, de abril a junio. El «20 de 22» cuenta juicios por familia: son 17 de 18 horas distintas integradas hasta el final, y 17 de los 20 aciertos se juzgaron con la tolerancia ancha. La columna «Alcanzado por la dinámica» de abajo **no es una cobertura** y el 35-89 % no se cita. La partición corregida por grupo de regímenes está en CANON §14.5. La segunda mitad del hallazgo (el peso de la regla de despacho) **se mantiene sin cambios**.
+
 ### La cobertura de la validación
 
 La validación del 2026-09-19 (M-A) confirmó la forma cerrada en 20 de 22 horas juzgadas, en los regímenes «interiores», «topados», «suma_no_cabe» y «un_comprador». En «compradores_cortos» y «excluidos» la dinámica no llegó en ninguna hora: ahí la forma cerrada es regla declarada. Parte de la energía transada en cada grupo (`reformateo/documento/scripts/energia_por_regimen.py`, salida en `SALIDAS_SERVIDOR/energia_por_regimen_2026-09-27/`):

@@ -9871,3 +9871,40 @@ La revisión del capítulo 3 y la medición H-107 obligaron a tomar tres decisio
 - **C5 (decisión del autor).** C5 queda como **referencia del régimen horario de la 101 099, no elegible** para la comunidad tal como está configurada. No cumple el art. 4, lit. iii (un solo activo), ni los lits. v y vi (generación detrás de la frontera de consumo), ni el art. 17, lit. ii, y el art. 22 (un solo comercializador). Sus cifras no cambian, y los capítulos 6, 7 y 9 lo declaran.
 
 Además, el capítulo 6 cita el art. 9, num. 5, lit. b, de la 101 072: el PDE por defecto es proporcional al número de fronteras, lo que apoya el reparto igual de D5. También dice que el art. 20 tiene cuatro casos, porque el art. 13 de la 101 087 añadió el cuarto.
+
+## C-229 · Las cifras del dato del capítulo 4 salen de un guion, y varias se precisan (ronda 2 del capítulo 4, 2026-09-28)
+
+**2026-09-28 · tipo: `dato` y `código` (guion nuevo, sin tocar el cargador) · aplicada, sin commit**
+
+**Decisión del controlador.** Toda cifra descriptiva del dato que el capítulo 4 cite y que no esté en el canon sale de un guion reproducible. El guion nuevo es `reformateo/documento/scripts/cifras_datos_cap04.py`:
+- calcula con las funciones del cargador (`data/preprocessing.py`, `data/xm_data_loader.py`) sobre `MTE_ROOT`, con el almacén de E0 y de los trece casos de la matriz canónica, con los CSV de `data/` y, para H-92, con la caché y la tabla de techos anteriores a C-200, leídas del historial (`f21205e^` y `3fdff5e^`);
+- no simula nada;
+- tiene tres compuertas antes de escribir: el cargador reproduce las sumas del almacén de E0, los NaN del cargador son las horas sin muestra que cuenta el guion y la generación extendida de Udenar es la de `_read_ems_generation`, y la bolsa topada es la de `get_pi_bolsa`;
+- falla en voz alta: sin `except` que trague, sin NaN rellenado, y una cifra no finita o una clave repetida es un error;
+- escribe `SALIDAS_SERVIDOR/cifras_datos_2026-09-28/cifras.csv` (431 cifras, con clave, valor, unidad, definición y fuente) y `procedencia.txt` (commit `30f61f1`, versiones, orden, `MTE_ROOT`, huella del dato `2a1a040d22d79313`). Corre en unos seis minutos. El controlador lo registra en el canon después del commit.
+
+**Precisiones de cifras del dato** (antes, conteos sobre el dato crudo presentados como los de la serie del modelo, o cifras mal atribuidas):
+- **Horas sin lectura de los medidores netos:** 337 en crudo (H-25 y su precisión del 27-sep); **341** en la serie del modelo (Udenar 97, Mariana 118, UCC 126), de ellas **334** en cero y 7 con la generación devuelta. Nota fechada en H-25.
+- **Horas incompletas:** 835 en crudo; **866** estimadas por la media en la serie del modelo.
+- **Horas que vacía el guardia:** **5** (4 de Mariana el 29 de agosto, de 7 a 10 h, y 1 de CESMAG el 17 de junio a las 6 h), no 4.
+- **Generación reconstruida de Udenar:** el 77,1 % es de horas; en energía es el **59,3 %** (9 447,4 kWh), porque 1 069 de las horas sin el inversor del proyecto son noches posteriores a su arranque, que valen cero.
+- **Inicio del horizonte:** lo fija solo el inversor del HUDN (2025-04-04 05:00); los de Mariana, UCC y CESMAG registran desde febrero de 2025. El inventario decía que los cuatro empezaban el 4 de abril.
+- **Transformadores de corriente de Mariana y CESMAG:** 400 y 800 (A) instalados frente a 10 (A) verificados, un factor de 40 y 80; las 800 y 1 600 (A) de H-7 y del inventario son la corriente máxima del instalador. Nota fechada en H-7.
+- **Tercer medidor de Mariana:** existe, con carga casi nula (0,07 kW de media). Nota fechada en H-7.
+- **Paso del registro en la frontera:** de 0,100 a 0,402 (kW); el rango de 0,050 a 0,402 es el de los veinte medidores.
+- **Fallo de Mariana del 29 de agosto:** la demanda que recibe el modelo es cero en 14 horas (de 0 a 13 h); tres de sus horas negativas las retira el guardia y tres, de potencia constante con la tensión ya restablecida, pasan el guardia.
+
+**Cifras de hallazgos que el guion reproduce y las que no.**
+- Reproducidas al dígito: H-16 (39,51 y 78,45), H-18 (3,78 y 1,74 %; 18 horas con las cinco incompletas), H-92 (2 808, 3 336, 9, 3 345, 181,78, 42,24; noviembre 219,00 frente a 234,87).
+- Reproducidas con otro valor, que el capítulo cita del guion: el sesgo de la ventana de H-18 (0,00085 % frente a 0,0007 %); la media frente a la suma fija de H-18 (de −0,242 a −0,539 % frente a −0,258 a −0,550 %, porque H-18 contaba 840 horas); el bloque de Mariana del ADR 0045 (cuatro cuentas, 158,0 kWh con la razón medida de 39,51, frente a 160,0 kWh, un 1,2 %; el ADR daba 158,8 kWh y 0,7 % con 39,7 kWh por cuenta).
+- No reproducidas con su definición: los 718 cortes de H-18 con 809, 812 y 288 kWh. El guion define el corte como dos muestras consecutivas separadas más de 2,5 minutos y hasta una hora, en los medidores de UCC, Udenar y HUDN, y da 533 cortes con 724,0 kWh de contador, 727,3 si el equipo siguió consumiendo y 243,4 si no hubo energía. La conclusión es la misma; el capítulo cita las cifras del guion.
+- H-28 (magnitud del paso horario) y H-17 (tope de los inversores) no están en el guion, y el capítulo no cita sus cifras.
+
+**Docstrings y comentarios desfasados de `data/`, que se listan y no se corrigen todavía:**
+- `preprocessing.py`: «Problema que resuelve» dice «~20 % de las horas» y «−34,6 kW» (medido: 24,7 % y −33,57 kW); el paso 2e dice «outliers» (retirados por CAL-45); el retorno de `build_demand_generation` dice «(5, 5160)»; «Sobre el horizonte» dice que «los inversores Fronius Udenar + HUDN caen el 16-Dic», que el censo de H-6 no confirma; el comentario de CAL-36 dice que «el M1 totalizador mide el campus completo (~19%)», contrario a H-7.
+- `xm_data_loader.py`: «Período: 2025-07-01 → 2026-02-01 (5 160 horas para 215 días)»; el docstring de `MTEDataLoader` con forma (5, 5160); el comentario de `T_END`: «caen ~17-Dic» y «257 días sin imputación» (son 256).
+- `cedenar_tariff.py`: el docstring del módulo conserva el mapeo oficial/comercial y el respaldo de 650 COP/kWh; el de `aplicar_regimen_no_regulado` dice que «las cinco comparten costo unitario y por tanto techo», contrario a los dos comercializadores (CAL-47, H-75).
+- `xm_prices.py`: «DATOS REALES VERIFICADOS» con medias mensuales viejas (305 en septiembre, «~200» en diciembre) y valores por defecto `t_start="2025-07-01"` en varias funciones.
+- `data/ASC_pdfs/README.md` es una copia del README de CEDENAR.
+
+**Dónde se aplicó.** `Documentos/FinalTesisV2/borradores/cap04_datos.md` (ronda 2); `Documentos/Inventario_Act_1_0_2026-09.md` (tabla A: horizonte, resolución y agregación, limpieza de las series, generación por nodo; apartado E, punto 3); `reformateo/documento/HALLAZGOS.md` (notas fechadas en H-7 y H-25). El canon no cambia y sus tres compuertas siguen intactas.

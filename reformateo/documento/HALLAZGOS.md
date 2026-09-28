@@ -304,6 +304,18 @@ anterior o posterior a esa corrección. Queda abierto, y conviene
 resolverlo antes que cualquier otra cosa: si las series estuvieran sin
 corregir, el efecto sobre las magnitudes no sería menor.
 
+**Precisión del 2026-09-28 (ronda 2 del capítulo 4, C-229).** Dos cifras de
+esta entrada se precisan. (1) Las «800 y 1.600 A» de Mariana y CESMAG son
+la columna de corriente máxima del instalador; el transformador instalado
+que declara la `Tabla General` es de 400 y 800 (A) frente a 10 (A)
+verificados, es decir, un factor de 40 y de 80, que es lo que mide H-16
+(razones 39,51 y 78,45, reproducidas en `cifras_datos_2026-09-28`, claves
+`razon_potencia_contador__*`). (2) La Universidad Mariana **sí tiene**
+tercer medidor (circuito secundario, primer piso), con carga casi nula:
+0,07 (kW) de media y 450,7 (kWh) en el horizonte (claves
+`tercer_medidor_*__Mariana`). Por eso su serie de la segunda frontera se
+aproximaba con el primer medidor escalado.
+
 ---
 
 ## H-6 · El horizonte termina cuatro meses antes de donde llega el dato
@@ -951,6 +963,28 @@ eventos y la Clase A exige medición sin huecos, de modo que no debe
 citarse. Ninguna norma eléctrica fija umbral de completitud; si se quiere
 uno, se declara como decisión propia. Ver P-20.
 
+**Precisión del 2026-09-28 (ronda 3 del capítulo 4, C-229).** Las cifras
+de esta entrada se volvieron a medir con
+`reformateo/documento/scripts/cifras_datos_cap04.py` (salida en
+`SALIDAS_SERVIDOR/cifras_datos_2026-09-28/cifras.csv`), y la tesis cita las
+del guion:
+- **Reproducidas al dígito:** 3,78 % de incompletas de 8 a 17 h frente a
+  1,74 % de 0 a 5 h, y 18 horas con las cinco incompletas a la vez (claves
+  `incompletas_tasa_8a17_pct`, `incompletas_tasa_0a5_pct`,
+  `incompletas_cinco_a_la_vez`).
+- **Sustituidas, con la misma conclusión:**
+  - los 718 cortes con 809, 812 y 288 kWh no se reproducen con su definición
+    de corte; con dos muestras consecutivas separadas más de 2,5 min y hasta
+    una hora, en UCC, Udenar y HUDN, son 533 cortes, 724,0 kWh de contador,
+    727,3 si el equipo siguió consumiendo y 243,4 si no hubo energía (claves
+    `cortes_n`, `cortes_contador_kWh`, `cortes_siguio_consumiendo_kWh`,
+    `cortes_sin_energia_kWh`);
+  - el sesgo de la ventana, +0,0007 %, pasa a 0,00085 % sobre las 835 horas
+    (`sesgo_ventana_pct_demanda`);
+  - la suma fija frente a la media, de −0,258 a −0,550 %, pasa a −0,242 a
+    −0,539 %, porque esta entrada contaba 840 horas
+    (`suma_fija_menos_media_pct__*`).
+
 ---
 
 ## H-19 · El capítulo publicaba el complemento como si fuera lo que el modelo emplea
@@ -1289,6 +1323,23 @@ horas son indistinguibles de un consumo realmente medido de 0 kW.
 trate como trata las de los medidores brutos, es decir, interpolación y
 arrastre. Cambiaría la demanda de tres instituciones bajo M1 e invalida el
 canon, de modo que iría con la corrida nueva. **No se toca sin su palabra.**
+
+**Precisión del 2026-09-28 (ronda 2 del capítulo 4, C-229).** Los conteos de
+esta entrada y de su precisión del 27 de septiembre (337) son del dato
+crudo, antes del guardia físico. En la serie que recibe el modelo, con el
+guardia, son **341** horas sin ninguna muestra en los tres medidores netos:
+Udenar 97, Mariana 118 y UCC 126. En 337 el medidor no entregó nada y en 4
+de Mariana el guardia descartó todas las muestras (29 de agosto de 2025, de
+7 a 10 h); **334** entran en cero y 7 de Udenar, de día, igual a la
+generación devuelta. El guardia vacía en total **5** horas en los cinco
+medidores de la frontera (las 4 de Mariana y 1 de CESMAG, el 17 de junio de
+2025 a las 6 h, que recoge la cascada). La misma diferencia alcanza a las
+horas incompletas: 835 en crudo, **866** en la serie del modelo (Udenar 163,
+Mariana 132, UCC 199, HUDN 183, CESMAG 189). Fuente:
+`reformateo/documento/scripts/cifras_datos_cap04.py`, salida en
+`SALIDAS_SERVIDOR/cifras_datos_2026-09-28/cifras.csv`, claves
+`sin_muestra_*`, `vaciadas_guardia__*` e `incompletas_*`. Ninguna cifra del
+canon cambia: el canon usa la serie ya construida.
 
 
 ## H-27 · Un medidor publica su tensión bajo dos escalas incompatibles

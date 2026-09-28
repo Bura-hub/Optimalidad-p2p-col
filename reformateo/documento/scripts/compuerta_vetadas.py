@@ -92,7 +92,8 @@ VETADAS = [
            ignora_mayusculas=True),
     # ── Citas normativas corregidas (C-217) ────────────────────────────────
     Vetada(r"art(?:\.|ículo)\s*26\s+de\s+la\s+(?:Resolución\s+)?(?:CREG\s+)?101[ .]?097",
-           "cita no sostenida: la 101 097 trata la función del precio de escasez",
+           "cita mal atribuida: el art. 26 de la 101 097 modifica el parágrafo 1 "
+           "del art. 25 (tope de escasez sobre el MCm), no fija la bolsa horaria (C-224)",
            "art. 1 (lit. i y ii) y art. 4 de la CREG 101 087; art. 28 de la 101 072",
            ignora_mayusculas=True),
     Vetada(r"C2[^.\n]{0,80}(?:numeral\s*2\s*literal\s*a|num\.\s*2\s*lit\.\s*a)",

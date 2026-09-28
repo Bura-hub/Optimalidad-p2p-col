@@ -9776,3 +9776,19 @@ Guion nuevo `reformateo/documento/scripts/compuerta_vetadas.py`: busca en `tesis
 - Especificación del motor, D7: el Cv de CEDENAR es 174,92 de media simple (175,08 ponderado), no 174,3 (nota fechada).
 
 Queda anotado, sin cambiar: docstrings de `data/` que aún citan 5 160 horas y el respaldo de 650 COP/kWh, y los ADR 0006 y 0032, que citan líneas del inventario de junio como registro histórico.
+
+## C-224 · Lo que la redacción del capítulo 6 corrigió en la lectura regulatoria (2026-09-27)
+
+Al redactar el capítulo 6 de la tesis (borrador en `Documentos/FinalTesisV2/borradores/cap06_escenarios.md`), el redactor y la revisión encontraron tres puntos que cambian la lectura, no las cifras:
+
+- **El porcentaje fijado al cierre del mes (decisión del autor).** El porcentaje del mercado por la vía del colectivo (D8) sale de los flujos del propio mes, y la regla «importación» de C-209 usa la importación del mismo mes. Los dos solo se conocen al cierre. Hasta ahora el primero se daba por realizable y la segunda por no realizable. El art. 19 de la CREG 101 072 pide comunicar el PDE 10 días hábiles antes del ciclo de facturación, «no obstante, el comercializador y el representante del AC podrán acordar periodos de reporte diferentes a los acá estipulados» (texto verificado en el PDF de la resolución, hoja 19-20). **Se aplica el mismo criterio a los dos:** los dos son realizables con ese acuerdo, y no con la regla ordinaria. La regla «importación» sigue siendo la cota superior del rescate en energía. Se cambian el docstring de `pde_por_regla` (`scenarios/scenario_c4_creg101072.py`) y las secciones 6.9.1 y 6.10 del borrador.
+- **El motivo del veto de la 101 097.** C-217 decía que la cita «art. 26 de la CREG 101 097» no se sostiene porque esa resolución trata la función del precio de escasez. El texto consolidado de la CREG 174 del corpus (`Documentos/regulacion/CREG_174_de_2021.html`) muestra que el art. 26 de la 101 097 modifica el parágrafo 1 del art. 25: el tope del exceso, valorado al MCm, cuando supera el precio de escasez de activación de la CREG 071 de 2006. La cita existe; lo que no se sostiene es atribuirle la bolsa horaria transitoria, que sale del art. 1 de la 101 087. El veto sigue en la compuerta con el motivo corregido.
+- **El techo de la bolsa es una aproximación.** Los anexos de la 101 072 limitan la remuneración solo cuando se activa la condición crítica de la CREG 071 de 2006, y la fijan en el precio de escasez ponderado o en el de transacción en bolsa. `data/xm_prices.py` aplica sin condición, en toda hora, el precio de escasez superior mensual de la 101 066. Afecta por igual a los siete mecanismos. El borrador lo declara como supuesto (secciones 6.1.1, 6.2.1 y 6.2.4 y la Tabla 6.2); el código no cambia.
+
+Quedan anotados para los capítulos siguientes, sin cambiar aquí:
+
+- el capítulo 3 de `tesis.md` contradice al 6 en unos nueve puntos y se reescribe;
+- D3 (lo colocado dentro no consume cupo) no tiene respaldo en el art. 21 y se presenta como supuesto;
+- la regla del piso usa series residuales aproximadas (H-53);
+- algunos comentarios de `main_simulation.py` y `comparison_engine.py` atribuyen todavía C2 al art. 23 num. 2 lit. a, y `flow_breakdown["C2"]` usa el C2 viejo, fuera de la hoja `Resumen`;
+- los arts. 13 y 14 de la 101 087 y 15 a 22 de la 101 099 se verificaron contra el corpus.

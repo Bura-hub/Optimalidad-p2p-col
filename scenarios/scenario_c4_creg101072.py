@@ -311,9 +311,13 @@ def pde_por_regla(regla: str, G: np.ndarray, D: np.ndarray,
     el minimo posible, F_m - sum I_m. El art. 19 de la CREG 101 072 permite
     cambiar el porcentaje cada mes (suma cien, avisando al comercializador
     antes del ciclo de facturacion), pero esta regla usa la importacion del
-    mismo mes, que no se conoce cuando se avisa: es una COTA SUPERIOR de lo
-    que un reparto estatico podria rescatar de la bolsa, no un reparto
-    realizable. Lo es en ENERGIA; en valor no, porque cada miembro valora el
+    mismo mes, que no se conoce cuando se avisa. Con esa regla ordinaria no es
+    realizable; lo es con la clausula del mismo art. 19 que deja acordar al
+    comercializador y al representante «periodos de reporte diferentes», el
+    mismo acuerdo que necesita el mercado por la via del colectivo, cuyo
+    porcentaje tambien sale de los flujos del mes (C-224). Es la COTA SUPERIOR
+    de lo que un reparto estatico podria rescatar de la bolsa. Lo es en
+    ENERGIA; en valor no, porque cada miembro valora el
     credito a su tarifa menos su deduccion y el exceso cae en otras horas
     (medido en H-100: «consumo» o «aporte» la superan en valor en varios
     casos). Sirve para medir el «spread de ineficiencia estatica» con el

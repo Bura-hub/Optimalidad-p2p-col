@@ -143,6 +143,10 @@ class Insumos:
     # (robustez ante la salida de un miembro, H-106), o None con la comunidad
     # del caso tal cual, que es el canon.
     excluido: Optional[str] = None
+    # H-107 (2026-09-28): True si el Cv de la deduccion del art. 25 lleva el
+    # COT en las instituciones de CEDENAR (Cv vigente de la 101 028, art. 5);
+    # False con solo el Cv, que es el canon (CAL-10b.2).
+    cot_en_deduccion: bool = False
 
     @property
     def N(self) -> int:
@@ -156,10 +160,21 @@ class Insumos:
 def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
                  cache_dir=None, dia: Optional[str] = None,
                  comercializador: Optional[str] = None,
-                 excluir_agente: Optional[str] = None) -> Insumos:
+                 excluir_agente: Optional[str] = None,
+                 cot_en_deduccion: bool = False) -> Insumos:
     """Replica `main()` (lineas 656-970 y 1412-1580 del 2026-09-26) para
     `--data real --full --include-c5 --no-regulado` y la opcion del caso.
     Con `dia`, replica `--day` en vez de `--full` (la prueba de un dia).
+
+    `cot_en_deduccion` (H-107, contrafactico del art. 5 de la CREG 101 028,
+    que reescribe el art. 11 de la 119 y suma el COT dentro del termino de
+    comercializacion): con True, el Cv de las instituciones atendidas por
+    CEDENAR pasa a Cv + COT ANTES del factor Cv del caso, de modo que la
+    deduccion del art. 25 (el piso de permuta y `component_c` de C1, C4, el
+    colectivo y los residuales) usa el Cv vigente; las de ASC conservan solo
+    el Cv. No toca `cu_Cvm` ni `cu_COT` (la tasa de C5 ya lleva el COT) ni
+    el techo. Con False (el defecto) no cambia nada: es el canon, al bit.
+    No se combina con `comercializador` (falla en voz alta).
 
     `excluir_agente` (B2, robustez ante la salida de un miembro, H-106): con
     el nombre de una institucion, el caso se prepara sin ella, SUMANDO la
@@ -183,9 +198,15 @@ def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
     reparto real se RESTITUYE al salir, tambien si algo falla (la excepcion
     sigue su curso). Con None (el defecto) no se llama a nada nuevo y el
     resultado es el de siempre, al bit: es el canon."""
+    if not isinstance(cot_en_deduccion, bool):
+        raise ValueError(f"cot_en_deduccion: se esperaba True o False; se "
+                         f"recibio {cot_en_deduccion!r}")
+    if cot_en_deduccion and comercializador is not None:
+        raise ValueError("cot_en_deduccion no se combina con un "
+                         "comercializador forzado")
     if comercializador is None:
         return _prepara_caso(caso, datos, mte_root, cache_dir, dia, None,
-                             excluir_agente)
+                             excluir_agente, cot_en_deduccion)
     from data.cedenar_tariff import forzar_comercializador
     try:
         return _prepara_caso(caso, datos, mte_root, cache_dir, dia,
@@ -216,7 +237,8 @@ def _exclusion(caso: str, op: dict, excluir_agente: Optional[str]) -> list:
 
 
 def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
-                  comercializador, excluir_agente=None) -> Insumos:
+                  comercializador, excluir_agente=None,
+                  cot_en_deduccion=False) -> Insumos:
     from data.xm_prices import get_pi_bolsa, get_b_for_real_data
     import data.xm_prices as _xmp
     from data.cedenar_tariff import (
@@ -294,10 +316,13 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
     _exige_finito("bolsa cruda", bolsa_cruda)
 
     pi_gs_arg = np.asarray(pi_gs_per_agent_hourly(nombres, idx), dtype=float)
-    # D7: `main()` escala el mismo Cv en el piso y en `component_c`.
-    cvm = (np.asarray(cvm_per_agent_hourly(nombres, idx), dtype=float)
-           * op["factor_cv"])
     cu = cu_components_per_agent_hourly(nombres, idx)
+    cv_tabla = np.asarray(cvm_per_agent_hourly(nombres, idx), dtype=float)
+    if cot_en_deduccion:
+        cv_tabla = cv_con_cot_cedenar(cv_tabla, np.asarray(cu["COT"], float),
+                                      nombres)
+    # D7: `main()` escala el mismo Cv en el piso y en `component_c`.
+    cvm = cv_tabla * op["factor_cv"]
     tolls = cu["T"] + cu["D"] + cu["PR"] + cu["R"]
     mes_m = pd.Series(idx).dt.strftime("%Y-%m").to_numpy()
     pi_G = g_plus_commercialization_per_agent_hourly(nombres, idx)
@@ -334,7 +359,34 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
         mem=np.asarray(mem, float), pi_G=np.asarray(pi_G, float), pes=pes,
         pi_c5=pi_c5, pi_gb=pi_gb, pi_ppa=float(pi_ppa), fuente_bolsa=fuente,
         dia=dia, fechas=[str(idx[0]), str(idx[-1])],
-        comercializador=comercializador, excluido=excluir_agente)
+        comercializador=comercializador, excluido=excluir_agente,
+        cot_en_deduccion=bool(cot_en_deduccion))
+
+
+def cv_con_cot_cedenar(cv: np.ndarray, cot: np.ndarray, nombres) -> np.ndarray:
+    """El Cv (N, T) con el COT sumado en las filas de las instituciones que
+    atiende CEDENAR segun el perfil vigente (H-107); las de ASC quedan con
+    solo el Cv. Funcion pura: devuelve una copia. Falla en voz alta si las
+    formas no casan, si un nombre no tiene perfil, si ninguna institucion es
+    de CEDENAR o si el COT de esas filas no es finito."""
+    from data.cedenar_tariff import INSTITUTION_PROFILE
+    cv = np.asarray(cv, dtype=float)
+    cot = np.asarray(cot, dtype=float)
+    if cv.shape != cot.shape or cv.shape[0] != len(nombres):
+        raise ValueError(f"Cv {cv.shape}, COT {cot.shape} y {len(nombres)} "
+                         f"instituciones no casan")
+    sin_perfil = [n for n in nombres if n not in INSTITUTION_PROFILE]
+    if sin_perfil:
+        raise ValueError(f"sin perfil tarifario: {sin_perfil}")
+    filas = [i for i, n in enumerate(nombres)
+             if INSTITUTION_PROFILE[n].comercializador == "cedenar"]
+    if not filas:
+        raise ValueError(f"ninguna de {list(nombres)} es de CEDENAR; el COT "
+                         f"en la deduccion no cambiaria nada")
+    _exige_finito("COT de CEDENAR", cot[filas])
+    out = cv.copy()
+    out[filas] = cv[filas] + cot[filas]
+    return out
 
 
 def inicia_proceso() -> None:

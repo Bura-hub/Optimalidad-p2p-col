@@ -7993,3 +7993,43 @@ Las **216** horas en que el núcleo publica el reposo cuantal (D71) tienen **tod
 Las horas sin lectura de los medidores netos son **337**, no 330: 330 entran como cero y 7 de Udenar, de día, entran como la generación reconstruida del inversor (CAL-44). El conteo de H-25 no cambia ninguna cifra del canon, que usa la serie ya reconstruida.
 
 **Precisiones del 2026-09-27 (registro en el canon, E1).** Al generar las constantes del bloque 10 desde los ficheros se corrigieron redondeos en H-96 (el rango del mercado sobre el colectivo favorable, 0,08 a 1,93 millones), H-98 (frente a C4, un 2,0 % o menos: en E2 con «llenado» es −2,0008 %), H-102 (tres celdas de la tabla de meses: 1,27, 0,45 y 0,33) y H-104 (C1 en E4, 195,84 millones; el colectivo difiere en −1 203,76 COP, no en cero). En H-102, «del 15 al 24 %» de energía en regímenes con regla declarada vale para los terciles de bolsa. Las cifras citables son las de `CANON.md`, sección 14.
+
+## H-107 · El techo literal del Anexo 4 no mueve nada y el COT en la deducción mueve menos del 0,5 %
+
+**Estado: MEDIDO el 2026-09-28 (revisión del capítulo 3, hallazgo m1 y discrepancia 1; actividad 2.2).** Evaluador del GSA en el punto base (seis factores en 1, μ = 1), `reformateo/documento/scripts/contrafactico_techo_cot.py`, salida en `SALIDAS_SERVIDOR/contrafactico_techo_cot_2026-09-28/`. **Compuerta:** la variante real reproduce al peso el canon de los trece casos (694 comprobaciones; diferencia máxima 0,007 COP). No es canon: si el autor decide citar estas cifras, se registran con huella.
+
+**Qué es «PrecEsca».** La columna `pe_cop_kwh` de `data/precios_escasez_creg.csv` (métrica `PrecEsca` del API de XM, «Precio Escasez por Sistema») **no es el precio de escasez ponderado**. XM la describe como el precio «establecido por la CREG y actualizado mensualmente con base en la variación de un índice de precios de combustibles», es decir, el precio de escasez del Anexo 1 de la CREG 071 de 2006.
+
+- XM publica el ponderado aparte, como `PrecEscaPon`: «Precio Escasez Ponderado del Sistema calculado de acuerdo a la Resolución CREG 140 de 2017». Fuente: listado de métricas del API, `servapibi.xm.com.co/lists`, consultado el 2026-09-28.
+- La definición normativa está en la CREG 140 de 2017, art. 1, y en la CREG 101 066 de 2024, art. 1. Las dos reescriben las definiciones del art. 2 de la CREG 071 de 2006. La 101 066 dice: «Precio de escasez ponderado (PEpm): es el valor promedio ponderado de los precios de escasez mensual». Se calcula como PEpm = Σ PE(i,j,m) · OEF(i,j,m) / Σ OEF(i,j,m), con el precio de escasez de cada planta (superior o inferior) ponderado por su obligación de energía firme. Fuente: `gestornormativo.creg.gov.co`, `resolucion_creg_0140_2017.htm` y `resolucion_creg_101-66_2024.htm`.
+- En 2025 el ponderado queda entre un 2,3 y un 3,7 % por debajo del superior. Por ejemplo, en abril vale 902,59 frente a 928,33 (COP/kWh). PrecEsca queda muy por debajo de los dos: 739,80 en abril.
+- Se midieron las dos variantes: la literal, con `PrecEscaPon`, y la cota del encargo, con PrecEsca.
+- La serie de XM está en `precios_escasez_xm.csv`, en la carpeta de salida. Las columnas PEI, PE y PES coinciden con la tabla del modelo en los nueve meses.
+
+**Horas afectadas** en el horizonte (6 144 h, del 4 de abril al 16 de diciembre de 2025):
+
+| Umbral | Horas | Horas del día | Por mes (abr a dic) |
+|---|---:|---|---|
+| bolsa cruda > PES (el techo del modelo) | 18 | — | 7, 1, 0, 1, 5, 2, 0, 2, 0 |
+| bolsa del modelo > PEpm (`PrecEscaPon`) | 38 | 18 h a 22 h (19 h: 22) | 7, 1, 0, 1, 5, 22, 0, 2, 0 |
+| bolsa del modelo > PrecEsca | 143 | 15 h a 22 h (18 a 20 h: 138) | 7, 8, 2, 11, 22, 50, 14, 29, 0 |
+
+**En las 38 horas del ponderado, el excedente físico de la comunidad es cero en los trece casos.** Son horas de la tarde y la noche, sin sol. En las 143 horas de PrecEsca es cero en E0, P2, K1, CV2 y SINU, y llega a 229,7 kWh en E5. C1 lleva a bolsa, en esas horas, hasta 221,5 kWh (E5).
+
+**Efecto de cada variante** (cambio frente a real, en todos los casos):
+
+| Variante | Mayor \|cambio\| por mecanismo (%) | Brechas de comunidad con signo distinto (de 78) | Brechas por institución con signo distinto (de 192: 64 pares institución-caso por tres brechas) |
+|---|---|---:|---:|
+| techo_ponderado (PEpm) | 0 exacto en los siete | 0 | 0 |
+| techo_pe (PrecEsca) | P2P 0,016; colectivo 0,012; C1 0,012; C2 0,016; C3 0,016; C4 0,010; C5 0,013 | 0 | 0 |
+| cot | P2P 0,219; colectivo 0,273; C1 0,259; C2 0,219; C3 0; C4 0,491; C5 0 | 1 | 0 |
+| ambos | idéntica a cot al bit | 1 | 0 |
+
+- **Techo literal.** No cambia ninguna cifra, porque en las horas en que el ponderado muerde no hay excedente que valorar. La aproximación de C-224 (tope sin condición en el PES) es más laxa que el Anexo 4 literal, pero en 2025 la diferencia vale cero pesos. Con PrecEsca, que es una cota más baja que la norma, el mayor cambio es de 0,038 millones (P2P en E5).
+- **COT en la deducción.** Solo toca a Cesmag. Su COT va de 40,3 a 45,3 (COP/kWh) y su Cv de 172,5 a 181,0, de modo que la deducción del art. 25 crece cerca de un 24 %. Todos los mecanismos con permuta pierden: C4 hasta 0,53 millones (0,49 % en I1), C1 hasta 0,48 y P2P hasta 0,46. C3 y C5 no cambian, porque C5 ya llevaba el COT en su tasa.
+- **El signo que cambia** es el del colectivo con el mercado frente a C4 en E1: pasa de −0,089 a +0,223 millones. Es la brecha que ya era frágil en el canon (H-106). P2P − C1, P2P − C4, P2P − C5 y C4 − C1 conservan su signo en los trece casos.
+- **Por institución, ningún signo cambia.** El COT mueve sobre todo a Cesmag: su P2P − C4 sube hasta 0,52 millones, porque C4 pierde más que el mercado, y su P2P − C5 baja hasta 0,50 millones.
+
+**Lectura.** Las dos lecturas literales de la norma no cambian ninguna conclusión de la tesis. El techo puede quedar declarado como aproximación, con la cifra: cero pesos en 2025. El COT es una elección de supuesto que mueve menos del 0,5 %. Si el autor adopta Cv + COT por coherencia con C5 (la recomendación de la revisión), el único signo que cambia es uno que ya se declaraba frágil.
+
+**Código.** `prepara_caso(..., cot_en_deduccion=False)` y `cv_con_cot_cedenar` en `gsa_directo/evaluador.py` (C-227). El defecto es el canon al bit.

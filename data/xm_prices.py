@@ -1081,6 +1081,17 @@ def apply_creg101066_ceiling(
     """
     Aplica el techo CREG 101 066/2024 al precio de bolsa horario.
 
+    H-107 y C-228 (2026-09-28): es una APROXIMACION del tope del Anexo 4 de la
+    CREG 101 072, que limita sin condicion el precio de bolsa al precio de
+    escasez PONDERADO (CREG 140 de 2017 y 101 066, art. 1; XM lo publica como
+    PrecEscaPon), entre 2,3 y 3,7 % por debajo del superior (PES) que se usa
+    aqui. En el horizonte del canon (abril a diciembre de 2025) la bolsa supera
+    el ponderado en 38 horas, todas de 18 a 22 h, sin exportacion de la
+    comunidad en ningun caso, y la bolsa solo valora energia exportada: el
+    resultado es identico al peso (SALIDAS_SERVIDOR/contrafactico_techo_cot_
+    2026-09-28/). En otro horizonte con exportacion en horas de escasez hay
+    que topar con el ponderado.
+
     Para cada hora ``k``, si la fecha local de esa hora es ``>= effective_date``,
     el precio se recorta a ``min(pi_bolsa[k], ceiling[mes_de_k])``. Antes de
     ``effective_date`` la serie se devuelve sin cambios.

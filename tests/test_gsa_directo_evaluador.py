@@ -15,6 +15,9 @@ Actividad 4.1.
 - B2 (C-215): `excluir_agente` con None no cambia la firma ni los insumos;
   sumado a SINU, o con un nombre ajeno al caso, falla antes de cargar; E0
   sin Udenar da los insumos de SINU.
+- H-107 (C-227): `cot_en_deduccion` con False no cambia los insumos al bit;
+  con True suma el COT solo al Cv de las instituciones de CEDENAR (Cesmag)
+  y deja intacto todo lo demas, C5 incluido.
 
 Las de datos reales se saltan si no esta MedicionesMTE_v3.
 """
@@ -196,8 +199,9 @@ def test_excluir_agente_defecto_none_y_firma():
     ps = list(inspect.signature(evaluador.prepara_caso).parameters.values())
     assert [p.name for p in ps] == ["caso", "datos", "mte_root", "cache_dir",
                                     "dia", "comercializador",
-                                    "excluir_agente"]
-    assert ps[-1].default is None
+                                    "excluir_agente", "cot_en_deduccion"]
+    assert ps[-2].default is None
+    assert ps[-1].default is False
     campos = {f.name: f for f in dataclasses.fields(evaluador.Insumos)}
     assert campos["excluido"].default is None
     assert _sinteticos().excluido is None
@@ -266,3 +270,61 @@ def test_despacho_defecto_y_valores():
         evaluador._evalua).parameters["despacho"].default == "piso"
     with pytest.raises(ValueError, match="despacho"):
         evaluador.evalua_comparacion(None, comun.PUNTO_BASE, despacho="merito")
+
+
+# ── H-107: el COT en la deduccion del art. 25 (C-227) ─────────────────────
+def test_cot_en_deduccion_defecto_false_y_campo():
+    import dataclasses
+    campos = {f.name: f for f in dataclasses.fields(evaluador.Insumos)}
+    assert campos["cot_en_deduccion"].default is False
+    assert _sinteticos().cot_en_deduccion is False
+
+
+def test_cv_con_cot_solo_en_cedenar():
+    """Solo la fila de Cesmag (CEDENAR) gana el COT; las de ASC no cambian;
+    la entrada no se muta; sin CEDENAR, o con COT no finito, falla."""
+    from data.cedenar_tariff import aplicar_regimen_no_regulado
+    aplicar_regimen_no_regulado(True)
+    nombres = comun.INSTITUCIONES
+    cv = np.full((5, 4), 40.0)
+    cot = np.arange(20, dtype=float).reshape(5, 4) + 1.0
+    out = evaluador.cv_con_cot_cedenar(cv, cot, nombres)
+    i = nombres.index("Cesmag")
+    np.testing.assert_array_equal(out[i], cv[i] + cot[i])
+    otras = [n for n in range(5) if n != i]
+    np.testing.assert_array_equal(out[otras], cv[otras])
+    assert np.all(cv == 40.0)
+    with pytest.raises(ValueError, match="ninguna"):
+        evaluador.cv_con_cot_cedenar(cv[:4], cot[:4], nombres[:4])
+    malo = cot.copy()
+    malo[i, 0] = np.nan
+    with pytest.raises(ValueError, match="no finitos"):
+        evaluador.cv_con_cot_cedenar(cv, malo, nombres)
+    with pytest.raises(ValueError, match="no casan"):
+        evaluador.cv_con_cot_cedenar(cv, cot[:, :3], nombres)
+
+
+def test_cot_en_deduccion_valida_antes_de_cargar(monkeypatch):
+    def no_cargues(*a, **k):
+        raise AssertionError("se cargo el MTE antes de validar")
+    monkeypatch.setattr(evaluador, "carga_mte", no_cargues)
+    with pytest.raises(ValueError, match="no se combina"):
+        evaluador.prepara_caso("E0", None, comercializador="asc",
+                               cot_en_deduccion=True)
+    with pytest.raises(ValueError, match="True o False"):
+        evaluador.prepara_caso("E0", None, cot_en_deduccion=1)
+
+
+@datos_reales
+def test_cot_en_deduccion_false_no_cambia_nada_y_true_solo_cesmag(datos):
+    a = evaluador.prepara_caso("E0", datos, dia=DIA)
+    b = evaluador.prepara_caso("E0", datos, dia=DIA, cot_en_deduccion=False)
+    _insumos_iguales(a, b, salvo=())
+    c = evaluador.prepara_caso("E0", datos, dia=DIA, cot_en_deduccion=True)
+    assert c.cot_en_deduccion is True
+    _insumos_iguales(a, c, salvo=("cvm", "cot_en_deduccion"))
+    i = a.nombres.index("Cesmag")
+    np.testing.assert_array_equal(c.cvm[i], a.cvm[i] + a.cu_COT[i])
+    assert np.all(a.cu_COT[i] > 0)
+    otras = [n for n in range(a.N) if n != i]
+    np.testing.assert_array_equal(c.cvm[otras], a.cvm[otras])

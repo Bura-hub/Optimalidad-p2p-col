@@ -9834,3 +9834,40 @@ El redactor del capítulo 5 encontró que los dos documentos se contradecían co
   - La fila del costo lineal ya no dice «calibrado, CAL-6».
 
 Solo cambia el texto; el código y las cifras siguen iguales.
+
+## C-227 · El evaluador del GSA puede poner el COT en la deducción del art. 25 (H-107, 2026-09-28)
+
+Para medir la discrepancia 1 de la revisión del capítulo 3 (el COT dentro del Cv por el art. 5 de la CREG 101 028):
+
+- **`gsa_directo/evaluador.py`.**
+  - `prepara_caso` gana el parámetro `cot_en_deduccion`, al final y con `False` por defecto, y `Insumos` gana el campo del mismo nombre.
+  - Con `True`, el Cv de las instituciones que atiende CEDENAR pasa a Cv + COT **antes** del factor Cv del caso. Así, la deducción del art. 25 usa el Cv vigente: el piso de permuta y `component_c` de C1, C4, el colectivo y los residuales. Las de ASC conservan solo el Cv.
+  - No toca `cu_Cvm`, `cu_COT` (la tasa de C5 ya lleva el COT) ni el techo.
+  - La suma la hace la función pura nueva `cv_con_cot_cedenar`. Falla en voz alta si las formas no casan, si una institución no tiene perfil, si ninguna es de CEDENAR o si el COT no es finito. Tampoco se combina con un comercializador forzado.
+  - Con `False` los insumos son los de siempre, al bit.
+- **`tests/test_gsa_directo_evaluador.py`.**
+  - La prueba de la firma incluye el parámetro nuevo.
+  - Cuatro pruebas nuevas:
+    - el defecto y el campo;
+    - la suma solo en la fila de Cesmag, sin mutar la entrada, y los fallos;
+    - la validación antes de cargar el MTE;
+    - con datos reales, `False` igual al defecto al bit y `True` distinto solo en la fila de Cesmag de `cvm`, por su COT.
+- **`reformateo/documento/scripts/contrafactico_techo_cot.py`** (nuevo). Mide cinco variantes en los trece casos, con la compuerta de la variante real contra el canon.
+
+La calibración no cambia, y el canon tampoco.
+
+## C-228 · Las decisiones sobre el techo de la bolsa, el COT y C5 (2026-09-28)
+
+La revisión del capítulo 3 y la medición H-107 obligaron a tomar tres decisiones:
+
+- **El techo de la bolsa (decisión del controlador, delegada por el autor).** C-224 decía que los anexos de la 101 072 limitan la remuneración solo bajo la condición crítica de la CREG 071 de 2006. Estaba incompleto. El Anexo 4 (hoja 47) topa además, sin condición, el precio de bolsa en el precio de escasez **ponderado** (CREG 140 de 2017, art. 1; 101 066, art. 1; en XM, PrecEscaPon). El modelo topa con el **superior**, entre un 2,3 y un 3,7 % más alto. Medido en H-107:
+  - la bolsa supera el ponderado en 38 horas, todas entre las 18 y las 22 h;
+  - la comunidad exporta 0 kWh en ellas en los 13 casos;
+  - la bolsa solo valora energía exportada, porque nadie compra a bolsa;
+  - con el tope literal, el cambio es de 0 exacto en los siete mecanismos.
+
+  **Se mantiene el código** y se declara la equivalencia, que es estructural: el ponderado solo muerde en horas sin sol. Cambiar el código obligaría a regenerar el canon con un efecto nulo. El docstring de `apply_creg101066_ceiling` (`data/xm_prices.py`) lo dice, y advierte que en otro horizonte con exportación en horas de escasez hay que topar con el ponderado.
+- **El COT (decisión del autor).** El canon sigue deduciendo solo el Cv. Para un no regulado, la lectura literal no es clara: el art. 2 de la 101 028 aplica el COT a los regulados y a quienes cambian de comercializador o de nivel de tensión. El capítulo 6 declara la asimetría, porque la tarifa y la tasa de C5 sí llevan el COT, y cita la sensibilidad medida en H-107: los mecanismos bajan entre un 0,22 y un 0,49 %; cambia de signo 1 de 78 brechas de comunidad, la del mercado por el colectivo frente a C4 en E1, que ya era frágil; por institución, ninguna. La razón de CAL-10b.2 («el art. 25 cita solo el Cv de la 119») queda superada, aunque la decisión se mantiene.
+- **C5 (decisión del autor).** C5 queda como **referencia del régimen horario de la 101 099, no elegible** para la comunidad tal como está configurada. No cumple el art. 4, lit. iii (un solo activo), ni los lits. v y vi (generación detrás de la frontera de consumo), ni el art. 17, lit. ii, y el art. 22 (un solo comercializador). Sus cifras no cambian, y los capítulos 6, 7 y 9 lo declaran.
+
+Además, el capítulo 6 cita el art. 9, num. 5, lit. b, de la 101 072: el PDE por defecto es proporcional al número de fronteras, lo que apoya el reparto igual de D5. También dice que el art. 20 tiene cuatro casos, porque el art. 13 de la 101 087 añadió el cuarto.

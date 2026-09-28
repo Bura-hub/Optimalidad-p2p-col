@@ -183,7 +183,7 @@ def guardar(fig, nombre: str, datos: pd.DataFrame, procedencia: list[str]):
 
 # Figuras cuyo CSV lleva huecos declarados (columna que solo aplica a
 # algunas filas). Cualquier otra con NaN se detiene.
-_CON_HUECOS = {"c5_banda_hora", "c4_generacion_udenar"}
+_CON_HUECOS = {"c5_banda_hora", "c4_generacion_udenar", "c7_brechas_institucion"}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1212,6 +1212,587 @@ def c6_corte_hx(caso: str = "E1", inst: str = "Udenar"):
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# Capítulo 7
+# ═════════════════════════════════════════════════════════════════════════════
+# Reglas del capítulo: C4_mensual no aparece (alias de C4); el P2P y C2 van
+# fundidos en el agregado (coinciden, CANON §6.1); C5 se rotula como
+# referencia no elegible y se dibuja hueco; los signos frágiles que el texto
+# declara se marcan; ninguna dominancia hora a hora.
+CIFRAS7 = SALIDAS / "cifras_cap07_2026-09-28" / "cifras.csv"
+D72 = ENTREGA / "optimalidad_D72"
+SUBP = SALIDAS / "subperiodos_2026-09-27"
+GSA = SALIDAS / "entrega_gsa_directo_completo_2026-09-27" / "SALIDAS_SERVIDOR" / "gsa_directo"
+
+# Mecanismos del capítulo 7: color y forma. La forma lleva la distinción
+# que tiene que sobrevivir impresa.
+MEC7 = {
+    "P2P":           ("#1F6F8B", "o", "P2P (y C2)"),
+    "P2P_colectivo": ("#7DB3C6", "s", "P2P por el colectivo"),
+    "C1":            ("#8C8C8C", "^", "C1"),
+    "C3":            ("#9B6BA8", "v", "C3"),
+    "C4":            ("#D08A2E", "D", "C4"),
+    "C5":            ("#5B8C5A", "P", "C5 (referencia no elegible)"),
+}
+_CIFRAS7: pd.DataFrame | None = None
+
+
+def cifra7(clave: str):
+    """Una cifra de cifras_cap07_2026-09-28 (§14.18, C-230), por su clave."""
+    global _CIFRAS7
+    if _CIFRAS7 is None:
+        con_huella(CIFRAS7)
+        _CIFRAS7 = pd.read_csv(CIFRAS7, dtype={"valor": str}).set_index("clave")
+    exige(clave in _CIFRAS7.index, f"cifras_cap07 no tiene la clave {clave}")
+    v = _CIFRAS7.loc[clave, "valor"]
+    try:
+        return float(v)
+    except ValueError:
+        return v
+
+
+def _hoja(caso: str, hoja: str) -> tuple[pd.DataFrame, str]:
+    p = MATRIZ / caso / "outputs" / "resultados_comparacion.xlsx"
+    return pd.read_excel(p, sheet_name=hoja), con_huella(p)
+
+
+def _resumen_13() -> tuple[pd.DataFrame, list[str]]:
+    """Ganancia neta de la comunidad (COP) por caso y mecanismo, hoja Resumen."""
+    filas, rastro = {}, []
+    for caso in CASOS:
+        r, h = _hoja(caso, "Resumen")
+        rastro.append(h)
+        filas[caso] = r.set_index("Escenario")["Ganancia_neta_COP"].astype(float)
+    t = pd.DataFrame(filas).T.loc[CASOS]
+    exige(not t.isna().any().any(), "Resumen con valores vacíos")
+    # Las dos identidades del canon (§6.1), comprobadas antes de fundir.
+    exige(float((t.P2P - t.C2).abs().max()) < 1e-3, "P2P y C2 no coinciden en el agregado")
+    exige(float((t.C4 - t.C4_mensual).abs().max()) == 0.0, "C4_mensual no es alias de C4")
+    return t, rastro
+
+
+def _marcar(ax, x, y, estilo: str = "solido", r: float = 9.0) -> None:
+    """Anillo de signo frágil alrededor de un punto."""
+    ax.plot([x], [y], ls="none", marker="o", markersize=r, mfc="none",
+            mec=E.TINTA, mew=1.0 if estilo == "solido" else 0.8,
+            zorder=6)
+
+
+def c7_brechas_comunidad():
+    """Figura 7.1 — La ganancia neta de cada mecanismo frente a C1, por caso.
+
+    En porcentaje de la ganancia de C1 y no en MCOP: con MCOP la fila de E0
+    (brechas de décimas) quedaría aplastada contra el cero por la de E3 (de
+    decenas). Los valores en MCOP van en el CSV. Anillos: signos frágiles
+    que el texto declara (sección 7.2): C4 − C1 en E4, E5 e I1 y el colectivo
+    − C1 en E4 y E5 (P de inversión > 50 %), y P2P − C5 en E4 y E5.
+    """
+    t, rastro = _resumen_13()
+    for caso in CASOS:
+        for k, a, b in (("P2P_menos_C1", "P2P", "C1"), ("P2P_menos_C4", "P2P", "C4"),
+                        ("P2P_menos_C5", "P2P", "C5"), ("P2P_menos_C3", "P2P", "C3"),
+                        ("colectivo_menos_C1", "P2P_colectivo", "C1")):
+            igual((t.loc[caso, a] - t.loc[caso, b]) / 1e6,
+                  cifra7(f"comunidad__{caso}__{k}"), 1e-6, f"{caso} {k}")
+        igual(100 * (t.loc[caso, "P2P"] - t.loc[caso, "C1"]) / t.loc[caso, "C1"],
+              cifra7(f"comunidad__{caso}__P2P_menos_C1_pct_C1"), 1e-6, f"{caso} P2P−C1 %")
+    exige(cifra7("orden__casos_C4_segundo") == "E4, E5, I1", "C4 segundo no es E4, E5, I1")
+    fragil = {}
+    for item in str(cifra7("fragiles__comunidad__lista_mayor_50")).split(";"):
+        caso, brecha, _p = item.split()
+        mec = {"C4_menos_C1": "C4", "P2Pcol_menos_C1": "P2P_colectivo"}[brecha]
+        fragil.setdefault(caso, set()).add(mec)
+    exige(fragil == {"E4": {"C4", "P2P_colectivo"}, "E5": {"C4", "P2P_colectivo"},
+                     "I1": {"C4"}}, f"frágiles de comunidad inesperados: {fragil}")
+    # P2P − C5 frágil en E4 y E5 (texto, sección 7.2.3; CANON §13.3 y §13.6).
+    for caso in ("E4", "E5"):
+        fragil[caso].add("C5")
+
+    mecs = ["C3", "C5", "C4", "P2P_colectivo", "P2P"]
+    pct = pd.DataFrame({m: 100 * (t[m] - t.C1) / t.C1 for m in mecs})
+    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 4.1))
+    y = np.arange(len(CASOS))
+    for i, caso in enumerate(CASOS):
+        ax.plot([pct.loc[caso].min(), pct.loc[caso].max()], [i, i], color="#DDDDDD",
+                lw=0.9, zorder=1)
+    ax.axvline(0, color=E.TINTA, lw=1.0, zorder=2)
+    for m in mecs:
+        c, mk, lab = MEC7[m]
+        hueco = m == "C5"
+        # C4 y el colectivo casi coinciden en varios casos: el rombo de C4 va
+        # más grande y el cuadrado encima, más pequeño, para que se vean los dos.
+        tam = {"P2P": 7, "C4": 8.2, "P2P_colectivo": 4.8}.get(m, 6.2)
+        ax.plot(pct[m], y, ls="none", marker=mk, markersize=tam,
+                mfc="white" if hueco else c, mec=c, mew=1.4 if hueco else 0.4,
+                zorder=4, label=lab)
+    for caso, ms in fragil.items():
+        for m in ms:
+            _marcar(ax, pct.loc[caso, m], CASOS.index(caso), r=12)
+    ax.set_yticks(y)
+    ax.set_yticklabels(CASOS)
+    ax.set_ylim(len(CASOS) - 0.5, -0.5)
+    eje_num(ax, "x")
+    ax.set_xlabel("Ganancia neta frente a C1 (% de la ganancia de C1)")
+    ax.grid(axis="y", visible=False)
+    ax.text(0.4, -0.85, "C1", ha="left", va="bottom", fontsize=8.5, color=E.TINTA)
+    manejadores, _ = ax.get_legend_handles_labels()
+    manejadores = manejadores[::-1]
+    manejadores.append(Line2D([], [], ls="none", marker="o", markersize=11, mfc="none",
+                              mec=E.TINTA, mew=1.0, label="signo frágil"))
+    ax.legend(handles=manejadores, loc="upper center", bbox_to_anchor=(0.5, -0.13),
+              ncol=3, frameon=False, fontsize=8.2, columnspacing=1.2)
+    fig.tight_layout()
+
+    datos = pd.DataFrame({"caso": CASOS})
+    for m in mecs:
+        datos[f"{m}_menos_C1_MCOP"] = ((t[m] - t.C1) / 1e6).to_numpy()
+        datos[f"{m}_menos_C1_pct_C1"] = pct[m].to_numpy()
+        datos[f"{m}_fragil"] = [m in fragil.get(c_, set()) for c_ in CASOS]
+    return guardar(fig, "c7_brechas_comunidad", datos, [
+        *rastro,
+        "hoja Resumen, columna Ganancia_neta_COP; C2 fundido con el P2P (diferencia "
+        "< 1e-3 COP comprobada) y sin C4_mensual (alias exacto comprobado)",
+        "compuerta: brechas y P2P − C1 en % iguales a " + con_huella(CIFRAS7),
+        "frágiles: fragiles__comunidad__lista_mayor_50 de cifras_cap07 y P2P − C5 en "
+        "E4 y E5 (texto, sección 7.2.3; CANON §13.3 y §13.6)",
+    ])
+
+
+def c7_descomposicion():
+    """Figura 7.2 — P2P − C1 partido en la banda y la reclasificación."""
+    p = SALIDAS / "descomposicion_p2p_2026-09-27" / "descomposicion_13casos.csv"
+    rastro = [con_huella(p)]
+    d = pd.read_csv(p)
+    d = d[d.agente == "comunidad"].set_index("caso").loc[CASOS]
+    t, r2 = _resumen_13()
+    rastro += r2
+    tabla74 = {"E0": (0.296, 0.296, 0.000), "E1": (2.571, 1.666, 0.905),
+               "E2": (4.846, 2.523, 2.322), "E3": (6.765, 4.150, 2.614),
+               "E4": (6.167, 5.796, 0.370), "E5": (3.240, 4.509, -1.270),
+               "P1": (0.764, 0.623, 0.142), "P2": (10.659, 10.659, 0.000),
+               "K1": (0.284, 0.284, 0.000), "I1": (7.340, 6.163, 1.177),
+               "N1": (1.123, 0.980, 0.143), "CV2": (0.482, 0.482, 0.000),
+               "SINU": (0.079, 0.079, 0.000)}
+    for caso, (tot, ban, rec) in tabla74.items():
+        igual(round(d.loc[caso, "P2P_menos_C1"] / 1e6, 3), tot, 0.0015, f"{caso} P2P − C1")
+        igual(round(d.loc[caso, "banda"] / 1e6, 3), ban, 0.0015, f"{caso} banda")
+        igual(round(d.loc[caso, "reclasificacion"] / 1e6, 3), rec, 0.0015, f"{caso} reclasificación")
+        # El almacén guarda en float32: a 322 MCOP (P2) su paso es de 32 COP.
+        igual(d.loc[caso, "P2P_menos_C1"], t.loc[caso, "P2P"] - t.loc[caso, "C1"],
+              max(5.0, 2e-7 * t.loc[caso, "P2P"]), f"{caso} P2P − C1 frente a Resumen")
+        igual(d.loc[caso, "banda"] + d.loc[caso, "reclasificacion"],
+              d.loc[caso, "P2P_menos_C1"], 1.0, f"{caso} banda + reclasificación")
+
+    ban, rec, tot = d.banda / 1e6, d.reclasificacion / 1e6, d.P2P_menos_C1 / 1e6
+    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 3.8))
+    y = np.arange(len(CASOS))
+    c_b, c_r = "#8FBCCC", E.ALERTA
+    ax.barh(y, ban, height=0.62, color=c_b, zorder=2, label="banda repartida")
+    izq = np.where(rec >= 0, ban, 0.0)
+    ax.barh(y, rec, left=izq, height=0.62, color=c_r, alpha=0.85, zorder=2,
+            label="reclasificación del crédito")
+    ax.plot(tot, y, ls="none", marker="D", markersize=5.5, color=E.TINTA, zorder=4,
+            label="P2P − C1")
+    for i, caso in enumerate(CASOS):
+        ax.text(max(tot[caso], ban[caso]) + 0.15, i, num(tot[caso], 3), va="center",
+                ha="left", fontsize=8.0, color=E.TINTA)
+    ax.axvline(0, color=E.TINTA, lw=0.9, zorder=3)
+    ax.set_yticks(y)
+    ax.set_yticklabels(CASOS)
+    ax.set_ylim(len(CASOS) - 0.5, -0.5)
+    ax.set_xlim(-1.6, 12.2)
+    eje_num(ax, "x")
+    ax.set_xlabel("Lo que el mercado le gana a C1 (MCOP)")
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="lower right", frameon=False, fontsize=8.2)
+    fig.tight_layout()
+    datos = pd.DataFrame({"caso": CASOS, "P2P_menos_C1_MCOP": tot.to_numpy(),
+                          "banda_MCOP": ban.to_numpy(), "reclasificacion_MCOP": rec.to_numpy(),
+                          "banda_vendedor_MCOP": (d.banda_vendedor / 1e6).to_numpy(),
+                          "banda_comprador_MCOP": (d.banda_comprador / 1e6).to_numpy()})
+    return guardar(fig, "c7_descomposicion", datos, [
+        *rastro,
+        "filas «comunidad» de descomposicion_13casos.csv (CANON §14.8, H-101, C-210)",
+        "compuerta: los 13 casos de la Tabla 7.4 a tres decimales; P2P − C1 igual a "
+        "la hoja Resumen (float32 del almacén: hasta 2e-7 del beneficio); banda + reclasificación = "
+        "P2P − C1",
+    ])
+
+
+def c7_optimalidad_mensual():
+    """Figura 7.3 — P2P − C4 de la comunidad mes a mes en los 13 casos (D72).
+
+    Solo mes y horizonte; ninguna lectura hora a hora (CANON §9 y §12).
+    """
+    rastro, filas = [], []
+    for caso in CASOS:
+        p = D72 / f"{caso}_mensual.csv"
+        rastro.append(con_huella(p))
+        m = pd.read_csv(p)
+        m = m[m.agente == "Comunidad"].sort_values("mes")
+        exige(len(m) == 9, f"{caso}: no hay nueve meses de la comunidad")
+        igual(float(m.delta_COP.sum()) / 1e6, cifra7(f"comunidad__{caso}__P2P_menos_C4"), 1e-6,
+              f"{caso}: la suma de los meses no da P2P − C4 del horizonte")
+        for _, f in m.iterrows():
+            filas.append(dict(caso=caso, mes=f.mes, P2P_menos_C4_MCOP=f.delta_COP / 1e6,
+                              domina=f.domina))
+    datos = pd.DataFrame(filas)
+    neg = datos[datos.P2P_menos_C4_MCOP < 0]
+    exige(len(datos) == 117 and len(neg) == 1, "no son 116 de 117 meses a favor del mercado")
+    exige(neg.caso.iloc[0] == "I1" and neg.mes.iloc[0] == "2025-12", "el mes en contra no es I1 dic")
+    igual(round(neg.P2P_menos_C4_MCOP.iloc[0] * 1e6), -41804, 0.5, "el mes en contra, −41 804 COP")
+
+    meses = sorted(datos.mes.unique())
+    piv = datos.pivot(index="caso", columns="mes", values="P2P_menos_C4_MCOP").loc[CASOS, meses]
+    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 4.2))
+    from matplotlib.colors import LogNorm
+    import matplotlib as mpl
+    cmap = mpl.colors.LinearSegmentedColormap.from_list("azul", ["#F2F7F9", "#1F6F8B"])
+    pos = piv.where(piv > 0)
+    ax.imshow(pos.to_numpy(), cmap=cmap, norm=LogNorm(vmin=0.01, vmax=float(piv.max().max())),
+              aspect="auto")
+    for i, caso in enumerate(CASOS):
+        for j, mes in enumerate(meses):
+            v = float(piv.loc[caso, mes])
+            if v < 0:
+                ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, facecolor=E.ALERTA,
+                                           alpha=0.35, edgecolor=E.ALERTA, lw=1.6))
+            oscuro = v > 0 and np.log10(v / 0.01) / np.log10(piv.max().max() / 0.01) > 0.6
+            # Tres decimales bajo 0,01 MCOP: «0,00» se leería como empate.
+            ax.text(j, i, num(v, 3 if abs(v) < 0.01 else 2), ha="center", va="center",
+                    fontsize=7.4,
+                    color="white" if oscuro else E.TINTA)
+    ax.set_xticks(range(len(meses)))
+    ax.set_xticklabels([E.fmt_fecha(pd.Timestamp(m_ + "-01"), "mes")
+                        + ("*" if m_ in ("2025-04", "2025-12") else "") for m_ in meses])
+    ax.set_yticks(range(len(CASOS)))
+    ax.set_yticklabels(CASOS)
+    ax.tick_params(length=0)
+    ax.grid(False)
+    for s in ax.spines.values():
+        s.set_visible(False)
+    ax.set_xlabel("Mes (* incompleto: abril desde el 4, diciembre hasta el 15)")
+    fig.tight_layout()
+    return guardar(fig, "c7_optimalidad_mensual", datos, [
+        *rastro,
+        "filas «Comunidad» de optimalidad_D72/<caso>_mensual.csv (CANON §12, D72): "
+        "beneficio liquidado, mes a mes; ninguna lectura hora a hora",
+        "compuerta: la suma de los nueve meses de cada caso es P2P − C4 del horizonte "
+        "de " + con_huella(CIFRAS7) + "; 116 de 117 meses positivos; I1, diciembre "
+        "de 2025, −41 804 COP (CANON §12 y §14.9)",
+        "color: escala logarítmica sobre los meses positivos; el mes negativo, "
+        "sombreado aparte",
+    ])
+
+
+def c7_subperiodos():
+    """Figura 7.4 — Por tercil del mes y del día (CANON §14.9, C-211).
+
+    Panel 1: P2P − C4 medio por mes de cada tercil (39 meses por tercil de los
+    13 casos). Paneles 2 a 4: la mediana entre los 13 casos, por tercil de
+    día, de la banda por kWh, la parte del vendedor y la energía por día. La
+    columna parte_regla_declarada no se dibuja (C-225).
+    """
+    pm, pd_ = SUBP / "meses_condicion.csv", SUBP / "resumen_dias.csv"
+    rastro = [con_huella(pm), con_huella(pd_)]
+    m = pd.read_csv(pm)
+    dd = pd.read_csv(pd_)
+    exige(len(m) == 117, "meses_condicion no tiene 117 meses")
+    niveles = ["bajo", "medio", "alto"]
+    conds = [("generacion", "generación"), ("demanda", "demanda"), ("bolsa", "bolsa")]
+    mes = {c: (m.groupby(f"t_{c}").P2P_menos_C4.mean() / 1e6).loc[niveles] for c, _ in conds}
+    mes1 = {c: (m.groupby(f"t_{c}").P2P_menos_C1.mean() / 1e6).loc[niveles] for c, _ in conds}
+    for c, vals in (("generacion", (1.12, 1.27, 1.35)), ("bolsa", (1.41, 1.23, 1.11))):
+        for n_, v in zip(niveles, vals):
+            igual(round(float(mes[c][n_]), 2), v, 0, f"Tabla 7.7, P2P − C4, {c} {n_}")
+    for c, vals in (("generacion", (0.31, 0.40, 0.44)), ("bolsa", (0.45, 0.35, 0.33))):
+        for n_, v in zip(niveles, vals):
+            igual(round(float(mes1[c][n_]), 2), v, 0, f"Tabla 7.7, P2P − C1, {c} {n_}")
+    for n_ in niveles:
+        igual(float(mes["demanda"][n_]), cifra7(f"subperiodos__demanda_{n_}__P2P_menos_C4"),
+              1e-9, f"demanda {n_}")
+    dia = dd.groupby(["condicion", "nivel"])[["banda_por_kwh", "parte_vendedor",
+                                             "kwh_por_dia"]].median()
+    for n_, v in zip(niveles, (253, 167, 121)):
+        igual(round(float(dia.loc[("bolsa", n_), "banda_por_kwh"])), v, 0, f"banda, bolsa {n_}")
+    for n_, v in zip(niveles, (0.53, 0.48, 0.41)):
+        igual(round(float(dia.loc[("generacion", n_), "parte_vendedor"]), 2), v, 0,
+              f"parte del vendedor, generación {n_}")
+
+    estilo_c = {"generacion": (E.GENERACION, "o", "-"), "demanda": (E.TINTA, "s", "--"),
+                "bolsa": (E.ALERTA, "D", ":")}
+    fig, ejes = plt.subplots(1, 4, figsize=(E.ANCHO_COMPLETO, 2.6))
+    paneles = [("P2P − C4 medio\npor mes (MCOP)", None),
+               ("Banda por kWh,\npor día (COP/kWh)", "banda_por_kwh"),
+               ("Parte del vendedor,\npor día", "parte_vendedor"),
+               ("Energía transada,\npor día (kWh)", "kwh_por_dia")]
+    x = np.arange(3)
+    filas = []
+    for ax, (tit, col) in zip(ejes, paneles):
+        for c, lab in conds:
+            color, mk, ls = estilo_c[c]
+            v = (mes[c].to_numpy() if col is None
+                 else np.array([float(dia.loc[(c, n_), col]) for n_ in niveles]))
+            ax.plot(x, v, color=color, marker=mk, ls=ls, lw=1.2, markersize=4.5, label=lab)
+            for n_, vv in zip(niveles, v):
+                filas.append(dict(panel=col or "P2P_menos_C4_MCOP_por_mes", condicion=c,
+                                  tercil=n_, valor=float(vv)))
+        ax.set_title(tit, fontsize=8.6, pad=4)
+        ax.set_xticks(x)
+        ax.set_xticklabels(["bajo", "medio", "alto"], fontsize=8)
+        ax.set_xlim(-0.3, 2.3)
+        ax.tick_params(axis="y", labelsize=8)
+        eje_num(ax, "y", 2 if col in (None, "parte_vendedor") else 0)
+    ejes[0].set_ylim(0, None)
+    ejes[2].set_ylim(0, 0.7)
+    ejes[1].set_ylim(0, None)
+    ejes[3].set_ylim(0, None)
+    fig.supxlabel("Tercil del mes (primer panel) o del día, dentro de cada caso", y=0.12,
+                  fontsize=8.8)
+    h_, l_ = ejes[0].get_legend_handles_labels()
+    fig.legend(h_, ["tercil de generación", "tercil de demanda", "tercil de bolsa"],
+               loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.01),
+               fontsize=8.2)
+    fig.tight_layout(rect=(0, 0.14, 1, 1), w_pad=0.9)
+    return guardar(fig, "c7_subperiodos", pd.DataFrame(filas), [
+        *rastro,
+        "panel 1: media de P2P − C4 sobre los 39 meses de cada tercil de los 13 casos "
+        "(meses_condicion.csv); paneles 2 a 4: mediana entre los 13 casos de "
+        "resumen_dias.csv por condición y tercil (CANON §14.9)",
+        "compuerta: Tabla 7.7 (P2P − C1 y P2P − C4 por generación y por bolsa, con las "
+        "celdas corregidas de H-102), demanda contra " + con_huella(CIFRAS7)
+        + "; banda 253, 167 y 121 COP/kWh por bolsa y parte del vendedor 0,53, 0,48 y "
+        "0,41 por generación (CANON §14.9, «Días»)",
+        "no se dibuja parte_regla_declarada (C-225)",
+    ])
+
+
+def _fragiles_institucion() -> dict:
+    """Pares institución-caso con signo frágil que declara el texto (7.5.1)."""
+    out = {"C4": {}, "C1": {}}
+    for item in str(cifra7("fragiles__P2P_menos_C4__lista_mayor_25")).split(";"):
+        caso, inst, p = item.split()
+        out["C4"][(caso, inst)] = float(p)
+    exige(int(cifra7("fragiles__P2P_menos_C4__p_mayor_50")) == 4
+          and int(cifra7("fragiles__P2P_menos_C4__p_25_a_50")) == 6,
+          "frágiles frente a C4 distintos de 4 y 6")
+    # Frente a C1: los cuatro que declara el texto, de la caja del GSA.
+    for caso, inst, v in (("E4", "HUDN", 38.62), ("E4", "Cesmag", 35.06),
+                          ("E5", "Cesmag", 21.19), ("E4", "Mariana", 17.46)):
+        p = GSA / caso / f"inversion_{caso}.csv"
+        con_huella(p)
+        t = pd.read_csv(p).set_index("salida")
+        pr = 100 * float(t.loc[f"P2P_menos_C1__{inst}", "p_inversion"])
+        igual(round(pr, 2), v, 0.005, f"P(inversión) de P2P − C1, {caso} {inst}")
+        out["C1"][(caso, inst)] = pr
+    return out
+
+
+def c7_brechas_institucion():
+    """Figura 7.5 — P2P − C1 y P2P − C4 de cada institución en los 13 casos."""
+    p = ENTREGA / "compara_matriz_reposo.csv"
+    rastro = [con_huella(p)]
+    c = pd.read_csv(p, comment="#")
+    c = c[c.institucion != "comunidad"]
+    tabs = {}
+    for k in ("C1", "C4"):
+        tabs[k] = (c.pivot(index="caso", columns="institucion", values=f"P2P_menos_{k}_nueva")
+                   .reindex(index=CASOS, columns=AGENTS) / 1e3)
+    exige(int((tabs["C4"] < 0).sum().sum()) == int(cifra7("institucion__P2P_menos_C4__negativos")),
+          "pares bajo C4 distintos de 25")
+    exige(int((tabs["C1"] < 0).sum().sum()) == 0, "algún par bajo C1")
+    for caso in CASOS:
+        for inst in AGENTS:
+            if caso == "SINU" and inst == "Udenar":
+                exige(np.isnan(tabs["C4"].loc[caso, inst]), "SINU con Udenar")
+                continue
+            igual(tabs["C4"].loc[caso, inst] * 1e3,
+                  cifra7(f"institucion__{caso}__{inst}__P2P_menos_C4"), 1.0,
+                  f"{caso} {inst} P2P − C4")
+    igual(tabs["C1"].min().min() * 1e3, cifra7("institucion__P2P_menos_C1__min"), 1.0, "mínimo C1")
+    igual(tabs["C1"].max().max() * 1e3, cifra7("institucion__P2P_menos_C1__max"), 1.0, "máximo C1")
+    frag = _fragiles_institucion()
+    rastro.append(con_huella(CIFRAS7))
+    rastro += [con_huella(GSA / c_ / f"inversion_{c_}.csv") for c_ in ("E4", "E5")]
+
+    import matplotlib as mpl
+    from matplotlib.colors import SymLogNorm
+    cmap = mpl.colors.LinearSegmentedColormap.from_list(
+        "div", [E.ALERTA, "#FFFFFF", "#1F6F8B"])
+    lim = float(max(tabs["C4"].abs().max().max(), tabs["C1"].abs().max().max()))
+    norm = SymLogNorm(linthresh=100, vmin=-lim, vmax=lim, base=10)
+    fig, ejes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 4.5), sharey=True)
+    filas = []
+    for ax, k, tit in ((ejes[0], "C1", "P2P − C1"), (ejes[1], "C4", "P2P − C4")):
+        v = tabs[k]
+        ax.imshow(v.to_numpy(), cmap=cmap, norm=norm, aspect="auto")
+        for i, caso in enumerate(CASOS):
+            for j, inst in enumerate(AGENTS):
+                x_ = v.loc[caso, inst]
+                if np.isnan(x_):
+                    ax.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1, color=E.APAGADO))
+                    continue
+                oscuro = abs(norm(x_) - 0.5) > 0.36
+                ax.text(j, i, num(x_), ha="center", va="center", fontsize=6.6,
+                        color="white" if oscuro else E.TINTA)
+                pf = frag[k].get((caso, inst))
+                if pf is not None:
+                    ax.add_patch(plt.Rectangle(
+                        (j - 0.46, i - 0.44), 0.92, 0.88, fill=False, edgecolor=E.TINTA,
+                        lw=1.6 if pf > 50 else 0.9, ls="-" if pf > 50 else (0, (2, 1.5))))
+                filas.append(dict(brecha=f"P2P_menos_{k}", caso=caso, institucion=inst,
+                                  miles_COP=float(x_), p_inversion_pct=pf if pf else np.nan))
+        ax.set_xticks(range(5))
+        ax.set_xticklabels([E.etiqueta_institucion(i_) for i_ in AGENTS], fontsize=8,
+                           rotation=0)
+        for tick, i_ in zip(ax.get_xticklabels(), AGENTS):
+            tick.set_color(E.color_institucion(i_))
+        ax.set_title(tit, fontsize=9.5, pad=5)
+        ax.tick_params(length=0)
+        ax.grid(False)
+        for s_ in ax.spines.values():
+            s_.set_visible(False)
+    ejes[0].set_yticks(range(len(CASOS)))
+    ejes[0].set_yticklabels(CASOS)
+    fig.legend(handles=[
+        Patch(facecolor="white", edgecolor=E.TINTA, lw=1.6,
+              label="signo minoritario en la caja del capítulo 8 (inversión > 50 %)"),
+        Patch(facecolor="white", edgecolor=E.TINTA, lw=0.9, ls=(0, (2, 1.5)),
+              label="signo frágil declarado (inversión del 17 al 50 %)"),
+    ], loc="lower center", ncol=1, frameon=False, bbox_to_anchor=(0.5, -0.01), fontsize=8.0)
+    fig.tight_layout(rect=(0, 0.09, 1, 1), w_pad=1.0)
+    return guardar(fig, "c7_brechas_institucion", pd.DataFrame(filas), [
+        *rastro,
+        "compara_matriz_reposo.csv, filas por institución, columnas P2P_menos_C1_nueva y "
+        "P2P_menos_C4_nueva (CANON §5), en miles de COP",
+        "compuerta: los 64 pares de P2P − C4 iguales a cifras_cap07 (< 1 COP), 25 "
+        "negativos, ningún par bajo C1, mínimo y máximo frente a C1",
+        "frágiles frente a C4: fragiles__P2P_menos_C4__lista_mayor_25 (cuatro de más "
+        "del 50 %, seis entre el 25 y el 50 %); frente a C1: los cuatro que declara el "
+        "texto (E4 HUDN, E4 CESMAG, E5 CESMAG, E4 Mariana), leídos de inversion_<caso>.csv "
+        "del GSA completo (CANON §13.5 y §14.10)",
+        "color: escala logarítmica simétrica (lineal entre −100 y 100 miles de COP); "
+        "SINU no tiene a Udenar",
+    ])
+
+
+def c7_equidad():
+    """Figura 7.6 — Gini del P2P y de C4 y precio de la justicia, por caso."""
+    p = SALIDAS / "precio_justicia_2026-09-27" / "pof_p2p_c4_13casos.csv"
+    rastro = [con_huella(p)]
+    d = pd.read_csv(p).set_index("caso").loc[CASOS]
+    tabla = {"E0": ("intercambio", 4.3, 0.121, 0.115), "E1": ("P2P domina", 13.9, 0.121, 0.143),
+             "E2": ("P2P domina", 17.0, 0.122, 0.161), "E3": ("P2P domina", 16.9, 0.157, 0.184),
+             "E4": ("P2P domina", 1.8, 0.188, 0.194), "E5": ("intercambio", 1.2, 0.196, 0.189),
+             "P1": ("P2P domina", 15.7, 0.181, 0.194), "P2": ("P2P domina", 3.4, 0.115, 0.115),
+             "K1": ("intercambio", 2.9, 0.121, 0.107), "I1": ("intercambio", 5.6, 0.499, 0.350),
+             "N1": ("intercambio", 13.6, 0.240, 0.227), "CV2": ("P2P domina", 5.0, 0.119, 0.119),
+             "SINU": ("P2P domina", 1.1, 0.125, 0.127)}
+    for caso, (cl, pj, gp, gc) in tabla.items():
+        exige(d.loc[caso, "clase"] == cl, f"{caso}: clase")
+        igual(round(100 * d.loc[caso, "PoF_P2P_a_C4"], 1), pj, 0, f"{caso}: precio de la justicia")
+        igual(round(d.loc[caso, "gini_P2P"], 3), gp, 0, f"{caso}: Gini P2P")
+        igual(round(d.loc[caso, "gini_C4"], 3), gc, 0, f"{caso}: Gini C4")
+    t, r2 = _resumen_13()
+    rastro += r2
+    exige(bool(np.allclose(d.W_P2P, t.P2P, atol=1e-3) and np.allclose(d.W_C4, t.C4, atol=1e-3)),
+          "W no es la ganancia de la hoja Resumen")
+
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 3.9), sharey=True,
+                                 gridspec_kw=dict(width_ratios=(1.35, 1.0)))
+    y = np.arange(len(CASOS))
+    cp, mp, _ = MEC7["P2P"]
+    c4, m4, _ = MEC7["C4"]
+    for i, caso in enumerate(CASOS):
+        a1.plot([d.loc[caso, "gini_P2P"], d.loc[caso, "gini_C4"]], [i, i], color="#CCCCCC",
+                lw=1.0, zorder=1)
+    a1.plot(d.gini_C4, y, ls="none", marker=m4, color=c4, markersize=6, zorder=3, label="C4")
+    a1.plot(d.gini_P2P, y, ls="none", marker=mp, color=cp, markersize=6.5, zorder=4,
+            label="P2P")
+    for caso in ("P2", "CV2"):
+        a1.text(float(d.loc[caso, "gini_P2P"]) + 0.022, CASOS.index(caso), "iguales a\n3 decimales",
+                va="center", fontsize=6.8, color=E.NEUTRO, linespacing=0.9)
+    a1.set_xlabel("Índice de Gini del beneficio\npor institución")
+    eje_num(a1, "x", 1)
+    a1.legend(loc="lower right", frameon=False, fontsize=8.2)
+    a1.grid(axis="y", visible=False)
+    col = {"P2P domina": cp, "intercambio": E.ALERTA}
+    for i, caso in enumerate(CASOS):
+        cl = d.loc[caso, "clase"]
+        a2.barh(i, 100 * d.loc[caso, "PoF_P2P_a_C4"], height=0.6,
+                color=col[cl] if cl == "intercambio" else "white",
+                edgecolor=col[cl], lw=1.2, hatch=None, zorder=2)
+    a2.set_xlabel("$(W_{\\mathrm{P2P}}-W_{\\mathrm{C4}})/W_{\\mathrm{P2P}}$ (%)")
+    eje_num(a2, "x")
+    a2.grid(axis="y", visible=False)
+    a2.legend(handles=[
+        Patch(facecolor=E.ALERTA, edgecolor=E.ALERTA,
+              label="intercambio: precio de la justicia"),
+        Patch(facecolor="white", edgecolor=cp, lw=1.2,
+              label="P2P domina: ventaja en eficiencia"),
+    ], loc="upper center", bbox_to_anchor=(0.35, -0.2), frameon=False, fontsize=8.0)
+    a1.set_yticks(y)
+    a1.set_yticklabels(CASOS)
+    a1.set_ylim(len(CASOS) - 0.5, -0.5)
+    fig.tight_layout()
+    datos = d.reset_index()[["caso", "W_P2P", "W_C4", "gini_P2P", "gini_C4",
+                             "PoF_P2P_a_C4", "clase"]]
+    return guardar(fig, "c7_equidad", datos, [
+        *rastro,
+        "pof_p2p_c4_13casos.csv (CANON §14.6, C-208): Gini de la hoja PoF_Fairness, W de "
+        "la hoja Resumen (comprobado); la columna perdida_asignacion_D55 no se dibuja "
+        "(es la captura, no el precio de la justicia)",
+        "compuerta: clase, precio de la justicia y los dos Gini de la Tabla 7.10",
+    ])
+
+
+def c7_coincidencia():
+    """Figura 7.7 — Factor de coincidencia de cada mecanismo en los 13 casos."""
+    rastro, filas = [], {}
+    for caso in CASOS:
+        h, r_ = _hoja(caso, "Coincidencia")
+        rastro.append(r_)
+        v = h.set_index("escenario")["valor"]
+        exige(np.isnan(v["C3"]), f"{caso}: C3 con factor de coincidencia")
+        exige(abs(v["P2P"] - v["C2"]) < 1e-12 and abs(v["C4"] - v["C4_mensual"]) < 1e-12,
+              f"{caso}: identidades del factor")
+        exige(v["C1"] == 0.0 and v["C5"] == 1.0, f"{caso}: C1 = 0 y C5 = 1")
+        for m in ("C1", "C4", "P2P_colectivo", "P2P", "C5"):
+            igual(v[m], cifra7(f"coincidencia__{caso}__{m}"), 1e-9, f"{caso} {m}")
+        filas[caso] = v[["C1", "C4", "P2P_colectivo", "P2P", "C5"]].astype(float)
+    t = pd.DataFrame(filas).T.loc[CASOS]
+    exige(int((t.P2P >= t[["C1", "C4", "P2P_colectivo"]].max(axis=1)).sum()) ==
+          int(cifra7("coincidencia__casos_P2P_max_sin_C5")), "P2P máximo sin C5")
+
+    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 3.9))
+    y = np.arange(len(CASOS))
+    for i, caso in enumerate(CASOS):
+        ax.plot([0, 1], [i, i], color="#EEEEEE", lw=0.8, zorder=1)
+    for m in ("C1", "C4", "P2P_colectivo", "P2P", "C5"):
+        c, mk, lab = MEC7[m]
+        hueco = m == "C5"
+        ax.plot(t[m], y, ls="none", marker=mk, markersize=6.5, mfc="white" if hueco else c,
+                mec=c, mew=1.4 if hueco else 0.4, zorder=3, label=lab)
+    ax.set_yticks(y)
+    ax.set_yticklabels(CASOS)
+    ax.set_ylim(len(CASOS) - 0.5, -0.5)
+    ax.set_xlim(-0.04, 1.04)
+    ax.xaxis.set_major_locator(MultipleLocator(0.2))
+    eje_num(ax, "x", 1)
+    ax.set_xlabel("Factor de coincidencia")
+    ax.grid(axis="y", visible=False)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.14), ncol=3, frameon=False,
+              fontsize=8.2, columnspacing=1.2)
+    fig.tight_layout()
+    datos = t.reset_index(names="caso")
+    return guardar(fig, "c7_coincidencia", datos, [
+        *rastro,
+        "hoja Coincidencia de cada caso (D20, C-183; CANON §10.0, trampa 1); C2 = P2P y "
+        "C4_mensual = C4 comprobados y no dibujados; C3 sin factor",
+        "compuerta: los 65 valores iguales a " + con_huella(CIFRAS7),
+    ])
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 FIGURAS = {
     "c4_mapa_instituciones": c4_mapa_instituciones,
     "c4_fuentes_registro": c4_fuentes_registro,
@@ -1222,6 +1803,13 @@ FIGURAS = {
     "c5_banda_hora": c5_banda_hora,
     "c5_barrido_sigma": c5_barrido_sigma,
     "c6_corte_hx": c6_corte_hx,
+    "c7_brechas_comunidad": c7_brechas_comunidad,
+    "c7_descomposicion": c7_descomposicion,
+    "c7_optimalidad_mensual": c7_optimalidad_mensual,
+    "c7_subperiodos": c7_subperiodos,
+    "c7_brechas_institucion": c7_brechas_institucion,
+    "c7_equidad": c7_equidad,
+    "c7_coincidencia": c7_coincidencia,
 }
 
 

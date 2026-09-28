@@ -9931,3 +9931,40 @@ Además, el capítulo 6 cita el art. 9, num. 5, lit. b, de la 101 072: el PDE po
 **Hallazgo de E4** (nota del 2026-09-28 en H-100). En E4, las reglas de reparto por consumo y por importación superan al mercado por 0,36 y 0,18 (MCOP), el 0,18 y el 0,09 % de su beneficio; por aporte y por generación, no; en los otros 12 casos ninguna. Con C-224 son realizables con el acuerdo de reporte del art. 19, de modo que en E4 la mejor opción legal medida es un colectivo con reparto mensual. Es un contrafáctico al borde del empate, fuera de la caja del GSA; el COT sube P2P − C4 de E4 en 14 520 COP.
 
 **Dónde se aplicó.** `Documentos/FinalTesisV2/borradores/cap07_comparacion.md` (ronda 2: las trazas de las cifras derivadas dan su clave); `reformateo/documento/HALLAZGOS.md` (nota fechada en H-100); `reformateo/documento/CONDICIONES_HABILITANTES.md` (C5 no elegible, retiro de un miembro medido, H-96 a H-106 registrados, regla declarada en todos los regímenes, costo del caso 2 de 0,31 a 38,49 M y el caso de E4). El canon no cambia y sus tres compuertas siguen intactas.
+
+## C-231 · Las cifras derivadas del capítulo 8 salen de un guion, y la estabilidad de la rama cuantal se midió solo en la muestra (ronda 2 del capítulo 8, 2026-09-28)
+
+**2026-09-28 · tipo: `dato` y `código` (guion nuevo, sin tocar el motor) · aplicada, sin commit**
+
+**Decisión del controlador.** Toda cifra del capítulo 8 que `CANON.md` no escriba tal cual sale de un guion reproducible, como en C-229 y C-230. El guion nuevo es `reformateo/documento/scripts/cifras_cap08.py`:
+- no simula nada; lee solo artefactos del GSA directo con huella en `Documentos/canon_2026-09/HUELLAS.csv` (grupos `gsa/`, bloque 9) y, antes de leer cada uno, comprueba su tamaño y su `sha256` (50 artefactos: las 12 muestras con su `.meta.json`, los 12 `INFORME_<caso>.md`, los 12 `indices_<caso>.csv`, `s2_E4.csv` y `base/deterministas.csv`);
+- compuertas: 14 × n filas por caso, sin evaluaciones con motivo de fallo e índices completos; el CV de E0 y E2, recalculado de las filas A y B, reproduce CANON §13.5 (y las constantes del bloque 9) a 5e-7; el CV de los 12 casos, redondeado, es el que imprime cada informe; C2 = P2P; la variante `base` de las deterministas da la energía y las horas sin ganancia de CANON §4, y la variante `bolsa_2024` da P2P − C5 de CANON §13.6; el S2 de E4 es el único con |S2| > 0,02 y lo imprime el informe; la entrada dominante de cada brecha reproduce la tabla de CANON §13.4;
+- falla en voz alta: sin `except`, sin NaN rellenado;
+- escribe `SALIDAS_SERVIDOR/cifras_cap08_2026-09-28/cifras.csv` (223 cifras) y `procedencia.txt`. Corre en menos de un minuto.
+
+**Qué cubre.** El CV de los siete mecanismos en los 12 casos del Sobol y los recuentos frente a C1, C4, C3 y C5; la energía y las horas sin ganancia con la bolsa de 2024 en los 13 casos, los casos sin cambio de energía y los pares institución-caso con P2P − C1 negativo con la bolsa de 2024 y su mínimo; el S2 de E4 (parte del vendedor, f_cv × f_bolsa: 0,111 ± 0,065); la entrada dominante de cada brecha y los casos en que manda cada entrada.
+
+**El Gini en la caja del GSA no se calcula.** Las muestras guardan por institución solo P2P − C1, P2P − C4 y P2P − C5 (D75), no la ganancia de cada institución con cada mecanismo, de modo que el Gini del beneficio por institución no se puede obtener sin volver a evaluar el modelo. El guion lo comprueba sobre la cabecera y lo escribe en `procedencia.txt`; el capítulo 8 lo declara como límite (sección 8.2.6).
+
+**Precisión de cifra** (del borrador de la ronda 1): el CV del mercado queda por debajo del de C1 en **los 12 casos**, no en 11; en SINU la diferencia (6,4589 frente a 6,4593 %) no se ve con dos decimales.
+
+**Corrección a `CONDICIONES_HABILITANTES.md`** (discrepancia 3 del informe del capítulo 8). La tabla decía «en las 216 horas frágiles, rama cuantal con reposo estable». La estabilidad se midió solo en la muestra de M-D (H-93): allí las horas inestables fueron exactamente las frágiles, y en ellas el reposo cuantal era estable. Ahora lo dice así.
+
+**Dónde se aplicó.** `Documentos/FinalTesisV2/borradores/cap08_sensibilidad.md` (ronda 2: las trazas «pendiente de guion» pasan a `cifras_cap08_2026-09-28, clave X`; el S2 de E4 citado; la tarifa extrema y el Gini declarados como límites); `reformateo/documento/CONDICIONES_HABILITANTES.md` (fila de convergencia y cabecera). El canon no cambia y sus tres compuertas siguen intactas; el controlador registra el guion en el canon.
+
+**Ronda 3 (2026-09-28, revisión del capítulo 8: `cap08-revision.md`).**
+- **Precisión de M1 (deserción y cercanía).** La frase «aparece solo con el cupo agotado y la bolsa por encima de unas dos veces la de 2025» (capítulo 8, H-103 y `CONDICIONES_HABILITANTES.md`, §2) dice más de lo medido. El umbral de unas dos veces es de E4 (CANON §14.10); en E5 y P1 la deserción se concentra con f_bolsa entre 3 y 4; Udenar en N1 deserta más con la bolsa barata (6,3 % con f_bolsa entre 0,75 y 1, 0 % entre 3 y 4); Cesmag en E3 deserta en torno al 1 % en los tramos bajos; las horas sin ganancia de E0 y SINU no dependen de la bolsa y se correlacionan con f_cv (−0,63 y −0,68); el mercado se estrecha y no se vacía (72,9 % en el peor tramo). Aplicado en el capítulo 8 (8.5.2, 8.5.3, 8.9 y 8.10), con nota fechada en H-103 y en `CONDICIONES_HABILITANTES.md` (§2 y «Lectura»).
+- **El guion** (`cifras_cap08.py`) añade, con compuertas contra CANON §14.10 y la huella de `e1/C7`: la cercanía y la deserción por tramo de f_bolsa (`cercania__*`, `desercion__*`) y la correlación de las horas sin ganancia con f_cv y f_bolsa en E0 y SINU (`sin_ganancia__*`); la segunda entrada de cada brecha y las celdas cuya dominante no se separa de ella (`dominante__*__segunda`, `dominante__no_separadas__*`, con la compuerta de que son las cinco de la revisión: E1 y P2 en P2P − C1, K1 en el colectivo − C1, N1 en P2P − C4 y C4 − C1); los casos de cada entrada cuentan ahora solo las celdas separadas; las entradas dominantes de los niveles (`nivel__*`). Además (m12): la cabecera de las 12 muestras se compara con la lista «columnas» de su `.meta.json`, se exige n = n_base y la comprobación del Gini cubre los 12 casos. `procedencia.txt` lleva la fecha y no sale igual byte a byte; `cifras.csv` sí. Son 459 cifras de 53 artefactos.
+- **`CONDICIONES_HABILITANTES.md` alineado con las Tablas 8.14 a 8.17 del capítulo** (M5): la captura va como media (0,892 a 0,995), con la agregada (0,924 a 0,999) nombrada aparte; las celdas de capacidad del colectivo (−1 204 COP; su caso lo decide la capacidad por usuario del art. 18) y de C5 (sin efecto medido; la exención del art. 16 ii es la lectura de H-104); las filas de estabilidad, mejor que los regulados y número de fronteras completadas con las cifras del capítulo; la convergencia no se da por no restrictiva (M4); «óptimo» se desambigua como «mejor que» (m5); la fragilidad regulatoria de C4 se separa de la variabilidad del beneficio de cada miembro (M6).
+
+## C-232 · Dos resultados teóricos del capítulo 2 y precisiones al capítulo 5 (2026-09-28)
+
+La redacción del capítulo 2 dejó dos derivaciones que la revisión dio por correctas y que se registran como hallazgos:
+- **H-108:** la condición del modelo base es de Nash, no de Stackelberg.
+- **H-109:** el llenado por niveles es el límite de máxima entropía con los precios fijos.
+
+**Precisiones al capítulo 5.**
+- El límite de temperatura cero da la regla de servicio (5.8), no la forma cerrada entera.
+- La aversión al riesgo del modelo base está en el pago logarítmico, no en el término de competencia (H-61).
+
+Solo cambia el texto; no hay código ni cifras.

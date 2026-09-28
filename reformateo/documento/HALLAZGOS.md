@@ -7984,6 +7984,14 @@ La ventaja crece con la generación (más excedente que repartir) y se estrecha 
 
 **Lectura para la tesis.** Es la relación que pide la propuesta («bajo qué relación P_bolsa > P_P2P los vendedores tendrían incentivo a desertar»): mientras cada institución tenga cupo de permuta, su alternativa es la tarifa menos el componente de comercializar y la bolsa no la tienta; cuando lo agota, su alternativa pasa a ser la bolsa, y con la bolsa por encima del doble de la de 2025 el mercado deja de convenirle a alguna. El método no falla: lo que se estrecha es la economía del intercambio.
 
+**Precisión del 2026-09-28 (revisión del capítulo 8, M1; C-231).** El «solo» de arriba («aparece solo donde alguna institución agota su cupo y solo con la bolsa por encima de unas dos veces») dice más de lo medido. En los ficheros de esta medición (`infactibilidad_desercion_2026-09-27/`, con huella en `e1/C7`), leídos por `cifras_cap08.py` (claves `desercion__*`, `cercania__*` y `sin_ganancia__*`):
+- **El umbral de unas dos veces es de E4**, como dice CANON §14.10. En E5 y P1 la deserción de más del 5 % se concentra con f_bolsa entre 3 y 4: Cesmag en E5, 8,1 % entre 2 y 3 y 61,5 % entre 3 y 4; HUDN en E5 y en P1, solo entre 3 y 4 (18,3 y 17,9 %).
+- **Hay deserción con la bolsa barata.** Udenar en N1 deserta en el 1,5 % de la caja: 6,3 % con f_bolsa entre 0,75 y 1, 4,1, 1,8 y 0,2 % en los tramos siguientes y 0 entre 3 y 4. Cesmag en E3 deserta en torno al 1 % en los cuatro primeros tramos (13,6 % entre 3 y 4), y Cesmag en E2 solo con f_bolsa de 2 o menos (menos del 0,4 %). Por qué Udenar deserta en N1 con la bolsa barata no se midió.
+- **Hay horas sin ganancia que no dependen de la bolsa.** En E0 la media por evaluación queda entre 7,8 y 8,1 en todos los tramos (máximo 81); en SINU, entre 19,4 y 21,6 (máximo 208; energía mínima de una evaluación, 39,5 % del punto base). En las muestras de E0 y SINU se correlacionan con f_cv (−0,63 y −0,68) y no con f_bolsa (0,00).
+- **El mercado no se vacía:** se estrecha. En el peor tramo (E5, f_bolsa entre 3 y 4) la energía media queda en el 72,9 % del punto base.
+
+La lectura corregida: la parte de la cercanía y de la deserción que crece con la bolsa aparece donde alguien agota su cupo, en E4 con la bolsa por encima de unas dos veces la de 2025; la caja tiene además horas sin ganancia y deserciones pequeñas que no dependen de la bolsa cara.
+
 ## H-104 · Cruzar los 100 kW por planta castiga al autogenerador y al mercado, no al colectivo
 
 **Estado: MEDIDO el 2026-09-27 (punto C8, actividad 4.1), restando sobre el canon** (`reformateo/documento/scripts/umbral_100kw.py`, salida en `SALIDAS_SERVIDOR/umbral_100kw_2026-09-27/`). Por el diseño de la matriz (D10 a D12), E4 (generación × 7, plantas de 122,85 kW) y P1 (demanda ÷ 7, plantas de 17,55 kW) tienen el mismo patrón de cobertura; salvo en los umbrales, E4 = 7 × P1. La diferencia aísla el umbral de 100 kW del art. 25 num. 2 de la CREG 174.
@@ -8089,3 +8097,30 @@ Las horas sin lectura de los medidores netos son **337**, no 330: 330 entran com
 **Lectura.** Las dos lecturas literales de la norma no cambian ninguna conclusión de la tesis. El techo puede quedar declarado como aproximación, con la cifra: cero pesos en 2025. El COT es una elección de supuesto que mueve menos del 0,5 %. Si el autor adopta Cv + COT por coherencia con C5 (la recomendación de la revisión), el único signo que cambia es uno que ya se declaraba frágil.
 
 **Código.** `prepara_caso(..., cot_en_deduccion=False)` y `cv_con_cot_cedenar` en `gsa_directo/evaluador.py` (C-227). El defecto es el canon al bit.
+
+## H-108 · La condición de equilibrio del modelo base es de Nash, no de Stackelberg
+
+**Estado:** derivado el 2026-09-28 al redactar el capítulo 2, y confirmado por su revisión (`.superpowers/sdd/2026-09-16-reposo/redaccion/cap02-revision.md`, §1.1). No mueve ninguna cifra.
+
+- **Qué compara la condición del documento extenso.** La condición de equilibrio de la autora (p. 8, sección III-D) compara el bienestar de cada agente con la estrategia del otro lado **fija**. Es decir, pide mejores respuestas simultáneas, que es la definición de un equilibrio de Nash. En un equilibrio de Stackelberg, en cambio, el líder se compara contra la reacción del seguidor.
+- **Qué resuelve la dinámica.** La dinámica mueve los dos lados a la vez, con la integración conjunta de `JoinFinal.m`, y cada lado toma la estrategia del otro como dato. La aptitud de los precios es la derivada de la suma de los bienestares de los compradores (H-90 §1). Por eso un reposo con todas las estrategias presentes cumple las **condiciones de primer orden** de los dos problemas por lado, (13) y (15), cada uno con la estrategia del otro lado fija. Es la estructura de un equilibrio de Nash entre dos jugadores colectivos, el lado vendedor y el lado comprador, y no la de Stackelberg. No se afirma que el reposo sea un equilibrio de Nash. Reposo no es equilibrio (capítulo 2, 2.3.2), y el problema de los compradores no es cóncavo en los precios, porque el término −π̲·q·ln(1+π) es convexo; un punto estacionario, por tanto, no garantiza la mejor respuesta (re-revisión del capítulo 2, R1).
+- **Dos precisiones.**
+  - La versión por agente de la p. 8 y la versión por lados de (13) y (15) no coinciden en el lado comprador, porque el precio de cada comprador entra en la competencia de los demás.
+  - La jerarquía de Stackelberg queda en el nombre y en el orden en que el documento presenta sus algoritmos. No queda en la información ni en la solución.
+
+Capítulo 2, sección 2.2.2.
+
+## H-109 · El llenado por niveles es el límite de máxima entropía del reparto con precios fijos
+
+**Estado:** derivado el 2026-09-28 al redactar el capítulo 2, y confirmado por su revisión (§1.2). Completa H-90 §5, que ya decía que la regularización selecciona el emparejamiento de máxima entropía. No mueve ninguna cifra.
+
+El argumento tiene cuatro pasos:
+
+1. **Límite de temperatura cero.** Con μ → 0⁺, el óptimo regularizado converge al maximizador de la entropía en la cara óptima del programa lineal, por la concavidad estricta de la entropía (Cominetti y San Martín, 1994; Peyré y Cuturi, 2019, Prop. 4.1, con marginales fijas).
+2. **La cara óptima.** El valor de cada pareja es separable, π_i − c_j, de modo que la cara óptima es el conjunto de todos los acoplamientos con marginales óptimas.
+3. **Dadas las marginales,** el acoplamiento producto, de rango uno, P_ji = v_j·q_i/E, maximiza la entropía.
+4. **Entre compradores empatados,** las condiciones de Karush, Kuhn y Tucker dan q_i = min(d_i, L), que es (5.8). Del lado vendedor vale lo mismo con los empates de costo.
+
+**Alcance.** Esto da la **regla de servicio** con los precios fijos, no la forma cerrada entera: los precios y los regímenes salen del bloque de precios, (5.6), (5.7) y (5.9). Del lado vendedor, el límite despacha por la clave que se ponga en (5.3). Con el costo del vendedor que usa la dinámica, el costo nivelado (H-89), despacha por costo. Con la clave igual al piso, c_j = φ_j, despacha por el piso. La forma cerrada usa el piso, (5.17), pero ese despacho es una **regla declarada** (D64): la sostiene el costo de oportunidad y no este límite. Presentarlo como consecuencia del límite sería circular, y la medición no lo decide (CANON §14.5, M-B).
+
+Capítulo 2, sección 2.3.5, y capítulo 5, secciones 5.2.2 y 5.4.1.

@@ -17,7 +17,8 @@ en dos partes:
   mercado y lo que no depende de las entradas del GSA: la carga del MTE, la
   exclusion y el escalado del caso, la capacidad instalada, las tarifas, la
   bolsa CRUDA, los peajes, los componentes del costo unitario, el PES y el
-  precio del contrato de C5;
+  precio del contrato de C5 (con `excluir_agente`, sin una institucion
+  ademas de la opcion del caso: B2, H-106);
 - `evalua` aplica los seis factores del apartado 4 del diseno y hace el
   resto: el piso por vendedor, el mercado (`parallel=False`), la
   liquidacion de los ocho escenarios y las salidas del apartado 5.
@@ -52,10 +53,19 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+import warnings
+
 import numpy as np
 import pandas as pd
 
 from gsa_directo import comun
+
+# C-219: el mismo aviso benigno que calla main_simulation, por su texto exacto
+# (pandas descarta la zona al pasar la hora local a mes, pero conserva la
+# fecha y hora locales). El evaluador no importa main_simulation al cargar.
+warnings.filterwarnings(
+    "ignore", message="Converting to PeriodArray/Index representation will "
+                      "drop timezone information")
 
 RAIZ = comun.RAIZ
 
@@ -129,6 +139,10 @@ class Insumos:
     # con el reparto real (cuatro con ASC, Cesmag con CEDENAR), que es el
     # canon.
     comercializador: Optional[str] = None
+    # B2 (2026-09-27): la institucion retirada ADEMAS de la opcion del caso
+    # (robustez ante la salida de un miembro, H-106), o None con la comunidad
+    # del caso tal cual, que es el canon.
+    excluido: Optional[str] = None
 
     @property
     def N(self) -> int:
@@ -141,10 +155,23 @@ class Insumos:
 
 def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
                  cache_dir=None, dia: Optional[str] = None,
-                 comercializador: Optional[str] = None) -> Insumos:
+                 comercializador: Optional[str] = None,
+                 excluir_agente: Optional[str] = None) -> Insumos:
     """Replica `main()` (lineas 656-970 y 1412-1580 del 2026-09-26) para
     `--data real --full --include-c5 --no-regulado` y la opcion del caso.
     Con `dia`, replica `--day` en vez de `--full` (la prueba de un dia).
+
+    `excluir_agente` (B2, robustez ante la salida de un miembro, H-106): con
+    el nombre de una institucion, el caso se prepara sin ella, SUMANDO la
+    exclusion a la opcion del caso, como si `main()` recibiera la opcion del
+    caso mas `--excluir-agente <nombre>` (C-176): se recorta la fila antes
+    del escalado, de modo que el escalado, la capacidad, el reparto, las
+    tarifas y las cotas cuelgan de la comunidad que queda. Falla en voz alta
+    (ValueError), antes de cargar nada, si el caso ya excluye a alguien
+    (SINU) o si el nombre no es una institucion del caso; y, como `main()`,
+    si la opcion del caso nombra a la retirada (I1 sin UCC:
+    `escala_comunidad` la rechaza). Con None (el defecto) no cambia nada:
+    es el canon, al bit.
 
     `comercializador` (A2, contrafactico del art. 10 num. 1 de la CREG
     101 072): con "asc" o "cedenar", las cinco se preparan con ese
@@ -157,17 +184,39 @@ def prepara_caso(caso: str, datos=None, mte_root: Optional[str] = None,
     sigue su curso). Con None (el defecto) no se llama a nada nuevo y el
     resultado es el de siempre, al bit: es el canon."""
     if comercializador is None:
-        return _prepara_caso(caso, datos, mte_root, cache_dir, dia, None)
+        return _prepara_caso(caso, datos, mte_root, cache_dir, dia, None,
+                             excluir_agente)
     from data.cedenar_tariff import forzar_comercializador
     try:
         return _prepara_caso(caso, datos, mte_root, cache_dir, dia,
-                             comercializador)
+                             comercializador, excluir_agente)
     finally:
         forzar_comercializador(None)
 
 
+def _exclusion(caso: str, op: dict, excluir_agente: Optional[str]) -> list:
+    """Las instituciones fuera de la comunidad: las de la opcion del caso o,
+    con `excluir_agente`, esa sola, sumada a una opcion que no excluye a
+    nadie (B2). Falla en voz alta si no se puede sumar."""
+    fuera = [n.strip() for n in (op["excluir_agente"] or "").split(",")
+             if n.strip()]
+    if excluir_agente is None:
+        return fuera
+    if not isinstance(excluir_agente, str) or not excluir_agente.strip():
+        raise ValueError(f"excluir_agente: se esperaba el nombre de una "
+                         f"institucion; se recibio {excluir_agente!r}")
+    if fuera:
+        raise ValueError(f"excluir_agente: el caso {caso} ya excluye a "
+                         f"{', '.join(fuera)}; no se suma otra exclusion")
+    del_caso = comun.nombres_caso(caso)
+    if excluir_agente not in del_caso:
+        raise ValueError(f"excluir_agente: {excluir_agente!r} no es una "
+                         f"institucion del caso {caso} ({del_caso})")
+    return [excluir_agente]
+
+
 def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
-                  comercializador) -> Insumos:
+                  comercializador, excluir_agente=None) -> Insumos:
     from data.xm_prices import get_pi_bolsa, get_b_for_real_data
     import data.xm_prices as _xmp
     from data.cedenar_tariff import (
@@ -181,6 +230,8 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
     from data.precios_contratos import precio_horario
 
     op = comun.opciones_caso(caso)
+    # B2: la exclusion se valida ANTES de cargar nada.
+    fuera = _exclusion(caso, op, excluir_agente)
     if datos is None:
         datos = carga_mte(mte_root, cache_dir)
     D_full, G_full, index_full = datos
@@ -188,8 +239,6 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
     G_full = np.array(G_full, dtype=float, copy=True)
 
     todos = list(comun.INSTITUCIONES[:D_full.shape[0]])
-    fuera = [n.strip() for n in (op["excluir_agente"] or "").split(",")
-             if n.strip()]
     malos = [n for n in fuera if n not in todos]
     if malos:
         raise ValueError(f"excluir_agente: {malos} no esta entre {todos}")
@@ -285,7 +334,7 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
         mem=np.asarray(mem, float), pi_G=np.asarray(pi_G, float), pes=pes,
         pi_c5=pi_c5, pi_gb=pi_gb, pi_ppa=float(pi_ppa), fuente_bolsa=fuente,
         dia=dia, fechas=[str(idx[0]), str(idx[-1])],
-        comercializador=comercializador)
+        comercializador=comercializador, excluido=excluir_agente)
 
 
 def inicia_proceso() -> None:

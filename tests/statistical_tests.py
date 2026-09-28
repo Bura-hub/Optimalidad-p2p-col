@@ -60,6 +60,12 @@ def bootstrap_blocks(
     """
     Bootstrap por bloques de Kunsch (1989) para series diarias de beneficio neto.
 
+    RETIRADO PARA CIFRAS PUBLICABLES (C-218, 2026-09-27): la serie diaria
+    reparte por dia un credito que se liquida por mes (atribucion por
+    convencion, como la hora en D72). Se conserva el metodo; la inferencia de
+    la tesis usa la probabilidad de inversion del GSA, el mes a mes y los
+    subperiodos por condicion.
+
     La diferencia diaria delta = P2P[d] - C4[d] se remuestrea en bloques de
     `block_days` días consecutivos para preservar la autocorrelación semanal del
     mercado energético (ciclos día-laborable / fin-de-semana).

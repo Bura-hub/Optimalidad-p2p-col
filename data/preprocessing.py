@@ -123,7 +123,8 @@ from data.xm_data_loader import (
     T_START,
 )
 
-warnings.filterwarnings("ignore")
+# C-219: sin filtro global de avisos (callaba todos los del proceso); si hace
+# falta, uno concreto con `warnings.catch_warnings()` local.
 
 
 # ── Configuración por institución ─────────────────────────────────────────────

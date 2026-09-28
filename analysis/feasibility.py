@@ -138,6 +138,15 @@ def analyze_desertion(
     FA-1: Para cada hora con mercado P2P activo, verifica si el precio
     p2p es mayor que el precio de bolsa (condición de no-deserción).
 
+    RETIRADA, NO CITABLE (C-216, 2026-09-27). Compara el precio medio del
+    mercado con la bolsa CRUDA (sin el techo PES), que no es la alternativa
+    del vendedor mientras tiene cupo de permuta (la tarifa menos el componente
+    de comercializar, art. 25). La condición horaria correcta, precio sobre el
+    piso de cada vendedor, la impone el motor (D67: cero retiros en la matriz
+    y en el GSA), y la deserción de horizonte se mide en H-103. Por eso esta
+    función informa horas «con precio P2P bajo la bolsa» que la liquidación no
+    tiene. Se conserva por las pruebas y por las salidas ya escritas.
+
     Condición de permanencia: pi_p2p(k) >= pi_bolsa(k)
     Si se viola: el vendedor prefiere exportar directamente a la red.
     """
@@ -169,7 +178,8 @@ def analyze_desertion(
     report.condition_never_met = (n_desertion == 0)
 
     if verbose:
-        print(f"\n  FA-1: Condición de deserción")
+        print("\n  FA-1: Condición de deserción "
+              "[RETIRADA, no citable: C-216; ver D67 y H-103]")
         print(f"    Horas mercado activo: {n_active}/{T}")
         print(f"    Horas con pi_p2p < pi_bolsa: {n_desertion} "
               f"({n_desertion/max(n_active,1)*100:.1f}%)")
@@ -210,6 +220,10 @@ def analyze_desertion_individual_rationality(
 ) -> IndividualRationalityReport:
     """
     Sec.3.14 — Condición formal de deserción: Restricción de Racionalidad Individual.
+
+    RETIRADA, NO CITABLE (C-216, 2026-09-27): usa el barrido SA-1 del modelo
+    anterior con bolsa plana; no corre en las corridas del canon (D27). La
+    deserción por institución se mide en H-103 sobre el GSA directo.
 
     Utiliza los resultados del barrido SA-1 (que ya almacena B_n^P2P y B_n^C4/C1
     por agente a cada valor de pi_gb) para:
@@ -810,6 +824,12 @@ def analyze_withdrawal_risk(
     """
     FA-3: Para cada prosumidor n, simula su retiro de la comunidad.
 
+    RETIRADA, NO CITABLE (C-216, 2026-09-27): no vuelve a resolver el mercado
+    sin el miembro que sale (estima B_P2P_remaining), y frente a la corrida
+    completa sin Udenar (SINU) sobrestima la prima de flexibilidad en un 25 %.
+    El retiro de cada institución con el mercado resuelto de nuevo está en
+    H-106 (`reformateo/documento/scripts/retiro_miembro.py`).
+
     Si la comunidad restante viola CREG 101 072:
       → B_fallback = régimen individual (autoconsumo + excedente a bolsa; sin PDE)
     Si la comunidad restante sigue cumpliendo:
@@ -828,7 +848,8 @@ def analyze_withdrawal_risk(
     B_C4_full = float(np.sum(net_benefit_c4_full))
 
     if verbose:
-        print("\n  FA-3: Robustez regulatoria — retiro de participante")
+        print("\n  FA-3: Robustez regulatoria — retiro de participante "
+              "[RETIRADA, no citable: C-216; ver H-106]")
         print(f"    Escenario: retiro de cada prosumidor → impacto sobre AGRC C4")
         print(f"    Beneficio C4 comunidad completa: {B_C4_full:,.0f} COP")
         print(f"    {'Agente':<12} {'Cumple?':>8} {'B_C4_rest':>12} {'B_fallback':>12} "

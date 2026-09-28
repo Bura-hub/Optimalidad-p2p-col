@@ -48,11 +48,17 @@ les aplica el **numeral 2**. El repositorio invoca el numeral 1.
 
 **Y de ahí sale la estructura que faltaba:**
 
-> **C1 es el numeral 2 literal b. C2 es el numeral 2 literal a. Son los dos
-> destinos alternativos del mismo excedente de la misma planta.**
+> **C1 es el numeral 2 literal b.** El literal a es la venta del excedente a
+> generadores o comercializadores con destino a usuarios no regulados, a
+> precio pactado libremente: el contrato con un tercero, medido en H-63 y no
+> adoptado.
 
-No son dos mundos distintos: son la elección que el artículo le ofrece al mismo
-agente. Eso es lo que los separa, y es lo que hoy no está modelado.
+**Corrección del 2026-09-27 (C-217).** Esta ficha decía que C2 era el numeral 2
+literal a. No lo es: el texto vigente del art. 23 (redacción del art. 27 de la
+CREG 101 072) limita el literal a a la venta «a generadores o comercializadores
+para usuarios no regulados», no entre usuarios. C2 es el **contrato interno**
+entre los miembros a precio fijo (C-163): una regla de precio frente al
+mercado, no una alternativa regulada, igual que el propio mercado entre pares.
 
 ---
 
@@ -91,10 +97,12 @@ comercializador; la discusión de H-53 es propia del mercado entre pares.
 
 ## C2 · Contrato bilateral interno
 
-**Norma.** Resolución CREG 174, artículo 23 **numeral 2 literal a**: venta a
-precio **pactado libremente**. La comunidad es el destino de esa venta, y la
-condición de usuario no regulado la sostienen la Ley 143 de 1994 y la
-Resolución CREG 086 de 1996.
+**Norma.** Ninguna propia: es un contrato **entre los miembros** a precio
+fijado de antemano (el punto medio de la banda de cada pareja), la regla con que
+se mide qué aporta que el precio se forme en el mercado (C-163). No es el art. 23
+numeral 2 literal a de la CREG 174, que es la venta a generadores o
+comercializadores con destino a usuarios no regulados (C-217). Lo que el
+contrato no firma sigue el art. 25, como el residual del mercado (D9).
 
 **Qué modela, y es la comparación que le faltaba a la tesis.** Los mismos
 vecinos intercambian **la misma energía** que intercambiarían en el mercado

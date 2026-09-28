@@ -23,7 +23,9 @@ from matplotlib.gridspec import GridSpec
 
 from visualization.matlab_export import safe_export
 
-warnings.filterwarnings("ignore")
+# C-219 (revision B2-D): sin filtro global de avisos; este modulo lo importa
+# main_simulation y lo habria vuelto a callar todo. Si una figura produce un
+# aviso concreto que molesta, se filtra solo ese, localmente.
 
 AGENTS_REAL = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 COLORS_AGT  = ["#378ADD", "#1D9E75", "#D85A30", "#7F77DD", "#BA7517", "#D4537E"]
@@ -1109,6 +1111,14 @@ def plot_flow_breakdown(cr, out_dir: str, currency: str = "COP") -> str:
     Fig 13 — Desglose de flujos por componente (Activity 3.2, Nivel 1).
     Barra apilada vertical: cada escenario muestra de dónde proviene su
     beneficio neto (autoconsumo, permutación, excedente, mercado P2P, etc.).
+
+    NO CITABLE (C-216, 2026-09-27): omite el crédito del art. 25 del
+    residual del mercado (en E0 suma 44,24 frente a 46,50 millones del
+    `Resumen`) y reparte con la prima contra la bolsa, que la regla 2 del
+    canon prohíbe publicar. La descomposición publicable es la del almacén:
+    P2P = C1 + banda + reclasificación (H-101,
+    `reformateo/documento/scripts/descomposicion_p2p.py`). Se conserva por
+    las salidas ya escritas y por el artículo WEEF congelado.
     """
     if not cr.flow_breakdown:
         return ""

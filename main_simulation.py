@@ -24,7 +24,18 @@ Notas:
   mensual ni series diarias para bootstrap (requieren T>=48h con --full).
 """
 import sys, os, time, argparse, warnings, math
-warnings.filterwarnings("ignore")
+# C-219: aqui habia un `warnings.filterwarnings("ignore")` global que callaba
+# todos los avisos del proceso, incluido un RuntimeWarning de division por
+# cero que deja un NaN (fallo mudo). Si hace falta callar un aviso concreto,
+# se filtra solo ese, con `warnings.catch_warnings()` local.
+# El unico que se calla, por su mensaje exacto: pandas avisa al convertir la
+# hora local (America/Bogota) a etiqueta de mes que descarta la zona, pero la
+# conversion conserva la fecha y la hora locales (comprobado el 2026-09-27:
+# 2025-04-30 23:00-05:00 queda en abril y 2025-05-01 00:00-05:00 en mayo), de
+# modo que los meses salen bien. Aparece en una docena de sitios de `data/`.
+warnings.filterwarnings(
+    "ignore", message="Converting to PeriodArray/Index representation will "
+                      "drop timezone information")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Windows: forzar UTF-8 en stdout para soportar caracteres Unicode (█, etc.)
@@ -2122,6 +2133,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         for _r in exporta_optimalidad(opt_summary,
                                       os.path.join(base_dir, "outputs")):
             print(f"    ✓ {os.path.basename(_r)}")
+        # C-219 (revision B2-D): NO estricto aqui. La optimalidad publicable
+        # se recalcula del almacen con el posproceso de D72
+        # (`reformateo/documento/scripts/optimalidad_d72.py`), que si es
+        # estricto; en una corrida larga, un fallo de disco al exportar esta
+        # figura no debe abortar horas de calculo ya hechas.
         p = plot_optimality(opt_summary, out_dir=plots_dir, currency=currency)
         if p:
             print(f"    ✓ Fig 14 — Optimalidad P2P vs C4 mes a mes (D72)")
@@ -2367,6 +2383,11 @@ def _export_base(cr, p2p_results, G_klim, D, base_dir, currency, daily_series=No
                 "contrafactico": nombre,
                 f"total_{currency}": d["total"],
                 "caso_art20": d["caso_art20"],
+                # C-209/C-219: energia a credito y a bolsa del contrafactico
+                # (vacia en el del mercado por la via del colectivo de 11
+                # fronteras, que no la devuelve).
+                "credito_kWh": d.get("credito_kwh"),
+                "exceso_kWh": d.get("exceso_kwh"),
                 **{f"A{n+1}": float(d["por_agente"][n])
                    for n in range(cr.n_agents)},
             } for nombre, d in cr.contrafacticos.items()]
@@ -2393,6 +2414,13 @@ def _compute_daily_series(cr, T: int, paso: float = 1.0):
     el horario del articulo WEEF, y hay que declararlo donde se publique.
 
     Actividad 4.2 — soporte para bootstrap por bloques.
+
+    EL BOOTSTRAP ESTA RETIRADO (C-218, 2026-09-27): la serie diaria reparte
+    por dia un credito que se liquida por mes, y esa atribucion es una
+    convencion (la misma razon por la que D72 publica la hora solo como
+    descripcion). La serie se sigue emitiendo como descripcion; la inferencia
+    se apoya en la probabilidad de inversion del GSA (CANON 13), en el mes a
+    mes (D72) y en los subperiodos por condicion (H-102).
     """
     por_dia = int(round(24.0 / paso))
     n_days = T // por_dia
@@ -2481,6 +2509,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                     "pi_gb_critico":  fa_ir.critical_pgb.get(name, 0),
                     "Estado":         ("estable" if name in fa_ir.stable_agents
                                        else "en_riesgo"),
+                    "Nota": "retirada, no citable (C-216); ver H-103",
                 })
             pd.DataFrame(rows_ir).to_excel(
                 w, sheet_name="FA_DesercionIR", index=False)
@@ -2492,6 +2521,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                 for name in agent_names:
                     row[f"delta_{name}"] = row_d.get(name, 0)
                 row["delta_total"] = sum(row_d.values())
+                row["Nota"] = "retirada, no citable (C-216); ver H-103"
                 rows_sens.append(row)
             pd.DataFrame(rows_sens).to_excel(
                 w, sheet_name="DesercionIR_Sensibilidad", index=False)
@@ -2510,6 +2540,7 @@ def _export_analysis(sa_pgb, sa_pv, fa_des, fa_creg, thresholds, base_dir, agent
                     "loss_C4_COP":          d["loss_C4"],
                     "flexibility_premium_COP": d["flexibility_premium"],
                     "reglas_violadas":      ",".join(d["violated_rules"]) or "—",
+                    "Nota": "retirada, no citable (C-216); ver H-106",
                 })
             pd.DataFrame(rows_wr).to_excel(
                 w, sheet_name="FA3_Robustez_Retiro", index=False)
@@ -2760,6 +2791,11 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
             "## 6. Análisis de factibilidad",
             "",
             "### FA-1: Condición de deserción del P2P",
+            "",
+            "> **Retirada, no citable (C-216):** compara con la bolsa cruda, "
+            "que no es la alternativa del vendedor dentro de su cupo; la "
+            "condición horaria la impone el motor (D67) y la deserción se "
+            "mide en H-103.",
             "",
             f"- Precio P2P nunca menor que bolsa: **{'Sí' if fa_des.condition_never_met else 'No'}**",
             f"- Umbral crítico precio bolsa: **{fa_des.critical_pgb_threshold:.0f} COP/kWh**",

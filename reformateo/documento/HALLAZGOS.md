@@ -7949,3 +7949,38 @@ La ventaja crece con la generación (más excedente que repartir) y se estrecha 
 Las **216** horas en que el núcleo publica el reposo cuantal (D71) tienen **todas** (100 %) al menos dos compradores con techos distintos, y en todas compra Cesmag, el único cliente de CEDENAR (costo unitario distinto del de ASC; CAL-47, H-75). Entre las 15 149 horas con mercado que no son cuantales, los techos difieren en el 45,6 %: los techos distintos son condición necesaria de la fragilidad, no suficiente. Con un solo comercializador los techos coinciden y las horas cuantales desaparecen en los 13 casos (H-97), lo que confirma la lectura.
 
 **Para la tesis.** La rama cuantal no es un artificio del método: responde a una heterogeneidad real de la comunidad (dos comercializadores con tarifas distintas), y el art. 10 num. 1 de la 101 072, que exige un solo comercializador al colectivo, la haría desaparecer.
+
+## H-106 · Ante la salida de un miembro, el mercado conserva su ventaja y mueve menos el beneficio de quien se queda que el colectivo
+
+**Estado: MEDIDO el 2026-09-27 (B2, actividad 2.2)** con el evaluador del GSA en el punto base (seis factores en 1, μ = 1), `reformateo/documento/scripts/retiro_miembro.py`, salida en `SALIDAS_SERVIDOR/retiro_miembro_2026-09-27/`. En los once casos de la matriz salvo CV2 y SINU se retira cada institución, una a la vez, sumando la exclusión a la opción del caso (como `main()` con `--excluir-agente`, C-176; C-215): 54 comunidades de cuatro y 216 pares (retirada, institución que se queda). I1 sin UCC no se evalúa: la opción de I1 escala a UCC y sin ella el caso no está definido (lo que queda es E0 sin UCC). **Compuerta:** la comunidad completa de cada caso reproduce su canon al peso y E0 sin Udenar reproduce SINU al peso (640 comprobaciones).
+
+**La comunidad que queda.** P2P − C1, P2P − C4 y P2P − C5 **no cambian de signo en ninguna** de las 54: el mercado sigue por encima de los tres mecanismos tras cualquier salida. C4 − C1 cambia en cuatro (E4 y E5 sin UCC, con C4 por debajo de C1 por 0,07 y 0,08 millones; P2 sin Udenar, con C4 por encima por 0,01; P2 sin Cesmag, empate al peso). El colectivo con el mercado frente a C4 cambia en 17 de 54, siempre con diferencias de hasta 1,3 millones (el signo ya era frágil en el canon). C4 sigue en el caso 2 del art. 20 en las 54, con cuatro fronteras y reparto del 25 %, y la identidad P2P = C2 (CAL-52) se mantiene (1e-6 COP).
+
+**Quien se queda.** Pérdida = beneficio con la comunidad completa − beneficio sin la retirada (negativa es ganancia), en miles de COP y, entre paréntesis, relativa al beneficio propio con la comunidad completa. «Se mueve menos en P2P» cuenta los pares en que |pérdida en P2P| < |pérdida en C4|. La última columna es la pérdida del conjunto de las que quedan, en millones.
+
+| Sale | Pares | Mediana de \|pérdida\| P2P | Mediana de \|pérdida\| C4 | P2P pierde / gana | C4 pierde / gana | Se mueve menos en P2P | Pérdida de las que quedan, P2P / C4 (M) |
+|---|---:|---:|---:|---:|---:|---:|---|
+| Udenar | 44 | 82 (0,50 %) | 879 (3,81 %) | 26 / 18 | 36 / 8 | 43 | −0,46 a 3,52 / −3,22 a 10,18 |
+| Mariana | 44 | 18 (0,11 %) | 88 (0,51 %) | 18 / 26 | 12 / 32 | 27 | −0,47 a 1,04 / −4,81 a 0,15 |
+| UCC | 40 | 135 (0,60 %) | 588 (1,81 %) | 29 / 11 | 4 / 36 | 30 | 0,00 a 4,21 / −2,99 a 7,16 |
+| HUDN | 44 | 32 (0,18 %) | 368 (1,19 %) | 20 / 24 | 28 / 16 | 41 | −0,17 a 0,75 / −4,70 a 2,15 |
+| Cesmag | 44 | 81 (0,30 %) | 743 (2,59 %) | 12 / 32 | 0 / 44 | 41 | −0,80 a 0,52 / −6,22 a −0,30 |
+| **Todas** | **216** | **65 (0,25 %)** | **519 (1,73 %)** | **105 / 111** | **80 / 136** | **182** | **−0,80 a 4,21 / −6,22 a 10,18** |
+
+- **El beneficio de quien se queda se mueve menos en el mercado** en 182 de 216 pares (84 %); en la comunidad, en 50 de 54. El mayor cambio relativo es del 5,8 % en P2P (Cesmag en E3 sin UCC) y del 9,4 % en C4 (HUDN en I1 sin Mariana). La peor pérdida del conjunto es de 4,21 millones en P2P (E3 sin UCC) y de 10,18 en C4 (P2 sin Udenar).
+- **En C4 la salida redistribuye.** Con el reparto igual, cada una pasa del 20 al 25 % del crédito colectivo. Si sale una importadora neta (Cesmag, Mariana), las que quedan **ganan** (Cesmag: las 44). Si sale la exportadora (Udenar), pierden (36 de 44; en P2, entre 2,22 y 2,65 millones cada una). Por eso, contada con signo, la salida «le cuesta más» al mercado en 136 pares: casi siempre porque en C4 la misma salida es una ganancia.
+- **La exposición del mercado es perder a su comprador o a su vendedor.** Sin UCC, la energía transada cae entre el 73 y el 86 % en E1 a E5 y en P1. Es la retirada que más le cuesta al mercado (29 de 40 pares pierden; hasta 4,21 millones en E3), sin que P2P deje de superar a C4. Sin Udenar en P2 la energía cae el 80 % y las que quedan pierden 3,52 millones en P2P y 10,18 en C4.
+- **Control:** C1 es individual, y la pérdida de quien se queda en C1 es cero exacto en los 216 pares.
+
+**Lectura para la tesis.** Con la salida de un miembro, la hipótesis de la propuesta **se sostiene en dos sentidos medidos:**
+
+- **el orden se conserva:** el mercado sigue por encima de C1, C4 y C5 en todas las comunidades de cuatro;
+- **el beneficio de quien se queda es más estable en el mercado:** mediana del 0,25 % frente al 1,73 %.
+
+**La «fragilidad» de C4 no es una pérdida sistemática.** Es que el beneficio de cada miembro depende de quién más esté: el crédito del exportador se reparte por acuerdo, y su salida lo quita, mientras la de un importador lo agranda. La regla del caso no interviene, porque con cuatro fronteras el colectivo está en el caso 2 antes y después.
+
+**Lo que no se midió:**
+- la entrada de miembros;
+- salidas de dos a la vez;
+- otras reglas de reparto tras la salida (se reacuerda el reparto igual);
+- la caja del GSA (solo el punto base).

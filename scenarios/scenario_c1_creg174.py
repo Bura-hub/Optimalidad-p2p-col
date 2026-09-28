@@ -18,8 +18,12 @@ residuo "arts. 22-23" corregido 2026-06-11 — y Decreto 2469/2014):
   3. La inyección posterior al corte hx del Anexo 4 de la CREG 101 072 (la hora
      en que la inyección acumulada alcanza la importación total del mes) se
      liquida a la bolsa de cada hora, que es la regla transitoria vigente
-     mientras el MCm no aplique (parágrafo del art. 25; Conceptos CREG 3018 y
-     3023 de 2026).
+     mientras el MCm no aplique: art. 1, literal i, de la CREG 101 087 de 2025
+     («para la liquidación del AGPE y GD se usará, donde corresponda, el valor
+     del precio de bolsa horario»), con el parágrafo transitorio del art. 25
+     en la redacción del art. 4 de la 101 087, y los Conceptos CREG 3018 y
+     3023 de 2026. El techo sobre la bolsa es el de la CREG 101 066 de 2024
+     (C-217).
 
 Diferencia estructural con C3:
   C1 (este módulo):  liquidación en el período de facturación (mes).

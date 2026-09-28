@@ -9676,3 +9676,74 @@ Revisión del código sin commit de los puntos C1 a C10 (`.superpowers/sdd/2026-
 - `infactibilidad_desercion.py` comprueba que las brechas por institución sean finitas.
 - `precio_justicia_p2p_c4.py`: el docstring ya no promete una clase «empate» que el código no devuelve.
 - Prueba nueva `test_despacho_defecto_y_valores` en `tests/test_gsa_directo_evaluador.py`: el defecto de `despacho` es «piso» en la función pública y en la interna, y un valor desconocido falla. La compuerta del punto base, que pasa por `_evalua` con el defecto, reproduce el canon al peso (748 comprobaciones).
+
+## C-214 · Qué métricas de equidad y de autosuficiencia se comparan entre mecanismos (punto C4, 2026-09-27)
+
+**Qué se vio** (en la hoja `Resumen` del canon):
+
+- El **índice de equidad (IE)** tiene dos definiciones: para el mercado, el balance entre lo que capturan vendedores y compradores (Chacón); para los escenarios regulados y el colectivo, un reparto por la mediana de la cobertura (`_indice_equidad_agregado`). La segunda degenera: en N1 vale −1,0000 en los siete mecanismos. Compararlas no es comparar lo mismo.
+- El **autoconsumo y la autosuficiencia** del P2P y del colectivo suman a lo físico la energía transada (E0: 0,9778 y 0,1954); los de C1 a C5 cuentan solo lo físico (0,9055 y 0,1810), también C2, que liquida los mismos flujos que el P2P.
+
+**Qué se decidió** (Claude, con el principio de comparar solo lo comparable):
+
+- **Equidad entre mecanismos: el Gini** del beneficio neto por institución, que tiene la misma definición en los siete y es el que usa el precio de la justicia (C-208). El IE se publica **solo para el mercado**, como balance entre vendedores y compradores, y no entra en tablas de comparación.
+- **Autoconsumo y autosuficiencia físicos:** un solo valor por caso, igual en todos los mecanismos (la física es la misma). Para comparar cuánto hace cada mecanismo que la comunidad se abastezca a sí misma se usa el **factor de coincidencia** (D20, hoja `Coincidencia` del canon; E0: C1 0, C4 0,49, colectivo 0,52, P2P y C2 0,76, C5 1). Los valores del P2P que incluyen lo transado (E0: 0,9778 y 0,1954, los de la regla 3 de `CLAUDE.md`) se citan con esa aclaración y no frente a los demás.
+- **Sin cambio de código ni de las salidas del canon.** La trampa se declara en el canon (punto E1) y en la tesis.
+
+## C-215 · El evaluador del GSA admite la retirada de una institución, para medir la robustez ante la salida de un miembro (B2, 2026-09-27)
+
+- **`gsa_directo/evaluador.py`.** `prepara_caso(..., excluir_agente=None)` es el último argumento, así que los anteriores conservan su posición. Con un nombre, prepara el caso sin esa institución y **suma** la exclusión a la opción del caso, como `main()` con la opción del caso más `--excluir-agente <nombre>` (C-176): la fila se recorta antes del escalado, y de la comunidad que queda cuelgan la capacidad, el reparto, las tarifas y las cotas.
+  - Falla en voz alta, antes de cargar el MTE, si el caso ya excluye a alguien (SINU), si el nombre no es una institución del caso o si llega vacío.
+  - Como `main()`, falla también si la opción del caso escala a la retirada (I1 sin UCC).
+  - `Insumos` gana el campo final `excluido`, `None` por defecto.
+  - Con `None` el camino es el de siempre: la compuerta del punto base sigue EN VERDE (748 comprobaciones), y los cambios de A1 y A2 (`despacho`, `comercializador`) quedan intactos.
+- **Guion nuevo** `reformateo/documento/scripts/retiro_miembro.py`. Evalúa en el punto base los once casos de la matriz salvo CV2 y SINU, con la comunidad completa y sin cada institución (54 retiradas y un par que no aplica).
+  - **Compuerta:** la comunidad completa de cada caso frente a su canon y E0 sin Udenar frente a SINU, al peso (640 comprobaciones).
+  - Comprueba que C4 sigue en el caso 2 del art. 20 con cuatro fronteras y reparto del 25 %.
+  - Escribe `comunidad.csv`, `quienes_quedan.csv`, `compuerta.csv` y `procedencia.txt` en `SALIDAS_SERVIDOR/retiro_miembro_2026-09-27/`.
+  - `--procesos N` reparte las evaluaciones: con cuatro tarda unos dos minutos.
+- **Pruebas nuevas** en `tests/test_gsa_directo_evaluador.py`:
+  - la firma y el defecto;
+  - SINU con otra exclusión, un nombre ajeno o uno vacío fallan antes de cargar;
+  - con un día real, `None` da los mismos insumos al bit, y E0 sin Udenar da los de SINU.
+- Resultado en H-106.
+
+## C-216 · Los instrumentos viejos de factibilidad y la figura del desglose, marcados como no citables (puntos D1 y D2, 2026-09-27)
+
+- **FA-1** (`analyze_desertion`) compara el precio medio del mercado con la bolsa cruda, que no es la alternativa del vendedor mientras tiene cupo; por eso informaba horas «con precio P2P bajo la bolsa» que la liquidación no tiene. **FA-1b** (`analyze_desertion_individual_rationality`) usa el barrido del modelo anterior y no corre en el canon (D27). **FA-3** (`analyze_withdrawal_risk`) no vuelve a resolver el mercado y sobrestima la prima de flexibilidad un 25 % frente a SINU. Los tres quedan **retirados y no citables**: en su docstring, en lo que imprimen, en sus hojas del libro de análisis (columna `Nota`) y en el informe Markdown, con su sustituto (D67 y H-103 para la deserción; H-106 para el retiro). No se borran: hay pruebas que los usan y salidas del canon que los contienen. FA-2 y FA-4 ya quedaron corregidos en C-206.
+- **`fig13_desglose_flujos`** omite el crédito del art. 25 y reparte con la prima contra la bolsa, y la columna `prima_vendedor_COP` del CSV de flujos mide contra `pi_gb`: los dos quedan marcados como no citables en su docstring, con el sustituto H-101 (descomposición desde el almacén) y la regla 2 del canon. No se cambian las salidas (canon y artículo WEEF congelado).
+
+## C-217 · Citas y comentarios al día con los textos vigentes (punto D3, 2026-09-27)
+
+Verificado en el gestor normativo de la CREG:
+
+- **La regla transitoria de la bolsa horaria.** El art. 25 de la CREG 174 rige en la redacción del art. 28 de la 101 072 (clasificación al cierre del mes, crédito hasta la importación, numerales por capacidad, exceso valorado al MCm). Mientras no haya metodología del MCm, el art. 1 de la CREG 101 087 ordena el precio de bolsa horario: literal i para el AGPE y literal ii para el colectivo, «y las reglas de la Resolución CREG 101 072 de 2025» con el PDE y la CINAC; el parágrafo transitorio del art. 25 quedó en la redacción del art. 4 de la 101 087. El techo sobre la bolsa es el de la 101 066. La cita «art. 26 de la CREG 101 097 de 2026» de `tesis.md` no se sostiene (esa resolución trata la función del precio de escasez) y pasa a la compuerta de citas vetadas (F3).
+- **C4 ya no es un benchmark supeditado al art. 13**: la transición del art. 1 literal ii de la 101 087 es exactamente lo que liquida el módulo (docstring de `scenario_c4_creg101072.py`).
+- **C1**: su docstring cita ahora el art. 1 literal i de la 101 087 y el art. 4 (`scenario_c1_creg174.py`).
+- **C2 no es el art. 23 numeral 2 literal a.** El texto vigente (redacción del art. 27 de la 101 072) limita ese literal a la venta «a generadores o comercializadores para usuarios no regulados». `ESCENARIOS.md` decía lo contrario y se corrige; `_c2_interno.py` ya lo decía bien.
+- `data/cedenar_tariff.py`: el comentario afirmaba que los cargos de red coinciden entre ASC y CEDENAR; T y D sí, PR y R no (H-97). Cambiar el comentario cambia la huella del dato del GSA, que solo usa la reanudación de corridas ya terminadas.
+- `scripts/update_informe_avances.py` marcado como histórico, no se corre.
+- `Documentos/Matriz_Trazabilidad.md` (fuera de git): fila 2.1 al día.
+
+## C-218 · El alias C4_mensual fuera de las tablas publicables y el bootstrap retirado (punto D4, 2026-09-27)
+
+- **`C4_mensual`** es desde C-175 un alias exacto de C4 (regla 4 del canon). No se quita del código, porque sus claves tienen lectores; las tablas de la tesis se construyen desde guiones que lo omiten, y la compuerta de cifras y citas vetadas sobre `tesis.md` (F3) lo señala.
+- **El bootstrap de bloques** no se corrió con el canon vigente y no se va a correr: la serie diaria reparte por día un crédito que se liquida por mes, y esa atribución es una convención, la misma razón por la que D72 publica la hora solo como descripción. Queda retirado para cifras publicables (docstrings de `_compute_daily_series` en `main_simulation.py` y de `bootstrap_blocks` en `tests/statistical_tests.py`). La inferencia de la tesis se apoya en la probabilidad de inversión del GSA (CANON §13.3), en el mes a mes (D72: 116 de 117 meses) y en los subperíodos por condición (H-102). La serie diaria se sigue emitiendo como descripción.
+
+## C-219 · Pendientes menores: filtros de avisos, figura 14 estricta, energías de los contrafácticos y figuras del GSA viejo (punto D5, 2026-09-27)
+
+- **Filtros globales de avisos.** `main_simulation.py`, `data/preprocessing.py` y `data/xm_data_loader.py` callaban todos los avisos del proceso con `warnings.filterwarnings("ignore")`, incluido un `RuntimeWarning` de división por cero que deja un NaN: el fallo mudo que el proyecto prohíbe. Se quitaron (se aparcaron el 19-sep «hasta el congelamiento», que ya ocurrió). Humos: el caso sintético y un día real (2025-05-02) con las opciones canónicas, cada uno en su carpeta: código 0, ninguna hora con excepción, cero retiros. Los avisos que aparecieron son intencionales (art. 10 num. 1, H-97; el caso sintético sin peajes), uno de openpyxl sin efecto y 19 de pandas al pasar la hora local a mes, que descarta la zona pero conserva la fecha y hora locales (comprobado: 2025-04-30 23:00−05:00 queda en abril y 2025-05-01 00:00 en mayo). Solo ese mensaje se calla, por su texto exacto, en `main_simulation.py`. La hoja `Resumen` sale idéntica con y sin ese filtro. Los filtros de los guiones de auditoría y del GSA viejo, que no corren en producción, se dejan.
+- **Figura 14 estricta.** `main_simulation.py` llama a `plot_optimality(..., estricto=True)`, como el posproceso del canon: si falla el export de sus tablas, la corrida falla en voz alta.
+- **Energías de los contrafácticos.** La hoja `Contrafacticos` lleva `credito_kWh` y `exceso_kWh` (C-209), vacías en el del mercado de 11 fronteras, que no las devuelve.
+- **`gen_cap11.py`:** f116 a f118 leen el GSA de junio (en cuarentena, D79) y quedan retiradas; las del GSA directo se hacen desde su entrega.
+
+Pruebas: 72 de C4, art. 18, FA-3, spread y optimalidad, y las 6 del preflight filtrado. `outputs/` y `graficas/` de la raíz, intactos.
+
+### Ronda de revisión de B2 y del bloque D (2026-09-27)
+
+Revisión (`.superpowers/sdd/2026-09-16-reposo/preparacion/revision-B2-D.md`): **aprobado con observaciones**, sin defectos que cambien cifras ni citas incoherentes. Arreglado:
+
+- **La figura 14 vuelve a no estricta en `main_simulation.py`** (corrige lo dicho arriba en C-219): la optimalidad publicable se recalcula del almacén con el posproceso de D72, que sí es estricto, y en una corrida larga un fallo de disco al exportar esta figura no debe abortar horas de cálculo ya hechas.
+- `visualization/plots.py` conservaba su propio filtro global de avisos, y como lo importa `main_simulation` habría vuelto a callarlo todo: se quitó. El único aviso nuevo que asoma es cosmético (`tight_layout` en la figura 3).
+- El evaluador del GSA calla el mismo aviso benigno de pandas, por su texto exacto.
+- `retiro_miembro.py`: el rótulo de la compuerta ya no es fijo, y el control «la salida de un miembro no mueve C1 de quien se queda» pasa a compuerta dura. Vuelto a correr: 640 comprobaciones al peso, |pérdida C1| máxima 0 COP, 182 de 216 pares más estables en el mercado (igual que H-106).

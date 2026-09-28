@@ -10,6 +10,13 @@ del mercado P2P hora a hora:
     hora · vendedor · comprador · kWh_transados · precio_COP_kWh
     valor_COP · prima_vendedor_COP · ahorro_comprador_COP
 
+    OJO (C-216, regla 2 del canon): `prima_vendedor_COP` de esta tabla mide
+    la prima contra la bolsa escalar `pi_gb` (E0: parte del vendedor 0,937)
+    y NO es publicable. La parte del vendedor que se cita es la del almacén,
+    medida contra el piso del vendedor en el juego (E0: 0,542; columna
+    `prima_vendedor` de `almacen/m1/flujos`). La descomposición del
+    beneficio, en H-101.
+
   Tabla 2 — Resumen horario (una fila por hora):
     hora · mercado_activo · kWh_total · precio_prom_pond_COP_kWh
     n_vendedores · n_compradores · vendedores · compradores

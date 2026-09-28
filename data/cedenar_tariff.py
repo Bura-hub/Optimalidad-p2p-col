@@ -96,8 +96,9 @@ class TariffProfile:
     propiedad: str           # "cedenar" | "compartida" | "usuario"
     # CAL-47: la comunidad tiene DOS comercializadores. ASC atiende a cuatro
     # instituciones y CEDENAR al CESMAG, de modo que las cinco NO comparten
-    # techo. Los cargos de red coinciden entre las dos tablas, como debe ser
-    # porque los fija el operador; lo que difiere es generacion y, sobre
+    # techo. T y D coinciden entre las dos tablas (los fija el operador),
+    # pero PR y R no: los peajes de CEDENAR quedan unos 3,4 COP/kWh por
+    # encima en media (H-97, C-217). Lo que mas difiere es generacion y, sobre
     # todo, comercializacion: 38,37 COP/kWh en ASC frente a 174,92 en
     # CEDENAR. Y ese cargo ES el ancho de la banda del mercado entre pares.
     comercializador: str = "cedenar"   # "cedenar" | "asc"

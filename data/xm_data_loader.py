@@ -30,7 +30,8 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional
 
-warnings.filterwarnings("ignore")
+# C-219: sin filtro global de avisos (callaba todos los del proceso); si hace
+# falta, uno concreto con `warnings.catch_warnings()` local.
 
 # ── Configuración fija ────────────────────────────────────────────────────────
 

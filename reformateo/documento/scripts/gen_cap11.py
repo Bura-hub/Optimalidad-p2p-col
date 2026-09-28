@@ -155,6 +155,10 @@ def f111_sensibilidad_local():
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# C-219 (2026-09-27): f116, f117 y f118 leen el GSA de junio
+# (`gsa_real/salidas/`, en `_cuarentena/2026-09-26/`, D79) y quedan RETIRADAS,
+# no citables. Las figuras del GSA directo se hacen desde
+# `SALIDAS_SERVIDOR/entrega_gsa_directo_completo_2026-09-27/` (CANON 13).
 def f116_sobol():
     """
     F11.6 — Descomposición de la varianza.

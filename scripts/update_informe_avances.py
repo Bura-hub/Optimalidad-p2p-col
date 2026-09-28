@@ -1,4 +1,9 @@
 """
+HISTÓRICO, NO CORRER (C-217, 2026-09-27): reescribe el informe de avances de
+mayo de 2026 con las cifras de CAL-15. Todas sus cifras están superadas por el
+canon 2026-09 (por ejemplo el «spread de ineficiencia estática» de 1 004,4 kWh,
+retirado por C-209). Se conserva como registro de cómo se produjo aquel informe.
+
 Actualiza Informe_Avances_Rediseñado.docx con los resultados CAL-15
 (run 2026-05-01: outputs/run_20260501_cal15_full.log).
 

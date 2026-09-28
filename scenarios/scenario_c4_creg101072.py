@@ -51,10 +51,13 @@ ALCANCE — Art. 13 CREG 101 072 (Informe 4 MTE, Fajardo 2026-05-27):
   regulada (componente G del CU). El crédito PDE que este módulo modela
   (arts. 19-21, por remisión a los arts. 25-26 de la CREG 174) SÍ está
   plenamente definido; lo pendiente es el canal tarifario del
-  comercializador. Por tanto el `net_benefit` de C4 debe leerse como
-  **benchmark bajo el supuesto de herencia CREG 174 (CAL-15)**, cuya
-  materialización plena en factura está supeditada a la reglamentación
-  del Art. 13. Ver auditoría Capa 2.6 y Capa 5.
+  comercializador. Mientras tanto rige la transición del art. 1, literal ii,
+  de la CREG 101 087 de 2025: «para la liquidación del AC y GDC se usará,
+  donde corresponda, el valor del precio de bolsa horario y las reglas de la
+  Resolución CREG 101 072 de 2025», con el PDE y la capacidad por usuario
+  (CINAC, art. 18). Es exactamente lo que este módulo liquida, de modo que
+  C4 ya no es un benchmark supeditado al art. 13 (C-217; antes, CAL-15).
+  Ver auditoría Capa 2.6 y Capa 5.
 
 El modo horario (mode="creg174_inheritance") queda como opción no
 normativa que el orquestador ya no invoca (D4); el modo que rige es

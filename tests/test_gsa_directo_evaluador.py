@@ -11,7 +11,10 @@ Actividad 4.1.
   nada (6.6.6), y f_peaje mueve el colectivo y no C1 ni el mercado;
 - LENTA (6.6.5): el evaluador con los factores en 1 sobre un dia da los
   mismos beneficios que `main_simulation.main(single_day=...)`, que escribe
-  en una carpeta temporal (nunca en outputs/ de la raiz).
+  en una carpeta temporal (nunca en outputs/ de la raiz);
+- B2 (C-215): `excluir_agente` con None no cambia la firma ni los insumos;
+  sumado a SINU, o con un nombre ajeno al caso, falla antes de cargar; E0
+  sin Udenar da los insumos de SINU.
 
 Las de datos reales se saltan si no esta MedicionesMTE_v3.
 """
@@ -183,6 +186,73 @@ def test_un_dia_contra_main_lenta(dia, tmp_path):
     y = evaluador.evalua(dia, comun.PUNTO_BASE)
     for e in ("P2P", "P2P_colectivo", "C1", "C2", "C3", "C4", "C5"):
         assert y[e] == pytest.approx(canon[e], rel=1e-9, abs=1e-6), e
+
+# ── B2: la retirada de una institucion (H-106, C-215) ──────────────────────
+def test_excluir_agente_defecto_none_y_firma():
+    """`excluir_agente` va al final, con None por defecto: los argumentos de
+    antes conservan su posicion y los `Insumos` su campo nuevo en None."""
+    import dataclasses
+    import inspect
+    ps = list(inspect.signature(evaluador.prepara_caso).parameters.values())
+    assert [p.name for p in ps] == ["caso", "datos", "mte_root", "cache_dir",
+                                    "dia", "comercializador",
+                                    "excluir_agente"]
+    assert ps[-1].default is None
+    campos = {f.name: f for f in dataclasses.fields(evaluador.Insumos)}
+    assert campos["excluido"].default is None
+    assert _sinteticos().excluido is None
+
+
+def test_excluir_agente_falla_en_voz_alta_antes_de_cargar(monkeypatch):
+    """SINU ya excluye a Udenar: sumarle otra exclusion falla; un nombre que
+    no es del caso, o vacio, tambien. Todo antes de cargar el MTE (la carga
+    queda saboteada) y antes de tocar el dato."""
+    def no_cargues(*a, **k):
+        raise AssertionError("se cargo el MTE antes de validar la exclusion")
+    monkeypatch.setattr(evaluador, "carga_mte", no_cargues)
+    with pytest.raises(ValueError, match="ya excluye a Udenar"):
+        evaluador.prepara_caso("SINU", None, excluir_agente="Mariana")
+    with pytest.raises(ValueError, match="ya excluye a Udenar"):
+        evaluador.prepara_caso("SINU", None, excluir_agente="Udenar")
+    with pytest.raises(ValueError, match="no es una institucion del caso"):
+        evaluador.prepara_caso("E0", None, excluir_agente="Pasto")
+    with pytest.raises(ValueError, match="nombre de una institucion"):
+        evaluador.prepara_caso("E0", None, excluir_agente=" ")
+    # Con un dato que no se puede desempacar, la validacion va primero.
+    with pytest.raises(ValueError, match="ya excluye"):
+        evaluador.prepara_caso("SINU", object(), excluir_agente="HUDN")
+
+
+def _insumos_iguales(a, b, salvo=("caso", "excluido")):
+    import dataclasses
+    for f in dataclasses.fields(a):
+        if f.name in salvo:
+            continue
+        x, y = getattr(a, f.name), getattr(b, f.name)
+        if isinstance(x, np.ndarray) or isinstance(y, np.ndarray):
+            assert np.array_equal(np.asarray(x), np.asarray(y)), f.name
+        else:
+            assert x == y, f.name
+
+
+@datos_reales
+def test_excluir_agente_none_no_cambia_nada(datos):
+    """Con `excluir_agente=None` los insumos son los de siempre, al bit."""
+    a = evaluador.prepara_caso("E0", datos, dia=DIA)
+    b = evaluador.prepara_caso("E0", datos, dia=DIA, excluir_agente=None)
+    _insumos_iguales(a, b, salvo=())
+
+
+@datos_reales
+def test_e0_sin_udenar_son_los_insumos_de_sinu(datos):
+    """E0 sin Udenar es el caso SINU (opcion vacia + --excluir-agente
+    Udenar), salvo el rotulo del caso y el de la retirada."""
+    a = evaluador.prepara_caso("E0", datos, dia=DIA, excluir_agente="Udenar")
+    b = evaluador.prepara_caso("SINU", datos, dia=DIA)
+    assert a.nombres == ["Mariana", "UCC", "HUDN", "Cesmag"]
+    assert (a.excluido, b.excluido) == ("Udenar", None)
+    _insumos_iguales(a, b)
+
 
 def test_despacho_defecto_y_valores():
     """C-207 (revision C1-C8): el defecto de `despacho` es «piso», la regla

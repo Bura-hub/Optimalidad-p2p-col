@@ -7875,7 +7875,7 @@ La frase de la validación debe ir con su cobertura: «cuando la dinámica llega
 
 - **La energía transada no cambia con σ**: diferencia máxima 6 × 10⁻⁶ kWh en los 39.
 - **El beneficio de la comunidad casi no cambia**: como mucho 0,16 % (K1 con σ = 0; E0 −0,08 %), coherente con H-33 (el excedente es el ancho de la banda por la energía, sea cual sea el precio).
-- **Lo que σ mueve es el reparto**: la parte del vendedor en E0 va de 0,049 (σ = 0, todos al piso, el «Chacón fiel») a 0,405 (σ = 0,5), 0,542 (canon) y 0,962 (σ = 1); en los 13 casos, de 0,000 a 0,365 con σ = 0 y de 0,389 a 1,000 con σ = 1.
+- **Lo que σ mueve es el reparto**: la parte del vendedor en E0 va de 0,049 (σ = 0, todos al piso, el «Chacón fiel») a 0,405 (σ = 0,5), 0,542 (canon) y 0,962 (σ = 1); en los 13 casos, de 0,000 a 0,365 con σ = 0 (0,364 en CANON §14.4 y la Tabla 5.4, con el redondeo del canon; se cita 0,364) y de 0,389 a 1,000 con σ = 1.
 - **Ninguna brecha del mercado frente a C1, C3, C4 o C5 cambia de signo** con ningún σ. Solo cambia P2P colectivo − C4 donde ya era un empate (E0 y SINU con σ ≤ 0,5; CV2 y P2 con σ = 1; en E0 la base es −10 497 COP sobre 44,5 millones). Por institución cambian de 5 a 13 pares según σ (sin contar C2, que reparte al punto medio por construcción).
 
 **Consecuencia.** La elección de σ decide cómo se reparte la ganancia entre vendedores y compradores, no cuánta hay ni quién gana frente a la regulación. Es el puente medido entre el modelo fiel a la autora (σ = 0) y el publicado.

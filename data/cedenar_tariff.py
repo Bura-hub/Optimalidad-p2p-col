@@ -124,9 +124,13 @@ _PERFIL_HISTORICO: dict[str, TariffProfile] = {
 # De esa tabla se lee la fila SIN la contribucion de solidaridad, y no por
 # comodidad:
 #
-# El Decreto 3087 de 1997, articulo 6, no incluye al sector oficial entre los
-# sujetos pasivos de la contribucion, y su paragrafo 1 exime a hospitales y a
-# los centros educativos sin animo de lucro **que asi lo soliciten**. La Ley
+# La Ley 142 de 1994, articulo 89, numeral 89.1, solo cobra el factor a los
+# estratos 5 y 6 y a los usuarios industriales y comerciales, de modo que el
+# sector oficial no es sujeto de la contribucion; y el numeral 89.7 (texto
+# vigente del articulo 51 de la Ley 2099 de 2021) exime a hospitales y a los
+# centros educativos sin animo de lucro **que asi lo soliciten**. (El Decreto
+# 3087 de 1997, que se citaba aqui, lo derogo el articulo 17 del Decreto 847
+# de 2001; verificado el 2026-09-28.) La Ley
 # 30 de 1992, articulo 98, obliga a que toda institucion privada de educacion
 # superior colombiana sea sin animo de lucro, de modo que las tres privadas
 # cumplen la condicion de fondo por obligacion legal.

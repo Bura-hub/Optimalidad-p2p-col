@@ -56,7 +56,7 @@ queda para validarlo y dibujar su convergencia. Ver la sección siguiente.
 La fidelidad al original está probada pieza por pieza, con dos apartamientos
 declarados en la tabla: la forma de competencia y el peso del jugador virtual
 no son los del fichero original. Con esa salvedad, la prueba dorada pasa
-**7 de 7** y la traducción se validó contra el MATLAB de la autora con una
+**7 de 7** (por la vía alternada, que es el defecto de `SolverParams`; precisión del 2026-09-28) y la traducción se validó contra el MATLAB de la autora con una
 diferencia del −1,56 %.
 
 > **Nota del 2026-09-27 (C-226).** La comparación del −1,56 % se hizo con la vía de integración

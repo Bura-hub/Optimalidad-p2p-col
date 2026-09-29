@@ -32,10 +32,18 @@ if ($Salida -eq "") {
 # imprime el texto alternativo como un segundo pie. La caja de 6,5 in
 # (margen de 1 in en carta) es el ANCHO_COMPLETO con que se dibujan las
 # figuras en estilo.py, de modo que los rótulos salen a su tamaño.
+# Citas en estilo IEEE (CSL oficial, en Documentos/FinalTesisV2/ieee.csl) y
+# bibliografía en español: citeproc solo toma la lengua de -M lang=es-ES; el
+# -V lang=es de abajo es para LaTeX (babel) y no le llega (2026-09-28).
 $args = @("tesis.md", "-f", "markdown-implicit_figures", "--citeproc",
-          "--bibliography", $bib, "--resource-path", $tesis, "-o", $Salida)
+          "--bibliography", $bib, "--csl", (Join-Path $tesis "ieee.csl"),
+          "-M", "lang=es-ES", "--resource-path", $tesis, "-o", $Salida)
+# Índice general y un capítulo por página: los títulos de nivel 1 («# Capítulo
+# N.», «# Anexos», «# Referencias») pasan a \chapter de la clase report, sin
+# numeración automática, porque el título ya la trae (2026-09-28).
+$args += @("--toc", "--toc-depth=2", "--top-level-division=chapter")
 if (-not $Word) {
-    $args += @("--pdf-engine=xelatex", "-V", "lang=es",
+    $args += @("--pdf-engine=xelatex", "-V", "documentclass=report", "-V", "lang=es",
                "-V", "mainfont=Times New Roman",
                "-V", "geometry:margin=1in", "-V", "papersize=letter")
 }

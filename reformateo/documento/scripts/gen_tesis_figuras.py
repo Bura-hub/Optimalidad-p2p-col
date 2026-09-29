@@ -183,7 +183,8 @@ def guardar(fig, nombre: str, datos: pd.DataFrame, procedencia: list[str]):
 
 # Figuras cuyo CSV lleva huecos declarados (columna que solo aplica a
 # algunas filas). Cualquier otra con NaN se detiene.
-_CON_HUECOS = {"c5_banda_hora", "c4_generacion_udenar", "c7_brechas_institucion"}
+_CON_HUECOS = {"c5_banda_hora", "c4_generacion_udenar", "c7_brechas_institucion",
+               "c8_infactibilidad_desercion"}
 
 
 # ═════════════════════════════════════════════════════════════════════════════
@@ -1793,6 +1794,468 @@ def c7_coincidencia():
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# Capítulo 8
+# ═════════════════════════════════════════════════════════════════════════════
+# Reglas: CV2 fuera del Sobol; los nueve casos de n = 512 con su semiancho
+# visible (D77); las cinco celdas de empate de la Tabla 8.5 marcadas; nada de
+# mu dentro de la caja; la deserción sin sugerir un umbral general.
+CIFRAS8 = SALIDAS / "cifras_cap08_2026-09-28" / "cifras.csv"
+INFDES = SALIDAS / "infactibilidad_desercion_2026-09-27"
+RETIRO = SALIDAS / "retiro_miembro_2026-09-27"
+CASOS8 = ["E0", "E2", "E4", "E1", "E3", "E5", "P1", "P2", "K1", "I1", "N1", "SINU"]
+N_BASE = {c: (2048 if c in ("E0", "E2", "E4") else 512) for c in CASOS8}
+BRECHAS8 = [("P2P_menos_C1", "P2P − C1"), ("P2P_menos_C4", "P2P − C4"),
+            ("P2Pcol_menos_C1", "P2P colectivo − C1"), ("C4_menos_C1", "C4 − C1"),
+            ("P2P_menos_C5", "P2P − C5")]
+ENTRADAS8 = {  # clave del GSA: (rótulo mathtext, color, marcador)
+    "f_cv":     (r"$f_{\mathrm{Cv}}$", "#2C6E6B", "o"),
+    "f_bolsa":  (r"$f_{\mathrm{B}}$", "#B4534B", "s"),
+    "f_tarifa": (r"$f_{\mathrm{CU}}$", "#3A3A3A", "D"),
+    "f_peaje":  (r"$f_{\Theta}$", "#6B8E23", "^"),
+    "e_G":      (r"$\varepsilon_G$", "#5DA5DA", "v"),
+    "e_D":      (r"$\varepsilon_D$", "#A0A0A0", "P"),
+}
+_CIFRAS8: pd.DataFrame | None = None
+
+
+def cifra8(clave: str):
+    """Una cifra de cifras_cap08_2026-09-28 (CANON §14.19, grupo e1/Q)."""
+    global _CIFRAS8
+    if _CIFRAS8 is None:
+        con_huella(CIFRAS8)
+        _CIFRAS8 = pd.read_csv(CIFRAS8, dtype={"valor": str}).set_index("clave")
+    exige(clave in _CIFRAS8.index, f"cifras_cap08 no tiene la clave {clave}")
+    v = _CIFRAS8.loc[clave, "valor"]
+    try:
+        return float(v)
+    except ValueError:
+        return v
+
+
+def _rotulo_caso8(c: str) -> str:
+    return f"{c} ({num(N_BASE[c])})"
+
+
+def c8_probabilidad_inversion():
+    """Figura 8.1 — Probabilidad de inversión de las brechas de la comunidad.
+
+    Filas A y B de la muestra (inversion_<caso>.csv del GSA completo), con su
+    intervalo al 95 %. Comprueba cada celda de la Tabla 8.4.
+    """
+    t84 = {("E4", "P2Pcol_menos_C1"): 56.25, ("E4", "C4_menos_C1"): 56.40,
+           ("E4", "P2P_menos_C5"): 19.68, ("E5", "P2Pcol_menos_C1"): 74.71,
+           ("E5", "C4_menos_C1"): 75.29, ("E5", "P2P_menos_C5"): 17.48,
+           ("P2", "P2Pcol_menos_C1"): 13.09, ("P2", "C4_menos_C1"): 13.87,
+           ("I1", "P2Pcol_menos_C1"): 8.20, ("I1", "C4_menos_C1"): 76.37,
+           ("I1", "P2P_menos_C5"): 2.73, ("N1", "P2P_menos_C5"): 1.56}
+    rastro, filas = [], []
+    for caso in CASOS8:
+        p = GSA / caso / f"inversion_{caso}.csv"
+        rastro.append(con_huella(p))
+        t = pd.read_csv(p).set_index("salida")
+        exige(int(t.loc["P2P_menos_C1", "n_filas"]) == 2 * N_BASE[caso], f"{caso}: n_filas")
+        for b, _ in BRECHAS8:
+            pi, lo, hi = (100 * float(t.loc[b, k]) for k in ("p_inversion", "p_inf", "p_sup"))
+            igual(round(pi, 2), t84.get((caso, b), 0.0), 0.005, f"Tabla 8.4, {caso} {b}")
+            filas.append(dict(caso=caso, n=N_BASE[caso], brecha=b, p_inversion_pct=pi,
+                              ic95_inf_pct=lo, ic95_sup_pct=hi))
+    d = pd.DataFrame(filas)
+    e4 = d[(d.caso == "E4") & (d.brecha == "P2Pcol_menos_C1")].iloc[0]
+    igual(round(e4.ic95_inf_pct, 2), 54.61, 0.005, "intervalo de E4")
+    igual(round(e4.ic95_sup_pct, 2), 57.71, 0.005, "intervalo de E4")
+
+    fig, ejes = plt.subplots(1, 5, figsize=(E.ANCHO_COMPLETO, 3.5), sharey=True)
+    y = np.arange(len(CASOS8))
+    for ax, (b, tit) in zip(ejes, BRECHAS8):
+        s = d[d.brecha == b].set_index("caso").loc[CASOS8]
+        ax.axvline(50, color=E.ALERTA, lw=0.8, ls=(0, (3, 2)), zorder=1)
+        cero = s.p_inversion_pct == 0
+        ax.plot(s.p_inversion_pct[cero], y[cero.to_numpy()], ls="none", marker="o",
+                markersize=3.2, mfc="white", mec="#9A9A9A", mew=0.8, zorder=2)
+        nz = ~cero.to_numpy()
+        ax.errorbar(s.p_inversion_pct[nz], y[nz],
+                    xerr=[(s.p_inversion_pct - s.ic95_inf_pct)[nz],
+                          (s.ic95_sup_pct - s.p_inversion_pct)[nz]],
+                    fmt="o", color=E.TINTA, markersize=4.5, elinewidth=1.4, capsize=2.2,
+                    zorder=3)
+        ax.set_title(tit, fontsize=8.6, pad=4)
+        ax.set_xlim(-4, 104)
+        ax.set_xticks([0, 50, 100])
+        ax.tick_params(axis="x", labelsize=8)
+        ax.grid(axis="y", visible=False)
+    ejes[0].set_yticks(y)
+    ejes[0].set_yticklabels([_rotulo_caso8(c) for c in CASOS8], fontsize=8)
+    ejes[0].set_ylim(len(CASOS8) - 0.5, -0.5)
+    for ax in ejes:
+        ax.axhspan(2.5, len(CASOS8) - 0.5, color=E.FONDO_BANDA, zorder=0)
+    fig.supxlabel("Probabilidad de inversión en la caja de entradas (%)", fontsize=9, y=0.17)
+    fig.legend(handles=[
+        Line2D([], [], ls="none", marker="o", markersize=3.2, mfc="white", mec="#9A9A9A",
+               label="cero"),
+        Line2D([], [], color=E.TINTA, marker="o", markersize=4.5, lw=1.4,
+               label="distinta de cero, con su intervalo al 95 %"),
+        Line2D([], [], color=E.ALERTA, lw=0.8, ls=(0, (3, 2)),
+               label="50 %: el signo del punto base pasa a minoritario"),
+    ], loc="lower center", ncol=3, frameon=False, bbox_to_anchor=(0.5, -0.01), fontsize=7.8,
+        columnspacing=1.0, handletextpad=0.4)
+    fig.tight_layout(rect=(0, 0.2, 1, 1), w_pad=0.5)
+    return guardar(fig, "c8_probabilidad_inversion", d, [
+        *rastro,
+        "filas A y B de la muestra de Saltelli (CANON §13.2 y §13.3); CV2 fuera del "
+        "análisis (§13.8.4); fondo gris: los nueve casos de n = 512",
+        "compuerta: las 60 celdas de la Tabla 8.4 y el intervalo de E4 (54,61 a 57,71 %)",
+    ])
+
+
+def c8_sobol():
+    """Figura 8.2 — Índices totales de las seis entradas sobre las cinco brechas.
+
+    Por brecha y caso, las dos entradas de mayor índice total, en color y con
+    su semiancho al 95 %; las otras cuatro, en gris y sin barra. Los casos de
+    n = 512 van sobre fondo gris; los cinco empates de la Tabla 8.5, marcados.
+    """
+    rastro, filas = [], []
+    for caso in CASOS8:
+        p = GSA / caso / f"indices_{caso}.csv"
+        rastro.append(con_huella(p))
+        t = pd.read_csv(p)
+        t = t[(t.n == N_BASE[caso]) & (t.salida.isin([b for b, _ in BRECHAS8]))]
+        exige(len(t) == 5 * 6, f"{caso}: faltan índices con n = {N_BASE[caso]}")
+        exige(not t[["ST", "ST_conf"]].isna().any().any(), f"{caso}: índices vacíos")
+        for _, f in t.iterrows():
+            filas.append(dict(caso=caso, n=N_BASE[caso], brecha=f.salida, entrada=f.entrada,
+                              ST=float(f.ST), ST_semiancho=float(f.ST_conf)))
+    d = pd.DataFrame(filas)
+    # Compuerta: la dominante y la segunda de cada celda, contra cifras_cap08
+    # (que el guion del capítulo comprobó contra CANON §13.4).
+    empates = set()
+    for item in str(cifra8("dominante__no_separadas__lista")).split(";"):
+        caso, b, *_ = item.split()
+        empates.add((caso, b))
+    exige(len(empates) == int(cifra8("dominante__no_separadas__n")) == 5, "empates distintos de 5")
+    for caso in CASOS8:
+        for b, _ in BRECHAS8:
+            s = d[(d.caso == caso) & (d.brecha == b)].sort_values("ST", ascending=False)
+            for k, clave in ((0, f"dominante__{caso}__{b}"), (1, f"dominante__{caso}__{b}__segunda")):
+                ent, st, sa = str(cifra8(clave)).replace("(", "").replace(")", "").replace(
+                    "±", "").split()
+                exige(s.entrada.iloc[k] == ent, f"{clave}: entrada {s.entrada.iloc[k]} y no {ent}")
+                igual(round(s.ST.iloc[k], 3), float(st), 0, f"{clave}: ST")
+                igual(round(s.ST_semiancho.iloc[k], 3), float(sa), 0, f"{clave}: semiancho")
+            no_sep = (s.ST.iloc[0] - s.ST.iloc[1]) < (s.ST_semiancho.iloc[0] + s.ST_semiancho.iloc[1])
+            exige(no_sep == ((caso, b) in empates), f"{caso} {b}: empate mal clasificado")
+    d["empate"] = [(c_, b_) in empates for c_, b_ in zip(d.caso, d.brecha)]
+
+    fig, ejes_ = plt.subplots(2, 3, figsize=(E.ANCHO_COMPLETO, 6.6), sharex=True)
+    ejes = ejes_.ravel()
+    y = np.arange(len(CASOS8))
+    for ax, (b, tit) in zip(ejes, BRECHAS8):
+        ax.axhspan(2.5, len(CASOS8) - 0.5, color=E.FONDO_BANDA, zorder=0)
+        for i, caso in enumerate(CASOS8):
+            s = d[(d.caso == caso) & (d.brecha == b)].sort_values("ST", ascending=False)
+            resto = s.iloc[2:]
+            ax.plot(resto.ST, [i] * len(resto), ls="none", marker="|", markersize=5,
+                    color="#B5B5B5", zorder=2)
+            for k, off in ((0, -0.17), (1, 0.17)):
+                f = s.iloc[k]
+                lab, col, mk = ENTRADAS8[f.entrada]
+                ax.errorbar([f.ST], [i + off], xerr=[f.ST_semiancho], fmt=mk, color=col,
+                            markersize=4.2, elinewidth=1.1, capsize=1.6, zorder=3)
+            if (caso, b) in empates:
+                ax.text(1.03, i, "(e)", ha="left", va="center", fontsize=7.6,
+                        color=E.ALERTA, fontweight="bold")
+        ax.set_title(tit, fontsize=9, pad=4)
+        ax.set_xlim(-0.03, 1.12)
+        ax.set_xticks([0, 0.5, 1])
+        eje_num(ax, "x", 1)
+        ax.set_yticks(y)
+        ax.set_yticklabels([_rotulo_caso8(c) for c in CASOS8], fontsize=7.4)
+        ax.set_ylim(len(CASOS8) - 0.5, -0.5)
+        ax.grid(axis="y", visible=False)
+        ax.tick_params(axis="x", labelsize=8)
+    for ax in (ejes[3], ejes[4]):
+        ax.set_xlabel("Índice total $S_T$")
+    ejes[5].axis("off")
+    manejadores = [Line2D([], [], ls="none", marker=mk, color=col, markersize=5, label=lab)
+                   for lab, col, mk in ENTRADAS8.values()]
+    manejadores += [
+        Line2D([], [], ls="none", marker="|", color="#B5B5B5", markersize=6,
+               label="las otras cuatro entradas"),
+        Patch(facecolor=E.FONDO_BANDA, edgecolor="#DDDDDD", label="$n = 512$"),
+        Line2D([], [], ls="none", marker="$(e)$", color=E.ALERTA, markersize=11,
+               label="empate: no se separa\nde la segunda"),
+    ]
+    ejes[5].legend(handles=manejadores, loc="center", frameon=False, fontsize=8.2,
+                   title="Las dos entradas de mayor $S_T$,\ncon su semiancho al 95 %",
+                   title_fontsize=8.2, ncol=1, handletextpad=0.6, labelspacing=0.55)
+    fig.tight_layout(h_pad=1.2, w_pad=0.8)
+    return guardar(fig, "c8_sobol", d, [
+        *rastro,
+        "indices_<caso>.csv con n = n_base (2 048 en E0, E2 y E4; 512 en los otros nueve), "
+        "salidas de brecha; CV2 fuera (CANON §13.8.4); los nueve de n = 512 no cierran la "
+        "convergencia y van con su semiancho (D77, §13.8.1)",
+        "compuerta: la dominante y la segunda de las 60 celdas, con ST y semiancho a tres "
+        "decimales, iguales a " + con_huella(CIFRAS8) + " (claves dominante__*); los "
+        "cinco empates (dominante__no_separadas__lista) son exactamente las celdas cuya "
+        "diferencia es menor que la suma de semianchos",
+    ])
+
+
+def c8_infactibilidad_desercion():
+    """Figura 8.3 — Cercanía a la infactibilidad y deserción hacia C1, por tramo
+    del nivel de la bolsa.
+
+    Paneles: energía media relativa, horas sin ganancia medias, deserción de
+    los seis pares de más del 5 % y deserción de los tres pares pequeños que
+    el texto nombra (Udenar en N1, CESMAG en E3 y en E2), en su propia
+    escala. No se dibuja ninguna línea en «dos veces la bolsa»: ese umbral
+    vale para E4, no en general (H-103, precisado).
+    """
+    pc, pdd = INFDES / "cercania_por_fbolsa.csv", INFDES / "desercion_c1_por_fbolsa.csv"
+    rastro = [con_huella(pc), con_huella(pdd), con_huella(CIFRAS8)]
+    c = pd.read_csv(pc)
+    de = pd.read_csv(pdd)
+    tramos = ["(0.749, 1.0]", "(1.0, 1.5]", "(1.5, 2.0]", "(2.0, 3.0]", "(3.0, 4.0]"]
+    claves_t = ["075_1", "1_15", "15_2", "2_3", "3_4"]
+    rot_t = ["0,75–1", "1–1,5", "1,5–2", "2–3", "3–4"]
+    for caso, e34, sg1, sg34 in (("E5", 72.9, 0.4, 210.4), ("P1", 82.6, 2.5, 159.4),
+                                  ("E4", 83.2, 0.6, 157.0)):
+        s = c[c.caso == caso].set_index("tramo")
+        igual(round(100 * s.loc[tramos[-1], "energia_rel_media"], 1), e34, 0, f"Tabla 8.10 {caso}")
+        igual(round(s.loc[tramos[0], "sin_ganancia_media"], 1), sg1, 0, f"Tabla 8.10 {caso}")
+        igual(round(s.loc[tramos[-1], "sin_ganancia_media"], 1), sg34, 0, f"Tabla 8.10 {caso}")
+    exige(int(c.evaluaciones_fallidas_caso.max()) == 0 and float(c.retiros_max_caso.max()) == 0,
+          "evaluaciones fallidas o retiros en la caja")
+    de_p = de.pivot_table(index=["caso", "institucion"], columns="tramo",
+                          values="p_desercion")[tramos] * 100
+    for (caso, inst), vals in {("E4", "HUDN"): (None, None, None, 27.2, 98.2),
+                               ("E4", "Cesmag"): (None, None, None, 33.0, 81.3)}.items():
+        for k in (3, 4):
+            igual(round(de_p.loc[(caso, inst)].iloc[k], 1), vals[k], 0, f"deserción {caso} {inst}")
+    for caso, inst in (("E5", "Cesmag"), ("E5", "HUDN"), ("P1", "HUDN"), ("N1", "Udenar"),
+                       ("E3", "Cesmag"), ("E2", "Cesmag")):
+        for k, ct in enumerate(claves_t):
+            igual(de_p.loc[(caso, inst)].iloc[k], cifra8(f"desercion__{caso}__{inst}__{ct}"),
+                  1e-9, f"deserción {caso} {inst} {ct}")
+
+    grandes = [("E4", "HUDN"), ("E4", "Cesmag"), ("E5", "Cesmag"), ("E4", "Mariana"),
+               ("E5", "HUDN"), ("P1", "HUDN")]
+    pequenas = [("N1", "Udenar"), ("E3", "Cesmag"), ("E2", "Cesmag")]
+    x = np.arange(5)
+    fig, ejes_ = plt.subplots(2, 2, figsize=(E.ANCHO_COMPLETO, 5.4))
+    a1, a2, a3, a4 = ejes_.ravel()
+    destacados = {"E5": "#B4534B", "E4": "#2C6E6B", "P1": "#6B8E23", "E0": E.TINTA,
+                  "SINU": "#7A7A7A"}
+    filas = []
+    for caso in CASOS8:
+        s = c[c.caso == caso].set_index("tramo").loc[tramos]
+        col = destacados.get(caso)
+        kw = dict(color=col, lw=1.4, marker="o", markersize=3.2, zorder=3) if col else \
+            dict(color="#D2D2D2", lw=0.9, zorder=1)
+        a1.plot(x, 100 * s.energia_rel_media, **kw)
+        a2.plot(x, s.sin_ganancia_media, **kw)
+        for t_, e_, h_ in zip(rot_t, 100 * s.energia_rel_media, s.sin_ganancia_media):
+            filas.append(dict(panel="cercania", caso=caso, institucion="", tramo_fB=t_,
+                              energia_rel_media_pct=float(e_), sin_ganancia_media=float(h_),
+                              desercion_pct=np.nan))
+        # E4 y P1 terminan casi en el mismo punto: sus rótulos se separan.
+        if col and caso in ("E5", "E4", "P1"):
+            a1.text(4.12, 100 * s.energia_rel_media.iloc[-1] + {"E4": 1.8, "P1": -1.8}.get(caso, 0),
+                    caso, va="center", fontsize=7.8, color=col)
+        if col:
+            a2.text(4.12, s.sin_ganancia_media.iloc[-1] + {"E4": -9, "P1": 9}.get(caso, 0),
+                    caso, va="center", fontsize=7.8, color=col)
+    a1.set_ylabel("Energía media\n(% del punto base)")
+    a1.set_ylim(60, 105)
+    a2.set_ylabel("Horas sin ganancia\npor evaluación")
+    a2.set_ylim(0, None)
+    for ax, pares, tope in ((a3, grandes, 105), (a4, pequenas, 15)):
+        for caso, inst in pares:
+            v = de_p.loc[(caso, inst)].to_numpy()
+            ls = {"E4": "-", "E5": "--", "P1": ":", "N1": "-", "E3": "--", "E2": ":"}[caso]
+            ax.plot(x, v, color=E.color_institucion(inst), lw=1.5, ls=ls, marker="o",
+                    markersize=3.2)
+            # Rótulo al final de la curva, salvo Udenar en N1 (lo rotula la
+            # llamada del origen) y el HUDN en E5 y P1, que acaban juntos.
+            rot = {("E5", "HUDN"): "HUDN, E5 y P1", ("P1", "HUDN"): None,
+                   ("N1", "Udenar"): None}.get((caso, inst), f"{E.etiqueta_institucion(inst)}, {caso}")
+            if rot:
+                ax.text(4.12, v[-1], rot, va="center", fontsize=7.4,
+                        color=E.color_institucion(inst))
+            for t_, vv in zip(rot_t, v):
+                filas.append(dict(panel="desercion", caso=caso, institucion=inst, tramo_fB=t_,
+                                  energia_rel_media_pct=np.nan, sin_ganancia_media=np.nan,
+                                  desercion_pct=float(vv)))
+        ax.set_ylim(-tope * 0.03, tope)
+        ax.set_ylabel("Prefiere C1\n(% de los puntos)")
+    # N1: el máximo, con la bolsa barata, se rotula en el origen de la curva.
+    a4.annotate("Udenar, N1: más con la bolsa barata", xy=(0, cifra8("desercion__N1__Udenar__075_1")),
+                xytext=(0.35, 10.5), fontsize=7.4, color=E.color_institucion("Udenar"),
+                arrowprops=dict(arrowstyle="-", color=E.color_institucion("Udenar"), lw=0.7))
+    a3.set_title("Deserción que crece con la bolsa\n(los seis pares de más del 5 %)", fontsize=8.6)
+    a4.set_title("Deserciones pequeñas que nombra el texto", fontsize=8.6)
+    a1.set_title("Energía transada", fontsize=8.6)
+    a2.set_title("Horas sin ganancia", fontsize=8.6)
+    for ax in (a1, a2, a3, a4):
+        ax.set_xticks(x)
+        ax.set_xticklabels(rot_t, fontsize=7.8)
+        ax.set_xlim(-0.25, 5.1)
+        ax.tick_params(axis="y", labelsize=8)
+    for ax in (a3, a4):
+        ax.set_xlabel("Nivel de la bolsa, $f_{\\mathrm{B}}$ (tramo)")
+    fig.tight_layout(h_pad=1.4, w_pad=1.2)
+    return guardar(fig, "c8_infactibilidad_desercion", pd.DataFrame(filas), [
+        *rastro,
+        "cercania_por_fbolsa.csv (12 casos) y desercion_c1_por_fbolsa.csv, fracción de "
+        "todas las filas de la muestra por tramo de f_bolsa (CANON §14.10, H-103 precisado)",
+        "compuerta: Tabla 8.10, E4 HUDN y CESMAG entre 2 y 3 y entre 3 y 4 (CANON §14.10), "
+        "y E5, P1, N1, E3 y E2 por tramo contra cifras_cap08 (claves desercion__*)",
+        "pares dibujados: los seis de más del 5 % en total y los tres que el texto nombra "
+        "por no crecer con la bolsa; el HUDN en E3 no se dibuja porque el texto no lo cita",
+        "en gris claro, los demás casos de la energía y de las horas sin ganancia",
+    ])
+
+
+def c8_retiro():
+    """Figura 8.4 — El retiro de un miembro: cuánto se mueve el beneficio de
+    cada institución que se queda, con el mercado frente a con C4."""
+    pq, pc = RETIRO / "quienes_quedan.csv", RETIRO / "comunidad.csv"
+    rastro = [con_huella(pq), con_huella(pc)]
+    q = pd.read_csv(pq)
+    com = pd.read_csv(pc)
+    exige(len(q) == 216, "no son 216 pares")
+    menos = (q.perdida_P2P.abs() < q.perdida_C4.abs())
+    exige(int(menos.sum()) == 182 and bool(((q.mas_estable == "P2P") == menos).all()),
+          "no son 182 de 216")
+    igual(round(100 * q.perdida_rel_P2P.abs().median(), 2), 0.25, 0, "mediana relativa P2P")
+    igual(round(100 * q.perdida_rel_C4.abs().median(), 2), 1.73, 0, "mediana relativa C4")
+    t812 = {"Udenar": (82, 879, 43), "Mariana": (18, 88, 27), "UCC": (135, 588, 30),
+            "HUDN": (32, 368, 41), "Cesmag": (81, 743, 41)}
+    for inst, (mp, mc, n_) in t812.items():
+        s = q[q.retirada == inst]
+        igual(round(s.perdida_P2P.abs().median() / 1e3), mp, 0, f"Tabla 8.12 P2P {inst}")
+        igual(round(s.perdida_C4.abs().median() / 1e3), mc, 0, f"Tabla 8.12 C4 {inst}")
+        igual(int(((s.perdida_P2P.abs() < s.perdida_C4.abs())).sum()), n_, 0, f"Tabla 8.12 {inst}")
+    c4 = com[com.retirada != "ninguna"]
+    exige(len(c4) == 54, "no son 54 comunidades de cuatro")
+    igual(int((c4.perdida_quedan_P2P.abs() < c4.perdida_quedan_C4.abs()).sum()), 50, 0,
+          "50 de 54 comunidades")
+    exige(float(q.perdida_C1.abs().max()) == 0.0, "la pérdida con C1 no es cero")
+
+    fig, ax = plt.subplots(figsize=(E.ANCHO_COMPLETO, 4.2))
+    xm, ym = q.perdida_C4.abs() / 1e3, q.perdida_P2P.abs() / 1e3
+    lo, hi = 0.1, 2e4
+    ax.plot([lo, hi], [lo, hi], color=E.TINTA, lw=0.9, zorder=1)
+    ax.fill_between([lo, hi], [lo, lo], [lo, hi], color=E.FONDO_BANDA, zorder=0)
+    formas = {"Udenar": "o", "Mariana": "s", "UCC": "D", "HUDN": "^", "Cesmag": "v"}
+    for inst in AGENTS:
+        s = q.retirada == inst
+        ax.scatter(xm[s], ym[s], s=16, marker=formas[inst], color=E.color_institucion(inst),
+                   edgecolor="white", linewidth=0.3, zorder=3,
+                   label=f"sale {E.etiqueta_institucion(inst)}")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(lo, hi)
+    ax.set_aspect("equal")
+    for eje in (ax.xaxis, ax.yaxis):
+        eje.set_major_formatter(FuncFormatter(lambda v, _: num(v, 1 if v < 1 else 0)))
+    ax.set_xlabel("Cambio del beneficio de quien se queda con C4\n(miles de COP, valor absoluto)")
+    ax.set_ylabel("Con el mercado\n(miles de COP, valor absoluto)")
+    ax.text(2e3, 0.4, f"se mueve menos con el mercado:\n{int(menos.sum())} de {len(q)} pares",
+            ha="center", va="center", fontsize=8.2, color=E.TINTA)
+    ax.text(0.3, 3e3, "se mueve menos con C4", ha="left", va="center", fontsize=8.2,
+            color=E.NEUTRO)
+    ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5), frameon=False, fontsize=8.2,
+              handletextpad=0.3)
+    fig.tight_layout()
+    datos = q[["caso", "retirada", "institucion", "perdida_P2P", "perdida_C4",
+               "perdida_rel_P2P", "perdida_rel_C4"]].copy()
+    return guardar(fig, "c8_retiro", datos, [
+        *rastro,
+        "quienes_quedan.csv (CANON §14.13, H-106, C-215): pérdida = beneficio con la "
+        "comunidad completa menos sin la que sale, por par; se dibuja su valor absoluto",
+        "compuerta: 182 de 216 pares se mueven menos con el mercado; medianas relativas "
+        "0,25 y 1,73 %; las medianas y recuentos por institución que sale de la Tabla 8.12; "
+        "50 de 54 comunidades (comunidad.csv); pérdida con C1 cero exacto",
+    ])
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# Capítulo 2 (ilustrativa, sintética)
+# ═════════════════════════════════════════════════════════════════════════════
+def _logit_topado(precios, d, E_, mu):
+    """q_i = min(d_i, exp((π_i − C)/μ)), con C tal que Σ q_i = E (5.3)."""
+    precios, d = np.asarray(precios, float), np.asarray(d, float)
+    lo, hi = precios.min() - 60 * mu - 1e3, precios.max() + 60 * mu
+    for _ in range(300):
+        C = (lo + hi) / 2
+        q = np.minimum(d, np.exp(np.clip((precios - C) / mu, -700, 700)))
+        if q.sum() > E_:
+            lo = C
+        else:
+            hi = C
+    exige(abs(q.sum() - E_) < 1e-9 * max(1.0, E_), "la bisección no cerró")
+    return q
+
+
+def c2_respuesta_logit():
+    """Figura 2.1 — Respuesta logit topada de un vendedor frente a μ.
+
+    Sintética: no usa datos del canon. Un vendedor con 8 kWh reparte entre
+    tres compradores con déficit de 8 kWh cada uno, con dos juegos de
+    precios. Se dibuja la parte de la energía de cada comprador frente a μ,
+    con la prioridad estricta (μ → 0) como referencia.
+    """
+    E_, d = 8.0, [8.0, 8.0, 8.0]
+    juegos = {"A": [800.0, 760.0, 720.0], "B": [760.0, 757.0, 720.0]}
+    mus = np.logspace(-1, 2, 241)
+    filas = []
+    fig, ejes = plt.subplots(1, 2, figsize=(E.ANCHO_COMPLETO, 2.9), sharey=True)
+    tonos = ["#1F6F8B", "#C1642A", "#8C8C8C"]
+    formas = ["-", "--", ":"]
+    for ax, (k, pr) in zip(ejes, juegos.items()):
+        Q = np.array([_logit_topado(pr, d, E_, m) for m in mus]) / E_
+        estricta = np.array([1.0, 0.0, 0.0])
+        for i in range(3):
+            ax.plot(mus, Q[:, i], color=tonos[i], ls=formas[i], lw=1.6,
+                    label=["comprador de precio más alto", "segundo precio",
+                           "tercer precio"][i])
+        ax.axvline(1.0, color=E.TINTA, lw=0.8, ls=(0, (1, 2)))
+        q1 = _logit_topado(pr, d, E_, 1.0) / E_
+        dlt = float(np.max(np.abs(q1 - estricta)))
+        ax.text(1.12, 0.52, f"$\\mu = 1$: se aparta\n{num(100 * dlt, 1 if dlt > 1e-3 else 0)} % "
+                "de la\nprioridad estricta" if dlt > 1e-6 else
+                "$\\mu = 1$: igual a la\nprioridad estricta", fontsize=7.8, va="center",
+                color=E.TINTA)
+        ax.set_xscale("log")
+        ax.set_xlim(0.1, 100)
+        ax.set_ylim(-0.03, 1.03)
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: num(v, 1 if v < 1 else 0)))
+        ax.set_xlabel("Temperatura $\\mu$ (COP/kWh)")
+        ax.set_title("precios de 800, 760 y 720 (COP/kWh)" if k == "A"
+                     else "precios de 760, 757 y 720 (COP/kWh)", fontsize=8.8, pad=4)
+        for m, qq in zip(mus, Q):
+            filas.append(dict(juego=k, mu=float(m), parte_1=float(qq[0]), parte_2=float(qq[1]),
+                              parte_3=float(qq[2])))
+    ejes[0].set_ylabel("Parte de la energía\ndel vendedor")
+    eje_num(ejes[0], "y", 1)
+    h_, l_ = ejes[0].get_legend_handles_labels()
+    fig.legend(h_, l_, loc="lower center", ncol=3, frameon=False, fontsize=8.0,
+               bbox_to_anchor=(0.5, -0.01), handlelength=2.2)
+    fig.tight_layout(rect=(0, 0.09, 1, 1), w_pad=1.0)
+    return guardar(fig, "c2_respuesta_logit", pd.DataFrame(filas), [
+        "FIGURA SINTÉTICA E ILUSTRATIVA: no usa datos del canon ni de la comunidad.",
+        "Respuesta logit topada de (5.3) del lado de los compradores: "
+        "q_i = min(d_i, exp((pi_i - C)/mu)), con C por bisección tal que sum q_i = E.",
+        "Parámetros: E = 8 kWh (un vendedor); tres compradores con d_i = 8 kWh; "
+        "juego A: precios 800, 760 y 720 COP/kWh; juego B: 760, 757 y 720 COP/kWh; "
+        "mu de 0,1 a 100 COP/kWh en 241 puntos logarítmicos; mu = 1 marcado (el de la tesis).",
+        "La prioridad estricta (mu -> 0) da toda la energía al comprador de precio más alto.",
+    ])
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 FIGURAS = {
     "c4_mapa_instituciones": c4_mapa_instituciones,
     "c4_fuentes_registro": c4_fuentes_registro,
@@ -1810,6 +2273,11 @@ FIGURAS = {
     "c7_brechas_institucion": c7_brechas_institucion,
     "c7_equidad": c7_equidad,
     "c7_coincidencia": c7_coincidencia,
+    "c8_probabilidad_inversion": c8_probabilidad_inversion,
+    "c8_sobol": c8_sobol,
+    "c8_infactibilidad_desercion": c8_infactibilidad_desercion,
+    "c8_retiro": c8_retiro,
+    "c2_respuesta_logit": c2_respuesta_logit,
 }
 
 

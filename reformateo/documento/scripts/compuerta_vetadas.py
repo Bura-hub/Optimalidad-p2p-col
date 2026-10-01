@@ -14,8 +14,26 @@ Una coincidencia no siempre es un error (una cifra vieja citada a propósito,
 como historia, con su aclaración); en ese caso se marca la línea con el
 comentario HTML `<!-- vetada-ok: <motivo> -->` y la compuerta la acepta.
 
+Con `--ingles` (Tarea 2 del plan del artículo para IEEE Latin America
+Transactions, 2026-09-29) aplica, en lugar de los patrones en español, la lista
+`VETADAS_INGLES` (las mismas lecturas vetadas escritas en inglés) más las rutas
+vetadas, a los ficheros dados (típicamente el `.tex` del artículo). Algunos
+patrones son solo avisos: se imprimen, pero no cambian el código de salida. En
+un `.tex` la excepción se marca con el comentario `% vetada-ok: <motivo>` en la
+misma línea (también vale la forma HTML).
+
+Con `--fichero` (Tarea 2 del plan de la versión de entrega de la tesis,
+2026-09-29) aplica los patrones en español (`VETADAS_TEX_ES`: la lista española,
+con el rango 35–89 también en su forma LaTeX, más las lecturas que veta la
+inglesa) a los ficheros dados, típicamente el `.tex` en español, con las reglas
+de `--ingles`: búsqueda sobre el texto entero (una frase partida por un salto de
+línea se ve), avisos que no cambian el código de salida y la excepción
+`% vetada-ok: <motivo>`. Sin opciones, el uso es el de siempre.
+
 Uso:
     .venv/Scripts/python.exe reformateo/documento/scripts/compuerta_vetadas.py [fichero.md ...]
+    .venv/Scripts/python.exe reformateo/documento/scripts/compuerta_vetadas.py --ingles fichero.tex [...]
+    .venv/Scripts/python.exe reformateo/documento/scripts/compuerta_vetadas.py --fichero fichero.tex [...]
 """
 from __future__ import annotations
 
@@ -27,6 +45,8 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[3]
 POR_DEFECTO = RAIZ / "Documentos" / "FinalTesisV2" / "tesis.md"
 EXCEPCION = re.compile(r"<!--\s*vetada-ok:\s*[^>]+-->")
+# En un .tex la excepción va en un comentario LaTeX (la forma HTML también vale).
+EXCEPCION_TEX = re.compile(r"<!--\s*vetada-ok:\s*[^>]+-->|(?<!\\)%\s*vetada-ok:\s*\S")
 
 
 @dataclass(frozen=True)
@@ -35,7 +55,24 @@ class Vetada:
     motivo: str
     fuente: str
     ignora_mayusculas: bool = False
+    aviso: bool = False  # True: se informa, pero no cuenta como coincidencia
 
+
+# Rutas vetadas (Global Constraints del plan del artículo y regla 1 del canon);
+# las comparten la lista en español y la inglesa.
+RUTAS_VETADAS = [
+    Vetada(r"entrega_canonica|entrega_matriz_2026-09-15|matriz_reposo_2026-09-17",
+           "entregas superadas (regla 1 del canon)",
+           "SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/"),
+    Vetada(r"entrega_gsa_directo_2026-09-27(?!_)", "entrega del GSA superada",
+           "entrega_gsa_directo_completo_2026-09-27 (CANON §13.8.5)"),
+]
+
+_MOTIVO_35_89 = ("«cobertura» de la validación que dice más de lo medido (C-225): "
+                 "ningún régimen pasó el criterio de bloque")
+_V35_89 = Vetada(r"35\s*(?:y el|al|a)\s*89|35\s*[–-]\s*89", _MOTIVO_35_89,
+                 "CANON §9 y §14.5: regla declarada en todos los regímenes; 17 de 18 "
+                 "horas integradas en la muestra de E0")
 
 VETADAS = [
     # ── Cifras de canon superados ──────────────────────────────────────────
@@ -61,18 +98,11 @@ VETADAS = [
            "regla 2: la del almacén (E0: 0,542)"),
     Vetada(r"n_?base\s*=\s*128|n\s*=\s*128\b", "GSA de junio (n = 128)",
            "CANON §13 (n = 2 048 y 512)"),
-    Vetada(r"35\s*(?:y el|al|a)\s*89|35\s*[–-]\s*89", "«cobertura» de la validación "
-           "que dice más de lo medido (C-225): ningún régimen pasó el criterio de bloque",
-           "CANON §9 y §14.5: regla declarada en todos los regímenes; 17 de 18 horas "
-           "integradas en la muestra de E0"),
+    _V35_89,
     Vetada(r"alcanzad[oa]s? por la dinámica", "rótulo retirado de la validación (C-225)",
            "CANON §14.5, partición por grupo de regímenes", ignora_mayusculas=True),
     # ── Rutas y objetos superados ──────────────────────────────────────────
-    Vetada(r"entrega_canonica|entrega_matriz_2026-09-15|matriz_reposo_2026-09-17",
-           "entregas superadas (regla 1 del canon)",
-           "SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/"),
-    Vetada(r"entrega_gsa_directo_2026-09-27(?!_)", "entrega del GSA superada",
-           "entrega_gsa_directo_completo_2026-09-27 (CANON §13.8.5)"),
+    *RUTAS_VETADAS,
     Vetada(r"gsa_real|--paper-meters", "GSA viejo y opción retirada (D79, D10)",
            "gsa_directo/"),
     Vetada(r"\bM3\b", "segunda frontera retirada (D10, H-77)",
@@ -128,15 +158,95 @@ VETADAS = [
            "no es de Peña-Bello)"),
 ]
 
+# Las mismas lecturas vetadas, escritas en inglés (artículo IEEE LatAm; Tarea 2
+# del plan 2026-09-29-articulo-latam), más las rutas vetadas.
+VETADAS_INGLES = [
+    Vetada(r"\b35(?:\s*\\?,?\s*\\?%)?\s*(?:–|—|--|-|to|and|\\textendash)\s*89\b",
+           "«cobertura» de la validación que dice más de lo medido (C-225): "
+           "ningún régimen pasó el criterio de bloque",
+           "CANON §9 y §14.5: regla declarada en todos los regímenes; 17 de 18 "
+           "horas integradas en la muestra de E0 («17 of 18 hours»)",
+           ignora_mayusculas=True),
+    Vetada(r"reached by the dynamics", "rótulo retirado de la validación (C-225)",
+           "CANON §14.5, partición por grupo de regímenes", ignora_mayusculas=True),
+    Vetada(r"verified regime", "ningún régimen se verificó con el criterio de "
+           "bloque (C-225)", "CANON §9: regla declarada en todos los regímenes",
+           ignora_mayusculas=True),
+    Vetada(r"bootstrap", "retirado para cifras publicables (C-218)",
+           "probabilidad de inversión del GSA, mes a mes, subperíodos",
+           ignora_mayusculas=True),
+    Vetada(r"\bM3\b", "segunda frontera retirada (D10, H-77)",
+           "matriz de escalado sobre M1 (D10 a D12)"),
+    Vetada(r"hourly C4", "colectivo horario retirado (D4, C-175)",
+           "C4 mensual (arts. 19 a 21)", ignora_mayusculas=True),
+    Vetada(r"C2\s*\$?\s*=\s*\$?\s*C3", "identidad del canon de agosto",
+           "regla 5: el agregado de P2P y C2 coinciden (CAL-52)"),
+    Vetada(r"Stackelberg equilibrium(?!\s+structure)",
+           "el artículo conserva la estructura del juego de Stackelberg; "
+           "«equilibrium» a secas puede decir más de lo que se calcula",
+           "«Stackelberg equilibrium structure» o «Stackelberg game structure»",
+           ignora_mayusculas=True, aviso=True),
+    Vetada(r"exemption from (?:network )?charges",
+           "lectura que requiere su salvedad (D-1, Fase E)",
+           "revisar la redacción contra CANON.md", ignora_mayusculas=True,
+           aviso=True),
+    Vetada(r"Decree 3087", "decreto derogado (tarifas)",
+           "Ley 142 de 1994, art. 89", ignora_mayusculas=True),
+    *RUTAS_VETADAS,
+]
 
-def revisa(fichero: Path) -> list[tuple[int, Vetada, str]]:
+# Los patrones en español aplicados a un `.tex` en español (versión de entrega
+# de la tesis; Tarea 2 del plan 2026-09-29-tesis-entrega): toda la lista
+# española, con el rango 35–89 en su forma LaTeX (`35\,\% y el 89`, `35--89`),
+# más las lecturas que la lista inglesa veta y la española no tenía.
+VETADAS_TEX_ES = [v for v in VETADAS if v is not _V35_89] + [
+    Vetada(r"\b35(?:\s*\\?,?\s*\\?%)?\s*(?:y el|al|a|–|—|--|-|\\textendash)\s*89\b",
+           _MOTIVO_35_89, _V35_89.fuente, ignora_mayusculas=True),
+    Vetada(r"r[ée]gimen(?:es)? verificad[oa]s?", "ningún régimen se verificó con el "
+           "criterio de bloque (C-225)", "CANON §9: regla declarada en todos los "
+           "regímenes", ignora_mayusculas=True),
+    Vetada(r"equilibrio de Stackelberg",
+           "la tesis conserva la estructura del juego de Stackelberg; «equilibrio» "
+           "a secas puede decir más de lo que se calcula (el reposo es de Nash)",
+           "«estructura del juego de Stackelberg»", ignora_mayusculas=True,
+           aviso=True),
+    Vetada(r"exenci[óo]n de (?:los )?cargos", "lectura que requiere su salvedad "
+           "(D-1, Fase E)", "revisar la redacción contra CANON.md",
+           ignora_mayusculas=True, aviso=True),
+    Vetada(r"Decreto 3087", "decreto derogado (tarifas)", "Ley 142 de 1994, art. 89",
+           ignora_mayusculas=True),
+]
+
+
+def _espacios_flexibles(patron: str) -> str:
+    """Cada espacio literal fuera de una clase `[...]` vale por cualquier blanco
+    (saltos de línea incluidos); los de dentro de una clase no se tocan."""
+    salida, en_clase, k = [], False, 0
+    while k < len(patron):
+        c = patron[k]
+        if c == "\\":
+            salida.append(patron[k:k + 2])
+            k += 2
+            continue
+        if c == "[" and not en_clase:
+            en_clase = True
+        elif c == "]" and en_clase:
+            en_clase = False
+        salida.append(r"\s+" if c == " " and not en_clase else c)
+        k += 1
+    return "".join(salida)
+
+
+def revisa(fichero: Path, patrones: list[Vetada] | None = None,
+           excepcion: re.Pattern = EXCEPCION) -> list[tuple[int, Vetada, str]]:
     if not fichero.is_file():
         raise FileNotFoundError(f"no existe {fichero}")
     hallados = []
     compilados = [(v, re.compile(v.patron, re.IGNORECASE if v.ignora_mayusculas
-                                 else 0)) for v in VETADAS]
+                                 else 0))
+                  for v in (VETADAS if patrones is None else patrones)]
     for n, linea in enumerate(fichero.read_text(encoding="utf-8").splitlines(), 1):
-        if EXCEPCION.search(linea):
+        if excepcion.search(linea):
             continue
         for v, rx in compilados:
             m = rx.search(linea)
@@ -145,8 +255,77 @@ def revisa(fichero: Path) -> list[tuple[int, Vetada, str]]:
     return hallados
 
 
+def _revisa_texto_entero(fichero: Path, patrones: list[Vetada]
+                         ) -> list[tuple[int, Vetada, str]]:
+    """Patrones sobre el texto entero; excepción `% vetada-ok:` o HTML.
+
+    En un `.tex` una frase se corta con el salto de línea («reached by the» /
+    «dynamics»), así que se busca sobre el texto entero: cada espacio literal
+    del patrón vale por cualquier blanco, saltos incluidos, y la coincidencia se
+    atribuye a su línea de inicio. Las líneas exceptuadas se blanquean antes
+    (conservan su longitud), de modo que no aportan ni cierran coincidencias."""
+    if not fichero.is_file():
+        raise FileNotFoundError(f"no existe {fichero}")
+    lineas = fichero.read_text(encoding="utf-8").split("\n")
+    texto = "\n".join(" " * len(l) if EXCEPCION_TEX.search(l) else l for l in lineas)
+    hallados = []
+    for v in patrones:
+        rx = re.compile(_espacios_flexibles(v.patron),
+                        re.IGNORECASE if v.ignora_mayusculas else 0)
+        for m in rx.finditer(texto):
+            hallados.append((texto.count("\n", 0, m.start()) + 1, v,
+                             " ".join(m.group(0).split())))
+    hallados.sort(key=lambda x: x[0])
+    return hallados
+
+
+def revisa_ingles(fichero: Path) -> list[tuple[int, Vetada, str]]:
+    """Patrones en inglés y rutas vetadas (artículo IEEE LatAm)."""
+    return _revisa_texto_entero(fichero, VETADAS_INGLES)
+
+
+def revisa_tex_es(fichero: Path) -> list[tuple[int, Vetada, str]]:
+    """Patrones en español (`VETADAS_TEX_ES`) sobre un `.tex` en español, con
+    las mismas reglas que `revisa_ingles`: excepción `% vetada-ok:` (o HTML) y
+    frases partidas por el salto de línea."""
+    return _revisa_texto_entero(fichero, VETADAS_TEX_ES)
+
+
+def main_ingles(ficheros: list[Path]) -> int:
+    return _main_texto_entero(ficheros, revisa_ingles, "inglés")
+
+
+def main_fichero(ficheros: list[Path]) -> int:
+    return _main_texto_entero(ficheros, revisa_tex_es, "español, fichero")
+
+
+def _main_texto_entero(ficheros: list[Path], revisor, rotulo_modo: str) -> int:
+    total = avisos = 0
+    for f in ficheros:
+        h = revisor(f)
+        duros = [x for x in h if not x[1].aviso]
+        blandos = [x for x in h if x[1].aviso]
+        total += len(duros)
+        avisos += len(blandos)
+        print(f"== {f}: {len(duros)} coincidencias, {len(blandos)} avisos")
+        for rotulo, grupo in (("", duros), ("AVISO ", blandos)):
+            for n, v, txt in grupo:
+                print(f"  {rotulo}línea {n}: «{txt}» — {v.motivo}"
+                      f"\n        sustituto: {v.fuente}")
+    print(f"COMPUERTA DE VETADAS ({rotulo_modo}): "
+          + ("LIMPIA" if total == 0 else f"{total} COINCIDENCIAS")
+          + (f" ({avisos} avisos)" if avisos else ""))
+    return 0 if total == 0 else 1
+
+
 def main(argv=None) -> int:
     argv = sys.argv[1:] if argv is None else argv
+    if argv and argv[0] in ("--ingles", "--fichero"):
+        if len(argv) < 2:
+            print(f"uso: compuerta_vetadas.py {argv[0]} fichero [...]", file=sys.stderr)
+            return 2
+        modo = main_ingles if argv[0] == "--ingles" else main_fichero
+        return modo([Path(a) for a in argv[1:]])
     ficheros = [Path(a) for a in argv] or [POR_DEFECTO]
     total = 0
     for f in ficheros:
@@ -167,4 +346,6 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")  # cp1252 no tiene «−» (CAL-28b)
     sys.exit(main())

@@ -74,6 +74,105 @@ byte a byte:
     saturación de E0 (§4), el umbral de 100 kW (`umbral_100kw.csv`, e1/C8,
     §14.11), la bolsa media topada y P2 frente a E0 (§14.18).
 
+Añadido el 2026-09-30 (Tarea B1b), también al final, de modo que las 818
+filas anteriores salen iguales byte a byte:
+
+12. La atribución de P2P − C4 a los dos supuestos de liquidación (`atr__*`,
+    CANON §14.21), de `atribucion_supuestos_2026-09-30/atribucion_13casos.csv`
+    (grupo `e1/S`): por caso, los dos órdenes de la identidad (texto: C4 → C1
+    → P2P; inverso: C4 → v01 → P2P), Shapley, la interacción, sus partes de
+    P2P − C4, la parte transada de la inyección, si C1 es la esquina exacta
+    de «solo el supuesto 1» y el grupo (s1, s2 u «orden»); los resúmenes de
+    los tres grupos; la inyección de E0; y el reparto por orden del kWh de
+    ASC de abril (Cv + Θ). Compuertas: P2P, C1, C4 y P2P colectivo = Resumen;
+    el orden del texto = (C1 − C4, P2P − C1); los dos órdenes y Shapley
+    cierran; la tabla de CANON §14.21 a tres decimales; los tres grupos de
+    §14.21; la energía de E0 = almacén; Cv + Θ = kwh__ASC__P2P_C4.
+
+Añadido el 2026-10-02 (C2 como PPA), también al final, de modo que las 1 051
+filas anteriores salen iguales byte a byte:
+
+13. El C2 de la propuesta como PPA de todo el excedente (CANON §14.22), de
+    `c2_ppa_2026-10-02/c2_ppa_13casos.csv` (grupo `e1/P`): por caso, el valor
+    de la comunidad con el PPA a la media de XM (`com__<caso>__C2ppa`), sus
+    brechas con C1, C4, P2P, P2P colectivo y C3 (`com__<caso>__C2ppa_<X>`),
+    los precios de equilibrio (`ppa__<caso>__PPeq_<X>`), k*, el excedente, la
+    parte que en C1 es crédito, el Gini del PPA, del mercado y de C4
+    (`gini__<caso>__*`) y las instituciones con el PPA por encima de C1, C4 y
+    P2P; la media, el mínimo y el máximo de la serie de XM; el rango de k*; los
+    pares institución-caso con la convención de «25 de 64»; y el orden de E0
+    con C2 como PPA (`mec__E0__orden_C2ppa`, el de la Fig. 2). Las claves
+    `com__<caso>__C2` existentes no cambian: siguen siendo la columna `C2` de
+    la hoja `Resumen` (el contrato interno de CAL-52). Compuertas: B^X de la
+    comunidad = Resumen; B^C2 = A + PP·S; brechas, PP* y signos coherentes
+    fila a fila; las tres tablas de CANON §14.22 a sus decimales.
+
+Añadido el 2026-10-02 (P2P comunitario), también al final, de modo que las
+1 343 filas anteriores salen iguales byte a byte:
+
+14. El P2P comunitario (CANON §14.23), la propuesta regulatoria que en el
+    artículo en español y en la tesis de entrega reemplaza al mercado por el
+    colectivo como mecanismo, de `p2p_comunitario_2026-10-02/
+    p2p_comunitario_13casos.csv` (grupo `e1/PC`): por caso, el valor de la
+    comunidad (`com__<caso>__P2Pcom`), C4 sin la regla del 10 %
+    (`com__<caso>__C4sin10`), P2Pcom − C4 en MCOP y en % de C4, su
+    descomposición (`pcom__<caso>__sin10` e `__intercambio`), las brechas con
+    C1, P2P, P2P colectivo, C2 como PPA, C5 y C3 (`com__<caso>__P2Pcom_<X>`),
+    el caso del art. 20 sin el 10 % y la CINAC, las potencias residual y
+    bruta máximas por frontera, el Gini (`gini__<caso>__P2Pcom`) y las dos
+    sensibilidades (PDE por importación y caso 1 para todos); y los globales:
+    rangos, suma, casos y pares por encima de cada mecanismo, el Gini frente
+    a C4 y a P2P, la parte de quitar el 10 % en los casos del caso 1 y el
+    orden de E0 con el P2P comunitario (`mec__E0__orden_P2Pcom`, el de la
+    Fig. 2 en español). Ninguna clave existente cambia de significado: las
+    `*P2Pcol*` siguen siendo el mercado por el colectivo (la vía legal de
+    hoy). Compuertas (4): la comunidad = hoja Resumen y PPA, brechas y signos,
+    CINAC y suma = los atributos del bloque 8 (a 1e-3 kW: el CSV redondea la planta de UCC a 4 decimales) y caso del art. 20 = el de la
+    CINAC; las tres descomposiciones cierran y la comunidad es la suma; las
+    tres tablas y el texto de CANON §14.23; ninguna sensibilidad cambia el
+    signo frente a C4 y el orden de E0 no tiene empates.
+
+Añadido el 2026-10-02 (los dos órdenes del P2P comunitario), también al
+final, de modo que las 1 714 filas anteriores salen iguales byte a byte:
+
+15. P2Pcom − C4 por los dos órdenes y Shapley (CANON §14.23; regla de cita
+    como en §14.21: los dos órdenes o Shapley, nunca uno solo). Directo:
+    `pcom__<caso>__sin10` e `__intercambio` (ya existentes). Inverso: primero
+    el intercambio exento con la regla del 10 % vigente, el P2P comunitario
+    con el residual en el caso 2 (`com__<caso>__P2Pcom_caso2`, y sus brechas
+    con C4, P2P y C1): `pcom__<caso>__inv_sin10` e `__inv_intercambio`.
+    Shapley: `pcom__<caso>__sh_sin10` e `__sh_intercambio`; la interacción, la
+    parte de quitar la regla en % por los tres y la clase del caso
+    (`pcom__<caso>__orden_clase`). Globales `pcom__orden__*`: los casos en que
+    quitar la regla pone la mayor parte por los dos órdenes, en que depende
+    del orden y en que todo es intercambio, con sus rangos; las partes por el
+    inverso y por Shapley en los casos del caso 1 (`pcom__inv_sin10_share_*`,
+    `pcom__sh_sin10_share_*`, `pcom__sh_sin10_{min,max}`), las sumas de los
+    13 casos por cada orden y la interacción. Compuertas (2): las identidades
+    cierran, en el caso 2 los dos órdenes coinciden al peso y P2Pcom caso 2
+    cae en [v01_igual_min, v01_igual_max] de e1/S; la cuarta tabla y el texto
+    de CANON §14.23.
+
+Añadido el 2026-10-02 (los derivados del P2P colectivo), también al final, de
+modo que las 1 918 filas anteriores salen iguales byte a byte:
+
+16. Las mediciones de la tesis que se hicieron con el viejo mercado por el
+    colectivo, rehechas para el P2P colectivo (el P2P comunitario de §14.23,
+    renombrado por el autor; sus claves conservan el prefijo `P2Pcom`/`pcom`) y
+    para C2 como PPA (CANON §14.24), de `p2p_colectivo_derivados_2026-10-02/`
+    (grupo `e1/PD`): mes a mes (`pcom__mes__*`, `ppa__mes__*`, por institución
+    `*__mes_inst__*` y por tercil `pcom__tercil*__*`), el barrido de σ
+    (`pcom__sigma__*`), el COT (`pcom__cot__*`, `ppa__cot__*`), el comercializador
+    único (`pcom__comA__*`, `pcom__comB__*`, `ppa__com*__*`), el retiro de un
+    miembro (`pcom__retiro__*`, `ppa__retiro__*`), el factor de coincidencia
+    (`pcom__coinc__*`), el precio de la justicia y su clase (`pcom__pof__*`), las
+    11 fronteras (`pcom__11f__*`), el umbral (`*__umbral_E4_7P1*`) y el techo
+    (`pcom__techo__*`). Compuertas (3): los meses suman el horizonte del P2P
+    colectivo y de C2 de los bloques 13 y 14 y la hoja Resumen, y el mercado
+    queda sobre C4, C1 y C5 en 116, 116 y 117 meses; las tablas 1, 4, 6 y 7 de
+    CANON §14.24 a sus decimales y el precio de la justicia desde la hoja
+    Resumen; las claves cuadran con las tablas 2, 3 y 5.
+
 Formato de `texto_en` (la forma exacta en que el valor aparece en el artículo):
 punto decimal, coma de millares a partir de 1 000, signo menos ASCII (`-`) y
 ningún `-0.00`. MCOP a dos decimales; porcentajes a dos decimales con « %»,
@@ -1177,6 +1276,1170 @@ def otras(R: pd.DataFrame, D: pd.DataFrame, c7: dict) -> None:
         "descomposicion_p2p_2026-09-27/descomposicion_13casos.csv, fila comunidad, columna banda, cociente", "§14.8")
 
 
+# ── 12. La atribución a los dos supuestos (B1, hallazgo I-1; añadido el 2026-09-30) ──
+F_ATR = "atribucion_supuestos_2026-09-30/atribucion_13casos.csv"
+GRUPOS_ATR = {"s1": ["E1", "E2", "E3", "P1", "N1"], "s2": ["E4", "E5", "P2", "I1"],
+              "orden": ["E0", "K1", "CV2", "SINU"]}
+EXACTA_ATR = {"E0", "K1", "CV2", "SINU"}
+
+
+def atribucion(R: pd.DataFrame, tar: dict) -> None:
+    """Los dos órdenes de la identidad, Shapley y la interacción por caso, la
+    clasificación en tres grupos y el reparto del kWh de ASC (CANON §14.21)."""
+    A = pd.read_csv(lee(F_ATR, "e1/S")).set_index("caso")
+    exige(list(A.index) == CASOS, f"atribucion: casos {list(A.index)}")
+    num = ["P2P", "C1", "C4", "P2P_colectivo", "v01", "texto_s1", "texto_s2", "inverso_s1", "inverso_s2",
+           "shapley_s1", "shapley_s2", "interaccion", "inyeccion_kwh", "transado_kwh", "transado_sobre_inyeccion"]
+    finito(A[num].to_numpy(), "atribucion")
+    for c in CASOS:
+        a, r = A.loc[c], R.loc[c]
+        tol = max(2.0, 1e-7 * abs(r["P2P"]))
+        for mec in ["P2P", "C1", "C4", "P2P_colectivo"]:
+            exige(abs(a[mec] - r[mec]) <= tol, f"atribucion {c} {mec}: {a[mec] - r[mec]:.2f} COP frente a Resumen")
+        tot = r["P2P"] - r["C4"]
+        exige(abs(a.texto_s1 - (r["C1"] - r["C4"])) <= tol and abs(a.texto_s2 - (r["P2P"] - r["C1"])) <= tol,
+              f"atribucion {c}: el orden del texto no es (C1 − C4, P2P − C1) de Resumen")
+        exige(abs(a.inverso_s2 - (a.v01 - a.C4)) <= 1e-3 and abs(a.inverso_s1 - (a.P2P - a.v01)) <= 1e-3,
+              f"atribucion {c}: el orden inverso no es (v01 − C4, P2P − v01)")
+        for k1, k2 in [("texto_s1", "texto_s2"), ("inverso_s1", "inverso_s2"), ("shapley_s1", "shapley_s2")]:
+            exige(abs(a[k1] + a[k2] - tot) <= tol, f"atribucion {c}: {k1} + {k2} no cierra P2P − C4")
+        exige(abs(a.shapley_s1 - 0.5 * (a.texto_s1 + a.inverso_s1)) <= 1e-3
+              and abs(a.interaccion - (a.inverso_s1 - a.texto_s1)) <= 1e-3, f"atribucion {c}: Shapley o interacción")
+        exige(int(a.c1_esquina_exacta) == int(c in EXACTA_ATR), f"atribucion {c}: c1_esquina_exacta {a.c1_esquina_exacta}")
+    ok("atribución (e1/S): P2P, C1, C4 y P2P colectivo = Resumen; orden del texto = (C1 − C4, P2P − C1); los dos órdenes "
+       "y Shapley cierran P2P − C4; Shapley = media de los órdenes; C1 esquina exacta solo en E0, K1, CV2 y SINU")
+    # la tabla de CANON §14.21 a tres decimales
+    t = tablas(seccion("### 14.21 ·"))
+    exige(len(t) == 1 and list(t[0].index) == CASOS, "CANON §14.21: se esperaba una tabla de los 13 casos")
+    t = t[0]
+    COLS = {"P2P − C4": "P2P_menos_C4", "Texto: s1 = C1 − C4": "texto_s1", "Texto: s2 = P2P − C1": "texto_s2",
+            "Inverso: s2 = v01 − C4": "inverso_s2", "Inverso: s1 = P2P − v01": "inverso_s1",
+            "Shapley s1": "shapley_s1", "Shapley s2": "shapley_s2", "Interacción": "interaccion"}
+    for c in CASOS:
+        for col, k in COLS.items():
+            exige(abs(A.loc[c, k] / M - num_es(t.loc[c, col])) <= 0.0005 + 1e-9,
+                  f"CANON §14.21 {c} {col}: {A.loc[c, k] / M:.6f} no redondea a {t.loc[c, col]}")
+        exige(round(100 * A.loc[c, "transado_sobre_inyeccion"]) == int(num_es(t.loc[c, "Transado / inyección (%)"])),
+              f"CANON §14.21 {c}: transado sobre inyección")
+        exige((t.loc[c, "C1 exacta"] == "sí") == (c in EXACTA_ATR), f"CANON §14.21 {c}: C1 exacta")
+    ok("la tabla de CANON §14.21 a tres decimales en los 13 casos")
+    # E0: energía contra el almacén y las cifras ya emitidas
+    ag = almacen("E0", "agentes")
+    iny = float(ag.sobrante.astype("float64").sum())
+    tr = next(f["valor"] for f in FILAS if f["clave"] == "e0__energia_transada")
+    exige(abs(A.loc["E0", "inyeccion_kwh"] - iny) <= 1e-3 and abs(A.loc["E0", "transado_kwh"] - tr) <= 1e-3,
+          "atribucion E0: inyección o energía transada distintas del almacén")
+    ok("atribución: inyección y energía transada de E0 = almacén de E0 (≤ 1e-3 kWh)")
+    FA = F_ATR
+    SEC = "§14.21"
+    pon("e0__inyeccion_kwh", iny, "kWh", en(iny, 2), "inyección de la comunidad en E0 (sobrante tras el autoconsumo)",
+        F_ALM.format("E0", "agentes") + ", suma de sobrante; = " + FA + ", inyeccion_kwh", SEC)
+    DEFS = {
+        "texto_s1": ("supuesto 1 por el orden del texto (C4 → C1 → P2P): C1 − C4", "texto_s1"),
+        "texto_s2": ("supuesto 2 por el orden del texto: P2P − C1", "texto_s2"),
+        "inverso_s1": ("supuesto 1 por el orden inverso (C4 → v01 → P2P): P2P − v01", "inverso_s1"),
+        "inverso_s2": ("supuesto 2 por el orden inverso: v01 − C4 (v01: intercambio exento, residual al colectivo)", "inverso_s2"),
+        "shapley_s1": ("supuesto 1 por Shapley, media de los dos órdenes", "shapley_s1"),
+        "shapley_s2": ("supuesto 2 por Shapley, media de los dos órdenes", "shapley_s2"),
+        "interaccion": ("interacción de los dos supuestos: (P2P − v01) − (C1 − C4); negativa = sustitutos", "interaccion"),
+    }
+    grupo = {}
+    for c in CASOS:
+        a = A.loc[c]
+        tot = a.P2P_menos_C4
+        for k, (d, col) in DEFS.items():
+            pon(f"atr__{c}__{k}", a[col] / M, "MCOP", en(a[col] / M, 2), f"{d}, caso {c}", f"{FA}, {col}", SEC)
+        for k in ["texto_s1", "texto_s2", "inverso_s1", "inverso_s2", "shapley_s1", "shapley_s2"]:
+            v = 100 * a[k] / tot
+            pon(f"atr__{c}__{k}_pct", v, "%", en_int(round(v), " %"),
+                f"{DEFS[k][0]}, como parte de P2P − C4, caso {c}", f"{FA}, {k} / P2P_menos_C4", SEC)
+        v = 100 * a.transado_sobre_inyeccion
+        pon(f"atr__{c}__transado_pct", v, "%", en_int(round(v), " %"),
+            f"energía transada dentro como parte de la inyección de la comunidad, caso {c}",
+            f"{FA}, transado_kwh / inyeccion_kwh", SEC)
+        pon(f"atr__{c}__c1_esquina_exacta", int(a.c1_esquina_exacta), "indicador", en_int(int(a.c1_esquina_exacta)),
+            f"1 si C1 es exactamente la esquina «solo el supuesto 1» (con el intercambio pagando la deducción del caso 2 ningún par ganaría), caso {c}",
+            f"{FA}, c1_esquina_exacta", SEC)
+        s1 = a.texto_s1 / tot > 0.5 and a.inverso_s1 / tot > 0.5
+        s2 = a.texto_s2 / tot > 0.5 and a.inverso_s2 / tot > 0.5
+        exige(not (s1 and s2), f"atribucion {c}: los dos supuestos mayoritarios a la vez")
+        grupo[c] = "s1" if s1 else ("s2" if s2 else "orden")
+        pon(f"atr__{c}__grupo", grupo[c], "grupo", grupo[c],
+            f"supuesto que explica más de la mitad de P2P − C4 por los dos órdenes (s1, s2), u «orden» si depende del orden, caso {c}",
+            f"{FA}, texto_s* e inverso_s* sobre P2P_menos_C4", SEC)
+    obtenidos = {g: [c for c in CASOS if grupo[c] == g] for g in GRUPOS_ATR}
+    exige(obtenidos == GRUPOS_ATR, f"atribucion: grupos {obtenidos}, CANON §14.21 dice {GRUPOS_ATR}")
+    ok("atribución: los tres grupos de CANON §14.21 (s1: E1, E2, E3, P1, N1; s2: E4, E5, P2, I1; orden: E0, K1, CV2, SINU)")
+    for g, cs in GRUPOS_ATR.items():
+        pon(f"atr__grupo_{g}__casos", ", ".join(cs), "casos", ", ".join(cs),
+            f"casos del grupo «{g}» de la atribución a los supuestos", f"{FA}; regla de atr__<caso>__grupo", SEC)
+        pon(f"atr__grupo_{g}__n", len(cs), "casos", en_int(len(cs)), f"número de casos del grupo «{g}»",
+            f"{FA}; regla de atr__<caso>__grupo", SEC)
+        tp = [100 * A.loc[c, "transado_sobre_inyeccion"] for c in cs]
+        pon(f"atr__grupo_{g}__transado_pct_min", min(tp), "%", en_int(round(min(tp)), " %"),
+            f"menor parte transada de la inyección en el grupo «{g}»", f"{FA}, transado_sobre_inyeccion", SEC)
+        pon(f"atr__grupo_{g}__transado_pct_max", max(tp), "%", en_int(round(max(tp)), " %"),
+            f"mayor parte transada de la inyección en el grupo «{g}»", f"{FA}, transado_sobre_inyeccion", SEC)
+    for k in ["texto_s1", "inverso_s1"]:
+        vs = [100 * A.loc[c, k] / A.loc[c, "P2P_menos_C4"] for c in GRUPOS_ATR["s1"]]
+        for f, x in [("min", min(vs)), ("max", max(vs))]:
+            pon(f"atr__grupo_s1__{k}_pct_{f}", x, "%", en_int(round(x), " %"),
+                f"{'menor' if f == 'min' else 'mayor'} parte de P2P − C4 del {DEFS[k][0]} en el grupo «s1»",
+                f"{FA}, {k} / P2P_menos_C4", SEC)
+    solo = [100 * min(A.loc[c, "texto_s1"], A.loc[c, "inverso_s2"]) / A.loc[c, "P2P_menos_C4"] for c in GRUPOS_ATR["orden"]]
+    solo_max = [100 * max(A.loc[c, "texto_s1"], A.loc[c, "inverso_s2"]) / A.loc[c, "P2P_menos_C4"] for c in GRUPOS_ATR["orden"]]
+    pon("atr__grupo_orden__un_supuesto_pct_min", min(solo), "%", en_int(round(min(solo)), " %"),
+        "en el grupo «orden», la menor parte de P2P − C4 que deja un supuesto solo (C1 − C4 o v01 − C4)",
+        f"{FA}, mín(texto_s1, inverso_s2) / P2P_menos_C4", SEC)
+    pon("atr__grupo_orden__un_supuesto_pct_max", max(solo_max), "%", en_int(round(max(solo_max)), " %"),
+        "en el grupo «orden», la mayor parte de P2P − C4 que deja un supuesto solo (C1 − C4 o v01 − C4)",
+        f"{FA}, máx(texto_s1, inverso_s2) / P2P_menos_C4", SEC)
+    # el kWh de ASC a ASC en abril: Cv + Θ sobre C4, por orden
+    T, com = tar["T"], tar["com"]
+    r = T.loc[(com["ASC"][0], MES_REP)]
+    p2p_c4 = next(f["valor"] for f in FILAS if f["clave"] == f"kwh__ASC__{MES_REP}__P2P_C4")
+    exige(abs(r.Cv + r.Theta - p2p_c4) <= 1e-9, "kWh de ASC: Cv + Θ distinto de kwh__ASC__P2P_C4")
+    for k, v, d in [("texto_s1", r.Theta, "cargos de red Θ: supuesto 1 por el orden del texto"),
+                    ("texto_s2", r.Cv, "Cv: supuesto 2 por el orden del texto"),
+                    ("inverso_s1", 0.0, "supuesto 1 por el orden inverso (el kWh transado se libra de los cargos por el supuesto 2)"),
+                    ("inverso_s2", r.Cv + r.Theta, "Cv + Θ: supuesto 2 por el orden inverso"),
+                    ("shapley_s1", 0.5 * r.Theta, "supuesto 1 por Shapley: Θ / 2"),
+                    ("shapley_s2", r.Cv + 0.5 * r.Theta, "supuesto 2 por Shapley: Cv + Θ / 2")]:
+        pon(f"kwh__ASC__{MES_REP}__{k}", v, "COP/kWh", en(v, 2),
+            f"reparto de lo que un kWh vendido dentro de ASC gana sobre C4 (Cv + Θ): {d}; {MES_REP}",
+            F_ALM.format("E0", "agentes") + " y " + F_ALM.format("P2", "agentes") + ", techo y piso (como kwh__ASC__*)", SEC)
+    ok("kWh de ASC en abril: Cv + Θ = kwh__ASC__P2P_C4, repartido por los dos órdenes y por Shapley")
+
+
+# ── 13. El C2 de la propuesta como PPA (punto P; añadido el 2026-10-02) ─────
+F_PPA = "c2_ppa_2026-10-02/c2_ppa_13casos.csv"
+# mecanismo del CSV del PPA -> sufijo de la clave y de la hoja Resumen
+MECS_PPA = {"C1": "C1", "C4": "C4", "P2P": "P2P", "P2P_colectivo": "P2Pcol", "C3": "C3"}
+ROT_PPA = {"C1": "C1", "C4": "C4", "P2P": "P2P", "P2P_colectivo": "P2P colectivo", "C3": "C3"}
+
+
+def ppa(R: pd.DataFrame) -> None:
+    """El C2 de la propuesta como PPA de todo el excedente por institución
+    (CANON §14.22), con el PP a la media de la serie de XM."""
+    T = pd.read_csv(lee(F_PPA, "e1/P"), keep_default_na=False, na_values=[""])
+    exige(len(T) == 77, f"c2_ppa: {len(T)} filas, no 77")
+    es_com = T.institucion == "comunidad"
+    C = T[es_com].set_index("caso")
+    I = T[~es_com]
+    exige(list(C.index) == CASOS, f"c2_ppa: casos {list(C.index)}")
+    exige(len(I) == 64, f"c2_ppa: {len(I)} pares institución-caso, no 64")
+    exige(set(T.comercializador.fillna("")) <= {"", "A", "B"}, "c2_ppa: comercializador sin anonimizar")
+    pp = {}
+    for v in ["media", "minimo", "maximo"]:
+        col = T[f"PP_{v}_COP_kWh"]
+        if v == "media":
+            col = col[T.excedente_kwh > 0]       # sin excedente, la media simple (igual)
+        exige(float(col.max() - col.min()) <= 1e-6, f"c2_ppa: PP {v} no es único")
+        pp[v] = float(col.iloc[0])
+    exige(pp["minimo"] < pp["media"] < pp["maximo"], "c2_ppa: PP fuera de orden")
+    # compuertas fila a fila
+    for x in MECS_PPA:
+        tol = np.maximum(0.05, 1e-9 * C[f"B_{x}_COP"].abs())
+        dif = (C[f"B_{x}_COP"] - R.loc[CASOS, x].to_numpy()).abs()
+        exige(bool((dif <= tol).all()), f"c2_ppa: la comunidad con {x} no es la hoja Resumen ({dif.max():.3f} COP)")
+        b = T.B_C2_media_COP - T[f"B_{x}_COP"]
+        exige(float((b - T[f"brecha_C2_media_menos_{x}_COP"]).abs().max()) <= 1e-3, f"c2_ppa: brecha con {x}")
+        s = T[f"signo_C2_media_menos_{x}"]
+        exige(bool(((s == 1) == (b > 1.0)).all() and ((s == -1) == (b < -1.0)).all()), f"c2_ppa: signo con {x}")
+        r = T[T.excedente_kwh > 0]
+        exige(float((r.A_autoconsumo_COP + r[f"PPeq_{x}_COP_kWh"] * r.excedente_kwh - r[f"B_{x}_COP"]).abs().max())
+              <= 0.5, f"c2_ppa: PP* de {x} no reproduce B^{x}")
+    exige(float((T.A_autoconsumo_COP + pp["media"] * T.excedente_kwh - T.B_C2_media_COP).abs().max()) <= 0.5,
+          "c2_ppa: B^C2 no es A + PP·S")
+    gcols = ["gini_C2_media", "gini_P2P", "gini_C4"]
+    finito(C[gcols].to_numpy(), "c2_ppa: Gini")
+    exige(bool(((C[gcols] >= 0) & (C[gcols] <= 1)).all().all()), "c2_ppa: Gini fuera de [0, 1]")
+    ok("C2 como PPA (e1/P): B^X de la comunidad = hoja Resumen (C1, C4, P2P, P2P colectivo, C3); B^C2 = A + PP·S con "
+       "PP la media de XM; brechas, PP* y signos coherentes fila a fila; 64 pares institución-caso")
+    # las tres tablas de CANON §14.22, a sus decimales
+    t = tablas(seccion("### 14.22 ·"))
+    exige(len(t) == 3, f"CANON §14.22: {len(t)} tablas, no 3")
+    t1, t2, t3 = t
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.22 {qué}: {v:.6f} no redondea a {celda}")
+
+    for c in CASOS:
+        r = C.loc[c]
+        igual(r.excedente_kwh, t1.loc[c, "S (kWh)"], 2, f"{c} S")
+        for x, col in [("C1", "PP* frente a C1"), ("C4", "frente a C4"), ("P2P", "frente a P2P"),
+                       ("P2P_colectivo", "frente a P2P colectivo"), ("C3", "frente a C3")]:
+            igual(r[f"PPeq_{x}_COP_kWh"], t1.loc[c, col], 2, f"{c} {col}")
+        igual(100 * r.fraccion_credito_C1, t1.loc[c, "Crédito en C1 (%)"], 1, f"{c} crédito")
+        igual(r.B_C2_media_COP / M, t2.loc[c, "C2"], 3, f"{c} C2")
+        for x in MECS_PPA:
+            igual(r[f"brecha_C2_media_menos_{x}_COP"] / M, t2.loc[c, f"C2 − {ROT_PPA[x]}"], 3, f"{c} C2 − {x}")
+        igual(r.k_estrella, t2.loc[c, "k*"], 3, f"{c} k*")
+        for k, col in [("gini_C2_media", "Gini PPA"), ("gini_P2P", "Gini P2P"), ("gini_C4", "Gini C4"),
+                       ("gini_C1", "Gini C1")]:
+            igual(r[k], t3.loc[c, col], 3, f"{c} {col}")
+        i_ = I[I.caso == c]
+        exige(len(i_) == int(t3.loc[c, "Instituciones"]), f"CANON §14.22 {c}: instituciones")
+        for x in ["C1", "C4", "P2P"]:
+            exige(int((i_[f"signo_C2_media_menos_{x}"] == 1).sum()) == int(t3.loc[c, f"PPA > {x}"]),
+                  f"CANON §14.22 {c}: instituciones con el PPA sobre {x}")
+    for x in ["C1", "C4", "P2P"]:
+        exige(int((I[f"signo_C2_media_menos_{x}"] == 1).sum()) == int(t3.loc["Total", f"PPA > {x}"]),
+              f"CANON §14.22: pares con el PPA sobre {x}")
+    exige(int(t3.loc["Total", "Instituciones"]) == len(I), "CANON §14.22: total de pares")
+    ok("las tres tablas de CANON §14.22 (PP*, valor y brechas, Gini y pares) a sus decimales en los 13 casos")
+
+    SEC = "§14.22"
+    FC = F_PPA + ", fila comunidad, "
+    for c in CASOS:
+        r = C.loc[c]
+        v = r.B_C2_media_COP / M
+        pon(f"com__{c}__C2ppa", v, "MCOP", en(v, 2),
+            f"beneficio neto de la comunidad con C2 como PPA de todo el excedente por institución, PP = media de XM, caso {c}",
+            FC + "B_C2_media_COP", SEC)
+        for x, suf in MECS_PPA.items():
+            v = r[f"brecha_C2_media_menos_{x}_COP"] / M
+            pon(f"com__{c}__C2ppa_{suf}", v, "MCOP", en(v, 2),
+                f"C2 como PPA (media de XM) − {ROT_PPA[x]} de la comunidad, caso {c}",
+                FC + f"brecha_C2_media_menos_{x}_COP", SEC)
+        for x, suf in MECS_PPA.items():
+            v = r[f"PPeq_{x}_COP_kWh"]
+            pon(f"ppa__{c}__PPeq_{suf}", v, "COP/kWh", en(v, 2),
+                f"precio pactado con el que el PPA iguala a {ROT_PPA[x]} en la comunidad, caso {c}",
+                FC + f"PPeq_{x}_COP_kWh", SEC)
+        pon(f"ppa__{c}__k_estrella", r.k_estrella, "factor", en(r.k_estrella, 2),
+            f"factor de la bolsa con el que vender todo el excedente a la bolsa (C3) iguala al PPA a la media de XM, caso {c}",
+            FC + "k_estrella", SEC)
+        pon(f"ppa__{c}__excedente_kwh", r.excedente_kwh, "kWh", en(r.excedente_kwh, 2),
+            f"excedente horario de la comunidad, Σ max(G − D, 0), caso {c}", FC + "excedente_kwh", SEC)
+        v = 100 * r.fraccion_credito_C1
+        pon(f"ppa__{c}__credito_C1_pct", v, "%", en(v, 1, " %"),
+            f"parte del excedente que en C1 es crédito (tipo 1), caso {c}", FC + "fraccion_credito_C1", SEC)
+        for k, nom in [("gini_C2_media", "C2ppa"), ("gini_P2P", "P2P"), ("gini_C4", "C4")]:
+            pon(f"gini__{c}__{nom}", r[k], "índice", en(r[k], 3),
+                f"Gini del beneficio por institución (C-214), {'C2 como PPA a la media de XM' if nom == 'C2ppa' else nom}, caso {c}",
+                FC + k + ("" if nom == "C2ppa" else " (= hoja PoF_Fairness)"), SEC)
+        i_ = I[I.caso == c]
+        pon(f"ppa__{c}__n_inst", len(i_), "instituciones", en_int(len(i_)), f"instituciones del caso {c}",
+            F_PPA + ", filas de institución", SEC)
+        for x in ["C1", "C4", "P2P"]:
+            n = int((i_[f"signo_C2_media_menos_{x}"] == 1).sum())
+            pon(f"ppa__{c}__inst_sobre_{x}", n, "instituciones", en_int(n),
+                f"instituciones con el PPA a la media de XM por encima de {x}, caso {c}",
+                F_PPA + f", filas de institución, signo_C2_media_menos_{x} = 1", SEC)
+    FX = F_PPA + ", columna "
+    for v, k, d in [("media", "PP_media", "media horaria"), ("minimo", "PP_min", "mínimo"), ("maximo", "PP_max", "máximo")]:
+        pon(f"ppa__{k}", pp[v], "COP/kWh", en(pp[v], 2),
+            f"{d} de la serie de XM de contratos del mercado no regulado en el horizonte (PP de referencia del PPA)",
+            FX + f"PP_{v}_COP_kWh", SEC)
+    ks = C.k_estrella
+    pon("ppa__k_estrella_min", float(ks.min()), "factor", en(ks.min(), 2), f"menor k* de la comunidad ({ks.idxmin()})",
+        FC + "k_estrella", SEC)
+    pon("ppa__k_estrella_max", float(ks.max()), "factor", en(ks.max(), 2), f"mayor k* de la comunidad ({ks.idxmax()})",
+        FC + "k_estrella", SEC)
+    PI = F_PPA + ", filas de institución, "
+    pon("ppa__pares__n", len(I), "pares", en_int(len(I)),
+        "pares institución-caso (12 casos × 5 y SINU × 4, sin Udenar; convención de «25 de 64 bajo C4»)",
+        PI + "conteo", SEC)
+    for x, suf in MECS_PPA.items():
+        n = int((I[f"signo_C2_media_menos_{x}"] == 1).sum())
+        pon(f"ppa__pares__sobre_{suf}", n, "pares de 64", en_int(n),
+            f"pares institución-caso con el PPA a la media de XM por encima de {ROT_PPA[x]}",
+            PI + f"signo_C2_media_menos_{x} = 1", SEC)
+    n_emp = int((I.signo_C2_media_menos_C1 == 0).sum())
+    pon("ppa__pares__empates_C1", n_emp, "pares de 64", en_int(n_emp),
+        "pares con el PPA igual a C1 a menos de 1 COP (las instituciones de K1 sin excedente)",
+        PI + "signo_C2_media_menos_C1 = 0", SEC)
+    for x in ["C1", "P2P"]:
+        s = I[I[f"signo_C2_media_menos_{x}"] == 1]
+        lista = "; ".join(s.caso + " " + s.institucion)
+        pon(f"ppa__pares__sobre_{x}__lista", lista, "pares", lista,
+            f"pares institución-caso con el PPA a la media de XM por encima de {x}", PI + f"signo_C2_media_menos_{x} = 1",
+            SEC)
+    for nom, cond in [("sobre_C1_y_C4", (C.signo_C2_media_menos_C1 == 1) & (C.signo_C2_media_menos_C4 == 1)),
+                      ("sobre_P2P", C.signo_C2_media_menos_P2P == 1)]:
+        lista = ", ".join(C.index[cond])
+        exige(bool(lista), f"c2_ppa: ningún caso {nom}")
+        pon(f"ppa__casos_{nom}", lista, "casos", lista,
+            f"casos con la comunidad mejor con el PPA a la media de XM que con {' y con '.join(nom[6:].split('_y_'))}",
+            FC + "signo_C2_media_menos_*", SEC)
+    for x in ["P2P", "C4"]:
+        n = int((C.gini_C2_media < C[f"gini_{x}"]).sum())
+        pon(f"gini__casos_C2ppa_menor_que_{x}", n, "casos", en_int(n),
+            f"casos en que el Gini del PPA a la media de XM es menor que el de {x}", FC + f"gini_C2_media y gini_{x}", SEC)
+    # el orden de E0 con C2 como PPA (Fig. 2): los siete de la hoja Resumen, con el PPA en lugar de C2
+    b = {m: R.loc["E0", m] for m in ["P2P", "P2P_colectivo", "C1", "C3", "C4", "C5"]}
+    b["C2"] = C.loc["E0", "B_C2_media_COP"]
+    rot = {"P2P_colectivo": "P2P colectivo"}
+    orden = " > ".join(rot.get(m, m) for m in sorted(b, key=lambda m: -b[m]))
+    exige(orden == "P2P > C1 > C4 > P2P colectivo > C5 > C2 > C3", f"orden de E0 con el PPA: {orden}")
+    exige(min(abs(b[m] - b[n]) for m in b for n in b if m != n) > 1.0, "orden de E0 con el PPA: empate")
+    pon("mec__E0__orden_C2ppa", orden, "orden", orden,
+        "orden de los mecanismos en E0 por beneficio neto, con C2 como PPA a la media de XM",
+        F_RES.format("E0") + " y " + FC + "B_C2_media_COP", SEC)
+    ok("C2 como PPA: orden de E0 con el PPA en lugar de C2: " + orden)
+
+
+# ── 14. El P2P comunitario (punto PC; añadido el 2026-10-02) ───────────────
+F_PC = "p2p_comunitario_2026-10-02/p2p_comunitario_13casos.csv"
+# mecanismo del CSV del P2P comunitario -> sufijo de la clave y rótulo
+MECS_PC = {"C1": ("C1", "C1"), "C4": ("C4", "C4"), "P2P": ("P2P", "P2P (con sus dos supuestos)"),
+           "P2P_colectivo": ("P2Pcol", "P2P por el colectivo (la vía legal de hoy)"),
+           "C2ppa": ("C2ppa", "C2 como PPA a la media de XM"), "C5": ("C5", "C5"), "C3": ("C3", "C3")}
+
+
+def valor_de(clave: str):
+    """Valor de una clave ya emitida en esta corrida (falla si no está)."""
+    f = [x for x in FILAS if x["clave"] == clave]
+    exige(len(f) == 1, f"falta la clave {clave} para contrastar")
+    return f[0]["valor"]
+
+
+def es_txt(v: float, dec: int) -> str:
+    """Forma española del canon: coma decimal, espacio de millares, signo «−»."""
+    s = en(v, dec).replace(",", " ").replace(".", ",")
+    return s.replace("-", "−")
+
+
+def p2p_comunitario(R: pd.DataFrame) -> None:
+    """El P2P comunitario (CANON §14.23): intercambio interno exento de cargos y
+    fuera del fondo, y el residual al autogenerador colectivo con el PDE igual,
+    en el caso del art. 20 que da la CINAC sin la regla del 10 %."""
+    T = pd.read_csv(lee(F_PC, "e1/PC"), keep_default_na=False, na_values=[""])
+    exige(len(T) == 77, f"p2p_comunitario: {len(T)} filas, no 77")
+    es_com = T.institucion == "comunidad"
+    C = T[es_com].set_index("caso")
+    I = T[~es_com]
+    exige(list(C.index) == CASOS, f"p2p_comunitario: casos {list(C.index)}")
+    exige(len(I) == 64, f"p2p_comunitario: {len(I)} pares institución-caso, no 64")
+    exige(set(T.comercializador.fillna("")) <= {"", "A", "B"}, "p2p_comunitario: comercializador sin anonimizar")
+    num = [c for c in T.columns if c not in ("caso", "institucion", "comercializador")
+           and not c.startswith("gini_") and not c.startswith("pot_") and c != "cap_planta_kw"]
+    finito(T[num].to_numpy(), "p2p_comunitario: columnas numéricas")
+    gcols = [c for c in T.columns if c.startswith("gini_")]
+    finito(C[gcols].to_numpy(), "p2p_comunitario: Gini")
+    exige(bool(((C[gcols] >= 0) & (C[gcols] <= 1)).all().all()), "p2p_comunitario: Gini fuera de [0, 1]")
+    finito(C[["pot_residual_max_kw", "pot_excedente_max_kw"]].to_numpy(), "p2p_comunitario: potencias")
+
+    # (a) los mecanismos de la comunidad son los de la hoja Resumen y del PPA
+    P = pd.read_csv(lee(F_PPA, "e1/P"), keep_default_na=False, na_values=[""])
+    Pc = P[P.institucion == "comunidad"].set_index("caso")
+    for x in MECS_PC:
+        ref = (Pc.loc[CASOS, "B_C2_media_COP"] if x == "C2ppa" else R.loc[CASOS, x]).to_numpy(dtype=float)
+        dif = (C[f"B_{x}_COP"].to_numpy(dtype=float) - ref)
+        exige(bool((np.abs(dif) <= np.maximum(0.05, 1e-9 * np.abs(ref))).all()),
+              f"p2p_comunitario: la comunidad con {x} no es la de la hoja Resumen o del PPA ({np.abs(dif).max():.3f} COP)")
+        b = T.P2Pcom_COP - T[f"B_{x}_COP"]
+        exige(float((b - T[f"brecha_P2Pcom_menos_{x}_COP"]).abs().max()) <= 1e-3, f"p2p_comunitario: brecha con {x}")
+        s = T[f"signo_P2Pcom_menos_{x}"]
+        exige(bool(((s == 1) == (b > 1.0)).all() and ((s == -1) == (b < -1.0)).all()), f"p2p_comunitario: signo con {x}")
+    for c in CASOS:
+        exige(abs(C.loc[c, "suma_cap_kw"] - valor_de(f"caso__{c}__cap_suma_kW")) <= 1e-3, f"{c}: suma de plantas")
+        exige(abs(C.loc[c, "cinac_kw"] - valor_de(f"caso__{c}__capu_kW")) <= 1e-3, f"{c}: CINAC ≠ capu_kW")
+        caso = 1 if (C.loc[c, "cinac_kw"] <= 100 and C.loc[c, "suma_cap_kw"] <= 1000) else 2
+        exige(int(C.loc[c, "caso_art20"]) == caso, f"{c}: caso del art. 20 sin el 10 % no es el de la CINAC")
+        exige(bool((I[I.caso == c].caso_art20 == caso).all()), f"{c}: las instituciones no comparten el caso")
+    ok("P2P comunitario (e1/PC): C1, C4, P2P, P2P colectivo, C5 y C3 de la comunidad = hoja Resumen y C2 = el PPA "
+       "(e1/P); brechas y signos coherentes fila a fila; suma de plantas y CINAC = caso__*__cap_suma_kW y capu_kW; "
+       "caso del art. 20 = el de la CINAC (≤ 100 kW y ≤ 1 MW)")
+
+    # (b) las descomposiciones cierran; la comunidad es la suma de sus instituciones
+    for pre, a, b_ in [("", "C4_sin10_COP", "C4_COP"), ("imp_", "C4_sin10_imp_COP", "C4_imp_COP"),
+                       ("c1todos_", "C4_sin10_c1todos_COP", "C4_COP")]:
+        tot = "P2Pcom_menos_C4_COP" if pre == "" else f"{pre}P2Pcom_menos_C4_COP"
+        exige(float((T[f"{pre}dec_sin10_COP"] + T[f"{pre}dec_intercambio_COP"] - T[tot]).abs().max()) <= 1e-3,
+              f"p2p_comunitario: la descomposición {pre or 'base'} no cierra")
+        exige(float((T[a] - T[b_] - T[f"{pre}dec_sin10_COP"]).abs().max()) <= 1e-3,
+              f"p2p_comunitario: «quitar el 10 %» {pre or 'base'} no es C4 sin 10 % − C4")
+    exige(float((C.P2Pcom_menos_C4_COP - C.brecha_P2Pcom_menos_C4_COP).abs().max()) <= 1.0,
+          "p2p_comunitario: P2Pcom − C4 de la descomposición y de la brecha difieren en más de 1 COP")
+    for c in ["E4", "E5", "P2"]:
+        exige(int(C.loc[c, "caso_art20"]) == 2 and abs(C.loc[c, "dec_sin10_COP"]) <= 1e-6,
+              f"{c}: en el caso 2 quitar el 10 % no vale cero")
+    for col in ["P2Pcom_COP", "C4_sin10_COP", "P2Pcom_imp_COP", "P2Pcom_c1todos_COP"]:
+        sumas = I.groupby("caso")[col].sum().reindex(CASOS)
+        exige(float((sumas - C[col]).abs().max()) <= 1e-3, f"p2p_comunitario: la comunidad no es la suma en {col}")
+    ok("P2P comunitario: las tres descomposiciones P2Pcom − C4 = (C4 sin 10 % − C4) + intercambio cierran (base, "
+       "PDE por importación y caso 1 para todos); en E4, E5 y P2 quitar el 10 % vale cero; la comunidad es la suma")
+
+    # (c) las tres tablas de CANON §14.23 a sus decimales
+    t = tablas(seccion("### 14.23 ·"))
+    exige(len(t) == 4, f"CANON §14.23: {len(t)} tablas, no 4 (la cuarta, los dos órdenes, va en p2p_comunitario_ordenes)")
+    t1, t2, t3 = t[:3]
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.23 {qué}: {v:.6f} no redondea a {celda}")
+
+    for c in CASOS:
+        r = C.loc[c]
+        for col, k in [("Suma de plantas", "suma_cap_kw"), ("CINAC", "cinac_kw"),
+                       ("Residual máx. por frontera", "pot_residual_max_kw"),
+                       ("Excedente máx. por frontera", "pot_excedente_max_kw")]:
+            igual(r[k], t1.loc[c, col], 2, f"{c} {col}")
+        exige(int(r.caso_art20) == int(t1.loc[c, "Caso del art. 20"]), f"CANON §14.23 {c}: caso del art. 20")
+        for col, k in [("C4", "B_C4_COP"), ("C4 sin 10 %", "C4_sin10_COP"), ("P2P comunitario", "P2Pcom_COP"),
+                       ("P2P (con supuestos)", "B_P2P_COP"), ("P2Pcom − C4", "P2Pcom_menos_C4_COP"),
+                       ("Quitar el 10 %", "dec_sin10_COP"), ("Intercambio exento", "dec_intercambio_COP"),
+                       ("P2Pcom − C1", "brecha_P2Pcom_menos_C1_COP"),
+                       ("P2Pcom − C2 (PPA)", "brecha_P2Pcom_menos_C2ppa_COP"),
+                       ("P2Pcom − P2P", "brecha_P2Pcom_menos_P2P_COP")]:
+            igual(r[k] / M, t2.loc[c, col], 3, f"{c} {col}")
+        for col, k in [("Gini P2Pcom", "gini_P2Pcom"), ("Gini C4", "gini_C4"), ("Gini P2P", "gini_P2P")]:
+            igual(r[k], t2.loc[c, col], 3, f"{c} {col}")
+        for col, k in [("Imp.: P2Pcom − C4", "imp_P2Pcom_menos_C4_COP"), ("Imp.: quitar el 10 %", "imp_dec_sin10_COP"),
+                       ("Imp.: intercambio", "imp_dec_intercambio_COP"),
+                       ("Imp.: P2Pcom − P2P", "imp_P2Pcom_menos_P2P_COP"),
+                       ("Caso 1 para todos: P2Pcom − C4", "c1todos_P2Pcom_menos_C4_COP"),
+                       ("Quitar el 10 %", "c1todos_dec_sin10_COP"), ("Intercambio", "c1todos_dec_intercambio_COP")]:
+            igual(r[k] / M, t3.loc[c, col], 3, f"{c} {col}")
+
+    # los resúmenes que el texto de §14.23 escribe
+    g = C.brecha_P2Pcom_menos_C4_COP / M
+    pct = 100 * C.brecha_P2Pcom_menos_C4_COP / C.B_C4_COP
+    g1 = C.brecha_P2Pcom_menos_C1_COP / M
+    caso1 = [c for c in CASOS if int(C.loc[c, "caso_art20"]) == 1]
+    sh = 100 * C.loc[caso1, "dec_sin10_COP"] / C.loc[caso1, "P2Pcom_menos_C4_COP"]
+    suma_pcom = float(g.sum())
+    suma_p2p = float((R.loc[CASOS, "P2P"] - R.loc[CASOS, "C4"]).sum() / M)
+    sobre = {x: int((I[f"signo_P2Pcom_menos_{x}"] == 1).sum()) for x in MECS_PC}
+    frases = [
+        f"de {es_txt(g.min(), 2)} ({g.idxmin()}) a {es_txt(g.max(), 2)} MCOP ({g.idxmax()}), entre el "
+        f"{es_txt(pct.min(), 1)} y el {es_txt(pct.max(), 1)} % de C4; en los 13 suma {es_txt(suma_pcom, 2)} MCOP, "
+        f"frente a {es_txt(suma_p2p, 2)} del mercado P2P",
+        f"Supera también a C1 en los 13 (de {es_txt(g1.min(), 2)} a {es_txt(g1.max(), 2)} MCOP)",
+        f"entre el {int(round(float(sh.min())))} % ({sh.idxmin()}) y el {int(round(float(sh.max())))} % ({sh.idxmax()}) de P2Pcom − C4",
+        f"por encima de C4 en {sobre['C4']} de {len(I)}",
+        f"y de C1 en {sobre['C1']}.",
+        f"menor que el de C4 en {int((C.gini_P2Pcom < C.gini_C4).sum())} casos",
+        f"es menor que el del mercado en {int((C.gini_P2Pcom < C.gini_P2P).sum())} ",
+    ]
+    sec = seccion("### 14.23 ·")
+    for f_ in frases:
+        exige(f_ in sec, f"CANON §14.23 no escribe «{f_}»")
+    ok("las tres tablas de CANON §14.23 (clasificación y potencias, la comunidad, las sensibilidades) a sus decimales "
+       "en los 13 casos, y los rangos, la suma, la parte de quitar el 10 %, los pares y el Gini de su texto")
+
+    SEC = "§14.23"
+    FC = F_PC + ", fila comunidad, "
+    for c in CASOS:
+        r = C.loc[c]
+        for k, col, dfn in [
+                ("P2Pcom", "P2Pcom_COP", "beneficio neto de la comunidad con el P2P comunitario (propuesta regulatoria: "
+                 "intercambio exento, residual al colectivo sin la regla del 10 %, PDE igual)"),
+                ("C4sin10", "C4_sin10_COP", "beneficio neto de la comunidad con C4 sin la regla del 10 % (caso del art. 20 "
+                 "que da la CINAC, sin intercambio, PDE igual)")]:
+            pon(f"com__{c}__{k}", r[col] / M, "MCOP", en(r[col] / M, 2), f"{dfn}, caso {c}", FC + col, SEC)
+        v = r.brecha_P2Pcom_menos_C4_COP / M
+        pon(f"com__{c}__P2Pcom_C4", v, "MCOP", en(v, 2), f"P2P comunitario − C4 de la comunidad, caso {c}",
+            FC + "brecha_P2Pcom_menos_C4_COP", SEC)
+        v = 100 * r.brecha_P2Pcom_menos_C4_COP / r.B_C4_COP
+        pon(f"com__{c}__P2Pcom_C4_pct", v, "%", en(v, 2, " %"), f"(P2P comunitario − C4) sobre C4, caso {c}",
+            FC + "brecha_P2Pcom_menos_C4_COP / B_C4_COP", SEC)
+        for k, col, dfn in [("sin10", "dec_sin10_COP", "lo que vale quitar la regla del 10 % (C4 sin 10 % − C4)"),
+                            ("intercambio", "dec_intercambio_COP",
+                             "lo que vale el intercambio exento (P2P comunitario − C4 sin 10 %)")]:
+            pon(f"pcom__{c}__{k}", r[col] / M, "MCOP", en(r[col] / M, 2),
+                f"{dfn}, término de P2P comunitario − C4, PDE igual, caso {c}", FC + col, SEC)
+        for x, (suf, rot) in MECS_PC.items():
+            if x == "C4":
+                continue
+            v = r[f"brecha_P2Pcom_menos_{x}_COP"] / M
+            pon(f"com__{c}__P2Pcom_{suf}", v, "MCOP", en(v, 2), f"P2P comunitario − {rot} de la comunidad, caso {c}",
+                FC + f"brecha_P2Pcom_menos_{x}_COP", SEC)
+        pon(f"pcom__{c}__caso_art20", int(r.caso_art20), "caso", en_int(int(r.caso_art20)),
+            f"caso del art. 20 de la CREG 101 072 del P2P comunitario, sin la regla del 10 %: 1 si la CINAC ≤ 100 kW y la "
+            f"suma ≤ 1 MW (no es caso__{c}__caso_art20, que aplica la regla del 10 %), caso {c}", FC + "caso_art20", SEC)
+        pon(f"pcom__{c}__cinac_kW", r.cinac_kw, "kW", en(r.cinac_kw, 2),
+            f"capacidad instalada por usuario del art. 18 (CINAC = suma de las plantas / fronteras), caso {c}",
+            FC + "cinac_kw (= caso__*__capu_kW)", SEC)
+        for k, col, dfn in [("pot_residual_max_kW", "pot_residual_max_kw",
+                             "potencia residual horaria máxima por frontera, máx_h max(s − v, 0); informativa"),
+                            ("pot_excedente_max_kW", "pot_excedente_max_kw",
+                             "potencia del excedente bruto horario máxima por frontera, máx_h s; informativa")]:
+            pon(f"pcom__{c}__{k}", r[col], "kW", en(r[col], 2), f"{dfn}, caso {c}", FC + col, SEC)
+        pon(f"gini__{c}__P2Pcom", r.gini_P2Pcom, "índice", en(r.gini_P2Pcom, 3),
+            f"Gini del beneficio por institución (C-214), P2P comunitario, caso {c}", FC + "gini_P2Pcom", SEC)
+        for k, col, dfn in [
+                ("imp_P2Pcom_C4", "imp_P2Pcom_menos_C4_COP",
+                 "sensibilidad del PDE por importación (P2P comunitario por importación residual, C4 por importación, H-100): "
+                 "P2P comunitario − C4"),
+                ("imp_sin10", "imp_dec_sin10_COP", "sensibilidad del PDE por importación: quitar la regla del 10 %"),
+                ("imp_intercambio", "imp_dec_intercambio_COP", "sensibilidad del PDE por importación: el intercambio exento"),
+                ("imp_P2Pcom_P2P", "imp_P2Pcom_menos_P2P_COP", "sensibilidad del PDE por importación: P2P comunitario − P2P"),
+                ("c1todos_P2Pcom_C4", "c1todos_P2Pcom_menos_C4_COP",
+                 "sensibilidad «caso 1 para todos» (κ·Cv en los 13 casos; segunda reforma, sin base vigente): "
+                 "P2P comunitario − C4"),
+                ("c1todos_sin10", "c1todos_dec_sin10_COP", "sensibilidad «caso 1 para todos»: quitar la regla del 10 %"),
+                ("c1todos_intercambio", "c1todos_dec_intercambio_COP",
+                 "sensibilidad «caso 1 para todos»: el intercambio exento")]:
+            pon(f"pcom__{c}__{k}", r[col] / M, "MCOP", en(r[col] / M, 2), f"{dfn}, caso {c}", FC + col, SEC)
+
+    # globales
+    FX = F_PC + ", filas comunidad, "
+    pon("pcom__P2Pcom_C4_min", float(g.min()), "MCOP", en(g.min(), 2),
+        f"menor P2P comunitario − C4 de la comunidad en los 13 casos ({g.idxmin()})", FX + "brecha_P2Pcom_menos_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_min_caso", g.idxmin(), "caso", g.idxmin(), "caso con el menor P2P comunitario − C4 (MCOP)",
+        FX + "brecha_P2Pcom_menos_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_max", float(g.max()), "MCOP", en(g.max(), 2),
+        f"mayor P2P comunitario − C4 de la comunidad en los 13 casos ({g.idxmax()})", FX + "brecha_P2Pcom_menos_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_max_caso", g.idxmax(), "caso", g.idxmax(), "caso con el mayor P2P comunitario − C4 (MCOP)",
+        FX + "brecha_P2Pcom_menos_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_pct_min", float(pct.min()), "%", en(pct.min(), 1, " %"),
+        f"menor (P2P comunitario − C4) / C4 en los 13 casos ({pct.idxmin()}), a un decimal como en CANON §14.23",
+        FX + "brecha_P2Pcom_menos_C4_COP / B_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_pct_min_caso", pct.idxmin(), "caso", pct.idxmin(),
+        "caso con el menor (P2P comunitario − C4) / C4", FX + "brecha_P2Pcom_menos_C4_COP / B_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_pct_max", float(pct.max()), "%", en(pct.max(), 1, " %"),
+        f"mayor (P2P comunitario − C4) / C4 en los 13 casos ({pct.idxmax()}), a un decimal como en CANON §14.23",
+        FX + "brecha_P2Pcom_menos_C4_COP / B_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_pct_max_caso", pct.idxmax(), "caso", pct.idxmax(),
+        "caso con el mayor (P2P comunitario − C4) / C4", FX + "brecha_P2Pcom_menos_C4_COP / B_C4_COP", SEC)
+    pon("pcom__P2Pcom_C4_suma", suma_pcom, "MCOP", en(suma_pcom, 2),
+        "suma de P2P comunitario − C4 de la comunidad en los 13 casos", FX + "brecha_P2Pcom_menos_C4_COP, suma", SEC)
+    pon("pcom__P2P_C4_suma", suma_p2p, "MCOP", en(suma_p2p, 2),
+        "suma de P2P − C4 (mercado con sus dos supuestos) de la comunidad en los 13 casos, para comparar con "
+        "pcom__P2Pcom_C4_suma", F_RES.format("<caso>") + ", P2P − C4, suma", SEC)
+    pon("pcom__P2Pcom_C1_min", float(g1.min()), "MCOP", en(g1.min(), 2),
+        f"menor P2P comunitario − C1 de la comunidad en los 13 casos ({g1.idxmin()})", FX + "brecha_P2Pcom_menos_C1_COP", SEC)
+    pon("pcom__P2Pcom_C1_max", float(g1.max()), "MCOP", en(g1.max(), 2),
+        f"mayor P2P comunitario − C1 de la comunidad en los 13 casos ({g1.idxmax()})", FX + "brecha_P2Pcom_menos_C1_COP", SEC)
+    for nom, lista in [("caso1", caso1), ("caso2", [c for c in CASOS if c not in caso1])]:
+        pon(f"pcom__casos_{nom}", ", ".join(lista), "casos", ", ".join(lista),
+            f"casos con el P2P comunitario en el caso {nom[-1]} del art. 20 (CINAC, sin la regla del 10 %)", FX + "caso_art20", SEC)
+        pon(f"pcom__n_casos_{nom}", len(lista), "casos", en_int(len(lista)),
+            f"número de casos con el P2P comunitario en el caso {nom[-1]} del art. 20", FX + "caso_art20", SEC)
+    for x, (suf, rot) in MECS_PC.items():
+        s = C[f"signo_P2Pcom_menos_{x}"]
+        n = int((s == 1).sum())
+        pon(f"pcom__casos_sobre_{suf}", n, "casos de 13", en_int(n),
+            f"casos con la comunidad mejor con el P2P comunitario que con {rot} (por más de 1 COP)",
+            FX + f"signo_P2Pcom_menos_{x} = 1", SEC)
+        if n < len(CASOS):
+            for nom, cond in [("sobre", s == 1), ("bajo", s == -1), ("empate", s == 0)]:
+                lista = ", ".join(C.index[cond])
+                if lista:
+                    pon(f"pcom__casos_{nom}_{suf}__lista", lista, "casos", lista,
+                        f"casos con el P2P comunitario {'por encima de' if nom == 'sobre' else 'por debajo de' if nom == 'bajo' else 'empatado (a menos de 1 COP) con'} {rot}",
+                        FX + f"signo_P2Pcom_menos_{x}", SEC)
+    PI = F_PC + ", filas de institución, "
+    pon("pcom__pares__n", len(I), "pares", en_int(len(I)),
+        "pares institución-caso (12 casos × 5 y SINU × 4, sin Udenar; convención de «25 de 64 bajo C4»)",
+        PI + "conteo", SEC)
+    for x, (suf, rot) in MECS_PC.items():
+        pon(f"pcom__pares__sobre_{suf}", sobre[x], "pares de 64", en_int(sobre[x]),
+            f"pares institución-caso con el P2P comunitario por encima de {rot}", PI + f"signo_P2Pcom_menos_{x} = 1", SEC)
+    for x, suf in [("C4", "C4"), ("C1", "C1"), ("P2P", "P2P")]:
+        b = I[I[f"signo_P2Pcom_menos_{x}"] == -1]
+        pon(f"pcom__pares__bajo_{suf}", len(b), "pares de 64", en_int(len(b)),
+            f"pares institución-caso con el P2P comunitario por debajo de {MECS_PC[x][1]}",
+            PI + f"signo_P2Pcom_menos_{x} = −1", SEC)
+    b = I[I.signo_P2Pcom_menos_C4 == -1]
+    lista = "; ".join(b.caso + " " + b.institucion)
+    pon("pcom__pares__bajo_C4__lista", lista, "pares", lista,
+        "pares institución-caso con el P2P comunitario por debajo de C4", PI + "signo_P2Pcom_menos_C4 = −1", SEC)
+    n_emp = int((I.signo_P2Pcom_menos_P2P == 0).sum())
+    pon("pcom__pares__empates_P2P", n_emp, "pares de 64", en_int(n_emp),
+        "pares con el P2P comunitario igual a P2P a menos de 1 COP", PI + "signo_P2Pcom_menos_P2P = 0", SEC)
+    for x in ["C4", "P2P"]:
+        for nom, cond in [("menor", C.gini_P2Pcom < C[f"gini_{x}"]), ("mayor", C.gini_P2Pcom > C[f"gini_{x}"]),
+                          ("igual", C.gini_P2Pcom == C[f"gini_{x}"])]:
+            n = int(cond.sum())
+            pon(f"gini__casos_P2Pcom_{nom}_que_{x}", n, "casos", en_int(n),
+                f"casos en que el Gini del P2P comunitario es {nom} que el de {x}", FX + f"gini_P2Pcom y gini_{x}", SEC)
+            if 0 < n < len(CASOS):
+                lista = ", ".join(C.index[cond])
+                pon(f"gini__casos_P2Pcom_{nom}_que_{x}__lista", lista, "casos", lista,
+                    f"casos en que el Gini del P2P comunitario es {nom} que el de {x}", FX + f"gini_P2Pcom y gini_{x}", SEC)
+    for k, f_, d in [("min", sh.min, sh.idxmin), ("max", sh.max, sh.idxmax)]:
+        pon(f"pcom__sin10_share_{k}", float(f_()), "%", en_int(int(round(float(f_()))), " %"),
+            f"{'menor' if k == 'min' else 'mayor'} parte de quitar la regla del 10 % en P2P comunitario − C4, en los casos "
+            f"del caso 1 ({d()}); en entero, como share_*", FX + "dec_sin10_COP / P2Pcom_menos_C4_COP, caso_art20 = 1", SEC)
+        pon(f"pcom__sin10_share_{k}_caso", d(), "caso", d(),
+            f"caso con la {'menor' if k == 'min' else 'mayor'} parte de quitar la regla del 10 % en P2P comunitario − C4",
+            FX + "dec_sin10_COP / P2Pcom_menos_C4_COP, caso_art20 = 1", SEC)
+    dimp = (C.imp_P2Pcom_menos_C4_COP - C.brecha_P2Pcom_menos_C4_COP) / M
+    k_ = dimp.abs().idxmax()
+    pon("pcom__imp_cambio_max", float(dimp[k_]), "MCOP", en(dimp[k_], 2),
+        f"mayor cambio (en valor absoluto) de P2P comunitario − C4 al pasar al PDE por importación en los dos ({k_})",
+        FX + "imp_P2Pcom_menos_C4_COP − brecha_P2Pcom_menos_C4_COP", SEC)
+    pon("pcom__imp_cambio_max_caso", k_, "caso", k_, "caso con el mayor cambio de P2P comunitario − C4 con el PDE por "
+        "importación", FX + "imp_P2Pcom_menos_C4_COP − brecha_P2Pcom_menos_C4_COP", SEC)
+    exige(bool((np.sign(C.imp_P2Pcom_menos_C4_COP) == np.sign(C.brecha_P2Pcom_menos_C4_COP)).all()
+               and (np.sign(C.c1todos_P2Pcom_menos_C4_COP) == np.sign(C.brecha_P2Pcom_menos_C4_COP)).all()),
+          "p2p_comunitario: alguna sensibilidad cambia el signo de P2Pcom − C4")
+
+    # el orden de E0 con el P2P comunitario en lugar del colectivo y C2 como PPA (Fig. 2 en español)
+    b = {m: R.loc["E0", m] for m in ["P2P", "C1", "C3", "C4", "C5"]}
+    b["C2"] = Pc.loc["E0", "B_C2_media_COP"]
+    b["P2P comunitario"] = C.loc["E0", "P2Pcom_COP"]
+    orden = " > ".join(sorted(b, key=lambda m: -b[m]))
+    exige(orden == "P2P > P2P comunitario > C1 > C4 > C5 > C2 > C3", f"orden de E0 con el P2P comunitario: {orden}")
+    exige(min(abs(b[m] - b[n]) for m in b for n in b if m != n) > 1.0, "orden de E0 con el P2P comunitario: empate")
+    pon("mec__E0__orden_P2Pcom", orden, "orden", orden,
+        "orden de los mecanismos en E0 por beneficio neto, con el P2P comunitario en lugar del mercado por el colectivo "
+        "y C2 como PPA a la media de XM (Fig. 2 en español)",
+        F_RES.format("E0") + "; " + F_PPA + ", B_C2_media_COP; " + FC + "P2Pcom_COP", SEC)
+    ok("P2P comunitario: ninguna sensibilidad cambia el signo de P2Pcom − C4; orden de E0 sin empates: " + orden)
+
+
+# ── 15. El P2P comunitario por los dos órdenes y Shapley (añadido el 2026-10-02) ──
+CLASES_PC = {"sin10_domina": "quitar la regla, por los dos", "intercambio_domina": "intercambio, por los dos",
+             "depende_orden": "depende del orden", "solo_intercambio": "solo intercambio"}
+CLASES_PC_EN = {"sin10_domina": "removing the rule, both orders", "intercambio_domina": "exchange, both orders",
+                "depende_orden": "order-dependent", "solo_intercambio": "exchange only"}
+ROT_CLASES_PC = {"sin10_domina": "quitar la regla del 10 % pone la mayor parte por los dos órdenes",
+                 "intercambio_domina": "el intercambio exento pone la mayor parte por los dos órdenes",
+                 "depende_orden": "la reforma que pone la mayor parte depende del orden",
+                 "solo_intercambio": "toda la ventaja es el intercambio exento (caso 2: quitar la regla no vale nada)"}
+
+
+def clase_pc(sin10: float, inter: float, sin10_inv: float, inter_inv: float) -> str:
+    """La misma regla que `clasifica_ordenes` de p2p_comunitario.py (en COP, empate a 1 COP)."""
+    if abs(sin10) <= 1.0 and abs(sin10_inv) <= 1.0:
+        return "solo_intercambio"
+    d, i = sin10 > inter, sin10_inv > inter_inv
+    return "sin10_domina" if (d and i) else "intercambio_domina" if (not d and not i) else "depende_orden"
+
+
+def p2p_comunitario_ordenes(R: pd.DataFrame) -> None:
+    """P2Pcom − C4 por los dos órdenes (directo: quitar la regla del 10 % primero;
+    inverso: el intercambio exento primero, con el residual en el caso 2) y por
+    Shapley (CANON §14.23, regla de cita como en §14.21)."""
+    T = pd.read_csv(lee(F_PC, "e1/PC"), keep_default_na=False, na_values=[""])
+    C = T[T.institucion == "comunidad"].set_index("caso")
+    nuevas = ["P2Pcom_caso2_COP", "inv_dec_intercambio_COP", "inv_dec_sin10_COP", "sh_dec_sin10_COP",
+              "sh_dec_intercambio_COP", "interaccion_ordenes_COP"]
+    exige(all(k in T.columns for k in nuevas), "p2p_comunitario: faltan las columnas de los dos órdenes")
+    finito(T[nuevas].to_numpy(), "p2p_comunitario: columnas de los dos órdenes")
+
+    # (a) identidades, caso 2 y la cota de v01 con reparto igual (e1/S)
+    de = max(float((T.dec_sin10_COP + T.dec_intercambio_COP - T.P2Pcom_menos_C4_COP).abs().max()),
+             float((T.inv_dec_sin10_COP + T.inv_dec_intercambio_COP - T.P2Pcom_menos_C4_COP).abs().max()),
+             float((T.sh_dec_sin10_COP + T.sh_dec_intercambio_COP - T.P2Pcom_menos_C4_COP).abs().max()),
+             float((T.inv_dec_intercambio_COP - (T.P2Pcom_caso2_COP - T.C4_COP)).abs().max()),
+             float((T.inv_dec_sin10_COP - (T.P2Pcom_COP - T.P2Pcom_caso2_COP)).abs().max()),
+             float((T.sh_dec_sin10_COP - (T.dec_sin10_COP + T.inv_dec_sin10_COP) / 2).abs().max()),
+             float((T.interaccion_ordenes_COP - (T.inv_dec_sin10_COP - T.dec_sin10_COP)).abs().max()))
+    exige(de <= 1e-3, f"p2p_comunitario: las identidades de los dos órdenes no cierran ({de:.2e} COP)")
+    caso2 = [c for c in CASOS if int(C.loc[c, "caso_art20"]) == 2]
+    exige(caso2 == ["E4", "E5", "P2"], f"p2p_comunitario: caso 2 en {caso2}")
+    for c in caso2:
+        r = C.loc[c]
+        exige(r.P2Pcom_caso2_COP == r.P2Pcom_COP and r.inv_dec_sin10_COP == 0.0 and r.dec_sin10_COP == 0.0,
+              f"{c}: en el caso 2 los dos órdenes no coinciden al peso")
+    A = pd.read_csv(lee(F_ATR, "e1/S")).set_index("caso")
+    for c in CASOS:
+        x, lo, hi = C.loc[c, "P2Pcom_caso2_COP"], A.loc[c, "v01_igual_min"], A.loc[c, "v01_igual_max"]
+        exige(lo - 1.0 <= x <= hi + 1.0, f"{c}: P2Pcom caso 2 fuera de [v01_igual_min, v01_igual_max]")
+    for col in nuevas:
+        sumas = T[T.institucion != "comunidad"].groupby("caso")[col].sum().reindex(CASOS)
+        exige(float((sumas - C[col]).abs().max()) <= 1e-3, f"p2p_comunitario: la comunidad no es la suma en {col}")
+    ok("P2P comunitario por los dos órdenes: las identidades directa, inversa y de Shapley cierran fila a fila "
+       f"(≤ {de:.1e} COP); en E4, E5 y P2 los dos órdenes coinciden al peso; P2Pcom caso 2 de la comunidad cae en "
+       "[v01_igual_min, v01_igual_max] de e1/S en los 13 casos; la comunidad es la suma en las columnas nuevas")
+
+    # (b) la cuarta tabla de CANON §14.23 y el texto
+    t4 = tablas(seccion("### 14.23 ·"))[3]
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.23 {qué}: {v:.6f} no redondea a {celda}")
+
+    clase = {}
+    for c in CASOS:
+        r = C.loc[c]
+        tot = r.P2Pcom_menos_C4_COP
+        clase[c] = clase_pc(r.dec_sin10_COP, r.dec_intercambio_COP, r.inv_dec_sin10_COP, r.inv_dec_intercambio_COP)
+        exige(int(t4.loc[c, "Caso del art. 20"]) == int(r.caso_art20), f"CANON §14.23 {c}: caso del art. 20 (tabla 4)")
+        for col, k in [("P2Pcom − C4", "P2Pcom_menos_C4_COP"), ("P2Pcom caso 2", "P2Pcom_caso2_COP"),
+                       ("Directo: quitar el 10 %", "dec_sin10_COP"), ("Directo: intercambio", "dec_intercambio_COP"),
+                       ("Inverso: intercambio", "inv_dec_intercambio_COP"), ("Inverso: quitar el 10 %", "inv_dec_sin10_COP"),
+                       ("Shapley: quitar el 10 %", "sh_dec_sin10_COP"), ("Shapley: intercambio", "sh_dec_intercambio_COP"),
+                       ("Interacción", "interaccion_ordenes_COP")]:
+            igual(r[k] / M, t4.loc[c, col], 3, f"{c} {col}")
+        for col, k in [("Quitar el 10 %, directo (%)", "dec_sin10_COP"), ("Quitar el 10 %, inverso (%)", "inv_dec_sin10_COP"),
+                       ("Quitar el 10 %, Shapley (%)", "sh_dec_sin10_COP")]:
+            igual(100 * r[k] / tot, t4.loc[c, col], 0, f"{c} {col}")
+        exige(t4.loc[c, "Clase"] == CLASES_PC[clase[c]], f"CANON §14.23 {c}: clase {t4.loc[c, 'Clase']!r}")
+    caso1 = [c for c in CASOS if c not in caso2]
+    pct = {k: 100 * C.loc[caso1, k] / C.loc[caso1, "P2Pcom_menos_C4_COP"]
+           for k in ["dec_sin10_COP", "inv_dec_sin10_COP", "sh_dec_sin10_COP"]}
+    grupos = {k: [c for c in CASOS if clase[c] == k] for k in CLASES_PC}
+    dom, dep = grupos["sin10_domina"], grupos["depende_orden"]
+    # cada reforma por sí sola, en los casos que dependen del orden: quitar la regla primero (directo) e
+    # intercambio primero (inverso)
+    solo = pd.concat([pct["dec_sin10_COP"][dep], 100 - pct["inv_dec_sin10_COP"][dep]])
+    S = {k: float(C[k].sum() / M) for k in ["P2Pcom_menos_C4_COP", "dec_sin10_COP", "inv_dec_sin10_COP", "sh_dec_sin10_COP",
+                                             "dec_intercambio_COP", "inv_dec_intercambio_COP", "sh_dec_intercambio_COP"]}
+    it = C.loc[caso1, "interaccion_ordenes_COP"] / M
+    exige(bool((it < 0).all()) and bool((C.loc[caso2, "interaccion_ordenes_COP"] == 0).all()),
+          "p2p_comunitario: la interacción no es negativa en el caso 1 y nula en el caso 2")
+    ent = lambda v: int(round(float(v)))  # noqa: E731
+    p = {k: pct[k] for k in pct}
+    frases = [
+        f"por el orden directo, entre el {ent(p['dec_sin10_COP'].min())} % ({p['dec_sin10_COP'].idxmin()}) y el "
+        f"{ent(p['dec_sin10_COP'].max())} % ({p['dec_sin10_COP'].idxmax()}) de P2Pcom − C4; por el inverso, entre el "
+        f"{ent(p['inv_dec_sin10_COP'].min())} % ({p['inv_dec_sin10_COP'].idxmin()}) y el {ent(p['inv_dec_sin10_COP'].max())} % "
+        f"({p['inv_dec_sin10_COP'].idxmax()}); por Shapley, entre el {ent(p['sh_dec_sin10_COP'].min())} % "
+        f"({p['sh_dec_sin10_COP'].idxmin()}) y el {ent(p['sh_dec_sin10_COP'].max())} % ({p['sh_dec_sin10_COP'].idxmax()})",
+        f"por los dos órdenes** en {', '.join(dom[:-1])} y {dom[-1]}, del {ent(p['dec_sin10_COP'][dom].min())} al "
+        f"{ent(p['dec_sin10_COP'][dom].max())} % por el directo y del {ent(p['inv_dec_sin10_COP'][dom].min())} al "
+        f"{ent(p['inv_dec_sin10_COP'][dom].max())} % por el inverso",
+        f"**depende del orden** en {', '.join(dep[:-1])} y {dep[-1]}",
+        f"deja entre el {ent(solo.min())} y el {ent(solo.max())} % de la ventaja",
+        f"**todo es intercambio** en {', '.join(caso2[:-1])} y {caso2[-1]}",
+        f"de los {es_txt(S['P2Pcom_menos_C4_COP'], 2)} MCOP quitar la regla pone {es_txt(S['dec_sin10_COP'], 2)} por el orden "
+        f"directo, {es_txt(S['inv_dec_sin10_COP'], 2)} por el inverso y {es_txt(S['sh_dec_sin10_COP'], 2)} por Shapley, y el "
+        f"intercambio exento {es_txt(S['dec_intercambio_COP'], 2)}, {es_txt(S['inv_dec_intercambio_COP'], 2)} y "
+        f"{es_txt(S['sh_dec_intercambio_COP'], 2)}",
+        f"(de {es_txt(it.max(), 2)} en {it.idxmax()} a {es_txt(it.min(), 2)} MCOP en {it.idxmin()})",
+        f"se cita con la del inverso ({ent(p['inv_dec_sin10_COP'].min())} a {ent(p['inv_dec_sin10_COP'].max())} %) o con la de "
+        f"Shapley ({ent(p['sh_dec_sin10_COP'].min())} a {ent(p['sh_dec_sin10_COP'].max())} %)",
+    ]
+    exige(not grupos["intercambio_domina"], "p2p_comunitario: hay casos con el intercambio dominando por los dos órdenes")
+    sec = seccion("### 14.23 ·")
+    for f_ in frases:
+        exige(f_ in sec, f"CANON §14.23 no escribe «{f_}»")
+    ok("P2P comunitario por los dos órdenes: la cuarta tabla de CANON §14.23 a sus decimales y con su clase en los 13 "
+       "casos; los rangos de la parte de quitar la regla por los dos órdenes y Shapley, los tres grupos, las sumas y la "
+       "interacción de su texto")
+
+    # (c) las claves
+    SEC = "§14.23"
+    FC = F_PC + ", fila comunidad, "
+    for c in CASOS:
+        r = C.loc[c]
+        tot = r.P2Pcom_menos_C4_COP
+        for k, col, dfn in [
+                ("inv_sin10", "inv_dec_sin10_COP", "orden inverso: lo que vale quitar la regla del 10 % después del "
+                 "intercambio exento (P2P comunitario − P2P comunitario en el caso 2)"),
+                ("inv_intercambio", "inv_dec_intercambio_COP", "orden inverso: lo que vale el intercambio exento con la "
+                 "regla del 10 % vigente (P2P comunitario en el caso 2 − C4)"),
+                ("sh_sin10", "sh_dec_sin10_COP", "Shapley (media de los dos órdenes): quitar la regla del 10 %"),
+                ("sh_intercambio", "sh_dec_intercambio_COP", "Shapley (media de los dos órdenes): el intercambio exento"),
+                ("interaccion", "interaccion_ordenes_COP", "interacción de las dos reformas: quitar la regla por el orden "
+                 "inverso menos por el directo")]:
+            pon(f"pcom__{c}__{k}", r[col] / M, "MCOP", en(r[col] / M, 2),
+                f"{dfn}, término de P2P comunitario − C4, PDE igual, caso {c}", FC + col, SEC)
+        for k, col, dfn in [("sin10_pct_dir", "dec_sin10_COP", "orden directo"),
+                            ("sin10_pct_inv", "inv_dec_sin10_COP", "orden inverso"),
+                            ("sin10_pct_sh", "sh_dec_sin10_COP", "Shapley")]:
+            v = 100 * r[col] / tot
+            pon(f"pcom__{c}__{k}", v, "%", en_int(ent(v), " %"),
+                f"parte de quitar la regla del 10 % en P2P comunitario − C4 por el {dfn}, en entero, caso {c}",
+                FC + f"{col} / P2Pcom_menos_C4_COP", SEC)
+        pon(f"pcom__{c}__orden_clase", CLASES_PC[clase[c]], "clase", CLASES_PC_EN[clase[c]],
+            f"clase del caso con los dos órdenes ({ROT_CLASES_PC[clase[c]]}), caso {c}",
+            FC + "dec_* e inv_dec_*", SEC)
+        pon(f"com__{c}__P2Pcom_caso2", r.P2Pcom_caso2_COP / M, "MCOP", en(r.P2Pcom_caso2_COP / M, 2),
+            f"beneficio neto de la comunidad con el P2P comunitario y el residual en el caso 2 (κ·Cv + Θ, la regla del "
+            f"10 % vigente, PDE igual; orden inverso), caso {c}", FC + "P2Pcom_caso2_COP", SEC)
+        for x, suf, rot in [("C4", "C4", "C4 de la hoja Resumen (= pcom__<caso>__inv_intercambio a 1 COP, que usa el C4 vuelto a liquidar)"), ("P2P", "P2P", "P2P (con sus dos supuestos)"),
+                            ("C1", "C1", "C1")]:
+            v = (r.P2Pcom_caso2_COP - r[f"B_{x}_COP"]) / M
+            pon(f"com__{c}__P2Pcom_caso2_{suf}", v, "MCOP", en(v, 2),
+                f"P2P comunitario en el caso 2 − {rot} de la comunidad, caso {c}", FC + f"P2Pcom_caso2_COP − B_{x}_COP", SEC)
+        exige(abs(valor_de(f"com__{c}__P2Pcom_caso2_C4") - valor_de(f"pcom__{c}__inv_intercambio")) <= 1e-6,
+              f"{c}: P2Pcom caso 2 − C4 ≠ intercambio del orden inverso")
+
+    FX = F_PC + ", filas comunidad, "
+    for k, (rot_c, lista) in {"sin10_domina": (ROT_CLASES_PC["sin10_domina"], grupos["sin10_domina"]),
+                              "depende": (ROT_CLASES_PC["depende_orden"], grupos["depende_orden"]),
+                              "solo_intercambio": (ROT_CLASES_PC["solo_intercambio"], grupos["solo_intercambio"]),
+                              "intercambio_domina": (ROT_CLASES_PC["intercambio_domina"],
+                                                     grupos["intercambio_domina"])}.items():
+        pon(f"pcom__orden__n_casos_{k}", len(lista), "casos de 13", en_int(len(lista)),
+            f"número de casos en que {rot_c}", FX + "dec_* e inv_dec_*", SEC)
+        if lista:
+            pon(f"pcom__orden__casos_{k}", ", ".join(lista), "casos", ", ".join(lista), f"casos en que {rot_c}",
+                FX + "dec_* e inv_dec_*", SEC)
+    for k, col, rot in [("dir", "dec_sin10_COP", "orden directo"), ("inv", "inv_dec_sin10_COP", "orden inverso"),
+                        ("sh", "sh_dec_sin10_COP", "Shapley")]:
+        s = pct[col]
+        for m_, f_, d in [("min", s.min, s.idxmin), ("max", s.max, s.idxmax)]:
+            if k == "dir":           # pcom__sin10_share_* ya existe (orden directo); aquí van el inverso y Shapley
+                continue
+            pon(f"pcom__{k}_sin10_share_{m_}", float(f_()), "%", en_int(ent(f_()), " %"),
+                f"{'menor' if m_ == 'min' else 'mayor'} parte de quitar la regla del 10 % en P2P comunitario − C4 por el "
+                f"{rot}, en los casos del caso 1 ({d()}); en entero", FX + f"{col} / P2Pcom_menos_C4_COP, caso_art20 = 1", SEC)
+            pon(f"pcom__{k}_sin10_share_{m_}_caso", d(), "caso", d(),
+                f"caso con la {'menor' if m_ == 'min' else 'mayor'} parte de quitar la regla del 10 % por el {rot}",
+                FX + f"{col} / P2Pcom_menos_C4_COP, caso_art20 = 1", SEC)
+        if k == "sh":
+            v = C.loc[caso1, col] / M
+            for m_, f_, d in [("min", v.min, v.idxmin), ("max", v.max, v.idxmax)]:
+                pon(f"pcom__sh_sin10_{m_}", float(f_()), "MCOP", en(f_(), 2),
+                    f"{'menor' if m_ == 'min' else 'mayor'} parte de quitar la regla del 10 % por Shapley en los casos del "
+                    f"caso 1 ({d()})", FX + f"{col}, caso_art20 = 1", SEC)
+                pon(f"pcom__sh_sin10_{m_}_caso", d(), "caso", d(),
+                    f"caso con la {'menor' if m_ == 'min' else 'mayor'} parte de quitar la regla del 10 % por Shapley (MCOP)",
+                    FX + f"{col}, caso_art20 = 1", SEC)
+    for k, serie, rot in [("sin10_domina__dir", p["dec_sin10_COP"][dom], "por el orden directo, en los casos en que quitar "
+                           "la regla pone la mayor parte por los dos órdenes"),
+                          ("sin10_domina__inv", p["inv_dec_sin10_COP"][dom], "por el orden inverso, en los casos en que "
+                           "quitar la regla pone la mayor parte por los dos órdenes"),
+                          ("depende__solo", solo, "de cualquiera de las dos reformas por sí sola (la que va primero), en "
+                           "los casos que dependen del orden")]:
+            for m_, v in [("min", float(serie.min())), ("max", float(serie.max()))]:
+                pon(f"pcom__orden__{k}_share_{m_}", v, "%", en_int(ent(v), " %"),
+                    f"{'menor' if m_ == 'min' else 'mayor'} parte de P2P comunitario − C4 {rot}; en entero",
+                    FX + "dec_sin10_COP, inv_dec_sin10_COP / P2Pcom_menos_C4_COP", SEC)
+    for k, col, rot in [("sin10_suma", "dec_sin10_COP", "quitar la regla del 10 %, orden directo"),
+                        ("intercambio_suma", "dec_intercambio_COP", "el intercambio exento, orden directo"),
+                        ("inv_sin10_suma", "inv_dec_sin10_COP", "quitar la regla del 10 %, orden inverso"),
+                        ("inv_intercambio_suma", "inv_dec_intercambio_COP", "el intercambio exento, orden inverso"),
+                        ("sh_sin10_suma", "sh_dec_sin10_COP", "quitar la regla del 10 %, Shapley"),
+                        ("sh_intercambio_suma", "sh_dec_intercambio_COP", "el intercambio exento, Shapley")]:
+        v = S[col]
+        pon(f"pcom__{k}", v, "MCOP", en(v, 2),
+            f"suma en los 13 casos de lo que pone {rot} en P2P comunitario − C4 (de pcom__P2Pcom_C4_suma)",
+            FX + f"{col}, suma", SEC)
+    for m_, f_, d in [("min", it.min, it.idxmin), ("max", it.max, it.idxmax)]:
+        pon(f"pcom__interaccion_{m_}", float(f_()), "MCOP", en(f_(), 2),
+            f"{'más negativa' if m_ == 'min' else 'menos negativa'} interacción de las dos reformas en los casos del caso 1 "
+            f"({d()}); nula en el caso 2", FX + "interaccion_ordenes_COP, caso_art20 = 1", SEC)
+        pon(f"pcom__interaccion_{m_}_caso", d(), "caso", d(),
+            f"caso con la {'más negativa' if m_ == 'min' else 'menos negativa'} interacción de las dos reformas",
+            FX + "interaccion_ordenes_COP, caso_art20 = 1", SEC)
+
+
+# ── 16. Las mediciones rehechas para el P2P colectivo y C2 (punto PD; añadido el 2026-10-02) ──
+F_PD = "p2p_colectivo_derivados_2026-10-02/{}"
+ESC_PD = {"P2Pcol": "P2P colectivo", "C2ppa": "C2 (PPA)", "P2P": "el mercado P2P"}
+
+
+def p2p_colectivo_derivados(R: pd.DataFrame) -> None:
+    """Mes a mes, σ, COT, comercializador único, retiro de un miembro, factor de
+    coincidencia, precio de la justicia, umbral, 11 fronteras y techo, rehechos
+    para el P2P colectivo (el P2P comunitario de §14.23, renombrado) y para C2
+    como PPA (CANON §14.24)."""
+    SEC = "§14.24"
+    T = {k: pd.read_csv(lee(F_PD.format(k), "e1/PD"), keep_default_na=False, na_values=[""])
+         for k in ["mensual_13casos.csv", "sigma_13casos.csv", "cot_13casos.csv", "comercializador_13casos.csv",
+                   "retiro_comunidad.csv", "retiro_quienes_quedan.csv", "coincidencia_13casos.csv", "otros_13casos.csv"]}
+    for k, X in T.items():
+        num = X.select_dtypes(include=[np.number])
+        exige(not X.to_csv().lower().count("cedenar"), f"{k}: nombra a un comercializador")
+        exige(bool(np.isfinite(num.to_numpy(dtype=float)[~np.isnan(num.to_numpy(dtype=float))]).all()), f"{k}: no finito")
+    me = T["mensual_13casos.csv"]
+    com = me[me.institucion == "comunidad"]
+    ins = me[me.institucion != "comunidad"]
+    exige(len(com) == 117 and len(ins) == 576, f"mes a mes: {len(com)} meses-caso y {len(ins)} institución-mes")
+
+    # (a) los meses suman el horizonte de la comunidad (claves de los bloques 13 y 14) y el mercado es el del canon
+    for c in CASOS:
+        x = com[com.caso == c]
+        exige(len(x) == 9, f"{c}: {len(x)} meses")
+        exige(abs(x.P2Pcol_COP.sum() / M - valor_de(f"com__{c}__P2Pcom")) <= 1e-6, f"{c}: los meses del P2P colectivo")
+        exige(abs(x.C2ppa_COP.sum() / M - valor_de(f"com__{c}__C2ppa")) <= 1e-6, f"{c}: los meses de C2")
+        for m_ in ["P2P", "C1", "C4", "C5"]:
+            exige(abs(x[f"B_{m_}_COP"].sum() - R.loc[c, m_]) <= max(2.0, 2e-7 * abs(R.loc[c, "P2P"])),
+                  f"{c}: los meses de {m_} no suman la hoja Resumen")
+    sob = {(q, x): int((com[f"signo_{q}_menos_{x}"] == 1).sum()) for q, x in
+           [("P2P", "C4"), ("P2P", "C1"), ("P2P", "C5"), ("P2Pcol", "C4"), ("P2Pcol", "C1"), ("P2Pcol", "C5"),
+            ("P2Pcol", "P2P"), ("C2ppa", "C4"), ("C2ppa", "C1"), ("C2ppa", "C5")]}
+    exige((sob[("P2P", "C4")], sob[("P2P", "C1")], sob[("P2P", "C5")]) == (116, 116, 117),
+          f"mes a mes: el mercado sobre C4, C1 y C5 en {sob}")
+    ok("P2P colectivo derivado (e1/PD): los 117 meses-caso suman, por caso, el P2P colectivo y C2 de los bloques 13 y 14 "
+       "(≤ 1e-6 MCOP) y P2P, C1, C4 y C5 la hoja Resumen; el mercado queda sobre C4 en 116, sobre C1 en 116 y sobre C5 en "
+       "117 meses (CANON §12 y §14.9)")
+
+    # (b) las tablas de CANON §14.24
+    tb = tablas(seccion("### 14.24 ·"))
+    exige(len(tb) == 7, f"CANON §14.24: {len(tb)} tablas, no 7")
+    t1, t2, t3, t4, t5, t6, t7 = tb
+    rot = {"P2P": "P2P", "P2Pcol": "P2P colectivo", "C2ppa": "C2"}
+    for (q, x), n in sob.items():
+        exige(int(num_es(t1.loc[f"{rot[q]} − {x}", "Meses con la brecha positiva (de 117)"])) == n,
+              f"CANON §14.24, tabla 1: {q} − {x}")
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.24 {qué}: {v:.6f} no redondea a {celda}")
+
+    ct = T["cot_13casos.csv"]
+    ctc = ct[ct.institucion == "comunidad"].set_index("caso")
+    for c in CASOS:
+        for col, k in [("ΔP2P colectivo", "d_P2Pcol_COP"), ("ΔC4", "d_C4_COP"), ("ΔC1", "d_C1_COP"),
+                       ("P2P colectivo − C4", "P2Pcol_menos_C4_COP"), ("P2P colectivo − C1", "P2Pcol_menos_C1_COP"),
+                       ("C2 − C4", "C2ppa_menos_C4_COP"), ("C2 − C1", "C2ppa_menos_C1_COP")]:
+            igual(ctc.loc[c, k] / M, t4.loc[c, col], 3, f"tabla 4, {c} {col}")
+    co = T["coincidencia_13casos.csv"].set_index("caso")
+    ot = T["otros_13casos.csv"].set_index("caso")
+    for c in CASOS:
+        igual(co.loc[c, "coincidencia_P2Pcol"], t7.loc[c, "Coincidencia, P2P colectivo"], 3, f"tabla 7, {c}")
+        igual(100 * ot.loc[c, "pof_P2Pcol"], t7.loc[c, "Precio de la justicia del P2P colectivo (%)"], 1, f"tabla 7, {c}")
+        igual(ot.loc[c, "once_fronteras_P2Pcol_menos_P2P_COP"] / M, t7.loc[c, "11 fronteras: P2P colectivo − P2P"], 3,
+              f"tabla 7, {c}")
+        cl = {"domina": "P2P colectivo domina"}.get(ot.loc[c, "clase_P2Pcol"], ot.loc[c, "clase_P2Pcol"])
+        exige(cl == t7.loc[c, "Clase"], f"CANON §14.24, tabla 7: clase de {c}")
+    rq = T["retiro_quienes_quedan.csv"]
+    exige(int(num_es(t6.loc["Todas", "Se mueve menos con el P2P colectivo"])) == int((rq.mas_estable == "P2Pcol").sum()),
+          "CANON §14.24, tabla 6: pares más estables")
+    # el precio de la justicia del mercado y del P2P colectivo, desde la hoja Resumen y el bloque 14
+    for c in CASOS:
+        w4 = R.loc[c, "C4"]
+        exige(abs(ot.loc[c, "pof_P2P"] - (R.loc[c, "P2P"] - w4) / R.loc[c, "P2P"]) <= 1e-6, f"{c}: precio de la justicia")
+        wx = valor_de(f"com__{c}__P2Pcom") * M
+        exige(abs(ot.loc[c, "pof_P2Pcol"] - (wx - w4) / wx) <= 1e-6, f"{c}: precio de la justicia del P2P colectivo")
+    ok("P2P colectivo derivado: las tablas 1, 4, 6 y 7 de CANON §14.24 a sus decimales (meses, COT, retiro, "
+       "coincidencia, precio de la justicia y 11 fronteras); el precio de la justicia del mercado y del P2P colectivo "
+       "= (W − W_C4) / W con la hoja Resumen y el bloque 14")
+
+    FM = F_PD.format("mensual_13casos.csv") + ", filas comunidad, "
+    # ── mes a mes
+    pon("pcom__mes__n", len(com), "meses-caso", en_int(len(com)), "meses-caso de la comunidad (13 casos × 9 meses)",
+        FM.rstrip(", "), SEC)
+    for (q, x), n in sob.items():
+        pre = {"P2P": "pcom__mes__mercado", "P2Pcol": "pcom__mes", "C2ppa": "ppa__mes"}[q]
+        pon(f"{pre}__sobre_{x}", n, "meses", en_int(n), f"meses-caso (de 117) con {ESC_PD[q]} por encima de {x} "
+            "(empate a 1 COP no cuenta)", FM + f"signo_{q}_menos_{x}", SEC)
+    emp = int((com.signo_P2Pcol_menos_P2P == 0).sum())
+    pon("pcom__mes__empates_P2P", emp, "meses", en_int(emp), "meses-caso con el P2P colectivo empatado con el mercado "
+        "(a 1 COP)", FM + "signo_P2Pcol_menos_P2P", SEC)
+    neg = com[com.signo_P2Pcol_menos_C1 < 0]
+    lst = "; ".join(f"{a} {b}" for a, b in zip(neg.caso, neg.mes))
+    pon("pcom__mes__bajo_C1__lista", lst, "lista", lst, "meses-caso con el P2P colectivo por debajo de C1",
+        FM + "signo_P2Pcol_menos_C1", SEC)
+    for (a, b), v in zip(zip(neg.caso, neg.mes), neg.P2Pcol_menos_C1_COP):
+        pon(f"pcom__mes__bajo_C1__{a}_{b}", float(v), "COP", en(v, 0), f"P2P colectivo − C1 de la comunidad en {a}, {b}",
+            FM + "P2Pcol_menos_C1_COP", SEC)
+    k_ = com.P2Pcol_menos_C4_COP.idxmin()
+    pon("pcom__mes__min_C4", float(com.loc[k_, "P2Pcol_menos_C4_COP"]), "COP", en(com.loc[k_, "P2Pcol_menos_C4_COP"], 0),
+        f"menor P2P colectivo − C4 de la comunidad en un mes ({com.loc[k_, 'caso']}, {com.loc[k_, 'mes']})",
+        FM + "P2Pcol_menos_C4_COP", SEC)
+    pon("pcom__mes__min_C4_caso", f"{com.loc[k_, 'caso']} {com.loc[k_, 'mes']}", "caso y mes",
+        f"{com.loc[k_, 'caso']} {com.loc[k_, 'mes']}", "mes-caso con el menor P2P colectivo − C4", FM + "P2Pcol_menos_C4_COP", SEC)
+    for x in ["C4", "C1"]:
+        cs_ = ", ".join(c for c in CASOS if (com[(com.caso == c)][f"signo_C2ppa_menos_{x}"] == 1).any())
+        pon(f"ppa__mes__sobre_{x}__casos", cs_, "lista", cs_, f"casos con algún mes en que C2 supera a {x}",
+            FM + f"signo_C2ppa_menos_{x}", SEC)
+    FI = F_PD.format("mensual_13casos.csv") + ", filas de institución, "
+    pon("pcom__mes_inst__n", len(ins), "pares institución-mes", en_int(len(ins)), "pares institución-mes (64 × 9)",
+        FI.rstrip(", "), SEC)
+    for q, x in [("P2Pcol", "C4"), ("P2Pcol", "C1"), ("P2P", "C4"), ("P2P", "C1"), ("C2ppa", "C4"), ("C2ppa", "C1")]:
+        pre = {"P2P": "pcom__mes_inst__mercado", "P2Pcol": "pcom__mes_inst", "C2ppa": "ppa__mes_inst"}[q]
+        n = int((ins[f"signo_{q}_menos_{x}"] == 1).sum())
+        pon(f"{pre}__sobre_{x}", n, "pares", en_int(n), f"pares institución-mes (de 576) con {ESC_PD[q]} por encima de {x}",
+            FI + f"signo_{q}_menos_{x}", SEC)
+    for t, tn in [("t_generacion", "generacion"), ("t_bolsa", "bolsa"), ("t_demanda", "demanda")]:
+        for lv in ["bajo", "medio", "alto"]:
+            x = com[com[t] == lv]
+            exige(len(x) == 39, f"tercil {tn} {lv}: {len(x)} meses")
+            for pre, col, quien in [("pcom__tercil", "P2Pcol_menos_C4_COP", "el P2P colectivo"),
+                                    ("pcom__tercil_mercado", "P2P_menos_C4_COP", "el mercado")]:
+                v = float(x[col].mean() / M)
+                pon(f"{pre}__{tn}__{lv}", v, "MCOP", en(v, 2), f"ventaja media por mes de {quien} sobre C4, tercil {lv} "
+                    f"de {tn} (39 meses de los 13 casos)", FM + f"{col}, {t}", SEC)
+            igual(float(x.P2Pcol_menos_C4_COP.mean() / M), t2.loc[lv, f"P2P colectivo − C4, por {tn.replace('generacion', 'generación')}"],
+                  2, f"tabla 2, {tn} {lv}")
+
+    # ── σ
+    FS = F_PD.format("sigma_13casos.csv") + ", "
+    sg = T["sigma_13casos.csv"]
+    cc = ["C1", "C4", "C5", "C3", "C2ppa"]
+    sgc = sg[sg.institucion == "comunidad"]
+    n_com = int(sum(sgc[f"cambia_P2Pcol_menos_{x}"].sum() for x in cc))
+    pon("pcom__sigma__brechas_comunidad_cambian", n_com, "brechas", en_int(n_com), "brechas de la comunidad del P2P "
+        "colectivo frente a C1, C2, C3, C4 y C5 que cambian de signo con σ = 0, 0,5 o 1 (39 corridas)",
+        FS + "filas comunidad, cambia_P2Pcol_menos_*", SEC)
+    rel = 100 * (sgc.P2Pcol_COP / sgc.P2Pcol_base_COP - 1)
+    for m_, v in [("min", float(rel.min())), ("max", float(rel.max()))]:
+        pon(f"pcom__sigma__cambio_pct_{m_}", v, "%", en(v, 2, " %"), f"{'menor' if m_ == 'min' else 'mayor'} cambio del "
+            "P2P colectivo de la comunidad con σ frente al canon (39 corridas)", FS + "P2Pcol_COP / P2Pcol_base_COP", SEC)
+    for s_, k in [(0.0, "0"), (0.5, "05"), (1.0, "1")]:
+        x = sg[(sg.sigma == s_) & (sg.institucion != "comunidad")]
+        cam = [f"{r.caso} {r.institucion} − {('C2' if y == 'C2ppa' else y)}" for _, r in x.iterrows() for y in cc
+               if r[f"cambia_P2Pcol_menos_{y}"]]
+        pon(f"pcom__sigma__{k}__pares_cambian", len(cam), "pares", en_int(len(cam)),
+            f"pares institución-brecha del P2P colectivo (frente a C1, C2, C3, C4 y C5) que cambian de signo con σ = "
+            f"{es_txt(s_, 1)}", FS + "filas de institución, cambia_P2Pcol_menos_*", SEC)
+        igual(len(cam), t3.loc[es_txt(s_, 1), "Pares institución-brecha que cambian (de 64 × 5)"], 0, f"tabla 3, σ {s_}")
+        pon(f"pcom__sigma__{k}__pares_cambian__lista", "; ".join(cam), "lista", "; ".join(cam),
+            f"los pares que cambian con σ = {es_txt(s_, 1)}", FS + "filas de institución", SEC)
+
+    # ── COT
+    FC_ = F_PD.format("cot_13casos.csv") + ", filas comunidad, "
+    for c in CASOS:
+        for k, col, dfn in [("dP2Pcol", "d_P2Pcol_COP", "cambio del P2P colectivo"),
+                            ("P2Pcol_C4", "P2Pcol_menos_C4_COP", "P2P colectivo − C4"),
+                            ("P2Pcol_C1", "P2Pcol_menos_C1_COP", "P2P colectivo − C1")]:
+            v = float(ctc.loc[c, col] / M)
+            pon(f"pcom__cot__{c}__{k}", v, "MCOP", en(v, 3), f"{dfn} con el COT en la deducción, caso {c}", FC_ + col, SEC)
+    k_ = ctc.d_P2Pcol_COP.idxmin()
+    pon("pcom__cot__baja_max", float(ctc.loc[k_, "d_P2Pcol_COP"] / M), "MCOP", en(ctc.loc[k_, "d_P2Pcol_COP"] / M, 2),
+        f"mayor baja del P2P colectivo con el COT ({k_})", FC_ + "d_P2Pcol_COP", SEC)
+    pon("pcom__cot__baja_max_caso", k_, "caso", k_, "caso con la mayor baja del P2P colectivo con el COT", FC_ + "d_P2Pcol_COP", SEC)
+    v = float(100 * ctc.loc[k_, "d_P2Pcol_COP"] / (ctc.loc[k_, "P2Pcol_cot_COP"] - ctc.loc[k_, "d_P2Pcol_COP"]))
+    pon("pcom__cot__baja_max_pct", v, "%", en(v, 2, " %"), "mayor baja del P2P colectivo con el COT, en % de su valor",
+        FC_ + "d_P2Pcol_COP / P2Pcol_base_COP", SEC)
+    cti = ct[ct.institucion != "comunidad"]
+    for pre, q, xs in [("pcom", "P2Pcol", ["C1", "C4", "C5", "C3", "C2ppa", "P2P"]), ("ppa", "C2ppa", ["C1", "C4"])]:
+        n1 = int(sum(ctc[f"cambia_{q}_menos_{x}"].sum() for x in xs))
+        n2 = int(sum(cti[f"cambia_{q}_menos_{x}"].sum() for x in xs))
+        pon(f"{pre}__cot__brechas_comunidad_cambian", n1, "brechas", en_int(n1), f"brechas de la comunidad de "
+            f"{ESC_PD[q]} que cambian de signo con el COT", FC_ + f"cambia_{q}_menos_*", SEC)
+        pon(f"{pre}__cot__pares_cambian", n2, "pares", en_int(n2), f"pares institución-caso de {ESC_PD[q]} que cambian "
+            "de signo con el COT", F_PD.format("cot_13casos.csv") + ", filas de institución", SEC)
+    cam = [f"{r.caso} {r.institucion} − {x}" for _, r in cti.iterrows() for x in ["C1", "C4"] if r[f"cambia_C2ppa_menos_{x}"]]
+    pon("ppa__cot__pares_cambian__lista", "; ".join(cam), "lista", "; ".join(cam), "pares de C2 que cambian con el COT",
+        F_PD.format("cot_13casos.csv") + ", filas de institución", SEC)
+
+    # ── comercializador único
+    cm = T["comercializador_13casos.csv"]
+    cmc = cm[cm.institucion == "comunidad"]
+    cmi = cm[cm.institucion != "comunidad"]
+    FK = F_PD.format("comercializador_13casos.csv") + ", "
+    for v_ in ["A", "B"]:
+        x = cmc[cmc.variante == v_].set_index("caso")
+        for c in CASOS:
+            for k, col in [("P2Pcol_C4", "P2Pcol_menos_C4_COP"), ("P2Pcol_C1", "P2Pcol_menos_C1_COP"),
+                           ("C2ppa_C4", "C2ppa_menos_C4_COP")]:
+                pre = "ppa" if k.startswith("C2") else "pcom"
+                kk = k.replace("C2ppa_", "") if pre == "ppa" else k
+                val = float(x.loc[c, col] / M)
+                pon(f"{pre}__com{v_}__{c}__{kk}", val, "MCOP", en(val, 3), f"{ESC_PD['C2ppa' if pre == 'ppa' else 'P2Pcol']} − "
+                    f"{col.split('_menos_')[1][:2]} de la comunidad con las cinco en el comercializador {v_}, caso {c}",
+                    FK + f"variante {v_}, filas comunidad, {col}", SEC)
+                igual(val, t5.loc[c, f"{v_}: C2 − C4" if pre == "ppa" else (f"{v_}: P2P colectivo − C1" if k.endswith("C1")
+                      else f"{v_}: − C4")], 3, f"tabla 5, {v_} {c} {k}")
+        xi = cmi[cmi.variante == v_]
+        for pre, q in [("pcom", "P2Pcol"), ("ppa", "C2ppa")]:
+            cam = [f"{r.caso} {r.institucion} − {y}" for _, r in xi.iterrows() for y in ["C1", "C4", "C5"]
+                   if r[f"cambia_{q}_menos_{y}"]]
+            pon(f"{pre}__com{v_}__pares_cambian", len(cam), "pares", en_int(len(cam)), f"pares institución-caso de "
+                f"{ESC_PD[q]} (frente a C1, C4 y C5) que cambian de signo con las cinco en {v_}",
+                FK + f"variante {v_}, filas de institución", SEC)
+            pon(f"{pre}__com{v_}__pares_cambian__lista", "; ".join(cam) or "ninguno", "lista", "; ".join(cam) or "ninguno",
+                f"los pares de {ESC_PD[q]} que cambian con las cinco en {v_}", FK + f"variante {v_}", SEC)
+        err = float(x[["P2P_flujos_canon_menos_contrafactico_COP",
+                       "col_viejo_flujos_canon_menos_contrafactico_COP"]].abs().to_numpy().max() / M)
+        pon(f"pcom__com{v_}__flujos_fijos_err", err, "MCOP", en(err, 3), f"lo que la aproximación de los flujos fijos "
+            f"deja el mercado y el viejo colectivo de la comunidad del contrafáctico re-simulado, con las cinco en {v_} "
+            "(como mucho, 13 casos)", FK + "P2P_flujos_canon_menos_contrafactico_COP, col_viejo_…", SEC)
+    for pre, q in [("pcom", "P2Pcol"), ("ppa", "C2ppa")]:
+        cam = [f"{r.caso} ({r.variante}) − {y}" for _, r in cmc.iterrows() for y in ["C1", "C4", "C5"]
+               if r[f"cambia_{q}_menos_{y}"]]
+        pon(f"{pre}__com__brechas_comunidad_cambian", len(cam), "brechas", en_int(len(cam)), f"brechas de la comunidad "
+            f"de {ESC_PD[q]} (frente a C1, C4 y C5) que cambian de signo con un solo comercializador (A o B)",
+            FK + "filas comunidad", SEC)
+        pon(f"{pre}__com__brechas_comunidad_cambian__lista", "; ".join(cam) or "ninguna", "lista", "; ".join(cam) or "ninguna",
+            f"las brechas de la comunidad de {ESC_PD[q]} que cambian con un solo comercializador", FK + "filas comunidad", SEC)
+
+    # ── retiro de un miembro
+    rc = T["retiro_comunidad.csv"]
+    FR = F_PD.format("retiro_comunidad.csv") + ", "
+    FQ = F_PD.format("retiro_quienes_quedan.csv") + ", "
+    pon("pcom__retiro__n", len(rc), "comunidades", en_int(len(rc)), "comunidades de cuatro (cada retiro en 11 casos)",
+        FR.rstrip(", "), SEC)
+    for pre, q in [("pcom", "P2Pcol"), ("ppa", "C2ppa")]:
+        for y in ["C4", "C1", "C5"]:
+            x = rc[rc[f"cambia_{q}_menos_{y}"] == 1]
+            pon(f"{pre}__retiro__cambia_{y}", len(x), "comunidades", en_int(len(x)), f"comunidades de cuatro (de 54) con "
+                f"{ESC_PD[q]} − {y} de signo distinto del de la comunidad completa", FR + f"cambia_{q}_menos_{y}", SEC)
+            lst = "; ".join(f"{a} sin {b}" for a, b in zip(x.caso, x.retirada)) or "ninguna"
+            pon(f"{pre}__retiro__cambia_{y}__lista", lst, "lista", lst, f"las comunidades de cuatro en que cambia "
+                f"{ESC_PD[q]} − {y}", FR + f"cambia_{q}_menos_{y}", SEC)
+    k_ = rc.P2Pcol_menos_C4_COP.idxmin()
+    pon("pcom__retiro__min_C4", float(rc.loc[k_, "P2Pcol_menos_C4_COP"]), "COP", en(rc.loc[k_, "P2Pcol_menos_C4_COP"], 0),
+        f"menor P2P colectivo − C4 en las 54 comunidades ({rc.loc[k_, 'caso']} sin {rc.loc[k_, 'retirada']})",
+        FR + "P2Pcol_menos_C4_COP", SEC)
+    pon("pcom__retiro__min_C4_caso", f"{rc.loc[k_, 'caso']} sin {rc.loc[k_, 'retirada']}", "comunidad",
+        f"{rc.loc[k_, 'caso']} sin {rc.loc[k_, 'retirada']}", "comunidad con el menor P2P colectivo − C4",
+        FR + "P2Pcol_menos_C4_COP", SEC)
+    for k, v, u, fmt, dfn in [
+            ("caso1", int((rc.caso_art20_P2Pcol == 1).sum()), "comunidades", None, "comunidades de cuatro en el caso 1 del "
+             "art. 20 del P2P colectivo"),
+            ("cal_energia_pct", float(100 * ((rc.energia_aprox_kwh - rc.energia_canon_kwh).abs() / rc.energia_canon_kwh).max()),
+             "%", 2, "calibración: mayor diferencia de la energía del lado corto con la del canon de cuatro"),
+            ("cal_com_max", float(rc.P2P_aprox_menos_canon_COP.abs().max() / M), "MCOP", 2, "calibración: mayor error de "
+             "la aproximación en el mercado de la comunidad de cuatro"),
+            ("cal_col_max", float(rc.col_viejo_aprox_menos_canon_COP.abs().max() / M), "MCOP", 2, "calibración: mayor "
+             "error de la aproximación en el viejo colectivo de la comunidad de cuatro")]:
+        pon(f"pcom__retiro__{k}", v, u, en_int(v) if fmt is None else en(v, fmt, " %" if u == "%" else ""), dfn,
+            FR + "caso_art20_P2Pcol, energia_*, *_aprox_menos_canon_COP", SEC)
+    rq = T["retiro_quienes_quedan.csv"]
+    err = (rq.P2P_sin_aprox_menos_canon_COP).abs()
+    acu = int((rq.mas_estable_mercado_aprox == rq.mas_estable_mercado_canon).sum())
+    for k, v, u, fmt, dfn in [
+            ("pares", len(rq), "pares", None, "pares (retirada, institución que se queda)"),
+            ("estables", int((rq.mas_estable == "P2Pcol").sum()), "pares", None, "pares en que el beneficio de quien se "
+             "queda se mueve menos con el P2P colectivo que con C4"),
+            ("mediana_P2Pcol_miles", float(rq.perdida_P2Pcol_COP.abs().median() / 1e3), "miles de COP", 0,
+             "mediana de la pérdida absoluta de quien se queda con el P2P colectivo"),
+            ("mediana_P2Pcol_pct", float(100 * rq.perdida_rel_P2Pcol.abs().median()), "%", 2, "mediana de la pérdida "
+             "absoluta relativa al beneficio propio, con el P2P colectivo"),
+            ("mediana_C4_miles", float(rq.perdida_C4_COP.abs().median() / 1e3), "miles de COP", 0,
+             "mediana de la pérdida absoluta de quien se queda con C4 (§14.13)"),
+            ("pierde", int((rq.perdida_P2Pcol_COP > 0).sum()), "pares", None, "pares en que quien se queda pierde con el "
+             "P2P colectivo"),
+            ("gana", int((rq.perdida_P2Pcol_COP < 0).sum()), "pares", None, "pares en que quien se queda gana con el P2P "
+             "colectivo"),
+            ("pares_cambia_C4", int(rq.cambia_P2Pcol_menos_C4.sum()), "pares", None, "pares con P2P colectivo − C4 de quien "
+             "se queda de signo distinto del de la comunidad completa"),
+            ("cal_inst_mediana", float(err.median()), "COP", 0, "calibración: error mediano de la aproximación en el "
+             "mercado por institución"),
+            ("cal_inst_max", float(err.max()), "COP", 0, "calibración: mayor error de la aproximación en el mercado por "
+             "institución"),
+            ("cal_acuerdo", acu, "pares", None, "calibración: pares en que la clase «se mueve menos» del mercado aproximado "
+             "coincide con la del canon (de 216)")]:
+        pon(f"pcom__retiro__{k}", v, u, en_int(v) if fmt is None else en(v, fmt, " %" if u == "%" else ""), dfn,
+            FQ + "perdida_*, mas_estable*", SEC)
+    for ret, g in rq.groupby("retirada", sort=False):
+        n = int((g.mas_estable == "P2Pcol").sum())
+        pon(f"pcom__retiro__{ret}__estables", n, "pares", en_int(n), f"sale {ret}: pares en que quien se queda se mueve "
+            f"menos con el P2P colectivo (de {len(g)})", FQ + "mas_estable", SEC)
+
+    # ── coincidencia, precio de la justicia, 11 fronteras, umbral y techo
+    FO = F_PD.format("coincidencia_13casos.csv") + ", "
+    for c in CASOS:
+        v = float(co.loc[c, "coincidencia_P2Pcol"])
+        pon(f"pcom__coinc__{c}", v, "fracción", en(v, 3), f"factor de coincidencia del P2P colectivo (D20), caso {c}",
+            FO + "coincidencia_P2Pcol", SEC)
+    for m_, f_ in [("min", co.coincidencia_P2Pcol.idxmin()), ("max", co.coincidencia_P2Pcol.idxmax())]:
+        pon(f"pcom__coinc__{m_}_caso", f_, "caso", f_, f"caso con el {'menor' if m_ == 'min' else 'mayor'} factor de "
+            "coincidencia del P2P colectivo", FO + "coincidencia_P2Pcol", SEC)
+    d_ = co.coincidencia_P2Pcol - co.coincidencia_P2P
+    for k, sel, dfn in [("igual_P2P", d_.abs() <= 1e-6, "igual al del mercado (a 1e-6)"),
+                        ("menor_P2P", d_ < -1e-6, "menor que el del mercado"), ("mayor_P2P", d_ > 1e-6, "mayor que el del mercado")]:
+        lst = ", ".join(c for c in CASOS if sel[c])
+        pon(f"pcom__coinc__{k}__lista", lst, "lista", lst, f"casos con el factor de coincidencia del P2P colectivo {dfn}",
+            FO + "coincidencia_P2Pcol − coincidencia_P2P", SEC)
+    n = int((co.coincidencia_P2Pcol > co.coincidencia_C4).sum())
+    pon("pcom__coinc__sobre_C4", n, "casos", en_int(n), "casos con el factor de coincidencia del P2P colectivo por encima "
+        "del de C4", FO + "coincidencia_P2Pcol, coincidencia_C4", SEC)
+    FT = F_PD.format("otros_13casos.csv") + ", "
+    for c in CASOS:
+        v = float(100 * ot.loc[c, "pof_P2Pcol"])
+        pon(f"pcom__pof__{c}", v, "%", en(v, 1, " %"), f"precio de la justicia del P2P colectivo frente a C4, (W − W_C4) / W "
+            f"(Bertsimas, C-208), caso {c}", FT + "pof_P2Pcol", SEC)
+        cl = {"domina": "P2P colectivo domina"}.get(ot.loc[c, "clase_P2Pcol"], ot.loc[c, "clase_P2Pcol"])
+        cl_en = {"P2P colectivo domina": "collective P2P dominates", "intercambio": "trade-off"}[cl]
+        pon(f"pcom__pof__{c}__clase", cl, "clase", cl_en, f"clase del P2P colectivo frente a C4 (§14.6), caso {c}",
+            FT + "clase_P2Pcol", SEC)
+        v = float(ot.loc[c, "once_fronteras_P2Pcol_menos_P2P_COP"] / M)
+        pon(f"pcom__11f__{c}__P2Pcol_P2P", v, "MCOP", en(v, 3), f"con 11 fronteras (el caso 1 para todos), P2P colectivo − "
+            f"P2P, caso {c}", FT + "once_fronteras_P2Pcol_menos_P2P_COP", SEC)
+    dom = [c for c in CASOS if ot.loc[c, "clase_P2Pcol"] == "domina"]
+    pon("pcom__pof__n_domina", len(dom), "casos", en_int(len(dom)), "casos en que el P2P colectivo domina a C4 (más "
+        "beneficio y menos desigualdad)", FT + "clase_P2Pcol", SEC)
+    lst = ", ".join(c for c in CASOS if c not in dom)
+    pon("pcom__pof__intercambio__lista", lst, "lista", lst, "casos con intercambio entre equidad y eficiencia del P2P "
+        "colectivo frente a C4", FT + "clase_P2Pcol", SEC)
+    for k, col, dfn in [("pcom__umbral_E4_7P1", "umbral_E4_menos_7P1_P2Pcol_COP", "P2P colectivo"),
+                        ("pcom__umbral_E4_7P1_c1todos", "umbral_E4_menos_7P1_P2Pcol_c1todos_COP",
+                         "P2P colectivo con el caso 1 para todos"),
+                        ("ppa__umbral_E4_7P1", "umbral_E4_menos_7P1_C2ppa_COP", "C2 (PPA)")]:
+        v = float(ot.loc["E4", col] / M)
+        pon(k, v, "MCOP", en(v, 2), f"E4 − 7 × P1 con el {dfn} (§14.11)", FT + col, SEC)
+    pon("pcom__techo__horas", int(ot.loc["E0", "techo_horas"]), "horas", en_int(int(ot.loc["E0", "techo_horas"])),
+        "horas con la bolsa sobre el precio de escasez ponderado; en ninguna hay excedente (§14.16)", FT + "techo_horas", SEC)
+    exige(float(ot.techo_cambio_P2Pcol_COP.abs().max()) == 0.0 and float(ot.techo_excedente_kwh.abs().max()) == 0.0,
+          "techo: el P2P colectivo cambia")
+    pon("pcom__techo__cambio", 0.0, "MCOP", en(0.0, 2), "cambio del P2P colectivo y de C2 con el techo literal del Anexo 4: "
+        "cero exacto", FT + "techo_cambio_P2Pcol_COP, techo_cambio_C2ppa_COP", SEC)
+    ok("P2P colectivo derivado: las claves de los meses, σ, COT, comercializador único, retiro, coincidencia, precio de la "
+       "justicia, 11 fronteras, umbral y techo cuadran con las tablas 2, 3 y 5 de CANON §14.24")
+
+
 def main() -> int:
     c7p = lee("cifras_cap07_2026-09-28/cifras.csv", "e1/R")
     c7d = pd.read_csv(c7p, dtype={"valor": str})
@@ -1221,7 +2484,29 @@ def main() -> int:
     gsa_diseno()
     print("[cifras_articulo] 11. otras cifras derivadas")
     otras(R, D, c7)
-    print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas")
+    n30 = len(FILAS)
+    exige(n30 == 818, f"los bloques del 29 y del 30 (A1) dan {n30} cifras, no 818")
+    print("[cifras_articulo] 12. la atribución a los dos supuestos (B1, añadido el 2026-09-30)")
+    atribucion(R, tar)
+    n_b1 = len(FILAS)
+    exige(n_b1 == 1051, f"los bloques hasta la atribución dan {n_b1} cifras, no 1051")
+    print("[cifras_articulo] 13. el C2 de la propuesta como PPA (añadido el 2026-10-02)")
+    ppa(R)
+    n_p = len(FILAS)
+    exige(n_p == 1343, f"los bloques hasta el PPA dan {n_p} cifras, no 1343")
+    print("[cifras_articulo] 14. el P2P comunitario (añadido el 2026-10-02)")
+    p2p_comunitario(R)
+    n_pc = len(FILAS)
+    exige(n_pc == 1714, f"los bloques hasta el P2P comunitario dan {n_pc} cifras, no 1714")
+    print("[cifras_articulo] 15. el P2P comunitario por los dos órdenes y Shapley (añadido el 2026-10-02)")
+    p2p_comunitario_ordenes(R)
+    n_ord = len(FILAS)
+    exige(n_ord == 1918, f"los bloques hasta los dos órdenes dan {n_ord} cifras, no 1918")
+    print("[cifras_articulo] 16. las mediciones rehechas para el P2P colectivo y C2 (añadido el 2026-10-02)")
+    p2p_colectivo_derivados(R)
+    print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas desde el 29; {n_b1 - n30} de la atribución; "
+          f"{n_p - n_b1} del PPA; {n_pc - n_p} del P2P comunitario; {n_ord - n_pc} de sus dos órdenes; "
+          f"{len(FILAS) - n_ord} de los derivados del P2P colectivo")
     SALIDA.mkdir(parents=True, exist_ok=True)
     out = pd.DataFrame(FILAS, columns=["clave", "valor", "unidad", "texto_en", "definicion", "fuente", "seccion_canon"])
     exige(out.clave.is_unique, "claves repetidas en la salida")
@@ -1235,7 +2520,7 @@ def main() -> int:
         fh.write(f"python {platform.python_version()}, numpy {np.__version__}, pandas {pd.__version__}\n")
         fh.write("orden: python -u " + guion + "\n")
         fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §14.3, §14.7, "
-                 "§14.8, §14.10, §14.11, §14.16, §14.18); "
+                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24); "
                  f"sha256 {hashlib.sha256(CANON_MD.read_bytes()).hexdigest()}\n")
         fh.write(f"huellas: {HUELLAS.relative_to(RAIZ).as_posix()}; {len(LEIDOS)} artefactos leídos, todos con la huella comprobada:\n")
         for g, r in LEIDOS:

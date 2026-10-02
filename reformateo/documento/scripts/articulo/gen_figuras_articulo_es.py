@@ -27,23 +27,37 @@ Figuras (en `Documentos/articulo_latam/v2_es/figuras/`, con .pdf, .png a
   fig2_cascada_E0    dos paneles con el mismo eje: (a) el beneficio neto de la
                      comunidad en E0 con los siete mecanismos; (b) la cascada
                      de C4 al mercado con los tres nombres aprobados y la línea
-                     del mercado por el colectivo. Página.
+                     del P2P comunitario (desde el 2026-10-02 reemplaza al
+                     mercado por el colectivo como mecanismo, CANON §14.23).
+                     Página.
   fig_hora_E0        una hora de E0 en el eje de precios (pieza F2): la figura
                      de la tesis más el volumen transado como lado corto y la
                      energía disponible de cada comprador. Página.
-  fig3_trece_casos   la figura inglesa traducida, con los nombres nuevos en la
-                     leyenda. Columna.
-  fig4_gsa_inversion la figura inglesa traducida, sin cambios de contenido.
-                     Columna.
+  fig3_trece_casos   variante española propia desde el 2026-10-02: las barras
+                     de la figura inglesa con los nombres nuevos en la leyenda
+                     y el rombo del P2P comunitario − C4 en lugar del colectivo
+                     − C4 (CANON §14.23). Columna.
+  Nombre (2026-10-02, decisión del autor): el P2P comunitario se rotula «P2P
+  colectivo» en las Figs. 2 y 3 (CANON §14.23, nota de nombre); las claves
+  `*P2Pcom*`, las columnas de los CSV y el texto de `mec__E0__orden_P2Pcom`
+  conservan su nombre. La columna «Vía legal (colectivo) − C1» de la Fig. 4 se
+  queda hasta que llegue la sensibilidad global con el P2P colectivo.
+  fig4_gsa_inversion la figura inglesa traducida, sin cambios de contenido; la
+                     columna del colectivo se rotula «Vía legal (colectivo)
+                     − C1» (2026-10-02). Columna.
 
 Compuertas (fallan en voz alta con SystemExit):
   1. huella e1/L de cifras.csv (la del generador inglés) y coherencia de
      texto_en con valor en cada clave usada;
-  2. Fig. 2: los siete mecanismos siguen el orden de `mec__E0__orden`, C2 es
-     P2P al peso, la cascada cierra al peso y sus datos son los de la Fig. 2
-     inglesa;
-  3. Figs. 3 y 4: sus datos son, byte a byte en el CSV, los de la figura
-     inglesa;
+  2. Fig. 2: los siete mecanismos siguen el orden de `mec__E0__orden_P2Pcom`
+     (desde el 2026-10-02, C2 es el PPA de todo el excedente, CANON §14.22, y
+     el P2P comunitario, §14.23, ocupa el lugar del colectivo; los dos cuadran
+     con sus brechas al peso), la cascada cierra al peso y sus cinco pasos son
+     los de la Fig. 2 inglesa;
+  3. Fig. 4: sus datos son, byte a byte en el CSV, los de la figura inglesa;
+     Fig. 3 (variante española, 2026-10-02): sus tres series de barras son,
+     al peso, las de la figura inglesa y el rombo es com__*__P2Pcom − com__*__C4
+     al peso;
   4. figura de la hora: sus datos son los de la Figura 5.1 de la tesis
      (`Documentos/FinalTesisV2/figuras/c5_banda_hora.csv`); los pisos y el
      techo son las claves `kwh__*__2025-04__*` de cifras.csv; el volumen es la
@@ -227,80 +241,96 @@ def _miembros(ax, x0, ancho, y0, alto, papeles: bool = False) -> list[float]:
 
 
 def fig1() -> None:
+    # Ronda B (2026-09-30): m-22 de la revisión independiente. En C4 cada
+    # miembro se liquida con su comercializador contra su importación medida
+    # (flecha doble con el rótulo «importación»), y el fondo común entrega su
+    # reparto al comercializador por un pasillo a la derecha; en C1 la caja
+    # nombra la importación. La figura baja de 3,40 a 2,90 in de alto para
+    # liberar espacio al bloque inglés (C-1); el contenido no cambia.
     nombre = "fig1_comunidad"
-    W, Hh = ANCHO_PAG, 3.40
+    W, Hh = ANCHO_PAG, 2.90
     fig = plt.figure(figsize=(W, Hh))
     ax = fig.add_axes([0, 0, 1, 1])
     ax.set_xlim(0, W)
     ax.set_ylim(0, Hh)
     ax.axis("off")
     suave = E.COLOR_TEXTO_SUAVE
-    ret = "Comercializador de cada miembro (ASC Ingeniería o CEDENAR)"
+    # 2026-10-01: el autor pidió no nombrar a ningún comercializador.
+    ret = "Comercializador de cada miembro"
 
     # ── (a) Lo que las reglas permiten ──
     xa, wa = 0.06, 3.40
-    ax.text(xa, Hh - 0.05, "(a) Lo que las reglas permiten", ha="left", va="top",
+    ax.text(xa, Hh - 0.04, "(a) Lo que las reglas permiten", ha="left", va="top",
             fontsize=FS_TIT, fontweight="bold", color=E.COLOR_TEXTO)
     # C1
-    ax.text(xa, 3.10, "C1: autogeneración individual (CREG 174, art. 25)", ha="left", va="top",
+    ax.text(xa, 2.66, "C1: autogeneración individual (CREG 174, art. 25)", ha="left", va="top",
             fontsize=FS, style="italic", color=E.COLOR_TEXTO)
-    _caja(ax, xa, 2.56, wa, 0.34, [(ret, "normal"),
-                                   ("crédito y exceso de cada miembro, con el numeral de su planta",
-                                    "normal")], fc="#F2F2F2")
-    cs = _miembros(ax, xa, wa, 2.08, 0.24)
+    _caja(ax, xa, 2.18, wa, 0.32, [(ret, "normal"),
+                                   ("importación, crédito y exceso de cada miembro, con el numeral "
+                                    "de su planta", "normal")], fc="#F2F2F2")
+    cs = _miembros(ax, xa, wa, 1.80, 0.21)
     for cx in cs:
-        _flecha(ax, (cx, 2.32), (cx, 2.56), ls="--", color=C_LIQ, estilo="<|-|>")
-    ax.plot([xa, xa + wa], [1.98, 1.98], color="#CCCCCC", lw=0.6)
-    # C4
-    ax.text(xa, 1.93, "C4: autogeneración colectiva (CREG 101 072, arts. 18–21)", ha="left",
+        _flecha(ax, (cx, 2.01), (cx, 2.18), ls="--", color=C_LIQ, estilo="<|-|>")
+    ax.plot([xa, xa + wa], [1.72, 1.72], color="#CCCCCC", lw=0.6)
+    # C4: miembros en medio, con su liquidación hacia arriba y su inyección
+    # hacia el fondo común, abajo; el reparto del fondo sube por la derecha.
+    ax.text(xa, 1.68, "C4: autogeneración colectiva (CREG 101 072, arts. 18–21)", ha="left",
             va="top", fontsize=FS, style="italic", color=E.COLOR_TEXTO)
-    _caja(ax, xa, 1.32, wa, 0.44, [(ret, "normal"),
+    _caja(ax, xa, 1.10, wa, 0.42, [(ret, "normal"),
                                    ("cada parte, contra la importación de su miembro (art. 25)",
                                     "normal"),
                                    ("caso 2 para todos: Cv más cargos de red", "bold")], fc="#F2F2F2")
-    _caja(ax, xa, 0.76, wa, 0.36, [("Fondo común: la inyección de los cinco miembros", "normal"),
+    pasillo = 0.40
+    cs = _miembros(ax, xa, wa - pasillo, 0.71, 0.21)
+    for cx in cs:
+        _flecha(ax, (cx, 0.92), (cx, 1.10), ls="--", color=C_LIQ, estilo="<|-|>")
+        _flecha(ax, (cx, 0.71), (cx, 0.62), color=C_ENERGIA)
+    ax.text((cs[1] + cs[2]) / 2, 1.01, "importación", ha="center", va="center", fontsize=FS,
+            color=suave, bbox=dict(boxstyle="square,pad=0.05", fc="white", ec="none"), zorder=5)
+    _caja(ax, xa, 0.26, wa, 0.36, [("Fondo común: la inyección de los cinco miembros", "normal"),
                                    ("repartida con el porcentaje del art. 19 (aquí, igual)", "normal"),
                                    ("sin pagos entre miembros", "normal")],
           fc="#EAF6F1", ec=A.C_COL, ls=(0, (4, 2)))
-    cs = _miembros(ax, xa, wa, 0.38, 0.24)
-    for cx in cs:
-        _flecha(ax, (cx, 0.62), (cx, 0.76), color=C_ENERGIA)
-        _flecha(ax, (cx, 1.12), (cx, 1.32), ls="--", color=C_LIQ)
+    xp = xa + wa - pasillo / 2
+    _flecha(ax, (xp, 0.62), (xp, 1.10), ls="--", color=C_LIQ)
+    # m-B11 (re-revisión): el rótulo «reparto», girado, se leía diminuto; la
+    # flecha del pasillo se entiende sola y se quita.
 
     # separador de paneles
-    ax.plot([3.57, 3.57], [0.34, Hh - 0.05], color="#BBBBBB", lw=0.6)
+    ax.plot([3.57, 3.57], [0.26, Hh - 0.04], color="#BBBBBB", lw=0.6)
 
     # ── (b) Lo que el mercado supone ──
     xb, wb = 3.68, 3.40
-    ax.text(xb, Hh - 0.05, "(b) Lo que el mercado supone", ha="left", va="top",
+    ax.text(xb, Hh - 0.04, "(b) Lo que el mercado supone", ha="left", va="top",
             fontsize=FS_TIT, fontweight="bold", color=E.COLOR_TEXTO)
-    ax.text(xb, 3.10, "Mercado P2P con los dos supuestos (ninguna regla los prevé)", ha="left",
+    ax.text(xb, 2.66, "Mercado P2P con los dos supuestos (ninguna regla los prevé)", ha="left",
             va="top", fontsize=FS, style="italic", color=E.COLOR_TEXTO)
-    _caja(ax, xb, 2.44, wb, 0.46, [(ret, "normal"),
+    _caja(ax, xb, 2.06, wb, 0.44, [(ret, "normal"),
                                    ("Supuesto 1: residual por miembro", "bold"),
                                    ("fuera del colectivo, con el numeral de su planta", "normal")],
           fc="#F2F2F2")
-    cs = _miembros(ax, xb, wb, 1.78, 0.32, papeles=True)
+    cs = _miembros(ax, xb, wb, 1.46, 0.30, papeles=True)
     for cx in cs:
-        _flecha(ax, (cx, 2.10), (cx, 2.44), ls="--", color=C_LIQ, estilo="<|-|>")
-    ax.text((cs[1] + cs[2]) / 2, 2.27, "residual", ha="center", va="center", fontsize=FS,
+        _flecha(ax, (cx, 1.76), (cx, 2.06), ls="--", color=C_LIQ, estilo="<|-|>")
+    ax.text((cs[1] + cs[2]) / 2, 1.91, "residual", ha="center", va="center", fontsize=FS,
             color=suave)
-    _caja(ax, xb, 0.58, wb, 0.58, [("Intercambio interno, cada hora: precio uniforme", "normal"),
+    _caja(ax, xb, 0.26, wb, 0.56, [("Intercambio interno, cada hora: precio uniforme", "normal"),
                                    ("con tope en la tarifa de cada comprador", "normal"),
                                    ("Supuesto 2: el intercambio no paga cargos", "bold"),
-                                   ("ni Cv ni cargos de red, aunque usa la red de CEDENAR", "normal")],
+                                   ("ni Cv ni cargos de red, aunque usa la red de distribución",
+                                    "normal")],
           fc="#FFF4E0", ec=A.C_P2PC1)
     d = 0.07
     for n, cx in zip(INST, cs):
         if n in VENDEN:   # energía hacia el intercambio; pago de vuelta al vendedor
-            _flecha(ax, (cx - d, 1.78), (cx - d, 1.16), color=C_ENERGIA)
-            _flecha(ax, (cx + d, 1.16), (cx + d, 1.78), ls=":", color=C_PAGO, lw=1.0)
+            _flecha(ax, (cx - d, 1.46), (cx - d, 0.82), color=C_ENERGIA)
+            _flecha(ax, (cx + d, 0.82), (cx + d, 1.46), ls=":", color=C_PAGO, lw=1.0)
         else:             # energía hacia el comprador; su pago hacia el intercambio
-            _flecha(ax, (cx - d, 1.16), (cx - d, 1.78), color=C_ENERGIA)
-            _flecha(ax, (cx + d, 1.78), (cx + d, 1.16), ls=":", color=C_PAGO, lw=1.0)
+            _flecha(ax, (cx - d, 0.82), (cx - d, 1.46), color=C_ENERGIA)
+            _flecha(ax, (cx + d, 1.46), (cx + d, 0.82), ls=":", color=C_PAGO, lw=1.0)
 
     # ── Leyenda de trazos, a todo lo ancho ──
-    yl = 0.15
+    yl = 0.10
     muestras = [(0.9, "-", C_ENERGIA, "energía", 1.0),
                 (2.3, "--", C_LIQ, "liquidación con el comercializador", 1.0),
                 (4.6, ":", C_PAGO, "pago interno, del comprador al vendedor", 1.2)]
@@ -309,9 +339,10 @@ def fig1() -> None:
         ax.text(x + 0.36, yl, txt, ha="left", va="center", fontsize=FS, color=E.COLOR_TEXTO)
 
     datos = pd.DataFrame({
-        "panel": ["a", "a", "a", "a", "b", "b", "b", "leyenda", "leyenda", "leyenda"],
+        "panel": ["a", "a", "a", "a", "a", "b", "b", "b", "leyenda", "leyenda", "leyenda"],
         "elemento": ["C1: comercializador de cada miembro", "C1: miembros", "C4: fondo común",
                      "C4: comercializador de cada miembro, caso 2",
+                     "C4: miembros, liquidados contra su importación medida",
                      "mercado: comercializador de cada miembro (supuesto 1)",
                      "mercado: miembros (vende o compra en la hora)",
                      "mercado: intercambio interno (supuesto 2)",
@@ -319,6 +350,8 @@ def fig1() -> None:
         "nota": ["art. 25 de la CREG 174; numeral de la planta", "; ".join(INST),
                  "arts. 18-21 y 19 de la CREG 101 072; porcentaje igual",
                  "caso 2 del art. 20: Cv más cargos de red",
+                 "flecha doble hacia el comercializador (importación); inyección hacia el fondo; "
+                 "el reparto del fondo sube por el pasillo de la derecha",
                  "residual por miembro, fuera del colectivo, con el numeral de su planta",
                  "; ".join(INST), "precio uniforme con tope en la tarifa; sin cargos",
                  "trazo continuo", "trazo discontinuo", "trazo punteado"]})
@@ -328,23 +361,36 @@ def fig1() -> None:
         "(notas 14 y 18 del autor): el residual del mercado se liquida por miembro, fuera del "
         "colectivo (supuesto 1), y el intercambio interno no paga cargos (supuesto 2)",
         "papeles de la hora de ejemplo del panel (b): venden Udenar y CESMAG y compran Mariana, "
-        "UCC y HUDN, como en la hora de fig_hora_E0; cambian de hora en hora"])
+        "UCC y HUDN, como en la hora de fig_hora_E0; cambian de hora en hora",
+        "ronda B (2026-09-30), m-22: en C4 cada miembro se liquida contra su importación medida "
+        "(flecha doble rotulada) y el reparto del fondo llega al comercializador; alto de 3,40 a "
+        "2,90 in"])
 
 
 # ── Fig. 2: los siete mecanismos y la cascada de E0 ─────────────────────────
 MECANISMOS = [  # (clave, rótulo, color, rayado)
     ("P2P", "P2P", A.C_TOTAL_P2P, None),
-    ("C2", "C2\n(igual a P2P\nen el agregado)", A.C_TOTAL_P2P, None),
+    # Desde el 2026-10-02, por decisión del autor, el P2P comunitario (CANON
+    # §14.23; claves *P2Pcom*) reemplaza como mecanismo al mercado por el
+    # colectivo, que queda como la vía legal de hoy (esquina v(0,0) de §14.21).
+    # Desde el 2026-10-02 (más tarde), por decisión del autor, se rotula «P2P
+    # colectivo» (CANON §14.23, nota de nombre); las claves conservan P2Pcom.
+    ("P2Pcom", "P2P\ncolectivo", A.C_COL, None),
     ("C1", "C1", "#999999", None),
     ("C4", "C4", A.C_TOTAL_REF, None),
-    ("P2Pcol", "P2P por el\ncolectivo", A.C_COL, None),
     ("C5", "C5\n(referencia,\nno elegible)", "white", "////"),
+    # C2 es, desde el 2026-10-02, el de la propuesta medido como PPA de todo el
+    # excedente por institución, a la media de XM (CANON §14.22; claves *C2ppa);
+    # antes era el contrato interno de CAL-52, igual a P2P en el agregado.
+    ("C2ppa", "C2 (venta a\nun tercero,\nPPA)", A.OI["purpura"], None),
     # C3: contrafáctico declarado (tesis §6.5 y Tabla 6.x: «contrafáctico declarado,
     # no un régimen elegible»); el artículo usa un único calificativo, «contrafáctico»
     # (ronda 1 de A3, M-12)
     ("C3", "C3\n(contrafáctico)", "white", "\\\\\\\\"),
 ]
-ORDEN_CANON = {"P2P": "P2P", "C2": "C2", "C1": "C1", "C4": "C4", "P2Pcol": "P2P colectivo",
+# (el texto de la clave mec__E0__orden_P2Pcom conserva «P2P comunitario»: las
+# claves no cambian; en la figura se rotula «P2P colectivo»)
+ORDEN_CANON = {"P2P": "P2P", "C2ppa": "C2", "C1": "C1", "C4": "C4", "P2Pcom": "P2P comunitario",
                "C5": "C5", "C3": "C3"}
 
 
@@ -362,24 +408,32 @@ def fig2() -> None:
     c = "E0"
     b = {m: V(f"com__{c}__{m}", d) for m, *_ in MECANISMOS}
     exige(int(V("mec__n", d)) == len(MECANISMOS), "mec__n no es 7")
-    exige(abs(b["C2"] - b["P2P"]) <= PESO, "C2 no es P2P en el agregado de E0 (regla 5)")
-    orden = sorted(MECANISMOS, key=lambda m: -round(b[m[0]], 6))   # al peso: C2 = P2P
-    esperado = A.T("mec__E0__orden", d)
-    exige(" > ".join(ORDEN_CANON[m[0]] for m in orden).replace("P2P > C2", "P2P = C2")
-          == esperado, f"el orden de los mecanismos no es el de mec__E0__orden ({esperado})")
+    # C2 como PPA (CANON §14.22): su valor cuadra con sus brechas al peso
+    for m in ["P2P", "C1", "C4", "C3"]:
+        exige(abs(b["C2ppa"] - b[m] - V(f"com__{c}__C2ppa_{m}", d)) <= PESO,
+              f"E0: com__E0__C2ppa − {m} no es com__E0__C2ppa_{m}")
+    # P2P comunitario (CANON §14.23): su valor cuadra con sus brechas al peso
+    for m in ["P2P", "C1", "C4", "C5", "C2ppa", "C3"]:
+        exige(abs(b["P2Pcom"] - b[m] - V(f"com__{c}__P2Pcom_{m}", d)) <= PESO,
+              f"E0: com__E0__P2Pcom − {m} no es com__E0__P2Pcom_{m}")
+    orden = sorted(MECANISMOS, key=lambda m: -round(b[m[0]], 6))
+    esperado = A.T("mec__E0__orden_P2Pcom", d)
+    exige(" > ".join(ORDEN_CANON[m[0]] for m in orden) == esperado,
+          f"el orden de los mecanismos no es el de mec__E0__orden_P2Pcom ({esperado})")
     exige([m[0] for m in orden] == [m[0] for m in MECANISMOS], "MECANISMOS no está ordenado")
-    ok(f"E0: siete mecanismos en el orden de mec__E0__orden ({esperado}); C2 = P2P al peso")
+    ok(f"E0: siete mecanismos en el orden de mec__E0__orden_P2Pcom ({esperado}); el P2P comunitario y C2 "
+       "(PPA a la media de XM) cuadran con sus brechas al peso")
 
     c4, c1_c4 = b["C4"], V(f"com__{c}__C1_C4", d)
     banda, reclas = V(f"com__{c}__banda", d), V(f"com__{c}__reclas", d)
-    p2p, col, c1 = b["P2P"], b["P2Pcol"], b["C1"]
+    p2p, pcom, c1 = b["P2P"], b["P2Pcom"], b["C1"]
     exige(abs(c4 + c1_c4 + banda + reclas - p2p) <= PESO, "cascada de E0: no cierra al peso")
     exige(abs(c4 + c1_c4 - c1) <= PESO, "cascada de E0: C4 + cargos evitados no es C1")
     niveles = [c4, c4 + c1_c4, c4 + c1_c4 + banda, c4 + c1_c4 + banda + reclas]
     ok("cascada de E0: C4 + cargos evitados + ahorro del intercambio + efecto sobre el crédito "
        "= P2P al peso")
 
-    fig, (axa, axb) = plt.subplots(1, 2, sharey=True, figsize=(ANCHO_PAG, 2.75),
+    fig, (axa, axb) = plt.subplots(1, 2, sharey=True, figsize=(ANCHO_PAG, 2.30),
                                    gridspec_kw=dict(width_ratios=[7, 5]))
     piso, techo = A.eje_truncado(list(b.values()) + niveles, sobre=0.5)
 
@@ -396,27 +450,38 @@ def fig2() -> None:
     # (b) la cascada con los tres nombres
     pasos = [
         ("C4", piso, c4 - piso, A.C_TOTAL_REF, TX(f"com__{c}__C4", d)),
-        ("+ cargos\nevitados\n(supuesto 1)", c4, c1_c4, A.C_C1C4,
+        ("+ cargos\nevitados", c4, c1_c4, A.C_C1C4,
          TX(f"com__{c}__C1_C4", d, signo=True)),
-        ("+ ahorro del\nintercambio\n(supuesto 2)", niveles[1], banda, A.C_P2PC1,
+        ("+ ahorro del\nintercambio", niveles[1], banda, A.C_P2PC1,
          TX(f"com__{c}__banda", d, signo=True)),
-        ("+ efecto\nsobre el\ncrédito\n(supuesto 1)", niveles[2], reclas, A.C_RECLAS,
+        ("+ efecto\nsobre el\ncrédito", niveles[2], reclas, A.C_RECLAS,
          TX(f"com__{c}__reclas", d, signo=True)),
         ("P2P", piso, p2p - piso, A.C_TOTAL_P2P, TX(f"com__{c}__P2P", d)),
     ]
     for i, (_, y0, h, colr, txt) in enumerate(pasos):
         axb.bar(i, h, bottom=y0, width=0.62, color=colr, edgecolor="#333333", lw=0.5, zorder=3)
-        axb.text(i, y0 + max(h, 0) + 0.06, txt, ha="center", va="bottom", fontsize=FS,
-                 color=E.COLOR_TEXTO, zorder=5)
+        cima = y0 + max(h, 0)
+        if cima < pcom - 0.05 and cima + 0.06 + 0.25 > pcom:
+            # la línea del P2P comunitario cruzaría el rótulo («+1,71» en E0): va
+            # dentro de la barra, en blanco, bajo su borde superior
+            axb.text(i, cima - 0.06, txt, ha="center", va="top", fontsize=FS,
+                     color="white", zorder=5)
+        else:
+            axb.text(i, cima + 0.06, txt, ha="center", va="bottom", fontsize=FS,
+                     color=E.COLOR_TEXTO, zorder=5)
     for i, nv in enumerate(niveles):
         axb.plot([i + 0.31, i + 0.69], [nv, nv], color="#555555", lw=0.6, ls=(0, (2, 1.5)),
                  zorder=2)
     # C1 a la izquierda de la barra de los cargos evitados, a su altura (no sobre +1,71)
     axb.text(0.64, c1, f"C1: {TX(f'com__{c}__C1', d)}", ha="right", va="center",
              fontsize=FS, color=E.COLOR_TEXTO_SUAVE)
-    axb.axhline(col, color=A.C_COL, lw=1.1, ls="--", zorder=4)
-    axb.text(2.4, col - 0.1, f"P2P por el colectivo: {TX(f'com__{c}__P2Pcol', d)}",
-             ha="center", va="top", fontsize=FS, color=E.COLOR_TEXTO,
+    # 2026-10-02: la línea es el P2P comunitario (CANON §14.23), que reemplaza al
+    # mercado por el colectivo; queda casi a la altura de P2P, de modo que el
+    # rótulo va debajo, en dos líneas, en el hueco entre la barra del ahorro del
+    # intercambio y la de P2P.
+    axb.axhline(pcom, color=A.C_COL, lw=1.1, ls="--", zorder=4)
+    axb.text(3.0, pcom - 0.1, f"P2P colectivo:\n{TX(f'com__{c}__P2Pcom', d)}",
+             ha="center", va="top", fontsize=FS, color=E.COLOR_TEXTO, linespacing=1.15,
              bbox=dict(boxstyle="round,pad=0.15", fc="white", ec="none", alpha=0.9), zorder=6)
     axb.set_xticks(range(len(pasos)), [p[0] for p in pasos])
     axb.set_xlim(-0.55, len(pasos) - 0.45)
@@ -441,40 +506,60 @@ def fig2() -> None:
     # Los datos de la cascada son los de la Fig. 2 inglesa (misma tabla con huella).
     en = pd.read_csv(DIR_EN / "fig2_cascada_E0.csv", encoding="utf-8-sig")
     casc = pd.DataFrame({
-        "paso": ["C4", "C1_menos_C4", "banda", "reclasificacion", "P2P", "P2P_colectivo"],
-        "base_MCOP": [0.0, c4, niveles[1], niveles[2], 0.0, 0.0],
-        "altura_MCOP": [c4, c1_c4, banda, reclas, p2p, col],
-        "nivel_final_MCOP": [c4, niveles[1], niveles[2], niveles[3], p2p, col]})
+        "paso": ["C4", "C1_menos_C4", "banda", "reclasificacion", "P2P"],
+        "base_MCOP": [0.0, c4, niveles[1], niveles[2], 0.0],
+        "altura_MCOP": [c4, c1_c4, banda, reclas, p2p],
+        "nivel_final_MCOP": [c4, niveles[1], niveles[2], niveles[3], p2p]})
+    # la Fig. 2 inglesa conserva la línea del colectivo; se comparan los cinco pasos
+    exige(list(en.paso) == list(casc.paso) + ["P2P_colectivo"], f"pasos de la Fig. 2 inglesa: {list(en.paso)}")
     try:
-        pd.testing.assert_frame_equal(casc, en[casc.columns.tolist()], check_dtype=False,
+        pd.testing.assert_frame_equal(casc, en[casc.columns.tolist()].iloc[:5], check_dtype=False,
                                       rtol=1e-12, atol=1e-12)
     except AssertionError as e:
         raise SystemExit(f"[gen_figuras_articulo_es] COMPUERTA FALLIDA: la cascada no es la de "
                          f"la Fig. 2 inglesa: {e}")
-    ok("cascada: mismos datos que Documentos/articulo_latam/v2/figuras/fig2_cascada_E0.csv")
-    nombres_casc = {"C4": "C4", "C1_menos_C4": "cargos evitados (C1 − C4; supuesto 1)",
-                    "banda": "ahorro del intercambio (banda; supuesto 2)",
-                    "reclasificacion": "efecto sobre el crédito (reclasificación; supuesto 1)",
-                    "P2P": "P2P", "P2P_colectivo": "P2P por el colectivo"}
+    ok("cascada: mismos datos que Documentos/articulo_latam/v2/figuras/fig2_cascada_E0.csv "
+       "(los cinco pasos; la línea es el P2P comunitario y no el colectivo de la inglesa)")
+    casc = pd.concat([casc, pd.DataFrame({"paso": ["P2P_comunitario"], "base_MCOP": [0.0],
+                                          "altura_MCOP": [pcom], "nivel_final_MCOP": [pcom]})],
+                     ignore_index=True)
+    nombres_casc = {"C4": "C4", "C1_menos_C4": "cargos evitados (C1 − C4)",
+                    "banda": "ahorro del intercambio (banda)",
+                    "reclasificacion": "efecto sobre el crédito (reclasificación)",
+                    "P2P": "P2P", "P2P_comunitario": "P2P colectivo (línea discontinua)"}
     datos = pd.concat([
         pd.DataFrame({"panel": "a", "rotulo": [m[1].replace("\n", " ") for m in MECANISMOS],
                       "clave": [f"com__E0__{m[0]}" for m in MECANISMOS],
                       "beneficio_MCOP": [b[m[0]] for m in MECANISMOS]}),
         pd.DataFrame({"panel": "b", "rotulo": [nombres_casc[p] for p in casc.paso],
                       "clave": ["com__E0__C4", "com__E0__C1_C4", "com__E0__banda",
-                                "com__E0__reclas", "com__E0__P2P", "com__E0__P2Pcol"],
+                                "com__E0__reclas", "com__E0__P2P", "com__E0__P2Pcom"],
                       "base_MCOP": casc.base_MCOP, "altura_MCOP": casc.altura_MCOP,
                       "nivel_final_MCOP": casc.nivel_final_MCOP}),
     ], ignore_index=True)
     guardar(fig, nombre, datos, "pag", [
         f"eje vertical común a los dos paneles, desde {piso} MCOP (marcado con un corte)",
-        "compuertas: mec__n = 7; orden de las barras = mec__E0__orden; C2 = P2P al peso "
-        "(regla 5 de CLAUDE.md; sin C4 mensual, alias de C4, regla 4); la cascada cierra al peso "
-        "y sus datos son los de la Fig. 2 inglesa",
-        "C5 rayado: referencia no elegible; C2 rotulado igual a P2P en el agregado",
+        "compuertas: mec__n = 7; orden de las barras = mec__E0__orden_P2Pcom; el P2P comunitario y "
+        "C2 como PPA cuadran con sus brechas al peso (sin C4 mensual, alias de C4, regla 4); la "
+        "cascada cierra al peso y sus cinco pasos son los de la Fig. 2 inglesa",
+        "P2P comunitario (2026-10-02, decisión del autor): reemplaza como mecanismo al mercado por "
+        "el colectivo, en la barra del panel (a) y en la línea discontinua del panel (b) (CANON sec. "
+        "14.23, clave com__E0__P2Pcom: intercambio interno exento de cargos y residual al "
+        "autogenerador colectivo sin la regla del 10 %, caso 1 en E0); el colectivo, la vía legal "
+        "de hoy (com__E0__P2Pcol, 44,48), ya no se dibuja; como la línea queda casi a la altura "
+        "de P2P, el rótulo de los cargos evitados va dentro de su barra, en blanco",
+        "nombre (2026-10-02, decisión del autor): el P2P comunitario se rotula «P2P colectivo» en la "
+        "barra, en la línea y en el CSV (CANON sec. 14.23, nota de nombre); la clave com__E0__P2Pcom y el "
+        "identificador del paso P2P_comunitario conservan su nombre, y el texto de mec__E0__orden_P2Pcom "
+        "dice «P2P comunitario»",
+        "C5 rayado: referencia no elegible; C2 (2026-10-02) es el de la propuesta medido como PPA "
+        "de todo el excedente por institución a la media de XM (CANON sec. 14.22, clave "
+        "com__E0__C2ppa), no el contrato interno de CAL-52 (igual a P2P en el agregado)",
         "nombres aprobados el 2026-09-30: cargos evitados = C1 − C4, ahorro del intercambio = "
         "banda, efecto sobre el crédito = reclasificación (0,00 en E0: nadie agota su crédito); "
-        "los dos que dependen del residual por miembro se atan al supuesto 1 y la banda al 2"])
+        "ronda B (2026-09-30), I-1: los rótulos ya no atan cada barra a un supuesto, porque esa "
+        "atribución depende del orden (CANON sec. 14.21); la cascada sigue el orden de la "
+        "identidad (6), que pasa por C1; alto de 2,75 a 2,30 in (ronda B y su re-revisión)"])
 
 
 # ── Una hora de E0 en el eje de precios (pieza F2) ──────────────────────────
@@ -595,13 +680,115 @@ def fig_hora() -> None:
         "que registrarlas antes"])
 
 
+# ── Fig. 3: los trece casos, con el P2P comunitario (variante española) ─────
+LEY_FIG3 = {  # serie -> rótulo de la leyenda
+    "C1_C4": "cargos evitados (C1 − C4)",
+    "C1_C4_neg": "C1 − C4 < 0 (C4 supera a C1)",
+    "P2P_C1": "ahorro del intercambio + efecto\nsobre el crédito (P2P − C1)",
+    "P2P_C4": "P2P − C4",
+    "P2Pcom_C4": "P2P colectivo − C4",          # antes «P2P comunitario» (nombre del 2026-10-02)
+}
+
+
+def fig3() -> None:
+    """Variante española propia (2026-10-02): la de la figura inglesa
+    (`gen_figuras_articulo.fig3`, sin modificar), con los nombres aprobados y el
+    rombo del P2P comunitario − C4 (CANON §14.23, claves com__<caso>__P2Pcom_C4)
+    en lugar del mercado por el colectivo − C4, que deja de ser mecanismo."""
+    nombre = d = "fig3_trece_casos"
+    casos = A.CASOS
+    c1c4 = np.array([V(f"com__{c}__C1_C4", d) for c in casos])
+    p2pc1 = np.array([V(f"com__{c}__P2P_C1", d) for c in casos])
+    p2pc4 = np.array([V(f"com__{c}__P2P_C4", d) for c in casos])
+    pcomc4 = np.array([V(f"com__{c}__P2Pcom_C4", d) for c in casos])
+    exige(np.all(np.abs(c1c4 + p2pc1 - p2pc4) <= PESO), "fig3: las partes no suman P2P − C4")
+    exige(np.all(p2pc1 > 0), "fig3: P2P − C1 no es positivo en todos los casos")
+    for c, v in zip(casos, pcomc4):
+        exige(abs(v - (V(f"com__{c}__P2Pcom", d) - V(f"com__{c}__C4", d))) <= PESO,
+              f"fig3 {c}: com__{c}__P2Pcom_C4 no es P2P comunitario − C4 al peso")
+    exige(np.all(pcomc4 > 0), "fig3: P2P comunitario − C4 no es positivo en los 13 casos")
+    # las tres series compartidas son, al peso, las de la Fig. 3 inglesa
+    en = pd.read_csv(DIR_EN / f"{nombre}.csv", encoding="utf-8-sig")
+    exige(list(en.caso) == list(casos), "fig3: casos de la figura inglesa")
+    for col, v in [("C1_menos_C4_MCOP", c1c4), ("P2P_menos_C1_MCOP", p2pc1), ("P2P_menos_C4_MCOP", p2pc4)]:
+        exige(np.all(np.abs(en[col].to_numpy() - v) <= 1e-12), f"fig3: {col} no es el de la figura inglesa")
+    ok("fig3: C1 − C4 + P2P − C1 = P2P − C4 al peso y las tres series = las de la Fig. 3 inglesa; "
+       "P2P comunitario − C4 = com__*__P2Pcom − com__*__C4 al peso, positivo en los 13 casos")
+
+    fig, ax = plt.subplots(figsize=(ANCHO_COL, 3.05))
+    x = np.arange(len(casos))
+    w = 0.66
+    pos_c1c4 = np.clip(c1c4, 0, None)
+    neg_c1c4 = np.clip(c1c4, None, 0)
+    lumas = {n: A.luma(col) for n, col in [("C1 − C4", A.C_C1C4), ("C1 − C4 < 0", A.C_C1C4_NEG),
+                                            ("P2P − C1", A.C_P2PC1)]}
+    orden_l = sorted(lumas.values())
+    exige(min(b - a for a, b in zip(orden_l, orden_l[1:])) >= 0.15, f"fig3: rellenos poco distintos en gris {lumas}")
+    h = {}
+    h["C1_C4"] = ax.bar(x, pos_c1c4, width=w, color=A.C_C1C4, edgecolor="#333333", lw=0.4, zorder=3)
+    h["C1_C4_neg"] = ax.bar(x, neg_c1c4, width=w, color=A.C_C1C4_NEG, edgecolor="#333333", lw=0.4, zorder=3)
+    h["P2P_C1"] = ax.bar(x, p2pc1, bottom=pos_c1c4, width=w, color=A.C_P2PC1, edgecolor="#333333", lw=0.4,
+                         zorder=3)
+    h["P2P_C4"] = ax.scatter(x, p2pc4, marker="_", s=70, lw=1.4, color="#000000", zorder=5)
+    h["P2Pcom_C4"] = ax.scatter(x, pcomc4, marker="D", s=13, color=A.C_COL, edgecolor="#000000", lw=0.5,
+                                zorder=6)
+    ax.axhline(0, color="#333333", lw=0.7, zorder=4)
+    ax.set_xticks(x, casos)
+    ax.tick_params(axis="x", labelsize=FS)
+    ax.tick_params(axis="y", labelsize=FS)
+    ax.set_xlim(-0.6, len(casos) - 0.4)
+    ax.set_ylim(neg_c1c4.min() - 1.5, max((pos_c1c4 + p2pc1).max(), pcomc4.max()) * 1.08)
+    E.aplicar_estilo_ejes(ax, xlabel="Caso", ylabel="Diferencia con C4 (MCOP)")
+    ax.grid(axis="x", visible=False)
+    ax.yaxis.set_major_formatter(T._FormatoEs(useOffset=False))
+    # leyenda bajo el eje, en dos columnas (como la traducción anterior)
+    orden = ["C1_C4", "P2P_C1", "C1_C4_neg", "P2P_C4", "P2Pcom_C4"]
+    fig.legend([h[k] for k in orden], [LEY_FIG3[k] for k in orden], loc="lower center",
+               bbox_to_anchor=(0.5, 0.0), ncol=2, frameon=False, fontsize=FS,
+               handlelength=1.3, columnspacing=0.8, labelspacing=0.35, handletextpad=0.4)
+    fig.canvas.draw()
+    r = fig.canvas.get_renderer()
+    alto_ley = fig.legends[0].get_window_extent(r).height / fig.bbox.height
+    fig.tight_layout(pad=0.3, rect=[0, alto_ley + 0.01, 1, 1])
+    fig.canvas.draw()
+    exige(fig.legends[0].get_window_extent(r).y1 < ax.get_tightbbox(r).y0 - 1, "fig3: la leyenda pisa el eje")
+    T.menos_tipografico(fig)
+    lo, hi = ax.get_ylim()
+    for yt in ax.get_yticks():                               # marcas del eje, no cifras
+        if lo <= yt <= hi:
+            MARCAS[d].update({f"{yt:g}".replace("-", ""), f"{yt:.1f}".replace(".", ",")})
+    IMPRESOS[d] = set()                                      # ninguna cifra impresa salvo las marcas
+
+    datos = pd.DataFrame({"caso": casos, "C1_menos_C4_MCOP": c1c4, "P2P_menos_C1_MCOP": p2pc1,
+                          "P2P_menos_C4_MCOP": p2pc4, "P2Pcom_menos_C4_MCOP": pcomc4})
+    guardar(fig, nombre, datos, "col", [
+        "variante española propia (2026-10-02); la figura inglesa (gen_figuras_articulo.py, fig3) y "
+        "su CSV no se tocan",
+        "barras apiladas con signo: cargos evitados C1 − C4 (azul; azul claro si es negativo, E4, E5 "
+        "e I1) y ahorro del intercambio + efecto sobre el crédito P2P − C1 (naranja) sobre cero; "
+        "raya negra = P2P − C4; rombo verde = P2P colectivo − C4",
+        "nombre (2026-10-02, decisión del autor): el P2P comunitario se rotula «P2P colectivo» en la "
+        "leyenda (CANON sec. 14.23, nota de nombre); la columna P2Pcom_menos_C4_MCOP y las claves "
+        "conservan su nombre",
+        "P2P comunitario (CANON sec. 14.23, claves com__<caso>__P2Pcom_C4): reemplaza como "
+        "mecanismo al mercado por el colectivo, que era el rombo de la figura anterior "
+        "(com__<caso>__P2Pcol_C4, la vía legal de hoy, ya no se dibuja); en E3 el rombo (40,38) "
+        "queda sobre la barra (35,85), y el eje sube hasta él",
+        "compuertas: las tres series compartidas son, al peso, las de "
+        "Documentos/articulo_latam/v2/figuras/fig3_trece_casos.csv; P2P comunitario − C4 = "
+        "com__*__P2Pcom − com__*__C4 al peso; rellenos distintos en gris; la leyenda no pisa el eje"])
+
+
 # ── Figs. 3 y 4: las inglesas traducidas, con los nombres nuevos ────────────
 TRAD_NUEVOS = {
     "C1 − C4 (case-2 charges)": "cargos evitados (C1 − C4)",
     "C1 − C4 < 0 (C4 leads C1)": "C1 − C4 < 0 (C4 supera a C1)",
     "P2P − C1 (band + reclass.)": "ahorro del intercambio + efecto\nsobre el crédito (P2P − C1)",
     "P2P via collective − C4": "P2P por el colectivo − C4",
-    "P2P coll.\n− C1": "P2P por el\ncolectivo\n− C1",                  # Fig. 4, sin abreviar
+    # Fig. 4: desde el 2026-10-02 el P2P comunitario reemplaza al colectivo como
+    # mecanismo y no está en el GSA; la columna se conserva y se rotula como lo
+    # que es, la vía legal de hoy (los datos no cambian)
+    "P2P coll.\n− C1": "Vía legal\n(colectivo)\n− C1",
 }
 
 
@@ -613,32 +800,28 @@ def desde_ingles(func: str, nombre: str, alto: float | None) -> None:
     fig, datos = T._CAPTURA["fig"], T._CAPTURA["datos"]
     T.datos_iguales(datos, DIR_EN / f"{nombre}.csv", nombre)
     T.traduce_figura(fig)
-    if func == "fig3":
-        ax = fig.axes[0]
-        ley = ax.get_legend()
-        h = list(ley.legend_handles)
-        l_ = [t.get_text() for t in ley.get_texts()]
-        ley.remove()
-        fig.set_size_inches(ANCHO_COL, alto)
-        # la leyenda pasa debajo del eje, en dos columnas; el eje recupera la altura
-        ax.set_ylim(ax.get_ylim()[0], max(p.get_y() + p.get_height() for p in ax.patches) * 1.08)
-        orden = [0, 2, 1, 3, 4]
-        fig.legend([h[i] for i in orden], [l_[i] for i in orden], loc="lower center",
-                   bbox_to_anchor=(0.5, 0.0), ncol=2, frameon=False, fontsize=FS,
-                   handlelength=1.3, columnspacing=0.8, labelspacing=0.35, handletextpad=0.4)
-        fig.canvas.draw()
-        r = fig.canvas.get_renderer()
-        alto_ley = fig.legends[0].get_window_extent(r).height / fig.bbox.height
-        fig.tight_layout(pad=0.3, rect=[0, alto_ley + 0.01, 1, 1])
-        fig.canvas.draw()
-        exige(fig.legends[0].get_window_extent(r).y1 < ax.get_tightbbox(r).y0 - 1,
-              "fig3: la leyenda pisa el eje")
     if func == "fig4":
-        # «P2P por el colectivo» sin abreviar ocupa tres líneas: el mapa baja un
-        # poco para que la cabecera quepa en el lienzo (solo composición)
+        # «Vía legal (colectivo) − C1» ocupa tres líneas: el mapa baja un poco
+        # para que la cabecera quepa en el lienzo (solo composición)
         ax = fig.axes[0]
         p = ax.get_position()
         ax.set_position([p.x0, p.y0, p.width, p.height - 0.03])
+        # Ronda B (2026-09-30), C-1: la figura baja de 4,30 a 3,55 in de alto
+        # para dejar sitio al bloque inglés. Se conservan en pulgadas el margen
+        # inferior, la barra de color y el margen de la cabecera; solo se
+        # acortan las filas del mapa (solo composición, los datos no cambian).
+        h0 = fig.get_size_inches()[1]
+        h1 = 3.55
+        posiciones = []
+        for k, a in enumerate(fig.axes):
+            q = a.get_position()
+            y0_in, alto_in = q.y0 * h0, q.height * h0
+            if k == 0:                                 # el mapa: pierde lo que baja la figura
+                alto_in -= h0 - h1
+            posiciones.append((a, [q.x0, y0_in / h1, q.width, alto_in / h1]))
+        fig.set_size_inches(ANCHO_COL, h1)
+        for a, pos in posiciones:
+            a.set_position(pos)
     csv = (DIR_EN / f"{nombre}.csv").read_text(encoding="utf-8-sig")
     guardar(fig, nombre, datos, "col", [
         f"generador inglés reutilizado sin modificar: gen_figuras_articulo.py, función {func}() "
@@ -646,7 +829,9 @@ def desde_ingles(func: str, nombre: str, alto: float | None) -> None:
         "textos traducidos con el diccionario cerrado TRAD de gen_figuras_entrega.py"
         + (", con los nombres aprobados el 2026-09-30 en la leyenda (cargos evitados; ahorro "
            "del intercambio + efecto sobre el crédito); leyenda bajo el eje" if func == "fig3" else
-           "; sin cambios de contenido"),
+           "; sin cambios de contenido; la columna P2Pcol − C1 se rotula «Vía legal (colectivo) − C1» "
+           "(2026-10-02: el P2P comunitario, que no está en el GSA, reemplaza al colectivo como "
+           "mecanismo; los datos no cambian)"),
         "compuerta: los datos son los de Documentos/articulo_latam/v2/figuras/"
         f"{nombre}.csv (sha256 del CSV inglés {hashlib.sha256(csv.encode('utf-8')).hexdigest()[:16]}…)"])
     exige(sha(DIR_SAL / f"{nombre}.csv") == sha(DIR_EN / f"{nombre}.csv"),
@@ -670,6 +855,8 @@ def comprueba() -> None:
         exige(abs(px[0] - r["ancho"] * DPI) <= 1, f"{n}.png: {px[0]} px de ancho")
         texto = H._canoniza_menos(PdfReader(pdf).pages[0].extract_text())
         exige("Cesmag" not in texto, f"{n}: el PDF rotula «Cesmag»")
+        exige(not re.search(r"\bASC\b|CEDENAR", texto, re.IGNORECASE),
+              f"{n}: el PDF nombra a un comercializador")
         malos = []
         for x in H.extrae_numeros_es(texto):
             forma = x.entero + ("," + x.decimales if x.decimales else "")
@@ -705,7 +892,8 @@ def main() -> int:
     rc_articulo()
     fig2()
     fig_hora()
-    desde_ingles("fig3", "fig3_trece_casos", 3.05)
+    rc_articulo()
+    fig3()                                               # variante española (P2P comunitario)
     desde_ingles("fig4", "fig4_gsa_inversion", None)
     comprueba()
     print("[gen_figuras_articulo_es] FIGURAS EN ESPAÑOL ESCRITAS")

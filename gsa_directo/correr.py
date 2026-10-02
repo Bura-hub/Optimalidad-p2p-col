@@ -128,7 +128,8 @@ def evalua_falso(ins, x, idx: int = -1) -> dict:
     out = {"P2P": base + 3e5 * f_cv, "C1": base, "C2": base + 3e5 * f_cv,
            "C3": base * 0.92 - 1e4 * f_b, "C4": base * 0.96 - 2e5 * f_p,
            "C5": base * 0.95 - 5e4 * f_b, "P2P_colectivo": base * 0.96
-           - 1.5e5 * f_p}
+           - 1.5e5 * f_p, "P2Pcom": base * 1.01 - 1e5 * f_p,
+           "C2ppa": base * 0.95 + 1e5 * e_g}
     out["energia"] = 4592.0 * e_g
     out["excedente"] = 3e5 * f_cv
     out["parte_vendedor"] = 0.54 + 0.01 * np.sin(f_cv)
@@ -689,6 +690,16 @@ def ejecuta(argv=None) -> int:
                   f"({prev.get('huella_datos')} frente a {h_datos}). Reanudar "
                   f"mezclaria dos poblaciones; renombra la corrida anterior.")
             return 2
+        # 2026-10-02: la huella del diseno no lleva las salidas. Una corrida
+        # con las columnas de antes de C2ppa y P2Pcom no se retoma con las
+        # nuevas: mezclaria filas de dos esquemas bajo los mismos indices.
+        if prev.get("columnas") is not None and list(prev["columnas"]) != cols:
+            print(f"\n  ABORTA: ya hay una corrida con OTRAS columnas de salida "
+                  f"bajo este nombre ({len(prev['columnas'])} frente a "
+                  f"{len(cols)}): es de otra version de las salidas (p. ej. "
+                  f"antes de C2ppa y P2Pcom). Usa otra carpeta de salidas "
+                  f"(GSA_SALIDAS en el lanzador) o mueve la anterior.")
+            return 2
         codigos = list(prev.get("codigos") or [prev.get("codigo")])
         if codigos[-1] != codigo:
             print(f"\n  AVISO: el CODIGO cambio desde la tanda anterior "
@@ -718,7 +729,8 @@ def ejecuta(argv=None) -> int:
     print(f"  punto base en {time.time() - t1:.1f} s: P2P "
           f"{base['P2P']:,.2f} · C1 {base['C1']:,.2f} · energia "
           f"{base['energia']:,.3f} · parte del vendedor "
-          f"{base['parte_vendedor']:.4f} · cuantales {base['n_cuantal']:.0f}")
+          f"{base['parte_vendedor']:.4f} · cuantales {base['n_cuantal']:.0f}"
+          f" · P2Pcom {base['P2Pcom']:,.2f} · C2ppa {base['C2ppa']:,.2f}")
 
     carpeta.mkdir(parents=True, exist_ok=True)
     import scipy

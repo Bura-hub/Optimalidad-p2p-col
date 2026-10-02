@@ -43,6 +43,23 @@ Donde se aplica cada factor (apartado 4 del diseno):
   comparacion (colectivo en el caso 2).
 - e_G, e_D: la generacion y la demanda tras el escalado del caso. La
   capacidad instalada no cambia: es la placa.
+
+Desde el 2026-10-02, cada evaluacion liquida ademas dos mecanismos que
+`main()` no tiene, con las MISMAS series (D tras la DR, G_klim, el techo, la
+bolsa, el Cv y los peajes con sus factores) y las funciones del nucleo:
+
+- `C2ppa` (punto P, CANON §14.22): cada institucion vende todo su excedente
+  horario a PP = la media de la serie de XM de contratos del mercado no
+  regulado en el horizonte (287,41 COP/kWh; ninguna entrada lo mueve), sin
+  credito; autoconsumo a la tarifa.
+- `P2Pcom`, el P2P colectivo (punto PC, §14.23): los flujos y precios del
+  mercado en ese punto sin cargos y fuera del fondo; el residual al
+  colectivo con el PDE igual (Anexo 4, perfil horario declarado), con kappa*Cv
+  en el caso 1 y kappa*Cv + Theta en el caso 2 del art. 20 sin la regla del
+  10 % (por la placa: caso 2 en E4, E5 y P2).
+
+Una guarda en cada evaluacion exige que la liquidacion portada, sin
+intercambio y en el caso 2, sea el C4 del motor institucion por institucion.
 """
 from __future__ import annotations
 
@@ -147,6 +164,17 @@ class Insumos:
     # COT en las instituciones de CEDENAR (Cv vigente de la 101 028, art. 5);
     # False con solo el Cv, que es el canon (CAL-10b.2).
     cot_en_deduccion: bool = False
+    # C2 como PPA (punto P, CANON §14.22): el precio pactado constante, la
+    # media horaria de la serie de XM de contratos del mercado no regulado
+    # sobre el HORIZONTE COMPLETO (287,41 COP/kWh), tambien con `dia`. None
+    # en los insumos sinteticos: `evalua` falla en voz alta sin el.
+    pp_c2: Optional[float] = None
+    # P2P colectivo (punto PC, §14.23): el caso del art. 20 SIN la regla del
+    # 10 % (1 o 2), la capacidad instalada por usuario del art. 18 (kW) y la
+    # suma de las plantas (kW). Dependen de la placa, no de las entradas.
+    caso_pcom: Optional[int] = None
+    cinac_kw: Optional[float] = None
+    suma_cap_kw: Optional[float] = None
 
     @property
     def N(self) -> int:
@@ -347,6 +375,13 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
                              f"el PES de los meses {faltan}")
         pes = np.array([pes_map[int(m)] for m in month_labels])
     pi_c5 = np.asarray(precio_horario(idx), dtype=float)
+    # Punto P: la media sobre las horas del horizonte COMPLETO, la misma
+    # lectura que `c2_ppa.contratos` (precio_horario sobre las 6 144 horas).
+    pp_c2 = float(np.mean(np.asarray(precio_horario(index_full),
+                                     dtype=float)))
+    _exige_finito("PP del C2", pp_c2)
+    # Punto PC: el caso del art. 20 sin la regla del 10 %, por la placa.
+    caso_pcom, cinac, suma_cap = caso_art20_sin_10(cap, N)
 
     return Insumos(
         caso=caso, nombres=nombres, D=np.asarray(D, float),
@@ -360,7 +395,8 @@ def _prepara_caso(caso, datos, mte_root, cache_dir, dia,
         pi_c5=pi_c5, pi_gb=pi_gb, pi_ppa=float(pi_ppa), fuente_bolsa=fuente,
         dia=dia, fechas=[str(idx[0]), str(idx[-1])],
         comercializador=comercializador, excluido=excluir_agente,
-        cot_en_deduccion=bool(cot_en_deduccion))
+        cot_en_deduccion=bool(cot_en_deduccion), pp_c2=pp_c2,
+        caso_pcom=caso_pcom, cinac_kw=cinac, suma_cap_kw=suma_cap)
 
 
 def cv_con_cot_cedenar(cv: np.ndarray, cot: np.ndarray, nombres) -> np.ndarray:
@@ -387,6 +423,128 @@ def cv_con_cot_cedenar(cv: np.ndarray, cot: np.ndarray, nombres) -> np.ndarray:
     out = cv.copy()
     out[filas] = cv[filas] + cot[filas]
     return out
+
+
+# ── C2 como PPA y el P2P colectivo (2026-10-02) ─────────────────────────────
+# Portan, con las funciones del nucleo (`reparto_anexo4`,
+# `capacidad_por_usuario_art18`, `resolve_caso_art20`, `_effective_buyer_prices`),
+# la liquidacion de `reformateo/documento/scripts/articulo/c2_ppa.py` (punto P)
+# y `p2p_comunitario.py` / `atribucion_supuestos.py` (punto PC). No los
+# importan: esos guiones leen HUELLAS.csv y el almacen al cargar, y el
+# servidor no los tiene. La equivalencia la comprueban las pruebas
+# (`tests/test_gsa_directo_mecanismos.py`) en el punto base, al peso, contra
+# `SALIDAS_SERVIDOR/c2_ppa_2026-10-02/` y `p2p_comunitario_2026-10-02/`.
+def caso_art20_sin_10(cap, n_fronteras: int,
+                      umbral_kw: float = comun.UMBRAL_CINAC_KW,
+                      limite_kw: float = comun.LIMITE_COLECTIVO_KW) -> tuple:
+    """(caso, CINAC, suma) del art. 20 de la CREG 101 072 SIN la regla del
+    10 % (P2P colectivo, §14.23): caso 1 si la capacidad instalada por
+    usuario del art. 18 (suma de las capacidades / fronteras) es <=
+    `umbral_kw` y la suma <= `limite_kw`; si no, caso 2. Comprueba que
+    `resolve_caso_art20` de produccion, con el PDE fuera de juego, decide lo
+    mismo (como `p2p_comunitario.caso_art20_sin_10`)."""
+    from scenarios.scenario_c4_creg101072 import (
+        capacidad_por_usuario_art18, resolve_caso_art20)
+    cap = np.asarray(cap, dtype=float).reshape(-1)
+    cin = float(capacidad_por_usuario_art18(cap, int(n_fronteras)))
+    suma = float(cap.sum())
+    caso = 1 if (cin <= umbral_kw and suma <= limite_kw) else 2
+    prod = resolve_caso_art20(np.full(int(n_fronteras), 1.0 / n_fronteras),
+                              cap, umbral_kw, pde_limit=np.inf,
+                              n_fronteras=int(n_fronteras))
+    if suma <= limite_kw and prod != caso:
+        raise ValueError(f"caso {caso} distinto del de resolve_caso_art20 "
+                         f"({prod})")
+    return caso, cin, suma
+
+
+def deduccion_pcom(caso: int, cvm: np.ndarray, tolls: np.ndarray
+                   ) -> np.ndarray:
+    """Caso 1: kappa*Cv (numeral 1 del art. 25, tambien para plantas de mas
+    de 100 kW: lectura literal, §14.23). Caso 2: kappa*Cv + Theta. `cvm` ya
+    lleva kappa (el factor del caso, D7) y f_cv; `tolls`, f_peaje."""
+    if caso not in (1, 2):
+        raise ValueError(f"caso del art. 20 {caso!r}; se esperaba 1 o 2")
+    cvm = np.asarray(cvm, dtype=float)
+    return cvm + np.asarray(tolls, dtype=float) if caso == 2 else cvm.copy()
+
+
+def flujos_mercado(res, techo: np.ndarray, N: int, T: int) -> tuple:
+    """(v, q, pagos), (N, T): lo vendido y lo comprado dentro en cada hora, y
+    los pagos internos (+ cobra el vendedor, - paga el comprador) al precio
+    del mercado con el techo de la tarifa del comprador (CAL-35, la misma
+    `_effective_buyer_prices` que liquida el P2P). Es lo que `main()` deja en
+    `vende_p2p`, `compra_p2p` y la tabla `flujos` del almacen."""
+    from scenarios.comparison_engine import _effective_buyer_prices
+    v = np.zeros((N, T))
+    q = np.zeros((N, T))
+    pag = np.zeros((N, T))
+    for r in res:
+        if r.P_star is None or not r.seller_ids or not r.buyer_ids:
+            continue
+        k = int(r.k)
+        P = np.asarray(r.P_star, dtype=float)
+        pi = _effective_buyer_prices(r.pi_star, r.buyer_ids, techo, k)
+        if not (np.all(np.isfinite(P)) and np.all(np.isfinite(pi))):
+            raise ValueError(f"hora {k}: flujos no finitos")
+        dinero = P * pi[None, :]
+        for a, j in enumerate(r.seller_ids):
+            v[j, k] += float(P[a, :].sum())
+            pag[j, k] += float(dinero[a, :].sum())
+        for b, i in enumerate(r.buyer_ids):
+            q[i, k] += float(P[:, b].sum())
+            pag[i, k] -= float(dinero[:, b].sum())
+    return v, q, pag
+
+
+def colectivo_igual(iny: np.ndarray, ret: np.ndarray, CU: np.ndarray,
+                    ded: np.ndarray, mes: np.ndarray, pb: np.ndarray) -> tuple:
+    """El colectivo mensual con el PDE igual (art. 9, 1/N), como
+    `atribucion_supuestos.colectivo` y `_run_c4_monthly_hx`: el fondo de cada
+    hora (suma de `iny`) se asigna a partes iguales con el perfil horario del
+    colectivo; la parte de cada miembro se liquida contra su `ret` del mes con
+    el Anexo 4: credito a la tarifa media del mes menos la deduccion media, y
+    exceso a la bolsa de su hora desde el corte hx. Devuelve (valor, exceso),
+    (N, T)."""
+    from core.opciones_externas import reparto_anexo4
+    N, T = iny.shape
+    val = np.zeros((N, T))
+    exs = np.zeros((N, T))
+    w = np.full(N, 1.0 / N)
+    pb = np.asarray(pb, dtype=float).reshape(-1)
+    for m in np.unique(mes):
+        h = np.flatnonzero(mes == m)
+        asign = w[:, None] * iny[:, h].sum(axis=0)[None, :]
+        cr, ex, _ = reparto_anexo4(asign, ret[:, h])
+        pr = CU[:, h].mean(axis=1) - ded[:, h].mean(axis=1)
+        val[:, h] = cr * pr[:, None] + np.where(ex > 0, ex * pb[None, h], 0.0)
+        exs[:, h] = ex
+    return val, exs
+
+
+def valor_p2p_colectivo(G, D, v, q, pagos, CU, ded, mes, pb) -> tuple:
+    """((N,) beneficio, (N, T) exceso) del P2P colectivo (§14.23):
+    autoconsumo a la tarifa, ahorro CU*q del comprador, pagos internos (suman
+    cero) y el colectivo sobre el residual sr = max(s - v, 0) contra
+    dr = max(d - q, 0). Con v = q = pagos = 0 y la deduccion del caso 2 es C4
+    (`_run_c4_monthly_hx` con el PDE igual)."""
+    G, D = np.maximum(G, 0.0), np.maximum(D, 0.0)
+    au = np.minimum(G, D)
+    s = np.maximum(G - D, 0.0)
+    d = np.maximum(D - G, 0.0)
+    sr, dr = np.maximum(s - v, 0.0), np.maximum(d - q, 0.0)
+    col, ex = colectivo_igual(sr, dr, CU, ded, mes, pb)
+    return (au * CU + CU * q + pagos + col).sum(axis=1), ex
+
+
+def valor_c2_ppa(G, D, CU, pp: float) -> np.ndarray:
+    """(N,) B^C2 = A + PP * S por institucion (§14.22, `c2_ppa.valor_ppa`):
+    A el autoconsumo a la tarifa y S el excedente horario, todo vendido a PP
+    sin credito; la importacion se paga a la tarifa igual que sin nada."""
+    G, D = np.maximum(G, 0.0), np.maximum(D, 0.0)
+    au = np.minimum(G, D)
+    s = np.maximum(G - D, 0.0)
+    return (au * CU).sum(axis=1) + float(pp) * s.sum(axis=1)
 
 
 def inicia_proceso() -> None:
@@ -436,7 +594,15 @@ def evalua(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
         return _evalua(ins, x, mu, bolsa_cruda, b_factor)[0]
 
 
-def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> dict:
+def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
+    """(salidas, `ComparisonResult`), la firma de siempre."""
+    out, cr, _ = _evalua_todo(ins, x, mu, bolsa_cruda, b_factor, despacho)
+    return out, cr
+
+
+def _evalua_todo(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
+    """(salidas, `ComparisonResult`, beneficio por institucion de C2ppa y
+    P2Pcom). El tercero no va en `cr`, que es el del motor tal cual."""
     from core.ems_p2p import EMSP2P, AgentParams, GridParams, SolverParams
     from core.opciones_externas import deduccion_art25, piso_residual
     from data.base_case_data import GRID_PARAMS_REAL
@@ -521,6 +687,38 @@ def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> dict:
     nb = cr.net_benefit
     out = {k: float(nb[k]) for k in ("P2P", "P2P_colectivo", "C1", "C2",
                                      "C3", "C4", "C5")}
+
+    # ── C2 como PPA (§14.22) y el P2P colectivo (§14.23), 2026-10-02 ─────
+    # Sobre las mismas series que liquida `run_comparison` (D tras la DR,
+    # G_klim, el techo, la bolsa, el Cv y los peajes con sus factores).
+    pa = cr.net_benefit_per_agent
+    if ins.pp_c2 is None or ins.caso_pcom is None:
+        raise ValueError("insumos sin pp_c2 o sin caso_pcom: prepara_caso "
+                         "los calcula")
+    b_c2 = valor_c2_ppa(G_klim, D, techo, ins.pp_c2)
+    v, q, pag = flujos_mercado(res, techo, N, T)
+    esc_pag = max(1.0, float(np.abs(pag).sum()))
+    if float(np.abs(pag.sum(axis=0)).max()) > 1e-9 * esc_pag:
+        raise ValueError("pagos internos que no suman cero en una hora")
+    # Guarda de deriva, en cada evaluacion: sin intercambio y con la
+    # deduccion del caso 2, la liquidacion portada tiene que dar el C4 del
+    # motor (PDE igual, caso 2) institucion por institucion.
+    cero = np.zeros((N, T))
+    ded2 = deduccion_pcom(2, f["cvm"], f["tolls"])
+    c4_rep, _ = valor_p2p_colectivo(G_klim, D, cero, cero, cero, techo, ded2,
+                                    ins.mes_m, bolsa)
+    c4_mot = np.asarray(pa["C4"], dtype=float)
+    if float(np.abs(c4_rep - c4_mot).max()) > max(
+            1e-6, 1e-9 * float(np.abs(c4_mot).max())):
+        raise ValueError(f"el colectivo portado no reproduce C4 del motor "
+                         f"({float(np.abs(c4_rep - c4_mot).max()):.3g} COP)")
+    ded_pc = (ded2 if ins.caso_pcom == 2
+              else deduccion_pcom(1, f["cvm"], f["tolls"]))
+    b_pcom, _ = valor_p2p_colectivo(G_klim, D, v, q, pag, techo, ded_pc,
+                                    ins.mes_m, bolsa)
+    pa = {**pa, "C2ppa": b_c2, "P2Pcom": b_pcom}
+    out["C2ppa"] = float(b_c2.sum())
+    out["P2Pcom"] = float(b_pcom.sum())
     out["energia"] = energia
     out["excedente"] = excedente
     out["parte_vendedor"] = (prima / excedente if excedente > 0
@@ -533,7 +731,6 @@ def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> dict:
     out["n_cuantal"] = float(sum(1 for g in regs if g == "cuantal"))
     out["n_sin_ganancia"] = float(sum(1 for g in regs if g == "sin_ganancia"))
     out["retiros"] = float(cuenta_retiros_reposo(res))
-    pa = cr.net_benefit_per_agent
     for n, nombre in enumerate(ins.nombres):
         for b, (a, c) in comun.BRECHAS_INSTITUCION.items():
             out[f"{b}__{nombre}"] = float(pa[a][n] - pa[c][n])
@@ -545,7 +742,8 @@ def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> dict:
     no_finitas = [c for c in cols if not np.isfinite(out[c])]
     if no_finitas:
         raise ValueError(f"salida no finita: {', '.join(no_finitas)}")
-    return {c: out[c] for c in cols}, cr
+    return ({c: out[c] for c in cols}, cr,
+            {"C2ppa": b_c2, "P2Pcom": b_pcom})
 
 
 def evalua_detalle(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
@@ -577,6 +775,17 @@ def _evalua_con_agentes(ins, x, mu, bolsa_cruda):
     por_agente = {e: np.asarray(v, dtype=float).copy()
                   for e, v in cr.net_benefit_per_agent.items()}
     return out, por_agente, {e: float(v) for e, v in cr.net_benefit.items()}
+
+
+def evalua_mecanismos_nuevos(ins: Insumos, x, mu: float = 1.0,
+                             bolsa_cruda=None, silencio: bool = True) -> tuple:
+    """Como `evalua`, y ademas el beneficio por institucion (N,) de C2ppa y
+    P2Pcom (2026-10-02), para las pruebas del punto base contra los puntos P
+    y PC. No cambia lo que devuelven `evalua` ni `evalua_detalle`."""
+    with _silencio(silencio):
+        out, _, nuevos = _evalua_todo(ins, x, mu, bolsa_cruda, 1.0)
+    return out, {k: np.asarray(v, dtype=float).copy()
+                 for k, v in nuevos.items()}
 
 
 # ── Utilidades ──────────────────────────────────────────────────────────────

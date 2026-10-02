@@ -52,12 +52,13 @@
 #   --- el GSA directo, sin emulador (2026-09-26): D73 a D79 ---------------
 #   MATRIZ_CANON=<matriz del 19-09> bash modelo_base/run_servidor.sh gsa_directo   <- compuertas, punto base, humo y Sobol de doce casos (E0/E2/E4 a 2048, el resto a 512; CV2 solo en la compuerta); el humo mete esta noche lo que cabe, en orden y con su n, y el resto lo deja para la siguiente
 #   TOLERA_FALLOS=1 ... gsa_directo                               <- sin la parada temprana por bloques fallidos (codigo 8)
-#   CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo   <- solo esos (la noche del 3)
+#   CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo   <- solo esos
 #   DESDE=E4 bash modelo_base/run_servidor.sh gsa_directo        <- retoma por caso; dentro del caso, --reanudar
 #   NBASE=4096 NBASE_RESTO=512 TOPE_NOCHE_H=9 bash modelo_base/run_servidor.sh gsa_directo
 #   FORZAR=1 bash modelo_base/run_servidor.sh gsa_directo        <- sin recortar n ni aplazar casos
 #   SOLO_HUMO=1 bash modelo_base/run_servidor.sh gsa_directo     <- de dia: pruebas, punto base y humo, sin Sobol
 #   SECO=1 bash modelo_base/run_servidor.sh gsa_directo          <- imprime las ordenes, no toca el disco
+#   GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03 ... gsa_directo   <- otra carpeta de salidas (la corrida con C2ppa y P2Pcom)
 #
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
@@ -298,7 +299,20 @@ SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
 # analisis se detendria y cortaria la cadena). Sigue en la compuerta del
 # punto base (contraste con E0 a f_cv = 2) y en las deterministas. Es la
 # lista de gsa_directo/comun.py:CASOS_SOBOL (una prueba lo comprueba).
-GSA_DIR="SALIDAS_SERVIDOR/gsa_directo"
+#
+# GSA_SALIDAS (2026-10-02, C2 como PPA y P2P colectivo): otra carpeta de
+# salidas, DENTRO de SALIDAS_SERVIDOR/ (la recogida la empaqueta). La corrida
+# con las salidas nuevas va a una carpeta nueva: la de 2026-09-27 sigue en
+# SALIDAS_SERVIDOR/gsa_directo con las columnas viejas, y correr.py se niega
+# a retomarla con otras (codigo 2).
+GSA_DIR="${GSA_SALIDAS:-SALIDAS_SERVIDOR/gsa_directo}"
+if [[ "$GSA_DIR" != SALIDAS_SERVIDOR/?* || "$GSA_DIR" == *..* \
+      || "$GSA_DIR" == *" "* ]]; then
+  echo "GSA_SALIDAS tiene que ser una carpeta dentro de SALIDAS_SERVIDOR/, sin" \
+       "'..' ni espacios: '$GSA_DIR'" >&2
+  exit 2
+fi
+GSA_DIR="${GSA_DIR%/}"
 # Solo en seco: las pruebas del lanzador leen una carpeta vacia propia, para
 # no depender de las corridas que ya haya en el servidor (C-205: con E0 ya
 # corrido a 2 048, la prueba que pide n = 4 096 veia el retome y fallaba).
@@ -2285,8 +2299,11 @@ print(" ".join(sorted(palancas)))
     #      resultados escritos;
     #   7. la recogida.
     #
-    # La noche del 3 de octubre: CASOS="E0 E2"; la del 4: CASOS="E4 E1 E3 E5
-    # P1 P2 K1 I1 N1 SINU" (CV2 no corre el Sobol). Retomar un caso:
+    # La corrida del 26 y 27 de septiembre fue CASOS="E0 E2" y despues
+    # CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" (CV2 no corre el Sobol). La de
+    # C2ppa y P2Pcom (desde la noche del 3 de octubre) va con
+    # GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_<fecha> y los doce
+    # (MONTAJE_SERVIDOR.md, «La corrida con C2 como PPA...»). Retomar un caso:
     # DESDE=<caso> con la misma lista de CASOS; dentro del caso, --reanudar
     # sigue donde quedo, con el n con el que empezo (se lee de su .meta.json).
     # Un caso NO se amplia reutilizando sus filas: si ya tiene una corrida
@@ -2343,6 +2360,24 @@ print(" ".join(sorted(palancas)))
       fi
     done
     valida_desde "${PEDIDOS[@]}"
+    # 2026-10-02 (C2 como PPA y P2P colectivo): una carpeta con corridas de
+    # las salidas de antes (sin C2ppa ni P2Pcom; en el servidor, la del 27 de
+    # septiembre en SALIDAS_SERVIDOR/gsa_directo) no se reutiliza: el paso 3
+    # pisaria su base/punto_base.csv y correr.py pararia en el primer caso.
+    # Se para ANTES de escribir nada; la corrida nueva va con GSA_SALIDAS.
+    _viejas=()
+    shopt -s nullglob
+    for _m in "$GSA_DIR"/*/muestras_*_s42.meta.json; do
+      grep -q '"P2Pcom"' "$_m" || _viejas+=("$_m")
+    done
+    shopt -u nullglob
+    if [[ ${#_viejas[@]} -gt 0 ]]; then
+      echo "  $GSA_DIR tiene ${#_viejas[@]} corridas con las salidas de antes del"
+      echo "  2026-10-02 (sin C2ppa ni P2Pcom), por ejemplo ${_viejas[0]}."
+      echo "  No se mezclan ni se pisan. La corrida nueva va a otra carpeta:"
+      echo "    GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_$(date +%F) bash $0 gsa_directo"
+      exit 2
+    fi
     if [[ -n "${DESDE:-}" ]]; then
       _resto=(); _ya=0
       for c in "${PEDIDOS[@]}"; do

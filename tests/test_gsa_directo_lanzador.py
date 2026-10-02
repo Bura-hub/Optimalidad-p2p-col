@@ -29,7 +29,8 @@ VARIABLES_DE_LA_ACCION = (
     "TOLERA_FALLOS", "CASOS", "DESDE", "MATRIZ_CANON", "EXTRA", "PASOS",
     "LENTAS", "ETAPA2", "SIGMAS", "ALMACENES", "GRUPOS", "OPTS",
     "PALANCAS_ARGS", "TOPE_GLOBAL_S", "TOPE_MEDICION", "TOPE_M_C",
-    "TOPE_M_E", "TOPE_M_G", "SONDA_DIR", "SIN_LINGER_OK", "GSA_DIR_PRUEBA")
+    "TOPE_M_E", "TOPE_M_G", "SONDA_DIR", "SIN_LINGER_OK", "GSA_DIR_PRUEBA",
+    "GSA_SALIDAS")
 
 
 def _bash():
@@ -160,7 +161,9 @@ def test_matriz_canon_explicita():
 
 
 def _orden_del_3_de_octubre():
-    """La orden de dia del 3 de octubre, tal cual la escribe MONTAJE."""
+    """La orden de dia del 3 de octubre, tal cual la escribe MONTAJE, con la
+    carpeta de salidas que exporta su bloque (2026-10-02: la corrida con
+    C2ppa y P2Pcom; la orden de septiembre quedo como historico comentado)."""
     import shlex
     texto = (RAIZ / "modelo_base" / "MONTAJE_SERVIDOR.md").read_text(
         encoding="utf-8")
@@ -172,21 +175,28 @@ def _orden_del_3_de_octubre():
     env = dict(p.split("=", 1) for p in partes if "=" in p
                and not p.startswith(("bash", "modelo_base")))
     assert partes[-2:] == ["modelo_base/run_servidor.sh", "gsa_directo"]
-    return env
+    salidas = [ln.strip().split("=", 1)[1] for ln in texto.splitlines()
+               if ln.strip().startswith("export GSA_SALIDAS=")]
+    assert len(salidas) == 1, salidas
+    return env, salidas[0]
 
 
 def test_la_orden_del_3_de_octubre_en_seco():
     """R-2: la orden exacta de MONTAJE para el 3 de octubre, en seco, hace
-    los pasos 1 a 4 y no lanza el Sobol, sin escribir nada."""
-    env = _orden_del_3_de_octubre()
-    assert env == {"SOLO_HUMO": "1", "CASOS": "E0 E2"}
+    los pasos 1 a 4 y no lanza el Sobol, sin escribir nada, y lo manda a la
+    carpeta nueva que exporta MONTAJE."""
+    env, salidas = _orden_del_3_de_octubre()
+    assert env == {"SOLO_HUMO": "1"}
+    assert salidas.startswith("SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_")
     antes = _listado()
-    rc, out = _corre("gsa_directo", **env)
+    rc, out = _corre("gsa_directo", GSA_SALIDAS=salidas, GSA_DIR_PRUEBA="",
+                     **env)
     assert _listado() == antes
     assert rc == 0, out
     for paso in (1, 2, 3, 4):
         assert f"--- {paso}/7" in out
     assert "--- 5/7" not in out and "SOLO_HUMO=1" in out
+    assert f"salidas    = {salidas}" in out
 
 
 @pytest.mark.skipif(os.environ.get("GSA_PRUEBA_ANIDADA") == "1",
@@ -200,7 +210,8 @@ def test_el_paso_2_no_hereda_las_variables_de_la_accion():
                TOPE_NOCHE_H="1", FORZAR="1", DETERMINISTAS="0",
                OMITIR_SIN_REFERENCIA="1", TOLERA_FALLOS="1", DESDE="E2",
                RESERVA_OK="1", PARA_EN_FALLO="1",
-               MATRIZ_CANON="no/es/la/matriz")
+               MATRIZ_CANON="no/es/la/matriz",
+               GSA_SALIDAS="SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03")
     r = subprocess.run([sys.executable, "-m", "pytest", str(Path(__file__)),
                         "-q", "-p", "no:cacheprovider"],
                        cwd=RAIZ, env=env, capture_output=True, text=True,
@@ -226,3 +237,54 @@ def test_tolera_fallos_llega_a_correr():
     assert "--tolera-fallos" in out
     rc, out = _corre("gsa_directo", CASOS="E0")
     assert "--tolera-fallos" not in out
+
+
+def test_gsa_salidas_lleva_la_corrida_a_otra_carpeta_sin_escribir():
+    """2026-10-02: GSA_SALIDAS manda todas las ordenes (punto base, humo,
+    correr, analizar, replica, deterministas) a una carpeta nueva dentro de
+    SALIDAS_SERVIDOR/, y en seco no se crea nada. La contencion no cambia."""
+    nueva = "SALIDAS_SERVIDOR/_seco_gsa_c2_p2pcol"
+    antes = _listado()
+    rc, out = _corre("gsa_directo", GSA_SALIDAS=nueva, GSA_DIR_PRUEBA="")
+    assert _listado() == antes
+    assert not (RAIZ / nueva).exists()
+    assert rc == 0, out
+    assert f"salidas    = {nueva}" in out
+    assert f"--salida {nueva}/base/punto_base.csv" in out
+    assert f"--humo 32 --procesos 4 --salidas {nueva}" in out
+    assert (f"gsa_directo/correr.py --caso E0 --n-base 2048 --procesos 4 "
+            f"--reanudar --salidas {nueva}") in out
+    assert f"gsa_directo/analizar.py --caso E0 --n-base 2048 --salidas {nueva}" in out
+    assert f"--salida {nueva}/base/deterministas.csv" in out
+    assert "--salidas SALIDAS_SERVIDOR/gsa_directo " not in out
+
+
+@pytest.mark.parametrize("malo", ["/tmp/gsa", "SALIDAS_SERVIDOR/../x",
+                                  "outputs/gsa", "SALIDAS_SERVIDOR/"])
+def test_gsa_salidas_fuera_de_salidas_servidor_se_rechaza(malo):
+    antes = _listado()
+    rc, out = _corre("gsa_directo", GSA_SALIDAS=malo, GSA_DIR_PRUEBA="")
+    assert _listado() == antes
+    assert rc == 2 and "GSA_SALIDAS" in out, out
+
+
+def test_carpeta_con_corridas_de_las_salidas_viejas_se_rechaza(tmp_path):
+    """2026-10-02: si la carpeta de salidas tiene una corrida de antes de
+    C2ppa y P2Pcom (la del 27 de septiembre en el servidor), la accion para
+    con codigo 2 antes de escribir nada y da la orden con GSA_SALIDAS; con
+    una corrida que ya las tiene, sigue."""
+    caso = tmp_path / "E0"
+    caso.mkdir()
+    meta = caso / "muestras_E0_n2048_s42.meta.json"
+    meta.write_text('{"columnas": ["P2P", "C2"]}', encoding="utf-8")
+    antes = _listado()
+    rc, out = _corre("gsa_directo", GSA_DIR_PRUEBA=tmp_path.as_posix())
+    assert _listado() == antes
+    assert rc == 2, out
+    assert "sin C2ppa ni P2Pcom" in out and "GSA_SALIDAS=" in out
+    assert "--- 3/7" not in out
+    meta.write_text('{"columnas": ["P2P", "C2", "P2Pcom", "C2ppa"]}',
+                    encoding="utf-8")
+    rc, out = _corre("gsa_directo", GSA_DIR_PRUEBA=tmp_path.as_posix())
+    assert rc == 0, out
+    assert "--- 3/7" in out

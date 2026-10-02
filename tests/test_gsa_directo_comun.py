@@ -19,7 +19,10 @@ def test_b_es_catorce_y_seis_entradas():
     assert comun.D_ENTRADAS == 6
     assert comun.B == 14
     assert comun.PROBLEMA["num_vars"] == 6
-    assert len(comun.SALIDAS) == 14
+    assert len(comun.SALIDAS_D75) == 14
+    # 2026-10-02: C2ppa y P2Pcom y sus siete brechas, AL FINAL.
+    assert len(comun.SALIDAS) == 14 + 2 + 7
+    assert comun.SALIDAS[:14] == comun.SALIDAS_D75
 
 
 def test_rangos_del_diseno_tal_cual():
@@ -89,10 +92,10 @@ def test_opciones_de_los_casos():
 
 
 def test_columnas_por_institucion():
-    assert len(comun.salidas_institucion(comun.INSTITUCIONES)) == 15
-    assert len(comun.salidas_institucion(comun.nombres_caso("SINU"))) == 12
+    assert len(comun.salidas_institucion(comun.INSTITUCIONES)) == 5 * 10
+    assert len(comun.salidas_institucion(comun.nombres_caso("SINU"))) == 4 * 10
     cols = comun.columnas_salida(comun.INSTITUCIONES)
-    assert cols[:14] == list(comun.SALIDAS) and "C2" in cols
+    assert cols[:23] == list(comun.SALIDAS) and "C2" in cols
     assert len(cols) == len(set(cols))
 
 
@@ -118,3 +121,29 @@ def test_rotulo_de_f_cv():
     assert comun.ROTULOS["f_cv"] == ("descuento de comercializar sobre la "
                                      "permuta (art. 25)")
     assert set(comun.ROTULOS) == set(comun.NOMBRES)
+
+
+def test_salidas_de_d75_sin_cambiar_y_las_nuevas_al_final():
+    """2026-10-02: las catorce de D75 conservan nombre, orden y definicion;
+    la brecha vieja del colectivo sigue siendo la del VIEJO mercado por el
+    colectivo, y las nuevas (C2ppa, P2Pcom) van detras, con su definicion."""
+    assert comun.SALIDAS_D75 == (
+        "P2P", "P2P_colectivo", "C1", "C3", "C4", "C5", "energia",
+        "excedente", "parte_vendedor", "P2P_menos_C1", "P2P_menos_C4",
+        "P2Pcol_menos_C1", "C4_menos_C1", "P2P_menos_C5")
+    assert comun.BRECHAS["P2Pcol_menos_C1"] == ("P2P_colectivo", "C1")
+    assert comun.SALIDAS[14:16] == ("P2Pcom", "C2ppa")
+    assert comun.BRECHAS_NUEVAS == {
+        "P2Pcom_menos_C4": ("P2Pcom", "C4"),
+        "P2Pcom_menos_C1": ("P2Pcom", "C1"),
+        "P2Pcom_menos_P2P": ("P2Pcom", "P2P"),
+        "C2ppa_menos_C1": ("C2ppa", "C1"),
+        "C2ppa_menos_C4": ("C2ppa", "C4"),
+        "C2ppa_menos_P2P": ("C2ppa", "P2P"),
+        "P2Pcom_menos_C2ppa": ("P2Pcom", "C2ppa")}
+    assert list(comun.BRECHAS)[:5] == ["P2P_menos_C1", "P2P_menos_C4",
+                                       "P2Pcol_menos_C1", "C4_menos_C1",
+                                       "P2P_menos_C5"]
+    assert set(comun.BRECHAS_NUEVAS) <= set(comun.BRECHAS_INSTITUCION)
+    # «C2» sigue siendo la identidad de CAL-52, no el PPA.
+    assert comun.IDENTIDADES == ("C2",) and "C2ppa" not in comun.IDENTIDADES

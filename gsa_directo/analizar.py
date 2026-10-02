@@ -10,7 +10,8 @@ Lee el CSV de `correr.py` y su `.meta.json`, y:
    analizable hasta su ultimo bloque completo) y descarta el BLOQUE entero
    de cada evaluacion fallida, sin imputar nada. Mas del 1 % de bloques
    descartados DETIENE el analisis (codigo 3) y obliga a mirar los motivos;
-3. INDICES: S1, ST y S2 de las catorce salidas de comunidad con 1 000
+3. INDICES: S1, ST y S2 de las salidas de comunidad (las catorce de D75 y,
+   desde el 2026-10-02, C2ppa, P2Pcom y sus siete brechas) con 1 000
    remuestreos, ANIDADOS sobre los primeros 16, 32, ..., n bloques del mismo
    CSV (la curva de convergencia sale de la misma corrida);
 4. CONVERGENCIA: por brecha y entrada, |ST(n) - ST(n/2)| <= 0,02 y
@@ -331,9 +332,14 @@ def procedencia(X: np.ndarray, presentes: np.ndarray, meta: dict) -> str:
 
 # ── Informe ─────────────────────────────────────────────────────────────────
 ORDEN_INFORME = ("P2P_menos_C4", "P2Pcol_menos_C1", "C4_menos_C1",
-                 "P2P_menos_C5", "P2P_menos_C1", "parte_vendedor",
-                 "excedente", "energia", "P2P", "P2P_colectivo", "C1", "C3",
-                 "C4", "C5")
+                 "P2P_menos_C5", "P2P_menos_C1",
+                 # 2026-10-02: el P2P colectivo (P2Pcom, §14.23) y C2 como
+                 # PPA (C2ppa, §14.22), y sus brechas.
+                 "P2Pcom_menos_C4", "P2Pcom_menos_C1", "P2Pcom_menos_P2P",
+                 "C2ppa_menos_C1", "C2ppa_menos_C4", "C2ppa_menos_P2P",
+                 "P2Pcom_menos_C2ppa",
+                 "parte_vendedor", "excedente", "energia", "P2P",
+                 "P2P_colectivo", "C1", "C3", "C4", "C5", "P2Pcom", "C2ppa")
 
 
 def informe(r: dict, caso: str, meta: dict) -> str:
@@ -380,7 +386,21 @@ def informe(r: dict, caso: str, meta: dict) -> str:
           "a ella); la comparacion de robustez se lee en el coeficiente de "
           "variacion y en las brechas.",
           "- e_G y e_D se reparten la cobertura dentro del error; se publica "
-          "tambien su suma como «error de medida».", "",
+          "tambien su suma como «error de medida».",
+          "- **Nombres** (2026-10-02): `P2Pcom` es el P2P colectivo de la "
+          "propuesta (punto PC, CANON §14.23: intercambio sin cargos y "
+          "fuera del fondo, residual al colectivo con PDE igual en el caso "
+          "del art. 20 sin la regla del 10 %); `C2ppa` es C2 como PPA a la "
+          "media de XM (287,41 COP/kWh, punto P, §14.22). `P2P_colectivo` y "
+          "`P2Pcol_menos_C1` siguen siendo el VIEJO mercado por el colectivo "
+          "(D75), y `C2` el contrato interno de CAL-52, que no es el PPA.",
+          "- El PP de C2ppa no lo mueve ninguna entrada (es un precio pactado "
+          "constante); C2ppa varia por la tarifa del autoconsumo y por e_G "
+          "y e_D. Los flujos del P2P colectivo son los del mercado P2P en "
+          "cada punto, no se vuelven a simular con el piso del colectivo: "
+          "la aproximacion se declara (§14.23 y registro del 2026-10-02) "
+          "para I1 y N1 (la planta de UCC cambia de numeral), E4, E5 y P2 "
+          "y los meses con credito agotado.", "",
           f"## Indices totales (ST) con n = {nmax}, semiancho al 95 %", "",
           "| Salida | " + " | ".join(r["entradas"]) + " | ST(e_G) + ST(e_D) |",
           "|---|" + "---:|" * (len(r["entradas"]) + 1)]

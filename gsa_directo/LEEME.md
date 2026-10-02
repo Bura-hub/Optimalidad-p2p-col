@@ -30,6 +30,38 @@ dos evaluaciones del mismo punto son idénticas al bit.
   (el contraste con E0 a `f_cv = 2`, al peso) y en las deterministas. `correr.py` y el
   lanzador lo rechazan; `comun.CASOS_SOBOL` es la lista, y una prueba falla si vuelve.
 
+## C2 como PPA y el P2P colectivo (añadido el 2026-10-02)
+
+Cada evaluación liquida, además de los ocho escenarios de `main()`, dos mecanismos
+nuevos con las mismas series del punto (fórmulas portadas de
+`reformateo/documento/scripts/articulo/c2_ppa.py` y `p2p_comunitario.py`, sin
+importarlos):
+
+- **`C2ppa`**, el C2 de la propuesta como PPA (CANON §14.22): todo el excedente
+  horario de cada institución a PP = 287,41 COP/kWh (la media de la serie de XM de
+  contratos del mercado no regulado en el horizonte; **ninguna entrada lo mueve**), sin
+  crédito.
+- **`P2Pcom`**, el **P2P colectivo** de la decisión del autor (el «P2P comunitario» del
+  punto PC, §14.23): el intercambio del mercado en ese punto sin cargos y fuera del
+  fondo; el residual al colectivo con el PDE igual, en el caso del art. 20 sin la regla
+  del 10 % (caso 2 en E4, E5 y P2).
+- **Nueve salidas más, al final**: los dos niveles y siete brechas (`P2Pcom_menos_C4`,
+  `_C1`, `_P2P`, `C2ppa_menos_C1`, `_C4`, `_P2P` y `P2Pcom_menos_C2ppa`), que entran al
+  Sobol, a la P(inversión) y al CV, y las siete también por institución. **Las catorce de
+  D75 no cambian**: `P2P_colectivo` y `P2Pcol_menos_C1` siguen siendo el **viejo**
+  mercado por el colectivo, y `C2` el contrato interno de CAL-52. Por eso el nuevo se
+  llama `P2Pcom` y no `P2Pcol` (las claves del canon hacen lo mismo).
+- **Guarda en cada evaluación**: sin intercambio y en el caso 2, la liquidación portada
+  tiene que dar el C4 del motor por institución; si no, la evaluación falla en voz alta.
+- **Comprobado en local** (`tests/test_gsa_directo_mecanismos.py`): en el punto base,
+  C2ppa reproduce el punto P a ≤ 0,06 COP y P2Pcom el punto PC a ≤ 0,28 COP por
+  institución en los 13 casos (≤ 0,75 COP la comunidad: la referencia usa el almacén en
+  float32). La compuerta del punto base sigue en verde. Cuesta unos 0,05 s por
+  evaluación (1 a 2 %).
+- **La corrida va a otra carpeta** (`GSA_SALIDAS` en el lanzador): la del 2026-09-27 tiene
+  las columnas viejas, el lanzador se niega a reutilizar una carpeta con ellas y
+  `correr.py --reanudar` también (código 2).
+
 ## Qué no es
 
 - No es el GSA de agosto: ese está en `_cuarentena/2026-09-26/gsa_real/` (D79), midió la
@@ -56,8 +88,9 @@ En el servidor, solo con el lanzador, que pone la contención:
 
 ```bash
 export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo    # la del 19 de septiembre; se comprueba
+export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03   # desde el 2026-10-02
 SECO=1 bash modelo_base/run_servidor.sh gsa_directo
-CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
+bash modelo_base/run_servidor.sh gsa_directo
 ```
 
 La sección «El GSA directo» de `modelo_base/MONTAJE_SERVIDOR.md` tiene el detalle. En

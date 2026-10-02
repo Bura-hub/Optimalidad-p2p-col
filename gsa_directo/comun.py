@@ -8,6 +8,10 @@ este modulo (entradas, rangos, salidas, n) son los aprobados, tal cual.
 - Catorce salidas de comunidad que entran al Sobol (D75), mas las que se
   guardan para comprobar identidades (C2, los conteos) y las brechas por
   institucion, que solo se publican con su probabilidad de inversion.
+- Desde el 2026-10-02, nueve salidas mas AL FINAL, sin cambiar el
+  significado de ninguna de D75: los niveles de C2 como PPA (`C2ppa`, CANON
+  §14.22) y del P2P colectivo (`P2Pcom`, §14.23) y sus siete brechas, que
+  tambien se guardan por institucion.
 - Los trece casos de la matriz, con la MISMA opcion que `CASOS_MATRIZ` de
   `modelo_base/run_servidor.sh` (una prueba lo comprueba), y el n de cada uno
   (D77): 2 048 en E0, E2 y E4; 512 en los demas. El Sobol corre en doce
@@ -74,7 +78,45 @@ BRECHAS = {
     "C4_menos_C1": ("C4", "C1"),
     "P2P_menos_C5": ("P2P", "C5"),
 }
-SALIDAS = NIVELES + CONTROLES + REPARTO + tuple(BRECHAS)      # las 14
+SALIDAS_D75 = NIVELES + CONTROLES + REPARTO + tuple(BRECHAS)  # las 14 de D75
+
+# ── Los dos mecanismos nuevos (2026-10-02, CANON §14.22 y §14.23) ───────────
+# Se AÑADEN al final, sin tocar el significado de ninguna salida de D75.
+# Los nombres son los de las claves del canon y de `cifras.csv`:
+#
+# - `C2ppa`: el C2 de la propuesta medido como PPA (punto P, §14.22): cada
+#   institucion vende TODO su excedente horario a PP constante = la media de
+#   la serie de XM de contratos del mercado no regulado en el horizonte
+#   (287,41 COP/kWh), sin credito; autoconsumo a la tarifa. NO es la columna
+#   `C2` de arriba (el contrato interno de CAL-52, identidad con P2P).
+# - `P2Pcom`: el «P2P colectivo» de la decision del autor del 2026-10-02 (el
+#   P2P comunitario del punto PC, §14.23): el intercambio del mercado sin
+#   cargos y fuera del fondo; el residual al autogenerador colectivo con el
+#   PDE igual, en el caso del art. 20 sin la regla del 10 %. Se llama
+#   `P2Pcom` y no `P2Pcol` porque `P2Pcol_menos_C1` ya es, desde D75, la
+#   brecha del VIEJO mercado por el colectivo (`P2P_colectivo`), que se
+#   conserva para comparar (las claves `*P2Pcol*` del canon siguen siendo el
+#   viejo, §14.23).
+NIVELES_NUEVOS = ("P2Pcom", "C2ppa")
+BRECHAS_NUEVAS = {
+    "P2Pcom_menos_C4": ("P2Pcom", "C4"),
+    "P2Pcom_menos_C1": ("P2Pcom", "C1"),
+    "P2Pcom_menos_P2P": ("P2Pcom", "P2P"),
+    "C2ppa_menos_C1": ("C2ppa", "C1"),
+    "C2ppa_menos_C4": ("C2ppa", "C4"),
+    "C2ppa_menos_P2P": ("C2ppa", "P2P"),
+    "P2Pcom_menos_C2ppa": ("P2Pcom", "C2ppa"),
+}
+ROTULOS_SALIDAS = {
+    "P2P_colectivo": "mercado P2P por el colectivo (el viejo; v(0,0) de §14.21)",
+    "P2Pcol_menos_C1": "viejo mercado por el colectivo - C1",
+    "P2Pcom": "P2P colectivo (propuesta, punto PC, §14.23)",
+    "C2ppa": "C2 como PPA a la media de XM (punto P, §14.22)",
+}
+# Todas las brechas de comunidad, las de D75 primero y en su orden.
+BRECHAS = {**BRECHAS, **BRECHAS_NUEVAS}
+NIVELES = NIVELES + NIVELES_NUEVOS
+SALIDAS = SALIDAS_D75 + NIVELES_NUEVOS + tuple(BRECHAS_NUEVAS)   # 14 + 9
 # Se guardan y no entran al Sobol: C2 coincide con P2P en el agregado
 # (CAL-52) y se comprueba como identidad; los conteos son las guardas.
 IDENTIDADES = ("C2",)
@@ -83,13 +125,19 @@ BRECHAS_INSTITUCION = {
     "P2P_menos_C1": ("P2P", "C1"),
     "P2P_menos_C4": ("P2P", "C4"),
     "P2P_menos_C5": ("P2P", "C5"),
+    **BRECHAS_NUEVAS,
 }
+# Lo que fija el P2P colectivo (§14.23): el umbral de la capacidad por
+# usuario del art. 18 y el tope de la suma (1 MW) del art. 20, SIN la regla
+# del 10 % del PDE.
+UMBRAL_CINAC_KW = 100.0
+LIMITE_COLECTIVO_KW = 1000.0
 INSTITUCIONES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
 def salidas_institucion(nombres) -> list:
-    """Las brechas por institucion, `<brecha>__<institucion>`; 15 con las
-    cinco, 12 en SINU."""
+    """Las brechas por institucion, `<brecha>__<institucion>`; 50 con las
+    cinco y 40 en SINU (las 3 de D75 y las 7 de C2ppa y P2Pcom)."""
     return [f"{b}__{n}" for n in nombres for b in BRECHAS_INSTITUCION]
 
 

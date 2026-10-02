@@ -1882,12 +1882,12 @@ export MTE_ROOT=$PWD/MedicionesMTE_v3
 export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo   # la del 19-09; la compuerta lo comprueba
 SECO=1 bash modelo_base/run_servidor.sh gsa_directo            # antes: imprime las ordenes
 
-# de dia: pruebas, punto base y humo (unos minutos), sin Sobol
-SOLO_HUMO=1 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
-# primera noche (hecha el 2026-09-26)
-CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
-# segunda noche, desde el 3 de octubre (lo que no quepa lo dice el humo)
-CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" bash modelo_base/run_servidor.sh gsa_directo
+# HISTORICO: las ordenes de la corrida del 26 y 27 de septiembre, ya hecha
+# (CANON §13). No se repiten: la corrida nueva, con C2ppa y P2Pcom, esta en
+# «La corrida con C2 como PPA y el P2P colectivo», mas abajo.
+#   de dia:          SOLO_HUMO=1 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
+#   primera noche:   CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
+#   segunda tanda:   CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" bash modelo_base/run_servidor.sh gsa_directo
 ```
 
 **Medido la primera noche (2026-09-26):** unos 2,5 (s) por evaluación con 16
@@ -2035,6 +2035,85 @@ corrida de otro n mientras la anterior siga en `SALIDAS_SERVIDOR/gsa_directo/E0/
 (código 2). Aunque los primeros bloques de la muestra de 2 048 sean los de la de
 1 024, la de 2 048 se corre **entera**: se mueve la anterior a otra carpeta y
 se relanza.
+
+### La corrida con C2 como PPA y el P2P colectivo (desde la noche del 3 de octubre)
+
+Desde el 2026-10-02 cada evaluación liquida también **C2 como PPA** (`C2ppa`,
+CANON §14.22) y el **P2P colectivo** (`P2Pcom`, §14.23), con nueve salidas más al
+final (los dos niveles y siete brechas, también por institución); las catorce de
+D75 no cambian (`gsa_directo/LEEME.md`). Cuesta unos 0,05 (s) más por
+evaluación (1 a 2 %), de modo que el tiempo es el de la corrida del 26 y 27 de
+septiembre: unas 1,2 (h) por cada caso de 2 048 y 0,3 (h) por cada uno de 512
+con 16 procesos, **unas 6,5 (h) los doce**, más unos 30 (min) de pruebas,
+compuerta, humo, análisis, réplica y deterministas. Caben en una noche; si el
+humo dice que no, la acción deja lo que sobra para la siguiente y da la orden.
+
+**Va a una carpeta nueva.** `SALIDAS_SERVIDOR/gsa_directo` tiene la corrida del
+27 de septiembre con las columnas viejas: la acción se niega a usar una carpeta
+con corridas sin `P2Pcom` (código 2, antes de escribir nada) y `correr.py`
+tampoco retoma un `.meta.json` con otras columnas. `GSA_SALIDAS` tiene que estar
+dentro de `SALIDAS_SERVIDOR/`.
+
+Antes, en el servidor, el código del commit que lo trae (avance rápido; con un
+caso a medias no se hace `pull`, y ahora no hay ninguno):
+
+```bash
+cd ~/bslopez/sistemabl
+git fetch origin
+git pull --ff-only origin main
+git log --oneline -1
+```
+
+De día, el 3 de octubre (unos minutos, contenido como siempre):
+
+```bash
+tmux new -s gsa
+cd ~/bslopez/sistemabl
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo
+export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03
+SECO=1 bash modelo_base/run_servidor.sh gsa_directo
+SOLO_HUMO=1 bash modelo_base/run_servidor.sh gsa_directo
+```
+
+`MATRIZ_CANON` es la del 19 de septiembre; si en el servidor se relanzó algo
+encima, la entrega desempaquetada
+(`SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/SALIDAS_SERVIDOR/matriz_reposo`).
+El humo tiene que imprimir el plan con los doce en `CASOS_NOCHE`.
+
+La noche del 3 de octubre, en la misma sesión de tmux:
+
+```bash
+bash modelo_base/run_servidor.sh gsa_directo
+```
+
+Si el humo aplazó casos, la acción imprime al final la orden de la noche
+siguiente (la del 4), con la misma `GSA_SALIDAS` exportada:
+
+```bash
+CASOS="<los que quedaron>" bash modelo_base/run_servidor.sh gsa_directo
+```
+
+Para traerlo, en el servidor, con prioridad baja, solo esa carpeta y sus
+registros (sin la caché):
+
+```bash
+cd ~/bslopez/sistemabl
+nice -n 19 ionice -c 3 tar czf gsa_directo_c2_p2pcol_2026-10-03.tar.gz \
+  --exclude=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03/cache \
+  SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03 \
+  modelo_base/logs/gsa_directo_*_2026-10-0[3-5]_*.log
+```
+
+Y en la máquina de trabajo (PowerShell, en la raíz del repositorio):
+
+```powershell
+scp insuasti@bunnygirl:bslopez/sistemabl/gsa_directo_c2_p2pcol_2026-10-03.tar.gz .
+New-Item -ItemType Directory -Force SALIDAS_SERVIDOR/entrega_gsa_directo_c2_p2pcol_2026-10-03
+tar xzf gsa_directo_c2_p2pcol_2026-10-03.tar.gz -C SALIDAS_SERVIDOR/entrega_gsa_directo_c2_p2pcol_2026-10-03
+```
+
+Nada de esto es canon hasta que se registre en `Documentos/canon_2026-09/`.
 
 ---
 

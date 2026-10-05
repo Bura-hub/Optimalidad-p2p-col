@@ -192,7 +192,34 @@ def piso_residual(G, D, cu, deduccion, bolsa, etiqueta_mes):
     return piso_por_vendedor(cu, deduccion, bolsa, en_permuta), en_permuta
 
 
-MECANISMOS_PISO = ("c1", "h1", "h2")
+MECANISMOS_PISO = ("c1", "h1", "h2", "p2pcom")
+
+
+def piso_fondo_igual(G, D, cu, deduccion_fondo, bolsa, etiqueta_mes):
+    """Piso del P2P colectivo (2026-10-05, decision del autor): lo que vale
+    para la comunidad el kWh que un vendedor no vende dentro. Va al fondo y se
+    reparte en partes iguales; la parte de cada miembro vale el credito de su
+    tarifa menos la deduccion del fondo (`deduccion_fondo`, la del caso del
+    art. 20 sin la regla del 10 %) mientras le quede importacion en el mes, y
+    la bolsa de la hora desde su corte. El piso es el promedio de esos
+    valores: el mismo para todos los vendedores de la hora.
+
+    Devuelve (piso (T,), en_permuta (N, T) de la parte de cada miembro).
+    Supuesto declarado: como `piso_residual`, usa las series residuales
+    aproximadas y los totales del mes (CANON §14.27)."""
+    G = np.asarray(G, dtype=float)
+    D = np.asarray(D, dtype=float)
+    bolsa = np.asarray(bolsa, dtype=float).reshape(-1)
+    iny_r, ret_r = residual_proporcional(G, D)
+    N = iny_r.shape[0]
+    asign = np.repeat(iny_r.sum(axis=0, keepdims=True) / N, N, axis=0)
+    en_permuta = tramo_permuta(G, D, etiqueta_mes, iny=asign, ret=ret_r)
+    credito = precio_permuta_por_periodo(cu, deduccion_fondo, etiqueta_mes)
+    valor = np.where(en_permuta, credito, bolsa[None, :])
+    piso = valor.mean(axis=0)
+    if not np.isfinite(piso).all():
+        raise ValueError("piso del fondo no finito")
+    return piso, en_permuta
 
 
 def precio_cesion(iny: np.ndarray, bolsa: np.ndarray,
@@ -237,7 +264,8 @@ def fraccion_cedida(iny: np.ndarray, ret: np.ndarray,
 
 def piso_mecanismo(G, D, cu, deduccion, bolsa, etiqueta_mes,
                    mecanismo: str = "c1",
-                   capacidad_kw: Optional[np.ndarray] = None):
+                   capacidad_kw: Optional[np.ndarray] = None,
+                   deduccion_fondo: Optional[np.ndarray] = None):
     """Piso de cada vendedor segun la liquidacion de lo que NO vende dentro.
     Devuelve (piso, en_permuta).
 
@@ -254,12 +282,26 @@ def piso_mecanismo(G, D, cu, deduccion, bolsa, etiqueta_mes,
       dentro paga un cargo, que se suma al piso: en ``h1`` la deduccion de la
       planta del vendedor siempre; en ``h2`` solo si la planta pasa de 100 kW
       (numeral 2), y nada en el numeral 1.
+    - ``p2pcom`` (2026-10-05): el P2P colectivo. Lo que no se vende dentro va
+      al fondo con el reparto igual y la deduccion `deduccion_fondo`; el piso
+      es `piso_fondo_igual`, el mismo para todos los vendedores de la hora, y
+      el intercambio esta exento (sin cargo). `en_permuta` es entonces el de
+      la parte de cada miembro en el fondo.
 
     Supuesto declarado: como `piso_residual`, usa las series residuales
     aproximadas y los totales del mes (CANON §14.27)."""
     if mecanismo not in MECANISMOS_PISO:
         raise ValueError(f"mecanismo de piso {mecanismo!r}; se esperaba uno "
                          f"de {MECANISMOS_PISO}")
+    if mecanismo == "p2pcom":
+        if deduccion_fondo is None:
+            raise ValueError("p2pcom necesita la deduccion del fondo (la del "
+                             "caso del art. 20 sin la regla del 10 %)")
+        ded_f = np.asarray(deduccion_fondo, dtype=float)
+        if ded_f.shape != np.asarray(deduccion).shape or not np.isfinite(ded_f).all():
+            raise ValueError("deduccion del fondo no valida para p2pcom")
+        piso_k, en_permuta = piso_fondo_igual(G, D, cu, ded_f, bolsa, etiqueta_mes)
+        return np.repeat(piso_k[None, :], ded_f.shape[0], axis=0), en_permuta
     piso, en_permuta = piso_residual(G, D, cu, deduccion, bolsa, etiqueta_mes)
     if mecanismo == "c1":
         return piso, en_permuta

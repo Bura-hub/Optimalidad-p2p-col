@@ -66,7 +66,7 @@ def _listado():
     return out
 
 
-@pytest.mark.parametrize("piso", ["h1", "h2"])
+@pytest.mark.parametrize("piso", ["h1", "h2", "p2pcom"])
 def test_seco_no_escribe_y_corre_los_trece_casos_con_su_piso(piso):
     antes = _listado()
     rc, out = _corre("matriz_mecanismo", PISO_MECANISMO=piso)
@@ -104,8 +104,8 @@ def test_otra_carpeta_de_salidas():
 
 
 @pytest.mark.parametrize("env,texto", [
-    ({}, "PISO_MECANISMO tiene que ser h1 o h2"),
-    ({"PISO_MECANISMO": "c1"}, "PISO_MECANISMO tiene que ser h1 o h2"),
+    ({}, "PISO_MECANISMO tiene que ser h1, h2 o p2pcom"),
+    ({"PISO_MECANISMO": "c1"}, "PISO_MECANISMO tiene que ser h1, h2 o p2pcom"),
     ({"PISO_MECANISMO": "h2",
       "MECANISMO_SALIDAS": "SALIDAS_SERVIDOR/matriz_reposo"}, "no se pisa"),
     ({"PISO_MECANISMO": "h2", "MECANISMO_SALIDAS": "outputs/matriz_h2"},

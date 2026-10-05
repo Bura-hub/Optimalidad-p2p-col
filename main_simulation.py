@@ -979,15 +979,30 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             # 2026-10-05: --piso-mecanismo h1/h2 cambia el piso del vendedor
             # por la liquidacion del fondo de H1/H2 (cesion desde el corte y
             # cargo del intercambio); c1, el defecto, es piso_residual tal cual.
+            # p2pcom: el fondo del P2P colectivo deduce con el caso del art. 20
+            # sin la regla del 10 %: caso 1 (solo Cv) si la capacidad por
+            # usuario del art. 18 no pasa de 100 kW y la suma de 1 MW; si no,
+            # caso 2 (Cv mas los peajes).
+            ded_fondo_m = None
+            if piso_mecanismo == "p2pcom":
+                from core.opciones_externas import LIMITE_AGPE_KW, LIMITE_NUMERAL_1_KW
+                from scenarios.scenario_c4_creg101072 import capacidad_por_usuario_art18
+                _cap = np.asarray(cap, dtype=float).reshape(-1)
+                _caso2 = (capacidad_por_usuario_art18(_cap, _cap.size) > LIMITE_NUMERAL_1_KW
+                          or float(_cap.sum()) > LIMITE_AGPE_KW)
+                ded_fondo_m = cvm_m + (tolls_m if _caso2 else 0.0)
+                print(f"    [P2Pcom] Piso del fondo igual: deduccion del caso "
+                      f"{2 if _caso2 else 1} del art. 20 sin la regla del 10 %.")
             pi_gb_agente, en_permuta_m = _piso_mec(
                 G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
                 np.asarray(pi_bolsa, dtype=float), mes_m,
-                mecanismo=piso_mecanismo, capacidad_kw=cap)
+                mecanismo=piso_mecanismo, capacidad_kw=cap,
+                deduccion_fondo=ded_fondo_m)
             if piso_mecanismo != "c1":
-                print(f"    [H2] Piso del vendedor con el mecanismo {piso_mecanismo}: "
-                      f"cesion desde el corte y cargo del intercambio. Los "
-                      f"escenarios de la hoja Resumen NO son H1 ni H2: se "
-                      f"liquidan con hibrido_por_planta sobre estos flujos.")
+                print(f"    [H2] Piso del vendedor con el mecanismo {piso_mecanismo}. "
+                      f"Los escenarios de la hoja Resumen NO son ese mecanismo: "
+                      f"se liquidan aparte sobre estos flujos (h2_exacto.py, "
+                      f"p2pcom_exacto.py).")
 
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
@@ -2980,13 +2995,14 @@ if __name__ == "__main__":
     ap.add_argument("--factor-cv", default="1", metavar="F",
                     help="D7: factor sobre el componente de comercializar")
     ap.add_argument("--piso-mecanismo", dest="piso_mecanismo",
-                    choices=["c1", "h1", "h2"], default="c1",
+                    choices=["c1", "h1", "h2", "p2pcom"], default="c1",
                     help="2026-10-05: el piso del vendedor segun como se "
                          "liquida lo que no vende dentro. c1 (defecto, el "
                          "canon): la autogeneracion individual. h1/h2: el "
                          "fondo de H1/H2 (cesion desde el corte) mas el cargo "
                          "del intercambio (h1: la deduccion de su planta; h2: "
-                         "solo en el numeral 2)")
+                         "solo en el numeral 2). p2pcom: el fondo del P2P "
+                         "colectivo, reparto igual, intercambio exento")
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")

@@ -16,8 +16,9 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-from core.opciones_externas import (fraccion_cedida, piso_mecanismo,  # noqa: E402
-                                    piso_residual, precio_cesion,
+from core.opciones_externas import (fraccion_cedida, piso_fondo_igual,  # noqa: E402
+                                    piso_mecanismo, piso_residual,
+                                    precio_cesion, precio_permuta_por_periodo,
                                     residual_proporcional, reparto_anexo4)
 
 
@@ -100,3 +101,37 @@ def test_errores_en_voz_alta():
         piso_mecanismo(G, D, CU, ded, b, mes, "h3")
     with pytest.raises(ValueError, match="capacidad"):
         piso_mecanismo(G, D, CU, ded, b, mes, "h2")
+    with pytest.raises(ValueError, match="fondo"):
+        piso_mecanismo(G, D, CU, ded, b, mes, "p2pcom")
+
+
+# ── p2pcom: el piso del fondo igual del P2P colectivo ──────────────────────
+def test_p2pcom_es_el_mismo_para_todos_y_el_promedio_del_fondo():
+    G, D, CU, ded, b, mes = _datos()
+    dfo = ded * 0.8
+    piso, perm = piso_mecanismo(G, D, CU, ded, b, mes, "p2pcom", deduccion_fondo=dfo)
+    assert (piso == piso[0]).all()                     # el mismo en cada hora
+    iny_r, ret_r = residual_proporcional(G, D)
+    asign = np.repeat(iny_r.sum(0, keepdims=True) / 4, 4, axis=0)
+    _, _, perm_ref = reparto_anexo4(asign, ret_r, mes)
+    np.testing.assert_array_equal(perm, perm_ref)
+    cred = precio_permuta_por_periodo(CU, dfo, mes)
+    np.testing.assert_allclose(piso[0], np.where(perm, cred, b[None, :]).mean(0))
+
+
+def test_p2pcom_sin_corte_es_el_credito_medio():
+    """Con demanda alta nadie agota su parte: el piso es el crédito medio de
+    la comunidad, la tarifa de cada miembro menos la deducción del fondo."""
+    G, D, CU, ded, b, mes = _datos(escala_D=50.0)
+    piso_k, perm = piso_fondo_igual(G, D, CU, ded, b, mes)
+    assert perm.all()
+    np.testing.assert_allclose(piso_k, precio_permuta_por_periodo(CU, ded, mes).mean(0))
+
+
+def test_p2pcom_entre_la_bolsa_y_el_credito():
+    G, D, CU, ded, b, mes = _datos()
+    piso_k, _ = piso_fondo_igual(G, D, CU, ded, b, mes)
+    cred = precio_permuta_por_periodo(CU, ded, mes)
+    lo = np.minimum(b, cred.min(0))
+    hi = np.maximum(b, cred.max(0))
+    assert ((piso_k >= lo - 1e-9) & (piso_k <= hi + 1e-9)).all()

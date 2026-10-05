@@ -46,6 +46,7 @@
 #   --- el piso de H1 y H2 (2026-10-05): la matriz con el nucleo P2P de H2 --
 #   PISO_MECANISMO=h2 bash modelo_base/run_servidor.sh matriz_mecanismo   <- las 13 corridas con el piso de H2, en SALIDAS_SERVIDOR/matriz_h2
 #   PISO_MECANISMO=h1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- lo mismo con el de H1, en SALIDAS_SERVIDOR/matriz_h1
+#   PISO_MECANISMO=p2pcom bash modelo_base/run_servidor.sh matriz_mecanismo   <- con el piso del fondo del P2P colectivo, en SALIDAS_SERVIDOR/matriz_p2pcom
 #   PISO_MECANISMO=h2 DESDE=P1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- retoma desde ese caso
 #   MECANISMO_SALIDAS=SALIDAS_SERVIDOR/matriz_h2_<fecha> PISO_MECANISMO=h2 ... matriz_mecanismo   <- otra carpeta
 #
@@ -295,8 +296,8 @@ MATRIZ_VIEJA="SALIDAS_SERVIDOR/matriz"
 SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
 
 # 2026-10-05 (H2): donde escribe `matriz_mecanismo`, la matriz de trece casos
-# con el piso del vendedor de H1 o de H2 (`--piso-mecanismo`). PISO_MECANISMO
-# elige el piso (h1 o h2; c1 es `matriz_reposo` y aqui se rechaza) y la
+# con el piso del vendedor de H1, de H2 o del P2P colectivo (`--piso-mecanismo`).
+# PISO_MECANISMO elige el piso (h1, h2 o p2pcom; c1 es `matriz_reposo` y aqui se rechaza) y la
 # carpeta, por defecto SALIDAS_SERVIDOR/matriz_<piso>, nunca la del canon.
 # Viven aqui por la misma razon que los de arriba: `recoger` los necesita.
 PISO_MEC="${PISO_MECANISMO:-}"
@@ -307,8 +308,8 @@ MATRIZ_MEC="${MATRIZ_MEC%/}"
 # alta. La carpeta lleva un fichero MECANISMO con el piso con que se corrio:
 # un retome con otro piso mezclaria almacenes de dos mecanismos y se rechaza.
 valida_mecanismo() {
-  if [[ "$PISO_MEC" != "h1" && "$PISO_MEC" != "h2" ]]; then
-    echo "  PISO_MECANISMO tiene que ser h1 o h2, no '$PISO_MEC' (el piso c1 es" \
+  if [[ "$PISO_MEC" != "h1" && "$PISO_MEC" != "h2" && "$PISO_MEC" != "p2pcom" ]]; then
+    echo "  PISO_MECANISMO tiene que ser h1, h2 o p2pcom, no '$PISO_MEC' (el piso c1 es" \
          "matriz_reposo)" >&2
     exit 2
   fi
@@ -1712,7 +1713,7 @@ print(" ".join(sorted(palancas)))
     # o de H2 (`--piso-mecanismo`, core/opciones_externas.py:piso_mecanismo).
     # Es `matriz_reposo` con estos cambios:
     #
-    #   - PISO_MECANISMO elige el piso, h1 o h2, y es obligatorio;
+    #   - PISO_MECANISMO elige el piso, h1, h2 o p2pcom, y es obligatorio;
     #   - escribe en $MATRIZ_MEC/<caso> (SALIDAS_SERVIDOR/matriz_<piso>, o
     #     MECANISMO_SALIDAS), nunca en la matriz del canon, con un fichero
     #     MECANISMO que impide retomar la carpeta con el otro piso;

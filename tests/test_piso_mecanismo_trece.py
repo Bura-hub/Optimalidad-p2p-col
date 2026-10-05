@@ -18,6 +18,15 @@ opcion del caso) y:
   (E0, K1, CV2 y SINU), y las plantas del numeral 2 son las de E4, E5 y P2
   (todas) y la UCC en I1 y N1.
 
+Y el piso del P2P colectivo (``p2pcom``, el fondo con el reparto igual):
+
+- el caso del art. 20 sin la regla del 10 % es el 2 solo en E4, E5 y P2;
+- la deducción del fondo es la individual de cada planta salvo la de la UCC
+  en I1 y N1 (planta del numeral 2 en un autogenerador colectivo del caso 1);
+- el piso es el mismo para todos los vendedores de cada hora, finito, entre la
+  bolsa y el crédito, y, donde nadie agota su parte del fondo, el crédito
+  medio de la comunidad.
+
 Unos 2 (s) por caso mas la carga del MTE:
 
     .venv/Scripts/python.exe -m pytest tests/test_piso_mecanismo_trece.py -q
@@ -36,10 +45,12 @@ import pytest
 RAIZ = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ))
 
-from core.opciones_externas import (LIMITE_NUMERAL_1_KW,  # noqa: E402
-                                    deduccion_art25, fraccion_cedida,
-                                    piso_mecanismo, precio_cesion,
+from core.opciones_externas import (LIMITE_AGPE_KW,  # noqa: E402
+                                    LIMITE_NUMERAL_1_KW, deduccion_art25,
+                                    fraccion_cedida, piso_mecanismo,
+                                    precio_cesion, precio_permuta_por_periodo,
                                     residual_proporcional)
+from scenarios.scenario_c4_creg101072 import capacidad_por_usuario_art18  # noqa: E402
 
 MTE = Path(os.environ.get("MTE_ROOT", RAIZ / "MedicionesMTE_v3"))
 # La matriz del canon: MATRIZ_CANON si se da (en el servidor la pone la
@@ -124,3 +135,32 @@ def test_lenta_piso_h1_h2_en_los_trece_casos(caso, datos):
         np.testing.assert_array_equal(h2, c1)
     else:
         assert (np.abs(h2 - c1)[vende] > 1e-9).any(), caso
+
+
+CASO2_P2PCOM = {"E4", "E5", "P2"}
+
+
+@pytest.mark.parametrize("caso", CASOS)
+def test_lenta_piso_p2pcom_en_los_trece_casos(caso, datos):
+    from gsa_directo import comun, evaluador
+    ins = evaluador.prepara_caso(caso, datos)
+    f = evaluador.aplica_factores(ins, comun.PUNTO_BASE)
+    G, D, bolsa, techo = f["G"], f["D"], f["bolsa"], f["techo"]
+    cap = np.asarray(ins.cap, dtype=float)
+    caso2 = (capacidad_por_usuario_art18(cap, cap.size) > LIMITE_NUMERAL_1_KW
+             or float(cap.sum()) > LIMITE_AGPE_KW)
+    assert caso2 == (caso in CASO2_P2PCOM), caso
+    ded_ind = deduccion_art25(f["cvm"], f["tolls"], cap)
+    ded_fondo = f["cvm"] + (f["tolls"] if caso2 else 0.0)
+    distintas = {ins.nombres[i] for i in range(cap.size)
+                 if not np.array_equal(ded_fondo[i], ded_ind[i])}
+    assert distintas == ({"UCC"} if caso in ("I1", "N1") else set()), caso
+    piso, perm = piso_mecanismo(G, D, techo, ded_ind, bolsa, ins.mes_m, "p2pcom",
+                                capacidad_kw=cap, deduccion_fondo=ded_fondo)
+    assert np.isfinite(piso).all() and (piso == piso[0]).all(), caso
+    cred = precio_permuta_por_periodo(techo, ded_fondo, ins.mes_m)
+    lo = np.minimum(bolsa, cred.min(0)) - 1e-9
+    hi = np.maximum(bolsa, cred.max(0)) + 1e-9
+    assert ((piso[0] >= lo) & (piso[0] <= hi)).all(), caso
+    llenos = perm.all(axis=0)
+    np.testing.assert_allclose(piso[0][llenos], cred.mean(0)[llenos], rtol=0, atol=1e-9)

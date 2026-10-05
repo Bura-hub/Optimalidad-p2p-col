@@ -2115,7 +2115,7 @@ nice -n 19 ionice -c 3 tar czf gsa_directo_h1_2026-10-04.tar.gz \
 Y en la máquina de trabajo (PowerShell, en la raíz del repositorio):
 
 ```powershell
-scp insuasti@bunnygirl:bslopez/sistemabl/gsa_directo_h1_2026-10-04.tar.gz .
+scp ServidorInsuasti:bslopez/sistemabl/gsa_directo_h1_2026-10-04.tar.gz .
 New-Item -ItemType Directory -Force SALIDAS_SERVIDOR/entrega_gsa_directo_h1_2026-10-04
 tar xzf gsa_directo_h1_2026-10-04.tar.gz -C SALIDAS_SERVIDOR/entrega_gsa_directo_h1_2026-10-04
 ```
@@ -2198,12 +2198,96 @@ nice -n 19 ionice -c 3 tar czf gsa_directo_c2_p2pcol_2026-10-03.tar.gz \
 Y en la máquina de trabajo (PowerShell, en la raíz del repositorio):
 
 ```powershell
-scp insuasti@bunnygirl:bslopez/sistemabl/gsa_directo_c2_p2pcol_2026-10-03.tar.gz .
+scp ServidorInsuasti:bslopez/sistemabl/gsa_directo_c2_p2pcol_2026-10-03.tar.gz .
 New-Item -ItemType Directory -Force SALIDAS_SERVIDOR/entrega_gsa_directo_c2_p2pcol_2026-10-03
 tar xzf gsa_directo_c2_p2pcol_2026-10-03.tar.gz -C SALIDAS_SERVIDOR/entrega_gsa_directo_c2_p2pcol_2026-10-03
 ```
 
 Nada de esto es canon hasta que se registre en `Documentos/canon_2026-09/`.
+
+---
+
+## La matriz con el piso de H2 (y de H1), desde el 5 de octubre
+
+H2 es el tercer modelo de la tesis con núcleo P2P. Se monta sobre H1 y además
+exime del componente de comercializar el intercambio de las plantas del
+numeral 1. Para medirlo exacto hace falta **el mercado de cada hora con el piso
+del vendedor de H2**, que no es el de la matriz del canon.
+
+**Cómo se forma ese piso.** Antes del corte es el de siempre. Desde el corte,
+lo que el vendedor no vende dentro se reparte así:
+
+- una parte se cede al fondo, f = min(1, ΣR/ΣX), y se valora a la bolsa del
+  mes ponderada por el perfil del fondo;
+- el resto va a la bolsa horaria.
+
+**El cargo del intercambio** se suma a ese piso. En H2 solo lo pagan las
+plantas de más de 100 kW. En H1 lo pagan todas, por la deducción de su planta.
+
+La opción del motor es `--piso-mecanismo h1|h2`
+(`core/opciones_externas.py:piso_mecanismo`). Su defecto, `c1`, reproduce el
+canon al bit, y `tests/test_piso_mecanismo.py` lo comprueba.
+
+**Lo que hace la acción `matriz_mecanismo`:**
+
+- Corre los trece casos de `matriz_reposo` con las mismas opciones, más
+  `--piso-mecanismo`.
+- Cada caso lleva su compuerta de salida, la misma de `matriz_reposo`, que no
+  depende del piso. Se comprobó en verde sobre un día, con H1 en E0 y con H2
+  en E4.
+- Escribe en `SALIDAS_SERVIDOR/matriz_<piso>` (o en `MECANISMO_SALIDAS`) y
+  nunca en la matriz del canon.
+- Deja un fichero `MECANISMO` que impide retomar la carpeta con el otro piso.
+
+**La hoja Resumen de cada corrida NO es H1 ni H2.** Liquida los escenarios de
+siempre sobre el mercado nuevo. H2 se liquida en casa sobre el almacén.
+
+**El tiempo:** la matriz del 19 de septiembre tardó 14 (min) en total, unos
+60 (s) por caso con 16 procesos. No hace falta esperar a la noche.
+
+Antes, en el servidor, el código del commit que la trae:
+
+```bash
+cd ~/bslopez/sistemabl
+git fetch origin
+git pull --ff-only origin main
+git log --oneline -1
+```
+
+La corrida, en tmux, contenida como siempre por el propio lanzador:
+
+```bash
+tmux new -s h2
+cd ~/bslopez/sistemabl
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+export PISO_MECANISMO=h2
+SECO=1 bash modelo_base/run_servidor.sh matriz_mecanismo
+bash modelo_base/run_servidor.sh matriz_mecanismo
+```
+
+Con `PISO_MECANISMO=h1` se corre la de H1 en `SALIDAS_SERVIDOR/matriz_h1`.
+Si un caso falla, se retoma desde él con
+`PISO_MECANISMO=h2 DESDE=<caso> bash modelo_base/run_servidor.sh matriz_mecanismo`.
+
+Para traerla, solo esa carpeta y sus registros:
+
+```bash
+cd ~/bslopez/sistemabl
+nice -n 19 ionice -c 3 tar czf matriz_h2_2026-10-05.tar.gz \
+  SALIDAS_SERVIDOR/matriz_h2 \
+  modelo_base/logs/matriz_h2_*_2026-10-*.log
+```
+
+Y en la máquina de trabajo (PowerShell, en la raíz del repositorio):
+
+```powershell
+scp ServidorInsuasti:bslopez/sistemabl/matriz_h2_2026-10-05.tar.gz .
+New-Item -ItemType Directory -Force SALIDAS_SERVIDOR/entrega_matriz_h2_2026-10-05
+tar xzf matriz_h2_2026-10-05.tar.gz -C SALIDAS_SERVIDOR/entrega_matriz_h2_2026-10-05
+```
+
+Nada de esto es canon hasta que se liquide H2 y se registre en
+`Documentos/canon_2026-09/`.
 
 ---
 

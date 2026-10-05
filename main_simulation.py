@@ -656,7 +656,8 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          excluir_agente: str = None,
          factor_generacion: float = 1.0, factor_demanda: float = 1.0,
          escala_agente: str = None, neto_cero: bool = False,
-         factor_cv: float = 1.0):
+         factor_cv: float = 1.0,
+         piso_mecanismo: str = "c1"):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -962,7 +963,7 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         idx_piso = index_full if full_horizon else (idx_day if single_day
                                                     else None)
         if idx_piso is not None:
-            from core.opciones_externas import deduccion_art25, piso_residual
+            from core.opciones_externas import deduccion_art25, piso_mecanismo as _piso_mec
             from data.cedenar_tariff import cu_components_per_agent_hourly
             # D7: el componente de comercializar publicado por un factor, que
             # aproxima el «costo pactado» del no regulado; 1 es la base.
@@ -975,9 +976,18 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
             # comercial, D3), y lo que se cobra sobre la permuta lo decide la
             # capacidad instalada (art. 25, numerales 1 y 2). Cierra H-53.
             ded_m = deduccion_art25(cvm_m, tolls_m, cap)
-            pi_gb_agente, en_permuta_m = piso_residual(
+            # 2026-10-05: --piso-mecanismo h1/h2 cambia el piso del vendedor
+            # por la liquidacion del fondo de H1/H2 (cesion desde el corte y
+            # cargo del intercambio); c1, el defecto, es piso_residual tal cual.
+            pi_gb_agente, en_permuta_m = _piso_mec(
                 G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
-                np.asarray(pi_bolsa, dtype=float), mes_m)
+                np.asarray(pi_bolsa, dtype=float), mes_m,
+                mecanismo=piso_mecanismo, capacidad_kw=cap)
+            if piso_mecanismo != "c1":
+                print(f"    [H2] Piso del vendedor con el mecanismo {piso_mecanismo}: "
+                      f"cesion desde el corte y cargo del intercambio. Los "
+                      f"escenarios de la hoja Resumen NO son H1 ni H2: se "
+                      f"liquidan con hibrido_por_planta sobre estos flujos.")
 
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
@@ -2969,6 +2979,14 @@ if __name__ == "__main__":
                     help="C-180: cada institucion a su consumo anual neto cero")
     ap.add_argument("--factor-cv", default="1", metavar="F",
                     help="D7: factor sobre el componente de comercializar")
+    ap.add_argument("--piso-mecanismo", dest="piso_mecanismo",
+                    choices=["c1", "h1", "h2"], default="c1",
+                    help="2026-10-05: el piso del vendedor segun como se "
+                         "liquida lo que no vende dentro. c1 (defecto, el "
+                         "canon): la autogeneracion individual. h1/h2: el "
+                         "fondo de H1/H2 (cesion desde el corte) mas el cargo "
+                         "del intercambio (h1: la deduccion de su planta; h2: "
+                         "solo en el numeral 2)")
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
@@ -3489,7 +3507,8 @@ if __name__ == "__main__":
              factor_generacion=lee_factor(args.factor_generacion),
              factor_demanda=lee_factor(args.factor_demanda),
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
-             factor_cv=lee_factor(args.factor_cv))
+             factor_cv=lee_factor(args.factor_cv),
+             piso_mecanismo=args.piso_mecanismo)
     else:
         _, _p2p = main(
              use_real_data=(args.data == "real"),
@@ -3526,7 +3545,8 @@ if __name__ == "__main__":
              factor_generacion=lee_factor(args.factor_generacion),
              factor_demanda=lee_factor(args.factor_demanda),
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
-             factor_cv=lee_factor(args.factor_cv))
+             factor_cv=lee_factor(args.factor_cv),
+             piso_mecanismo=args.piso_mecanismo)
 
     # ── D38: el codigo de salida, DESPUES de escribir todo ────────────────
     # `main` ya escribio todas sus salidas y cerro el almacen. Solo aqui, en

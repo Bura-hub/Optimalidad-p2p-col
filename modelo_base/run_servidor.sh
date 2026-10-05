@@ -43,6 +43,12 @@
 #   bash modelo_base/run_servidor.sh barrido_sigma      <- las 13 con sigma 0, 0,5 y 1 (despues de matriz_reposo)
 #   SIGMAS="0.5 1" DESDE=P1 bash modelo_base/run_servidor.sh barrido_sigma   <- retoma
 #
+#   --- el piso de H1 y H2 (2026-10-05): la matriz con el nucleo P2P de H2 --
+#   PISO_MECANISMO=h2 bash modelo_base/run_servidor.sh matriz_mecanismo   <- las 13 corridas con el piso de H2, en SALIDAS_SERVIDOR/matriz_h2
+#   PISO_MECANISMO=h1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- lo mismo con el de H1, en SALIDAS_SERVIDOR/matriz_h1
+#   PISO_MECANISMO=h2 DESDE=P1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- retoma desde ese caso
+#   MECANISMO_SALIDAS=SALIDAS_SERVIDOR/matriz_h2_<fecha> PISO_MECANISMO=h2 ... matriz_mecanismo   <- otra carpeta
+#
 #   --- la validacion del reposo (2026-09-17): M-A a M-G -------------------
 #   bash modelo_base/run_servidor.sh validacion_reposo  <- decide si cada regimen se publica como reposo verificado o como regla declarada
 #   LENTAS=0 bash modelo_base/run_servidor.sh validacion_reposo   <- sin las dos horas lentas de la compuerta de la dinamica
@@ -66,6 +72,7 @@
 #   bash modelo_base/run_servidor.sh recoger convergencia  <- y lo de convergencia
 #   bash modelo_base/run_servidor.sh recoger matriz_reposo <- y lo de matriz_reposo
 #   bash modelo_base/run_servidor.sh recoger barrido_sigma <- y lo del barrido
+#   PISO_MECANISMO=h2 bash modelo_base/run_servidor.sh recoger matriz_mecanismo <- y lo de la matriz con H2
 #   bash modelo_base/run_servidor.sh recoger validacion_reposo <- y lo de la validacion
 #   bash modelo_base/run_servidor.sh recoger gsa_directo <- y lo del GSA directo
 #
@@ -187,7 +194,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|barrido_sigma|validacion_reposo|gsa_directo|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|gsa_directo|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -286,6 +293,59 @@ MATRIZ_REPOSO="SALIDAS_SERVIDOR/matriz_reposo"
 MATRIZ_VIEJA="SALIDAS_SERVIDOR/matriz"
 # SIGMAS acota el barrido; la sigma base, (I-1)/I, es la de `matriz_reposo`.
 SIGMAS_BARRIDO="${SIGMAS:-0 0.5 1}"
+
+# 2026-10-05 (H2): donde escribe `matriz_mecanismo`, la matriz de trece casos
+# con el piso del vendedor de H1 o de H2 (`--piso-mecanismo`). PISO_MECANISMO
+# elige el piso (h1 o h2; c1 es `matriz_reposo` y aqui se rechaza) y la
+# carpeta, por defecto SALIDAS_SERVIDOR/matriz_<piso>, nunca la del canon.
+# Viven aqui por la misma razon que los de arriba: `recoger` los necesita.
+PISO_MEC="${PISO_MECANISMO:-}"
+MATRIZ_MEC="${MECANISMO_SALIDAS:-SALIDAS_SERVIDOR/matriz_${PISO_MEC}}"
+MATRIZ_MEC="${MATRIZ_MEC%/}"
+
+# Comprueba el piso y la carpeta de `matriz_mecanismo`; sale con 2 en voz
+# alta. La carpeta lleva un fichero MECANISMO con el piso con que se corrio:
+# un retome con otro piso mezclaria almacenes de dos mecanismos y se rechaza.
+valida_mecanismo() {
+  if [[ "$PISO_MEC" != "h1" && "$PISO_MEC" != "h2" ]]; then
+    echo "  PISO_MECANISMO tiene que ser h1 o h2, no '$PISO_MEC' (el piso c1 es" \
+         "matriz_reposo)" >&2
+    exit 2
+  fi
+  if [[ "$MATRIZ_MEC" != SALIDAS_SERVIDOR/?* || "$MATRIZ_MEC" == *..* \
+        || "$MATRIZ_MEC" == *" "* ]]; then
+    echo "  MECANISMO_SALIDAS tiene que ser una carpeta dentro de" \
+         "SALIDAS_SERVIDOR/, sin '..' ni espacios: '$MATRIZ_MEC'" >&2
+    exit 2
+  fi
+  if [[ "$MATRIZ_MEC" == "$MATRIZ_REPOSO" || "$MATRIZ_MEC" == "$MATRIZ_VIEJA" ]]; then
+    echo "  MECANISMO_SALIDAS no puede ser $MATRIZ_MEC: es la matriz del" \
+         "piso c1 y no se pisa" >&2
+    exit 2
+  fi
+  # Solo en seco: las pruebas leen una carpeta propia (como GSA_DIR_PRUEBA).
+  if [[ "${SECO:-0}" == "1" && -n "${MECANISMO_DIR_PRUEBA:-}" ]]; then
+    MATRIZ_MEC="$MECANISMO_DIR_PRUEBA"
+  fi
+  if [[ -f "$MATRIZ_MEC/MECANISMO" ]]; then
+    local previo
+    previo="$(tr -d '[:space:]' < "$MATRIZ_MEC/MECANISMO")"
+    if [[ "$previo" != "$PISO_MEC" ]]; then
+      echo "  $MATRIZ_MEC se corrio con el piso '$previo', no con '$PISO_MEC':" \
+           "usa otra carpeta (MECANISMO_SALIDAS)" >&2
+      exit 2
+    fi
+  fi
+}
+
+# Escribe el fichero MECANISMO de la carpeta, o dice que lo haria (SECO).
+escribe_mecanismo() {
+  if [[ "${SECO:-0}" == "1" ]]; then
+    printf '  [SECO] %s > %q\n' "$PISO_MEC" "$MATRIZ_MEC/MECANISMO"
+    return 0
+  fi
+  printf '%s\n' "$PISO_MEC" > "$MATRIZ_MEC/MECANISMO"
+}
 
 # D73 a D79 (2026-09-26): donde escribe `gsa_directo` y los casos que corre,
 # en el orden de prioridad del apartado 5.4 del diseno (los tres puntos de
@@ -605,7 +665,7 @@ case "$ACCION" in
              test_criterio_reparto test_censo_convergencia \
              test_reposo_mercado test_reposo_motor \
              test_compuertas_matriz_reposo test_compara_matriz_reposo \
-             test_dinamica_regularizada; do
+             test_dinamica_regularizada test_piso_mecanismo; do
       corre "pytest_$t" -m pytest "tests/$t.py" -q
     done
     # D49 / D50: la compuerta de la dinamica regularizada, SOLO sus dos horas
@@ -1645,6 +1705,105 @@ print(" ".join(sorted(palancas)))
     echo "  cada matriz_reposo_compuerta_<caso>_<fecha>.log el resumen por regimen"
     echo "  y las identidades cero_retiros y prima_descompuesta,"
     echo "  y en matriz_reposo_compara_<fecha>.log los cambios de signo (M-F)."
+    ;;
+
+  matriz_mecanismo)
+    # 2026-10-05 (H2): la matriz de trece casos con el piso del vendedor de H1
+    # o de H2 (`--piso-mecanismo`, core/opciones_externas.py:piso_mecanismo).
+    # Es `matriz_reposo` con estos cambios:
+    #
+    #   - PISO_MECANISMO elige el piso, h1 o h2, y es obligatorio;
+    #   - escribe en $MATRIZ_MEC/<caso> (SALIDAS_SERVIDOR/matriz_<piso>, o
+    #     MECANISMO_SALIDAS), nunca en la matriz del canon, con un fichero
+    #     MECANISMO que impide retomar la carpeta con el otro piso;
+    #   - solo corre las trece corridas, cada una con su compuerta de salida
+    #     (`compuertas_matriz_reposo.py`, que no depende del piso: se comprobo
+    #     en verde con H1 en E0 y con H2 en E4 sobre un dia). La liquidacion de
+    #     H1 y H2 se hace en casa sobre el almacen; la hoja Resumen de cada
+    #     corrida liquida los escenarios de siempre y NO es H1 ni H2;
+    #   - sin figuras del foro ni comparacion con la matriz vieja.
+    #
+    # Se conservan las compuertas (con test_piso_mecanismo), --include-c5
+    # --no-regulado --analisis-ligero, las opciones del reposo, DESDE y el
+    # tratamiento del codigo 3 (D38).
+    set -e
+    export PARA_EN_FALLO=1
+    valida_mecanismo
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    valida_desde
+
+    echo "=== MATRIZ CON EL PISO DE ${PISO_MEC^^} · las trece corridas ==="
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $MATRIZ_MEC   (la del canon, $MATRIZ_REPOSO, no se toca)"
+    echo
+
+    echo "--- 1/3 · compuertas"
+    bash "$0" compuertas
+    # El piso de H1 y H2 sobre los datos reales de los trece casos, con el
+    # piso c1 contra el almacen de la matriz del canon (MATRIZ_CANON; si no
+    # se da, SALIDAS_SERVIDOR/matriz_reposo, la del 19 de septiembre).
+    MATRIZ_CANON="${MATRIZ_CANON:-$MATRIZ_REPOSO}"       corre "pytest_test_piso_mecanismo_trece" -m pytest             "tests/test_piso_mecanismo_trece.py" -q
+
+    echo
+    echo "--- 2/3 · las trece corridas, cada una con su compuerta de salida"
+    crea_dir "$MATRIZ_MEC"
+    escribe_mecanismo
+    SALTAR="${DESDE:-}"
+    for par in "${CASOS_MATRIZ[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      if [[ -n "$SALTAR" ]]; then
+        if [[ "$CASO" == "$SALTAR" ]]; then
+          SALTAR=""
+        else
+          echo "  ... salta $CASO (DESDE=$DESDE)"
+          continue
+        fi
+      fi
+      DIR="$MATRIZ_MEC/$CASO"
+      ALM="$DIR/almacen"
+      crea_dir "$ALM"
+      echo
+      echo "  --- $CASO  ->  $DIR"
+      corre "matriz_${PISO_MEC}_${CASO}" main_simulation.py \
+            --data real --full --include-c5 --no-regulado \
+            --metodo reposo --modo-presupuesto sigma \
+            --regla-precio uniforme --despacho-vendedores piso \
+            --piso-mecanismo "$PISO_MEC" \
+            --analisis-ligero --almacen "$ALM" \
+            ${EXTRA:+$EXTRA} --out-dir "$DIR" || {
+        cod=$?
+        echo
+        echo "  $CASO salio con codigo $cod (3: D38, como en matriz_reposo)."
+        echo "  Mira las lineas [H2], [C-190], [D24], [D48] y [D38] de su registro"
+        echo "  ($LOGS/matriz_${PISO_MEC}_${CASO}_<fecha>.log) y retoma con:"
+        echo "    PISO_MECANISMO=$PISO_MEC DESDE=$CASO bash $0 matriz_mecanismo"
+        exit "$cod"
+      }
+      corre "matriz_${PISO_MEC}_compuerta_${CASO}" \
+            "$SONDA/compuertas_matriz_reposo.py" "$ALM" \
+            --cobertura m1 --caso "$CASO" || {
+        cod=$?
+        echo
+        echo "  La compuerta de salida de $CASO no paso (codigo $cod). El almacen"
+        echo "  esta escrito; la lista de fallos va al final de"
+        echo "  $LOGS/matriz_${PISO_MEC}_compuerta_${CASO}_<fecha>.log. Retoma con:"
+        echo "    PISO_MECANISMO=$PISO_MEC DESDE=$CASO bash $0 matriz_mecanismo"
+        exit "$cod"
+      }
+    done
+
+    echo
+    echo "--- 3/3 · la recogida"
+    bash "$0" recoger matriz_mecanismo
+    echo
+    echo "=== MATRIZ CON EL PISO DE ${PISO_MEC^^} COMPLETA ==="
+    echo "  Un caso o una compuerta de salida que falla detiene la cadena; se"
+    echo "  retoma con:  PISO_MECANISMO=$PISO_MEC DESDE=<caso> bash $0 matriz_mecanismo"
     ;;
 
   barrido_sigma)
@@ -2718,6 +2877,17 @@ print(" ".join(sorted(palancas)))
           echo "  sin matriz vieja en $MATRIZ_VIEJA: la comparacion no se espera (se hace en casa)"
         fi
         ;;
+      matriz_mecanismo)
+        # 2026-10-05 (H2): el almacen de cada caso, el registro de su
+        # compuerta de salida y el fichero MECANISMO de la carpeta.
+        valida_mecanismo
+        for par in "${CASOS_MATRIZ[@]}"; do
+          CASO="${par%%:*}"
+          ESPERADOS+=("$MATRIZ_MEC/$CASO/almacen")
+          ESPERADOS+=("$(ultimo_registro "matriz_${PISO_MEC}_compuerta_${CASO}")")
+        done
+        ESPERADOS+=("$MATRIZ_MEC/MECANISMO")
+        ;;
       barrido_sigma)
         # D50: lo que exista de cada sigma y cada caso, con aviso de lo que
         # falte: el almacen y el registro de su compuerta de salida.
@@ -2798,7 +2968,7 @@ print(" ".join(sorted(palancas)))
                     "$(ultimo_registro gsa_directo_punto_base)")
         ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, barrido_sigma, validacion_reposo o gsa_directo"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo o gsa_directo"
         exit 2
         ;;
     esac
@@ -2818,7 +2988,8 @@ print(" ".join(sorted(palancas)))
     # dibujar, de modo que existe aunque la figura se caiga; y el registro de
     # una compuerta de salida existe aunque falle. Se avisa en voz alta, pero
     # no se aborta: recoger lo que hay sirve tambien cuando algo fallo.
-    if [[ "$DE" == "matriz_reposo" || "$DE" == "barrido_sigma" ]]; then
+    if [[ "$DE" == "matriz_reposo" || "$DE" == "barrido_sigma" \
+          || "$DE" == "matriz_mecanismo" ]]; then
       for esperado in "${ESPERADOS[@]}"; do
         if [[ -d "$esperado" && "$esperado" == */figuras_foro ]]; then
           shopt -s nullglob dotglob

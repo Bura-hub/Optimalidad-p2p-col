@@ -192,6 +192,102 @@ def piso_residual(G, D, cu, deduccion, bolsa, etiqueta_mes):
     return piso_por_vendedor(cu, deduccion, bolsa, en_permuta), en_permuta
 
 
+MECANISMOS_PISO = ("c1", "h1", "h2")
+
+
+def precio_cesion(iny: np.ndarray, bolsa: np.ndarray,
+                  etiqueta_mes: np.ndarray) -> np.ndarray:
+    """(T,) el precio con que se compensa, en H1 y H2, al miembro que cede
+    credito: la bolsa del mes ponderada por el perfil horario del fondo de la
+    comunidad, sum_h S_h b_h / sum_h S_h con S_h la inyeccion de todos en la
+    hora h (como `hibrido_por_planta.precio_compensacion`). Un mes sin
+    inyeccion no cede nada: su precio no se usa y queda en cero."""
+    iny = np.asarray(iny, dtype=float)
+    bolsa = np.asarray(bolsa, dtype=float).reshape(-1)
+    S = iny.sum(axis=0)
+    out = np.zeros(S.shape[0])
+    etiquetas = np.asarray(etiqueta_mes)
+    for mes in np.unique(etiquetas):
+        h = etiquetas == mes
+        tot = float(S[h].sum())
+        out[h] = float((S[h] * bolsa[h]).sum()) / tot if tot > 0.0 else 0.0
+    return out
+
+
+def fraccion_cedida(iny: np.ndarray, ret: np.ndarray,
+                    etiqueta_mes: np.ndarray) -> np.ndarray:
+    """(T,) la fraccion del sobrante de la comunidad que el reparto «primero
+    lo propio» de H1 y H2 cede a quien todavia importa, en cada mes: con
+    propio = min(S_n, D_n), sobrante X_n = S_n - propio e importacion que
+    queda R_n = D_n - propio (totales del mes), es min(1, sum R / sum X). Es
+    la misma para todos los vendedores del mes (`hibrido_por_planta.
+    pde_primero_propio`: cedido_n = entrega X_n / sum X). Sin sobrante, 0."""
+    iny = np.asarray(iny, dtype=float)
+    ret = np.asarray(ret, dtype=float)
+    out = np.zeros(iny.shape[1])
+    etiquetas = np.asarray(etiqueta_mes)
+    for mes in np.unique(etiquetas):
+        h = etiquetas == mes
+        S, D = iny[:, h].sum(axis=1), ret[:, h].sum(axis=1)
+        propio = np.minimum(S, D)
+        pool, falta = float((S - propio).sum()), float((D - propio).sum())
+        out[h] = min(1.0, falta / pool) if pool > 0.0 else 0.0
+    return out
+
+
+def piso_mecanismo(G, D, cu, deduccion, bolsa, etiqueta_mes,
+                   mecanismo: str = "c1",
+                   capacidad_kw: Optional[np.ndarray] = None):
+    """Piso de cada vendedor segun la liquidacion de lo que NO vende dentro.
+    Devuelve (piso, en_permuta).
+
+    - ``c1`` (defecto, el canon): `piso_residual`, es decir, la autogeneracion
+      individual: permuta antes del corte hx y bolsa de la hora desde el.
+    - ``h1`` y ``h2`` (2026-10-05, decision del autor): lo que no se vende
+      dentro va al fondo con el reparto «primero lo propio» y la deduccion de
+      la planta de origen (CANON §14.26). Antes de su corte, el vendedor
+      acredita su propia importacion: el mismo piso que ``c1``. Desde su corte,
+      cede su sobrante a quien todavia importa y cobra el precio de cesion
+      (`precio_cesion`); lo que nadie puede usar vuelve a el y va a la bolsa
+      de la hora. El piso es la mezcla f p_cesion + (1 - f) bolsa, con f la
+      fraccion cedida del mes (`fraccion_cedida`). Ademas, lo que se vende
+      dentro paga un cargo, que se suma al piso: en ``h1`` la deduccion de la
+      planta del vendedor siempre; en ``h2`` solo si la planta pasa de 100 kW
+      (numeral 2), y nada en el numeral 1.
+
+    Supuesto declarado: como `piso_residual`, usa las series residuales
+    aproximadas y los totales del mes (CANON §14.27)."""
+    if mecanismo not in MECANISMOS_PISO:
+        raise ValueError(f"mecanismo de piso {mecanismo!r}; se esperaba uno "
+                         f"de {MECANISMOS_PISO}")
+    piso, en_permuta = piso_residual(G, D, cu, deduccion, bolsa, etiqueta_mes)
+    if mecanismo == "c1":
+        return piso, en_permuta
+    G = np.asarray(G, dtype=float)
+    D = np.asarray(D, dtype=float)
+    ded = np.asarray(deduccion, dtype=float)
+    bolsa = np.asarray(bolsa, dtype=float).reshape(-1)
+    iny_r, ret_r = residual_proporcional(G, D)
+    f = fraccion_cedida(iny_r, ret_r, etiqueta_mes)
+    pc = precio_cesion(iny_r, bolsa, etiqueta_mes)
+    fuera = f * pc + (1.0 - f) * bolsa
+    piso = np.where(en_permuta, piso, fuera[None, :])
+    if mecanismo == "h1":
+        cargo = ded
+    else:
+        if capacidad_kw is None:
+            raise ValueError("h2 necesita la capacidad instalada de cada "
+                             "planta para saber su numeral")
+        cap = np.asarray(capacidad_kw, dtype=float).reshape(-1, 1)
+        if cap.shape[0] != ded.shape[0] or not np.isfinite(cap).all():
+            raise ValueError("capacidad instalada no valida para h2")
+        cargo = np.where(cap > LIMITE_NUMERAL_1_KW, ded, 0.0)
+    piso = piso + cargo
+    if not np.isfinite(piso).all():
+        raise ValueError("piso no finito con el mecanismo " + mecanismo)
+    return piso, en_permuta
+
+
 def piso_por_vendedor(cu: np.ndarray, deduccion: np.ndarray, bolsa: np.ndarray,
                       en_permuta: np.ndarray) -> np.ndarray:
     """Matriz (N, T) con la opcion de fuera de cada vendedor en cada hora.

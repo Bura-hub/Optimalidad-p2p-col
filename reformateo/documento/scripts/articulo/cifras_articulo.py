@@ -206,6 +206,25 @@ que las 2 553 filas anteriores salen iguales byte a byte:
     `e0__ancho_efectivo` y `atr__<caso>__transado_pct`; las dos tablas de
     CANON §14.25; el P2P colectivo manda más a la bolsa solo en N1.
 
+Añadido el 2026-10-04 (H1 y H2, C-283), también al final, de modo que las
+2 838 filas anteriores salen iguales byte a byte:
+
+19. H1, el autogenerador colectivo de crédito mutualizado (CANON §14.26), de
+    `hibrido_por_planta_2026-10-04/hibrido_13casos.csv` (grupo `e1/H1`): por
+    caso, H1 en su lectura exacta, sin intercambio («H1 fondo»), y sus brechas
+    con C4, C1, el mercado P2P y el P2P colectivo (`h1__<caso>__H1`,
+    `__H1_<X>`), y H2 con su brecha con el mercado (`h1__<caso>__H2`,
+    `__H2_P2P`; aproximados salvo en E0, K1, CV2 y SINU); los globales: sumas de
+    13 y de 11 casos sin plantas mixtas, sumas de las brechas, recuentos de
+    casos y de pares y el rango de H1 − C4 (`h1__*`); y la descomposición de
+    P2Pcom − P2P en I1 y N1 en el fondo y el numeral 1 de la planta grande, por
+    los dos órdenes y por Shapley (`descP2Pcom__<caso>__*`). Ninguna clave
+    existente cambia. Compuertas (3): C1, C4, P2P y P2Pcom = sus claves, brechas
+    y signos, H1 fondo con PDE igual = `com__<caso>__C4sin10` sin mixtas, H2 = P2P al
+    peso donde es exacto y la suma; la descomposición cierra y el numeral es
+    cero sin plantas mixtas; las tres tablas de CANON §14.26 y los recuentos de
+    su frase citable.
+
 Formato de `texto_en` (la forma exacta en que el valor aparece en el artículo):
 punto decimal, coma de millares a partir de 1 000, signo menos ASCII (`-`) y
 ningún `-0.00`. MCOP a dos decimales; porcentajes a dos decimales con « %»,
@@ -2735,6 +2754,203 @@ def corte_fondo() -> None:
        f"menos a la bolsa que el mercado en {', '.join(menos)} y más solo en N1 (corrección de CANON §14.23)")
 
 
+# ── 19. H1 y H2: el autogenerador colectivo de crédito mutualizado (C-283; añadido el 2026-10-04) ──
+F_H1 = "hibrido_por_planta_2026-10-04/hibrido_13casos.csv"
+# mecanismo de comparación -> (columna B_ del CSV, clave de la comunidad ya emitida, rótulo)
+MECS_H1 = {"C1": ("B_C1_COP", "com__{}__C1", "C1"), "C4": ("B_C4_COP", "com__{}__C4", "C4"),
+           "P2P": ("B_P2P_COP", "com__{}__P2P", "el mercado P2P"),
+           "P2Pcom": ("B_P2Pcom_COP", "com__{}__P2Pcom", "el P2P colectivo (P2Pcom)")}
+# descomposición de P2Pcom − P2P (fondo frente a numeral 1 de la planta grande) -> columna del CSV
+DEC_H1 = {"total": "dec_P2Pcom_menos_P2P_total_COP",
+          "fondo_fp": "dec_P2Pcom_menos_P2P_fondo_fondo_primero_COP",
+          "fondo_np": "dec_P2Pcom_menos_P2P_fondo_numeral_primero_COP",
+          "fondo_sh": "dec_P2Pcom_menos_P2P_fondo_shapley_COP",
+          "numeral_fp": "dec_P2Pcom_menos_P2P_numeral_fondo_primero_COP",
+          "numeral_np": "dec_P2Pcom_menos_P2P_numeral_numeral_primero_COP",
+          "numeral_sh": "dec_P2Pcom_menos_P2P_numeral_shapley_COP"}
+DEC_H1_TXT = {"total": "P2Pcom − P2P (total de la descomposición)",
+              "fondo_fp": "término del fondo (orden: fondo primero)",
+              "fondo_np": "término del fondo (orden: numeral primero)",
+              "fondo_sh": "término del fondo (Shapley)",
+              "numeral_fp": "término del numeral 1 de la planta grande (orden: fondo primero)",
+              "numeral_np": "término del numeral 1 de la planta grande (orden: numeral primero)",
+              "numeral_sh": "término del numeral 1 de la planta grande (Shapley)"}
+H1_EXACTO_H2 = ["E0", "K1", "CV2", "SINU"]     # numeral 1 sin crédito agotado: el piso no cambia (§14.8)
+
+
+def hibrido() -> None:
+    """H1 (el autogenerador colectivo de crédito mutualizado: deducción por el
+    numeral de la planta de origen, PDE «primero lo propio», sin exención) en su
+    lectura exacta «H1 fondo», sus brechas, H2 y la descomposición de P2Pcom −
+    P2P en I1 y N1, de `hibrido_por_planta_2026-10-04/` (grupo `e1/H1`, CANON
+    §14.26). Compuertas: C1, C4, P2P y P2Pcom de la comunidad = sus claves; las
+    brechas y los signos, fila a fila; H1 fondo con PDE igual = C4 sin el 10 % en los
+    once casos sin plantas mixtas; la comunidad es la suma; la descomposición
+    cierra por los dos órdenes y por Shapley y el numeral es cero sin plantas
+    mixtas; las tres tablas de CANON §14.26 a sus decimales y los recuentos de
+    su frase citable."""
+    SEC = "§14.26"
+    X = pd.read_csv(lee(F_H1, "e1/H1"), keep_default_na=False, na_values=[""])
+    exige(len(X) == 77, f"{F_H1}: {len(X)} filas, no 77")
+    exige(not X.to_csv().lower().count("cedenar") and set(X.comercializador.fillna("")) <= {"", "A", "B"},
+          f"{F_H1}: comercializador nombrado o sin anonimizar")
+    es_com = X.institucion == "comunidad"
+    C = X[es_com].set_index("caso")
+    I = X[~es_com]
+    exige(list(C.index) == CASOS and len(I) == 64, f"{F_H1}: casos de la comunidad o pares institución-caso")
+    num = [c for c in X.columns if c.startswith(("H1_", "H2", "B_", "brecha_", "dec_"))]
+    finito(X[num].to_numpy(dtype=float), F_H1)
+    mixtos = [c for c in CASOS if bool(C.loc[c, "mixto"])]
+    exige(mixtos == ["I1", "N1"], f"{F_H1}: casos con plantas mixtas {mixtos}, no I1 y N1")
+    sin_mix = [c for c in CASOS if c not in mixtos]
+    FC = F_H1 + ", fila comunidad, "
+    # (a) contra las claves ya emitidas, brechas, signos, H1 fondo = C4 sin 10 % y la suma
+    for c in CASOS:
+        r = C.loc[c]
+        for x, (col, k, _) in MECS_H1.items():
+            exige(abs(float(r[col]) / M - valor_de(k.format(c))) <= 1e-6,
+                  f"{c}: {col} {float(r[col]) / M:.6f} ≠ {k.format(c)} {valor_de(k.format(c)):.6f}")
+            b = float(r.H1_fondo_COP) - float(r[col])
+            exige(abs(b - float(r[f"brecha_H1_fondo_menos_{x}_COP"])) <= 1e-3, f"{c}: brecha de H1 fondo con {x}")
+        if c in sin_mix:
+            exige(abs(float(r.H1_fondo_igual_COP) / M - valor_de(f"com__{c}__C4sin10")) <= 1e-6,
+                  f"{c}: H1 fondo con el PDE igual ≠ com__{c}__C4sin10 sin plantas mixtas")
+        exige(abs(float(r.H2_COP) - float(r.B_P2P_COP) - float(r.brecha_H2_menos_P2P_COP)) <= 1e-3, f"{c}: brecha de H2")
+        ins = X[(X.caso == c) & ~es_com]
+        for k in ["H1_fondo_COP", "H2_COP", "B_C1_COP", "B_C4_COP", "B_P2P_COP", "B_P2Pcom_COP"]:
+            exige(abs(float(ins[k].sum()) - float(r[k])) <= 1e-3, f"{c}: la comunidad no es la suma en {k}")
+    for x in MECS_H1:
+        b = X.H1_fondo_COP - X[MECS_H1[x][0]]
+        s = X[f"signo_H1_fondo_menos_{x}"]
+        exige(bool(((s == 1) == (b > 1.0)).all() and ((s == -1) == (b < -1.0)).all()), f"signo de H1 fondo con {x}")
+    for c in H1_EXACTO_H2:
+        exige(abs(float(C.loc[c, "brecha_H2_menos_P2P_COP"])) <= 1.0, f"{c}: H2 no es el mercado P2P al peso")
+    ok("H1 (e1/H1): C1, C4, P2P y P2Pcom de la comunidad = com__<caso>__C1, __C4, __P2P y __P2Pcom (≤ 1 COP); brechas "
+       "y signos de H1 fondo coherentes fila a fila; H1 fondo con el PDE igual = com__<caso>__C4sin10 en los once casos sin plantas mixtas "
+       "(≤ 1 COP); H2 = mercado P2P al peso en E0, K1, CV2 y SINU; la comunidad es la suma de sus instituciones")
+    # (b) la descomposición de P2Pcom − P2P
+    for _, r in X.iterrows():
+        t = float(r[DEC_H1["total"]])
+        # el total es P2Pcom − el mercado reliquidado por el guion, que es el del libro dentro del float32
+        exige(abs(t - (float(r.B_P2Pcom_COP) - float(r.P2P_reliq_COP))) <= 1e-3
+              and abs(float(r.P2P_reliq_COP) - float(r.B_P2P_COP)) <= 1.0,
+              f"{r.caso} {r.institucion}: total ≠ P2Pcom − P2P reliquidado, o reliquidado ≠ libro a 1 COP")
+        for f_, n_ in [("fondo_fp", "numeral_fp"), ("fondo_np", "numeral_np"), ("fondo_sh", "numeral_sh")]:
+            exige(abs(float(r[DEC_H1[f_]]) + float(r[DEC_H1[n_]]) - t) <= 1e-3,
+                  f"{r.caso} {r.institucion}: la descomposición {f_} + {n_} no cierra")
+        if r.caso in sin_mix:
+            exige(float(r[DEC_H1["numeral_fp"]]) == 0.0 and float(r[DEC_H1["numeral_np"]]) == 0.0,
+                  f"{r.caso} {r.institucion}: término del numeral distinto de cero sin plantas mixtas")
+    ok("H1: P2Pcom − P2P (el mercado reliquidado, = libro a 1 COP) = fondo + numeral cierra por los dos órdenes y por "
+       "Shapley en las 77 filas (≤ 1e-3 COP) y el "
+       "término del numeral es cero exacto en los once casos sin plantas mixtas")
+    # (c) las claves por caso
+    for c in CASOS:
+        r = C.loc[c]
+        exacto = "exacto" if c in H1_EXACTO_H2 else "aproximado (flujos del motor fijos); no se cita como exacto"
+        for k, v, dfn, col in [
+                ("H1", r.H1_fondo_COP, "H1 fondo (sin intercambio; toda la inyección al fondo con la deducción del numeral de "
+                 "su planta de origen y el PDE «primero lo propio»): beneficio de la comunidad", "H1_fondo_COP"),
+                ("H1_C4", r.brecha_H1_fondo_menos_C4_COP, "H1 fondo − C4", "brecha_H1_fondo_menos_C4_COP"),
+                ("H1_C1", r.brecha_H1_fondo_menos_C1_COP, "H1 fondo − C1", "brecha_H1_fondo_menos_C1_COP"),
+                ("H1_P2P", r.brecha_H1_fondo_menos_P2P_COP, "H1 fondo − mercado P2P", "brecha_H1_fondo_menos_P2P_COP"),
+                ("H1_P2Pcom", r.brecha_H1_fondo_menos_P2Pcom_COP, "H1 fondo − P2P colectivo (P2Pcom)",
+                 "brecha_H1_fondo_menos_P2Pcom_COP"),
+                ("H2", r.H2_COP, f"H2 (H1 con los flujos del mercado y el intercambio del numeral 1 exento del Cv), {exacto}: "
+                 "beneficio de la comunidad", "H2_COP"),
+                ("H2_P2P", r.brecha_H2_menos_P2P_COP, f"H2 − mercado P2P, {exacto}", "brecha_H2_menos_P2P_COP")]:
+            pon(f"h1__{c}__{k}", float(v) / M, "MCOP", en(float(v) / M, 2), f"{dfn}, caso {c}", FC + col, SEC)
+    # (d) los globales
+    T13 = {"H1": C.H1_fondo_COP.sum()} | {x: C[MECS_H1[x][0]].sum() for x in MECS_H1}
+    T11 = {"H1": C.loc[sin_mix, "H1_fondo_COP"].sum()} | {x: C.loc[sin_mix, MECS_H1[x][0]].sum() for x in MECS_H1}
+    for x in ["H1", "C1", "C4", "P2P", "P2Pcom"]:
+        rot = "H1 fondo" if x == "H1" else MECS_H1[x][2]
+        col = "H1_fondo_COP" if x == "H1" else MECS_H1[x][0]
+        pon(f"h1__total13__{x}", float(T13[x]) / M, "MCOP", en(float(T13[x]) / M, 2),
+            f"suma de los 13 casos de {rot} (comunidad)", F_H1 + f", filas comunidad, {col}", SEC)
+        pon(f"h1__total11__{x}", float(T11[x]) / M, "MCOP", en(float(T11[x]) / M, 2),
+            f"suma de los 11 casos sin plantas mixtas (todos salvo I1 y N1) de {rot} (comunidad)",
+            F_H1 + f", filas comunidad sin I1 ni N1, {col}", SEC)
+    for x in MECS_H1:
+        s = float(C[f"brecha_H1_fondo_menos_{x}_COP"].sum()) / M
+        pon(f"h1__suma13__H1_{x}", s, "MCOP", en(s, 2), f"suma de los 13 casos de H1 fondo − {MECS_H1[x][2]} (comunidad)",
+            F_H1 + f", filas comunidad, brecha_H1_fondo_menos_{x}_COP", SEC)
+    sc4 = C.signo_H1_fondo_menos_C4
+    sc1 = C.signo_H1_fondo_menos_C1
+    sp = C.signo_H1_fondo_menos_P2P
+    iguales = [c for c in CASOS if sc1[c] == 0]
+    sobre_p = [c for c in CASOS if sp[c] == 1]
+    b4 = C.brecha_H1_fondo_menos_C4_COP
+    for k, v, u, dfn, fu in [
+            ("casos_sobre_C4", int((sc4 == 1).sum()), "casos de 13", "casos con H1 fondo por encima de C4 (más de 1 COP)",
+             "signo_H1_fondo_menos_C4"),
+            ("casos_iguales_C1", len(iguales), "casos de 13", "casos con H1 fondo igual a C1 a 1 COP (nadie agota el crédito)",
+             "signo_H1_fondo_menos_C1"),
+            ("casos_bajo_C1", int((sc1 == -1).sum()), "casos de 13", "casos con H1 fondo por debajo de C1 (más de 1 COP)",
+             "signo_H1_fondo_menos_C1"),
+            ("casos_sobre_P2P", len(sobre_p), "casos de 13", "casos con H1 fondo por encima del mercado P2P",
+             "signo_H1_fondo_menos_P2P")]:
+        pon(f"h1__{k}", v, u, en_int(v), dfn, F_H1 + f", filas comunidad, {fu}", SEC)
+    pon("h1__casos_iguales_C1__lista", ", ".join(iguales), "casos", ", ".join(iguales),
+        "casos con H1 fondo igual a C1 a 1 COP", F_H1 + ", filas comunidad, signo_H1_fondo_menos_C1 = 0", SEC)
+    pon("h1__casos_sobre_P2P__lista", ", ".join(sobre_p), "casos", ", ".join(sobre_p),
+        "casos con H1 fondo por encima del mercado P2P", F_H1 + ", filas comunidad, signo_H1_fondo_menos_P2P = 1", SEC)
+    pon("h1__H1_C4_min", float(b4.min()) / M, "MCOP", en(float(b4.min()) / M, 2),
+        f"menor H1 fondo − C4 de los 13 casos ({b4.idxmin()})", F_H1 + ", filas comunidad, brecha_H1_fondo_menos_C4_COP", SEC)
+    pon("h1__H1_C4_max", float(b4.max()) / M, "MCOP", en(float(b4.max()) / M, 2),
+        f"mayor H1 fondo − C4 de los 13 casos ({b4.idxmax()})", F_H1 + ", filas comunidad, brecha_H1_fondo_menos_C4_COP", SEC)
+    FI = F_H1 + ", 64 filas institución-caso, "
+    for k, v, dfn, col in [
+            ("pares_sobre_C4", int((I.signo_H1_fondo_menos_C4 == 1).sum()), "pares institución-caso (de 64) con H1 fondo "
+             "por encima de C4", "signo_H1_fondo_menos_C4"),
+            ("pares_bajo_C4", int((I.signo_H1_fondo_menos_C4 == -1).sum()), "pares institución-caso (de 64) con H1 fondo "
+             "por debajo de C4", "signo_H1_fondo_menos_C4"),
+            ("pares_bajo_C1", int((I.signo_H1_fondo_menos_C1 == -1).sum()), "pares institución-caso (de 64) con H1 fondo "
+             "por debajo de C1, sin compensación", "signo_H1_fondo_menos_C1"),
+            ("pares_bajo_C1_compensado", int((I.signo_H1_fondo_compensado_menos_C1 == -1).sum()),
+             "pares institución-caso (de 64) con H1 fondo por debajo de C1 con la compensación por contrato civil "
+             "declarada (regla declarada, no norma)", "signo_H1_fondo_compensado_menos_C1")]:
+        pon(f"h1__{k}", v, "pares de 64", en_int(v), dfn, FI + col, SEC)
+    # la descomposición en I1 y N1
+    for c in mixtos:
+        for k, col in DEC_H1.items():
+            v = float(C.loc[c, col]) / M
+            pon(f"descP2Pcom__{c}__{k}", v, "MCOP", en(v, 2), f"descomposición de P2Pcom − mercado P2P, {DEC_H1_TXT[k]}, "
+                f"caso {c}", FC + col, SEC)
+    # (e) las tres tablas de CANON §14.26 y los recuentos de su frase citable
+    tb = tablas(seccion("### 14.26 ·"))
+    exige(len(tb) == 3, f"CANON §14.26: {len(tb)} tablas, no 3")
+    t1, t2, t3 = tb
+    exige(list(t1.index) == CASOS + ["13 casos", "11 sin mixtas"] and list(t2.index) == CASOS
+          and list(t3.index) == mixtos, "CANON §14.26: casos de las tablas")
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.26 {qué}: {v:.6f} no redondea a {celda}")
+
+    cols1 = {"C1": "B_C1_COP", "C4": "B_C4_COP", "Mercado P2P": "B_P2P_COP", "P2P colectivo": "B_P2Pcom_COP",
+             "H1 fondo": "H1_fondo_COP", "H1 con flujos": "H1_COP", "H2": "H2_COP", "H2θ": "H2theta_COP"}
+    for col, src in cols1.items():
+        for c in CASOS:
+            igual(float(C.loc[c, src]) / M, t1.loc[c, col], 3, f"tabla 1, {c} {col}")
+        igual(float(C[src].sum()) / M, t1.loc["13 casos", col], 2, f"tabla 1, 13 casos {col}")
+        igual(float(C.loc[sin_mix, src].sum()) / M, t1.loc["11 sin mixtas", col], 2, f"tabla 1, 11 sin mixtas {col}")
+    for c in CASOS:
+        for col, x in [("H1 − C4", "C4"), ("H1 − C1", "C1"), ("H1 − P2P", "P2P"), ("H1 − P2Pcom", "P2Pcom")]:
+            igual(float(C.loc[c, f"brecha_H1_fondo_menos_{x}_COP"]) / M, t2.loc[c, col], 3, f"tabla 2, {c} {col}")
+    cols3 = {"Total": "total", "Fondo, fondo primero": "fondo_fp", "Fondo, numeral primero": "fondo_np",
+             "Fondo, Shapley": "fondo_sh", "Numeral 1, fondo primero": "numeral_fp",
+             "Numeral 1, numeral primero": "numeral_np", "Numeral 1, Shapley": "numeral_sh"}
+    for c in mixtos:
+        for col, k in cols3.items():
+            igual(float(C.loc[c, DEC_H1[k]]) / M, t3.loc[c, col], 3, f"tabla 3, {c} {col}")
+    exige(int((sc4 == 1).sum()) == 13 and int((sc1 == -1).sum()) == 0 and iguales == ["E0", "P2", "K1", "CV2", "SINU"]
+          and len(sobre_p) == 6, "CANON §14.26: los recuentos de la frase citable (13 sobre C4, ninguno bajo C1, iguales a "
+          "C1 en E0, P2, K1, CV2 y SINU, 6 sobre P2P)")
+    ok("las tres tablas de CANON §14.26 (resultado, brechas de H1 fondo y descomposición en I1 y N1) a sus decimales y los "
+       "recuentos de su frase citable: H1 fondo sobre C4 en los 13 casos, nunca bajo C1, igual a C1 en E0, P2, K1, CV2 y "
+       "SINU, sobre el mercado P2P en 6")
+
+
 def main() -> int:
     c7p = lee("cifras_cap07_2026-09-28/cifras.csv", "e1/R")
     c7d = pd.read_csv(c7p, dtype={"valor": str})
@@ -2807,10 +3023,14 @@ def main() -> int:
     exige(n_g2 == 2553, f"los bloques hasta el GSA con C2 y el P2P colectivo dan {n_g2} cifras, no 2553")
     print("[cifras_articulo] 18. el corte hx y el fondo del P2P colectivo (añadido el 2026-10-04)")
     corte_fondo()
+    n_cf = len(FILAS)
+    exige(n_cf == 2838, f"los bloques hasta el corte y el fondo dan {n_cf} cifras, no 2838")
+    print("[cifras_articulo] 19. H1 y H2, el autogenerador colectivo de crédito mutualizado (añadido el 2026-10-04)")
+    hibrido()
     print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas desde el 29; {n_b1 - n30} de la atribución; "
           f"{n_p - n_b1} del PPA; {n_pc - n_p} del P2P comunitario; {n_ord - n_pc} de sus dos órdenes; "
           f"{n_pd - n_ord} de los derivados del P2P colectivo; {n_g2 - n_pd} del GSA con C2 y el P2P colectivo; "
-          f"{len(FILAS) - n_g2} del corte y el fondo")
+          f"{n_cf - n_g2} del corte y el fondo; {len(FILAS) - n_cf} de H1 y H2")
     SALIDA.mkdir(parents=True, exist_ok=True)
     out = pd.DataFrame(FILAS, columns=["clave", "valor", "unidad", "texto_en", "definicion", "fuente", "seccion_canon"])
     exige(out.clave.is_unique, "claves repetidas en la salida")
@@ -2824,7 +3044,7 @@ def main() -> int:
         fh.write(f"python {platform.python_version()}, numpy {np.__version__}, pandas {pd.__version__}\n")
         fh.write("orden: python -u " + guion + "\n")
         fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §13.9, §14.3, §14.7, "
-                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25); "
+                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25, §14.26); "
                  f"sha256 {hashlib.sha256(CANON_MD.read_bytes()).hexdigest()}\n")
         fh.write(f"huellas: {HUELLAS.relative_to(RAIZ).as_posix()}; {len(LEIDOS)} artefactos leídos, todos con la huella comprobada:\n")
         for g, r in LEIDOS:

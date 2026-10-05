@@ -264,6 +264,26 @@ filas anteriores salen iguales byte a byte:
     `corte__<caso>__energia_kwh`; las cuatro tablas de CANON §14.29 y los
     recuentos de su texto.
 
+Añadido el 2026-10-05 (P2P colectivo exacto), también al final, de modo que
+las 3 353 filas anteriores salen iguales byte a byte:
+
+22. El P2P colectivo exacto (CANON §14.30): el P2P colectivo liquidado sobre
+    el mercado resuelto con el piso del fondo (la matriz de trece casos del
+    2026-10-05), de `p2pcom_exacto_2026-10-05/p2pcom_exacto_13casos.csv`
+    (grupo `e1/PCX`). Por caso, la comunidad (`pcx__<caso>__<magnitud>`): el
+    exacto (`exacto`), el aproximado de e1/PC (`aprox`, que es el nivel que se
+    sigue citando) y su diferencia (`dif`); las brechas del exacto con C4, C1
+    y el mercado P2P (`PCX_C4`, `PCX_C1`, `PCX_P2P`); la energía transada y
+    la del canon (`transado_kwh`, `transado_canon_kwh`). Los pares
+    institución-caso por debajo de C4, C1 y P2P (`pcx__pares__<contra>`) y la
+    diferencia máxima con el aproximado (`pcx__max_abs_dif`, MCOP, y
+    `pcx__max_rel_dif_pct`, %). Ninguna clave existente cambia. Compuertas
+    (2): el aproximado, los mecanismos y H2 exacto = sus claves `com__*` y
+    `h2x__*`, brechas, signos y la suma, |exacto − aprox| de la comunidad ≤
+    0,03 MCOP y el signo frente a C4 y C1 sin cambio, y la energía del canon =
+    `corte__<caso>__energia_kwh`; las cuatro tablas de CANON §14.30 y los
+    recuentos de su texto.
+
 Formato de `texto_en` (la forma exacta en que el valor aparece en el artículo):
 punto decimal, coma de millares a partir de 1 000, signo menos ASCII (`-`) y
 ningún `-0.00`. MCOP a dos decimales; porcentajes a dos decimales con « %»,
@@ -3261,6 +3281,156 @@ def h2_exacto() -> None:
        "su texto: H2 exacto sobre C4 en 12 casos y bajo en E5, nunca bajo C1, igual al mercado P2P en E0, K1, CV2 y SINU")
 
 
+# ── 22. El P2P colectivo exacto: el mercado con el piso del fondo (añadido el 2026-10-05) ──
+F_PCX = "p2pcom_exacto_2026-10-05/p2pcom_exacto_13casos.csv"
+# sufijo de la clave -> (columna del CSV, unidad, definición)
+CLAVES_PCX = {
+    "exacto": ("P2Pcom_exacto_COP", "MCOP", "P2P colectivo exacto (el mercado resuelto con el piso del fondo y el P2P "
+               "colectivo liquidado sobre esos flujos; cota frente al aproximado, CANON §14.30): beneficio de la "
+               "comunidad"),
+    "aprox": ("P2Pcom_aprox_COP", "MCOP", "P2P colectivo aproximado (el de e1/PC, sobre los flujos del canon, formados "
+              "con el piso de C1; el mismo de com__<caso>__P2Pcom, que es el que se cita como nivel): beneficio de la "
+              "comunidad"),
+    "dif": ("brecha_P2Pcom_exacto_menos_aprox_COP", "MCOP", "P2P colectivo exacto − aproximado (comunidad)"),
+    "PCX_C4": ("brecha_P2Pcom_exacto_menos_C4_COP", "MCOP", "P2P colectivo exacto − C4"),
+    "PCX_C1": ("brecha_P2Pcom_exacto_menos_C1_COP", "MCOP", "P2P colectivo exacto − C1"),
+    "PCX_P2P": ("brecha_P2Pcom_exacto_menos_P2P_COP", "MCOP", "P2P colectivo exacto − mercado P2P"),
+    "transado_kwh": ("vendido_dentro_kwh", "kWh", "energía transada dentro con el piso del fondo (matriz del "
+                     "2026-10-05)"),
+    "transado_canon_kwh": ("vendido_dentro_canon_kwh", "kWh", "energía transada dentro en el canon (piso de C1, "
+                           "matriz del 2026-09-19)"),
+}
+PCX_CONTRA = {"C4": "C4", "C1": "C1", "P2P": "el mercado P2P"}
+PCX_COTA = 0.03                     # MCOP: |exacto − aprox| de la comunidad en los 13 casos
+
+
+def p2pcom_exacto() -> None:
+    """El P2P colectivo exacto (CANON §14.30): el P2P colectivo liquidado sobre
+    el mercado resuelto con el piso del fondo (matriz del 2026-10-05), de
+    `p2pcom_exacto_2026-10-05/` (grupo `e1/PCX`). Por caso, la comunidad: el
+    exacto, el aproximado (e1/PC) y su diferencia; las brechas del exacto con
+    C4, C1 y el mercado P2P; la energía transada y la del canon. Los pares
+    institución-caso por debajo de cada mecanismo y la diferencia máxima con el
+    aproximado, en MCOP y en %. Compuertas: el aproximado y los mecanismos son
+    sus claves; brechas, signos y suma; la cota de 0,03 MCOP y el signo de la
+    comunidad frente a C4 y C1 sin cambio; la energía del canon es
+    `corte__<caso>__energia_kwh`; las cuatro tablas de CANON §14.30 a sus
+    decimales y los recuentos de su texto."""
+    SEC = "§14.30"
+    X = pd.read_csv(lee(F_PCX, "e1/PCX"), keep_default_na=False, na_values=[""])
+    exige(len(X) == 77, f"{F_PCX}: {len(X)} filas, no 77")
+    exige(not X.to_csv().lower().count("cedenar") and set(X.comercializador.fillna("")) <= {"", "A", "B"},
+          f"{F_PCX}: comercializador nombrado o sin anonimizar")
+    es_com = X.institucion == "comunidad"
+    C = X[es_com].set_index("caso")
+    I = X[~es_com]
+    exige(list(C.index) == CASOS and len(I) == 64, f"{F_PCX}: casos de la comunidad o pares institución-caso")
+    num = [c for c in X.columns if c.endswith(("_COP", "_kwh"))]
+    finito(X[num].to_numpy(dtype=float), F_PCX)
+    FC = F_PCX + ", fila comunidad, "
+    # (a) contra las claves ya emitidas, brechas, signos, la suma, la cota y la energía del canon
+    for c in CASOS:
+        r = C.loc[c]
+        for k, col in [("com__{}__C4", "B_C4_COP"), ("com__{}__C1", "B_C1_COP"), ("com__{}__P2P", "B_P2P_COP"),
+                       ("com__{}__P2Pcom", "P2Pcom_aprox_COP"), ("h2x__{}__H2", "H2_exacto_COP")]:
+            exige(abs(float(r[col]) / M - valor_de(k.format(c))) <= 1e-6,
+                  f"{c}: {col} {float(r[col]) / M:.6f} ≠ {k.format(c)} {valor_de(k.format(c)):.6f}")
+        exige(abs(float(r.vendido_dentro_canon_kwh) - valor_de(f"corte__{c}__energia_kwh")) <= 1e-3,
+              f"{c}: la energía del canon no es corte__{c}__energia_kwh")
+        ins = X[(X.caso == c) & ~es_com]
+        for k in num:
+            exige(abs(float(ins[k].sum()) - float(r[k])) <= max(1e-3, 1e-6 * abs(float(r[k]))),
+                  f"{c}: la comunidad no es la suma en {k}")
+    for x in list(PCX_CONTRA) + ["H2_exacto"]:
+        b = X.P2Pcom_exacto_COP - (X.H2_exacto_COP if x == "H2_exacto" else X[f"B_{x}_COP"])
+        exige(float((b - X[f"brecha_P2Pcom_exacto_menos_{x}_COP"]).abs().max()) <= 1e-3, f"brecha del exacto con {x}")
+        s = X[f"signo_P2Pcom_exacto_menos_{x}"]
+        exige(bool(((s == 1) == (b > 1.0)).all() and ((s == -1) == (b < -1.0)).all()), f"signo del exacto con {x}")
+    d = X.P2Pcom_exacto_COP - X.P2Pcom_aprox_COP
+    exige(float((d - X.brecha_P2Pcom_exacto_menos_aprox_COP).abs().max()) <= 1e-3, "brecha del exacto con el aproximado")
+    dc = C.brecha_P2Pcom_exacto_menos_aprox_COP / M
+    exige(float(dc.abs().max()) <= PCX_COTA, f"|exacto − aprox| de la comunidad {float(dc.abs().max()):.4f} MCOP > "
+          f"{PCX_COTA}")
+    for x in ("C4", "C1"):
+        sa = np.sign((C.P2Pcom_aprox_COP - C[f"B_{x}_COP"]).where(lambda v: v.abs() > 1.0, 0.0)).astype(int)
+        exige(list(C[f"signo_P2Pcom_exacto_menos_{x}"].astype(int)) == list(sa),
+              f"el signo de la comunidad frente a {x} cambia con el piso del fondo")
+    ok("P2P colectivo exacto (e1/PCX): el aproximado, C4, C1, P2P y H2 exacto de la comunidad = com__<caso>__P2Pcom, "
+       "com__<caso>__*, h2x__<caso>__H2 (≤ 1 COP); brechas y signos coherentes fila a fila; la comunidad es la suma; "
+       "|exacto − aprox| de la comunidad ≤ 0,03 MCOP en los 13 casos y el signo frente a C4 y a C1 no cambia; la energía "
+       "del canon es corte__<caso>__energia_kwh")
+    # (b) las claves por caso
+    for c in CASOS:
+        r = C.loc[c]
+        for suf, (col, u, dfn) in CLAVES_PCX.items():
+            v = float(r[col]) / (M if u == "MCOP" else 1.0)
+            pon(f"pcx__{c}__{suf}", v, u, en(v, 2), f"{dfn.replace('<caso>', c)}, caso {c}", FC + col, SEC)
+    # (c) los pares y la diferencia máxima con el aproximado
+    pares = {}
+    for x, rot in PCX_CONTRA.items():
+        n = int((I[f"signo_P2Pcom_exacto_menos_{x}"] == -1).sum())
+        pares[x] = n
+        pon(f"pcx__pares__{x}", n, "pares de 64", en_int(n),
+            f"pares institución-caso (de 64) con el P2P colectivo exacto por debajo de {rot} (más de 1 COP)",
+            F_PCX + f", 64 filas institución-caso, signo_P2Pcom_exacto_menos_{x} = -1", SEC)
+    mx = float(dc.abs().max())
+    pon("pcx__max_abs_dif", mx, "MCOP", en(mx, 2),
+        f"máximo en los 13 casos de |P2P colectivo exacto − aproximado| de la comunidad (en {dc.abs().idxmax()})",
+        FC.replace("fila comunidad", "filas comunidad") + "brecha_P2Pcom_exacto_menos_aprox_COP", SEC)
+    rel = 100 * (C.brecha_P2Pcom_exacto_menos_aprox_COP.abs() / C.P2Pcom_aprox_COP.abs())
+    mr = float(rel.max())
+    pon("pcx__max_rel_dif_pct", mr, "%", en(mr, 2, " %"),
+        f"máximo en los 13 casos de |P2P colectivo exacto − aproximado| / aproximado de la comunidad (en "
+        f"{rel.idxmax()})", FC.replace("fila comunidad", "filas comunidad")
+        + "brecha_P2Pcom_exacto_menos_aprox_COP y P2Pcom_aprox_COP", SEC)
+    # (d) las cuatro tablas de CANON §14.30 y los recuentos de su texto
+    tb = tablas(seccion("### 14.30 ·"))
+    exige(len(tb) == 4, f"CANON §14.30: {len(tb)} tablas, no 4")
+    t1, t2, t3, t4 = tb
+    exige(list(t1.index) == CASOS + ["13 casos"] and list(t2.index) == CASOS + ["13 casos"]
+          and list(t3.index) == CASOS, "CANON §14.30: casos de las tablas")
+
+    def igual(v, celda, dd, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -dd + 1e-9, f"CANON §14.30 {qué}: {v:.6f} no redondea a {celda}")
+
+    cols1 = {"C4": C.B_C4_COP, "C1": C.B_C1_COP, "Mercado P2P": C.B_P2P_COP,
+             "P2P colectivo aprox.": C.P2Pcom_aprox_COP, "P2P colectivo exacto": C.P2Pcom_exacto_COP,
+             "Exacto − aprox.": C.brecha_P2Pcom_exacto_menos_aprox_COP}
+    cols2 = {}
+    for x in PCX_CONTRA:
+        cols2[f"Exacto − {x}"] = C[f"brecha_P2Pcom_exacto_menos_{x}_COP"]
+        cols2[f"Aprox. − {x}"] = C.P2Pcom_aprox_COP - C[f"B_{x}_COP"]
+    for t, cols, qué in [(t1, cols1, "tabla 1"), (t2, cols2, "tabla 2")]:
+        exige(list(t.columns) == list(cols), f"CANON §14.30 {qué}: columnas {list(t.columns)}")
+        for col, src in cols.items():
+            for c in CASOS:
+                igual(float(src[c]) / M, t.loc[c, col], 3, f"{qué}, {c} {col}")
+            igual(float(src.sum()) / M, t.loc["13 casos", col], 2, f"{qué}, 13 casos {col}")
+    for c in CASOS:
+        v, v0 = float(C.loc[c, "vendido_dentro_kwh"]), float(C.loc[c, "vendido_dentro_canon_kwh"])
+        igual(v, t3.loc[c, "Transado, exacto (kWh)"], 2, f"tabla 3, {c}")
+        igual(v0, t3.loc[c, "Transado, canon (kWh)"], 2, f"tabla 3, {c}")
+        igual(v - v0, t3.loc[c, "Diferencia (kWh)"], 2, f"tabla 3, {c}")
+    rot4 = {"C4": "C4", "C1": "C1", "P2P": "Mercado P2P"}
+    exige(list(t4.index) == list(rot4.values()), "CANON §14.30: filas de la tabla 4")
+    PCA = pd.read_csv(lee(F_PC, "e1/PC"), keep_default_na=False, na_values=[""])
+    IA = PCA[PCA.institucion != "comunidad"]
+    for x, rot in rot4.items():
+        exige(int(num_es(t4.loc[rot, "P2P colectivo exacto por debajo"])) == pares[x]
+              and int(num_es(t4.loc[rot, "P2P colectivo aprox. por debajo"])) == int((IA[f"signo_P2Pcom_menos_{x}"] == -1).sum()),
+              f"CANON §14.30 tabla 4, {rot}")
+    s4c, s1c, spc = C.signo_P2Pcom_exacto_menos_C4, C.signo_P2Pcom_exacto_menos_C1, C.signo_P2Pcom_exacto_menos_P2P
+    exige(int((s4c == 1).sum()) == 13 and int((s1c == 1).sum()) == 13
+          and list(spc[spc == -1].index) == ["E0", "P2", "K1", "CV2", "SINU"],
+          "CANON §14.30: los recuentos de su texto (sobre C4 y C1 en los 13 casos; bajo el mercado en E0, P2, K1, CV2 y "
+          "SINU)")
+    m = texto_canon("### 14.30 ·", r"el exacto difiere del aproximado en ([\d  ,]+) MCOP como mucho, el ([\d  ,]+) %")
+    exige(abs(mx - num_es(m.group(1))) <= 0.005 and abs(mr - num_es(m.group(2))) <= 0.005,
+          "CANON §14.30: la cota citable (0,02 MCOP como mucho, el 0,04 %)")
+    ok("las cuatro tablas de CANON §14.30 (resultado, brechas, energía, pares) a sus decimales y los recuentos de su "
+       "texto: el exacto sobre C4 y C1 en los 13 casos, bajo el mercado P2P en E0, P2, K1, CV2 y SINU, y la cota citable")
+
+
 def main() -> int:
     c7p = lee("cifras_cap07_2026-09-28/cifras.csv", "e1/R")
     c7d = pd.read_csv(c7p, dtype={"valor": str})
@@ -3345,11 +3515,15 @@ def main() -> int:
     exige(n_g3 == 3166, f"los bloques hasta el GSA con H1 dan {n_g3} cifras, no 3166")
     print("[cifras_articulo] 21. H2 exacto, el mercado con el piso de H2 (añadido el 2026-10-05)")
     h2_exacto()
+    n_h2x = len(FILAS)
+    exige(n_h2x == 3353, f"los bloques hasta H2 exacto dan {n_h2x} cifras, no 3353")
+    print("[cifras_articulo] 22. el P2P colectivo exacto, el mercado con el piso del fondo (añadido el 2026-10-05)")
+    p2pcom_exacto()
     print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas desde el 29; {n_b1 - n30} de la atribución; "
           f"{n_p - n_b1} del PPA; {n_pc - n_p} del P2P comunitario; {n_ord - n_pc} de sus dos órdenes; "
           f"{n_pd - n_ord} de los derivados del P2P colectivo; {n_g2 - n_pd} del GSA con C2 y el P2P colectivo; "
           f"{n_cf - n_g2} del corte y el fondo; {n_h1 - n_cf} de H1 y H2; {n_g3 - n_h1} del GSA con H1; "
-          f"{len(FILAS) - n_g3} de H2 exacto")
+          f"{n_h2x - n_g3} de H2 exacto; {len(FILAS) - n_h2x} del P2P colectivo exacto")
     SALIDA.mkdir(parents=True, exist_ok=True)
     out = pd.DataFrame(FILAS, columns=["clave", "valor", "unidad", "texto_en", "definicion", "fuente", "seccion_canon"])
     exige(out.clave.is_unique, "claves repetidas en la salida")
@@ -3363,7 +3537,7 @@ def main() -> int:
         fh.write(f"python {platform.python_version()}, numpy {np.__version__}, pandas {pd.__version__}\n")
         fh.write("orden: python -u " + guion + "\n")
         fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §13.9, §13.10, §14.3, §14.7, "
-                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25, §14.26, §14.29); "
+                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25, §14.26, §14.29, §14.30); "
                  f"sha256 {hashlib.sha256(CANON_MD.read_bytes()).hexdigest()}\n")
         fh.write(f"huellas: {HUELLAS.relative_to(RAIZ).as_posix()}; {len(LEIDOS)} artefactos leídos, todos con la huella comprobada:\n")
         for g, r in LEIDOS:

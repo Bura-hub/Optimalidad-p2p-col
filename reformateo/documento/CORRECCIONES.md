@@ -11114,3 +11114,136 @@ Esto matiza la frase del artículo «exactos donde el residual paga solo el Cv c
 - Humo de un día en E0 e I1, con la compuerta de salida EN VERDE.
 
 El defecto `c1` no cambia: el canon sigue al bit.
+
+## C-308 · Página 7 del artículo (IV-A y IV-B): cinco aclaraciones (2026-10-05)
+
+Tipo: `estilo y comprensión`. Revisión de la página 7, aprobada por el autor.
+
+**Cambios en el artículo:**
+1. **«El mercado sin supuestos».** La frase «el porcentaje de reparto, lo único que puede mover» no se entendía. Ahora: «el mercado se liquida como C4 y solo cambia el porcentaje de reparto, que en E0 no tiene excedente que llevar de la bolsa al crédito». Escalado a la tesis, en su versión larga.
+2. **Lo que daría cada supuesto.** «Cada supuesto por sí solo deja casi toda la ventaja: el 1, …, y el 2, …» pasa a dos frases sin dos puntos.
+3. **La unidad.** «El ahorro del intercambio es de 0,30» pasa a «0,30 MCOP».
+4. **La cota inferior.** «Aunque ahí el primer orden mide el supuesto 1 con su cota inferior, C1» pasa a «aunque ahí C1 es solo una cota inferior de lo que aporta el supuesto 1».
+5. **Las referencias.** «Las tres referencias» nombra cuáles son (C2, C3 y C5), y desaparece el «además» incidental.
+
+**En la tesis** los cambios 2 a 5 ya estaban claros en la versión larga, o el pasaje no existe en esa forma.
+
+**Compensación de longitud, solo en el artículo:** las dos frases sobre C2 se unen en una, y dos párrafos llevan `\looseness`.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** vetadas LIMPIA y compilación limpia.
+
+**Pendiente.** Las cifras del P2P colectivo del artículo esperan la matriz con el piso del fondo (C-307): el tercer párrafo de IV-A, el párrafo del P2P colectivo en IV-B, la Discusión, la Tabla III y la última barra de la Fig. 2.
+
+## C-309 · Página 8 del artículo (Discusión, Implicaciones y Conclusiones): una errata, un desajuste y seis aclaraciones (2026-10-05)
+
+Tipo: `estilo, comprensión y coherencia`. Aprobado por el autor.
+
+1. **Errata.** Faltaba el espacio en «(9)de cada brecha».
+2. **Desajuste con la tesis.** La última frase de las Conclusiones describía H1 («sin eximir cargos de red»). Ahora describe H2, la tercera regla de la tesis: «con núcleo P2P, que deduce cada kWh del fondo por el numeral de su planta y exime al intercambio del numeral 1». En la tesis, la mención de H1 en la línea 444 espera la reescritura de su subsección con H2.
+3. **«Es, sobre todo, de liquidación»** pasa a «viene, sobre todo, de cómo se liquida».
+4. **La regla del tres:** «aproximada, porque…» pasa a una frase propia, «Es aproximada, porque los puntos son cuasialeatorios». Escalado a la tesis.
+5. **«Donde la dinámica no llegó»** pasa a «donde la dinámica del juego no llegó a la forma cerrada». En la tesis, «no siempre llega al reposo».
+6. **La generalización:** «El mecanismo» pasa a «Lo que da el valor». Además, «Si también exime…» sustituye a «Si además exime…», y «En los dos países» a «En ambos».
+7. **IV-D:** «Cada respuesta se mide» pasa a «El costo de cada una se mide…, seis solo de consumo». En la tesis, «cuánto cuesta cada una».
+8. **IV-D:** «supera además» pasa a «supera también». Escalado a la tesis.
+
+**Compensación de longitud, solo en el artículo:**
+- se quita «Eximir al intercambio es una de las respuestas posibles, pero su costo para los demás usuarios queda por medir», que ya dicen las Conclusiones;
+- la frase nueva de la tesis queda más corta;
+- en la frase de E0 y SINU se quita «cargos de red», y se conserva «sin crédito agotado», que es la condición de la identidad;
+- se quita «y no independientes»;
+- cinco `\looseness`.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 75 páginas, 0 Overfull, vetadas LIMPIA.
+
+## C-310 · Revisión externa de estilo: seis arreglos confirmados (2026-10-05)
+
+Tipo: `estilo y corrección`. Un revisor sin contexto leyó el artículo entero (informe en el scratchpad de la sesión, `revision_estilo_externa.md`, con 23 pasajes). Su veredicto: la puntuación está dentro del perfil y la nomenclatura es estable, pero IV-A e IV-B suenan a otro autor, con oraciones telegráficas, el doble de cifras por párrafo y ninguna glosa. El autor aprobó estos seis arreglos y mantener la frase final sobre la tesis (H2).
+
+1. **«Puntos al azar» era incorrecto** (lo introdujo C-306). La muestra de Saltelli es cuasialeatoria. Se corrige en el artículo y en la tesis.
+2. **k** era a la vez la hora y el número de factores. El artículo pasa a «con 14 evaluaciones del modelo por punto»; la tesis, a «14 simulaciones…, dos por cada uno de los seis factores más dos».
+3. **La ecuación de la banda** cerraba con coma antes de una oración nueva. Ahora cierra con punto, en el artículo y en la tesis.
+4. **El 19 % de las Conclusiones** no estaba en los resultados. En IV-A sustituye al «81 %», que repetía el 1,62. En la tesis se añade junto al 81 %.
+5. **Términos usados antes de definirse:**
+   - «bolsa» se glosa en su primer uso: en el artículo, en la Sección II, y la definición de III-A se reduce a su cita; en la tesis, en la Introducción.
+   - «brecha» pasa a «diferencia entre mecanismos» en el tercer aporte; en la tesis se glosa donde se usa antes de definirse.
+   - «Shapley» queda como «su promedio de Shapley» en el primer aporte.
+6. **La única primera persona («que llamaremos»)** desaparece. La regla del 10 % se explica en el párrafo 6 de la Introducción: «con cinco miembros no todos pueden recibir menos del 10 % del reparto, como pide la norma». «Para ello hace cuatro aportes» pasa a «El artículo hace cuatro aportes».
+
+**Arreglos menores, añadidos al compensar la longitud:**
+- en III-E, los seis factores se enumeran sin los tres «;»;
+- «En E4 e I1, los flujos del P2P colectivo son aproximados», sin el «además» incidental;
+- «ya supera la ventaja».
+
+**Medición de la longitud.** La frase de la muestra fue la que costaba las dos líneas; se midió deshaciendo los cambios uno a uno. Los `\looseness` probados no ganaban nada y se quitaron.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 75 páginas, 0 Overfull, vetadas LIMPIA.
+
+**Quedan para la reescritura de IV-A e IV-B con las cifras exactas del P2P colectivo:** la voz de esas dos subsecciones (P15 a P17 del informe). El autor decidió mantener la frase final sobre la tesis (P21). Quedan pendientes de su decisión la digresión de III-B (P11) y las cifras de cuatro dígitos sin espacio (P23).
+
+## C-311 · La voz de IV-A e IV-B, la de II y III; la salvedad del P2P colectivo por la cota medida (2026-10-05)
+
+Tipo: `estilo` y `coherencia`, aprobado por el autor. La revisión externa (C-310) encontró que IV-A e IV-B sonaban a otro autor: oraciones telegráficas, el doble de cifras por párrafo, ninguna glosa y «manda». Se reescriben con la voz de II y III, sin cambiar ninguna cifra.
+
+**IV-A**
+- Cada párrafo abre con su conclusión y trata una sola idea:
+  - en E0, la ventaja son cargos que dejan de pagarse;
+  - cuánto aporta cada supuesto depende del orden;
+  - sin supuestos, el mercado queda bajo C4;
+  - los dos cambios del P2P colectivo se reparten la ventaja casi a medias;
+  - en E3 actúan los tres términos.
+- La atribución y el mercado sin supuestos pasan a párrafos separados.
+- «Shapley les asigna» desaparece, y Shapley se define en el texto como el promedio de los dos órdenes.
+
+**IV-B**
+- «Manda» pasa a «domina».
+- Las cifras van con su unidad entre paréntesis.
+- La lista lleva su criterio: «Hay tres regímenes, según el numeral de las plantas».
+- Las uniones con «, y» se parten en oraciones.
+
+**La salvedad (CANON §14.30)**
+- Artículo, III-D: «sus cifras son una aproximación» pasa a «Con su propio piso, es decir, lo que vale para la comunidad el kWh que va al fondo, difiere de estas cifras en 0,02 MCOP como mucho, el 0,04 %, y ninguna brecha con C4 o C1 cambia de signo».
+- Artículo, Conclusiones: sale «En E4 e I1, los flujos del P2P colectivo son aproximados».
+- Tesis: la salvedad pasa a la cota medida, con K1 (frente al mercado P2P, de empate a −0,02 MCOP) y lo que se mueve por institución (hasta 1,08 MCOP; 17 pares bajo C1 en lugar de 21). También se quitan las dos menciones de «flujos aproximados».
+
+**Compensación de longitud, solo en el artículo.** Se midió en fracciones de línea: faltaban 0,75 líneas.
+- Sale «Deja 44,48 MCOP, un 0,02 % menos que C4», que repetía el 0,02 % de la frase siguiente.
+- IV-D: «Este trabajo no evalúa el propósito de esa regla, solo su costo para esta comunidad» pasa a «Este trabajo mide su costo, no su propósito».
+- Conclusiones:
+  - sale «El P2P colectivo muestra que puede hacerse dentro de C4», que repetía el párrafo anterior;
+  - «el costo de la exención para los demás usuarios, el de operarlo»;
+  - «con tarifas publicadas y cada institución»;
+  - «donde C1 es su cota inferior»;
+  - «deduce el fondo por el numeral de cada planta».
+- IV-B: «porque la banda del numeral 2 contiene los cargos de red».
+- Se probó «no son públicas» y se volvió a «no son redistribuibles», que es lo exacto, porque cabía igual.
+
+**Comprobaciones**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 75 páginas, 0 Overfull, vetadas LIMPIA.
+
+## C-312 · El P2P colectivo exacto, registrado en el canon (§14.30) (2026-10-05)
+
+Tipo: `medición`. La matriz con el piso del fondo (`PISO_MECANISMO=p2pcom`, C-307) y su liquidación (`p2pcom_exacto.py`, commit `f13d784`) quedan registradas en el canon, con el mismo patrón que H2 (C-305).
+
+- **El registro:**
+  - `verificar_canon_2026-09.py`: bloque 14, con 10 comprobaciones y una prueba de detección sobre una copia;
+  - `HUELLAS.csv`: 2 343 ficheros, de los que entran 271 de la matriz (grupos `almacen_pc`, `outputs_pc`, `registro_pc` y `matriz_pc`) y 3 de la liquidación (`e1/PCX`);
+  - `CANON.md`: §14.30, más una nota en §14.23 y la trampa 7 de §10.0;
+  - `cifras_articulo.py`: bloque 22, con las claves `pcx__*` (3 462 cifras y 68 compuertas). Las 3 353 filas anteriores quedan byte a byte.
+- **El resultado:**
+  - en la comunidad, el exacto difiere del aproximado 0,023 MCOP como mucho (I1, el 0,018 %), y en relativo nunca más del 0,039 % (K1);
+  - no cambia el signo frente a C4 ni frente a C1;
+  - frente al mercado P2P, K1 pasa del empate a −0,018 MCOP;
+  - por institución se mueve hasta 1,08 MCOP. Pares por debajo: de C4, 13; de C1, 17 (21 en el aproximado); del mercado P2P, 24 (25).
+- **Qué se cita:** los niveles del P2P colectivo, desde e1/PC, porque son los que usan la caja de sensibilidad y las figuras. Desde §14.30 se cita la cota y el conteo por institución.
+- **Corrección de la frase de C-311:**
+  - Artículo. Decía «0,02 MCOP como mucho, el 0,04 %», que mezclaba el máximo absoluto (I1) con el relativo (K1). Ahora dice «0,02 MCOP como mucho, nunca más del 0,04 %».
+  - Tesis. Decía «(el 0,04 %, en I1)». Ahora dice «(en I1, el 0,018 %) y nunca más del 0,04 % (K1)».
+- **Comprobaciones:** las tres compuertas del canon INTACTAS; artículo en 9 páginas, cifras LIMPIO; tesis compilada, vetadas LIMPIA.

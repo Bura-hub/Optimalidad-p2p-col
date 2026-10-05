@@ -225,6 +225,32 @@ def traduce(s: str) -> str:
     return num_es(s)
 
 
+def _renombra(s: str) -> str:
+    return re.sub(r"\bMariana\b", "Unimar", re.sub(r"\b(?:CESMAG|Cesmag)\b", "Unicesmag", s))
+
+
+def renombra_instituciones(fig) -> None:
+    """C-267 (2026-10-04): la tesis y el artículo abrevian Universidad Mariana
+    como «Unimar» y Universidad CESMAG como «Unicesmag» (acrónimos de más de
+    cuatro letras, con mayúscula inicial). Solo cambia lo impreso: los datos y
+    las claves internas («Mariana», «Cesmag») no se tocan."""
+    for ax in fig.axes:
+        for eje in (ax.xaxis, ax.yaxis):
+            f = eje.get_major_formatter()
+            if isinstance(f, FixedFormatter):
+                eje.set_major_formatter(FixedFormatter([_renombra(s) for s in f.seq]))
+            elif isinstance(f, FuncFormatter):
+                eje.set_major_formatter(FuncFormatter(lambda v, p, f=f: _renombra(f(v, p))))
+    for t in fig.findobj(Text):
+        s = t.get_text()
+        if _renombra(s) != s:
+            t.set_text(_renombra(s))
+    fig.canvas.draw()
+    for t in _textos_visibles(fig):
+        exige(re.search(r"\b(?:CESMAG|Cesmag|Mariana)\b", t.get_text()) is None,
+              f"queda un nombre sin abreviar: «{t.get_text()}»")
+
+
 def traduce_figura(fig) -> None:
     """Traduce todo texto de la figura: textos sueltos, rótulos de ejes y de la
     barra de color, leyendas y los rótulos fijos de las marcas; los ejes
@@ -518,6 +544,7 @@ def genera(spec: dict) -> dict:
         traduce_figura(fig)
     if spec.get("ajuste"):
         spec["ajuste"](fig)
+    renombra_instituciones(fig)                 # C-267
     if tipo == "G":
         menos_tipografico(fig)
     letra = letra_minima(fig, nombre)

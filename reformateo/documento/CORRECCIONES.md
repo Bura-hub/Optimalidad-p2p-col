@@ -9968,3 +9968,860 @@ La redacción del capítulo 2 dejó dos derivaciones que la revisión dio por co
 - La aversión al riesgo del modelo base está en el pago logarítmico, no en el término de competencia (H-61).
 
 Solo cambia el texto; no hay código ni cifras.
+
+## C-233 · Sin nombres de comercializadores; C2 es el PPA de la propuesta; el P2P comunitario (2026-10-01 y 2026-10-02)
+
+Tipo: `nombre` y `técnico`. Aplicada en el artículo en español (`v2_es`), su suplemento y la tesis de entrega (`Documentos/Tesis_entrega`).
+
+- **Comercializadores sin nombre.** El artículo y la tesis decían ASC y CEDENAR. Ahora dicen «comercializador A» (Udenar, Mariana, UCC y HUDN) y «comercializador B» (CESMAG), y las referencias van anonimizadas. Razón: decisión del autor. El generador de figuras falla si un PDF nombra a un comercializador.
+- **C2.** Era el contrato interno de CAL-52, igual al mercado en el agregado. Ahora es el contrato bilateral de la propuesta: cada institución vende todo su excedente a precio pactado, sin crédito (CREG 174, art. 23 num. 2 lit. a, y art. 26 lit. c), evaluado al precio medio de XM. Punto P del canon, CANON §14.22.
+- **P2P comunitario** (después, P2P colectivo; C-234). Es una regla propuesta: intercambio interno sin cargos, residual al autogenerador colectivo con el PDE igual y sin la regla del 10 %, en el caso que da la capacidad instalada por usuario. Su ventaja sobre C4 se reparte por los dos órdenes y por Shapley, nunca por un solo orden. Puntos PC y PD, CANON §14.23 y §14.24.
+
+## C-234 · El P2P colectivo reemplaza a la vía legal antigua; la vía legal deja de ser mecanismo (2026-10-02)
+
+Tipo: `nombre` y `técnico`. Aplicada en el artículo, el suplemento y la tesis (cuerpo y anexos B, C, D, E y F).
+
+- **El nombre.** El «P2P comunitario» se llama «P2P colectivo» y sustituye por completo al «mercado P2P por el colectivo».
+- **La vía legal antigua** («la liquidación legal de hoy», «las reglas actuales del colectivo», «Liq. legal», «Col.»):
+  - dejó de ser mecanismo;
+  - queda solo como la esquina «sin ningún supuesto» de la atribución: sin ninguno de los dos supuestos, el mercado deja lo que C4;
+  - se conserva como historia en los anexos D y E.
+- **La validación regulatoria se dice explícita:** con la regulación vigente, el mercado P2P solo cabe dentro de C4 y ahí vale lo mismo que C4.
+- **Alineación con la propuesta** (en la tesis):
+  - el P2P colectivo se presenta como resultado del apartado «límites operativos y regulación» de la propuesta;
+  - el objetivo 4 dice que la flexibilidad frente a la regla del 10 % que la propuesta esperaba del mercado solo existe si la regulación la declara.
+
+## C-235 · Cada objeto con su nombre: C1, C4, mercado P2P, P2P colectivo; ni «colectivo» suelto ni «formas» (2026-10-02 y 2026-10-03)
+
+Tipo: `estilo`. Aplicada en el artículo y la tesis.
+
+- **Las reglas que el autor fijó** al rechazar pasajes de la introducción y del planteamiento:
+  1. «colectivo» nunca va suelto: se escribe C4, «autogenerador colectivo» o «P2P colectivo»;
+  2. nada de «formas» ni «esas formas» para hablar de mecanismos, sino el mecanismo concreto; «forma cerrada» y «de forma exacta» se quedan;
+  3. lo que la norma no prevé se dice «que la regulación vigente no contempla»;
+  4. «el mercado» pasa a «el mercado P2P» donde puede confundirse con el P2P colectivo;
+  5. el liquidarse «como un autogenerador individual» pasa a «como en C1».
+- **Razón:** en un mismo párrafo convivían cuatro objetos con nombres parecidos (C4, el mercado P2P, la vía legal y el P2P colectivo), y el lector no podía separarlos.
+- **La introducción del artículo,** reescrita sobre esa base:
+  - el párrafo de las reglas nombra C1 y C4;
+  - la pregunta es «de dónde proviene el valor de un mercado P2P frente a la autogeneración individual y la colectiva»;
+  - el párrafo de la respuesta dice qué mercado se mide y contra qué, cuánto gana y gracias a qué dos supuestos, y presenta el P2P colectivo «que llamaremos el P2P colectivo».
+- **Planteamiento del problema:**
+  - las secciones II y III se titulan como la plantilla de la revista: «Planteamiento del problema» y «Solución propuesta»;
+  - la sección abre con el problema (la comunidad, sus mecanismos, qué falta y qué se pregunta), y la convención de citas queda en una frase.
+- **Frase de los cargos de red:** «Las ganancias del intercambio dependen de quién paga la red» pasa a «…de si la energía intercambiada paga cargos de red, es decir, lo que la tarifa cobra por usar las redes de transmisión y distribución».
+
+## C-236 · El artículo muestra cinco casos; la tesis conserva los 13 (2026-10-02)
+
+Tipo: `técnico`. Aplicada en el artículo, el suplemento y la tesis.
+
+- **Los cinco casos del artículo,** cada uno con un papel distinto: E0, la comunidad medida; E3, la mayor escala bajo 100 kW, con el crédito agotado; E4, plantas en el numeral 2; I1, plantas en los dos numerales; SINU, la cota inferior y la salida del miembro que más genera.
+- **Cómo se adaptó el texto:**
+  - la Tabla III tiene cinco filas;
+  - cada rango y recuento está recalculado sobre los cinco casos con cifras del canon;
+  - la matriz de 13 se nombra una sola vez, para declarar la selección.
+- **Dónde quedan los 13:** el suplemento recibe la tabla de los 13 casos y la tesis los conserva. E5 no se nombra en el artículo.
+
+## C-237 · C2, C3 y C5 como referencias secundarias en el artículo (indicación del asesor, 2026-10-02)
+
+Tipo: `técnico`. Aplicada solo en el artículo, porque la tesis conserva todos los mecanismos con su peso.
+
+- **Planteamiento:** C1 y C4 son la comparación central y el P2P colectivo es la respuesta regulatoria; C2, C3 y C5 «se reportan como referencias».
+- **Tablas y figuras:**
+  - la columna C2 − C4 sale de la Tabla III y queda en la tabla del suplemento;
+  - el panel (a) de la Fig. 2 deja de mostrar siete barras (C-240);
+  - la Fig. 4 no lleva C5.
+- **Texto:** las tres referencias se reportan en un párrafo breve de IV-B, y el detalle de C2 pasa al suplemento.
+
+## C-238 · El artículo no menciona el Material Suplementario (2026-10-02)
+
+Tipo: `estilo`. Aplicada en el artículo.
+
+- **Razón:** IEEE LatAm no prevé material suplementario en sus normas.
+- **Cambio:** las nueve remisiones se quitan o pasan a la tesis, que contiene lo mismo («la tesis del primer autor [·]»).
+- **El suplemento** se sigue manteniendo aparte, para adjuntarlo si la revista lo admite o para el repositorio del «Link-to-Code».
+
+## C-239 · El GSA con C2 y P2P colectivo, en el texto (2026-10-02)
+
+Tipo: `dato`. Aplicada en el artículo (IV-C, abstract y conclusiones), el suplemento (tabla de Sobol) y la tesis (capítulo 8, conclusiones del objetivo 4, anexos D, E y F).
+
+- **Fuente:** CANON §13.9, bloque 11 del verificador.
+- **Resultados:**
+  - el P2P colectivo frente a C4 no se invierte en ningún punto de la caja, en los 12 casos;
+  - frente a C1 solo se invierte en E4 (12,60 %);
+  - la ventaja de C2 sobre C1 y C4 en E4 se invierte en el 85,42 y el 87,70 % de la caja (en la tesis, también E5 y P1).
+- **Cambios en los documentos:** sale la columna de la vía legal antigua; C5 sale de la figura del artículo.
+
+## C-240 · Figuras y Tabla I al estándar IEEE (auditoría del autor, 2026-10-02 y 2026-10-03)
+
+Tipo: `estilo` y `técnico`. Aplicada en el artículo y la tesis; cambia el generador `reformateo/documento/scripts/articulo/gen_figuras_articulo_es.py` (sin commit).
+
+- **Letra mínima de 8 pt** en todas las figuras, que es el mínimo de IEEE al tamaño impreso. El generador la exige y fija el rc por defecto a 8 pt. Antes eran 7 pt.
+- **Fig. 1** en cuadrícula de 2 × 2:
+  - (a) C1, (b) C4, (c) el mercado P2P con sus dos supuestos y (d) el P2P colectivo;
+  - correcciones: art. 21 para la energía asignada (no el 25), «energía asignada» en lugar de «cada parte», el caso 2 de C4 «por la regla del 10 %», la flecha «asignada» y «la regulación vigente no los contempla».
+- **Fig. 2:**
+  - es ahora dos cascadas, (a) E0 y (b) E3, de C4 al mercado P2P, con la barra del P2P colectivo y una línea de referencia en el nivel de C4;
+  - colores Okabe-Ito distintos, con C4 como única barra neutra;
+  - la línea del P2P colectivo del panel (b) anterior sobraba, porque ya estaba en el panel (a).
+- **Fig. 4:** propia en español, con los cinco casos y cinco brechas en el artículo, y una variante de la tesis con los 12 casos y ocho brechas.
+- **Tabla I:**
+  - reagrupada por mecanismo: C1; C4 y P2P colectivo; referencias C2 y C5; y una fila final «Sin norma», con el intercambio entre miembros;
+  - sin la columna «Umbral»;
+  - con las frases ambiguas precisadas («se supone cumplido»; C5 sin «un activo»).
+
+## C-241 · Lote de la lectura completa del artículo (2026-10-03)
+
+Tipo: `estilo` y `dato`. Aprobado en bloque («Todos»). Aplicado en el artículo; lo que corresponde, en la tesis.
+
+- **Errores:**
+  - E1: III-E citaba 150 528 evaluaciones, el total de los 12 casos. Ahora dice 28 672 en E0 y E4 y 7 168 en E3, I1 y SINU.
+  - E2: MCOP no estaba definido en su primer uso. Ahora se define en la introducción.
+  - E3: el aporte 2 decía que los escalados llevan plantas de más de 100 kW. Ahora dice «cruzan el umbral, agotan el crédito y retiran al que más genera».
+  - E4: las implicaciones se contradecían, porque decían que la recomendación no es eximir de cargos y el P2P colectivo exime. Ahora la recomendación es declarar las dos cosas, y eximir es una respuesta posible.
+- **Nombres:** N1-N6, «colectivo» suelto en II-B, II-D, V-B, V-C y conclusiones; «None of the rules found» del abstract.
+- **Claridad** (K1-K14):
+  - «en un país»;
+  - «también cambiaron»;
+  - «duda parecida»;
+  - «también en C1»;
+  - «Esa regla mueve»;
+  - «contrato interno», que se confundía con C2;
+  - «única palanca»;
+  - el título de IV-A;
+  - «son la parte»;
+  - el párrafo del P2P colectivo partido en dos;
+  - la sigla GSA fuera;
+  - las conclusiones partidas en tres;
+  - «mercado con solo el supuesto 1»;
+  - «tres formas» por «tres expresiones».
+- **Jerarquía y espacio** (J1-J6):
+  - C5 en dos frases;
+  - el tope de la bolsa y el COT pasan a III-A, y II-C queda «Autogeneración remota (C5)»;
+  - la digresión de la potencia por frontera pasa a III-D;
+  - las reglas de reparto de C4 en E4 pasan a IV-B;
+  - el aporte 4 queda en dos líneas;
+  - la frase del GSA del abstract, simplificada.
+- **Tablas:**
+  - T1: el pie de la Tabla III explica la «planta mayor» de cada caso;
+  - T2: el pie de la Tabla II dice que CESMAG está con el comercializador B.
+
+## C-242 · La comunidad energética es un supuesto (2026-10-03)
+
+Tipo: `dato`. Aplicada en el artículo (abstract, introducción, III-A y conclusiones) y en la tesis (resumen, propuesta y aportes, y datos de la comunidad).
+
+- **Qué decía.** «Lo mide en una comunidad energética colombiana», «La comunidad la forman cinco instituciones…» y «En una comunidad medida de cinco instituciones…».
+- **Qué dice ahora.** Las cinco instituciones no están registradas como comunidad energética: el proyecto MTE las dotó de plantas solares, medidores bidireccionales y una red que reúne sus mediciones, y el análisis las liquida como si formaran una comunidad. «La comunidad medida» es esa agrupación supuesta.
+- **Por qué.** Aclaración del autor: ninguna figura legal agrupa a las cinco instituciones.
+
+## C-243 · El artículo reorganizado según la plantilla de IEEE LatAm (2026-10-03)
+
+Tipo: `estilo`. Aplicada en el artículo; en la tesis, solo la redacción (su estructura de capítulos es la de la MaIE).
+
+- **Estructura nueva del artículo:**
+  - II. Planteamiento: A, C1 y C2 (título nuevo); B, C4; C, C5; D, «El intercambio entre miembros»; E, «Beneficio neto y valor de un kWh» (la formulación, la ecuación del beneficio, la definición de brecha y la Tabla II, que estaban en III-B).
+  - III. Solución propuesta: abre con una frase que la resume; A, comunidad y datos (recibe la prueba del comercializador único, que estaba en II-B); B, mercado P2P; C, supuestos y descomposición; D, «El P2P colectivo», subsección propia con la ecuación de la energía asignada en C4 y en el P2P colectivo y el anuncio de su reparto por dos cambios; E, casos y sensibilidad.
+  - IV. Resultados: las antiguas «Implicaciones regulatorias» (sección V) pasan a IV-D, con las preguntas abiertas dentro, y «Lo que se generaliza» a IV-E. Razón: la plantilla de la revista no prevé esa sección.
+  - V. Conclusiones.
+- **Introducción:** párrafo final de organización del artículo.
+- **Redacción (P2, P5, P6 y C-235):** «Las cinco instituciones cumplen lo demás»; el numeral es «el rango de capacidad del art. 25 en que cae»; «obtener el mayor valor»; «lo que las reglas permiten» y «ninguna regla prevé» pasan a «la regulación vigente»; «colectivos pequeños» pasa a «autogeneradores colectivos pequeños»; el resumen en inglés deja «both forms of self-generation».
+- **Sin cambio de cifras.** Compuertas de vetadas (español e inglés) y de cifras limpias; 11 páginas.
+
+## C-244 · Revisión de la sección III del artículo (2026-10-03)
+
+Tipo: `estilo` y `técnico`. Aprobada en bloque («si, dale»). Aplicada en el artículo; en la tesis, lo que corresponde.
+
+- **Apertura:** «Los tres se miden» pasa a «El mercado P2P y el P2P colectivo se miden en la comunidad y en los cinco casos».
+- **III-A, comunidad y datos:**
+  - la lista de instituciones, con dos puntos, y el MTE en oración aparte;
+  - las horas incompletas «se completan con la media de las lecturas que llegaron en esa hora»;
+  - la demanda de cada institución es la del circuito medido;
+  - la tarifa y la bolsa en párrafos separados; «da lo mismo» pasa a «la diferencia no afecta los resultados»;
+  - el precio de C2 (287,41 COP/kWh, media de los contratos con destino al mercado no regulado de XM) pasa de IV-B a III-A, con la referencia nueva `XM2026Contratos` en el `.bib` del artículo.
+- **III-B, mercado P2P:**
+  - «Chacón et al. lo presentan como…»; «no siempre llega al reposo»;
+  - la validación de la forma cerrada sube tras su definición;
+  - «la bolsa media topada, de 181,33 COP/kWh»;
+  - «Δij es nula si los dos tienen el mismo comercializador»;
+  - **el emparejamiento proporcional, Pji,k = vj,k qi,k / Vk** (el de `core/reposo_mercado.py`), que faltaba en el método;
+  - «una fracción de 0,542».
+- **III-C, supuestos:** «es decir, como en C1»; la remisión a la Fig. 1(c) sale de la lista; «La atribución se completa con la esquina sin ningún supuesto».
+- **III-D, P2P colectivo:** el párrafo del caso 1 y el de los umbrales, separados; «El supuesto 2 pasa a ser la exención que la regla declara»; con más de 100 kW por usuario, como en E4, sigue en el caso 2.
+- **III-E, casos y sensibilidad:**
+  - los dos umbrales del escalado (numeral 2 y crédito agotado), sin el condicional de C4;
+  - «matriz de 13 casos»; «valen 1 en el punto base»;
+  - las cinco brechas que se ponen a prueba, nombradas, y el intervalo al 95 % por remuestreo de los puntos (CANON §13.9; no es el bootstrap retirado por C-218).
+- **Tesis:** «da lo mismo», «El modelo se presenta», «(181,33…)», «Sin ningún supuesto…», el intervalo de P(inversión) y, en el anexo B, el precio de contratos de XM se usa en «C2 y C5» (decía «solo C5», desfasado desde C-233).
+- **Sin cambio de cifras.** Compuertas de vetadas y de cifras limpias; artículo en 11 páginas.
+
+## C-245 · Revisión de la sección IV del artículo (2026-10-03)
+
+Tipo: `estilo`. Aprobada en bloque («si, dale»). Aplicada en el artículo; en la tesis, D3 y E1.
+
+- **IV-A, la descomposición:**
+  - la Fig. 2(a) se cita al abrir la subsección, no al final;
+  - «0,00 MCOP»;
+  - el párrafo de los órdenes y el de la esquina sin supuestos, separados;
+  - el reparto del P2P colectivo entre sus dos cambios, por orden y sin la cadena «que vale 0,33 o 1,60»;
+  - en E3, la ventaja sobre C4 (35,85 MCOP, el 20,29 %) y por qué el P2P colectivo supera al mercado P2P (el reparto lleva el residual de quien agotó su crédito a quien aún tiene importación).
+- **IV-B, los casos:**
+  - «del beneficio de C4»;
+  - los tres regímenes titulados por numeral y con su resultado;
+  - «Todas las plantas pasan de 100 kW»; «como en E3, donde se transa el 7 %»;
+  - la frase suelta del efecto sobre el crédito se une al párrafo de los órdenes;
+  - «Ninguna de las reglas de reparto del art. 19 supera al mercado P2P, salvo en E4» (medidas en los 13 casos, CANON §14.18);
+  - el P2P colectivo «del 1,11 al 22,85 %», con los decimales de la Tabla III;
+  - C2 pierde frente a C1 porque un kWh acreditado vale más del doble del precio del contrato.
+- **IV-C, robustez:** «La Fig. 4 da la probabilidad de inversión»; en E4, la permanencia del HUDN y de CESMAG depende del precio de la bolsa; «queda en C4» en lugar de «aterriza».
+- **IV-D, implicaciones:**
+  - el primer párrafo, en tres;
+  - «Recupera casi toda la ventaja del mercado P2P, y en E3, E4 e I1 la supera»;
+  - **contradicción corregida (D3):** el texto decía que sobre las preguntas abiertas «no se toma partido», y el P2P colectivo responde a la primera y adopta la lectura literal de la segunda. Ahora lo dice, y aclara que se mide cuánto vale cada respuesta. También en la tesis.
+- **IV-E:** Brasil y Chile se conectan con el argumento: en los dos el excedente se valora por debajo de la tarifa, y la descomposición se aplicaría con sus propias deducciones. También en la tesis.
+- **Sin cambio de cifras.** Compuertas de vetadas y de cifras limpias; artículo en 11 páginas.
+
+## C-246 · Conclusiones del artículo reescritas; salvedad de los flujos del P2P colectivo declarada (2026-10-03)
+
+Tipo: `estilo` y `técnico`. Aprobada en bloque («si, dale»). Aplicada en el artículo; K2 también en la tesis.
+
+- **Orden nuevo, en cinco párrafos:**
+  1. la respuesta a la pregunta de la introducción (la ventaja viene de cómo se liquida el mercado, no de cómo fija los precios) y la descomposición;
+  2. lo que implica para la regulación y el P2P colectivo, con su rango (0,38 a 40,38 MCOP), su robustez y la recomendación de IV-D;
+  3. las referencias C2, C5 y C3, con C2 nombrado;
+  4. los límites: tarifas publicadas, el comercializador único, la forma cerrada como regla declarada, los flujos heredados del P2P colectivo y el mercado con solo el supuesto 1;
+  5. el trabajo futuro (añade el costo que eximir al intercambio trasladaría a los demás usuarios) y la disponibilidad de datos.
+- **K2, el acertijo:** «Atribuirlos al supuesto 1 corresponde al orden que pasa por C1» pasa a «Esa parte se atribuye al supuesto 1 solo si se agrega primero…; el 85 % si se agrega primero y el 19 % si se agrega después». También en la tesis (conclusión del objetivo 3).
+- **K8, salvedad que el artículo no declaraba** (CANON, «Los flujos son los del motor, fijos»): el P2P colectivo usa los flujos del mercado P2P, exactos donde el residual paga solo el Cv con plantas en el numeral 1, y aproximados en E4 e I1. Se declara en III-D y en las conclusiones. La tesis ya lo declaraba (secciones del P2P colectivo y de límites, y anexo B).
+- **Vetadas:** «la exención de cargos» dio aviso (D-1); se escribe «eximir al intercambio», como en IV-D.
+- **Sin cambio de cifras.** Compuertas de vetadas y de cifras limpias; artículo en 11 páginas.
+
+## C-247 · Resumen en inglés y tablas del artículo (2026-10-03)
+
+Tipo: `estilo` y `dato`. Aprobada en bloque («si, dale»). Aplicada en el artículo; T4 y T5, también en la tesis.
+
+- **Resumen:**
+  - por debajo del máximo de IEEE (250 palabras); antes tenía 259;
+  - «either assumption alone keeps more than 80 %» se acota a la comunidad medida, que es donde vale (IV-D), y el rango 0,02-0,96 % se dice «across the five cases»;
+  - «rule» y «rules» pasan a «regulation» (C-235);
+  - los cinco casos se entienden como la comunidad medida más cuatro reescalados;
+  - el cierre de la sensibilidad se simplifica: «Neither market's advantage over collective self-generation changes sign».
+- **Tabla I:** «residual del mercado P2P»; «en todo el horizonte» (decía «en todo 2025», y el horizonte va de abril a diciembre); el comercializador único remite a la prueba de III-A. La fila «Sin norma» no cambia, por decisión del autor.
+- **Tabla II:** la nota dice por qué abril (el primer mes del horizonte) y que los 98,94 y 114,37 son la banda de la ecuación (3) entre comercializadores, no un «ahorro» sin referente.
+- **Tabla III:**
+  - título más corto;
+  - **P2P − C4 en MCOP y en % de C4**, como el P2P colectivo (4,52, 20,29, 1,79, 5,95 y 1,11; claves com__<caso>__P2P_C4_pct). Para que quepa, los encabezados dicen «%» y la nota lo define, y la separación de columnas baja a 2,2 pt;
+  - la nota declara los flujos aproximados del P2P colectivo en E4 e I1 (C-246).
+- **Sin cambio de cifras.** Compuertas de vetadas (español e inglés) y de cifras limpias; artículo en 11 páginas, sin Overfull.
+- **Añadido (2026-10-03):** el artículo carga `booktabs`, y la Tabla III usa `\cmidrule` bajo «P2P − C4» y «P2P col. − C4», para que las dos rayas no se toquen. Las demás tablas siguen con `\hline`.
+
+## C-248 · Observaciones del arbitraje externo, grupos 2 y 3 (2026-10-03)
+
+Tipo: `estilo`, `técnico` y `referencia`. Aprobada por el autor («si»). Fuente: arbitraje ciego de un agente sin contexto (`scratchpad/arbitraje_externo_2026-10-03.md`, revisión mayor). Aplicada en el artículo; lo que corresponde, en la tesis.
+
+- **Falsas alarmas del árbitro, comprobadas contra el canon:**
+  - 150,21 kW en I1 es correcto (el factor es 8,559);
+  - SINU suma 0,39 frente a 0,38 solo por redondeo, y su 80 % es correcto (79,5 %);
+  - el 11,52 de IV-D sale de CANON §14.2.
+- **Grupo 2, inconsistencias:**
+  - **el supuesto 2 se decía de tres maneras (M3)**; ahora dice «no paga cargos de red ni Cv» en el resumen, la introducción, la Fig. 1 y III-C, y declara que también lo exime del cargo de pérdidas. También en la tesis;
+  - el rango sin supuestos (0,02 a 0,96 %) se da en IV-A con sus casos (E0 y SINU, I1); antes solo estaba en el resumen y las conclusiones;
+  - la Tabla I dice que el modelo usa el precio de escasez superior;
+  - SINU se expande en la introducción («sin Udenar»);
+  - el P2P colectivo «convierte los dos supuestos en una regla y depende, por tanto, de que esa regla exima al intercambio» (decía «no descansa en supuestos»);
+  - el volumen «no depende del precio interno».
+- **Grupo 3, observaciones válidas:**
+  - **M2:** que el precio no mueva el beneficio de la comunidad se dice «por construcción» (introducción, III-B, resumen y conclusiones); el equilibrio de Nash se formula como la condición de reposo que compara cada agente con el otro lado fijo, como en la tesis;
+  - **M5:** el corte depende del miembro y del mes y se calcula antes del mercado, con el mes completo y un residual aproximado (reparto proporcional del lado corto): el modelo supone que el mercado conoce el mes de antemano; abril y diciembre se liquidan con las horas del horizonte. La previsión también en la tesis;
+  - **M8:** dos referencias nuevas verificadas en Crossref, Manso-Burgos et al. (2021, 10.3390/su131910555) y Viadere (2025, 10.1016/j.enpol.2024.114483), en la introducción y, la primera, en III-D, para diferenciar el P2P colectivo de los coeficientes de reparto; «sin crear una figura nueva» se matiza con lo que exige (el art. 20 y la tarifa). También en la tesis;
+  - **M4:** la introducción separa los 2,01 MCOP en 1,71 de cargos de red por la regla del 10 % y 0,30 del intercambio;
+  - **menores:** la validación dinámica (m4), el mercado con solo el supuesto 1 (m5), la imputación de horas incompletas (m10), Shapley como media de dos órdenes (m15), la agrupación «hipotética, con sus datos medidos» (m18) y qué es agotar el crédito en la introducción (m22).
+- **Sin cifras nuevas.** Compuertas de vetadas (español e inglés) y de cifras limpias; resumen de 250 palabras; el artículo pasa a 12 páginas (la última, solo una línea de referencias y las biografías).
+
+## C-249 · El artículo, recortado a 9 páginas; segunda ronda de arbitraje (2026-10-03)
+
+Tipo: `estilo`, `técnico` y `referencia`. Orden del autor: «reducelo a 9 paginas sin romper el estilo de redaccion». Aplicada en el artículo; la errata de la regla del tres, también en la tesis.
+
+- **Resultado:** 9 páginas con referencias y biografías (antes 12); el cuerpo pasa de 8 080 a unas 5 900 palabras, dentro del rango de la revista (4 500 a 8 000). Estructura de la plantilla intacta: introducción, planteamiento, solución propuesta, resultados (con IV-D y IV-E) y conclusiones.
+- **Fig. 1 a una columna** (propuesta del autor): `fig1_mercados`, nueva en el generador (`fig1_col`), con lo fundamental: (a) el mercado P2P con sus dos supuestos y (b) el P2P colectivo. Pasa a III-C, junto a los supuestos. C1 y C4 quedan en el texto y en las Tablas I y II. La tesis conserva la cuadrícula de 2 × 2 (`fig1_comunidad`).
+- **Texto:** cada sección se condensó sin quitar resultados ni salvedades. Además:
+  - la lista de los tres pasos de C4 pasa a prosa;
+  - la frase de la medición por lo exportado sale de III-D;
+  - el párrafo de Brasil y Chile se reduce a una frase, formulada como hipótesis («es de esperar»).
+- **Referencias:** de 38 a 26. Salen las que solo acompañaban una afirmación general: Parag, Barabino, Reis, Tushar, Kirschen, Taylor, Kim, McRae, da Silva y el Decreto 2236. También sale Chacón et al. 2024, cuyo título estaba en español (m16 del arbitraje). Además, los títulos en español de la tesis y de la entrada de TecnoLógicas se traducen; la entrada de contratos de XM lleva su fecha de consulta; y se arregla una llave sobrante en la entrada de la bolsa.
+- **Segunda ronda del arbitraje ciego** (`scratchpad/arbitraje_externo_2026-10-03_ronda2.md`; revisión mayor; notas 3, 3, 3, 2, 3, 3, 3 y 4, frente a 2, 3, 3, 2, 3, 3, 2 y 3 de la primera). Aplicado:
+  - **errata de la regla del tres:** «0,29 % con 512 puntos» pasa a «con n = 512» (3/1 024), y lo mismo con n = 2 048. También en la tesis (capítulo de robustez y anexo F);
+  - el mercado P2P supera «a C4 con reparto igual», porque en E4 C4 con reparto por consumo lo supera;
+  - el rango del P2P colectivo frente a C4 se cita «con la lectura literal del art. 20 en I1»;
+  - en E0 y SINU, P2P − C4 tampoco puede invertirse, por construcción (C1 − C4 son cargos de red);
+  - la síntesis de robustez dice «en toda la caja» en lugar de «con cualquier precio y medición»;
+  - la atribución en E4 e I1 declara que el primer orden mide el supuesto 1 con C1, su cota inferior (CANON §14.21);
+  - la ventaja es, casi toda, cargos que dejan de pagarse y que pagan los demás usuarios si la tarifa no cambia (IV-D y conclusiones);
+  - el contrafáctico de 11 fronteras se define como un C4 que añade seis fronteras que solo consumen;
+  - la brecha de (8) pasa a Γ, porque Δ ya era la diferencia de tarifas;
+  - el diseño de Saltelli «da también los índices de Sobol, pero aquí se informa el signo»;
+  - el aporte 1 es «la atribución…», no «una descomposición exacta»;
+  - el resumen dice «four variants»; las conclusiones dan P2P − C1 (0,30 MCOP); la Fig. 2 aclara que en E0 el efecto sobre el crédito es nulo.
+- **No aplicado** (pide medir o decidir): v({1}) en E3, E4 e I1; la transferencia de cargos por caso; el propósito de la regla del 10 % (consulta regulatoria); la justificación de los rangos de la caja; los índices de Sobol en el artículo; el efecto de la previsión del corte; el signo base en la Fig. 4.
+- **Estilo medido** (`medir_estilo.py`): 22,9 palabras por oración, 7,1 % de más de 40, 73,6 por párrafo, 3,2 oraciones por párrafo, «es decir» 1,36 por mil, punto y coma 1,71 por mil, sin rayas. Perfil del autor: 24,6; 12,0; 74; 3,2; 1,24; 2,50.
+- **Sin cifras nuevas.** Compuertas de vetadas (español e inglés) y de cifras limpias, 0 Overfull, 0 referencias indefinidas. Respaldos en `scratchpad/antes_recorte_9pag/`, `antes_fig1_col/` y `antes_estilo_9pag/`.
+
+## C-250 · Los cuatro aportes recuperan su detalle (2026-10-03)
+
+Tipo: `estilo` y `técnico`. Observación del autor tras el recorte («le quitaste el detalle»); aplicada en el artículo, y lo que arrastra, en la tesis.
+
+- **Aportes del artículo:**
+  1. «La atribución de **la ventaja del mercado P2P sobre C4**…». Decía «esa ventaja», y la frase anterior era la del P2P colectivo. Vuelve a nombrar los tres términos.
+  2. Las variantes dicen qué hacen: cruzan el umbral de 100 kW por planta, agotan el crédito (con su glosa, m22) o retiran al miembro que más genera.
+  3. La sensibilidad dice qué varía y anuncia el hallazgo regulatorio: las dos cosas que la regulación tendría que definir (IV-D).
+  4. «El P2P colectivo, que convierte los dos supuestos en una regla dentro de C4, medido en los cinco casos». Decía «las dos respuestas que el mercado necesita», que el lector aún no conoce en la introducción.
+- **Compensación, sin quitar contenido:** sale la frase de la apertura de III que repetía III-E; el pie de la Fig. 1 ya no repite lo que la figura rotula; el ODS 7 va sin glosa. El artículo sigue en 9 páginas.
+- **Conclusiones:** «del 80 al 85 % de esa ventaja» pasa a «…de la ventaja sobre C4», porque la frase anterior da dos ventajas (sobre C4 y sobre C1).
+- **Revisado contra lo ya decidido:**
+  - los nombres de C-235;
+  - la reformulación de M2 (atribución sobre una identidad);
+  - el supuesto 2 completo de C-248 («ni Cv»);
+  - SINU definido en su primer uso (III-E);
+  - el abstract («four variants»);
+  - las remisiones de la Fig. 1, ahora (a) y (b).
+- **Tesis (lo que arrastra):** el aporte 3 pasa de «una descomposición exacta» a «la atribución de la ventaja… sobre una identidad exacta de tres sumandos»; los aportes 2 y 5 dicen que el intercambio no paga cargos de red **ni el componente de comercialización** (C-248).
+- **Comprobaciones:** compuertas de vetadas y de cifras limpias; estilo en 23,3 palabras por oración, 73,8 por párrafo, «es decir» 1,51 por mil y punto y coma 1,68 por mil. La tesis compila con 0 referencias indefinidas y 0 Overfull; el único aviso es el conocido de páginas, y los 22 huérfanos son los de antes.
+
+## C-251 · Auditoría de las correcciones tras el recorte: lo recuperado sin pasar de 9 páginas (2026-10-03)
+
+Tipo: `estilo` y `técnico`. Pedido del autor: que el recorte no pierda el valor de sus correcciones. Auditoría de un agente sin contexto (`scratchpad/auditoria_correcciones_9pag.md`): de 132 entradas (C-233 a C-250 y 23 decisiones dichas en la conversación), 102 seguían en pie, 20 estaban debilitadas, 3 perdidas y 7 no aplicaban. Aplicada en el artículo.
+
+- **Recuperado**, en versión corta:
+  - la pregunta con las palabras del autor («frente a la autogeneración individual y la colectiva»);
+  - lo que distingue al artículo del de congreso («y descompone de dónde viene la ventaja del mercado P2P»);
+  - «el precio, por construcción, solo reparte»;
+  - C2 como «contrato bilateral de cada institución»;
+  - la demanda es la del circuito medido;
+  - «Chacón et al. lo presentan como…», con la glosa del reposo;
+  - los meses parciales;
+  - dónde C1 es exactamente el mercado con solo el supuesto 1 y dónde es una cota inferior;
+  - «La atribución se completa con la esquina sin ningún supuesto»;
+  - E3 y SINU como la mayor y la menor ventaja;
+  - **la validación regulatoria explícita** de C-234: sin las dos declaraciones, el mercado P2P solo cabe dentro de C4 y ahí no lo supera, y el gestor reparte pagos sin crear valor. Se escribe «no lo supera» en lugar de «vale lo mismo», porque queda hasta un 0,96 % por debajo;
+  - la salvedad del P2P colectivo en la robustez (depende de que la regla exima al intercambio);
+  - C5 y C3 en IV-B y en las conclusiones;
+  - «aunque C4 exige uno solo» en los límites.
+- **Ajustes del controlador a la auditoría:**
+  - K10 descartado: reescribía una frase aprobada por el autor en C-241;
+  - K2 ajustado: la frase «C4 solo reparte…» se acorta y vuelve a su párrafo, en vez de borrarse;
+  - E0 deja de usarse en III-B antes de su definición («una muestra de la comunidad medida»).
+- **Compensación**, sin quitar correcciones ni salvedades:
+  - ideas dichas dos veces: K1, K3 a K9 y K11 de la auditoría;
+  - tres párrafos de una sola oración se unen al anterior;
+  - IV-E deja los límites que repiten las conclusiones;
+  - la Fig. 1 compacta sus espacios verticales, de 5,27 a 4,96 in, con el mismo contenido y letra de 8 pt.
+- **Sin aplicar:** las opcionales O1 a O10 de la auditoría, que no caben.
+- **Comprobaciones:**
+  - artículo en 9 páginas, con las tres biografías en la novena;
+  - compuertas de vetadas (español e inglés) y de cifras limpias, 0 Overfull;
+  - sin «colectivo» suelto, «formas», «esa ventaja» ni nombres de comercializadores;
+  - estilo en 23,4 palabras por oración, 76,8 por párrafo, «es decir» 1,51 por mil y punto y coma 1,85 por mil.
+
+## C-252 · El estilo del autor, de II-D a las conclusiones; Discusión de resultados (2026-10-03)
+
+Tipo: `estilo` y `técnico`. Pedido del autor: llevar al resto del artículo el estilo de la parte que corrigió línea por línea (introducción a II-C, versión de `manuscrito.rar`), con la estructura nueva y en 9 páginas, y pasar el resultado por revisores. Decisiones del autor: la introducción a II-C queda como está, recortada; la Discusión no trae material nuevo (la equidad, el reparto por institución, el retiro de un miembro y el mes a mes van a la tesis).
+
+- **Guía de corrección:** `scratchpad/guia_correccion_autor.md`, destilada de C-233 a C-251, de las decisiones dichas en la conversación y de GUIA.md §10.
+- **Estructura de IV:**
+  - IV-C pasa a «Discusión de resultados». Sustituye a «Robustez» y absorbe «Lo que se generaliza»; las etiquetas se conservan.
+  - Sus párrafos:
+    1. el valor es de liquidación, y la atribución depende del orden porque los supuestos son sustitutos;
+    2. qué recupera el P2P colectivo y por qué: en E3 e I1, el reparto del residual, y en I1, además, la planta de la UCC en el numeral 1;
+    3. la robustez, con la Fig. 4;
+    4. el P2P colectivo «conserva también su ventaja sobre C4 en toda la caja»;
+    5. la viabilidad por miembro;
+    6. la regla de despacho y lo que se generaliza, con una frase de enlace a IV-D.
+- **Corrección de precisión, para la revisión final del autor:** la ventaja del P2P colectivo sobre el mercado P2P en E4 (1,99 MCOP) se invierte en el 59,25 % de la caja (`gsa__E4__P2Pcom_P2P__p`, CANON §13.9.3). IV-B ya no presenta esa ventaja como firme.
+- **Del árbitro (ronda 3):** la condición para que C1 sea exactamente el mercado con solo el supuesto 1 es que nadie agote su crédito y que las plantas estén en el numeral 1 (CANON §14.21), no «donde se transa casi toda la inyección». Corregido en III-C y en las conclusiones.
+- **Del auditor de estilo (ronda 3; 44 hallazgos, aplicados salvo tres descartados):**
+  - la minúscula tras punto en IV-C;
+  - Shapley en IV-A nombra primero la regla en los dos órdenes (1,03 es de quitar la regla);
+  - «La Fig. 4 da la probabilidad de inversión (8)», con la ecuación citada de nuevo;
+  - qué brecha protege el argumento «por construcción»;
+  - Cv y CU definidos en su primer uso;
+  - «la regulación vigente» en lugar de «Ninguna norma» y «las reglas vigentes»;
+  - sujetos explícitos;
+  - sin E0 antes de definirse;
+  - sin «Esa ventaja»;
+  - frase de enlace al cierre de II;
+  - el propósito de la regla del 10 % junto a su costo, en el ítem 1 de IV-D;
+  - punto y coma que no enumeran fuera, también en las notas de las Tablas II y III;
+  - «cada disposición» en el título de la Tabla I.
+  - **Descartados:** la nota de financiación larga (decisión del autor), quitar «La comunidad que se analiza es supuesta» (frase del autor de C-242) y unir el párrafo de E3 al primero de IV-A.
+- **Nota de financiación:** la del artículo anterior, en español: «Este trabajo contó con el apoyo del proyecto BPIN 2021000100499, financiado por CTeI-SGR y Minciencias, Colombia». La de afiliación y correos se queda, porque la revista exige afiliación y correo de cada autor.
+- **Comprobaciones:**
+  - 9 páginas, con las tres biografías en la novena;
+  - compuertas de vetadas (español e inglés) y de cifras limpias en el artículo y en las tres tablas;
+  - 0 Overfull y 0 referencias indefinidas;
+  - estilo en 22,7 palabras por oración, 6,8 % de más de 40, 77,8 por párrafo, «es decir» 1,32 por mil y punto y coma 1,49 por mil;
+  - sin «colectivo» suelto, «formas», «esa ventaja» ni nombres de comercializadores.
+- **Árbitro ciego, ronda 3:** revisión mayor, con notas de 4, 3, 4, 3, 4, 3, 3 y 4 (en la ronda 2 fueron 3, 3, 3, 2, 3, 3, 3 y 4).
+
+## C-253 · Título nuevo del artículo (2026-10-03)
+
+Tipo: `estilo`. Elegido por el autor entre cuatro propuestas (opción C).
+
+- **Antes:** *Where Does the Value of a Peer-to-Peer Market Come From Under Colombian Self-Generation Rules? A Regulatory Decomposition* (19 palabras).
+- **Ahora:** *Peer-to-Peer Energy Trading in Colombian Energy Communities: Network Charges, Settlement Rules, and a Collective Alternative* (15 palabras).
+- **Por qué:**
+  - incluye los términos de búsqueda del campo, «peer-to-peer energy trading» y «energy communities» (al anterior le faltaba «energy»);
+  - anuncia dónde está el valor (los cargos de red y la liquidación) y la propuesta (el P2P colectivo);
+  - no pone en el título la idea que los árbitros consideran construida («el valor no viene del precio»);
+  - queda dentro de las 12 a 15 palabras recomendadas.
+- **El encabezado de página** (`\markboth`) usa la forma corta: «Peer-to-Peer Energy Trading in Colombian Energy Communities». La carta al editor tendrá que usar el título nuevo.
+
+## C-254 · Redacción del primer supuesto en la introducción (2026-10-04)
+
+Tipo: `estilo`. Corrección del autor, aplicada en la introducción del artículo.
+
+- «que la energía que cada miembro no intercambia se liquida como en C1» pasa a «que la energía de cada miembro no intercambiada se liquida como en C1».
+- Siguen sin cambio tres frases con la otra construcción: el aporte 3, IV-D y las conclusiones dicen «cómo se liquida la energía que cada miembro no intercambia». Quedan así hasta que el autor diga si las cambia.
+
+## C-255 · Cita del valor de Shapley (2026-10-04)
+
+Tipo: `referencia`. Aprobada por el autor; aplicada en el artículo y en la tesis.
+
+- El artículo nombraba a Shapley seis veces sin citarlo, y la tesis tampoco lo citaba.
+- Se añade L. S. Shapley, «A value for n-person games», en H. W. Kuhn y A. W. Tucker (eds.), *Contributions to the Theory of Games, Volume II* (Annals of Mathematics Studies 28), Princeton University Press, 1953, pp. 307-318, DOI 10.1515/9781400881970-018. El DOI y las páginas están verificados en Crossref.
+- La cita va donde se define el valor de Shapley: en III-C del artículo y en la sección de los supuestos de la tesis.
+- El artículo sigue en 9 páginas; artículo y tesis compilan sin referencias indefinidas.
+
+## C-256 · Shapley con su punto de partida; la frase del segundo supuesto, unificada (2026-10-04)
+
+Tipo: `estilo` y `técnico`. Aprobada por el autor tras revisar si Shapley aplica al análisis. Aplicada en el artículo.
+
+- **Revisión de Shapley: aplica.**
+  - La pregunta es de atribución entre dos supuestos que interactúan (son sustitutos en la energía transada).
+  - Shapley es la única regla que cumple eficiencia, simetría, jugador nulo y aditividad, y sus valores suman la ventaja completa.
+  - Las cifras de E0 coinciden con el canon: 1,05 y 0,96 (CANON §14.21) y 1,03 y 0,97 (`pcom__E0__sh_*`).
+  - **Salvedades:**
+    - el punto de partida es C4 (lo señaló el árbitro de la ronda 3);
+    - la esquina «solo el supuesto 1» se mide con C1, exacta solo sin crédito agotado y con plantas en el numeral 1, ya declarado. Shapley se usa solo con cifras de E0.
+- **III-C:** «Los dos órdenes parten de C4, y la Sección IV da ambos y su media, que con dos supuestos es el valor de Shapley [cita]: a cada supuesto le da lo que vale solo, menos la mitad de lo que comparten».
+- **Frase unificada** con C-254 en el aporte 3, IV-D y las conclusiones: «cómo se liquida la energía de cada miembro no intercambiada».
+- **Comprobaciones:** 9 páginas; compuertas de vetadas y de cifras limpias; 0 Overfull.
+
+- **Añadido (2026-10-04):** en la introducción, «el intercambio aporta 0,30» pasa a «…0,30 MCOP», con su unidad (corrección del autor).
+- **Añadido (2026-10-04):** el cierre del párrafo de la respuesta vuelve a la redacción del autor de la versión de 12 páginas: «deja 1,99 MCOP más que C4, casi toda la ventaja del mercado P2P. Para ello hace cuatro aportes:». Sin «sin crear una figura nueva», que IV-D matiza (art. 20 y tarifa).
+- **Añadido (2026-10-04):** no todas las variantes cruzan el umbral de 100 kW (observación del autor). Aporte 2: «que llevan las plantas hasta el umbral de 100 kW o por encima de él» (E3 queda justo debajo y solo E4 e I1 lo cruzan). III-E: «cubren entre todos los dos umbrales», porque E0 y SINU no cruzan ninguno.
+
+## C-257 · Títulos de subsección como en IEEEtran (2026-10-04)
+
+Tipo: `formato`. Pregunta del autor.
+
+- Los títulos de subsección salían «II-A.», «II-B.», porque `babel` en español cambia el formato de los números de sección y pisa el de IEEEtran.
+- Con la opción `es-nosectiondot` salen como manda la plantilla de la revista: «A. Autogeneración individual…», en cursiva.
+- Las remisiones del texto siguen como «Sección II-A», que es la forma de IEEE.
+- El artículo sigue en 9 páginas.
+
+## C-258 · Revisión de formato contra la plantilla y el checklist de la revista (2026-10-04)
+
+Tipo: `formato`. Contrastado con `Documentos/articulo_latam/plantilla/` (plantilla oficial `bare_jrnl_new_sample4.tex` y `checklist_final.pdf`) y con `revista_objetivo_2026-07.md` §2.
+
+- **Corregido:** la introducción abre con la letra capital de la plantilla (`\IEEEPARstart{C}{on}`). El artículo sigue en 9 páginas.
+- **Conforme:**
+  - clase `IEEEtran` con `[lettersize,journal]`, como la plantilla; tamaño carta y fuentes Type 1 incrustadas;
+  - 9 páginas, el máximo de la revista;
+  - estructura obligatoria completa y en orden;
+  - título, resumen, *Index Terms* (en orden alfabético), referencias y biografías en inglés, y cuerpo en español;
+  - secciones en romanos, subsecciones con letra en el título y «II-A» en las remisiones (C-257); «Referencias» sin número;
+  - figuras y tablas dentro del texto, tablas sin líneas verticales ni dobles, letra de las figuras de al menos 8 pt;
+  - nota al pie de la primera columna con afiliación, correos y financiación, como pide el checklist;
+  - 0 Overfull y 0 referencias indefinidas.
+- **Pendiente del autor**, porque son datos suyos o pasos de envío:
+  - ORCID de los tres autores, con hipervínculo bajo los nombres (el checklist lo exige; hoy el macro no imprime nada);
+  - fotos de las biografías (hoy `IEEEbiographynophoto`);
+  - membresía IEEE, si la hay;
+  - DOI del artículo del WEEF.
+- **Referencias sin DOI:** 16 de 27. Son normas, datos de XM, el artículo del WEEF y la tesis en preparación. Las normas y los datos van con URL oficial y fecha de consulta, la forma habitual; la revista exige DOI en todas y puede pedir una aclaración editorial.
+- **Del paquete de envío falta todo:** carta al editor, resumen gráfico, video, Link-to-Code, formulario de derechos y versión resaltada. Los verificadores en línea de IEEE (LaTeX QC y RefAssist) los corre el autor.
+
+## C-259 · ORCID de los autores, con hipervínculo (2026-10-04)
+
+Tipo: `formato`. Datos del autor, tomados del formulario de derechos del WEEF.
+
+- ORCID bajo los nombres, con el ícono oficial enlazado a orcid.org, como pide el checklist final de la revista:
+  - López-Méndez, 0009-0009-0831-5043;
+  - Pantoja, 0000-0002-0196-3269;
+  - Obando, 0000-0003-4271-4944.
+- Se cargan `hyperref` (con `hidelinks`, enlaces sin recuadros de color) y `orcidlink`. Se retiran el macro provisional y su aviso.
+- La letra capital de C-258 queda en el PDF.
+- **Comprobaciones:**
+  - 9 páginas, 0 Overfull, 0 referencias indefinidas;
+  - compuertas de vetadas (español e inglés) y de cifras limpias;
+  - los tres enlaces del PDF apuntan a sus perfiles.
+- **Siguen pendientes del autor:** las fotos de las biografías, la membresía IEEE si la hay y el DOI del artículo del WEEF.
+
+## C-260 · II-E más legible: cada cantidad con su nombre (2026-10-04)
+
+Tipo: `estilo`. Pedido del autor («no sé qué cosa es cada una»). Aplicada en el artículo.
+
+- **Antes:** una sola ecuación mezclaba autoconsumo, inyección, importación y beneficio neto, y los símbolos se explicaban después.
+- **Ahora:**
+  - cada cantidad se nombra en palabras al presentarla: «lo que consume de ella es su autoconsumo, $a_{n,k}$; lo que le sobra y entrega a la red, su inyección, $s_{n,k}$, y lo que le falta y toma de la red, su importación, $d_{n,k}$», con la ecuación (1);
+  - el beneficio neto va en su propia ecuación, (2), y se explican sus dos términos: el autoconsumo, que vale la tarifa en todos los mecanismos, y $V^{\mathrm{M}}_n$, el valor que M da a la inyección y a la importación, lo único que distingue un mecanismo de otro;
+  - la brecha va al final.
+- **Comprobaciones:** 9 páginas, 0 Overfull, compuertas de vetadas y de cifras limpias. Las ecuaciones siguientes se renumeran solas, porque todas se citan con `\eqref`.
+- **Añadido (2026-10-04):** la misma redacción en la tesis (sección «Marco común y regla compartida»). Cada cantidad lleva su nombre al presentarla, se explican los dos términos de la ganancia neta (lo que pagaría sin planta y el costo neto con el mecanismo) y la brecha va al final. La ecuación de la tesis no cambia.
+- **Añadido (2026-10-04):** se quita $T$ de II-E, porque se definía y no se usaba en ningún otro sitio (las sumas van sobre $k$ sin límites). Queda «En cada hora $k$ del horizonte». $N$ se conserva, porque lo usa $p_n=1/N$.
+- **Añadido (2026-10-04):** el símbolo del beneficio neto se presenta en el texto antes de su ecuación: «El beneficio neto del miembro con un mecanismo M, $B^{\mathrm{M}}_n$, es…». En la tesis: «La ganancia neta de $n$ en el mecanismo $X$, $B^{X}_n$, es…» (observación del autor).
+- **Añadido (2026-10-04):** «a su tarifa» dice cuál es: «frente a comprar toda su demanda a su comercializador, a la tarifa unitaria del mes, $\mathrm{CU}_{n,m(k)}$». Lo mismo en la tesis (observación del autor).
+- **Ajuste (2026-10-04):** para que el artículo siga en 9 páginas, la frase de la tarifa queda «a su tarifa unitaria, $\mathrm{CU}_{n,m(k)}$» (la CU se define en II-A). Los dos términos del beneficio van en una sola oración, y el enlace con la Sección III se une a la frase de la Tabla II.
+- **Añadido (2026-10-04):** el primer término de (2) dice cuál tarifa: «El primer término es lo que el miembro deja de comprar a esa tarifa porque consume de su planta, igual en todos los mecanismos. El segundo, $V^{\mathrm{M}}_n$, es el valor que M da a la inyección y a la importación, lo único que los distingue» (observación del autor: «¿cuál tarifa?»).
+- **Compensación de espacio (2026-10-04):** la frase anterior llevó el artículo a 10 páginas (la biografía de Obando pasaba sola a la décima). Para volver a 9, sin quitar ninguna salvedad ni cifra:
+  - se quita el anuncio «Dos supuestos más se declaran aquí.» de III-A;
+  - se une a su ecuación el párrafo que sigue a (1);
+  - nota de la Tabla III: «P2P col.: P2P colectivo, sin la regla del 10 %, en el caso 1 salvo en E4», y «en I1, la de la UCC, la que más energía importa»;
+  - conclusiones: «sin invertirse en ningún punto de la caja» (la caja de sensibilidad ya está definida en III-E);
+  - altura de las figuras: Fig. 3 (probabilidad de inversión) de 3,30 a 3,00 in y Fig. 2 (cascadas) de 2,55 a 2,35 in, con letra mínima de 8 pt.
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas y chequeo de cifras limpios; generador de figuras en OK.
+- **Añadido (2026-10-04):** $V^{\mathrm{M}}_n$ y la brecha, explicados para un lector no experto (observación del autor: «¿el valor de la inyección e importación son lo mismo?»).
+  - Antes: «el valor que M da a la inyección y a la importación, lo único que los distingue», que podía leerse como un mismo valor para las dos.
+  - Ahora: «lo que M le deja por la energía que entrega a la red y por la que toma de ella: lo que recibe por su inyección, como crédito o como venta, más lo que se ahorra al pagar su importación por debajo de la tarifa. Solo este término cambia de un mecanismo a otro.» Es $\sum_k d_{n,k}\mathrm{CU}_{n,m(k)}-C^{\mathrm{M}}_n$ de la tesis.
+  - La brecha va en su propio párrafo: «el beneficio neto de la comunidad, la suma del de sus miembros, con el primero menos el beneficio con el segundo. Así, P2P − C4 es lo que la comunidad gana con el mercado P2P por encima de lo que gana con C4: si es positiva, con el mercado P2P paga menos por su energía.»
+  - En la tesis, lo mismo para la brecha, y «el autoconsumo ahorra lo mismo en todos los mecanismos, la tarifa de cada kWh que la institución deja de comprar» en lugar de «vale la tarifa».
+  - Comprobaciones: artículo en 9 páginas y 0 Overfull; tesis con 0 referencias indefinidas y 0 Overfull (el aviso de las 20 páginas es el conocido); compuertas de vetadas y de cifras limpias.
+- **Añadido (2026-10-04):** la presentación de la brecha, reescrita (observación del autor: «se usa la brecha» suena burdo, y «la suma del de sus miembros, con el primero menos el beneficio con el segundo» no se entiende). Ahora: «El beneficio neto de la comunidad es la suma del de sus miembros, y dos mecanismos se comparan por la diferencia entre lo que cada uno le deja. Esa diferencia se llama brecha y se escribe como resta: P2P − C4 es lo que la comunidad gana de más con el mercado P2P que con C4. Si es positiva, paga menos por su energía con el mercado P2P, y si es negativa, con C4.» El término se conserva: es una diferencia con signo (C1 − C4 es negativa en E4 e I1), mientras que «ventaja» supone el signo, y lo usan el análisis de sensibilidad y la Fig. 3. Lo mismo en la tesis, con «ganancia neta» e «instituciones». Artículo en 9 páginas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas limpias.
+
+## C-261 · La Tabla II con C2 y la bolsa (2026-10-04)
+
+Tipo: `contenido`. Pedido del autor, con el análisis aprobado. Aplicada en el artículo.
+
+- **Qué cambia:** la Tabla II («Cuánto vale un kWh») suma dos filas, cada una con un solo valor para los dos comercializadores:
+  - «kWh vendido por contrato en C2», 287,41 COP/kWh (`ppa__PP_media`, la media de XM de contratos del mercado no regulado);
+  - «kWh vendido a la bolsa: C3 y exceso», 181,33 COP/kWh (`bolsa_media_topada`).
+  - La nota dice ahora «C2 y la bolsa, medias del horizonte», porque el resto de la tabla es de abril de 2025.
+- **Por qué:** la tabla queda como la escala completa del valor de un kWh (P2P > C1 > C4 > C2 > bolsa), que es el orden de los resultados de IV-B, y deja a la vista las dos cifras en que IV-B se apoya: «en C1 un kWh acreditado vale más del doble del precio del contrato» y «en E4, donde la mayor parte del excedente es exceso, C2 supera a C1 y a C4». Las dos cifras ya estaban en el texto (III-A y III-B) y en el canon.
+- **Qué no entra:** C5, porque su kWh no tiene un precio propio (la generación se vende al mercado mayorista y el consumo se atiende con un contrato cuyo precio reparte la compra evitada, con cargos de red sobre el consumo); su regla está en la Tabla I. Tampoco una tabla de resultados de C2, C3 y C5: los 13 casos van a la tesis, y en el artículo son referencias secundarias.
+- **Texto que acompaña:** el cierre de II-E dice «lo que vale un kWh en cada forma de liquidarlo, y la Sección III plantea la solución»; en III-B, la bolsa media topada ya no repite su valor (está en la tabla).
+- **Compensación de espacio** (las filas llevaban el artículo a 10 páginas). Colas de una línea eliminadas, sin quitar cifras ni salvedades:
+  - III: «que los convierte en una regla» (antes «que convierte esos supuestos en una regla»);
+  - III-B, paso 1: «Vende quien inyecta y compra quien importa (1).»;
+  - pie de la Fig. 1: «Los mercados comparados con C1 y C4»;
+  - III-D: «el P2P colectivo reparte solo el residual» (el residual está definido en II-D como la energía que el mercado no coloca);
+  - IV-B: «Hay tres regímenes:»;
+  - IV-D: «deja dos preguntas al regulador».
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuertas de vetadas y de cifras limpias en el artículo y en la tabla.
+- **Añadido (2026-10-04):** las mismas dos filas y la misma nota en la tabla «Cuánto vale un kWh» de la tesis. Compila sin referencias indefinidas ni Overfull; compuerta de vetadas limpia.
+
+## C-262 · La Tabla II se explica sola, con nota corta (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: la tabla no se entendía sola y su nota era demasiado larga. Aplicada en el artículo y en la tesis.
+
+- **Título:** «Cuánto vale un kWh según cómo se liquide (COP/kWh)»; el mes pasa a la nota.
+- **Estructura:**
+  - una columna «Regla» con la fórmula de cada fila (CU, Cv, Θ, CU − Cv, CU − Cv − Θ, pactado, bolsa), en lugar de mezclarla en el rótulo;
+  - «Comercializador» como encabezado de las columnas A y B;
+  - dos bloques con subtítulo, como en la Tabla I: «La tarifa y dos de sus componentes» y «Un kWh que la planta entrega a la red»;
+  - el segundo bloque, de mayor a menor valor: vendido a otro miembro (P2P), acreditado en C1 (numeral 1), acreditado en C4 (caso 2), vendido por contrato (C2), vendido a la bolsa (C3 y exceso).
+- **Nota:** de nueve líneas a tres: «Abril de 2025; C2 y bolsa, medias del horizonte. A atiende a cuatro miembros y B a CESMAG. En el mercado P2P, el kWh vale para la comunidad la tarifa del comprador, que deja de comprarlo.»
+- **Qué salió de la nota y dónde queda:**
+  - la atribución de los 319,20 COP/kWh por los dos órdenes: en el artículo, IV-A (los dos órdenes y Shapley en MCOP) y IV-C (los supuestos son sustitutos en la energía transada); en la tesis, además, el anexo F por kWh;
+  - la banda entre comercializadores (98,94 si CESMAG compra y 114,37 si vende): pasa al texto tras la ecuación de la banda, en el artículo (III-B) y en la tesis;
+  - «en la práctica el componente de generación» (fila de C4): se retira; no lo usa ningún argumento del texto.
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+- **Añadido (2026-10-04):** el subtítulo del segundo bloque pasa de «Un kWh que la planta entrega a la red» a «Un kWh inyectado, de mayor a menor valor» (observación del autor: el rótulo sugería que el kWh vendido a otro miembro no va por la red y no dejaba ver que esa venta es la de mayor valor). «Inyectado» es el término definido en II-E, y el orden deja el mercado P2P arriba. Artículo y tesis; 9 páginas, 0 Overfull.
+- **Añadido (2026-10-04):** la fila del mercado P2P aclara qué vale y qué no (observación del autor: «¿por qué valen lo mismo si en un mercado P2P debería valer menos?»). Su regla pasa de «CU» a «CU del comprador», y la nota dice: «En el mercado P2P, con sus dos supuestos, el comprador paga un precio entre lo que el vendedor obtendría sin el mercado y su propia CU. Para la comunidad, el kWh vale esa CU, que el comprador deja de pagar, sea cual sea el precio.» La fila mide el valor para la comunidad, no el precio interno. Artículo y tesis; 9 páginas, 0 Overfull; compuertas limpias.
+
+## C-263 · La Tabla II mide el ahorro de la comunidad, no un precio (2026-10-04)
+
+Tipo: `contenido`. Observación del autor: con el título «Cuánto vale un kWh según cómo se liquide», la fila del mercado P2P, igual a la CU, se lee como «el mercado P2P es lo mismo que comprar al comercializador».
+
+- **Diagnóstico:** la tabla mezclaba dos magnitudes distintas bajo la misma palabra, «vale»: lo que cuesta comprar un kWh (la CU y sus componentes) y lo que un kWh inyectado le ahorra a la comunidad en cada mecanismo. La fila del mercado P2P es de la segunda: el comprador deja de comprar ese kWh a su tarifa, y el precio interno solo reparte ese ahorro entre comprador y vendedor. «Liquidar» no bastaba para marcar la diferencia.
+- **Ahora:**
+  - título: «Lo que cuesta comprar un kWh y lo que ahorra la comunidad por cada kWh que inyecta un miembro (COP/kWh)»;
+  - primer bloque, «Lo que cuesta comprar un kWh»: la tarifa unitaria y, sangrados, «de ella, comercialización» y «de ella, cargos de red»;
+  - segundo bloque, «Lo que ahorra la comunidad por un kWh inyectado», de mayor a menor: vendido a otro miembro (P2P), «toda la CU»; acreditado en C1, CU − Cv; acreditado en C4, CU − Cv − Θ; C2, «precio pactado»; bolsa;
+  - la columna de las fórmulas se llama «Cálculo»;
+  - nota: «Ahorro frente a comprar ese kWh al comercializador. Abril de 2025; C2 y bolsa, medias del horizonte. A atiende a cuatro miembros y B a CESMAG; en el mercado P2P, la columna es la del comprador. Ese ahorro supone los dos supuestos, y el precio interno solo lo reparte.»
+- **Coherencia con el texto:** «ahorro frente a comprar» es la misma referencia del beneficio neto de (2), de modo que la tabla da, por kWh, el término que distingue a los mecanismos. El cierre de II-E dice «cuánto ahorra la comunidad por cada kWh inyectado en cada mecanismo». En la tesis, la tabla es la misma y el párrafo que la presenta se reescribe en términos de ahorro.
+- Sustituye a las versiones de C-262 de la tabla (título, subtítulos y nota).
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+- **Añadido (2026-10-04):** «El beneficio neto de la comunidad es la suma del beneficio de cada uno de sus miembros» (antes «la suma del de sus miembros»; observación del autor). En la tesis, «la suma de la ganancia de cada una de sus instituciones».
+- **Añadido (2026-10-04):** «ahorra» pasa a «gana» en el título, en el subtítulo del segundo bloque y en el cierre de II-E (observación del autor: en C2 y la bolsa no se ahorra, se cobra; la importación se sigue pagando a la tarifa completa). La nota abre con «Frente a comprar ese kWh al comercializador: en P2P, C1 y C4, lo que se deja de pagar; en C2 y la bolsa, lo que se cobra.» y cierra con «En el mercado P2P, la columna es la del comprador, la ganancia supone los dos supuestos y el precio interno solo la reparte.» En la tesis, lo mismo, y el párrafo que presenta la tabla abre con «le hace ganar a la comunidad una parte de la tarifa, o lo que se cobre por él». Artículo en 9 páginas, 0 Overfull; tesis sin referencias indefinidas ni Overfull; compuertas limpias.
+
+## C-264 · La fila del mercado P2P dice por qué gana toda la CU; el P2P colectivo, enlazado (2026-10-04)
+
+Tipo: `contenido`. Preguntas del autor: si la comunidad gana toda la CU por cada kWh vendido y por qué, y por qué la Tabla II no tiene el P2P colectivo.
+
+- **Precisión:** la fila «Vendido a otro miembro» gana toda la CU por el supuesto 2 (el intercambio no paga cargos de red ni Cv), no por los dos supuestos; el supuesto 1 trata del residual. La nota decía «la ganancia supone los dos supuestos» y queda: «En la venta a otro miembro, que no paga cargos ni Cv, la columna es la del comprador, y el precio interno solo reparte la ganancia.» Artículo y tesis.
+- **P2P colectivo:** no tiene fila propia porque, por kWh, no crea un valor nuevo; combina filas de la tabla: lo intercambiado gana toda la CU del comprador, el crédito del residual la CU menos la deducción del caso (CU − Cv en el caso 1, como la fila de C1) y el exceso la bolsa. La tabla está en II-E, antes de que se presente la regla. En la tesis se añade esa frase tras la liquidación del P2P colectivo (ecuación de $B^{\mathrm{PC}}_n$). En el artículo no cabe sin pasar de 9 páginas, y III-D ya dice que lo intercambiado no paga cargos y que el residual en el caso 1 paga solo el Cv.
+- **Compensación de espacio en el artículo:** IV-C, «los dos supuestos se solapan en la energía transada: si se transa casi toda la inyección…» (el verbo de III-C, en lugar de «son sustitutos»); IV-D, «declarar la exención en la tarifa» (como en las conclusiones).
+- **Arreglo:** el cierre de II-E decía todavía «cuánto ahorra»; queda «cuánto gana».
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+
+## C-265 · Los dos supuestos, nombrados antes de usarlos en III (2026-10-04)
+
+Tipo: `estilo`. Pregunta del autor: si los dos supuestos están definidos con claridad antes de la apertura de la Sección III.
+
+- **Diagnóstico:** la introducción los define con su contenido, pero II-D los plantea como preguntas, sin llamarlas supuestos y en el orden inverso a su numeración (primero los cargos, después el residual), y III-C remitía a «las dos preguntas» para definirlos. Un lector que llega a III desde II no tiene el vínculo.
+- **Ahora:**
+  - II-D plantea las preguntas en el orden de los supuestos: primero cómo se liquida el residual, después si paga cargos el intercambio;
+  - la apertura de III los enuncia: «La solución mide un mercado P2P con dos supuestos declarados, que responden esas dos preguntas: el residual se liquida como en C1, y lo intercambiado no paga cargos de red ni Cv. Después descompone su ventaja sobre C4 y propone el P2P colectivo, que convierte esos supuestos en una regla.»;
+  - III-C abre con «La Fig. 1(a) dibuja los dos supuestos del mercado P2P:», sin repetir la remisión a II-D.
+- **Compensación de espacio:** III-A, «llama a esa agrupación, con sus datos, la comunidad medida» (sin «hipotética», ya dicho con «es supuesta», ni «medidos»).
+- **Tesis:** el mismo orden en la sección del intercambio, que dice además que el mercado P2P toma esas respuestas «como sus dos supuestos, en este orden».
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+
+## C-266 · Nombres completos de las cinco instituciones en III-A (2026-10-04)
+
+Tipo: `estilo`. Observación del autor. Aplicada en el artículo.
+
+- Antes: «cuatro universidades (Udenar, Mariana, UCC y CESMAG) y un hospital universitario (HUDN)», sin los nombres completos en ningún lugar del artículo.
+- Ahora: «la Universidad de Nariño (Udenar), la Universidad Mariana, la Universidad Cooperativa de Colombia (UCC), la Universidad CESMAG y el Hospital Universitario Departamental de Nariño (HUDN). El proyecto MTE, de Udenar, …». Los nombres son los de la tesis (Comunidad y datos). Udenar se nombra completa una sola vez.
+- Sin compensación: el artículo sigue en 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas limpia. La tesis ya tenía los nombres completos.
+
+## C-267 · Un solo formato para los nombres de las cinco instituciones (2026-10-04)
+
+Tipo: `estilo`. Pedido del autor: Universidad Mariana → Unimar; Universidad CESMAG → Unicesmag; un solo formato; el nombre completo y su sigla una sola vez, y después solo la abreviatura. Aplicada en el artículo, la tesis, sus anexos y sus figuras.
+
+- **Norma (Ortografía de la lengua española, RAE y ASALE, 2010):** la sigla que se lee letra por letra va toda en mayúsculas y sin puntos (UCC, HUDN); el acrónimo que se lee como palabra, si es nombre propio y tiene más de cuatro letras, se escribe solo con mayúscula inicial (Unicef, Unesco): Udenar, Unimar, Unicesmag. En la primera mención va el nombre completo y, entre paréntesis, la abreviatura; después, solo la abreviatura. El nombre legal «Universidad CESMAG» conserva su grafía.
+- **Primera mención:**
+  - artículo, III-A: «la Universidad de Nariño (Udenar), la Universidad Mariana (Unimar), la Universidad Cooperativa de Colombia (UCC), la Universidad CESMAG (Unicesmag) y el Hospital Universitario Departamental de Nariño (HUDN). El proyecto MTE, de Udenar, …»;
+  - tesis, Comunidad y datos: la misma lista, en el orden de los comercializadores (las cuatro del A y Unicesmag).
+- **Resto del texto:** «Mariana» y «Universidad Mariana» → Unimar; «CESMAG» y «Universidad CESMAG» → Unicesmag (artículo: 5 líneas y la nota de la Tabla II; tesis: 17; anexos A, B, C y F: 55, incluidas las tablas). Los acrónimos van sin artículo (Udenar, Unimar, Unicesmag) y las siglas con el de su núcleo (la UCC, el HUDN): en IV-C del artículo, «en E4 el HUDN y Unicesmag». Los comentarios LaTeX no se tocan.
+- **Antes de su definición:** en la tesis, «el HUDN es un hospital entre cuatro universidades» (remota, antes de Comunidad y datos) pasa a «la comunidad reúne un hospital y cuatro universidades». Agradecimientos: «Se agradece a Udenar…» y «También a Udenar, Unimar, la UCC, el HUDN y Unicesmag». Se conservan con el nombre completo la portada, los pies de página, la afiliación de los autores y la cita literal del Acuerdo 324.
+- **Figuras:** solo cambia lo impreso; los datos y las claves internas («Mariana», «Cesmag») no se tocan y las compuertas de datos iguales pasan.
+  - `tesis_entrega/gen_figuras_entrega.py`: nueva `renombra_instituciones(fig)`, aplicada a toda figura, con compuerta que falla si queda «CESMAG», «Cesmag» o «Mariana» impreso; regeneradas perfiles_e0, brechas_institucion, desercion y retiro.
+  - `articulo/gen_figuras_articulo_es.py`: `INST` y `VENDEN` con Unicesmag y Unimar; la figura de la hora usa la misma función; compuertas actualizadas. Regeneradas todas; fig1_comunidad y fig_hora_E0 se copian a `Documentos/Tesis_entrega/figuras/`.
+  - `estilo.py` (`ETIQUETA_INSTITUCION`, compartido con otros documentos) no se cambia: los demás documentos siguen rotulando «CESMAG» y «Mariana» hasta que se decida llevarlos al mismo formato.
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas limpias en el artículo, la tabla, la tesis y los anexos; chequeo de cifras limpio; ningún «CESMAG», «Cesmag» ni «Mariana» impreso en las nueve figuras con nombres.
+
+## C-268 · Reaplicación tras una sobrescritura del artículo desde el editor (2026-10-04)
+
+Tipo: `proceso`. A las 17:21, `articulo_es.tex` se guardó desde un editor con una versión anterior, después de compilar el PDF de las 17:17, y se perdieron cambios ya aplicados. Con el visto bueno del autor se reaplican sobre su versión, sin tocar lo que él cambió en ella («agrupación hipotética, con sus datos medidos»; «lo que cada uno deja»).
+
+- Reaplicado: nombres de C-267 en III-A, III-B, la banda y IV-C («el HUDN y Unicesmag»); apertura de III y de III-C (C-265); «cuánto gana» en el cierre de II-E (C-263); «se solapan» en IV-C (C-264).
+- Un efecto lateral del guion de reemplazo convirtió las dos menciones completas («Universidad Mariana», «Universidad CESMAG») del artículo y de la tesis; se restituyeron.
+- **Compensación de espacio** (el autor conserva «hipotética, con sus datos medidos», que era la compensación de C-265): IV-C, «porque los supuestos se solapan» (sin «dos»); IV-D, «aunque exige cambios en el art. 20 y en la tarifa», la misma frase de las conclusiones, en lugar de «modificar el art. 20 y declarar la exención en la metodología tarifaria».
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; `.tex` (17:26:54) anterior a su PDF (17:26:57); tesis sin referencias indefinidas ni Overfull, `.tex` anterior a su PDF; compuertas de vetadas y de cifras limpias.
+
+## C-269 · El proyecto MTE, con su nombre completo y su BPIN, en la nota de financiación (2026-10-04)
+
+Tipo: `estilo`. Pregunta del autor: si el artículo nombra en algún lugar el proyecto MTE completo con su BPIN. No lo hacía: la nota decía «proyecto BPIN 2021000100499» sin nombrarlo, y el cuerpo usaba «MTE» sin definirlo.
+
+- Probado primero en III-A, el nombre completo llevaba el artículo a 10 páginas. Con el visto bueno del autor va en la nota de financiación de la primera página, como en la tesis: «Este trabajo contó con el apoyo del proyecto «Desarrollo de un modelo transaccional de energía no convencional de múltiples agentes para el departamento de Nariño» (MTE), BPIN 2021000100499, financiado por CTeI-SGR y Minciencias, Colombia.» III-A conserva «El proyecto MTE, de Udenar, las dotó…».
+- `\hyphenation` del preámbulo: Udenar, Unimar y Unicesmag no se parten al final de línea (salía «Uni-mar»).
+- Las alturas de la Fig. 2 (2,35 in) y de la Fig. 3 (3,00 in) se probaron más bajas y se devolvieron: el espacio lo absorbían los saltos de columna.
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas y chequeo de cifras limpios.
+- **Añadido (2026-10-04):** III-A, segundo y tercer enunciado reescritos (observación del autor: difícil de leer, conectores flojos y «de Udenar» sobra). Ahora: «El proyecto MTE instaló en ellas plantas fotovoltaicas de 17,55 kW y medidores bidireccionales, y reúne sus mediciones en una red. Ninguna figura legal las agrupa, así que el artículo las liquida como si formaran una comunidad energética, a la que llama la comunidad medida porque usa sus mediciones.» Sale «agrupación hipotética, con sus datos medidos», que repetía «es supuesta» y «como si formaran». En la tesis, «Ninguna figura legal las agrupa, así que la tesis las liquida…». Artículo en 9 páginas, 0 Overfull; tesis sin referencias indefinidas ni Overfull; compuertas limpias.
+- **Añadido (2026-10-04):** III-A, sin cadenas de oraciones unidas con «y» (observación del autor). Ahora: «En cada institución, el proyecto MTE instaló una planta fotovoltaica de 17,55 kW y un medidor bidireccional, conectados a una red que reúne sus mediciones. Ninguna figura legal las agrupa, así que el artículo las liquida como si formaran una comunidad energética. La llama la comunidad medida, porque usa sus mediciones.» La única «y» une los dos elementos de una enumeración. Artículo en 9 páginas, 0 Overfull; compuerta de vetadas limpia.
+- **Añadido (2026-10-04):** «una planta fotovoltaica de 17,55 kW y medidores bidireccionales» (el MTE instaló varios medidores por institución; observación del autor).
+
+## C-270 · Sin cadenas de oraciones unidas con «, y» (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: «usas mucho la "y" entre secciones». Aplicada en el artículo desde II-D hasta las conclusiones; la introducción y II-A a II-C, corregidas a mano por el autor, quedan como propuesta.
+
+- **Criterio:** la «y» se queda en las enumeraciones (dos o más elementos de la misma clase, incluidas dos proposiciones paralelas dentro de una enumeración anunciada por dos puntos). Cuando une dos oraciones completas se parte en dos, se usa punto y coma en los paralelos elípticos («el~1, …; el~2, …») o un conector con sentido («así que», «aunque», «pero», «de modo que», «donde»).
+- **Artículo:** 38 cambios de una lista de 66 oraciones con «, y» (guion `cadenas_y.py` del scratchpad), por ejemplo:
+  - II-E: «El beneficio neto de la comunidad es la suma del beneficio de cada uno de sus miembros. Dos mecanismos se comparan…»; «El primer término, igual en todos los mecanismos, es lo que…»;
+  - III-A: «La norma no aclara si la deducción de un no regulado lo incluye, así que el modelo no lo descuenta.»;
+  - III-B: «…con fórmulas en cada hora, la forma cerrada, que adopta como regla declarada.»;
+  - IV-A: «En E0 se transa el 76 % de la inyección, así que cada supuesto por sí solo deja casi toda la ventaja»;
+  - IV-D: «…una de las respuestas posibles, aunque su costo para los demás usuarios queda por medir.»;
+  - V: «Las series del MTE no son redistribuibles, pero el código se publicará tras la aceptación.»
+- **II-D:** se reaplica el orden de C-265 (primero el residual, después los cargos), que se había perdido en la sobrescritura del editor y que C-268 dio por presente por error (la comprobación buscaba una frase que también estaba en la versión vieja).
+- **Comentarios:** el guion de reemplazo atravesaba comentarios; uno «% cifra-ok» del umbral de 100 kW en III-D se perdió y se repuso. Las marcas cifra-ok quedan idénticas a las de antes.
+- **Tesis:** los mismos cambios donde la frase es idéntica (tres: la brecha negativa, «Las dos respuestas pueden darse… dentro de C4. Con ellas se arma…» y «…a qué precio. Lo intercambiado no paga…»). El resto de la tesis redacta esas ideas con otras palabras; su revisión completa de «, y» se hace aparte.
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+
+## C-271 · Sin cadenas de «, y» en la tesis y sus anexos (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: «usas mucho la "y" entre secciones, tampoco está bien». Es la revisión completa que C-270 dejó pendiente: el cuerpo de `Documentos/Tesis_entrega/tesis_entrega.tex`, desde `\IEEEPARstart` hasta antes de la bibliografía, y los anexos A a F. No se tocan la portada, el resumen en inglés, los pies de figura y de tabla (`\caption`) ni la bibliografía. Copia previa en `scratchpad/antes_c271/`.
+
+- **Criterio (el de C-270):** la «y» se queda en las enumeraciones, es decir, dos o más elementos de la misma clase, incluidas las proposiciones paralelas de una enumeración anunciada por dos puntos y los predicados cortos de un mismo sujeto. Cuando une dos oraciones completas se parte en dos; en los paralelos elípticos («el~A, …; el~B, …») se usa punto y coma; y solo donde la relación es cierta se usa un conector («así que», «de modo que», «pero», «aunque», «mientras que», «por eso»). Ni cifras, ni citas, ni referencias, ni salvedades cambian. Las notas de tabla sí se revisaron.
+- **Cambios («, y» corregidas, fuera de comentarios; entre paréntesis, las que quedan):**
+  - `tesis_entrega.tex`: 186 (quedan 55: 3 en pies de figura, 1 dudosa y el resto enumeraciones);
+  - `anexo_A.tex`: 18 (14); `anexo_B.tex`: 13 (7); `anexo_C.tex`: 38 (17); `anexo_D.tex`: 17 (8); `anexo_E.tex`: 15 (12); `anexo_F.tex`: 55 (38).
+  - Total: 342. La mayoría se parte en dos; unas 75 pasan a punto y coma y unas 35 llevan conector.
+- **Ejemplos:**
+  - Marco, C4: «Cada miembro conserva su frontera comercial, y todas deben tener el mismo comercializador» → «Cada miembro conserva su frontera comercial. Todas ellas deben tener el mismo comercializador».
+  - Datos, tarifas (paralelo elíptico): «El Cv es de 38,38 y 175,08 COP/kWh, y Θ, de 271,98 y 275,40» → «El Cv es de 38,38 y 175,08 COP/kWh; Θ, de 271,98 y 275,40».
+  - Modelo: «Con los precios y los multiplicadores en movimiento, esas garantías se pierden, y la tesis no afirma existencia, unicidad ni convergencia» → «…esas garantías se pierden, así que la tesis no afirma…».
+  - Implicaciones: «La tesis coincide con la literatura en el mecanismo del valor, …, y difiere en su tamaño» → «…, pero difiere en su tamaño».
+  - Anexo C: «Una hora frágil conserva el piso del juego, los agentes que entran, la energía y el presupuesto, y su lado frágil toma la respuesta cuantal.» → «…la energía y el presupuesto. Su lado frágil toma la respuesta cuantal.»
+- **Retoques al partir:** donde el pronombre quedaba suelto se nombra lo referido («Todas ellas», «Ese valor no está explicado», «En total suma», «C1 empata con el mercado» en el anexo F). Dos conectores nuevos dicen una relación que el texto ya daba: «Por eso, la banda entre dos clientes del mismo comercializador es exactamente el Cv» (techo menos permuta) y «Por eso, sus índices se citan con su semiancho» (D77). En el anexo A, un punto y coma previo pasa a punto para no encadenar dos; en el anexo E, una frase se reordena sin «, y».
+- **Dudosos, sin tocar (decide el autor):**
+  - tesis l. 2343: «las del P2P colectivo no cambian, y baja como mucho un 0,28 %»; el sujeto de «baja» no está escrito y partirla obliga a fijarlo;
+  - tesis l. 576 («llama a ese cambio permuta, y a esa energía, crédito»), l. 755, 1612 y 1929: dos o tres proposiciones tras dos puntos o complementos del mismo verbo;
+  - pies de figura de la tesis, l. 1833-1834 (`fig:cascada`) y 2194 (`fig:gsa`), y del anexo C, l. 406 (`fig:banda`);
+  - anexo A l. 292 y 364; anexo B l. 143 y 353; anexo C l. 327; anexo D l. 62 y 105; anexo E l. 221 y 223; anexo F l. 391, 393, 708, 710 y 747.
+- **Comprobaciones:** tesis compilada con `Makefile.ps1 -Final`: 0 citas indefinidas, 0 referencias indefinidas, 0 Overfull (25 páginas hasta las referencias, aviso conocido; salida 3). Compuerta de vetadas LIMPIA en los siete ficheros. Marcas `% cifra-ok` idénticas a las de la copia en los siete (41, 23, 5, 4, 13, 3 y 4), y todos los comentarios LaTeX iguales línea a línea. Multiconjunto de números fuera de comentarios igual antes y después en los siete. Ningún fichero cambió su número de líneas; el preámbulo y la cola de la tesis quedan idénticos.
+
+## C-272 · Dictamen del corrector de estilo sobre las cadenas de «, y» y preprocesamiento en III-A (2026-10-04)
+
+Tipo: `estilo`. El autor pidió que un corrector profesional validara las ocho propuestas para sus secciones (introducción a II-C) y los 38 cambios de C-270; aprobó lo que el corrector validara.
+
+- **Dictamen aplicado** (agente corrector, solo lectura):
+  - propuestas 1 (aprobada), 2, 3, 4, 7 y 8 (aprobadas con ajuste): «Reducir los cargos de red de ese autoconsumo obliga…»; «…pero ni C1 ni C4 admiten el intercambio de energía entre usuarios»; «Los 0,30 MCOP restantes los aporta el intercambio»; «C4 usa el reparto que fija el art. 9 cuando no hay porcentaje declarado, igual entre las fronteras: el 20 % para cada institución»; «La comunidad no las cumple, por lo que C5 queda solo como referencia…»;
+  - propuestas 5 y 6 rechazadas (coordinan dos predicados del mismo sujeto): sin cambio;
+  - aporte 2: «…o retiran al miembro que más genera. Con ella se ve cuándo la ventaja viene…»; aporte 3: «(Sección IV-C) y, a partir de todo ello, las dos cosas…»; sin coma en «se liquida como en C1 y que lo intercambiado…»;
+  - observaciones sobre C-270: «pero» en lugar del segundo «aunque» de IV-D; III-D, «…dentro de C4, con la regla que se propone: el P2P colectivo. Cada hora, el mercado P2P resuelve quién vende a quién y a qué precio, sin que lo intercambiado pague cargos ni entre al fondo común»; III-C, «Los dos órdenes, que parten de C4, se dan en la Sección IV junto con su media…»; II-E, «…genera G y demanda D, que cubre primero con su propia planta»; III-D, «Con más capacidad, sigue en el caso 2»;
+  - opcionales: «en parte por construcción: el ahorro del intercambio…»; «Shapley les asigna 1,03 y 0,97»; «con comercializadores distintos, es de 98,94…»; se borra el comentario sobrante «%, vale 1,66~MCOP, y» (se conserva la marca cifra-ok).
+- **III-A, segundo párrafo** (pedido del autor: decir que los datos no entran directos al modelo y concretar qué es «el modelo»): «Las mediciones no entran directamente al modelo, es decir, al mercado P2P basado en el de Chacón et al. [5], [6] y a la liquidación de cada mecanismo. Antes se procesan: los equipos registran cada dos minutos, un filtro de tensión, frecuencia y fases descarta las muestras físicamente imposibles y la energía de cada hora es la media de sus muestras. Donde el medidor registra el flujo neto, se le suma la generación de los inversores que entregan detrás de él para obtener la demanda. Así, el modelo usa un medidor y los inversores de cada institución…». Sin remitir al manual de la plataforma; el detalle está en la tesis, «Tratamiento de las series».
+- **Tesis:** el ajuste (b) del P2P colectivo, donde la frase es la misma. La tesis ya describe el preprocesamiento.
+- **Pendiente:** con todo aplicado el artículo pasa a 10 páginas (falta del orden de un tercio de columna); la compensación queda a decisión del autor. Compuertas de vetadas y de cifras limpias; tesis sin referencias indefinidas ni Overfull.
+
+## C-273 · Compensación para volver a 9 páginas tras C-272 (2026-10-04)
+
+Tipo: `extension`. Opciones 1 a 4 aprobadas por el autor. Solo artículo (la tesis no tiene límite de páginas).
+
+1. **Preprocesamiento más corto** (III-A): «Antes se filtran y se agregan por hora. Donde el medidor registra el flujo neto, se les suma la generación de los inversores que entregan detrás de él.» El detalle (registro cada dos minutos, filtro de tensión, frecuencia y fases) queda en la tesis, «Tratamiento de las series».
+2. **Preferencia por institución** (IV-C) fuera del artículo: «La ventaja del mercado P2P es, además, de la comunidad y no de cada miembro. En el punto base ninguna institución prefiere C1, pero en E4 el HUDN y Unicesmag la preferirían en el 38,6 % y el 35,2 % de la caja…». Ya está en la tesis (Discusión y anexo F). Con él sale la única cita de Abada2020Viability, y la lista de referencias se renumera.
+3. **Figuras:** Fig. 2 (cascadas) de 2,35 a 2,10 in y Fig. 3 (probabilidad de inversión) de 3,00 a 2,70 in; letra mínima de 8 pt y lectura comprobada.
+4. **IV-B:** sale «En E0, C2 deja 43,82 MCOP, C5 44,26 y C3 42,77, frente a 44,49 de C4», y la frase siguiente remite a la tabla: «…vale más del doble del precio del contrato (Tabla II)».
+- Para las dos líneas que aún faltaban: «Solo este término cambia entre mecanismos» (II-E) y «el P2P colectivo, que los convierte en una regla» (apertura de III).
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas (con bibtex); compuerta de vetadas y chequeo de cifras limpios; generador de figuras en OK.
+
+## C-274 · Los dos precios de escasez, explicados; y la compensación de espacio (2026-10-04)
+
+Tipo: `estilo` y `extension`. Pregunta del autor: qué son el precio de escasez ponderado y el superior.
+
+- **Corrección de contenido:** el artículo decía «El modelo usa el precio de escasez superior, sin efecto en los resultados, porque la bolsa solo lo superó en 38 horas nocturnas»; el «lo» remitía al superior, pero las 38 horas son las del ponderado (el superior recorta 18; anexo B de la tesis).
+- **Ahora (III-A):** «La bolsa es el precio horario del mercado mayorista [20]. El Anexo 4 la limita al precio de escasez ponderado [21], es decir, el promedio de los precios de escasez de las plantas, ponderado por la energía que cada una puede garantizar en condiciones críticas. El modelo usa un techo algo más alto, el precio de escasez superior que XM publica cada mes. La diferencia no cambia los resultados: la bolsa solo superó el ponderado en 38 horas nocturnas, cuando nadie exporta.» La tesis ya lo decía así; no cambia.
+- **Compensación (opción A aprobada y lo que faltó):**
+  - nota de la Tabla III de cuatro a tres líneas: sin «"Genera lo que consume": en la suma del horizonte, no en cada hora», sin «la que más energía importa», sin «Lo que sobra va a la bolsa»; «C4, en el caso 2 (20 % …)»; «Num.: numeral de planta»; «%: del beneficio de C4»;
+  - III-A: «Cada medidor registra un circuito, no todo el campus: la demanda es la de ese circuito»;
+  - conclusiones: «…del 80 al 85 % de la ventaja. Atribuirlos al supuesto 1 depende del orden: en E0, explica el 85 % si va primero y el 19 % si va después»; «Ninguna de las tres referencias supera al mercado P2P; C5 y C3, ni siquiera a C4» (en lugar de la frase de C2 frente a C1, que sigue en IV-B).
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuertas de vetadas y de cifras limpias en el artículo y en la tabla.
+
+## C-275 · III-B: qué es el reposo, la forma cerrada, la regla declarada y la validación, en lenguaje llano (2026-10-04)
+
+Tipo: `contenido` y `estilo`. Pedido del autor, con verificación por tres agentes de solo lectura (modelo base de Chacón; implementación en `core/reposo_mercado.py` y `core/ems_p2p.py`; validación dinámica en el canon §9 y §14.5). Informes en el scratchpad: `informe_chacon.md`, `informe_implementacion.md`, `informe_validacion.md`.
+
+- **III-B, primer párrafo, ahora en dos:** el modelo de Chacón et al. (cada vendedor decide cuánto entrega a cada comprador; cada comprador, cuánto ofrece pagar; ambos ajustan con la dinámica del replicador hasta el reposo, el acuerdo del mercado); la salvedad de H-108 dicha con precisión: «aunque su condición de equilibrio compara a cada lado con el otro fijo, como en un equilibrio de Nash» (antes se atribuía al reposo). Segundo párrafo: por qué no se simula (lento; con un vendedor y varios compradores la energía salta de un comprador a otro sin asentarse, H-87), qué es la forma cerrada (las fórmulas de los pasos que siguen) y la validación: «se simuló una versión estabilizada de la dinámica en 41 horas de la comunidad medida. Solo 18 terminaron dentro del tiempo de cómputo. En 17 de ellas, la simulación llegó al mismo resultado. El criterio fijado antes de medir, que coincidieran al menos el 95 % de las horas de cada régimen de precios, no se cumplió en ninguno, sobre todo porque las horas no alcanzaron a terminar. Por eso el artículo adopta la forma cerrada como una regla declarada del modelo, no como un resultado demostrado.» Corrige dos imprecisiones: la muestra era de 41 horas (canon), y el fallo del criterio fue sobre todo de tiempo de integración, no de oscilación (la validación usó la dinámica regularizada).
+- **Paso 3 de III-B:** «Si faltan vendedores, la energía va primero a quienes ofrecen pagar más» (antes «a los de tarifa más alta»; el código sirve por prioridad de precio, `core/reposo_mercado.py:29-31`). En la tesis: «…va primero a quien paga más. Como el precio de cada comprador tiene por techo su tarifa, ese reparto cambia…».
+- **IV-C, H-98 acotado como en el canon (§14.5):** «En las horas en que faltan compradores, donde la dinámica no llegó, cambiar la regla de despacho no mueve la energía ni el signo de ninguna brecha de la comunidad, aunque baja el margen del mercado P2P sobre C1 hasta en un 13 %» (antes «en las horas en que la dinámica no llegó a la forma cerrada» y «ninguna brecha»: por institución, tres pares cambian de signo).
+- **Compensación de espacio:** IV-C sin «La ventaja de C2 sobre C1 y sobre C4 en E4 se invierte en el 85,42 y el 87,70 %» (C2 es referencia secundaria; la cifra sigue en la tesis); «La atribución depende del orden porque los supuestos se solapan en la energía transada» (la explicación está en III-C); «C1 − C4 cambia de signo en el 56,40 % en E4 y en el 76,37 % en I1»; «En ambos, el valor dependería de las dos declaraciones de la Sección IV-D»; IV-D: «Queda una tercera pregunta, sin medir: ¿con qué horas se paga a la bolsa el exceso de lo asignado, si el art. 21 lo define por mes? En la comunidad medida no cambia nada: ninguna energía asignada supera la importación de su miembro.»
+- **Pendiente en la tesis** (señalado por los agentes, sin aplicar): el anexo C dice que la exploración actuó «en las dos poblaciones» (en el código y en D49, solo en el vendedor); la tesis dice que solo se aceleraron las horas rígidas (se aceleraron todas).
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+
+## C-276 · III-B con el porqué y el valor de la forma cerrada; precisiones de la validación en la tesis (2026-10-04)
+
+Tipo: `contenido` y `estilo`. Observación del autor: el texto de C-275 sonaba a fracaso («41 horas y solo terminaron 18»), como si el modelo de Chacón se hubiera cambiado porque no daba resultados. Lo que pasó, según los informes de C-275 y el canon: el juego es el mismo; lo que cambia es cómo se encuentra su punto de llegada. El modelo base publica el estado de la integración al cabo de un tiempo fijo (H-38: valores todavía en tránsito) y con un vendedor y varios compradores no se asienta (H-87); la forma cerrada calcula el reposo directamente, para toda hora con oferta y demanda, sin iterar.
+
+- **III-B, segundo párrafo, ahora:** «Lo que el artículo necesita del modelo es ese acuerdo, no el camino hacia él. En el modelo base, el resultado depende de cuándo se detiene la integración; con un vendedor y varios compradores, además, la dinámica no se asienta, porque la energía salta de un comprador a otro. Este trabajo deduce las condiciones del reposo y lo calcula directamente, con las fórmulas de los pasos que siguen: la forma cerrada. Cada hora tiene así un resultado reproducible. En las 150 528 evaluaciones del análisis de sensibilidad, el método no falló en ninguna. Una versión estabilizada de la dinámica, muy costosa de integrar, lo confirma en una muestra de la comunidad medida: de las 18 horas integradas hasta el final, llegó al mismo resultado en 17. Como esa muestra no basta para el criterio fijado de antemano, al menos el 95 % de las horas de cada régimen de precios, el artículo presenta la forma cerrada como una regla declarada, con esa confirmación.» Se cita como en la frase citable del canon (§14.5, CLAUDE.md regla 6): «en una muestra de E0, la dinámica llegó a la forma cerrada en 17 de las 18 horas que integró hasta el final»; el 150 528 es el del canon (GSA directo, «sin evaluaciones fallidas»).
+- **Tesis, dos precisiones verificadas en el código de la validación** (`reformateo/documento/scripts/sonda/consenso/medicion_regimenes.py`, líneas 7-20 y 95-104; CANON §14.5): la exploración entrópica actúa en el replicador del vendedor, no «en las dos poblaciones» (anexo C); todas las horas se integraron con dos aceleraciones (k = 100 y 1 000), y las de los regímenes interiores y de suma que no cabe, además, sin acelerar (anexo C y sección «La validación con la dinámica»). También: «En la muestra, ninguna hora de los regímenes de compradores cortos y de excluidos […] llegó a la forma cerrada antes del tope de tiempo» (antes «no llegó en ninguna hora», que no distinguía el corte por tiempo).
+- **Compensación de espacio:** Fig. 3 de 2,70 a 2,50 in; IV-C, Brasil y Chile: «…con corte horario; el mecanismo es general», «cabe esperar que», «Si además exime al intercambio, conservaría sus cargos»; IV-D: «Sin ninguna, el mercado P2P solo cabe en C4, sin superarlo: el gestor comunitario [4] reparte pagos internos que suman cero»; «Aquí no cambia nada: ninguna asignación supera la importación de su miembro»; conclusiones: «…cargos que dejan de pagarse; el P2P colectivo muestra que puede hacerse dentro de C4» (sin «con cambios en el art. 20 y en la tarifa», que está en IV-D, ni la frase de las tres referencias, que está en IV-B); «Las cifras valen para 6 144 horas, con tarifas publicadas…»; «lo que eximir al intercambio costaría a los demás usuarios».
+- **Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 referencias indefinidas; tesis sin referencias indefinidas ni Overfull; compuertas de vetadas y de cifras limpias.
+
+## C-277 · El enfoque de C-276 en la tesis, según el dictamen de un revisor (2026-10-04)
+
+Tipo: `estilo`. El autor pidió llevar el enfoque de C-276 a la tesis solo si un revisor lo consideraba necesario. Dictamen: necesario en tres puntos (el opcional, en «Objetivos», no se aplica). Fichero del dictamen: `scratchpad/dictamen_tesis_forma_cerrada.md`.
+
+- **«Del modelo base al del trabajo», cierre:** se añade el paso de las razones al remedio y su valor: «Lo que la tesis necesita del modelo es su reposo, no el camino hacia él. Por eso deduce las condiciones del reposo y lo calcula directamente, sin integrar: es la forma cerrada de la sección [modelo-forma]. Cada hora tiene así un resultado reproducible, que no depende del paso ni del horizonte de integración. En las 150 528 evaluaciones de la sensibilidad global, el método no falló en ninguna.»
+- **«La validación con la dinámica», segundo párrafo, reordenado** (costo, frase citable del canon, horas sin juicio, etiqueta al final, sin negrita): «La dinámica regularizada es muy costosa de integrar, así que la muestra es pequeña. En una muestra de E0, la dinámica llegó a la forma cerrada en 17 de las 18 horas que integró hasta el final. Las demás de las 41 horas muestreadas no llegaron al tiempo equivalente 160, el de la comparación: no confirman ni contradicen la forma cerrada. En los otros 12 casos no se contrastó la coincidencia. Esa muestra no alcanza el criterio fijado de antemano, así que ningún régimen quedó verificado. Por eso la forma cerrada se presenta como una regla declarada en todos los regímenes, con esa confirmación puntual.»
+- **Anexo C:** «En las demás, ninguna integración llegó al tiempo equivalente 160, de modo que no hubo juicio: ni confirman ni contradicen la forma cerrada.»
+- **Comprobaciones:** tesis sin referencias indefinidas ni Overfull; compuerta de vetadas limpia en la tesis y el anexo C. Sin cifras nuevas (150 528, 41, 18, 17, 12 y 160 ya estaban en la tesis y el canon).
+
+## C-278 · Ubicación del contenido alrededor de III-B, según el dictamen de un revisor (2026-10-04)
+
+Tipo: `estilo`. Pedido del autor: revisar si el contenido alrededor de «III-B. El mercado P2P» está bien ubicado. Dictamen (`scratchpad/dictamen_estructura_IIIB.md`): III-B y el orden de III (A a E) están bien; siete ajustes, aprobados por el autor (la frase del líder–seguidor se conserva).
+
+1. «Abril y diciembre se liquidan con las horas del horizonte» pasa de III-B a III-A (vale para todos los mecanismos): «Abril y diciembre, que el horizonte cubre solo en parte, se liquidan con sus horas dentro de él.»
+2. La fracción 0,542 pasa de III-B a IV-A, después del ahorro medio por kWh: «De ese ahorro, el precio interno deja a los vendedores una fracción de 0,542, medida desde su piso.» En III-B queda «El precio solo decide el reparto entre vendedores y compradores» (antes usaba «ahorro del intercambio» antes de que III-C lo definiera).
+3. Sale «Antes del corte, el piso medio con el comercializador A es unas 3,8 veces la bolsa media topada» (repetía la Tabla II); el corte se explica: «El corte depende del residual, que a su vez depende del mercado. Por eso se calcula antes del mercado, con todas las horas del mes y un residual aproximado…».
+4. Choques de términos: en III-A, «El modelo usa un tope algo más alto» (antes «techo», que en III-B es la tarifa del comprador); en III-E, «Los cinco casos de estudio de la Tabla III» y «En todos ellos, C4 queda en el caso 2 del art. 20» (antes «En ninguno sale C4 del caso 2»).
+5. Antecedente: la apertura de III dice «que dan esas dos respuestas» (II-D habla de «dos respuestas», no de preguntas).
+6. III-B sin «al menos el 95 % de las horas de cada régimen de precios» («régimen de precios» no se define y se confundía con los regímenes de IV-B): «Como esa muestra no basta para el criterio fijado de antemano, el artículo presenta la forma cerrada como una regla declarada, con esa confirmación.»
+7. La cita de Chacón et al. queda solo en III-B; III-A dice «es decir, al mercado P2P y a la liquidación de cada mecanismo».
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas y chequeo de cifras limpios.
+- **Añadido (2026-10-04):** III-B, cotas de precio sin «A diferencia del modelo base» (observación del autor: suena a superioridad): «El modelo base usa un mismo techo y un mismo piso de precio para todos los agentes. Aquí, cada uno tiene los suyos: el techo del comprador i es su tarifa CU; el piso del vendedor j, lo que le pagaría su comercializador sin el mercado,». La referencia de la tesis de maestría (LopezMendez2026Thesis) se deja con un solo autor: la guía de referencias del IEEE cita una tesis por su autor, sin asesores. 9 páginas, 0 Overfull; compuerta de vetadas limpia.
+
+## C-279 · Menos punto y coma y dos puntos en el artículo (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: uso excesivo de «;» y «:». Medido en la prosa (sin tablas, figuras ni ecuaciones, guion `scratchpad/puntuacion.py`): 23 punto y coma (3,76 por mil palabras, frente a 2,5 del perfil del autor) y 60 dos puntos (9,81 por mil). Después: 9 (1,46 por mil) y 39 (6,34 por mil).
+
+- **Criterio.** Se quedan los dos puntos que anuncian una enumeración, una lista o una pregunta, los rótulos de ítem y el punto y coma entre miembros largos con comas internas (lista de casos, de factores, guía de secciones). Se cambian el punto y coma que une dos oraciones (punto o conector), el de los paralelos elípticos de dos miembros (coma con «y», forma normativa con elipsis) y los dos puntos que hacen de conector débil (punto, «porque», «así que», «es decir»). No se crean cadenas de «, y».
+- **Ejemplos:** «Esos trabajos diseñan la regla, mientras que este artículo parte de la que rige en Colombia»; «C4 solo reparte excedente, porque la regulación vigente no contempla pagos entre miembros»; «La diferencia no cambia los resultados, porque la bolsa solo superó el ponderado…»; «…con las fórmulas de los pasos que siguen, a las que llama la forma cerrada»; «…en parte por construcción, porque el ahorro del intercambio no puede ser negativo»; «La caja varía precios y mediciones, no reglas de liquidación. Por eso, la robustez vale dados los dos supuestos»; «Lo colombiano es la regla del 10 % y la liquidación mensual con corte horario. El mecanismo, en cambio, es general». 33 cambios en total.
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; marcas cifra-ok idénticas; compuerta de vetadas y chequeo de cifras limpios.
+
+## C-281 · Las cotas, el piso (3) y la banda (4) presentados como en II-E (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: no todo se define de la forma correcta; tomar como referencia cómo II-E presenta sus ecuaciones (cada cantidad nombrada en palabras, su símbolo en el texto antes de la ecuación y cada término explicado).
+
+- **Antes:** el piso no se nombraba con su símbolo antes de (3); los dos tramos de (3) no se explicaban; $\delta$ llevaba índices distintos en el texto y en la ecuación; «la bolsa topada»; en (4), $\Delta_{ij}$ se definía después y el índice del mes desaparecía sin aviso.
+- **Ahora:** «El techo del comprador i es su tarifa del mes, CU_{i,m(k)}. El piso del vendedor j en la hora k, φ_{j,k}, es lo que le pagaría su comercializador por esa energía sin el mercado. Antes de su hora del corte del mes, h_x, la energía es crédito y vale su tarifa menos la deducción del numeral de su planta, δ_{j,m(k)}, que es el Cv en el numeral 1 y el Cv más los cargos de red, Θ_j, en el numeral 2. Desde el corte es exceso y vale el precio de bolsa de la hora con su tope, π^b_k. Así, (3)». Banda: «La banda de una pareja es la distancia entre el techo del comprador i y el piso del vendedor j. Con (3), y con Δ_ij = CU_i − CU_j la diferencia entre sus tarifas, nula si tienen el mismo comercializador, la banda es, sin el índice del mes, (4)».
+- **Compensación de espacio:** Fig. 2 de 2,10 a 1,95 in; su rótulo vertical pasa a «Beneficio neto (MCOP)», porque el largo ya no cabía (el pie dice que es el de la comunidad).
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas y chequeo de cifras limpios.
+- **Pendiente en la tesis** («La banda de precios y la forma cerrada»): el mismo arreglo, después de que termine la pasada de puntuación (C-280), que edita el mismo fichero.
+
+## C-280 · Menos punto y coma y dos puntos en la tesis y sus anexos (2026-10-04)
+
+Tipo: `estilo`. La misma observación del autor que C-279 («hay un uso excesivo de los caracteres ":" y ";"»), llevada a `Documentos/Tesis_entrega/tesis_entrega.tex` (de `\IEEEPARstart` a `\bibliography`; sin tocar portada, pies, resumen en inglés ni bibliografía) y a los anexos A a F. Medido en la prosa, sin tablas, figuras ni ecuaciones (guion `scratchpad/puntuacion.py`). Objetivo: unos 2,5 «;» por mil palabras, el perfil del autor, y unos 6,5 «:» por mil.
+
+- **Criterio (el de C-279).** Se quedan los dos puntos que anuncian una enumeración, una lista, una cita, una pregunta o una ecuación, los rótulos de ítem y el punto y coma entre miembros largos con comas internas. Se cambian:
+  - el punto y coma entre dos oraciones, por punto o por un conector con la relación real («mientras que», «aunque», «pero», «porque»);
+  - el de los paralelos elípticos de dos miembros, por coma con «y», que es la forma normativa con elipsis;
+  - los dos puntos que hacen de conector débil, por punto, «porque», «así que», «de modo que» o «es decir».
+
+  No se crea ninguna cadena de dos oraciones completas unidas por «, y» (C-270 y C-271). Donde quitar el «;» la habría dejado, se usa punto. En los anexos A y E, los ítems de tres listas que terminaban en «;» y en minúscula pasan a mayúscula y punto.
+- **Conteos, antes → después** («;» y «:» por mil palabras):
+
+  | Fichero | Punto y coma | Dos puntos |
+  |---|---|---|
+  | tesis | 128 (6,48) → 26 (1,31) | 187 (9,46) → 77 (3,87) |
+  | anexo A | 21 (7,60) → 0 (0,00) | 26 (9,41) → 19 (6,87) |
+  | anexo B | 11 (7,60) → 0 (0,00) | 4 (2,76) → 4 (2,75) |
+  | anexo C | 31 (6,46) → 11 (2,29) | 50 (10,42) → 31 (6,45) |
+  | anexo D | 6 (6,02) → 2 (1,99) | 9 (9,04) → 6 (5,96) |
+  | anexo E | 11 (12,93) → 0 (0,00) | 3 (3,53) → 3 (3,50) |
+  | anexo F | 50 (11,52) → 9 (2,06) | 33 (7,60) → 20 (4,58) |
+
+  Lo que queda son enumeraciones legítimas: la guía de los objetivos, las condiciones de C5, los siete mecanismos, las cuatro condiciones del reposo, las definiciones de autoconsumo, inyección e importación, la prueba dorada y los regímenes del anexo C, y lo que no se midió en el anexo F. En el anexo A quedan 19 dos puntos, uno sobre el objetivo; todos anuncian listas u órdenes.
+- **Ejemplos:**
+  - Introducción: «muchos usuarios dejaron de ser solo consumidores: en las horas de sol entregan…» → «…solo consumidores. En las horas de sol entregan…».
+  - Datos, tarifas (paralelo elíptico): «El Cv es de 38,38 y 175,08 COP/kWh; Θ, de 271,98 y 275,40» → «…COP/kWh, y Θ, de 271,98 y 275,40».
+  - Marco: «Ninguna norma vigente habilita un mercado de energía entre usuarios: el art. 23 solo deja vender…» → «…entre usuarios, porque el art. 23 solo deja vender…».
+  - Escenarios: «La atribución se completa con la esquina sin ningún supuesto: el mercado P2P se liquida como C4, con el acuerdo de reporte del art. 19: el porcentaje de cada miembro sale de…, un gestor comunitario… liquida… los pagos internos, que suman cero, y todo el crédito paga los cargos del caso 2» → «…sin ningún supuesto, en la que el mercado P2P se liquida como C4, con el acuerdo de reporte del art. 19. El porcentaje de cada miembro sale de… sin vender. Un gestor comunitario… que suman cero. Todo el crédito paga los cargos del caso 2». Así desaparece también una cadena «, y».
+  - Conclusiones: «El precio de la justicia da un resultado mixto: en 8 de los 13 casos el mercado domina a C4 sin sacrificar equidad; en los otros cinco, entre ellos E0, la equidad de C4 cuesta…» → «…resultado mixto. En 8 de los 13 casos… sin sacrificar equidad, mientras que en los otros cinco…».
+  - Anexo F: «E, generación escalada; P, las dos series…; K, demanda aumentada; …; SINU, la comunidad sin Udenar» → «E (generación escalada), P (las dos series…), K (demanda aumentada), … y SINU (la comunidad sin Udenar)».
+- **Retoques al partir:** donde la oración nueva empezaba con una fórmula se antepone «La brecha» («La brecha C4 − C1 se invierte…», «La brecha C2 − C4…») o «Así,» («Así, P2P − C4 es lo que…»). Donde el verbo quedaba sobreentendido se escribe: «se le descuenta la que pacte en su contrato», «En la comunidad medida, recuperaría 1,99 de sus 2,01 MCOP», «Por Shapley, valen 1,03 y 0,97», «En total son 150 528 evaluaciones». En dos sitios las cifras pasan a un paréntesis: «(en E0, 1,66 MCOP)» y «(en E0, 1,71 de los 2,01 MCOP)».
+- **Dudosos, sin tocar (decide el autor):**
+  - tesis, l. 622: «(art. 19): es el acuerdo de reporte». No queda claro a qué remite.
+  - tesis, l. 755: «y un contrato civil ajusta los pagos», cadena «, y» previa (C-271).
+  - tesis, l. 1938: «E4 es la excepción: el spread… supera a P2P − C4, 3,560, y dos reglas…».
+  - tesis, l. 2352: «las del P2P colectivo no cambian, y baja como mucho un 0,28 %» (C-271).
+  - tesis, l. 2526: «…entre la deducción individual y la colectiva; uno que exima…». Son dos subordinadas de «Lo general es que».
+  - Los ítems de las condiciones de C5 (l. 689-704), que terminan en «;».
+  - Las listas del anexo D (l. 202-203) y del anexo F (l. 513, 879, 935 y 1141-1146), con «;» entre miembros que llevan comas.
+  - Los dos puntos explicativos del anexo F (l. 178, 689, 747, 848 y 1135) y del anexo C (l. 601, la redacción de C-277).
+  - Los pies de figura y las notas de tabla quedan fuera de la medición y no se tocaron.
+- **Comprobaciones:**
+  - Tesis compilada con `Makefile.ps1 -Final`: 0 citas indefinidas, 0 referencias indefinidas y 0 Overfull. Da 25 páginas hasta las referencias y la salida 3, el aviso conocido.
+  - Compuerta de vetadas LIMPIA en los siete ficheros.
+  - Marcas `% cifra-ok` idénticas a las de la copia (`scratchpad/antes_c280/`) en los siete: 41, 23, 5, 4, 13, 3 y 4. Todos los comentarios LaTeX iguales, uno a uno.
+  - Multiconjunto de números fuera de comentarios igual antes y después en los siete.
+  - Ningún fichero cambió su número de líneas.
+- **Añadido (2026-10-04):** el mismo arreglo en la tesis («La banda de precios y la forma cerrada»), ya terminada la pasada de C-280. El piso se presenta con su símbolo y sus dos tramos explicados en palabras antes de la ecuación; la deducción y el corte, que la tesis formaliza más adelante (ecuaciones de la deducción y del corte, en «Marco común»), se definen aquí en palabras y esas ecuaciones quedan como remisión («La deducción y el corte se formalizan en … y …»). Δ_ij se define antes de la banda. Sale «Antes del corte, el piso medio con el comercializador A es unas 3,8 veces la bolsa media topada, de 181,33 COP/kWh. Desde el corte, es la bolsa de la hora.», que repetía la Tabla de un kWh (la media de 181,33 sigue en la descripción de la bolsa). Tesis sin referencias indefinidas ni Overfull; compuerta de vetadas limpia.
+
+## C-282 · Cifras del corte y del fondo registradas en el canon; N1 en §14.23 (2026-10-04)
+
+- **Origen:** el dictamen del 2026-10-04 sobre el corte hx y el fondo común del P2P colectivo (scratchpad de la sesión, `dictamen_aporte_corte_fondo.md`, §6.2, §6.3 y punto 4 de §5). Las dos ideas estaban declaradas como mecanismo y sin cuantificar por separado, y el canon tenía un error de prosa sobre N1. El autor aprobó registrarlas sin simular.
+- **Qué se midió** (guion nuevo `reformateo/documento/scripts/articulo/corte_fondo_derivados.py`, sin commit; salida `SALIDAS_SERVIDOR/corte_fondo_2026-10-04/`, grupo `e1/CF`, CANON §14.25). No simula: lee con huella las tablas `agentes`, `escenarios` y `flujos` de los 13 almacenes de la matriz del 19, `descomposicion_13casos.csv` (e1/C5), `atribucion_13casos.csv` y `bolsa_reconstruida.csv` (e1/S) y `p2p_comunitario_13casos.csv` (e1/PC), y liquida la energía con `reparto_anexo4`.
+  1. **El corte.** Un flujo está «tras el corte» si el piso de su vendedor en esa hora no es la permuta de su numeral (la marca del punto S). Por caso, institución y comunidad: la energía transada en el mercado P2P y el ahorro del intercambio (la banda de §14.8) antes y desde el corte, y el ahorro por kWh de cada tramo. Por flujo, prima + ahorro = (techo − piso) × kWh, de modo que el ahorro por kWh y la banda media ponderada por energía son la misma cifra.
+  2. **El fondo.** Por miembro y mes, con A lo que el reparto igual le asigna y S su propio residual: lo redistribuido, máx(A − S, 0); el crédito que gana quien recibe (el residual que llega a quien todavía importa y se acredita); el que pierde quien cede, y el neto, igual al exceso del mercado P2P menos el del P2P colectivo. Además, la energía de exceso a la bolsa en C1, el mercado P2P, el P2P colectivo y C4.
+- **Compuertas del guion** (6, todas OK): el piso de cada flujo es el de `agentes` y, tras el corte, la bolsa reconstruida (5e-7 COP/kWh); prima + ahorro = (techo − piso) × kWh (0,004 COP); antes + tras = total; la banda total es la de la descomposición en la comunidad y en cada institución (0,19 COP); el exceso de C1, P2P y C4 es el de `atribucion_13casos.csv` (6e-5 kWh) y el del P2P colectivo el de `p2p_comunitario_13casos.csv` (5e-7 kWh); en el fondo lo asignado suma lo aportado, lo recibido es lo cedido, el crédito del mes es mín(inyección, importación) y ganado − perdido = diferencia de exceso; sin energía tras el corte en E0, P2, K1, CV2 y SINU y con ella en los otros ocho. Dos corridas, tres ficheros iguales byte a byte. Pruebas: `tests/test_corte_fondo_derivados.py`, 6 pasan.
+- **Claves nuevas en `cifras.csv`** (bloque 18 de `cifras_articulo.py`, 285 al final; las 2 553 anteriores, byte a byte; 2 838 cifras, 188 artefactos, 58 compuertas; CANON §14.20.7):
+  - `corte__<caso>__energia_kwh`, `__energia_antes_kwh`, `__energia_tras_kwh`, `__energia_tras_pct`: energía transada, antes y desde el corte, y la parte posterior al corte;
+  - `corte__<caso>__ahorro_antes`, `__ahorro_tras` (MCOP), `__ahorro_tras_pct`: ahorro del intercambio de cada tramo y la parte que viene de después del corte;
+  - `corte__<caso>__ancho`, `__ancho_antes` y, en los ocho casos con corte, `__ancho_tras` (COP/kWh): ahorro por kWh transado (= banda media ponderada por energía);
+  - `exc__<caso>__C1_kwh`, `__P2P_kwh`, `__P2Pcom_kwh`, `__C4_kwh`, `__C1_menos_P2P_kwh`, `__P2P_menos_P2Pcom_kwh`: exceso a la bolsa de cada mecanismo y las dos diferencias (lo que vender dentro y lo que el fondo sacan de la bolsa);
+  - `fondo__<caso>__residual_kwh`, `__redistribuido_kwh`, `__ganado_kwh`, `__perdido_kwh`;
+  - globales `corte__casos_con_corte` (8) y su lista, `corte__ancho_tras_min/max` (529,61 E5; 588,44 E1), `corte__ancho_antes_min/max` (58,97 E1; 337,62 E4), `fondo__casos_menos_bolsa` (7) y `fondo__casos_mas_bolsa` (1, N1) con sus listas; N1 por institución, `exc__N1__<inst>__P2P_kwh`, `__P2Pcom_kwh`, `fondo__N1__<inst>__recibido_kwh` y `__cedido_kwh`.
+  - Compuertas del bloque (3): las sumas, `com__<caso>__banda` (1 COP), `e0__ancho_efectivo` y `atr__<caso>__transado_pct`; las dos tablas de §14.25 a sus decimales; el P2P colectivo manda más a la bolsa solo en N1.
+- **Cifras principales.** En E3, el 43,3 % de la energía transada (6 537,8 de 15 089,5 kWh) es posterior al corte y da el 86,6 % del ahorro del intercambio (3,594 de 4,150 MCOP): 549,77 COP/kWh frente a 65,01 antes. En los ocho casos con corte, lo transado después ahorra entre 529,61 y 588,44 COP/kWh. El fondo saca de la bolsa, frente al mercado, de 484,7 (E5) a 9 350,7 kWh (E4): en E3 la comunidad manda 63 633,8 kWh en lugar de 72 114,1; en I1, 518,3 en lugar de 6 509,4.
+- **N1 en §14.23.** La prosa decía que, en los siete casos en que el P2P colectivo supera al mercado P2P (N1 incluido), «el colectivo cruza el residual de un miembro con la importación de otro y manda menos a la bolsa». Verificado en los artefactos con huella: en N1 el P2P colectivo manda **más** (`exceso_kwh_P2Pcom` de la fila comunidad de `p2p_comunitario_13casos.csv`, 36 813,6 kWh, frente a `exceso_kwh__P2P` de `atribucion_13casos.csv`, 25 621,9), y lo reproduce la liquidación del guion nuevo. El reparto igual lleva el residual de UCC, que todavía tenía importación por cubrir (pierde 17 604,8 kWh de crédito propio), a Cesmag y a Udenar, que acreditan solo 2 379,7 y 4 288,3 de lo que reciben; el exceso de Cesmag pasa de 1 620,0 a 19 099,5 kWh. La ventaja de N1 (7,14 MCOP) es la de la planta de UCC en el numeral 1. El texto de §14.23 se corrigió: la frase vale para E1, E2, E3, E4, P1 e I1, y N1 lleva su explicación propia, con la nota de la corrección. Ni el artículo ni la tesis repetían el error.
+- **Registro en el canon:** `HUELLAS.csv`, 3 filas `e1/CF` (1 679 ficheros; 936 en `e1/`) y las dos de `e1/L` rehechas; `CANON.md`, §14.25 nueva (qué mide, fuente, compuertas, dos tablas, N1 por institución, lo que dice, frase citable, lo que NO se cita y salvedades), §14.20.7, los avisos de §11 y §14.20 y la corrección de §14.23; `verificar_canon_2026-09.py`, punto «CF» del bloque 10 (`e1_cf`, `E1_CF_*`), `E1_N_FICHEROS` + 3, `E1_L_N` = 2 838, `E1_L_COMPUERTAS` = 58 y siete claves testigo nuevas en `E1_L_CLAVES`.
+- **Lo que no se cita** (§14.25): el ahorro tras el corte no es «el valor del corte» (falta R, y la suma no tiene clave); el corte es el aproximado del piso, no el de la liquidación (la energía que cae a distinto lado va de 28,1 a 455,7 kWh); el ahorro antes del corte no es el Cv en E4, E5, I1 ni N1; la energía no es el valor (en N1 tienen signos contrarios); «ganado» no es lo que el fondo saca de la bolsa (lo es el neto); «manda menos a la bolsa» no se dice de N1.
+- **Comprobaciones:**
+  - `verificar_canon_2026-09.py`: CANON 2026-09 INTACTO (936 ficheros `e1/`, punto CF ok, punto L con 2 838 cifras).
+  - `verificar_canon_2026-08.py`: CANON 2026-08 INTACTO; `verificar_canon.py`: CANON INTACTO.
+  - `cifras_articulo.py`: 58 compuertas en verde; las 2 553 filas previas de `cifras.csv`, idénticas byte a byte (ninguna clave cambia de valor).
+  - `pytest tests/test_corte_fondo_derivados.py`: 6 pasan (solo esas).
+  - `herramientas_articulo.py cifras-es` sobre `articulo_es.tex` y las siete tablas, contra `cifras.csv` y `CANON.md`: LIMPIO.
+  - Sin commit, sin push, nada en el servidor; no se tocaron el artículo ni la tesis.

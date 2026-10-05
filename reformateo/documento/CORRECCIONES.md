@@ -11771,3 +11771,95 @@ Con C2 sin número, S17 a S22 vuelven a corresponder con C.17 a C.22, como ya de
 **Comprobaciones:**
 - **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
 - **Tesis:** compilada sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-334 · El artículo dice que usa cinco de los 13 casos (2026-10-05)
+
+**Qué pidió el autor:** aclarar que el artículo usa solo cinco de los 13 casos de la matriz.
+
+**Cambio (III-E):** «El artículo usa cinco casos, los de la Tabla III, elegidos entre los 13 de la matriz de la tesis [16] porque cada uno muestra algo que los demás no». Antes decía «se eligieron de una matriz de 13 casos», sin decir dónde están los otros ocho; el artículo no cita el suplemento, así que remite a la tesis. El resto del artículo ya dice «los cinco casos» en cada resultado.
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-335 · Página 7 depurada (2026-10-05)
+
+**Decisión del autor:** aplicar las mejoras 1, 2 y 3 y la 4, sacrificando «Es aproximada, porque los puntos son cuasialeatorios» (IV-C). La 5 queda fuera: «C4 supera a C1 porque su fondo acredita a quien todavía importa parte del excedente que C1 manda a la bolsa» no está medida directamente en el canon.
+
+**Artículo:**
+1. **IV-B.** «Hay tres grupos, según el numeral de las plantas» en lugar de «tres regímenes». En III-B, «régimen» nombra otra cosa: vendedores cortos y compradores cortos.
+2. **IV-B, P2P colectivo.** «En I1, la lectura literal del art. 20 pasa la planta de la UCC al numeral 1, así que su residual paga solo el Cv»; antes no decía la consecuencia.
+3. **IV-C.** Sale «La atribución depende del orden porque los supuestos se solapan en la energía transada», que repetía III-C.
+4. **IV-A, E3.** «Desde el corte, cada kWh vendido dentro ahorra la tarifa menos la bolsa (3), y no solo el Cv. Por eso, …»; antes el «por eso» no tenía porqué. La versión con «reemplaza una venta a la bolsa» seguía dejando el artículo en 10 páginas aun sin «Es aproximada».
+
+**Tesis.** El resumen de las mediciones de la introducción decía «vender dentro sustituye una venta a la bolsa. Por eso…»; ahora añade «así que ahorra la tarifa del comprador menos la bolsa, y no solo el Cv». El pasaje de resultados ya da las cifras (de 529,61 a 588,44 COP/kWh frente a de 58,97 a 337,62).
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** compilada sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-336 · Página 8 depurada (2026-10-05)
+
+**Decisión del autor:** aplicar las cinco correcciones que caben juntas en 9 páginas, incluida la de IV-D con su recorte.
+
+**Artículo:**
+1. **IV-C, la fragilidad de C4 frente a C1.** Ahora dice «Allí, C1 − C4 cambia de signo en el 56,40 % de la caja, así que la ventaja de C4 sobre C1 es frágil». Antes mezclaba I1 en una frase sobre E4, y podía leerse como contradicción. El 76,37 % de I1 queda en la Fig. 3.
+2. **IV-C, el pronombre.** Pasa a «…es ese ahorro más C1 − C4, que la caja tampoco vuelve negativo»; antes «lo» no tenía referente claro.
+3. **IV-C, la comparación de la bolsa.** «…en lugar de los 72 114,11 del mercado P2P»; antes no decía frente a qué.
+4. **IV-C, la regla del tres.** «Donde no se ve ninguna inversión, la regla del tres acota su probabilidad, con un 95 % de confianza, por 3/(2n_s), el 0,29 % con n_s = 512 y el 0,07 % con n_s = 2 048». Antes decía «la cota superior al 95 % de un cero medido, tres entre 2n_s».
+5. **IV-D, la tarifa.** El P2P colectivo «exige quitar la regla del 10 % del art. 20 y declarar la exención en la tarifa»; antes decía «cambios en el art. 20 y en la tarifa». Sale «La recomendación es declarar las dos cosas», que las Conclusiones repiten.
+
+**No cupieron**, cada una por sí sola lleva el artículo a 10 páginas: «Lo que da el valor, en cambio, es general» (abstracta) y «su gestor comunitario [4]» (sin presentar).
+
+**Tesis:**
+- la bolsa de E3, «en lugar de los 72 114,1 del mercado P2P»;
+- la regla del tres en la misma forma explícita, conservando «Es aproximada». Lo de la tarifa ya estaba en concreto («modificar el art. 20 y declarar la exención»).
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** compila sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-337 · Biografías con foto y recortes para conservar las 9 páginas (2026-10-05)
+
+**Qué pidió el autor:**
+- poner su foto (`manuscrito/Brayan_Lopez.jpg`) y las de los asesores, tomadas del artículo de Chacón et al. en IEEE LatAm 23(8), 2025 (`adicionales_chacon/9626.pdf`, pág. 695);
+- tomar de allí también las biografías de los asesores;
+- recortar las fotos al formato correcto, estrechar la suya y ajustar la extensión de cada biografía.
+
+**Requisitos de la revista** (`plantilla/checklist_final.pdf` y `guia_envio.pdf`):
+- fotos actuales y profesionales de cabeza y hombros, sin gafas de sol ni sombreros;
+- biografías y fotos de todos los coautores obligatorias desde el envío;
+- caja de IEEE de 1 × 1,25 in (4:5), a 220 ppp como mínimo.
+
+**Fotos:**
+- las tres van a 4:5 exacto, en 600 × 750 px;
+- autor (`Brayan_Lopez_4x5.jpg`, el original queda intacto): estrechado al 90 % del ancho, con los lados rellenos del mismo fondo;
+- Obando: recortado a los lados;
+- Pantoja: ya tenía la proporción.
+
+**Biografías:** se pasa de `IEEEbiographynophoto` a `IEEEbiography` con foto.
+- **Asesores:** el texto es el de su biografía en el artículo de Chacón, con «École» y «time-delayed» corregidos.
+- **Extensión:** IEEE LatAm no fija un límite. En el artículo de Chacón miden de 77 a 108 palabras; en otras revistas de IEEE, el tope va de 145 a 250. Junto a la foto caben unas 10 líneas, es decir, de 75 a 80 palabras.
+- **Recorte de Obando, aprobado por el autor:** sus intereses se resumen («population dynamics, game theory applied to engineering problems, consensus-based distributed control, and time-delayed systems»). Pasa de 99 a unas 82 palabras. Las del autor (74) y Pantoja (79) ya cabían.
+
+**Espacio:** cada biografía con foto ocupa al menos su altura, así que el artículo pasaba a 10 páginas; hacían falta unas 10 líneas. Con aprobación del autor salen dos párrafos, que la tesis conserva:
+- **IV-C, la generalización a Brasil y Chile** («Lo colombiano es la regla del 10 %…»), que ya estaba marcada como abstracta. Con ella salen las dos referencias que solo se citaban allí, la Lei 14.300 y la Ley 21.118: la bibliografía pasa de 26 a 24.
+- **IV-A, «Sin ninguno de los dos supuestos…»**. Su cifra, entre 0,02 y 0,96 % por debajo de C4, sigue en las Conclusiones, y III-C dice que ese mercado queda cerca de C4.
+
+**Comprobaciones:** artículo en 9 páginas con las tres biografías en la página 9, 0 Overfull, 0 indefinidas, BibTeX sin avisos, vetadas LIMPIA, cifras LIMPIO.
+
+### C-338 · La biografía del autor con la estructura de las de sus asesores (2026-10-05)
+
+**Qué pidió el autor:** que su biografía siga la estructura de las de sus asesores: título, universidad, país entre paréntesis y año; después el cargo actual; al final los intereses de investigación.
+
+**Cambio:** «received the B.S. degree in electronics engineering from Universidad de Nariño (Colombia). He is currently pursuing the M.S. degree in electronics engineering at Universidad de Nariño, where his thesis assesses … His research interests include …» (76 palabras; cabe junto a la foto). Con las mismas convenciones que los asesores: «B.S.» y «M.S.», «electronics engineering» y el país entre paréntesis.
+
+**Pendiente del autor:** el año del pregrado, que va después de «(Colombia)», y si quiere nombrar su papel en el proyecto MTE (BPIN 2021000100499), como hace la biografía de Chacón con el suyo.
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+**C-338, cierre con los datos del autor:**
+- **Pregrado:** en 2025.
+- **Papel en el proyecto MTE:** el mismo que el de Chacón. Se añade «He works as a research assistant on project BPIN 2021000100499, focused on energy transactions for multiple agents».
+- **Para seguir en 78 palabras, junto a la foto:**
+  - sale «with data metered by the MTE project», porque el proyecto ya se nombra;
+  - «the regulatory assessment of energy communities in Latin America» pasa a «the regulation of energy communities».
+- **Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.

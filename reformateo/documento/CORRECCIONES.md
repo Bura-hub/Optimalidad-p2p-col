@@ -11247,3 +11247,527 @@ Tipo: `medición`. La matriz con el piso del fondo (`PISO_MECANISMO=p2pcom`, C-3
   - Artículo. Decía «0,02 MCOP como mucho, el 0,04 %», que mezclaba el máximo absoluto (I1) con el relativo (K1). Ahora dice «0,02 MCOP como mucho, nunca más del 0,04 %».
   - Tesis. Decía «(el 0,04 %, en I1)». Ahora dice «(en I1, el 0,018 %) y nunca más del 0,04 % (K1)».
 - **Comprobaciones:** las tres compuertas del canon INTACTAS; artículo en 9 páginas, cifras LIMPIO; tesis compilada, vetadas LIMPIA.
+
+## C-313 · Figuras regeneradas tras el commit de las cifras (2026-10-05)
+
+Tipo: `trazabilidad`.
+
+- **Cifras.** `cifras_articulo.py` se volvió a correr con HEAD `c072a99`: `cifras.csv` sale idéntico byte a byte y `procedencia.txt` no lista cambios sin commit. Se rehízo la huella `e1/L` de la procedencia y `E1_L_CODIGO` = `c072a99`.
+- **Artículo.** `gen_figuras_articulo_es.py` regenera las figuras. Sus CSV de datos no cambian; en los ocho `.fuente.txt` cambia solo la línea con el sha256 de `cifras.csv`.
+- **Tesis.** Sus copias de las figuras tienen los mismos CSV:
+  - cuatro `.fuente.txt` se copian del artículo;
+  - el de la Fig. 2, que en la tesis es más alta, solo cambia la huella.
+- **Comprobaciones.** Las tres compuertas del canon INTACTAS; el artículo en 9 páginas y la tesis en 75.
+
+## C-314 · El paso del piso del juego, explicado por lo que busca (2026-10-05)
+
+Tipo: `comprensión`. Lo pidió el autor: «Se recorren los pisos de menor a mayor, comparando la oferta…» describía el procedimiento sin decir qué buscaba.
+
+- **Artículo, III-B, paso 2:** «Cada piso de vendedor se prueba como precio mínimo. Con él venden los vendedores cuyo piso no lo supera y compran los compradores cuyo techo lo alcanza. Lo transable es lo menor entre su oferta y su demanda. El piso del juego es el más bajo con el que lo transable es máximo, es decir, el del vendedor marginal… Entran esos vendedores y esos compradores». La última frase, que repetía la condición, se funde para que siga cabiendo en 9 páginas.
+- **Tesis, sección del mercado:** la misma explicación, con la oferta y la demanda de la ec. de la caminata nombradas. Al final, el ejemplo de la hora de E0 de la Figura C (CANON §14.28): con el piso de Unicesmag solo se transarían 1,98 kWh, y con el de Udenar se transan 8,28.
+- **Comprobaciones:**
+  - artículo: 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO;
+  - tesis: 75 páginas, 0 Overfull, vetadas LIMPIA.
+
+## C-315 · La tesis presenta H2 como el P2P mutualizado; H1 queda solo simulado (2026-10-05)
+
+Tipo: `decisión del autor` y `contenido`. El autor fijó los tres modelos de la tesis fuera de la regulación vigente: el mercado P2P, el P2P colectivo y H2, con el nombre «P2P mutualizado».
+
+**Cuerpo, la subsección de H1 se reescribe como `sec:impl-p2pmut`.**
+- **Las tres reglas.** Deducción por la planta de origen. Reparto «primero lo propio» (ec. `eq:pm-reparto`, ahora sobre la inyección y la importación residuales). Intercambio exento solo en el numeral 1, mientras que el del numeral 2 paga κ·Cv + Θ del vendedor.
+- **El piso propio** (ec. `eq:piso-pm`): antes del corte, el de C1; desde el corte, f·p_ces + (1 − f)·bolsa; y el cargo del numeral 2.
+- **Lo que exige:** dos cambios (el art. 20 y la exención del Cv del numeral 1) y una aclaración (el art. 19).
+- **Las cifras exactas** (CANON §14.29, e1/H2):
+  - frente a C4: lo supera en 12 de 13 casos y queda −0,175 MCOP en E5;
+  - frente a C1: nunca queda por debajo;
+  - frente al mercado P2P: gana 6, iguala 4 y pierde 3;
+  - frente al P2P colectivo: gana 7, empata 1 y pierde 5, −19,84 MCOP en total;
+  - en los 11 casos sin plantas mixtas: 1 503,23 MCOP, frente a 1 500,44 del P2P colectivo;
+  - el valor del mercado sobre la misma regla sin intercambio: +5,17 MCOP;
+  - por institución: 24 pares bajo C4 y 10 bajo C1.
+- **Lo que no se mide:** su costo para los demás usuarios y su análisis de sensibilidad global.
+
+**Otras partes de la tesis.**
+- **Introducción, implicaciones y conclusiones:** nombran el P2P mutualizado en lugar de la variante sin exención.
+- **Trabajo futuro:** deja de pedir el P2P colectivo y H2 con su propio piso, porque ya están medidos.
+- **Anexo F:** la tabla de H1 pasa a `tab:anx-f-p2pmut`, con filas generadas del CSV de e1/H2.
+
+**Comprobaciones:** tesis en 75 páginas, 0 Overfull, 0 referencias indefinidas; vetadas LIMPIA en el cuerpo y en el anexo F.
+
+## C-316 · El piso del juego con su ecuación (2026-10-05)
+
+Tipo: `comprensión`. Lo pidió el autor: «no supera y no alcanza ¿qué exactamente?» y «¿no se define más fácil con una ecuación?».
+
+- **Artículo, paso 2:**
+  - el precio de prueba se nombra, *p*;
+  - la oferta 𝒪ₖ(p) y la demanda 𝒟ₖ(p) se definen en palabras («piso menor o igual que p», «techo mayor o igual que p») y luego en una ecuación de una línea (`eq:caminata`);
+  - el piso del juego es el p más bajo que hace máximo min(𝒪ₖ(p), 𝒟ₖ(p)).
+- **Artículo, paso 3:** el volumen queda en línea, Vₖ = min(𝒪ₖ(φ*ₖ), 𝒟ₖ(φ*ₖ)). La ecuación del volumen y los conjuntos 𝒥* e ℐ* salen del artículo, que no los usaba en otro sitio; el suplemento los define por su cuenta. El número de ecuaciones no cambia.
+- **Tesis:** los dos «cuyo piso no lo supera» pasan a «con piso menor o igual que p (que el del juego)», y «cuyo techo no queda por debajo» pasa a «con techo mayor o igual».
+- **Comprobaciones:**
+  - artículo: 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO;
+  - tesis: 75 páginas, vetadas LIMPIA.
+
+## C-317 · La ecuación (5) del artículo, con la notación mínima (2026-10-05)
+
+Tipo: `comprensión`, aprobado por el autor (opción A de tres). La ec. (5), la oferta y la demanda del piso del juego, cargaba el índice de la hora en cada término, letras caligráficas y la condición «j: φⱼ,ₖ ≤ p» bajo la suma.
+
+**Cambios en el artículo:**
+- El paso dice «Dentro de una hora, y sin su índice», como la banda (4) dice «sin el índice del mes».
+- La ecuación queda O(p) = Σ_{φⱼ ≤ p} sⱼ y D(p) = Σ_{CUᵢ ≥ p} dᵢ, con letras normales y la condición al lado de la suma, para no ganar altura.
+- La condición se dice antes en palabras.
+- El piso del juego es φ* y el volumen, Vₖ = min(O(φ*), D(φ*)).
+
+**En la tesis** se conserva la notación completa (`eq:caminata`, con k y 𝒫ₖ), porque φ*ₖ y 𝒫ₖ se usan después. Lo que no se entendía, el «lo», ya se corrigió en C-316.
+
+**Comprobaciones:** 9 páginas (comprobado con la imagen de la página 5), 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+
+## C-318 · La ecuación (5) con la notación ya definida (2026-10-05)
+
+Tipo: `precisión`, a pedido del autor. La versión de C-317 era más simple, pero menos precisa: quitaba la hora y usaba D(p), que choca con la demanda Dₙ,ₖ de (1). La versión final usa solo símbolos ya definidos:
+- el piso φⱼ,ₖ de (3);
+- la inyección sⱼ,ₖ y la importación dᵢ,ₖ de (1);
+- el techo CUᵢ, sin el índice del mes, como en la banda (4);
+- la hora k en todo.
+
+Las letras caligráficas 𝒪ₖ y 𝒟ₖ se conservan porque D ya está ocupada.
+
+**La ecuación (5)** queda en una línea, con la suma de tamaño texto y la condición al lado: 𝒪ₖ(p) = Σ_{φⱼ,ₖ ≤ p} sⱼ,ₖ, 𝒟ₖ(p) = Σ_{CUᵢ ≥ p} dᵢ,ₖ.
+
+**El texto:**
+- Antes de la ecuación dice en palabras qué son la oferta y la demanda, sin repetir los símbolos.
+- El piso del juego es φ*ₖ, el p más bajo que hace máximo min(𝒪ₖ(p), 𝒟ₖ(p)).
+- El volumen: «El volumen transado es el lado corto con ese piso, Vₖ = min(𝒪ₖ(φ*ₖ), 𝒟ₖ(φ*ₖ)), y no depende del precio interno».
+
+**Formas que se probaron y se descartaron:**
+- con CUᵢ,ₘ₍ₖ₎, la ecuación se pasaba del ancho de la columna o el número (5) caía en otra línea;
+- en dos renglones, pasaba a 10 páginas.
+
+**Comprobaciones:** 9 páginas (imagen de la página 5), 0 Overfull, vetadas LIMPIA y cifras LIMPIO.
+
+## C-319 · El paso 2 define el piso del juego con su ecuación (2026-10-05)
+
+Tipo: `comprensión`, a pedido del autor: el paso 2 sirve para fijar el piso del juego, pero su ecuación solo daba la oferta y la demanda.
+
+**La ecuación (5)** pasa a ser la del propio piso: φ*ₖ = mín arg máx_{p∈𝒫ₖ} mín(Σ_{φⱼ,ₖ ≤ p} sⱼ,ₖ, Σ_{CUᵢ ≥ p} dᵢ,ₖ), con 𝒫ₖ los pisos de los vendedores. La oferta y la demanda van dentro, de modo que 𝒪 y 𝒟 dejan de hacer falta.
+
+**El texto:**
+- dice antes, en palabras, qué se prueba, qué es lo transable y qué elige el piso del juego: el p más bajo que hace máximo lo transable, el del vendedor marginal;
+- deja fuera «como en una subasta de precio uniforme», para caber en 9 páginas;
+- el volumen pasa a ser «ese mínimo en φ*ₖ, el lado corto».
+
+**Formato:** las sumas, con la condición debajo, hacen la ecuación más estrecha, de modo que su número (5) queda en la misma línea (comprobado en la imagen de la página 5).
+
+**Tesis:** ya definía φ*ₖ con su ecuación (`eq:caminata`), así que no cambia.
+
+**Comprobaciones:** 9 páginas, 0 Overfull, vetadas LIMPIA y cifras LIMPIO.
+
+## C-320 · El piso del juego en dos ecuaciones: la oferta y la demanda, y su definición (2026-10-05)
+
+Tipo: `comprensión`, a pedido del autor. La ecuación única de C-319 no se entendía.
+
+**Artículo, paso 2.** Se separa en dos ecuaciones:
+- (5): 𝒪ₖ(p) = Σ_{φⱼ,ₖ ≤ p} sⱼ,ₖ, 𝒟ₖ(p) = Σ_{CUᵢ ≥ p} dᵢ,ₖ;
+- (6), nueva: φ*ₖ = mín arg máx_{p∈𝒫ₖ} mín(𝒪ₖ(p), 𝒟ₖ(p)).
+
+Cada una va precedida de su lectura en palabras: qué son la oferta y la demanda, y que el piso del juego es el p más bajo con el que la menor de las dos es máxima, el del vendedor marginal. El volumen queda como Vₖ = mín(𝒪ₖ(φ*ₖ), 𝒟ₖ(φ*ₖ)). Las ecuaciones siguientes suben un número; todas se citan con `\eqref`.
+
+**Compensación de longitud, en el mismo párrafo.** Se quita «Lo que un comprador paga dentro lo cobra un vendedor, de modo que el beneficio neto de la comunidad no depende de ese precio». Ya lo dicen la banda («El precio solo decide cómo se reparte ese ahorro») y el paso 3 («no depende del precio interno»).
+
+**Comprobaciones:** 9 páginas (imagen de la página 5), 0 Overfull, 0 referencias indefinidas, vetadas LIMPIA y cifras LIMPIO. La tesis ya tenía las tres expresiones (`eq:caminata`).
+
+Nota a C-320: el suplemento citaba a mano ecuaciones del artículo con números ya desfasados. Se corrigen: el residual pasa de (5) a (7), la identidad de la descomposición de (6) a (8) en sus dos menciones y la probabilidad de inversión de (8) a (10). Las citas de (1) y (2) estaban bien.
+
+Verificación de C-320. Las ecuaciones (5) y (6) del artículo se recalcularon desde la tabla de agentes del almacén del canon (matriz del 19-sep), en las 15 365 horas de mercado de los 13 casos. Reproducen el `piso_juego` que guardó el motor sin ninguna diferencia (0 COP/kWh) y el volumen con 7,6·10⁻⁶ kWh como mucho, el redondeo float32 del almacén. Ninguna hora deja de cuadrar. El guion es `verifica_ec56.py`, en el scratchpad de la sesión.
+
+## C-321 · El paso 3, «Volumen y emparejamiento», reescrito como el 2; la tesis, alineada con el artículo y el código (2026-10-05)
+
+Tipo: `comprensión`, pedido por el autor («siguiendo la forma en que corregimos el piso del juego»).
+
+**Artículo, paso 3, que pasa a llamarse «Volumen y emparejamiento»:**
+- El lado corto se glosa: «es decir, la menor entre la oferta y la demanda», con Vₖ = mín(𝒪ₖ(φ*ₖ), 𝒟ₖ(φ*ₖ)).
+- Los dos casos se nombran por la oferta y la demanda. Si la oferta es la menor, cada vendedor entrega toda su inyección y la energía va primero a los compradores que pagan más. Si la demanda es la menor, cada comprador recibe toda su importación y los vendedores se despachan de menor a mayor piso.
+- La regla declarada se explica: se declara «porque el juego no decide quién vende».
+- El emparejamiento define vⱼ,ₖ y qᵢ,ₖ en la misma frase.
+
+**Compensación de longitud, solo en el artículo:**
+- el residual (7) usa [x]⁺ = máx(x, 0), definida en la línea anterior, para que su número quepa al lado;
+- IV-D: «El caso 2 le cuesta 1,66 MCOP en E0» sustituye a «a la comunidad medida», porque la palabra «P2P.» ocupaba sola una línea.
+
+**Tesis, pasos 2 y 3 del cuerpo:**
+- **Qué pisos se prueban.** 𝒫ₖ son los pisos distintos de los vendedores de 𝒥⁺ₖ, como hace el motor (`_caminata`, los «vendibles»). Antes decía «de los vendedores».
+- **Las ecuaciones del piso del juego.** Se separan como en el artículo: `eq:caminata` (oferta y demanda, con la suma sobre 𝒥⁺ₖ) y la nueva `eq:pisojuego` (φ*ₖ). Se declaran las tolerancias del motor (10⁻⁹ relativa en el volumen y 10⁻⁹ COP/kWh entre pisos).
+- **El volumen.** Lleva ecuación (`eq:volumen`, Eₖ = mín(𝒪ₖ(φ*ₖ), 𝒟ₖ(φ*ₖ))). Los dos casos quedan como en el anexo C:
+  - con vendedores cortos, vⱼ,ₖ = sⱼ,ₖ, y la energía va primero a quien paga más, según la regla de servicio del anexo C;
+  - con compradores cortos, qᵢ,ₖ = dᵢ,ₖ, y los vendedores se despachan por piso creciente con llenado por niveles.
+
+  Antes el texto dejaba entender que el despacho por piso valía en los dos casos.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 75 páginas, 0 Overfull, 0 referencias indefinidas, vetadas LIMPIA.
+
+## C-322 · Las diferencias con el modelo base, dichas en pocas palabras (2026-10-05)
+
+Tipo: `coherencia con el modelo base`, a pedido del autor. Los asesores conocen el modelo de Chacón: cada diferencia tiene que estar dicha y atada a su razón, y mostrar que el resultado de la comunidad no cambia.
+
+**Artículo:**
+- **III-B, paso 3:**
+  - si la oferta es la menor, «como en el reposo del modelo base, la energía va primero a quien paga más»;
+  - si la demanda es la menor, «El modelo base no decide entonces qué vendedores venden, y aquí se despachan de menor a mayor piso, una regla declarada que no cambia el signo de ninguna brecha».
+- **III-B, después de los pasos:** «El modelo base cobra a cada uno su propio precio, que con techos distintos discriminaría entre compradores de la misma hora». El beneficio de la comunidad no depende del precio.
+- **Las dos diferencias que el artículo ya decía** (la forma cerrada en lugar de integrar, confirmada en 17 de 18 horas, y los pisos y techos por agente) se conservan.
+- **Compensación de longitud:**
+  - sale «Lo que el artículo necesita del modelo es ese acuerdo, no el camino hacia él», porque lo dice la frase siguiente;
+  - sale «que no depende del precio interno» del paso 3, porque lo dice el párrafo siguiente;
+  - el párrafo de IV-C sobre la regla de despacho queda en lo que no se dice en otra parte, el 13 % del margen sobre C1;
+  - sale de IV-B el resultado secundario de las reglas de reparto del art. 19 (E4, 0,36 y 0,18 MCOP), que la tesis conserva.
+
+**Tesis, paso 3 y liquidación:**
+- la regla de servicio como el reposo de la dinámica del modelo base, en que cada vendedor reparte según el precio que puja cada comprador;
+- el despacho por piso, porque el modelo base no decide qué vendedores venden: cualquier reparto que cubra Eₖ es un reposo, y allí todos tienen el mismo piso. Es su orden de mérito, y su efecto queda medido (energía y signo intactos, hasta 13 % del margen; sección `sec:modelo-cambios`);
+- el precio uniforme frente al precio por comprador del modelo base, con su razón.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 75 páginas, 0 Overfull, 0 referencias indefinidas, vetadas LIMPIA.
+
+Nota a C-322: el suplemento (l. 681) remitía el piso a «(2) del artículo»; es la (3). Corregido; lo encontró la revisión de notación.
+
+## C-323 · La misma notación en el artículo, el suplemento y la tesis, alineada con la de Chacón (2026-10-05)
+
+Tipo: `notación`, a pedido del autor (encargo del 2026-10-05 y sus tres ampliaciones). Insumo: el informe de notación (comparación concepto por concepto con el modelo base). Regla: un mismo símbolo en los tres documentos; donde Chacón ya tenía uno para el mismo concepto, el suyo; solo se aparta por la norma colombiana, por un concepto que el modelo base no tiene o por un choque de símbolos. Fuente de la notación de Chacón: el documento extenso (hora *k*, costo *H_j*, *t* reservada a la dinámica), no la versión de IEEE LatAm (hora *t*, costo *Hg_j*). Ninguna cifra cambia.
+
+**Unificado en los tres documentos:**
+- volumen de la hora: **E_k** (el artículo y el suplemento decían V_k; la aproximación del corte, V̂_k → Ê_k);
+- porcentaje de reparto: **ρ_{n,m}** (el artículo decía p_n); energía asignada: **e^{AC}_{n,k}** y **e^{PC}_{n,k}** (el artículo decía e_{n,k} y ẽ_{n,k}); el P2P colectivo del suplemento escribe ρ_{n,m(k)} en lugar de 1/N;
+- tamaño de muestra de Saltelli: **n_s** (n es el índice de miembro), también en el anexo F; ni la compuerta de vetadas ni `cifras-es` dependen del texto «n=512»;
+- brecha: **Γ** (la tesis decía Δ); Δ_ij queda solo para la diferencia de tarifas, y el apartamiento frágil Δ_k pasa a **ε_k**;
+- precios: precio uniforme **π^u_k** (antes p^u_k), precio que paga el comprador **π^u_{i,k}** (antes π̂_{i,k}, que choca con el peso de barrera de Chacón), precio medio **π̄_k** (antes p̄_k), precio de reposo **π*_{i,k}** (antes π^r, que choca con el superíndice del residual); en el P2P mutualizado, π^{ces}_m;
+- conjuntos del reposo **ℐ^T_k, ℐ^L_k, ℐ^F_k** (antes 𝒯, 𝓛, 𝓕), grupos **ℐ_g**, energía que queda **𝓔_g** y nivel **q̄_g** (antes 𝒢, R o R_𝒢 y L);
+- mecanismo genérico **M** y beneficio **B^M_n = Σ_k CU·D − C^M_n**, con la equivalencia con la forma del artículo, Σ a·CU + V^M_n, declarada en una línea; W_X → B^M; precio de la justicia (B^{P2P} − B^{C4})/B^{P2P}; «ganancia neta» → **«beneficio neto»** en la tesis y sus anexos;
+- bienestar de Chacón **W_j, W_i** (antes 𝒲, sin definir), con la cita de sus ecs. (2) y (11);
+- constante de la aptitud **ω** (antes b, que choca con el costo lineal b_j; se cancela en f − f̄); costo marginal **H'_j** (antes o_j), la derivada del costo H_j de Chacón; «la forma cerrada sustituye H'_j por φ_{j,k}»;
+- s y d: **inyección** e **importación** en todo; «excedente neto G_j» y «déficit neto D_i» solo como glosa, una vez en la tesis y una en el suplemento; s y d con máx(·,0) y los residuales con [x]⁺ = máx(x,0), definida donde se usa por primera vez;
+- rótulos de régimen: **vendedores cortos** y **compradores cortos** también en el suplemento;
+- índices mudos: t → k' en el corte (tesis, anexo C y suplemento), s → r' en la regla de saturación; retiro genérico del operador 𝒜: r_{n,k} → **w_{n,k}** (r es el superíndice del residual); e_{n,k} se conserva, porque e^{AC} y e^{PC} son instancias suyas;
+- P2P mutualizado: u_{n,m} → s̄⁺_{n,m}, w_{n,m} → d̄⁺_{n,m}, f_m → χ_m, g_{j,m} → δ^{PM}_{j,m}; captura cap_k → η_k;
+- techo CU: con el índice del mes en el texto; donde una ecuación lo omite, «Sin el índice del mes, sea Δ_ij …» una sola vez, igual en el artículo y la tesis (antes de (4) y (5)) y «Sin el índice del mes, la regla es» antes de la regla de saturación (suplemento y anexo C); los cargos de red, Θ_{j,m(k)} en el texto, como δ_{j,m(k)};
+- emparejamiento: ecuación numerada **(7)** `eq:emparejamiento` en el artículo y en la tesis; el anexo C la cita; el suplemento remite a «(7) del artículo» sin numerarla, para conservar S1 a S22 y su correspondencia con C.1 a C.22.
+
+**Correspondencia con Chacón:**
+- artículo: «El modelo base usa un mismo techo, π_gs, y un mismo piso, π_gb, para todos los agentes»;
+- tesis (anexo C, `anx:c-notacion`): párrafo de fundamento (fuente de la notación, tres razones para apartarse, Luthander) y Tabla C.1 de correspondencia (GDR ≷ 1 equivale a G ≷ D; G_j, D_i → s, d; P → E_k; π_gs → CU; π_gb → φ; F → f, la minúscula de TecnoLógicas (7); H_j → H'_j; P^j_ext, P^i_int → s^r, d^r; S_i, SR_j, PSR → S_{i,k}, SR_{j,k}, parte del vendedor), con las letras que aquí nombran otra cosa (a_j, c_j, R_j, σ_j, π̂_i, 𝒯, 𝒢, Δ); σ_k y R se conservan con esa advertencia;
+- tesis: S_{i,k} y SR_{j,k} con nombre en (C.11) y en la sección del modelo; «la parte del vendedor es el PSR del documento extenso, en fracción» (no se deriva ninguna cifra de IE); s^r y d^r, «la liquidación residual P^j_ext y P^i_int» del modelo base; a_j, b_j, λ_j, θ_j, β_i y τ en la Tabla de parámetros;
+- suplemento: Tabla SII de correspondencia, reducida a los símbolos del artículo y del suplemento, con la fuente de la notación en su nota; σ_k no es el σ_j de Chacón; π_gs y π_gb en la sustitución de cotas; S_{i,k}, SR_{j,k} y PSR en (S11); la liquidación residual junto a (8) del artículo.
+
+**Numeración del artículo:** con (7) nueva, residual 8, descomposición 9, asignada 10 e inversión 11. El suplemento escribía a mano (7), (8) dos veces, (10), «(1) a (8)» dos veces y un «(4)» que ya era errado (el volumen no lleva número; ahora «(5) a (7)»): todos actualizados contra `articulo_es.aux`; `tablas/` y la tesis no citan números del artículo a mano salvo un comentario, también actualizado.
+
+**Fuera del artículo, por espacio (cada uno añadía al menos una línea):** la remisión «la correspondencia completa está en el suplemento» en la frase de A5, y la glosa «la liquidación residual del modelo base» junto a (8). Quedan en el suplemento y la tesis. La cláusula «que es el único reposo del replicador regularizado» tampoco va en el artículo, que no define ese replicador; está en la tesis. El artículo conserva «faltan compradores» en IV-C, en prosa.
+
+**Espacio del artículo:** el cambio de p_n, ẽ a ρ, e^{AC}, e^{PC} quitó una línea al párrafo del P2P colectivo y la ecuación (7) ocupó el blanco de la columna izquierda de la página 5; la sección III termina donde terminaba, y la holgura antes de Conclusiones pasó de 1,3 a 5 líneas.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 referencias indefinidas, 0 `multiply defined`; las ecuaciones de una línea con su número al lado; vetadas LIMPIA; cifras LIMPIO.
+- **Suplemento:** 9 páginas, 0 Overfull, 0 indefinidas; vetadas LIMPIA.
+- **Tesis:** 76 páginas (la Tabla C.1 añade una al anexo C), fin de las referencias en la página 30 como antes, 0 Overfull, 0 indefinidas, 0 `multiply defined`; vetadas LIMPIA en `tesis_entrega.tex` y en los anexos A, C, D y F.
+- Números fuera de comentarios, antes y después, por fichero: solo cambian números de ecuación, de artículo de norma, años de las citas y anchos de tabla.
+
+Pendiente del autor: la bibliografía del artículo no tiene el documento extenso de Chacón (la tesis lo cita como `Chacon2025EMS`, manuscrito); el suplemento dice «su versión extensa» sin cita. Si `Chacon2026Replicator` (SEGAN) es esa versión, puede citarse allí.
+
+### C-324 · La Fig. 1 del artículo pasa a ser una hora resuelta de E0 (2026-10-05)
+
+**Qué pidió el autor:** valorar si la Fig. 1 (el esquema de los dos supuestos y del P2P colectivo) aportaba lo que ocupa y, si no, cambiarla por algo más útil. Aprobó el cambio.
+
+**Diagnóstico:** el esquema repetía en cajas lo que dicen la lista de los supuestos, el párrafo del P2P colectivo y la Tabla I; desde el recorte a 9 páginas ya no mostraba C1 ni C4, de modo que perdió el contraste que justificaba dibujarlo; ocupaba 3,49 × 4,96 in sin una cifra.
+
+**Cambio:**
+- Fig. 1 nueva, `fig1_hora_E0` (3,49 × 2,75 in, una columna): la hora de E0 del 14 de abril de 2025 a las 16:00 en el eje de precios, con los pisos de los vendedores, la banda de cada comprador hasta su tarifa, el piso del juego, el volumen como lado corto, lo que vende y recibe cada uno, el precio de cada comprador en el reposo del modelo base y el precio uniforme. Hace visibles los pasos 2 y 3 de III-B y la diferencia de precio con el modelo base.
+- Generador: `fig_hora_col()` en `gen_figuras_articulo_es.py` redibuja los datos que `fig_hora()` ya pasó por sus compuertas (los de la Figura 5.1 de la tesis, almacén de E0 con huella); no mide nada nuevo. Las energías y el precio uniforme no están en `cifras.csv`, como en `fig_hora_E0`: el texto del artículo no los cita (la leyenda tampoco).
+- Artículo: la figura abre III-B; el paso 2 remite a ella («Udenar en la Fig. 1»); el párrafo de los supuestos abre con «El mercado P2P descansa en dos supuestos que la regulación vigente no contempla»; se quitan las dos remisiones a la figura vieja.
+- Suplemento: el esquema pasa a la Fig. `fig:s-mercados`, en la sección de liquidación, junto a los dos supuestos; la Fig. `fig:s-hora` se presenta como la versión ampliada de la Fig. 1 del artículo, y su texto rotula Unicesmag y Unimar (quedaban CESMAG y Mariana, contra C-267).
+
+**Comprobaciones:** generador con todas sus compuertas en verde (letra ≥ 8 pt, números impresos justificados); artículo en 9 páginas, Fig. 1 arriba en la columna derecha de la página 4, 0 Overfull, 0 indefinidas; suplemento en 10 páginas, 0 Overfull, 0 indefinidas; vetadas LIMPIA en los dos; cifras LIMPIO en el artículo.
+
+### C-325 · Las fórmulas del artículo, el suplemento y la tesis siguen una sola regla (2026-10-05)
+
+**Regla (aprobada por el autor; completa la de «numerar solo si se remite»):**
+- **Bloque** para toda expresión que defina un objeto del método que se usa después (piso, banda, caminata y piso del juego, volumen, emparejamiento, residual, liquidación de cada mecanismo, crédito y exceso, deducción, reparto, descomposición e inversión) o que sea difícil de leer en el texto: un sumatorio con límites, una fracción con más de un término, un mín o máx anidado, una definición por casos o más de media columna.
+- **Texto** para las definiciones cortas de un símbolo ($\Delta_{ij}$, $\rho_n=1/N$, $[x]^+$), los valores ($n_s=512$) y las relaciones que no se vuelven a usar.
+- **Número** solo si la ecuación se cita: en el mismo documento, del suplemento al artículo, de los anexos al cuerpo, por la correspondencia S_n ↔ C.n o por la del anexo C con el cuerpo (M-12). Sin cita, `equation*`. Un número por idea: lo que se define junto comparte número.
+- **Forma:** la ecuación cierra con coma o punto según siga la frase, sus símbolos se nombran antes en palabras, el número queda al lado y la misma ecuación se escribe igual en los tres documentos. Solo difiere lo que el artículo omite por espacio.
+
+**Recuento** (inventario en el scratchpad, `inventario_ecuaciones.md`):
+
+| Documento | Pasan al bloque | Pasan al texto | Pierden el número | Ganan número | Numeración |
+|---|---|---|---|---|---|
+| Artículo | 2: volumen, ahorro del intercambio | 0 | 2: beneficio, energía asignada | 0 | (1)–(11) → (1)–(9) |
+| Suplemento | 6: nivel $\bar q_g$ (a S8), $\bar\pi_k$ (a S11), emparejamiento, $PP^*_{\mathrm M}$, series residuales, sumas del corte (a S13, como C.13); además, la deducción por casos del P2P colectivo remite a S20 | 0 | 2: C2, P2P colectivo | 0 | S1–S24 → S1–S22 |
+| Tesis, cuerpo | 4: ahorro del intercambio, $PP^*_{\mathrm M}$, series residuales ($s^{\mathrm r}$, $d^{\mathrm r}$), $\chi_m$ | 0 | 5: piso del juego, volumen, C2, probabilidad de inversión, reparto del P2P mutualizado | 0 | (1)–(22) → (1)–(17) |
+| Tesis, anexo C | 2: nivel $\bar q_g$ (a C.8), series residuales | 0 | 0 | 0 | C.1–C.22 sin cambio |
+| Anexos A, B, D, E, F | 0 | 0 | 0 | 0 | sin fórmulas que cambiar |
+
+Con C2 sin número, S17 a S22 vuelven a corresponder con C.17 a C.22, como ya decían los comentarios `% S17 <-> tesis (6.20)`.
+
+**Formas igualadas entre documentos:** el piso del juego con `\min\arg\max` en S4 y C.4; el volumen $E_k=\min(\mathcal O_k(\phi^*_k),\mathcal D_k(\phi^*_k))$ en el artículo, el cuerpo, S5 y C.5; las cotas $i\in\mathcal I_k$ en la caminata y en $\mathcal I^*_k$ del cuerpo; las sumas del corte de S13 como C.13 y el cuerpo; $\sum_m\sum_{k\in\mathcal K_m}$ en C1, C4, el mercado P2P y el P2P colectivo del cuerpo, como S16, S17, S19 y C.16, C.17, C.19; $\rho_{n,m(k)}$ en el fondo del cuerpo; el índice $u$ en las sumas del fondo (artículo, S19, C.19); $s^{\mathrm r}$, $d^{\mathrm r}$ en el cuerpo; el orden de términos del P2P colectivo como el del mercado P2P; S22 con paréntesis, como C.22; la deducción del cuerpo y C.14 sin rótulos de numeral (no caben en la columna del cuerpo; el anexo los dice en palabras).
+
+**Números que caían en una línea propia** (antes de este cambio): (1) del artículo, S9, S13, S14 y S17 del suplemento, y (8), (9), (10) y el piso del P2P mutualizado del cuerpo. Se parte la fila más ancha o se acortan las condiciones; ninguna ecuación cambia.
+
+**Excepciones:**
+- Artículo: la caminata no restringe a $\mathcal J^+_k$ ni a $\mathcal I_k$ (el artículo no define esos conjuntos; $\phi^*_k$ no cambia) y la energía asignada escribe la suma en lugar del fondo $F_k$, $F^{\mathrm r}_k$ de la tesis; definirlos costaba líneas.
+- S14 escribe los numerales con unidades («hasta 100 kW», «hasta 1 MW»); C.14 y el cuerpo, en kW sin unidad («100 < Cap ≤ 1 000»). Igualarlos cambiaría la escritura de una cifra.
+- Notación declarada en C-323 que se conserva: $F_{ji}$ en el suplemento y $f_{ji}$ en la tesis; el fondo $F_k$ solo en la tesis (por eso S21 escribe la suma); $\iota$ en el cuerpo frente a los casos de C.20, con la equivalencia dicha en el anexo C.
+- $\sigma_k=(|\mathcal I^*_k|-1)/|\mathcal I^*_k|$ queda en el texto como definición corta de un símbolo, aunque su numerador tenga dos términos.
+
+**Espacio del artículo:** los dos bloques nuevos costaban unas cinco líneas en la sección III. Se compensan en la misma sección, sin quitar contenido: el ahorro del intercambio abre con «Existe por el supuesto~2…» y la ecuación cierra la frase; «Con ese piso se transa el lado corto, es decir, la menor entre oferta y demanda»; «topado en la tarifa», «entre los de la misma hora» y un punto en lugar de «, y»; «la tarifa del comprador menos la bolsa» y «Tres pasos fijan…»; «Son los de deducción…, de bolsa…» en la caja; «con signo distinto al del punto base». La sección III termina donde terminaba (la columna derecha de la página 6 acaba en «nulo, porque nadie lo agota») y Conclusiones empiezan en el mismo sitio; de las páginas 7 a 9 solo se corre alguna palabra.
+
+**Citas a mano actualizadas contra los `.aux`:** suplemento → artículo: «(1) a (11)» → «(1) a (9)» (texto y comentario), «(5) a (7)» → «(4) a (6)», «(7)» → «(6)», «(3)» → «(2)» (texto y comentario de S15), «(8)» → «(7)», «(9)» → «(8)» dos veces, «(11)» → «(9)»; comentarios de cabecera del suplemento; comentario del GSA en la tesis («hoy (9)»); comentarios de C.11 y C.15 del anexo C. Ninguna cita vieja queda (grep).
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 referencias indefinidas, 0 `multiply defined`; números al lado de su ecuación; vetadas LIMPIA; cifras LIMPIO.
+- **Suplemento:** 10 páginas, 0 Overfull, 0 indefinidas, 0 `multiply defined`; vetadas LIMPIA.
+- **Tesis:** 76 páginas, fin de las referencias en la página 30 como antes, 0 Overfull, 0 indefinidas, 0 `multiply defined`; vetadas LIMPIA en `tesis_entrega.tex` y en el anexo C (el único anexo tocado).
+- Números fuera de comentarios, antes y después, por fichero: el artículo, las tablas, el cuerpo de la tesis y los anexos, idénticos; en el suplemento solo cambian números de ecuación, más el «100» de S14, que el comparador leía como «00» en `\le100` y ahora lee entero.
+- Copia previa: `antes_ecuaciones/` del scratchpad de la sesión.
+
+### C-326 · La Fig. 1 muestra dos horas del mismo día, una por régimen (2026-10-05)
+
+**Qué pidió el autor:** que la Fig. 1 tuviera dos casos interesantes y distintos, para que se viera cómo funciona el mercado. Sustituye la versión de una sola hora de C-324 (`fig1_hora_E0`, retirada).
+
+**Elección de las horas** (análisis del almacén de E0: 1 126 horas resueltas, 926 de vendedores cortos y 200 de compradores cortos; guiones `horas_candidatas.py` y `horas_detalle.py` en el scratchpad):
+- (a) 14 de abril de 2025, 13:00, compradores cortos. Unicesmag, el de piso más bajo, vende todo; HUDN y Udenar empatan en el piso del juego y se llenan por niveles (HUDN entrega todo y Udenar solo una parte). Los compradores reciben todo, y el precio del reposo de cada uno es muy distinto (Unimar en su techo, UCC en el piso del juego).
+- (b) La misma tarde, 16:00, vendedores cortos (la hora de `fig_hora_E0` y de la Figura 5.1 de la tesis). Los dos vendedores venden todo; la energía va primero a quien paga más en el reposo (UCC) y el resto, por niveles.
+- Las dos son del mismo día, con los mismos pisos y techos. Lo que cambia es el sol: el HUDN vende a la 13:00 y compra a las 16:00.
+
+**Figura** (`fig1_horas_E0`, 3,49 × 4,80 in, una columna; `fig_horas_col()` en `gen_figuras_articulo_es.py`):
+- Cada panel tiene arriba el eje de precios: pisos, piso del juego, bandas, techos, precio del reposo del modelo base y precio uniforme. Abajo, la tira de energía: la oferta en orden de piso y la demanda en orden de precio, con $E_k$ y lo no transado rayado.
+- Compuertas propias de la forma cerrada en cada hora: volumen = lado corto = lo vendido = lo comprado = suma de los flujos; el piso del juego es el de un vendedor; nadie vende por encima de él ni compra por debajo; cada comprador paga min(uniforme, techo); con vendedores cortos cada vendedor vende todo; con compradores cortos cada comprador recibe todo y los de piso menor venden todo; pisos y techos = claves `kwh__*__2025-04__*` de `cifras.csv`.
+- Las energías y los precios uniformes salen del almacén con huella y no están en `cifras.csv`. El texto no los cita.
+
+**Artículo:**
+- El pie dice qué muestra cada parte y qué pasa en cada hora, sin cifras salvo la fecha. La leyenda explica los símbolos.
+- El paso 2 remite a la figura («Udenar en las dos horas»), y el paso 3 remite a (a) para el despacho por piso y a (b) para el orden por precio.
+- Espacio: la figura nueva costaba de 9 a 12 líneas. Se compensó en la propia figura (de 5,3 a 4,8 in, sin el rótulo de energía repetido en (a)) y en el pie, que dejó de describir los símbolos de la leyenda.
+
+**Suplemento:** la Fig. `fig:s-hora` se presenta como la versión ampliada de la Fig. 1(b).
+
+**Comprobaciones:**
+- Generador con todas sus compuertas en verde.
+- Artículo: 9 páginas, la Fig. 1 en la página 4, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- Suplemento: 10 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-327 · El supuesto 1 explicado como los pasos del mercado (2026-10-05)
+
+**Qué pidió el autor:** el supuesto 1 («El residual se liquida por miembro, fuera de C4») no se entendía; pedía más detalle o redactarlo como los pasos 2 y 3 de III-B.
+
+**Artículo (III-C):**
+- Ahora dice en palabras qué es el residual («lo que el mercado no coloca») y define $v_{n,k}$ y $q_{n,k}$ como lo que el miembro vende y compra dentro antes de la ecuación (7).
+- Después dice qué significa liquidarlo por miembro: cada uno lo liquida con su comercializador, como en C1, con el crédito, el corte y la bolsa de (2), el piso. Lo vendido dentro no gasta crédito, lo comprado no es importación y el residual no entra al fondo de C4.
+
+**Tesis (§ del mercado P2P, supuesto 1):** se añade la mecánica, que antes solo se nombraba. La inyección residual del mes es crédito hasta la importación residual, con la deducción del numeral, y el resto va a la bolsa de su hora; nada del residual entra al fondo común de C4.
+
+**Espacio del artículo:** el texto nuevo costaba unas 4 líneas, y por las biografías, que saltan en bloque, el artículo pasaba a 10 páginas.
+- Se compensó con:
+  - `\looseness=-1` en el supuesto 1;
+  - tres redundancias de III-C y III-D que el texto nuevo dejaba a la vista: «Cargos evitados» repetía el supuesto 1; «La identidad (8)» se nombraba dos veces seguidas; el P2P colectivo volvía a definir el residual;
+  - una Fig. 1 algo más compacta (4,45 in, sin el rótulo de precio repetido en el panel a).
+- Como no bastó, el autor eligió llevar al suplemento, junto con la frase «el P2P colectivo usa los flujos del mercado P2P», la salvedad «con su propio piso, el P2P colectivo difiere en 0,02 MCOP como mucho, nunca más del 0,04 %, y ninguna brecha con C4 o C1 cambia de signo». El suplemento ya decía que los flujos son los del mercado; la tesis conserva la salvedad.
+- Se midió que ni el ahorro en la página 4 (la figura) ni `\looseness` en IV-C, IV-D y las Conclusiones llegaban al final.
+
+**Comprobaciones:**
+- Artículo: 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO; la ecuación (7) con su número en la misma línea.
+- Suplemento: 10 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+- Tesis: 77 páginas, con las referencias desde la página 28; 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-328 · El residual sin la parte positiva (2026-10-05)
+
+**Qué pidió el autor:** preguntó qué significaba $[x]^{+}=\max(x,0)$. Se le explicó que es la parte positiva y que en el residual sobra; pidió quitarla del artículo y de la tesis.
+
+**Por qué sobra:** lo que un miembro vende dentro sale de su inyección y lo que compra cubre su importación, así que $v_{n,k}\le s_{n,k}$ y $q_{n,k}\le d_{n,k}$. Se comprobó en los almacenes de los trece casos de la matriz del 19 de septiembre: en las 393 216 filas de agentes, $\max(v-s)=\max(q-d)=0$ y no hay ninguna resta negativa. El corchete solo protegía contra el redondeo del cálculo.
+
+**Cambios:**
+- **Artículo:** (7) pasa a $s^{\mathrm{r}}_{n,k}=s_{n,k}-v_{n,k}$ y $d^{\mathrm{r}}_{n,k}=d_{n,k}-q_{n,k}$; el texto dice «nunca más de lo que inyecta o importa» y se quita la definición de $[x]^{+}$.
+- **Suplemento:** la misma ecuación, con la frase «ninguna es negativa, porque nadie vende más de lo que inyecta ni compra más de lo que importa»; en $\rho^{\mathrm{P2P}}_{n,m}$, $[s-v]^{+}$ pasa a $s^{\mathrm{r}}_{n,k}$.
+- **Tesis:** la misma ecuación y la misma frase; en el anexo C, la ecuación del mercado, $\rho^{\mathrm{P2P}}_{n,m}$ con $s^{\mathrm{r}}_{n,k}$, y «la importación residual $d^{\mathrm{r}}$».
+- **Se conserva la parte positiva en el P2P mutualizado** de la tesis, donde $\bar s-\bar d$ sí puede ser negativo. Se define allí, en su primer uso: «una puede superar a la otra, así que se toma la parte positiva, que vale $x$ si es positivo y cero si no».
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Suplemento:** 10 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA en `tesis_entrega.tex` y el anexo C.
+
+### C-329 · La descomposición sin llaves y con R definido como el resto (2026-10-05)
+
+**Qué preguntó el autor:** si es cierto que liquidar como en C1 evita cargos que C4 no evita, y de dónde sale; y si la ecuación (8) tiene la mejor notación.
+
+**Respuesta (sin cambio de cifras):**
+- La afirmación es cierta con condiciones. Con cinco fronteras, ninguna cumple la regla del 10 % (cada una tiene el 20 %), así que C4 cae en el caso 2 del art. 20 y todo su crédito descuenta Cv más cargos de red. En C1, las plantas de 17,55 kW están en el numeral 1 del art. 25 y descuentan solo el Cv (Sección II-B y Tabla I).
+- En E0, C1 − C4 = 1,71 MCOP, casi todo cargos de red.
+- C1 − C4 incluye además el excedente que el reparto igual manda a la bolsa. Con plantas en el numeral 2 (E4, I1) es negativo.
+- El autor decidió mantener el nombre «cargos evitados».
+
+**Cambios aprobados:**
+- (a) La ecuación sin llaves: P2P − C4 = (C1 − C4) + Σ_k X_k + R. Los nombres van en la lista que la sigue.
+- (b) La brecha, ligada al beneficio de la comunidad, $B^{\mathrm{M}}=\sum_nB^{\mathrm{M}}_n$ y P2P − C4 = $B^{\mathrm{P2P}}-B^{\mathrm{C4}}$.
+- (c) R definido como el resto, $R=(\mathrm{P2P}-\mathrm{C1})-\sum_kX_k$. Así la identidad es exacta por construcción, y lo que se mide es que R se anula donde nadie agota su crédito.
+
+**Dónde quedó cada cosa:**
+- **Tesis:** (a), (b) y (c) completos. El término de los cargos evitados ya explicaba su origen («en E0 son casi todo cargos de red que, en el caso 2, se descuentan del crédito de C4»).
+- **Artículo:** (a) y (c), este último en la forma corta «$R=(\mathrm{P2P}-\mathrm{C1})-\sum_kX_k$, el resto, nulo si nadie agota su crédito mensual». El término de los cargos dice ahora «con plantas en el numeral 2, C1 también paga cargos de red y el término puede ser negativo».
+- **Quedaron fuera del artículo, por espacio:** (b) y la frase «con plantas en el numeral 1 son los cargos de red que C4 descuenta en el caso 2 (Sección II-B)». II-B ya lo explica. Se midió que cualquiera de las dos, incluso en forma corta, devolvía las biografías a la página 10. Tampoco bastó `\looseness` en ningún párrafo de II-E a III-C.
+
+**Comprobaciones:**
+- Artículo: 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- Tesis: 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-330 · La atribución a los supuestos, explicada con los cuatro mercados (2026-10-05)
+
+**Qué pidió el autor:** que los dos párrafos sobre el orden de los supuestos (III-C, página 6) se entendieran tan bien como los ya depurados.
+
+**Diagnóstico:** los párrafos hablaban de los mercados intermedios sin presentarlos («de C4 a un mercado con intercambio exento y residual en C4», «el mercado con solo ese supuesto», «el mercado sin ningún supuesto»). Además, la razón por la que los dos órdenes parten de C4 aparecía al final y suelta.
+
+**Artículo:**
+- **Primer párrafo:** presenta los cuatro mercados: sin ningún supuesto, con solo el 1, con solo el 2 (intercambio exento y residual en C4) y con los dos (el mercado P2P). Luego explica por qué importa el orden: los supuestos se solapan, porque cualquiera libra de los cargos del caso 2 a la energía transada, y esos cargos cuentan para el que se añada primero. Cierra con que la identidad (8) añade primero el 1 y que la Sección IV da el inverso y Shapley.
+- **Segundo párrafo:** abre con la razón de partir de C4: el mercado sin ningún supuesto, liquidado como C4 con el porcentaje reportado por acuerdo (art. 19), queda cerca de C4. Después dice que el de solo el supuesto 1 se mide con C1, cuándo son iguales y que en los demás casos C1 es una cota inferior.
+- **Se perdió por espacio:** «a partir de sus flujos», sobre el porcentaje del mercado sin ningún supuesto. La versión que la conservaba devolvía las biografías a la página 10; la tesis la mantiene.
+
+**Tesis:** la misma explicación en versión larga y con los cuatro mercados uno por uno, añadiendo:
+- con el supuesto 1 solo nadie transa y el kWh se acredita con la deducción de su planta; con el 2 solo se transa exento;
+- C1 es exactamente el mercado con solo el supuesto 1 donde nadie agota su crédito y las plantas están en el numeral 1, y en los demás casos es una cota inferior;
+- la definición de Shapley.
+
+**Fuente:** CANON §14.21, sin cifras nuevas.
+
+**Comprobaciones:**
+- Artículo: 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- Tesis: 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-331 · Los dos párrafos de la atribución, depurados (2026-10-05)
+
+**Qué pidió el autor:** confirmar que los dos párrafos de C-330 tenían la forma, el estilo y la dificultad de los ya depurados. No los tenían. Seis problemas:
+1. faltaba la idea de añadir un supuesto y después el otro;
+2. la enumeración llevaba una subordinada dentro;
+3. «libra de los cargos … a la energía transada» estaba en orden invertido;
+4. «cuentan para» y «La identidad (8) añade primero el 1» no decían qué significa;
+5. «liquidado como C4 … queda cerca de C4» parecía contradecirse;
+6. las elipsis «El de solo» y «Son iguales» dejaban el sujeto en el aire, y «solo» era ambiguo.
+
+**Artículo:**
+- **Primer párrafo:**
+  - presenta los cuatro mercados en una enumeración limpia;
+  - dice que del primero al último se pasa añadiendo un supuesto y después el otro;
+  - explica que el orden importa porque los dos libran a la energía transada de los cargos del caso 2, que se atribuyen al que se añade primero;
+  - concreta que en la identidad (8) C1 − C4 es lo que vale el supuesto 1 y el resto, lo que añade el 2, en ese orden, como pide la regla de cita del CANON §14.21;
+  - define Shapley con «por sí solo».
+- **Segundo párrafo:**
+  - el mercado con solo el supuesto 2 exime el intercambio y deja el residual en C4;
+  - el de solo el 1 se mide con C1, que lo iguala donde nadie agota su crédito y es una cota inferior en los demás casos;
+  - el que no tiene ninguno queda tan cerca de C4 que los dos órdenes parten de C4.
+- **Salen del artículo, por espacio:** el porcentaje reportado por acuerdo del mercado sin supuestos y la razón de que C1 lo iguale. Los dos quedan en la tesis.
+
+**Tesis:**
+- el mercado sin supuestos se liquida como C4, «pero con el porcentaje de cada miembro reportado por acuerdo (art. 19) a partir de sus flujos, en lugar del reparto igual, de modo que queda cerca de C4 sin ser igual»;
+- «se atribuyen» en lugar de «cuentan para»;
+- en el orden de (descomposición), C1 − C4 es lo que vale el supuesto 1 y el resto, lo que añade el 2;
+- Shapley con «por sí solo».
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** compilada sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-332 · La claridad de III-D a las Conclusiones, con el patrón de III-C (2026-10-05)
+
+**Qué pidió el autor:** que cada párrafo del artículo se entienda como los dos de la atribución (C-331). Se buscaron las seis fallas de C-331 (1 concepto sin presentar, 2 enumeración enredada, 3 sintaxis invertida, 4 frase abstracta, 5 contradicción aparente, 6 elipsis o sujeto ambiguo), más símbolos sin definir, pasos sin porqué y remisiones. De III-D al final se corrigió. De la Introducción a III-C solo se propone (informe de la sesión, `claridad_informe.md`). Sin cifras nuevas ni contenido nuevo.
+
+**Artículo, III-D (El P2P colectivo):**
+- Párrafo 1. (2) «pueden responderse también dentro de C4, con la regla que se propone, el P2P colectivo» pasa a «La regla propuesta, el P2P colectivo, responde dentro de C4 las dos preguntas: …». (4) «liquida la parte de cada miembro contra su importación residual» pasa a «acredita la parte de cada miembro hasta su importación residual». **Hallazgo del autor:** $\rho_{n,m}$ es ahora «el porcentaje del miembro $n$ en el mes $m$», y el índice $u$ de $\sum_u s_{u,k}$, que el artículo no definía, queda como «con $u$ cualquier miembro». No hay otro $u$ sin definir en el artículo (grep).
+- Párrafo 2. (6) «La regla también quita la del 10 %» pasa a «El P2P colectivo también quita la regla del 10 %, de modo que el caso lo decide la capacidad instalada por usuario (art. 18)». (1) «pequeños» se usaba antes de definirse; sale. (4, 5) «los dos supuestos pasan a la regla; el primero queda como el residual liquidado en C4» chocaba con el supuesto 1, «fuera de C4». Ahora: «Del primero conserva la deducción del numeral 1, aunque el residual se liquide en C4 y no por miembro. El segundo pasa a ser una exención declarada». «Los umbrales» pasa a «Ese umbral» (6).
+- Párrafo 3. (6) «que, como los supuestos, se solapan» no tenía referente claro. Ahora: «viene de dos cambios, quitar la regla del 10 % y eximir al intercambio. Como los supuestos, se solapan y se atribuyen por los dos órdenes».
+
+**III-E (Casos y análisis de sensibilidad):**
+- Párrafo 1. (2) La subordinada «elegidos de una matriz de 13 por mostrar…» dentro de la oración pasa a oración propia: «se eligieron de una matriz de 13 casos porque cada uno muestra algo que los demás no. Entre todos cubren los dos umbrales».
+- La caja. (1) «punto base» se define: «el del modelo sin perturbar». (2, 4) La lista de factores por sus nombres («de deducción del Cv del crédito, … de cargos de red sobre Θ del numeral 2 y del caso 2») pasa a lo que multiplica cada uno: «el Cv descontado del crédito, la bolsa, el CU, los cargos de red Θ del numeral 2 y del caso 2 y la generación y la demanda medidas».
+- La muestra. (2, 6) «n_s puntos en cada una de sus dos matrices, A y B, 2 048 en E0 y E4 y 512 en los demás, con 14 evaluaciones…» pasa a dos oraciones: «Sus dos matrices, A y B, tienen n_s puntos cuasialeatorios cada una, … Cada punto exige 14 evaluaciones del modelo».
+- La probabilidad de inversión. (6) «con signo distinto al del punto base» pasa a «es decir, la fracción … en que su signo difiere del que tiene en el punto base».
+- **Nota de la Tabla III.** (2) «pares institución-mes, de 45 (36 en SINU), en que la institución inyectó…» pasa a «pares institución-mes en que la institución inyectó más de lo que importó, de 45 (36 en SINU)».
+
+**IV-A (La descomposición):**
+- Párrafo 1. (6) «el mayor de los mecanismos comparados» y «el 4,52 % de C4» pasan a «más que cualquier otro mecanismo» y «un 4,52 % más». «El intercambio aporta» pasa a «El ahorro del intercambio es de» (nombre fijado). (4) «una fracción de 0,542 de ese ahorro, medida desde su piso» pasa a «De ese ahorro, el precio interno deja a los vendedores, por encima de su piso, una fracción de 0,542».
+- Párrafo 2. (6) «cada supuesto, solo, daría» («solo» ambiguo) pasa a «cada uno, por sí solo, da». (4) «El 1, que aquí es C1, daría 1,71» pasa a «Con solo el 1, el mercado es C1 y gana 1,71 MCOP. Con solo el 2, 1,62». «se agrega» pasa a «se añade», como en III-C.
+- Párrafo 3. (5) «Se liquida como C4 … queda por debajo de C4» parecía contradecirse. Ahora: «se liquida como C4, pero con otro porcentaje de reparto. En E0 nadie agota su crédito, así que no hay excedente que llevar de la bolsa al crédito». (6) Se quita «que en E0 no tiene excedente», cuyo sujeto era «el porcentaje».
+- Párrafo 4. (2, 6) «Según el orden, la regla vale 1,66 o 0,39 y el intercambio, 0,33 o 1,60» emparejaba los órdenes al revés en cada mitad y llamaba «la regla» a quitar la regla. Ahora: «Si se añaden primero, valen 1,66 y 1,60. Si se añaden después, 0,39 y 0,33».
+
+**IV-B (Los casos):**
+- Régimen del numeral 2. Falta el porqué: «deja a C4 sin cambio» pasa a «deja igual a C4, ya en el caso 2». (4) «ya supera la ventaja» pasa a «supera por sí solo la ventaja».
+- Párrafo tras la lista. (5) «miden C1 − C4, no lo que aporta el supuesto 1» parecía contradecir III-C. Ahora: «que es lo que aporta el supuesto 1 solo si se añade primero». (6) «el reparto depende del orden» confundía con el reparto de C4; pasa a «cuál domina depende del orden». «C1 es solo una cota inferior» pasa a «C1 solo acota por debajo».
+- P2P colectivo. (1) «con la lectura literal del art. 20 en I1» no decía qué hace esa lectura, que se presenta en IV-D. Ahora: «En I1, la lectura literal del art. 20 pasa la planta de la UCC al numeral 1». (2) Coma entre los dos órdenes; «se agrega» pasa a «se añade».
+- Referencias. (3) «C2 pierde frente a C1, porque…, salvo en E4, donde…» pasa a «Salvo en E4, C2 pierde ante C1, porque…». El porqué de E4 faltaba: «En E4 supera a C1 y a C4, porque casi todo el excedente es exceso y la bolsa paga menos que el contrato» (Tabla II). Se parte la cadena «, y C3 es el menor».
+
+**IV-C (Discusión):**
+- Párrafo 2. (4) «traduce esa lectura en una regla» pasa a «convierte esa liquidación en una regla». Se enlaza «Así, la comunidad manda a la bolsa…». (6) «la mayor parte de la ventaja» (¿sobre C4 o sobre el mercado?) pasa a «de esa ventaja».
+- Párrafo 3. (6) «que la caja no vuelve negativo» pasa a «y la caja no lo vuelve negativo». (1) La regla del tres se dice en concreto: «la cota superior al 95 % de un cero medido, tres entre 2n_s, es del…». (4) «la robustez vale dados los dos supuestos» pasa a «esta robustez vale solo con los dos supuestos».
+- Párrafo 4. (6) «en el 12,60 %, donde…» pasa a «en el 12,60 % de la caja. Allí…».
+- Párrafo 5. (6) «esa regla de despacho» remitía a III-B, tres páginas antes. Ahora: «En las horas en que sobra oferta, despachar a los vendedores con una regla distinta de la de menor a mayor piso baja hasta en un 13 % la ventaja del mercado P2P sobre C1».
+- Párrafo 6. (6) «Si también exime al intercambio, conservaría sus cargos de red» pasa a «Si también exime lo intercambiado, se ahorraría sus cargos de red».
+- Pie de la Fig. 3. (1) «muestra base», que el artículo no define, pasa a «n_s».
+
+**IV-D (Implicaciones regulatorias):**
+- Párrafo 1. (3) «la energía de cada miembro no intercambiada» pasa a «la energía que cada miembro no intercambia», como en la Tabla I. (4) «solo cabe en C4, sin superarlo» pasa a «se liquida en C4 y no lo supera, porque su gestor comunitario…».
+- Párrafo 3. (6) «El costo de cada una» (¿pregunta o lectura?) pasa a «El costo de cada pregunta». «seis solo de consumo» pasa a «seis de ellas sin planta».
+- Pregunta 1. (6) «sus cargos evitados» y «mide su costo» pasan a «los cargos evitados» y «mide el costo de la regla».
+- Pregunta 2. (5) Sale «también» de «supera también al mercado P2P»: en la pregunta 1 ese C4 no lo supera.
+
+**Conclusiones:**
+- Párrafo 1. (4) «su atribución al supuesto 1 depende del orden» pasa a «cuánto vale el supuesto 1 depende del orden».
+- Párrafo 2. (3) «Lo que el mercado P2P vale lo deciden, por tanto, dos definiciones» pasa a «Por tanto, dos definiciones regulatorias deciden lo que vale el mercado P2P». También «la energía que cada miembro no intercambia».
+- Párrafo 4. (2) La lista de condiciones llevaba «aunque C4 exige uno solo» en medio. Ahora va al final. (4) «el corte conocido dentro del mes» pasa a «el corte calculado con los totales del mes». (6) «el de operarlo» pasa a «el de operar el mercado». (1, 3) «una tercera regla, con núcleo P2P, que … exime al intercambio del numeral 1» pasa a «un tercer modelo con mercado P2P, que deduce cada kWh del fondo con el numeral de su planta y solo exime del Cv lo que venden las plantas del numeral 1» (CANON §14.29).
+- **Pie de la Fig. 2.** (4) «la mayor escala bajo 100 kW» pasa a «la mayor escala sin plantas de más de 100 kW». «su eje, cortado» pasa a «su propio eje vertical, cortado».
+
+**No cupo en el artículo** (cada uno devolvía las biografías a la página 10; los dos primeros medidos con `c332_prueba.py`, a +1 línea):
+- **IV-A, E3: el porqué del corte.** «cada kWh vendido dentro reemplaza una venta a la bolsa y ahorra la tarifa del comprador menos la bolsa (3)». Sin eso, «Por eso, el 43,33 %… aporta el 86,60 %» no dice por qué el tramo posterior al corte rinde tanto. La tesis lo tiene.
+- **IV-D, párrafo 2.** «exige cambios en el art. 20 y en la tarifa» seguiría abstracto. Lo concreto sería «exige quitar la regla del 10 % del art. 20 y declarar la exención en la tarifa».
+- **Observación de contenido, sin cambio.** III-E dice que el valor «crece en proporción» al escalar las series «de generación o de demanda». La tesis (§ de la matriz) lo afirma solo para las dos juntas. Lo decide el autor.
+
+**Tesis** (`tesis_entrega.tex` y anexo C), con el mismo criterio:
+- $m(k)$ se usaba en la sección del modelo (techo del comprador) antes de definirse en la de escenarios. Ahora se define allí: «con $m(k)$ el mes de la hora $k$».
+- $u$ se define donde nace el fondo: «del fondo $F_k$, que junta la inyección de todos los miembros $u$», en el cuerpo y en el anexo C. $F^{\mathrm{r}}_k$ y las sumas del P2P mutualizado vienen después. $m$ ya estaba definida (marco común).
+- P2P colectivo: «La regla también quita la del 10 %» pasa a «El P2P colectivo también quita la regla del 10 %». «El residual va al autogenerador colectivo, pero con la deducción del numeral 1» pasa a «… y no se liquida por miembro, pero conserva la deducción del numeral 1, que es lo que valía el supuesto 1».
+- E0, el mercado sin supuestos: «Se liquida como C4 y solo puede cambiar el porcentaje» pasa a «Se liquida como C4, pero con otro porcentaje de reparto».
+- E0, P2P colectivo: los dos órdenes emparejados («Eximir al intercambio vale 1,60 si se agrega primero y 0,33 si se agrega después»).
+- «Esos porcentajes miden la parte de C1 − C4 en la ventaja, que es lo que aporta el supuesto 1 solo si se añade primero».
+- La regla del tres, «tres entre 2n_s».
+- «uno que exima lo intercambiado se ahorra sus cargos de red».
+- «cuánto cuesta cada pregunta» y «cerca de los cargos evitados».
+- Conclusiones: «lo que pone cada cambio depende del orden» y «al quitar la regla del 10 %».
+- Nota de la tabla de casos y pie de la cascada, como en el artículo.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, 0 `multiply defined`. Vetadas LIMPIA en `articulo_es.tex` y `tablas/tabla_casos.tex`; cifras LIMPIO. Holgura medida: una línea más lleva a 10 páginas, igual que antes. Números fuera de comentarios, sin cambio: solo aparece un «2» de más, el del símbolo $2n_{\mathrm{s}}$.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas. Vetadas LIMPIA en `tesis_entrega.tex` y `anexos/anexo_C.tex`. Números sin cambio, salvo índices: el «2» de $2n_{\mathrm{s}}$ y el de «P2P colectivo», y el «1» de «supuesto 1».
+- Respaldo previo en el scratchpad de la sesión, `antes_c332/`. Los guiones son `c332_edits.py`, `c332_tesis.py`, `c332_medir.py` (marcadores `\pdfsavepos` por párrafo), `c332_prueba.py` y `c332_holgura.py`.
+
+### C-333 · Propuestas de claridad aprobadas para Introducción–III-C y la escala de III-E (2026-10-05)
+
+**Decisión del autor:** aplicar las trece propuestas de costo cero de C-332 (P01, P03-P07, P09, P11-P13, P19, P20 y P22), junto con P15, y cambiar «generación o de demanda» por «a la vez … generación y de demanda» en III-E.
+
+**Artículo:**
+- **P01:** «en las demás toman energía de ella».
+- **P03 y P06:** «la energía que cada miembro no intercambia».
+- **P04:** «los dos órdenes en que pueden añadirse a C4, uno tras otro».
+- **P05:** las cuatro variantes, en dos oraciones.
+- **P07:** «Este artículo amplía esa comparación a 6 144 horas».
+- **P09:** «en cada hora».
+- **P11:** «Cuando no hay porcentaje declarado, C4 reparte por igual entre las fronteras (art. 9)».
+- **P12:** la frase de C5 reordenada; las condiciones de la Tabla I ya no siguen a los dos puntos.
+- **P13:** «si un intercambio interno, que usa la red, paga cargos».
+- **P15:** el modelo de Chacón se presenta como «el modelo base».
+- **P19:** «Si se omite el índice del mes».
+- **P20:** la energía va primero «a quien más ofrece pagar en el reposo», porque todos pagan el mismo precio uniforme.
+- **P22:** el pie de la Fig. 1 remite a la oferta y la demanda de (4) para cada piso probado.
+- **III-E:** el valor crece en proporción al escalar a la vez la generación y la demanda. Al escalar solo la generación, el autoconsumo se satura y la proporción se rompe sin cruzar ningún umbral. La tesis ya lo decía así.
+
+**Tesis:** P20 en sus tres apariciones («primero a quien más ofrece pagar en el reposo»). Las demás frases no tienen equivalente literal en la tesis.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** compilada sin Overfull ni indefinidas, vetadas LIMPIA.

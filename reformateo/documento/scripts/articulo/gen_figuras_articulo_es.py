@@ -139,8 +139,11 @@ MARCAS = {
     "fig4_gsa_inversion": {"0", "20", "40", "60", "80", "100", "80100", "95", "2 048", "2048", "2 048"},  # n = 2 048 (gsa__<c>__n)
     "fig4_gsa_inversion_tesis": {"0", "20", "40", "60", "80", "100", "80100", "95", "2 048", "2048", "2 048"},  # n = 2 048 (gsa__<c>__n)
 }
+MARCAS["fig1_horas_E0"] = MARCAS["fig_hora_E0"] | {"13", "5", "10"}  # 13:00 y marcas del eje de energía
+HORAS = {"fig_hora_E0", "fig1_horas_E0"}                     # salen del almacén, no de cifras.csv
 RES: list[dict] = []
 IMPRESOS: dict[str, set[str]] = {}                          # números que cada figura escribe
+HORA: dict = {}                                             # datos de la hora, ya con sus compuertas
 
 
 def exige(cond: bool, msg: str) -> None:
@@ -975,6 +978,7 @@ def fig_hora() -> None:
     salida["disponible_kWh"] = [float(x.loc[i, "sobrante" if p == "vendedor" else "faltante"])
                                 for i, p in zip(datos.institucion, datos.papel)]
     salida["oferta_kWh"], salida["demanda_kWh"], salida["volumen_kWh"] = oferta, demanda, volumen
+    HORA.update(salida=salida.copy(), proc=[*proc, *rastro_ag, *rastro_h])
     guardar(fig, nombre, salida, "pag", [
         "reutiliza sin modificar reformateo/documento/scripts/gen_tesis_figuras.py, función "
         "c5_banda_hora() (Figura 5.1 de la tesis; la misma de Documentos/Tesis_entrega/figuras/"
@@ -986,6 +990,211 @@ def fig_hora() -> None:
         "el precio uniforme y las energías de la hora (vende, recibe, oferta, demanda, volumen) "
         "salen del almacén de E0 con huella y NO están en cifras.csv: si el texto las cita, hay "
         "que registrarlas antes"])
+
+
+def _datos_hora(fecha: str) -> dict:
+    """Una hora de E0 desde el almacén con huella, con las compuertas de la forma cerrada."""
+    ag, r_ag = G.almacen("E0", "agentes")
+    fl, r_fl = G.almacen("E0", "flujos")
+    hh, r_h = G.almacen("E0", "horas")
+    a = ag[ag.fecha.astype(str) == fecha]
+    f = fl[fl.fecha.astype(str) == fecha]
+    h = hh[hh.fecha.astype(str) == fecha]
+    exige(len(h) == 1 and bool(h.resuelta.iloc[0]), f"hora {fecha}: no está resuelta en el almacén")
+    h = h.iloc[0]
+    ren = {"Cesmag": "Unicesmag", "Mariana": "Unimar"}
+    ven = a[a.sobrante > 1e-9][["agente", "piso", "sobrante", "vende_p2p"]].copy()
+    com = a[a.faltante > 1e-9][["agente", "techo", "faltante", "compra_p2p"]].copy()
+    pago = f.groupby("comprador").agg(precio=("precio", "first"), reposo=("precio_reposo", "first"))
+    com = com.join(pago, on="agente")
+    exige(com.precio.notna().all(), f"hora {fecha}: un comprador sin flujo")
+    pj, pu, vol = float(h.piso_juego), float(h.precio_uniforme), float(h.volumen)
+    oferta, demanda = float(ven.sobrante.sum()), float(com.faltante.sum())
+    # compuertas de la forma cerrada (ecs. del piso del juego, volumen y emparejamiento)
+    exige(abs(vol - min(oferta, demanda)) <= 1e-4, f"hora {fecha}: el volumen no es el lado corto")
+    exige(abs(ven.vende_p2p.sum() - vol) <= 1e-4 and abs(com.compra_p2p.sum() - vol) <= 1e-4,
+          f"hora {fecha}: lo vendido o lo comprado no es el volumen")
+    exige(abs(f.kwh.sum() - vol) <= 1e-3, f"hora {fecha}: los flujos no suman el volumen")
+    exige(any(abs(ven.piso - pj) <= 1e-3), f"hora {fecha}: el piso del juego no es el de un vendedor")
+    exige(bool((ven[ven.vende_p2p > 1e-6].piso <= pj + 1e-3).all()), f"hora {fecha}: vende alguien sobre el piso del juego")
+    exige(bool((com.techo >= pj - 1e-3).all()), f"hora {fecha}: compra alguien bajo el piso del juego")
+    exige(bool(((com.precio - np.minimum(pu, com.techo)).abs() <= 1e-3).all()),
+          f"hora {fecha}: algún comprador no paga min(precio uniforme, techo)")
+    if oferta < demanda:      # vendedores cortos: cada vendedor entrega toda su inyección
+        exige(bool(((ven.vende_p2p - ven.sobrante).abs() <= 1e-4).all()), f"hora {fecha}: un vendedor no vende todo")
+    else:                     # compradores cortos: cada comprador recibe toda su importación y
+        exige(bool(((com.compra_p2p - com.faltante).abs() <= 1e-4).all()), f"hora {fecha}: un comprador no recibe todo")
+        bajo = ven[ven.piso < pj - 1e-3]          # los de piso menor que el del juego venden todo
+        exige(bool(((bajo.vende_p2p - bajo.sobrante).abs() <= 1e-4).all()), f"hora {fecha}: no se despachó por piso")
+    # pisos y techos de abril de 2025 = claves de cifras.csv
+    claves = {"Udenar": ("piso", "kwh__ASC__2025-04__C1"), "HUDN": ("piso", "kwh__ASC__2025-04__C1"),
+              "Cesmag": ("piso", "kwh__CEDENAR__2025-04__C1")}
+    for _, v in ven.iterrows():
+        exige(v.agente in claves, f"hora {fecha}: vendedor sin clave de piso ({v.agente})")
+        exige(abs(float(v.piso) - V(claves[v.agente][1], "fig1_horas_E0")) <= 0.01, f"piso de {v.agente} ≠ su clave")
+    for _, c in com.iterrows():
+        exige(c.agente in {"Mariana", "UCC", "HUDN"}, f"hora {fecha}: comprador inesperado ({c.agente})")
+        exige(abs(float(c.techo) - V("kwh__ASC__2025-04__CU", "fig1_horas_E0")) <= 0.01, f"techo de {c.agente} ≠ su clave")
+    ven["agente"] = ven.agente.replace(ren)
+    com["agente"] = com.agente.replace(ren)
+    ven = ven.sort_values(["piso", "agente"]).reset_index(drop=True)            # orden de mérito
+    com = com.sort_values(["precio", "reposo"], ascending=False).reset_index(drop=True)
+    return dict(fecha=fecha, ven=ven, com=com, pj=pj, pu=pu, vol=vol, oferta=oferta, demanda=demanda,
+                corto="vendedores cortos" if oferta < demanda else "compradores cortos",
+                proc=[*r_ag, *r_fl, *r_h])
+
+
+def _panel_hora(fig, gs, d: dict, letra: str, hora: str, GE, rotulos_eje: bool = True) -> None:
+    """Un panel: arriba, el eje de precios; abajo, la energía en orden de mérito."""
+    ax = fig.add_subplot(gs[0])
+    ae = fig.add_subplot(gs[1])
+    fmt = lambda z: G.num(z, 2)
+    ven, com, pj, pu = d["ven"], d["com"], d["pj"], d["pu"]
+    lo, hi = 607.0, 745.0
+    nv, nc = len(ven), len(com)
+    y_v = [nv + nc + 0.6 - i for i in range(nv)]            # vendedores arriba
+    y_c = [nc - 1 - i for i in range(nc)]                   # compradores abajo
+    for y, (_, c) in zip(y_c, com.iterrows()):
+        ax.plot([pj, c.techo], [y, y], color=GE.APOYO, lw=6.5, solid_capstyle="butt", zorder=1)
+        ax.plot([c.techo], [y], marker="|", markersize=9, mew=1.6, color=GE.TINTA, zorder=4)
+        ax.plot([c.reposo], [y], marker="o", markersize=5, mfc="white", mec=GE.TINTA, mew=1.1, zorder=5)
+        ax.plot([c.precio], [y], marker="D", markersize=3.8, color=GE.MECANISMOS["P2P"], zorder=6)
+        ax.text(lo + 2, y, f"recibe {fmt(c.compra_p2p)} de {fmt(c.faltante)} kWh", ha="left", va="center",
+                fontsize=FS, color=E.COLOR_TEXTO)
+    for y, (_, v) in zip(y_v, ven.iterrows()):
+        ax.plot([v.piso], [y], marker="^", markersize=6, color=GE.TINTA, zorder=5)
+        t = f"vende {fmt(v.vende_p2p)} de {fmt(v.sobrante)} kWh"
+        if float(v.piso) >= pj - 1e-3:
+            ax.text(float(v.piso) - 3, y, t, ha="right", va="center", fontsize=FS, color=E.COLOR_TEXTO)
+        else:
+            ax.text(float(v.piso) + 3, y, t, ha="left", va="center", fontsize=FS, color=E.COLOR_TEXTO)
+    ax.axvline(pj, color=GE.TINTA, lw=0.8, ls=(0, (3, 2)), zorder=2)
+    ax.axvline(pu, color=GE.MECANISMOS["P2P"], lw=0.9, zorder=2)
+    top = nv + nc + 0.6 + 0.55
+    ax.text(pj - 1, top, fmt(pj), ha="right", va="bottom", fontsize=FS, color=GE.TINTA)
+    ax.text(pu + 1, top, fmt(pu), ha="left", va="bottom", fontsize=FS, color=GE.MECANISMOS["P2P"])
+    ax.text(lo - 0.5, top + 0.62, f"({letra}) {hora}, {d['corto']}", ha="left", va="bottom",
+            fontsize=FS_TIT, fontweight="bold", color=E.COLOR_TEXTO, clip_on=False,
+            transform=ax.transData)
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(-0.55, top)
+    ax.set_yticks(y_v + y_c)
+    ax.set_yticklabels([*ven.agente, *com.agente])
+    for t in ax.get_yticklabels():
+        t.set_color(GE.color_institucion({"Unicesmag": "Cesmag", "Unimar": "Mariana"}.get(t.get_text(), t.get_text())))
+        t.set_fontweight("bold")
+    ax.axhline(nc - 0.2 + 0.4, color="#D5D5D5", lw=0.5, zorder=0)
+    ax.set_xticks([620, 640, 660, 680, 700, 720, 740])
+    if rotulos_eje:
+        ax.set_xlabel("Precio (COP/kWh)", labelpad=1)
+    ax.tick_params(axis="y", length=0)
+    ax.tick_params(axis="x", pad=1.5)
+    ax.grid(axis="x", color="#E6E6E6", lw=0.5, zorder=0)
+    for lado in ("top", "right"):
+        ax.spines[lado].set_visible(False)
+
+    # Energía: oferta en orden de mérito y demanda en orden de servicio; lo no transado, rayado.
+    def barra(y, partes):
+        x = 0.0
+        for nombre, hecho, total in partes:
+            col = GE.color_institucion({"Unicesmag": "Cesmag", "Unimar": "Mariana"}.get(nombre, nombre))
+            ae.barh(y, hecho, left=x, height=0.62, color=col, ec="white", lw=0.4, zorder=2)
+            x += hecho
+        for nombre, hecho, total in partes:
+            if total - hecho > 1e-6:
+                col = GE.color_institucion({"Unicesmag": "Cesmag", "Unimar": "Mariana"}.get(nombre, nombre))
+                ae.barh(y, total - hecho, left=x, height=0.62, color="white", ec=col, lw=0.5,
+                        hatch="////", zorder=2)
+                x += total - hecho
+        return x
+    barra(1, [(v.agente, float(v.vende_p2p), float(v.sobrante)) for _, v in ven.iterrows()])
+    barra(0, [(c.agente, float(c.compra_p2p), float(c.faltante)) for _, c in com.iterrows()])
+    ae.axvline(d["vol"], color=GE.TINTA, lw=0.8, ls=(0, (3, 2)), zorder=3)
+    y_corto = 1 if d["oferta"] < d["demanda"] else 0     # la fila del lado corto acaba en E_k
+    ae.text(d["vol"] + 0.2, y_corto, f"$E_k$ = {fmt(d['vol'])} kWh", ha="left", va="center", fontsize=FS,
+            color=GE.TINTA)
+    ae.set_xlim(0, 13.6)
+    ae.set_ylim(-0.45, 1.45)
+    ae.set_yticks([1, 0])
+    ae.set_yticklabels(["oferta", "demanda"])
+    ae.set_xticks([0, 5, 10])
+    if rotulos_eje:
+        ae.set_xlabel("Energía (kWh)", labelpad=1)
+    ae.tick_params(axis="y", length=0)
+    ae.tick_params(axis="x", pad=1.5)
+    for lado in ("top", "right"):
+        ae.spines[lado].set_visible(False)
+    for z in [pj, pu, d["vol"], d["oferta"], d["demanda"], *ven.vende_p2p, *ven.sobrante,
+              *com.compra_p2p, *com.faltante]:
+        IMPRESOS.setdefault("fig1_horas_E0", set()).add(fmt(z))
+
+
+def fig_horas_col() -> None:
+    """Fig. 1 del artículo desde el 2026-10-05: dos horas de E0 del mismo día a una columna.
+
+    (a) 14 de abril de 2025, 13:00: sobra sol, compradores cortos. Se despacha
+    por piso: Unicesmag, el de piso más bajo, vende todo; HUDN y Udenar empatan en
+    el piso del juego y se llenan por niveles. Los compradores reciben todo.
+    (b) la misma tarde, 16:00: vendedores cortos. Los dos vendedores venden todo;
+    la energía va primero a quien paga más (UCC) y el resto, por niveles. HUDN
+    cambia de papel entre las dos horas.
+    Cada panel muestra el piso del juego (ec. del piso del juego), el volumen
+    como lado corto (ec. del volumen) y, en la tira de energía, el orden de
+    mérito y de servicio con lo que queda sin transar."""
+    nombre = "fig1_horas_E0"
+    GE = G.E
+    IMPRESOS[nombre] = set()
+    a = _datos_hora("2025-04-14 13:00:00")
+    b = _datos_hora("2025-04-14 16:00:00")
+    exige(a["corto"] == "compradores cortos" and b["corto"] == "vendedores cortos",
+          "las dos horas ya no muestran los dos regímenes")
+    exige("HUDN" in set(a["ven"].agente) and "HUDN" in set(b["com"].agente), "HUDN ya no cambia de papel")
+    exige(abs(b["vol"] - float(HORA["salida"].volumen_kWh.iloc[0])) <= 1e-4,
+          "la hora de las 16:00 no es la de fig_hora_E0")
+    fig = plt.figure(figsize=(ANCHO_COL, 4.45))
+    gs = fig.add_gridspec(5, 1, height_ratios=[1.6, 0.5, 0.02, 1.6, 0.5], hspace=0.5,
+                          left=0.215, right=0.985, top=0.94, bottom=0.225)
+    _panel_hora(fig, [gs[0], gs[1]], a, "a", "13:00", GE, rotulos_eje=False)
+    _panel_hora(fig, [gs[3], gs[4]], b, "b", "16:00", GE)
+    ley = [
+        Line2D([], [], ls="none", marker="^", markersize=5.5, color=GE.TINTA, label="piso del vendedor"),
+        Line2D([], [], ls="none", marker="|", markersize=8, mew=1.6, color=GE.TINTA, label="techo (CU)"),
+        Line2D([], [], ls="none", marker="o", markersize=4.5, mfc="white", mec=GE.TINTA,
+               label="precio del reposo (modelo base)"),
+        Line2D([], [], ls="none", marker="D", markersize=3.6, color=GE.MECANISMOS["P2P"],
+               label="precio que paga"),
+        Line2D([], [], color=GE.TINTA, lw=0.8, ls=(0, (3, 2)), label="piso del juego"),
+        Line2D([], [], color=GE.MECANISMOS["P2P"], lw=0.9, label="precio uniforme"),
+        Patch(facecolor=GE.APOYO, label="banda en el juego"),
+        Patch(facecolor="white", edgecolor=GE.TINTA, hatch="////", lw=0.5, label="sin transar"),
+    ]
+    fig.legend(handles=ley, loc="lower center", ncol=2, frameon=False, fontsize=FS, handlelength=1.1,
+               columnspacing=0.7, handletextpad=0.35, borderaxespad=0.05)
+    T.renombra_instituciones(fig)
+    T.menos_tipografico(fig)
+    filas = []
+    for letra, d in (("a", a), ("b", b)):
+        for _, v in d["ven"].iterrows():
+            filas.append(dict(panel=letra, hora=d["fecha"], regimen=d["corto"], papel="vendedor",
+                              institucion=v.agente, piso_COP_kWh=float(v.piso), disponible_kWh=float(v.sobrante),
+                              transado_kWh=float(v.vende_p2p), piso_juego_COP_kWh=d["pj"],
+                              precio_uniforme_COP_kWh=d["pu"], volumen_kWh=d["vol"]))
+        for _, c in d["com"].iterrows():
+            filas.append(dict(panel=letra, hora=d["fecha"], regimen=d["corto"], papel="comprador",
+                              institucion=c.agente, techo_COP_kWh=float(c.techo),
+                              precio_reposo_COP_kWh=float(c.reposo), precio_pagado_COP_kWh=float(c.precio),
+                              disponible_kWh=float(c.faltante), transado_kWh=float(c.compra_p2p),
+                              piso_juego_COP_kWh=d["pj"], precio_uniforme_COP_kWh=d["pu"], volumen_kWh=d["vol"]))
+    guardar(fig, nombre, pd.DataFrame(filas), "col", [
+        "dos horas de E0 del 14 de abril de 2025 (13:00, compradores cortos; 16:00, vendedores cortos), "
+        "leídas del almacén con huella; la de las 16:00 es la de fig_hora_E0 y la Figura 5.1 de la tesis",
+        "compuertas: volumen = lado corto = lo vendido = lo comprado = suma de flujos; el piso del juego es el "
+        "de un vendedor; nadie vende sobre él ni compra bajo él; cada comprador paga min(uniforme, techo); con "
+        "vendedores cortos cada vendedor vende todo; con compradores cortos cada comprador recibe todo y los de "
+        "piso menor venden todo; pisos y techos = claves kwh__*__2025-04__* de cifras.csv",
+        *a["proc"],
+        "el precio uniforme y las energías de las dos horas salen del almacén de E0 con huella y NO están en "
+        "cifras.csv: si el texto las cita, hay que registrarlas antes"])
 
 
 # ── Fig. 3: los trece casos, con el P2P comunitario (variante española) ─────
@@ -1265,7 +1474,7 @@ def comprueba() -> None:
                 malos.append(f"{x.texto} (punto decimal)")
             elif n in IMPRESOS and forma not in IMPRESOS[n]:
                 malos.append(f"{x.texto} (no lo escribe ninguna clave de la figura)")
-            elif n != "fig_hora_E0" and not fuentes.presente(x):
+            elif n not in HORAS and not fuentes.presente(x):
                 malos.append(f"{x.texto} (no está en cifras.csv)")
         exige(not malos, f"{n}: números impresos no justificados: {malos}")
         print(f"  {n:<20} {r['caja']:<4} {w:.5f} × {h:.3f} in  PNG {px[0]} × {px[1]} px  "
@@ -1293,7 +1502,9 @@ def main() -> int:
     fig2_dos()        # Fig. 2 vigente desde el 2026-10-03 (dos cascadas, E0 y E3); fig2() queda por sus compuertas
     fig_hora()
     rc_articulo()
-    fig3()                                               # variante española (P2P comunitario)
+    fig_horas_col()   # Fig. 1 del artículo desde el 2026-10-05: dos horas de E0, una columna
+    rc_articulo()
+    fig3()                                              # variante española (P2P comunitario)
     rc_articulo()
     fig4()
     rc_articulo()

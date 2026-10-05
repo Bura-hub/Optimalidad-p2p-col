@@ -225,6 +225,45 @@ Añadido el 2026-10-04 (H1 y H2, C-283), también al final, de modo que las
     cero sin plantas mixtas; las tres tablas de CANON §14.26 y los recuentos de
     su frase citable.
 
+Añadido el 2026-10-05 (el GSA con H1), también al final, de modo que las
+2 969 filas anteriores salen iguales byte a byte:
+
+20. La P(inversión) de las cuatro brechas de H1 en la caja del GSA del
+    2026-10-04 (CANON §13.10; grupos `gsa3/`, entrega
+    `entrega_gsa_directo_h1_2026-10-04/`): H1 («H1 fondo», §14.26) − C4, − C1,
+    − P2P y − P2P colectivo, con su intervalo al 95 % y su valor en el punto
+    base, por caso (`gsa3__<caso>__<sufijo>__p|lo|hi|base`, con sufijos
+    `H1_C4`, `H1_C1`, `H1_P2P` y `H1_P2Pcom`); los casos sin inversión de cada
+    una (`gsa3__n_casos_sin_inversion_<sufijo>`; la de H1_C1, de los ocho sin
+    identidad) y los de identidad (`gsa3__n_casos_identidad_H1_C1`). En E0,
+    P2, K1 y SINU, H1 − C1 es identidad y su P es ruido: la definición de esas
+    claves dice «no se cita». Las claves de los GSA del 27 y del 2 no cambian.
+    Compuertas (3): las doce brechas de la entrega del 2 salen al bit en la
+    nueva (y la P es la de sus claves); las dos tablas y los intervalos de
+    CANON §13.10.3; la identidad H1 − C1 y la base de H1 − C4 igual a
+    `h1__<caso>__H1_C4`.
+
+Añadido el 2026-10-05 (H2 exacto), también al final, de modo que las 3 166
+filas anteriores salen iguales byte a byte:
+
+21. H2 exacto (CANON §14.29): H2 liquidado sobre el mercado resuelto con el
+    piso de H2 (la matriz de trece casos del 2026-10-05), de
+    `h2_exacto_2026-10-05/h2_exacto_13casos.csv` (grupo `e1/H2`). Por caso, la
+    comunidad (`h2x__<caso>__<magnitud>`): H2 exacto (`H2`, el cargo del
+    numeral 2 al vendedor, la cifra), H2 aproximado (`H2_aprox`, el de e1/H1,
+    que no se cita) y H2 con el cargo al comprador (`H2_comprador`); C4, C1,
+    P2P y P2P colectivo (`B_C4`, `B_C1`, `B_P2P`, `B_P2Pcom`); las brechas de
+    H2 exacto con ellos y con H1 fondo (`H2_C4`, `H2_C1`, `H2_P2P`,
+    `H2_P2Pcom`, `H2_H1`); la energía transada y la del canon
+    (`transado_kwh`, `transado_canon_kwh`). Los pares institución-caso por
+    debajo de C4, C1, P2P y P2P colectivo (`h2x__pares__<contra>`) y la suma
+    de H2 exacto − C4 (`h2x__suma13__H2_C4`). Ninguna clave existente cambia.
+    Compuertas (2): los mecanismos, H2 aproximado y H1 fondo = sus claves
+    `com__*` y `h1__*`, brechas, signos y la suma, H2 exacto = H2 aproximado
+    con los flujos del canon en E0, K1, CV2 y SINU y la energía del canon =
+    `corte__<caso>__energia_kwh`; las cuatro tablas de CANON §14.29 y los
+    recuentos de su texto.
+
 Formato de `texto_en` (la forma exacta en que el valor aparece en el artículo):
 punto decimal, coma de millares a partir de 1 000, signo menos ASCII (`-`) y
 ningún `-0.00`. MCOP a dos decimales; porcentajes a dos decimales con « %»,
@@ -279,6 +318,7 @@ SALIDAS = RAIZ / "SALIDAS_SERVIDOR"
 BASE_MATRIZ = SALIDAS / "entrega_matriz_reposo_2026-09-19"
 BASE_GSA = SALIDAS / "entrega_gsa_directo_completo_2026-09-27"
 BASE_GSA2 = SALIDAS / "entrega_gsa_directo_c2_p2pcol_2026-10-03"   # grupos gsa2/ (§13.9)
+BASE_GSA3 = SALIDAS / "entrega_gsa_directo_h1_2026-10-04"          # grupos gsa3/ (§13.10)
 SALIDA =SALIDAS / "cifras_articulo_2026-09-30"
 
 CASOS = ["E0", "E1", "E2", "E3", "E4", "E5", "P1", "P2", "K1", "I1", "N1",
@@ -304,6 +344,19 @@ BRECHAS_GSA2 = {
     "C2ppa_menos_P2P": ("C2ppa_P2P", "C2ppa − P2P", "C2 como PPA (C2ppa) − P2P"),
     "P2Pcom_menos_C2ppa": ("P2Pcom_C2ppa", "P2Pcom − C2ppa", "P2P colectivo (P2Pcom) − C2 como PPA (C2ppa)"),
 }
+# 2026-10-05: las cuatro brechas de H1 del GSA del 2026-10-04 (grupos `gsa3/`,
+# CANON §13.10) -> sufijo de la clave, rótulo de la tabla de CANON §13.10.3 y
+# rótulo de la definición. Las claves llevan el prefijo `gsa3__`: no chocan con
+# las de los GSA del 27 y del 2, que siguen iguales.
+BRECHAS_GSA3 = {
+    "H1_menos_C4": ("H1_C4", "H1 − C4", "H1 (crédito mutualizado, «H1 fondo») − C4"),
+    "H1_menos_C1": ("H1_C1", "H1 − C1", "H1 (crédito mutualizado, «H1 fondo») − C1"),
+    "H1_menos_P2P": ("H1_P2P", "H1 − P2P", "H1 (crédito mutualizado, «H1 fondo») − P2P"),
+    "H1_menos_P2Pcom": ("H1_P2Pcom", "H1 − P2Pcom", "H1 (crédito mutualizado, «H1 fondo») − P2P colectivo (P2Pcom)"),
+}
+# Casos del Sobol en que H1 − C1 es identidad (nadie agota el crédito, CANON
+# §14.26 y §13.10.8): su P(inversión) es ruido de redondeo y no se cita.
+GSA3_IDENTIDAD = ("E0", "P2", "K1", "SINU")
 # mecanismo de la hoja Resumen -> sufijo de la clave y columna de CANON §6
 MECS = {"P2P": ("P2P", "P2P"), "P2P_colectivo": ("P2Pcol", "P2P colectivo"),
         "C1": ("C1", "C1"), "C4": ("C4", "C4"), "C5": ("C5", "C5")}
@@ -389,6 +442,8 @@ def _base(grupo: str) -> Path:
         return BASE_GSA
     if grupo.startswith("gsa2/"):
         return BASE_GSA2
+    if grupo.startswith("gsa3/"):
+        return BASE_GSA3
     if grupo.startswith("e1/"):
         return SALIDAS
     return BASE_MATRIZ
@@ -2589,6 +2644,112 @@ def gsa_c2_p2pcol() -> None:
     ok("P2P colectivo (P2Pcom) − C4 sin inversión en los 12 casos (CANON §13.9.3)")
 
 
+# ── 20. El GSA con H1, el crédito mutualizado (§13.10; añadido el 2026-10-05) ──
+def gsa_h1() -> None:
+    """P(inversión) de las cuatro brechas de H1 (H1 − C4, − C1, − P2P y − P2P
+    colectivo) en la caja del GSA del 2026-10-04, con su intervalo al 95 % y su
+    valor en el punto base. Compuertas: las doce brechas de comunidad de la
+    entrega del 2 salen al bit en la nueva; las dos tablas y los intervalos de
+    CANON §13.10.3; H1 − C1 identidad en E0, P2, K1 y SINU y la base de H1 − C4
+    igual a `h1__<caso>__H1_C4` (bloque 19)."""
+    sub = "SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04"
+    sub2 = "SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03"
+    ent = "entrega_gsa_directo_h1_2026-10-04/" + sub
+    pb = pd.read_csv(lee(f"{sub}/base/punto_base.csv", "gsa3/base")).set_index("caso")
+    # a) lo común con el GSA del 2026-10-02, al bit
+    cols = ["base", "p_inversion", "p_inf", "p_sup", "minimo", "maximo", "n_filas"]
+    nuevos = {}
+    for c in CASOS_GSA:
+        v3 = pd.read_csv(lee(f"{sub}/{c}/inversion_{c}.csv", f"gsa3/{c}")).set_index("salida")
+        v2 = pd.read_csv(lee(f"{sub2}/{c}/inversion_{c}.csv", f"gsa2/{c}")).set_index("salida")
+        comunes = [s for s in v2.index if s in v3.index]
+        exige(len(comunes) == len(v2), f"{c}: la entrega de H1 no trae todas las filas de la del 2")
+        exige(bool(np.array_equal(v2.loc[comunes, cols].to_numpy(float), v3.loc[comunes, cols].to_numpy(float),
+                                  equal_nan=True)),
+              f"{c}: inversion_{c}.csv difiere de la del 2 en las brechas comunes")
+        for b, (suf, *_) in list(BRECHAS.items()) + list(BRECHAS_GSA2.items()):
+            exige(v3.loc[b, "p_inversion"] * 100 == valor_de(f"gsa__{c}__{suf}__p"),
+                  f"{c} {b}: la clave gsa__ no es la P de la entrega de H1")
+        nuevos[c] = v3
+    ok("las doce brechas de comunidad del GSA del 2026-10-02, al bit en la entrega del 2026-10-04 (base, P, "
+       "intervalo, mínimo, máximo y filas, también por institución) en los 12 casos")
+    # b) CANON §13.10.3
+    s = seccion("#### 13.10.3 ·")
+    tp, tb, _ = tablas(s)
+    exige(list(tp.index) == CASOS_GSA and list(tb.index) == CASOS_GSA + ["CV2"], "CANON §13.10.3: casos de las tablas")
+    ic = {}
+    for m in re.finditer(r"^- (\w+): (.+)\.$", s, re.M):
+        for rot, lo, hi in re.findall(r"([^,;]+?), \[([−\d,]+); ([−\d,]+)\]", m.group(2)):
+            ic[(m.group(1), rot.strip())] = (num_es(lo), num_es(hi))
+    sin_inv = {b: 0 for b in BRECHAS_GSA3}
+    for c in CASOS_GSA:
+        v = nuevos[c]
+        n = int(num_es(tp.loc[c, "n"]))
+        for b, (suf, rot, rot_def) in BRECHAS_GSA3.items():
+            f = v.loc[b]
+            finito([f.p_inversion, f.p_inf, f.p_sup, f.base], f"inversion_{c} {b}")
+            exige(int(f.n_filas) == 2 * n, f"{c} {b}: {f.n_filas} filas, CANON §13.10.3 da n = {n}")
+            exige(abs(f.base - pb.loc[c, b]) <= 1e-6, f"{c} {b}: la base de inversion no es la de punto_base")
+            exige(f.p_inf <= f.p_inversion <= f.p_sup, f"{c} {b}: P fuera de su intervalo")
+            p, lo, hi = 100 * f.p_inversion, 100 * f.p_inf, 100 * f.p_sup
+            ident = b == "H1_menos_C1" and c in GSA3_IDENTIDAD
+            if ident:
+                exige(tp.loc[c, rot] == "(identidad)" and (c, rot) not in ic,
+                      f"{c} {b}: CANON §13.10.3 no la marca como identidad")
+            else:
+                esp = num_es(tp.loc[c, rot])
+                exige(abs(p - esp) <= 0.005 + 1e-9, f"{c} {b}: P = {p:.4f} %, CANON §13.10.3 da {esp}")
+                if esp == 0:
+                    exige(lo == 0 and hi == 0 and (c, rot) not in ic, f"{c} {b}: P nula con intervalo no nulo")
+                    sin_inv[b] += 1
+                else:
+                    elo, ehi = ic[(c, rot)]
+                    exige(abs(lo - elo) <= 0.005 + 1e-9 and abs(hi - ehi) <= 0.005 + 1e-9,
+                          f"{c} {b}: intervalo [{lo:.4f}, {hi:.4f}], CANON §13.10.3 da [{elo}, {ehi}]")
+            eb = num_es(tb.loc[c, rot])
+            exige(abs(f.base / M - eb) <= 0.005 + 1e-9, f"{c} {b}: base {f.base / M:.4f} MCOP, CANON §13.10.3 da {eb}")
+            nota = (" (identidad: H1 es C1 y la P es ruido de redondeo; no se cita, CANON §13.10.8)"
+                    if ident else "")
+            FG = f"{ent}/{c}/inversion_{c}.csv, fila {b}, columna "
+            pon(f"gsa3__{c}__{suf}__p", p, "%", en(p, 2, " %"),
+                f"P(inversión) de {rot_def} en la caja del GSA del 2026-10-04, caso {c}{nota}", FG + "p_inversion",
+                "§13.10")
+            pon(f"gsa3__{c}__{suf}__lo", lo, "%", en(lo, 2, " %"),
+                f"cota inferior al 95 % de P(inversión) de {rot_def}, caso {c}{nota}", FG + "p_inf", "§13.10")
+            pon(f"gsa3__{c}__{suf}__hi", hi, "%", en(hi, 2, " %"),
+                f"cota superior al 95 % de P(inversión) de {rot_def}, caso {c}{nota}", FG + "p_sup", "§13.10")
+            pon(f"gsa3__{c}__{suf}__base", f.base / M, "MCOP", en(f.base / M, 2),
+                f"{rot_def} en el punto base del GSA del 2026-10-04, caso {c}",
+                f"{ent}/base/punto_base.csv, columna " + b, "§13.10")
+    n_ic = sum(12 - k for k in sin_inv.values()) - len(GSA3_IDENTIDAD)
+    exige(len(ic) == n_ic, f"CANON §13.10.3: {len(ic)} intervalos leídos, se esperaban {n_ic}")
+    ok(f"la tabla de P(inversión) de las cuatro brechas de H1, sus {len(ic)} intervalos y la tabla del punto base de "
+       "CANON §13.10.3 en los 12 casos")
+    # c) la identidad H1 − C1 y la base de H1 − C4 frente al bloque 19
+    for c in CASOS_GSA:
+        f = nuevos[c].loc["H1_menos_C1"]
+        rango = max(abs(f.minimo), abs(f.maximo))
+        if c in GSA3_IDENTIDAD:
+            exige(rango <= 1.0 and abs(pb.loc[c, "H1"] - pb.loc[c, "C1"]) <= 1.0,
+                  f"{c}: H1 − C1 no es identidad (rango {rango})")
+        else:
+            exige(abs(f.base) > 1.0, f"{c}: H1 − C1 nula en el punto base fuera de los casos de identidad")
+        exige(abs(pb.loc[c, "H1_menos_C4"] / M - valor_de(f"h1__{c}__H1_C4")) <= 1e-6,
+              f"{c}: H1 − C4 del GSA no es h1__{c}__H1_C4")
+    exige(abs(pb.loc["CV2", "H1_menos_C1"]) <= 1.0, "CV2: H1 − C1 no es identidad en el punto base")
+    ok("H1 − C1 identidad a 1 COP en E0, P2, K1 y SINU (toda la caja) y CV2 (punto base); la base de H1 − C4 es "
+       "h1__<caso>__H1_C4 a 1e-6 MCOP en los 12 casos")
+    for b, (suf, rot, rot_def) in BRECHAS_GSA3.items():
+        de = "de 8 (sin los 4 de identidad)" if b == "H1_menos_C1" else "de 12"
+        pon(f"gsa3__n_casos_sin_inversion_{suf}", sin_inv[b], f"casos {de}", en_int(sin_inv[b]),
+            f"casos del GSA del 2026-10-04 con P(inversión) de {rot_def} igual a cero"
+            + (" (sin E0, P2, K1 y SINU, donde es identidad)" if b == "H1_menos_C1" else ""),
+            f"{ent}/<caso>/inversion_<caso>.csv, columna p_inversion, conteo", "§13.10")
+    pon("gsa3__n_casos_identidad_H1_C1", len(GSA3_IDENTIDAD), "casos de 12", en_int(len(GSA3_IDENTIDAD)),
+        "casos del GSA del 2026-10-04 en que H1 − C1 es identidad (E0, P2, K1 y SINU; nadie agota el crédito)",
+        f"{ent}/<caso>/inversion_<caso>.csv, fila H1_menos_C1, columnas minimo y maximo", "§13.10")
+
+
 # ── 18. El corte hx y el fondo del P2P colectivo (C-282; añadido el 2026-10-04) ──
 F_CF = "corte_fondo_2026-10-04/corte_fondo_13casos.csv"
 
@@ -2951,6 +3112,155 @@ def hibrido() -> None:
        "SINU, sobre el mercado P2P en 6")
 
 
+# ── 21. H2 exacto: el mercado con el piso de H2 (añadido el 2026-10-05) ──────
+F_H2X = "h2_exacto_2026-10-05/h2_exacto_13casos.csv"
+# sufijo de la clave -> (columna del CSV, unidad, definición)
+CLAVES_H2X = {
+    "H2": ("H2_exacto_COP", "MCOP", "H2 exacto (el mercado resuelto con el piso de H2 y H2 liquidado sobre esos flujos; el "
+           "cargo del numeral 2 lo paga el vendedor, con su tarifa): beneficio de la comunidad"),
+    "H2_aprox": ("H2_aprox_COP", "MCOP", "H2 aproximado (H2 de e1/H1, sobre los flujos del canon, formados con el piso de C1): "
+                 "beneficio de la comunidad"),
+    "H2_comprador": ("H2_exacto_cargo_comprador_COP", "MCOP", "H2 exacto con el cargo del numeral 2 al comprador, con su "
+                     "tarifa (variante que se publica al lado de la cifra): beneficio de la comunidad"),
+    "B_C4": ("B_C4_COP", "MCOP", "C4 (la misma de com__<caso>__C4): beneficio de la comunidad"),
+    "B_C1": ("B_C1_COP", "MCOP", "C1 (la misma de com__<caso>__C1): beneficio de la comunidad"),
+    "B_P2P": ("B_P2P_COP", "MCOP", "mercado P2P (el mismo de com__<caso>__P2P): beneficio de la comunidad"),
+    "B_P2Pcom": ("B_P2Pcom_COP", "MCOP", "P2P colectivo (el mismo de com__<caso>__P2Pcom): beneficio de la comunidad"),
+    "H2_C4": ("brecha_H2_exacto_menos_C4_COP", "MCOP", "H2 exacto − C4"),
+    "H2_C1": ("brecha_H2_exacto_menos_C1_COP", "MCOP", "H2 exacto − C1"),
+    "H2_P2P": ("brecha_H2_exacto_menos_P2P_COP", "MCOP", "H2 exacto − mercado P2P"),
+    "H2_P2Pcom": ("brecha_H2_exacto_menos_P2Pcom_COP", "MCOP", "H2 exacto − P2P colectivo (P2Pcom)"),
+    "H2_H1": ("brecha_H2_exacto_menos_H1_fondo_COP", "MCOP", "H2 exacto − H1 fondo (CANON §14.26)"),
+    "transado_kwh": ("vendido_dentro_kwh", "kWh", "energía transada dentro con el piso de H2 (matriz del 2026-10-05)"),
+    "transado_canon_kwh": ("vendido_dentro_canon_kwh", "kWh", "energía transada dentro en el canon (piso de C1, matriz "
+                           "del 2026-09-19)"),
+}
+H2X_CONTRA = {"C4": "C4", "C1": "C1", "P2P": "el mercado P2P", "P2Pcom": "el P2P colectivo (P2Pcom)"}
+H2X_IGUALES = ["E0", "K1", "CV2", "SINU"]    # piso de H2 = piso de C1 al bit (ADR 0062)
+
+
+def h2_exacto() -> None:
+    """H2 exacto (CANON §14.29): H2 liquidado sobre el mercado resuelto con el
+    piso de H2 (matriz del 2026-10-05), de `h2_exacto_2026-10-05/` (grupo
+    `e1/H2`). Por caso, la comunidad: H2 exacto, H2 aproximado y H2 con el
+    cargo al comprador; C4, C1, P2P y P2P colectivo; las brechas de H2 exacto
+    con ellos y con H1 fondo; la energía transada y la del canon. Los pares
+    institución-caso por debajo de cada mecanismo y la suma de H2 − C4.
+    Compuertas: los mecanismos, H2 aproximado y H1 fondo son sus claves; brechas,
+    signos y suma; H2 exacto = H2 aproximado y los flujos del canon en E0, K1,
+    CV2 y SINU, y la energía del canon es `corte__<caso>__energia_kwh`; las
+    cuatro tablas de CANON §14.29 a sus decimales y los recuentos de su texto."""
+    SEC = "§14.29"
+    X = pd.read_csv(lee(F_H2X, "e1/H2"), keep_default_na=False, na_values=[""])
+    exige(len(X) == 77, f"{F_H2X}: {len(X)} filas, no 77")
+    exige(not X.to_csv().lower().count("cedenar") and set(X.comercializador.fillna("")) <= {"", "A", "B"},
+          f"{F_H2X}: comercializador nombrado o sin anonimizar")
+    es_com = X.institucion == "comunidad"
+    C = X[es_com].set_index("caso")
+    I = X[~es_com]
+    exige(list(C.index) == CASOS and len(I) == 64, f"{F_H2X}: casos de la comunidad o pares institución-caso")
+    num = [c for c in X.columns if c.endswith(("_COP", "_kwh"))]
+    finito(X[num].to_numpy(dtype=float), F_H2X)
+    FC = F_H2X + ", fila comunidad, "
+    # (a) contra las claves ya emitidas, brechas, signos, la suma, las identidades y la energía del canon
+    for c in CASOS:
+        r = C.loc[c]
+        for k, col in [("com__{}__C4", "B_C4_COP"), ("com__{}__C1", "B_C1_COP"), ("com__{}__P2P", "B_P2P_COP"),
+                       ("com__{}__P2Pcom", "B_P2Pcom_COP"), ("h1__{}__H2", "H2_aprox_COP"),
+                       ("h1__{}__H1", "H1_fondo_COP")]:
+            exige(abs(float(r[col]) / M - valor_de(k.format(c))) <= 1e-6,
+                  f"{c}: {col} {float(r[col]) / M:.6f} ≠ {k.format(c)} {valor_de(k.format(c)):.6f}")
+        exige(abs(float(r.vendido_dentro_canon_kwh) - valor_de(f"corte__{c}__energia_kwh")) <= 1e-3,
+              f"{c}: la energía del canon no es corte__{c}__energia_kwh")
+        ins = X[(X.caso == c) & ~es_com]
+        for k in num:
+            exige(abs(float(ins[k].sum()) - float(r[k])) <= max(1e-3, 1e-6 * abs(float(r[k]))),
+                  f"{c}: la comunidad no es la suma en {k}")
+    for x in H2X_CONTRA:
+        b = X.H2_exacto_COP - X[f"B_{x}_COP"]
+        exige(float((b - X[f"brecha_H2_exacto_menos_{x}_COP"]).abs().max()) <= 1e-3, f"brecha de H2 exacto con {x}")
+        s = X[f"signo_H2_exacto_menos_{x}"]
+        exige(bool(((s == 1) == (b > 1.0)).all() and ((s == -1) == (b < -1.0)).all()), f"signo de H2 exacto con {x}")
+    for c in H2X_IGUALES:
+        t = X[X.caso == c]
+        exige(float((t.H2_exacto_COP - t.H2_aprox_COP).abs().max()) <= 1.0
+              and float((t.vendido_dentro_kwh - t.vendido_dentro_canon_kwh).abs().max()) <= 1e-3,
+              f"{c}: H2 exacto ≠ H2 aproximado o flujos distintos del canon, donde el piso de H2 es el de C1")
+    ok("H2 exacto (e1/H2): C4, C1, P2P, P2Pcom, H2 aproximado y H1 fondo de la comunidad = com__<caso>__*, "
+       "h1__<caso>__H2 y __H1 (≤ 1 COP); brechas y signos coherentes fila a fila; la comunidad es la suma; H2 exacto = "
+       "H2 aproximado por institución (≤ 1 COP) con los flujos del canon en E0, K1, CV2 y SINU; la energía del canon es "
+       "corte__<caso>__energia_kwh")
+    # (b) las claves por caso
+    for c in CASOS:
+        r = C.loc[c]
+        for suf, (col, u, dfn) in CLAVES_H2X.items():
+            v = float(r[col]) / (M if u == "MCOP" else 1.0)
+            nota = ""
+            if suf in ("H2", "H2_aprox") and c in H2X_IGUALES:
+                nota = "; en este caso es igual a H2 %s (el piso de H2 es el de C1)" % (
+                    "aproximado" if suf == "H2" else "exacto")
+            if suf == "H2_aprox":
+                nota += "; no se cita: H2 se cita desde e1/H2 (CANON §14.29)"
+            pon(f"h2x__{c}__{suf}", v, u, en(v, 2), f"{dfn.replace('<caso>', c)}, caso {c}{nota}", FC + col, SEC)
+    # (c) los pares y la suma
+    pares = {}
+    for x, rot in H2X_CONTRA.items():
+        n = int((I[f"signo_H2_exacto_menos_{x}"] == -1).sum())
+        pares[x] = n
+        pon(f"h2x__pares__{x}", n, "pares de 64", en_int(n),
+            f"pares institución-caso (de 64) con H2 exacto por debajo de {rot} (más de 1 COP)",
+            F_H2X + f", 64 filas institución-caso, signo_H2_exacto_menos_{x} = -1", SEC)
+    s4 = float(C.brecha_H2_exacto_menos_C4_COP.sum()) / M
+    pon("h2x__suma13__H2_C4", s4, "MCOP", en(s4, 2), "suma de los 13 casos de H2 exacto − C4 (comunidad)",
+        FC.replace("fila comunidad", "filas comunidad") + "brecha_H2_exacto_menos_C4_COP", SEC)
+    # (d) las cuatro tablas de CANON §14.29 y los recuentos de su texto
+    tb = tablas(seccion("### 14.29 ·"))
+    exige(len(tb) == 4, f"CANON §14.29: {len(tb)} tablas, no 4")
+    t1, t2, t3, t4 = tb
+    exige(list(t1.index) == CASOS + ["13 casos"] and list(t2.index) == CASOS + ["13 casos"]
+          and list(t3.index) == CASOS, "CANON §14.29: casos de las tablas")
+
+    def igual(v, celda, d, qué):
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.29 {qué}: {v:.6f} no redondea a {celda}")
+
+    cols1 = {"C4": "B_C4_COP", "C1": "B_C1_COP", "Mercado P2P": "B_P2P_COP", "P2P colectivo": "B_P2Pcom_COP",
+             "H1 fondo": "H1_fondo_COP", "H2 aprox.": "H2_aprox_COP", "H2 exacto": "H2_exacto_COP",
+             "H2 exacto, cargo al comprador": "H2_exacto_cargo_comprador_COP"}
+    cols2 = {"H2 − C4": "brecha_H2_exacto_menos_C4_COP", "H2 − C1": "brecha_H2_exacto_menos_C1_COP",
+             "H2 − P2P": "brecha_H2_exacto_menos_P2P_COP", "H2 − P2Pcom": "brecha_H2_exacto_menos_P2Pcom_COP",
+             "H2 − H1 fondo": "brecha_H2_exacto_menos_H1_fondo_COP",
+             "H2 exacto − H2 aprox.": "brecha_H2_exacto_menos_H2_aprox_COP"}
+    for t, cols, qué in [(t1, cols1, "tabla 1"), (t2, cols2, "tabla 2")]:
+        for col, src in cols.items():
+            for c in CASOS:
+                igual(float(C.loc[c, src]) / M, t.loc[c, col], 3, f"{qué}, {c} {col}")
+            igual(float(C[src].sum()) / M, t.loc["13 casos", col], 2, f"{qué}, 13 casos {col}")
+    for c in CASOS:
+        v, v0 = float(C.loc[c, "vendido_dentro_kwh"]), float(C.loc[c, "vendido_dentro_canon_kwh"])
+        igual(v, t3.loc[c, "Transado, H2 exacto (kWh)"], 2, f"tabla 3, {c}")
+        igual(v0, t3.loc[c, "Transado, canon (kWh)"], 2, f"tabla 3, {c}")
+        igual(v - v0, t3.loc[c, "Diferencia (kWh)"], 2, f"tabla 3, {c}")
+        igual(float(C.loc[c, "cargo_vendedor_COP"]) / M, t3.loc[c, "Cargo del numeral 2, al vendedor (MCOP)"], 3,
+              f"tabla 3, {c}")
+        igual(float(C.loc[c, "cargo_comprador_COP"]) / M, t3.loc[c, "Cargo del numeral 2, al comprador (MCOP)"], 3,
+              f"tabla 3, {c}")
+    rot4 = {"C4": "C4", "C1": "C1", "P2P": "Mercado P2P", "P2Pcom": "P2P colectivo"}
+    exige(list(t4.index) == list(rot4.values()), "CANON §14.29: filas de la tabla 4")
+    for x, rot in rot4.items():
+        exige(int(num_es(t4.loc[rot, "H2 exacto por debajo"])) == pares[x]
+              and int(num_es(t4.loc[rot, "H2 aprox. por debajo"])) == int((I[f"signo_H2_aprox_menos_{x}"] == -1).sum()),
+              f"CANON §14.29 tabla 4, {rot}")
+    s4c, s1c, spc = C.signo_H2_exacto_menos_C4, C.signo_H2_exacto_menos_C1, C.signo_H2_exacto_menos_P2P
+    exige(list(s4c[s4c == -1].index) == ["E5"] and int((s4c == 1).sum()) == 12 and int((s1c == -1).sum()) == 0
+          and list(spc[spc == 0].index) == H2X_IGUALES and list(spc[spc == -1].index) == ["E5", "P2", "I1"],
+          "CANON §14.29: los recuentos de su texto (sobre C4 en 12, bajo solo en E5; nunca bajo C1; igual al mercado "
+          "en E0, K1, CV2 y SINU; bajo el mercado en E5, P2 e I1)")
+    exige(abs(s4 - num_es(texto_canon("### 14.29 ·", r"MCOP \(E3\), ([\d  ,]+) MCOP en total").group(1))) <= 0.005,
+          "CANON §14.29: la suma de H2 − C4")
+    ok("las cuatro tablas de CANON §14.29 (resultado, brechas, energía y cargo, pares) a sus decimales y los recuentos de "
+       "su texto: H2 exacto sobre C4 en 12 casos y bajo en E5, nunca bajo C1, igual al mercado P2P en E0, K1, CV2 y SINU")
+
+
 def main() -> int:
     c7p = lee("cifras_cap07_2026-09-28/cifras.csv", "e1/R")
     c7d = pd.read_csv(c7p, dtype={"valor": str})
@@ -3027,10 +3337,19 @@ def main() -> int:
     exige(n_cf == 2838, f"los bloques hasta el corte y el fondo dan {n_cf} cifras, no 2838")
     print("[cifras_articulo] 19. H1 y H2, el autogenerador colectivo de crédito mutualizado (añadido el 2026-10-04)")
     hibrido()
+    n_h1 = len(FILAS)
+    exige(n_h1 == 2969, f"los bloques hasta H1 y H2 dan {n_h1} cifras, no 2969")
+    print("[cifras_articulo] 20. el GSA con H1, el crédito mutualizado (añadido el 2026-10-05)")
+    gsa_h1()
+    n_g3 = len(FILAS)
+    exige(n_g3 == 3166, f"los bloques hasta el GSA con H1 dan {n_g3} cifras, no 3166")
+    print("[cifras_articulo] 21. H2 exacto, el mercado con el piso de H2 (añadido el 2026-10-05)")
+    h2_exacto()
     print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas desde el 29; {n_b1 - n30} de la atribución; "
           f"{n_p - n_b1} del PPA; {n_pc - n_p} del P2P comunitario; {n_ord - n_pc} de sus dos órdenes; "
           f"{n_pd - n_ord} de los derivados del P2P colectivo; {n_g2 - n_pd} del GSA con C2 y el P2P colectivo; "
-          f"{n_cf - n_g2} del corte y el fondo; {len(FILAS) - n_cf} de H1 y H2")
+          f"{n_cf - n_g2} del corte y el fondo; {n_h1 - n_cf} de H1 y H2; {n_g3 - n_h1} del GSA con H1; "
+          f"{len(FILAS) - n_g3} de H2 exacto")
     SALIDA.mkdir(parents=True, exist_ok=True)
     out = pd.DataFrame(FILAS, columns=["clave", "valor", "unidad", "texto_en", "definicion", "fuente", "seccion_canon"])
     exige(out.clave.is_unique, "claves repetidas en la salida")
@@ -3043,8 +3362,8 @@ def main() -> int:
         fh.write("este guion con cambios sin commit:\n" + (sucio or "(ninguno)") + "\n")
         fh.write(f"python {platform.python_version()}, numpy {np.__version__}, pandas {pd.__version__}\n")
         fh.write("orden: python -u " + guion + "\n")
-        fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §13.9, §14.3, §14.7, "
-                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25, §14.26); "
+        fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §13.9, §13.10, §14.3, §14.7, "
+                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25, §14.26, §14.29); "
                  f"sha256 {hashlib.sha256(CANON_MD.read_bytes()).hexdigest()}\n")
         fh.write(f"huellas: {HUELLAS.relative_to(RAIZ).as_posix()}; {len(LEIDOS)} artefactos leídos, todos con la huella comprobada:\n")
         for g, r in LEIDOS:

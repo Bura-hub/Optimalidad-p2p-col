@@ -6905,6 +6905,9 @@ ponérsela antes de lanzarla, no después**.
 | P-21 | **Aplicar el umbral de cobertura del 75 % en el pipeline.** Decisión tomada: debe hacerse. Cambio: en `_read_single_meter` marcar como ausente la hora con menos de 23 de 30 muestras, para que la etapa de limpieza la impute como hueco en vez de estimarla con la media de lo observado. Alcance: afecta a 147 horas y mueve la demanda comunitaria 0,026 % (Udenar 0,42 %, el resto por debajo de 0,04 %). **Coste: invalida el canon vigente**, de modo que obliga a rehacer la corrida completa en las dos fronteras, el bootstrap y el análisis de sensibilidad global, a repasar las dos compuertas de verificación, y a propagar a las figuras, la tesis, el artículo y los informes mensuales. **Hacerlo junto con la próxima corrida canónica que se necesite por otro motivo**, donde el coste marginal es nulo; no abrir una corrida solo para esto. Medición y contexto en C-72 y H-18. **AVISO 2026-09-01, la especificación es defectuosa y hay que corregirla antes de ejecutarla**: anular esas horas las pega a los huecos que ya existen, y medido sobre la frontera principal, de las 147 quedarían 77 recogidas por interpolación, 63 por arrastre del vecino y **7 dentro de rachas de más de 24 horas, donde el último recurso de la etapa de limpieza es el relleno con cero**. Eso es justamente lo que la subsección `sub:prep-lectura` argumenta que no debe hacerse y lo que el criterio del regulador excluye. La regla correcta es anular la hora solo cuando la limpieza vaya a estimarla, y conservar la media cuando quedaría más allá del alcance del arrastre. Ver H-22. | pendiente, acordada, con la especificación por corregir |
 | P-19 | ~~Capítulo 3: la limpieza dice aplicar «3 tratamientos en cascada» y describe cuatro.~~ **CERRADA por C-62.** | cerrada |
 | P-5 | Propagar a la tesis (§3.3 y §5.5) y al artículo la declaración de que la tarifa CEDENAR se usa por decisión y no porque sea la de los cinco comercializadores. | pendiente |
+| P-25 | **Artículo: el supuesto del mes completo y su exposición medida** (C-298, CANON §14.27). Tras «Usa los totales del mes como si se conocieran desde su inicio» (III-B), añadir algo como «Con un pronóstico simple de la importación del mes, el estado de la hora queda mal clasificado en menos del 1,5 % de lo transado [16].» Hay que medir si cabe en 9 páginas y compensar dentro de III-B. Aplazado por el autor el 2026-10-05. | pendiente, aplazado por el autor |
+| P-26 | **Commit del guion de la previsión del corte** (`reformateo/documento/scripts/articulo/prevision_corte.py` y `tests/test_prevision_corte.py`). Después del commit: volver a correr el guion con HEAD limpio, comprobar que el CSV y el resumen salen iguales byte a byte, rehacer la huella de `procedencia.txt` en HUELLAS.csv (grupo `e1/PV`), fijar `E1_PV_CODIGO` en `verificar_canon_2026-09.py` y actualizar §14.27 de CANON.md («aún sin commit»). Mientras tanto la compuerta dice «guion aún sin commit». Aplazado por el autor el 2026-10-05. | pendiente, aplazado por el autor |
+| P-27 | **Commit del guion de la hora resuelta** (`reformateo/documento/scripts/articulo/hora_resuelta.py`). Igual que P-26: volver a correrlo con HEAD limpio, rehacer la huella de `procedencia.txt` (grupo `e1/HR`), fijar `E1_HR_CODIGO` y actualizar §14.28 de CANON.md. | pendiente, con el commit de P-26 |
 
 ## C-151 · La restricción de participación entra al motor
 
@@ -10910,3 +10913,204 @@ Tipo: `claridad`. Observación del autor sobre III-B del artículo: «El corte d
 - Artículo (III-B): el párrafo tras (2) lo dice en ese orden, con «el mercado P2P» explícito. Compensación de espacio en la misma sección: «como en un equilibrio de Nash» → «como la de Nash» y `\looseness=-1` en el párrafo «Lo que el artículo necesita…» y en el del piso.
 - Tesis: el mismo texto tras (eq:piso) en lugar de «sobre series residuales aproximadas»; anexo C, «Su corte depende de lo transado, que a su vez depende del piso. Por eso se calcula antes del mercado…».
 - Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis sin indefinidas ni Overfull (aviso de páginas conocido); vetadas LIMPIA en artículo, tesis y anexo C; cifras LIMPIO en artículo y tesis (con `tesis.md`).
+
+## C-288 · III-B reordenado: el corte se define donde se usa; tabla de cotas en la tesis (2026-10-04)
+
+Tipo: `claridad`. Pedido del autor: el bloque de III-B (Chacón, forma cerrada, cotas, corte) se entendía, pero era denso y estaba mal ordenado.
+
+- Diagnóstico: (1) $h_x$ se usaba en el piso y en (3) antes de decir qué es el corte, que se explicaba en otro párrafo después; (2) el párrafo de la forma cerrada encadenaba cinco ideas, con la validación en una frase de tres incisos; (3) faltaba la idea que ordena las cotas: el techo y el piso son lo que cada agente obtendría sin el mercado.
+- Artículo: la validación en tres frases cortas («confirma la forma cerrada en una muestra de la comunidad medida. Llegó a ella en 17 de las 18 horas que integró hasta el final…»); las cotas abren con «que salen de lo que obtendría sin el mercado»; el corte se define antes de (3); (3) cierra con punto; el círculo del corte queda en un párrafo corto tras (3). Sin cifras ni salvedades nuevas. 9 páginas con `\looseness=-1` en dos párrafos de la sección.
+- Tesis: el mismo orden en `sec:modelo-forma` y la Tabla «Las cotas de precio de cada agente y de dónde salen» (`tab:cotas`): techo, piso antes del corte (numeral 1 y 2) y piso desde el corte, con lo que el agente obtendría sin el mercado. No se añade a la tabla ninguna cifra.
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis sin indefinidas ni Overfull (aviso de páginas conocido); vetadas LIMPIA y cifras LIMPIO en los dos.
+
+## C-289 · El corte es de cada miembro, no del vendedor (2026-10-04)
+
+Tipo: `precisión`. Observación del autor: «lo que el mercado P2P no le compró ni le vendió al vendedor» hacía girar todo en torno al vendedor.
+
+- Causa: el corte y los residuales son de cada miembro, que vende en unas horas y compra en otras. Lo entregado es el sobrante que no vendió dentro; lo importado, el faltante que no compró dentro. El piso del vendedor usa el corte del miembro que vende en esa hora.
+- Artículo: «El corte de cada miembro llega cuando lo que entregó a la red en el mes iguala lo que importó» y «Lo entregado y lo importado son residuales, es decir, lo que el miembro no vendió ni compró dentro». La versión más larga desbordaba a 10 páginas.
+- Tesis: las mismas dos frases, con la versión larga («Un mismo miembro vende en unas horas y compra en otras. Lo que entrega a la red es el sobrante que no vendió dentro, y lo que importa, el faltante que no compró dentro…»), y la nota de la Tabla de cotas con «el miembro».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis compilada; vetadas y cifras limpias en los dos.
+
+## C-290 · La banda de negociación, definida por lo que significa (2026-10-04)
+
+Tipo: `claridad`. Observación del autor: «La banda de una pareja es la distancia entre el techo… Con (3), y con Δij… la banda es, sin el índice del mes,» no se entendía; pidió un nombre que identifique el concepto y una descripción mejor.
+
+- Nombre: «banda de negociación de una pareja» en la definición y en la primera mención («ahorro del intercambio» en el artículo, `sec:modelo-cambios` y la nota de la tabla de cotas en la tesis); después, «la banda».
+- Definición por lo que significa: el margen entre el techo del comprador y el piso del vendedor; cualquier precio dentro deja ganando a los dos; su ancho es lo que la comunidad ahorra por cada kWh que la pareja transa; el precio solo reparte ese ahorro. Δij se define en su propia frase.
+- Lectura de (4) en el artículo: con un mismo comercializador, antes del corte la pareja ahorra la deducción del crédito del vendedor, y desde el corte, lo que separa la tarifa del comprador de la bolsa. Las cifras de abril de 2025 (98,94 y 114,37) quedan. El párrafo tras los tres pasos ya no repite que el precio solo reparte.
+- Tesis: la misma definición; «Con el mismo comercializador y antes del corte, la pareja ahorra la deducción del crédito del vendedor, que en el numeral 1 es su Cv». El párrafo del corte que sigue ya da la lectura desde el corte.
+- Espacio del artículo: `\looseness=-1` en cinco párrafos de las páginas 2 y 3 (11 fronteras, pagos entre miembros, C5, «Solo este término cambia entre mecanismos», Sección IV-D), sin cambiar su texto.
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis compilada; vetadas y cifras limpias en los dos.
+
+## C-291 · «Sus autores» en lugar de repetir «Chacón et al.» (2026-10-04)
+
+Tipo: `estilo`. Pedido del autor: no repetir «Chacón et al.» pocas líneas después de nombrarlos. Artículo (III-B): «Sus autores presentan el juego como líder–seguidor…»; tesis: «Sus autores presentan el modelo como un juego de Stackelberg…», tras «el modelo base de Chacón et al.» en el párrafo anterior. Artículo en 9 páginas, 0 Overfull.
+
+## C-292 · Sin el «además» incidental (2026-10-04)
+
+Tipo: `estilo`. Observación del autor: «Con un vendedor y varios compradores, además, la dinámica no se asienta» no quedaba bien. Artículo (III-B) y tesis (`sec:modelo-cambios`, punto 4): «Con un vendedor y varios compradores, la dinámica ni siquiera se asienta…», que marca el segundo problema sin el inciso. Artículo en 9 páginas.
+
+## C-293 · «Los pasos que siguen» no señalaba nada cercano (2026-10-04)
+
+Tipo: `claridad`. Pregunta del autor: qué significa «con las fórmulas de los pasos que siguen». Se refería a los tres pasos y al precio único del final de III-B, separados de la frase por las cotas y la banda. Artículo: «Este trabajo calcula el reposo directamente con fórmulas. Las llama la forma cerrada y las presenta al final de esta sección.» La tesis no tiene el problema: remite a `sec:modelo-forma`. Artículo en 9 páginas.
+
+## C-294 · Qué calcula la forma cerrada (2026-10-04)
+
+Tipo: `claridad`. Observación del autor: «calcula el reposo directamente con fórmulas» no dejaba entender qué se hace.
+
+- Artículo (III-B): «Este trabajo deduce las condiciones del reposo y calcula con ellas, sin integrar, quién vende a quién, cuánto y a qué precio. Es la forma cerrada, al final de esta sección.» Para caber en 9 páginas sale «porque la energía salta de un comprador a otro» (queda en la tesis, «Oscilación»).
+- Tesis: «Por eso deduce las condiciones que cumple el reposo y calcula con ellas, sin integrar, quién vende a quién, cuánto y a qué precio en cada hora. Es la forma cerrada de la sección…» y, en el punto 4 de `sec:modelo-cambios`, «La forma cerrada deduce las condiciones del reposo y calcula con ellas, sin integrar, quién vende a quién, cuánto y a qué precio».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; vetadas limpia en los dos.
+
+## C-295 · El exceso es lo entregado desde el corte; el residual aproximado, explicado (2026-10-04)
+
+Tipo: `claridad`. Pregunta del autor sobre exceso y residual, y pedido de aclarar «un residual aproximado, que reparte lo transable…».
+
+- «Desde el corte es exceso» → «Desde el corte, lo entregado es exceso» (artículo y tesis): el exceso es la parte del residual que se entrega a la red desde el corte; antes es crédito.
+- Artículo: «Para romper ese círculo, $h_x$ se calcula antes del mercado, como si en cada hora se transara todo lo posible, repartido en proporción a la inyección de cada vendedor y a la importación de cada comprador. Usa los totales del mes como si se conocieran desde su inicio.» (`core/opciones_externas.residual_proporcional`).
+- Tesis, versión larga: «…suponiendo que en cada hora se transa todo lo posible, es decir, el lado corto de la comunidad. Lo transado se reparte entre los vendedores en proporción a su inyección y entre los compradores en proporción a su importación. Lo que queda es el residual aproximado con el que se acumula el mes (sección…). Como el corte depende de los totales del mes, el modelo los usa como si se conocieran desde su inicio.»
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis compilada; vetadas limpia en los dos.
+
+## C-296 · El anexo C detalla lo aclarado en III-B; el artículo y el cuerpo remiten a él (2026-10-04)
+
+Tipo: `contenido`. Pedido del autor: que el material anexo detalle la deducción de las condiciones del reposo y todo lo aclarado en III-B.
+
+- El anexo C ya tenía la deducción (C.2: lo que cumple el reposo; C.3: la forma cerrada) y el corte, la partición, la deducción, el piso y la banda con sus ecuaciones. Se añade:
+  - al abrir `anx:c-forma`, un mapa: qué propiedades del reposo usa la forma cerrada y de cuál subsección sale cada parte del resultado de la hora (quién vende y quién compra, cuánto, a qué precio, quién a quién), con la rama cuantal y la validación; etiquetas nuevas `anx:c-entrada`, `-presupuesto`, `-regimenes`, `-emparejamiento`, `-cuantal`;
+  - tras (C.13), qué son el crédito y el exceso en palabras;
+  - el residual aproximado con su ecuación ($\hat V_k$, $\hat s^{\mathrm r}$, $\hat d^{\mathrm r}$, de `residual_proporcional`), sin numerar para no mover la numeración C.x, con el porqué del círculo, qué es exacto y qué es aproximado, y el supuesto de los totales del mes;
+  - la banda de negociación definida por lo que significa, antes de (C.18).
+- Cuerpo de la tesis: «Es la forma cerrada de la sección…, que el anexo C deduce paso a paso (subsecciones C.2 y C.3)».
+- Artículo: «Es la forma cerrada, al final de esta sección, deducida en [16]»; para caber, «Como la muestra no alcanza el criterio fijado de antemano, la forma cerrada es una regla declarada».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis sin indefinidas ni Overfull (anexos: 45 páginas); vetadas limpia en artículo, tesis y anexo C; cifras limpias.
+
+## C-297 · El criterio fijado de antemano, con su número (2026-10-04)
+
+Tipo: `claridad`. Pregunta del autor: cuál es el criterio fijado de antemano. Es el de `sec:modelo-validacion` y del anexo C: un régimen queda verificado si la dinámica llega en al menos el 95 % de sus horas, con un mínimo de cinco (y «llega» con umbrales de 10^-3 de la energía y 0,05 COP/kWh). La tesis ya lo detalla; el artículo no lo decía.
+
+- Artículo (III-B): «Como la muestra no alcanza el criterio fijado de antemano, el 95 % de las horas de cada régimen, la forma cerrada es una regla declarada.» Los umbrales y el mínimo de cinco quedan en la tesis.
+- Compensación en el mismo párrafo: «El resultado de cada hora es así reproducible, sin un fallo en las 150 528 evaluaciones del análisis de sensibilidad» y «la confirma en una muestra de la comunidad medida, donde llegó a ella en 17 de las 18 horas…».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; vetadas y cifras limpias. La tesis no cambia.
+
+## C-298 · La operación en tiempo real: medición (CANON §14.27) y subsección de la tesis (2026-10-05)
+
+Tipo: `contenido`. Observación del autor: «Usa los totales del mes como si se conocieran desde su inicio» es crítico, porque en tiempo real no se conocen.
+
+- Medición derivada sin simular: `reformateo/documento/scripts/articulo/prevision_corte.py` (pruebas `tests/test_prevision_corte.py`, 7) → `SALIDAS_SERVIDOR/prevision_corte_2026-10-04/`. Clasifica cada hora-vendedor en segura (crédito con certeza en tiempo real: inyección acumulada bajo la importación acumulada), incierta y crédito, o incierta y exceso, con el residual aproximado del piso, y mide un pronóstico lineal de la importación del mes. Registrada en el canon: grupo `e1/PV` de HUELLAS.csv (3 ficheros), punto «PV» del bloque 10 de `verificar_canon_2026-09.py` (`E1_PV_CODIGO` None hasta el commit) y §14.27 de CANON.md. Las tres compuertas del canon, intactas.
+- Resultado: sin corte (E0, P2, K1, CV2, SINU) el supuesto no actúa; con corte, del 20,2 % (E1) al 99,0 % (E5) de lo vendido dentro y del 36,6 % (I1) al 99,5 % (P1) del ahorro caen en horas inciertas; con el pronóstico lineal queda mal clasificado del 0,8 % (I1) al 1,4 % (E4, P1) de lo vendido y como mucho el 2,6 % del ahorro (E1).
+- Tesis: subsección nueva `sec:impl-tiempo-real`, «La operación en tiempo real y el ajuste al cierre», con la Tabla `tab:prevision` (los ocho casos con corte) y la operación en dos tiempos (piso provisional cada hora con el pronóstico; piso verdadero al cierre y reconocimiento de la diferencia, de modo que nadie queda bajo su alternativa), declarada como propuesta de implementación no simulada. El cuerpo (sec. de la banda y la forma cerrada) remite a ella, y los límites también.
+- Comprobaciones: tesis sin indefinidas ni Overfull; vetadas limpia; cifras LIMPIO (CANON.md como fuente).
+
+## C-299 · Sin «pareja»: entre un comprador y un vendedor (2026-10-05)
+
+Tipo: `estilo`. Observación del autor: «pareja» suena extraño; mejor algo como «par de miembros», que se entienda.
+
+- Definición (artículo, tesis y anexo C): «La banda de negociación entre un comprador $i$ y un vendedor $j$ es el margen entre el techo de $i$ y el piso de $j$. … Su ancho es lo que la comunidad ahorra por cada kWh que $j$ le vende a $i$.» Así no hace falta nombrar el par.
+- Donde la banda o el ahorro se suman sobre todos: «cada par comprador–vendedor» en la tesis y los anexos C y E; en el artículo, para caber en 9 páginas, «cada par» (la suma sobre $j,i$ lo deja claro). «La pareja ahorra» → «la comunidad ahorra», que es lo exacto. «El reparto entre parejas», «Las parejas se emparejan» → «compradores y vendedores». Tabla I del artículo: «Punto medio de cada banda de negociación». Literatura (tesis): «cada par de miembros negocia». Anexo F: «cada par de casos».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis compilada; vetadas limpia en artículo, tesis y anexo C. Ningún «pareja» queda en el artículo, la tesis ni los anexos.
+
+## C-300 · Index Terms del IEEE Thesaurus, con su argumento (2026-10-05)
+
+Tipo: `contenido`. Pedido del autor: escoger los Index Terms con argumento, comparando con otros artículos (creía que debían ser de una sola palabra).
+
+- Regla de la revista (página de envíos de IEEE LatAm): Index Terms tomados del IEEE Thesaurus y la IEEE Taxonomy; no fija número ni pide una palabra. Medido en 88 artículos de energía de IEEE LatAm (4,7 términos por artículo; 18 % de una palabra; 1 solo con términos de una palabra) y 53 de arXiv con formato IEEE sobre P2P y comunidades (5,6; 20 %; ninguno). Las formas de una palabra no existen en el tesauro o cambian de sentido («Games» bajo Consumer products, «Sensitivity» bajo Measurement).
+- Los anteriores: «Energy communities» y «Peer-to-peer energy trading» no están en el tesauro; «Distribution networks» está bajo Supply chains (logística).
+- Nuevos, todos preferidos del IEEE Thesaurus 2023 y en orden alfabético: «Distributed power generation, game theory, power markets, power system economics, sensitivity analysis, tariffs». El argumento de cada uno y de los descartados está en `Documentos/articulo_latam/index_terms/LEEME.md`, con el tesauro, la taxonomía, los dos guiones y sus salidas.
+- Tesis: los mismos seis en el bloque de Index Terms oculto (`\iffalse`); las palabras clave en español de la MaIE no cambian. Artículo en 9 páginas, 0 Overfull, 0 indefinidas.
+
+## C-301 · La banda se explica por su comparación, con un ejemplo en tabla (2026-10-05)
+
+Tipo: `claridad`. El autor no entendía «Con un mismo comercializador, la comunidad ahorra antes del corte la deducción del crédito del vendedor…»: faltaba decir frente a qué se mide el ahorro. Un primer ejemplo en prosa le pareció demasiado complejo.
+
+- Artículo, tesis y anexo C: «Su ancho es lo que la comunidad ahorra por cada kWh que $j$ le vende a $i$, frente a que cada uno trate con su comercializador.» Artículo en 9 páginas.
+- Tesis: tabla nueva `tab:banda-ejemplo`, «Lo que gana la comunidad cuando un miembro le vende 1 kWh a otro, antes del corte (abril de 2025, numeral 1, COP)», con tres filas (Udenar→Unimar, Udenar→Unicesmag, Unicesmag→Udenar): lo que el comprador deja de pagar (734,30 o 794,62), a lo que el vendedor renuncia (695,68 o 619,93) y lo que gana la comunidad (38,62, 98,94 y 114,37), todo de la Tabla `tab:kwh`. La prosa queda en frases cortas; lo que pasa desde el corte lo explica el párrafo siguiente, que ya existía.
+- Comprobaciones: tesis sin indefinidas ni Overfull; vetadas limpia en artículo, tesis y anexo C; cifras LIMPIO en los dos.
+
+## C-302 · Página 5 del artículo (tres pasos y supuestos): claridad sin alargar; versión completa en la tesis (2026-10-05)
+
+Tipo: `claridad`. Pedido del autor: la página 5 (los tres pasos, el precio, los supuestos y la identidad) era demasiado compleja y faltaba explicar las fórmulas. La versión completa desbordaba unas 20 líneas y la ajustada unas 8; ni la Fig. 1 al 85 % ni biografías más cortas lo recuperaban. El autor eligió la opción 1: en el artículo, solo lo que no alarga; el detalle, a la tesis.
+
+- Artículo (probados uno a uno y conservados solo si seguía en 9 páginas): «la esquina sin ningún supuesto» → «el mercado sin ningún supuesto, que se liquida como C4»; «cumple la identidad … con tres términos:» → «se parte de modo exacto en tres términos,»; «que es la regla de despacho, declarada» → «por una regla declarada»; «dibuja los dos supuestos…:» con punto; la frase de Shapley sin dos puntos («La Sección IV da los dos órdenes … es decir, lo que vale cada supuesto solo menos la mitad de lo que comparten»); cargos evitados explicados («lo que la comunidad gana, sin mercado, al liquidar cada miembro por separado y no en el colectivo. La regulación vigente ya lo permite, y el mercado lo conserva por el supuesto 1»). Descartados por espacio: el volumen definido con palabras, el emparejamiento explicado, el recorrido de los pisos y el residual definido con palabras.
+- Tesis: el piso del juego explicado antes de (eq:caminata) (pisos recorridos de menor a mayor; $\mathcal{O}_k(p)$ y $\mathcal{D}_k(p)$ definidos con palabras; subir $p$ suma vendedores y puede dejar fuera compradores; se transa la menor de las dos y $\phi^*_k$ es el menor $p$ que la hace máxima); el emparejamiento con $v$ y $q$ definidos y su lectura; «por una regla declarada»; «el mercado sin ningún supuesto»; el residual como «lo que no vendió ni compró dentro».
+- Comprobaciones: artículo en 9 páginas, 0 Overfull, 0 indefinidas; tesis compilada; vetadas limpia en los dos.
+
+## C-303 · Una hora resuelta paso a paso y el pseudocódigo de la forma cerrada (2026-10-05)
+
+Tipo: `contenido`. Pedido del autor, tras comparar con Chacón et al. (IEEE LatAm, 2025), que desarrolla cada paso con un ejemplo resuelto y un algoritmo.
+
+- Medición derivada: `reformateo/documento/scripts/articulo/hora_resuelta.py` recalcula a mano la hora 256 de E0 (14-04-2025, 16:00; la de la Figura C.1) y comprueba cada paso contra el almacén (5 compuertas). Registrada como grupo `e1/HR` de HUELLAS.csv, punto «HR» del bloque 10 y §14.28 de CANON.md; compuerta del canon INTACTA. Guion sin commit (P-27).
+- Tesis, cuerpo: Algoritmo `alg:forma`, «La forma cerrada en una hora $k$», con los seis pasos (paquetes `algorithm` y `algpseudocode`, rótulos en español), citado al final de la descripción de los pasos.
+- Anexo C: el párrafo de la Figura C.1 pasa a seis pasos numerados con las cifras de la hora (roles; piso del juego con los dos pisos de prueba; volumen; emparejamiento; precios de reposo, presupuesto y precio uniforme; reparto con prima, ahorro, renta inframarginal y parte del juego), y la salvedad de que la hora se eligió por ilustrar todos los pasos, no por ser típica.
+- Comprobaciones: tesis sin indefinidas ni Overfull; vetadas limpia; cifras del anexo C LIMPIO (CANON.md como fuente).
+
+## C-304 · Decisión: la hora resuelta no entra en el artículo (2026-10-05)
+
+Tipo: `decisión del autor`. Se estudió llevar al artículo la hora resuelta de E0 (CANON §14.28). La versión completa (unas 10 líneas) solo cabía en 9 páginas quitando una salvedad (IV-D), la generalización a Brasil y Chile (IV-C) y parte de una biografía. Una versión corta, que remitía a la tesis, cabía con recortes que no quitaban contenido, pero el autor juzgó que no explica nada. **No se añade.** La hora resuelta queda solo en la tesis (Algoritmo `alg:forma` y anexo C, C-303). El artículo no cambia.
+
+## C-305 · H2 exacto registrado en el canon (2026-10-05)
+
+Tipo: `medición`. El H2 de §14.26 (grupo `e1/H1`) es aproximado: liquida H2 sobre los flujos del mercado del canon, que se formó con el piso de C1. El 2026-10-05 se corrió en el servidor la matriz de 13 casos con el piso de H2 (acción `matriz_mecanismo`, `PISO_MECANISMO=h2`, commit `1277d97`, ADR 0062) y se liquidó H2 sobre sus flujos con `reformateo/documento/scripts/articulo/h2_exacto.py` (commit `b52d655`, sin cambios; pruebas `tests/test_h2_exacto.py`). Desde aquí H2 se cita del registro nuevo.
+
+- **El piso de H2.** Antes del corte, el de C1. Desde el corte, f·p_ces + (1 − f)·bolsa, con f la fracción cedida del mes y p_ces la bolsa del mes ponderada por el perfil del fondo. El cargo del numeral 2 (κ·Cv + Θ) se suma al piso del vendedor, así que lo paga el vendedor con su tarifa: es la cifra. La variante con el cargo al comprador se publica al lado.
+- **Resultado** (CANON §14.29, la comunidad):
+  - H2 exacto supera a C4 en 12 de los 13 casos, de 0,385 MCOP (SINU) a 50,308 (E3), 155,52 MCOP en total; **en E5 queda por debajo, −0,175 MCOP** (el 0,07 % de C4).
+  - Nunca queda bajo C1. Iguala al mercado P2P en E0, K1, CV2 y SINU, lo supera en seis casos y pierde en E5, I1 y P2.
+  - Frente al P2P colectivo pierde en E4, E5, P2, I1 y N1 y empata en K1; frente a H1 fondo pierde solo en E4 y E5.
+  - Frente al H2 aproximado cambia en siete casos (1,90 MCOP más en los 13). La energía transada cae en E4 (−1 004,01 kWh), E5 (−597,40) y P2 (−1 754,73), donde el cargo del numeral 2 sube el piso.
+  - Pares institución-caso por debajo (de 64): de C4, 24; de C1, 10 (17 con el aproximado); del mercado P2P, 26; del P2P colectivo, 33.
+  - E0, K1, CV2 y SINU son identidades con el H2 aproximado: ahí el piso de H2 es el de C1 al bit.
+- **Registro en el canon:**
+  - `HUELLAS.csv`: 271 filas de la matriz (grupos `outputs_h2/<caso>` 13, `almacen_h2/<caso>` 231, `registro_h2` 26 y `matriz_h2` 1, con la ruta relativa a `entrega_matriz_h2_2026-10-05/`) tras la última `gsa3/`, y 3 de la liquidación (`e1/H2`) al final: 2 069 ficheros, 948 en `e1/`. Las dos filas de `e1/L`, rehechas.
+  - `verificar_canon_2026-09.py`: bloque 13, «H2 exacto», con la función `h2_bloque` y las constantes `H2M_*` y `E1_H2_*` (`E1_H2_CODIGO` = `b52d655`), diez comprobaciones: huellas de la matriz y ningún fichero sin ella, `MECANISMO` = h2, commit y orden de cada caso, 13 compuertas EN VERDE y 13 corridas con `[D38]` en 0 horas, la procedencia sin cambios, el `sha256` de las 205 partes de almacén frente a su huella, la identidad con e1/H1 en E0, K1, CV2 y SINU, la suma, las cifras y los pares, y el resumen frente al CSV. El bloque 1 salta los grupos nuevos de la matriz; el punto «H2» entra en `E1_PUNTOS` (`E1_N_FICHEROS` + 3); `E1_L_N` = 3 353, `E1_L_COMPUERTAS` = 66 y seis claves testigo `h2x__*`. Prueba de detección en verde.
+  - `CANON.md`: §14.29 nueva (qué mide, el piso, quién paga el cargo, la fuente, las compuertas, cuatro tablas, lo que dice, la frase citable, qué se cita, lo que NO se cita y salvedades), §14.20.10, la trampa 6 de §10.0 («H2 de e1/H1 es aproximado: citar e1/H2»), una nota en §14.26 que remite a §14.29 y los avisos de la cabecera, §11 y §14.20.
+  - `cifras_articulo.py`, bloque 21: 187 claves al final (`h2x__<caso>__{H2, H2_aprox, H2_comprador, B_C4, B_C1, B_P2P, B_P2Pcom, H2_C4, H2_C1, H2_P2P, H2_P2Pcom, H2_H1, transado_kwh, transado_canon_kwh}`, `h2x__pares__{C4, C1, P2P, P2Pcom}` y `h2x__suma13__H2_C4`), con 2 compuertas; 3 353 cifras, 203 artefactos y 66 compuertas. Las 3 166 filas previas, byte a byte.
+- **Lo que no se cita:** el H2 de e1/H1 (`H2_COP`, `h1__<caso>__H2` y `__H2_P2P`), ni siquiera donde coincide; la hoja `Resumen` de la matriz con el piso de H2; «H2 supera a C4 en los 13 casos».
+- **Comprobaciones:** las tres compuertas del canon INTACTAS; `cifras_articulo.py` con 66 compuertas en verde; `gen_figuras_articulo_es.py` en verde; `pytest tests/test_herramientas_articulo.py tests/test_h2_exacto.py` (solo esos).
+
+## C-306 · Página 6 del artículo (III-D y III-E): seis aclaraciones, escaladas a la tesis (2026-10-05)
+
+Tipo: `estilo y comprensión`. Revisión de la página 6, aprobada por el autor.
+
+1. «Las dos respuestas» remitía a la Sección II, 250 líneas antes. Ahora: «Las dos preguntas, cómo se liquida el residual y si el intercambio paga cargos, pueden responderse también dentro de C4». La tesis lleva la versión larga, «que la regulación no contempla».
+2. «El residual es la inyección de la comunidad» y «lo reparte igual que C4» se leían de dos maneras. Ahora: «es lo único que entra al fondo» y «lo reparte en partes iguales, como C4». Va al artículo y a la tesis.
+3. La ec. (8) dice en palabras qué es e y qué es ẽ: de toda la inyección y de la residual. Solo en el artículo, porque la tesis ya los definía.
+4. «La regla quita además…» pasa a «también». La cadena «Así, el supuesto 1 pasa a ser una regla, …, y el supuesto 2, …» se parte en frases. Lo primero va al artículo y a la tesis; lo segundo, solo al artículo.
+5. Se explica por qué E4 e I1 son aproximados: el residual se liquidaría con otra deducción. «Se reparten de la misma forma» pasa a «se atribuyen por los dos órdenes». En la tesis van E4, E5, P2, I1 y N1.
+6. III-E: «series de generación o de demanda»; «la caja, es decir, el rango…»; «puntos al azar» en las matrices A y B (artículo y tesis). La lista de los cinco casos, que repetía la columna «Para qué» de la Tabla III, se sustituye por una remisión a esa columna (solo en el artículo, por longitud).
+
+**Compensación de longitud, solo en el artículo:** se quita la frase de anuncio «Con todo lo anterior, la Sección IV…» y se condensan las frases 1, 3 y 5.
+
+**Comprobaciones:**
+- Artículo: 9 páginas, 0 Overfull, 0 referencias indefinidas; compuerta de vetadas LIMPIA; chequeo de cifras LIMPIO.
+- Tesis: 74 páginas, 0 Overfull, vetadas LIMPIA.
+
+## C-307 · El piso del P2P colectivo, como opción del motor (`--piso-mecanismo p2pcom`) (2026-10-05)
+
+Tipo: `decisión de modelado` (aprobada por el autor) e `implementación`.
+
+**Por qué hace falta.** El P2P colectivo del canon (§14.23) usa los flujos del mercado formado con el piso de C1. En el P2P colectivo, el kWh que un vendedor no vende va al fondo y se reparte en partes iguales, de modo que el piso de C1 no es su valor exacto en ningún caso:
+- el crédito se valora a la tarifa de cada miembro, y los comercializadores A y B difieren;
+- desde el corte del vendedor, su kWh todavía es crédito de otro miembro.
+
+Esto matiza la frase del artículo «exactos donde el residual paga solo el Cv con plantas en el numeral 1». La matriz con este piso dirá cuánto.
+
+**Decisión.** Se adopta el piso del fondo: lo que vale para la comunidad el kWh no vendido.
+- La parte igual de cada miembro vale el crédito de su tarifa menos la deducción del fondo mientras le quede importación en el mes, y la bolsa de la hora desde su corte.
+- El piso es el promedio de esos valores, el mismo para todos los vendedores de la hora.
+- El intercambio está exento.
+- La deducción del fondo es la del caso del art. 20 sin la regla del 10 %: Cv en el caso 1, y Cv más los peajes en el caso 2 (E4, E5 y P2).
+- Se descarta el piso privado (1/N del anterior) como cifra principal.
+
+**Código.**
+- `core/opciones_externas.py`: `piso_fondo_igual` y `p2pcom` en `piso_mecanismo`, que ahora recibe `deduccion_fondo`.
+- `main_simulation.py`: calcula el caso y la deducción del fondo.
+- `run_servidor.sh`: `PISO_MECANISMO=p2pcom` en `matriz_mecanismo`.
+
+**Pruebas.**
+- `test_piso_mecanismo`: tres pruebas sintéticas.
+- `test_piso_mecanismo_trece`: los 13 casos con datos reales. El caso 2 aparece solo en E4, E5 y P2, y la deducción del fondo es la individual salvo la de la UCC en I1 y N1. El piso es único por hora, está entre la bolsa y el crédito, y donde nadie agota su parte es el crédito medio.
+- `test_matriz_mecanismo_lanzador`: en seco.
+- Humo de un día en E0 e I1, con la compuerta de salida EN VERDE.
+
+El defecto `c1` no cambia: el canon sigue al bit.

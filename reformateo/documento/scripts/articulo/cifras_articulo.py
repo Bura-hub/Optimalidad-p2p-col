@@ -173,6 +173,39 @@ modo que las 1 918 filas anteriores salen iguales byte a byte:
     CANON §14.24 a sus decimales y el precio de la justicia desde la hoja
     Resumen; las claves cuadran con las tablas 2, 3 y 5.
 
+Añadido el 2026-10-02 (el GSA con C2 como PPA y el P2P colectivo), también al
+final, de modo que las 2 210 filas anteriores salen iguales byte a byte:
+
+17. La P(inversión) de las siete brechas nuevas de comunidad en la caja del
+    GSA del 2026-10-02 (CANON §13.9; grupos `gsa2/`, entrega
+    `entrega_gsa_directo_c2_p2pcol_2026-10-03/`): P2P colectivo (`P2Pcom`)
+    − C4, − C1, − P2P y − C2 como PPA, y C2 como PPA (`C2ppa`) − C1, − C4 y
+    − P2P, con su intervalo al 95 % y su valor en el punto base, por caso
+    (`gsa__<caso>__<sufijo>__p|lo|hi|base`, con sufijos `P2Pcom_C4`,
+    `P2Pcom_C1`, `P2Pcom_P2P`, `C2ppa_C1`, `C2ppa_C4`, `C2ppa_P2P` y
+    `P2Pcom_C2ppa`, que no chocan con los del GSA del 27), y los casos sin
+    inversión de cada una (`gsa__n_casos_sin_inversion_<sufijo>`). Las claves
+    del GSA del 27 no cambian. Compuertas (3): las cinco brechas del 27 salen
+    al bit en la entrega nueva (y la P es la de sus claves); las dos tablas y
+    los intervalos de CANON §13.9.3; P2Pcom − C4 sin inversión en los 12.
+
+Añadido el 2026-10-04 (el corte y el fondo, C-282), también al final, de modo
+que las 2 553 filas anteriores salen iguales byte a byte:
+
+18. El corte hx y el fondo del P2P colectivo (CANON §14.25), de
+    `corte_fondo_2026-10-04/corte_fondo_13casos.csv` (grupo `e1/CF`): por
+    caso, la energía transada en el mercado P2P y su ahorro del intercambio
+    antes y desde la hora del corte hx del vendedor, con sus partes y el ahorro
+    por kWh (`corte__<caso>__*`); el exceso a la bolsa en C1, el mercado P2P,
+    el P2P colectivo y C4, con sus diferencias (`exc__<caso>__*`); el residual
+    que entra al fondo del P2P colectivo, el que el reparto igual redistribuye,
+    el que se acredita a quien todavía importa y el crédito que pierde quien
+    cede (`fondo__<caso>__*`); los globales (`corte__casos_con_corte*`,
+    `corte__ancho_*`, `fondo__casos_*`) y N1 por institución. Ninguna clave
+    existente cambia. Compuertas (3): las sumas, `com__<caso>__banda`,
+    `e0__ancho_efectivo` y `atr__<caso>__transado_pct`; las dos tablas de
+    CANON §14.25; el P2P colectivo manda más a la bolsa solo en N1.
+
 Formato de `texto_en` (la forma exacta en que el valor aparece en el artículo):
 punto decimal, coma de millares a partir de 1 000, signo menos ASCII (`-`) y
 ningún `-0.00`. MCOP a dos decimales; porcentajes a dos decimales con « %»,
@@ -226,7 +259,8 @@ CANON_MD = RAIZ / "Documentos" / "canon_2026-09" / "CANON.md"
 SALIDAS = RAIZ / "SALIDAS_SERVIDOR"
 BASE_MATRIZ = SALIDAS / "entrega_matriz_reposo_2026-09-19"
 BASE_GSA = SALIDAS / "entrega_gsa_directo_completo_2026-09-27"
-SALIDA = SALIDAS / "cifras_articulo_2026-09-30"
+BASE_GSA2 = SALIDAS / "entrega_gsa_directo_c2_p2pcol_2026-10-03"   # grupos gsa2/ (§13.9)
+SALIDA =SALIDAS / "cifras_articulo_2026-09-30"
 
 CASOS = ["E0", "E1", "E2", "E3", "E4", "E5", "P1", "P2", "K1", "I1", "N1",
          "CV2", "SINU"]
@@ -238,6 +272,19 @@ BRECHAS = {"P2P_menos_C1": ("P2P_C1", "P2P − C1"),
            "P2Pcol_menos_C1": ("P2Pcol_C1", "P2P colectivo − C1"),
            "C4_menos_C1": ("C4_C1", "C4 − C1"),
            "P2P_menos_C5": ("P2P_C5", "P2P − C5")}
+# 2026-10-02: las siete brechas nuevas del GSA con C2 como PPA y el P2P
+# colectivo (grupos `gsa2/`, CANON §13.9) -> sufijo de la clave, rótulo de la
+# tabla de CANON §13.9.3 y rótulo de la definición. Los sufijos no chocan con
+# los de BRECHAS: las claves del GSA del 27 siguen iguales.
+BRECHAS_GSA2 = {
+    "P2Pcom_menos_C4": ("P2Pcom_C4", "P2Pcom − C4", "P2P colectivo (P2Pcom) − C4"),
+    "P2Pcom_menos_C1": ("P2Pcom_C1", "P2Pcom − C1", "P2P colectivo (P2Pcom) − C1"),
+    "P2Pcom_menos_P2P": ("P2Pcom_P2P", "P2Pcom − P2P", "P2P colectivo (P2Pcom) − P2P"),
+    "C2ppa_menos_C1": ("C2ppa_C1", "C2ppa − C1", "C2 como PPA (C2ppa) − C1"),
+    "C2ppa_menos_C4": ("C2ppa_C4", "C2ppa − C4", "C2 como PPA (C2ppa) − C4"),
+    "C2ppa_menos_P2P": ("C2ppa_P2P", "C2ppa − P2P", "C2 como PPA (C2ppa) − P2P"),
+    "P2Pcom_menos_C2ppa": ("P2Pcom_C2ppa", "P2Pcom − C2ppa", "P2P colectivo (P2Pcom) − C2 como PPA (C2ppa)"),
+}
 # mecanismo de la hoja Resumen -> sufijo de la clave y columna de CANON §6
 MECS = {"P2P": ("P2P", "P2P"), "P2P_colectivo": ("P2Pcol", "P2P colectivo"),
         "C1": ("C1", "C1"), "C4": ("C4", "C4"), "C5": ("C5", "C5")}
@@ -321,6 +368,8 @@ exige(list(_H.columns) == ["grupo", "ruta", "bytes", "sha256"],
 def _base(grupo: str) -> Path:
     if grupo.startswith("gsa/"):
         return BASE_GSA
+    if grupo.startswith("gsa2/"):
+        return BASE_GSA2
     if grupo.startswith("e1/"):
         return SALIDAS
     return BASE_MATRIZ
@@ -2440,6 +2489,252 @@ def p2p_colectivo_derivados(R: pd.DataFrame) -> None:
        "justicia, 11 fronteras, umbral y techo cuadran con las tablas 2, 3 y 5 de CANON §14.24")
 
 
+# ── 17. El GSA con C2 como PPA y el P2P colectivo (§13.9) ───────────────────
+def gsa_c2_p2pcol() -> None:
+    """P(inversión) de las siete brechas nuevas de comunidad (P2P colectivo,
+    `P2Pcom`, y C2 como PPA, `C2ppa`) en la caja del GSA del 2026-10-02, con
+    su intervalo al 95 % y su valor en el punto base. Compuertas: las cinco
+    brechas del GSA del 27 de septiembre salen al bit en la entrega nueva; las
+    dos tablas y los intervalos de CANON §13.9.3; P2Pcom − C4 sin inversión en
+    los 12 casos."""
+    sub = "SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03"
+    ent = "entrega_gsa_directo_c2_p2pcol_2026-10-03/" + sub
+    pb = pd.read_csv(lee(f"{sub}/base/punto_base.csv", "gsa2/base")).set_index("caso")
+    # a) lo común con el GSA del 27 de septiembre, al bit
+    cols = ["base", "p_inversion", "p_inf", "p_sup", "minimo", "maximo", "n_filas"]
+    nuevos = {}
+    for c in CASOS_GSA:
+        v2 = pd.read_csv(lee(f"{sub}/{c}/inversion_{c}.csv", f"gsa2/{c}")).set_index("salida")
+        v9 = pd.read_csv(lee(f"SALIDAS_SERVIDOR/gsa_directo/{c}/inversion_{c}.csv", f"gsa/{c}")).set_index("salida")
+        comunes = [s for s in v9.index if s in v2.index]
+        exige(len(comunes) == len(v9), f"{c}: la entrega nueva no trae todas las filas de la del 27")
+        exige(bool((v9.loc[comunes, cols].to_numpy(float) == v2.loc[comunes, cols].to_numpy(float)).all()),
+              f"{c}: inversion_{c}.csv difiere de la del 27 en las brechas comunes")
+        for b in BRECHAS:
+            exige(v2.loc[b, "p_inversion"] * 100 == next(f["valor"] for f in FILAS if f["clave"] == f"gsa__{c}__{BRECHAS[b][0]}__p"),
+                  f"{c} {b}: la clave del 27 no es la P de la entrega nueva")
+        nuevos[c] = v2
+    ok("las cinco brechas del GSA del 27 de septiembre, al bit en la entrega del 2026-10-02 (base, P, intervalo, mínimo, "
+       "máximo y filas, también por institución) en los 12 casos")
+    # b) CANON §13.9.3
+    s = seccion("#### 13.9.3 ·")
+    tp, tb = tablas(s)
+    exige(list(tp.index) == CASOS_GSA and list(tb.index) == CASOS_GSA + ["CV2"], "CANON §13.9.3: casos de las tablas")
+    ic = {}
+    for m in re.finditer(r"^- (\w+): (.+)\.$", s, re.M):
+        for rot, lo, hi in re.findall(r"([^,;]+?), \[([−\d,]+); ([−\d,]+)\]", m.group(2)):
+            ic[(m.group(1), rot.strip())] = (num_es(lo), num_es(hi))
+    sin_inv = {b: 0 for b in BRECHAS_GSA2}
+    for c in CASOS_GSA:
+        v = nuevos[c]
+        n = int(num_es(tp.loc[c, "n"]))
+        for b, (suf, rot, rot_def) in BRECHAS_GSA2.items():
+            f = v.loc[b]
+            finito([f.p_inversion, f.p_inf, f.p_sup, f.base], f"inversion_{c} {b}")
+            exige(int(f.n_filas) == 2 * n, f"{c} {b}: {f.n_filas} filas, CANON §13.9.3 da n = {n}")
+            exige(abs(f.base - pb.loc[c, b]) <= 1e-6, f"{c} {b}: la base de inversion no es la de punto_base")
+            exige(f.p_inf <= f.p_inversion <= f.p_sup, f"{c} {b}: P fuera de su intervalo")
+            p, lo, hi = 100 * f.p_inversion, 100 * f.p_inf, 100 * f.p_sup
+            esp = num_es(tp.loc[c, rot])
+            exige(abs(p - esp) <= 0.005 + 1e-9, f"{c} {b}: P = {p:.4f} %, CANON §13.9.3 da {esp}")
+            if esp == 0:
+                exige(lo == 0 and hi == 0 and (c, rot) not in ic, f"{c} {b}: P nula con intervalo no nulo")
+                sin_inv[b] += 1
+            else:
+                elo, ehi = ic[(c, rot)]
+                exige(abs(lo - elo) <= 0.005 + 1e-9 and abs(hi - ehi) <= 0.005 + 1e-9,
+                      f"{c} {b}: intervalo [{lo:.4f}, {hi:.4f}], CANON §13.9.3 da [{elo}, {ehi}]")
+            eb = num_es(tb.loc[c, rot])
+            exige(abs(f.base / M - eb) <= 0.005 + 1e-9, f"{c} {b}: base {f.base / M:.4f} MCOP, CANON §13.9.3 da {eb}")
+            nota = (" (base nula hasta el redondeo: no se cita, CANON §13.9.8)"
+                    if abs(f.base) < 1.0 else "")
+            FG = f"{ent}/{c}/inversion_{c}.csv, fila {b}, columna "
+            pon(f"gsa__{c}__{suf}__p", p, "%", en(p, 2, " %"),
+                f"P(inversión) de {rot_def} en la caja del GSA del 2026-10-02, caso {c}{nota}", FG + "p_inversion", "§13.9")
+            pon(f"gsa__{c}__{suf}__lo", lo, "%", en(lo, 2, " %"),
+                f"cota inferior al 95 % de P(inversión) de {rot_def}, caso {c}{nota}", FG + "p_inf", "§13.9")
+            pon(f"gsa__{c}__{suf}__hi", hi, "%", en(hi, 2, " %"),
+                f"cota superior al 95 % de P(inversión) de {rot_def}, caso {c}{nota}", FG + "p_sup", "§13.9")
+            pon(f"gsa__{c}__{suf}__base", f.base / M, "MCOP", en(f.base / M, 2),
+                f"{rot_def} en el punto base del GSA del 2026-10-02, caso {c}", f"{ent}/base/punto_base.csv, columna " + b,
+                "§13.9")
+    exige(len(ic) == sum(12 - k for k in sin_inv.values()),
+          f"CANON §13.9.3: {len(ic)} intervalos leídos, se esperaban {sum(12 - k for k in sin_inv.values())}")
+    ok(f"la tabla de P(inversión) de las siete brechas nuevas, sus {len(ic)} intervalos y la tabla del punto base de "
+       "CANON §13.9.3 en los 12 casos")
+    for b, (suf, rot, rot_def) in BRECHAS_GSA2.items():
+        pon(f"gsa__n_casos_sin_inversion_{suf}", sin_inv[b], "casos de 12", en_int(sin_inv[b]),
+            f"casos del GSA del 2026-10-02 con P(inversión) de {rot_def} igual a cero",
+            f"{ent}/<caso>/inversion_<caso>.csv, columna p_inversion, conteo", "§13.9")
+    exige(sin_inv["P2Pcom_menos_C4"] == 12, f"P2Pcom − C4: P(inversión) nula en {sin_inv['P2Pcom_menos_C4']} casos, no en 12")
+    ok("P2P colectivo (P2Pcom) − C4 sin inversión en los 12 casos (CANON §13.9.3)")
+
+
+# ── 18. El corte hx y el fondo del P2P colectivo (C-282; añadido el 2026-10-04) ──
+F_CF = "corte_fondo_2026-10-04/corte_fondo_13casos.csv"
+
+
+def corte_fondo() -> None:
+    """El corte hx (energía y ahorro del intercambio del mercado P2P antes y tras
+    la hora del corte, y el ahorro por kWh) y el fondo del P2P colectivo
+    (residual redistribuido a quien todavía importa y exceso a la bolsa en C1,
+    el mercado P2P, el P2P colectivo y C4), de `corte_fondo_2026-10-04/`
+    (grupo `e1/CF`, CANON §14.25). Compuertas: lo antes y lo tras suman lo
+    total y el ahorro total es `com__<caso>__banda`, al peso; el ancho de E0 es
+    `e0__ancho_efectivo` y la energía transada sobre la inyección,
+    `atr__<caso>__transado_pct`; el neto del fondo es la diferencia de exceso;
+    las dos tablas de CANON §14.25 a sus decimales; el P2P colectivo manda más
+    a la bolsa que el mercado solo en N1."""
+    SEC = "§14.25"
+    X = pd.read_csv(lee(F_CF, "e1/CF"))
+    exige(len(X) == 77 and not X.to_csv().lower().count("cedenar"), f"{F_CF}: {len(X)} filas o comercializador nombrado")
+    num = X.drop(columns=["caso", "institucion", "ancho_COP_kWh", "ancho_antes_COP_kWh", "ancho_tras_COP_kWh"])
+    finito(num.to_numpy(dtype=float), F_CF)
+    C = X[X.institucion == "comunidad"].set_index("caso")
+    exige(list(C.index) == CASOS, f"{F_CF}: casos de la comunidad")
+    FC = F_CF + ", fila comunidad, "
+    # (a) las sumas, la banda de §14.8 y las claves previas
+    for c in CASOS:
+        r = C.loc[c]
+        exige(abs(r.vendido_antes_kwh + r.vendido_tras_kwh - r.vendido_kwh) <= 1e-5
+              and abs(r.vendido_kwh - r.comprado_kwh) <= 1e-5, f"{c}: energía antes + tras ≠ total")
+        exige(abs(r.banda_antes_COP + r.banda_tras_COP - r.banda_COP) <= 1e-5, f"{c}: ahorro antes + tras ≠ total")
+        exige(abs(r.banda_COP / M - valor_de(f"com__{c}__banda")) <= 1e-6,
+              f"{c}: ahorro del intercambio {r.banda_COP / M:.6f} ≠ com__{c}__banda {valor_de(f'com__{c}__banda'):.6f}")
+        exige(abs(100 * r.vendido_kwh / r.inyeccion_kwh - valor_de(f"atr__{c}__transado_pct")) <= 1e-4,
+              f"{c}: energía transada / inyección ≠ atr__{c}__transado_pct")
+        exige(abs(r.exceso_P2P_menos_P2Pcol_kwh - r.fondo_neto_kwh) <= 1e-5
+              and abs(r.fondo_ganado_kwh - r.fondo_perdido_kwh - r.fondo_neto_kwh) <= 1e-5
+              and abs(r.exceso_C1_menos_P2P_kwh - (r.exceso_C1_kwh - r.exceso_P2P_kwh)) <= 1e-5,
+              f"{c}: el neto del fondo no es la diferencia de exceso")
+        ins = X[(X.caso == c) & (X.institucion != "comunidad")]
+        for k in ["vendido_tras_kwh", "banda_tras_COP", "exceso_P2Pcol_kwh", "fondo_ganado_kwh"]:
+            exige(abs(float(ins[k].sum()) - float(r[k])) <= 1e-4, f"{c}: la comunidad no es la suma de sus instituciones en {k}")
+    exige(abs(C.loc["E0", "ancho_COP_kWh"] - valor_de("e0__ancho_efectivo")) <= 1e-6, "E0: ancho ≠ e0__ancho_efectivo")
+    ok("corte y fondo (e1/CF): lo antes y lo tras el corte suman lo total; el ahorro del intercambio total es "
+       "com__<caso>__banda (≤ 1 COP) y la energía transada sobre la inyección, atr__<caso>__transado_pct; el ancho de E0 "
+       "es e0__ancho_efectivo; neto del fondo = ganado − perdido = exceso del mercado − exceso del P2P colectivo; la "
+       "comunidad es la suma de sus instituciones, en los 13 casos")
+    # (b) las dos tablas de CANON §14.25
+    tb = tablas(seccion("### 14.25 ·"))
+    exige(len(tb) == 2, f"CANON §14.25: {len(tb)} tablas, no 2")
+    t1, t2 = tb
+    exige(list(t1.index) == CASOS and list(t2.index) == CASOS, "CANON §14.25: casos de las tablas")
+
+    def igual(v, celda, d, qué):
+        if celda == "—":
+            exige(not np.isfinite(v), f"CANON §14.25 {qué}: «—» con valor {v}")
+            return
+        exige(abs(v - num_es(celda)) <= 0.5 * 10 ** -d + 1e-9, f"CANON §14.25 {qué}: {v:.6f} no redondea a {celda}")
+
+    for c in CASOS:
+        r = C.loc[c]
+        for col, v, d in [("Transado (kWh)", r.vendido_kwh, 1), ("Tras el corte (kWh)", r.vendido_tras_kwh, 1),
+                          ("Tras el corte (%)", 100 * r.vendido_tras_kwh / r.vendido_kwh, 1),
+                          ("Ahorro antes (MCOP)", r.banda_antes_COP / M, 3), ("Ahorro tras (MCOP)", r.banda_tras_COP / M, 3),
+                          ("Ahorro tras (%)", 100 * r.banda_tras_COP / r.banda_COP, 1),
+                          ("COP/kWh antes", r.ancho_antes_COP_kWh, 2), ("COP/kWh tras", r.ancho_tras_COP_kWh, 2),
+                          ("COP/kWh total", r.ancho_COP_kWh, 2)]:
+            igual(v, t1.loc[c, col], d, f"tabla 1, {c} {col}")
+        for col, v, d in [("C1", r.exceso_C1_kwh, 1), ("Mercado P2P", r.exceso_P2P_kwh, 1),
+                          ("P2P colectivo", r.exceso_P2Pcol_kwh, 1), ("C4", r.exceso_C4_kwh, 1),
+                          ("C1 − mercado", r.exceso_C1_menos_P2P_kwh, 1),
+                          ("Mercado − P2P colectivo", r.exceso_P2P_menos_P2Pcol_kwh, 1),
+                          ("Residual al fondo", r.residual_iny_kwh, 1), ("Redistribuido", r.fondo_recibido_kwh, 1),
+                          ("Ganado", r.fondo_ganado_kwh, 1), ("Perdido", r.fondo_perdido_kwh, 1)]:
+            igual(v, t2.loc[c, col], d, f"tabla 2, {c} {col}")
+    ok("las dos tablas de CANON §14.25 (el corte en el mercado P2P; el exceso a la bolsa y el fondo) a sus decimales en "
+       "los 13 casos")
+    # (c) las claves por caso
+    con_corte = [c for c in CASOS if C.loc[c, "vendido_tras_kwh"] > 0]
+    for c in CASOS:
+        r = C.loc[c]
+        pc_e = 100 * r.vendido_tras_kwh / r.vendido_kwh
+        pc_b = 100 * r.banda_tras_COP / r.banda_COP
+        for k, v, u, t, dfn, col in [
+                ("energia_kwh", r.vendido_kwh, "kWh", en(r.vendido_kwh, 2), "energía transada en el mercado P2P",
+                 "vendido_kwh"),
+                ("energia_antes_kwh", r.vendido_antes_kwh, "kWh", en(r.vendido_antes_kwh, 2),
+                 "energía transada en el mercado P2P antes de la hora del corte hx de su vendedor (piso = permuta)",
+                 "vendido_antes_kwh"),
+                ("energia_tras_kwh", r.vendido_tras_kwh, "kWh", en(r.vendido_tras_kwh, 2),
+                 "energía transada en el mercado P2P desde la hora del corte hx de su vendedor (piso = bolsa)",
+                 "vendido_tras_kwh"),
+                ("energia_tras_pct", pc_e, "%", en(pc_e, 2, " %"),
+                 "parte de la energía transada que es posterior al corte hx de su vendedor", "vendido_tras_kwh / vendido_kwh"),
+                ("ahorro_antes", r.banda_antes_COP / M, "MCOP", en(r.banda_antes_COP / M, 2),
+                 "ahorro del intercambio (banda de §14.8) de lo transado antes del corte hx", "banda_antes_COP"),
+                ("ahorro_tras", r.banda_tras_COP / M, "MCOP", en(r.banda_tras_COP / M, 2),
+                 "ahorro del intercambio (banda de §14.8) de lo transado desde el corte hx", "banda_tras_COP"),
+                ("ahorro_tras_pct", pc_b, "%", en(pc_b, 2, " %"),
+                 "parte del ahorro del intercambio que viene de lo transado desde el corte hx", "banda_tras_COP / banda_COP"),
+                ("ancho", r.ancho_COP_kWh, "COP/kWh", en(r.ancho_COP_kWh, 2),
+                 "ahorro del intercambio por kWh transado (ancho efectivo; = banda media techo − piso ponderada por energía)",
+                 "ancho_COP_kWh"),
+                ("ancho_antes", r.ancho_antes_COP_kWh, "COP/kWh", en(r.ancho_antes_COP_kWh, 2),
+                 "ahorro del intercambio por kWh transado antes del corte hx (banda media ponderada por energía)",
+                 "ancho_antes_COP_kWh")]:
+            pon(f"corte__{c}__{k}", float(v), u, t, f"{dfn}, caso {c}", FC + col, SEC)
+        if c in con_corte:
+            pon(f"corte__{c}__ancho_tras", float(r.ancho_tras_COP_kWh), "COP/kWh", en(r.ancho_tras_COP_kWh, 2),
+                f"ahorro del intercambio por kWh transado desde el corte hx (banda media CU − bolsa ponderada por energía), "
+                f"caso {c}", FC + "ancho_tras_COP_kWh", SEC)
+        for k, col, dfn in [("C1_kwh", "exceso_C1_kwh", "exceso a la bolsa en C1 (inyección bruta por miembro, Anexo 4)"),
+                            ("P2P_kwh", "exceso_P2P_kwh", "exceso a la bolsa en el mercado P2P (residual por miembro)"),
+                            ("P2Pcom_kwh", "exceso_P2Pcol_kwh",
+                             "exceso a la bolsa en el P2P colectivo (P2Pcom: residual al fondo, reparto igual)"),
+                            ("C4_kwh", "exceso_C4_kwh", "exceso a la bolsa en C4 (inyección bruta al fondo, reparto igual)"),
+                            ("C1_menos_P2P_kwh", "exceso_C1_menos_P2P_kwh",
+                             "exceso de C1 menos el del mercado P2P: lo que vender dentro saca de la bolsa"),
+                            ("P2P_menos_P2Pcom_kwh", "exceso_P2P_menos_P2Pcol_kwh",
+                             "exceso del mercado P2P menos el del P2P colectivo (P2Pcom): lo que el fondo saca de la bolsa "
+                             "(negativo: lo manda)")]:
+            pon(f"exc__{c}__{k}", float(C.loc[c, col]), "kWh", en(C.loc[c, col], 2), f"{dfn}, caso {c}", FC + col, SEC)
+        for k, col, dfn in [("residual_kwh", "residual_iny_kwh", "residual de la comunidad que entra al fondo del P2P "
+                             "colectivo, Σ max(s − v, 0)"),
+                            ("redistribuido_kwh", "fondo_recibido_kwh", "residual que el reparto igual del fondo lleva de "
+                             "un miembro a otro, Σ por miembro y mes de max(asignado − propio, 0)"),
+                            ("ganado_kwh", "fondo_ganado_kwh", "residual que el fondo lleva a miembros que todavía importan "
+                             "y se acredita (crédito ganado por quien recibe, frente al mercado P2P)"),
+                            ("perdido_kwh", "fondo_perdido_kwh", "crédito que pierde quien cede su residual al fondo "
+                             "(frente al mercado P2P); ganado − perdido = exc__<caso>__P2P_menos_P2Pcom_kwh")]:
+            pon(f"fondo__{c}__{k}", float(C.loc[c, col]), "kWh", en(C.loc[c, col], 2), f"{dfn}, caso {c}", FC + col, SEC)
+    # (d) los globales
+    pon("corte__casos_con_corte", len(con_corte), "casos de 13", en_int(len(con_corte)),
+        "casos con energía transada desde el corte hx (algún miembro agota su crédito)", F_CF + ", filas comunidad", SEC)
+    pon("corte__casos_con_corte__lista", ", ".join(con_corte), "casos", ", ".join(con_corte),
+        "casos con energía transada desde el corte hx", F_CF + ", filas comunidad, vendido_tras_kwh > 0", SEC)
+    at = C.loc[con_corte, "ancho_tras_COP_kWh"]
+    aa = C.loc[con_corte, "ancho_antes_COP_kWh"]
+    for k, v, cc, dfn in [("ancho_tras_min", at.min(), at.idxmin(), "menor ahorro por kWh transado desde el corte"),
+                          ("ancho_tras_max", at.max(), at.idxmax(), "mayor ahorro por kWh transado desde el corte"),
+                          ("ancho_antes_min", aa.min(), aa.idxmin(), "menor ahorro por kWh transado antes del corte"),
+                          ("ancho_antes_max", aa.max(), aa.idxmax(), "mayor ahorro por kWh transado antes del corte")]:
+        pon(f"corte__{k}", float(v), "COP/kWh", en(v, 2), f"{dfn}, en los casos con corte ({cc})",
+            F_CF + ", filas comunidad", SEC)
+    menos = [c for c in CASOS if C.loc[c, "exceso_P2P_menos_P2Pcol_kwh"] > 1e-6]
+    mas = [c for c in CASOS if C.loc[c, "exceso_P2P_menos_P2Pcol_kwh"] < -1e-6]
+    for k, lst, dfn in [("menos_bolsa", menos, "el P2P colectivo manda menos energía a la bolsa que el mercado P2P"),
+                        ("mas_bolsa", mas, "el P2P colectivo manda más energía a la bolsa que el mercado P2P")]:
+        pon(f"fondo__casos_{k}", len(lst), "casos de 13", en_int(len(lst)), f"casos en que {dfn}",
+            F_CF + ", filas comunidad, exceso_P2P_menos_P2Pcol_kwh", SEC)
+        pon(f"fondo__casos_{k}__lista", ", ".join(lst), "casos", ", ".join(lst), f"casos en que {dfn}",
+            F_CF + ", filas comunidad, exceso_P2P_menos_P2Pcol_kwh", SEC)
+    exige(mas == ["N1"], f"el P2P colectivo manda más a la bolsa en {mas}, no solo en N1 (CANON §14.23 y §14.25)")
+    # N1 por institución: por qué el fondo manda más a la bolsa
+    n1 = X[(X.caso == "N1") & (X.institucion != "comunidad")].set_index("institucion")
+    FN = F_CF + ", fila N1, institución "
+    for a, r in n1.iterrows():
+        for k, col, dfn in [("P2P_kwh", "exceso_P2P_kwh", "exceso a la bolsa en el mercado P2P"),
+                            ("P2Pcom_kwh", "exceso_P2Pcol_kwh", "exceso a la bolsa en el P2P colectivo (P2Pcom)")]:
+            pon(f"exc__N1__{a}__{k}", float(r[col]), "kWh", en(r[col], 2), f"{dfn}, N1, {a}", FN + f"{a}, {col}", SEC)
+        for k, col, dfn in [("recibido_kwh", "fondo_recibido_kwh", "residual que el reparto igual le lleva de otros"),
+                            ("cedido_kwh", "fondo_cedido_kwh", "residual propio que el reparto igual lleva a otros")]:
+            pon(f"fondo__N1__{a}__{k}", float(r[col]), "kWh", en(r[col], 2), f"{dfn}, N1, {a}", FN + f"{a}, {col}", SEC)
+    ok(f"corte y fondo: {len(con_corte)} casos con energía tras el corte ({', '.join(con_corte)}); el P2P colectivo manda "
+       f"menos a la bolsa que el mercado en {', '.join(menos)} y más solo en N1 (corrección de CANON §14.23)")
+
+
 def main() -> int:
     c7p = lee("cifras_cap07_2026-09-28/cifras.csv", "e1/R")
     c7d = pd.read_csv(c7p, dtype={"valor": str})
@@ -2504,9 +2799,18 @@ def main() -> int:
     exige(n_ord == 1918, f"los bloques hasta los dos órdenes dan {n_ord} cifras, no 1918")
     print("[cifras_articulo] 16. las mediciones rehechas para el P2P colectivo y C2 (añadido el 2026-10-02)")
     p2p_colectivo_derivados(R)
+    n_pd = len(FILAS)
+    exige(n_pd == 2210, f"los bloques hasta los derivados del P2P colectivo dan {n_pd} cifras, no 2210")
+    print("[cifras_articulo] 17. el GSA con C2 como PPA y el P2P colectivo (añadido el 2026-10-02)")
+    gsa_c2_p2pcol()
+    n_g2 = len(FILAS)
+    exige(n_g2 == 2553, f"los bloques hasta el GSA con C2 y el P2P colectivo dan {n_g2} cifras, no 2553")
+    print("[cifras_articulo] 18. el corte hx y el fondo del P2P colectivo (añadido el 2026-10-04)")
+    corte_fondo()
     print(f"[cifras_articulo] {len(FILAS) - n29} cifras nuevas desde el 29; {n_b1 - n30} de la atribución; "
           f"{n_p - n_b1} del PPA; {n_pc - n_p} del P2P comunitario; {n_ord - n_pc} de sus dos órdenes; "
-          f"{len(FILAS) - n_ord} de los derivados del P2P colectivo")
+          f"{n_pd - n_ord} de los derivados del P2P colectivo; {n_g2 - n_pd} del GSA con C2 y el P2P colectivo; "
+          f"{len(FILAS) - n_g2} del corte y el fondo")
     SALIDA.mkdir(parents=True, exist_ok=True)
     out = pd.DataFrame(FILAS, columns=["clave", "valor", "unidad", "texto_en", "definicion", "fuente", "seccion_canon"])
     exige(out.clave.is_unique, "claves repetidas en la salida")
@@ -2519,8 +2823,8 @@ def main() -> int:
         fh.write("este guion con cambios sin commit:\n" + (sucio or "(ninguno)") + "\n")
         fh.write(f"python {platform.python_version()}, numpy {np.__version__}, pandas {pd.__version__}\n")
         fh.write("orden: python -u " + guion + "\n")
-        fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §14.3, §14.7, "
-                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24); "
+        fh.write("CANON.md leído como texto (compuertas y constantes de §1, §4, §6, §9, §10.1, §13.1, §13.2, §13.3, §13.9, §14.3, §14.7, "
+                 "§14.8, §14.10, §14.11, §14.16, §14.18, §14.21, §14.22, §14.23, §14.24, §14.25); "
                  f"sha256 {hashlib.sha256(CANON_MD.read_bytes()).hexdigest()}\n")
         fh.write(f"huellas: {HUELLAS.relative_to(RAIZ).as_posix()}; {len(LEIDOS)} artefactos leídos, todos con la huella comprobada:\n")
         for g, r in LEIDOS:

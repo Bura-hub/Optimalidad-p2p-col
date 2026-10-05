@@ -235,7 +235,8 @@ Listo y verificado:
   corrección de los rótulos SC/SS.
 - `scripts/cache_crudo.py` — estados intermedios del preprocesamiento.
   **Verificado contra el pipeline real: `max|dif| = 0` en las diez series.**
-- `scripts/bootstrap_remuestras.py` — recupera las 10.000 réplicas del
+- `scripts/bootstrap_remuestras.py` (retirado el 2026-10-05 con el bootstrap,
+  C-218; queda en el historial de git) — recupera las 10.000 réplicas del
   remuestreo. **Reproduce el canon dígito a dígito en las diez cifras.**
 - `main.tex` + 21 archivos de sección — compila limpio con bibliografía IEEE.
 - `datos_cache/` — caché del preprocesamiento y réplicas del remuestreo.
@@ -252,7 +253,7 @@ Listo y verificado:
 | `gen_cap10.py` | 4 | mercado horario, mensual, ranking, por institución |
 | `gen_cap11.py` | 4 | barridos locales, Sobol, aditividad, lado corto |
 | `gen_cap12.py` | 4 | cumplimiento, racionalidad individual, equidad, escala |
-| `gen_cap13.py` | 3 | serie diaria, remuestreo, tamaño del efecto |
+| `gen_cap13.py` | 3 | serie diaria, remuestreo, tamaño del efecto (retirado el 2026-10-05, C-218; en el historial de git) |
 
 Pendientes de generar: los 17 diagramas TikZ restantes y las 6 figuras de
 MATLAB. Cinco figuras del canon **no son regenerables** por falta de datos;
@@ -597,7 +598,7 @@ Las tres figuras que **no existen** y hay que crear:
   demanda se multiplica por 17 al pasar de M1 a M3. Fue una predicción
   enunciada antes de medirla, y se cumplió; conviene contarlo en ese orden.
 - **13.2** — histograma del remuestreo con su intervalo. Requiere
-  `scripts/bootstrap_remuestras.py`, que vuelve a correr el remuestreo con
+  `scripts/bootstrap_remuestras.py` (retirado, C-218; en el historial de git), que vuelve a correr el remuestreo con
   semilla 42 guardando las réplicas. Es determinista y **debe reproducir**
   8.114,14 (M1) y 10.579,11 (M3).
 - **13.1** — la serie diaria de la diferencia, que es la entrada del

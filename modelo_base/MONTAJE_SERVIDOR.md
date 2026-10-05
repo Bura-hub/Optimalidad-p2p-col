@@ -1883,8 +1883,8 @@ export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo   # la del 19-09; la compuert
 SECO=1 bash modelo_base/run_servidor.sh gsa_directo            # antes: imprime las ordenes
 
 # HISTORICO: las ordenes de la corrida del 26 y 27 de septiembre, ya hecha
-# (CANON §13). No se repiten: la corrida nueva, con C2ppa y P2Pcom, esta en
-# «La corrida con C2 como PPA y el P2P colectivo», mas abajo.
+# (CANON §13). No se repiten: la corrida vigente, con H1, esta en
+# «La corrida con H1, el credito mutualizado», mas abajo.
 #   de dia:          SOLO_HUMO=1 CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
 #   primera noche:   CASOS="E0 E2" bash modelo_base/run_servidor.sh gsa_directo
 #   segunda tanda:   CASOS="E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU" bash modelo_base/run_servidor.sh gsa_directo
@@ -2036,7 +2036,97 @@ corrida de otro n mientras la anterior siga en `SALIDAS_SERVIDOR/gsa_directo/E0/
 1 024, la de 2 048 se corre **entera**: se mueve la anterior a otra carpeta y
 se relanza.
 
-### La corrida con C2 como PPA y el P2P colectivo (desde la noche del 3 de octubre)
+### La corrida con H1, el crédito mutualizado (desde la noche del 4 de octubre)
+
+Desde el 2026-10-04 cada evaluación liquida también **H1**, el autogenerador
+colectivo de crédito mutualizado (CANON §14.26, «H1 fondo», la lectura exacta):
+sin intercambio, toda la inyección al fondo de C4, deducida por el numeral del
+art. 25 de la planta de origen y repartida por mes «primero lo propio». Son
+cinco salidas más al final (el nivel `H1` y sus brechas contra C4, C1, el
+mercado P2P y el P2P colectivo) y, por institución, esas cuatro más H1 con la
+compensación de quien cede crédito contra C4 y C1 (`H1comp_menos_*`). Las
+anteriores no cambian (`gsa_directo/LEEME.md`). No usa los flujos del mercado,
+de modo que H1 es exacto en cada punto.
+
+**El tiempo es el de la corrida del 2 y 3 de octubre.** Medido entonces: los
+once primeros casos de las 17:10 a las 22:46 y SINU en 10 (min), unas 6 (h) los
+doce con 16 procesos. El humo, más prudente, proyectó 8,80 (h) para los once y
+dejó SINU para otra pasada; con `TOPE_NOCHE_H=10` caben los doce en una noche.
+H1 cuesta lo que una liquidación más del colectivo por evaluación.
+
+**Va a una carpeta nueva.** `SALIDAS_SERVIDOR/gsa_directo` (27 de septiembre)
+y `SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03` tienen corridas sin H1:
+la acción se niega a usar una carpeta con corridas sin la columna `H1`
+(código 2, antes de escribir nada) y `correr.py` tampoco retoma un
+`.meta.json` con otras columnas. `GSA_SALIDAS` tiene que estar dentro de
+`SALIDAS_SERVIDOR/`.
+
+Antes, en el servidor, el código del commit que lo trae (avance rápido; con un
+caso a medias no se hace `pull`, y ahora no hay ninguno):
+
+```bash
+cd ~/bslopez/sistemabl
+git fetch origin
+git pull --ff-only origin main
+git log --oneline -1
+```
+
+De día, el 4 de octubre (unos minutos, contenido como siempre):
+
+```bash
+tmux new -s gsa
+cd ~/bslopez/sistemabl
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo
+export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04
+SECO=1 bash modelo_base/run_servidor.sh gsa_directo
+SOLO_HUMO=1 TOPE_NOCHE_H=10 bash modelo_base/run_servidor.sh gsa_directo
+```
+
+`MATRIZ_CANON` es la del 19 de septiembre; si en el servidor se relanzó algo
+encima, la entrega desempaquetada
+(`SALIDAS_SERVIDOR/entrega_matriz_reposo_2026-09-19/SALIDAS_SERVIDOR/matriz_reposo`).
+El humo tiene que imprimir el plan con los doce en `CASOS_NOCHE`.
+
+La noche del 4 de octubre, en la misma sesión de tmux:
+
+```bash
+TOPE_NOCHE_H=10 bash modelo_base/run_servidor.sh gsa_directo
+```
+
+Si el humo aplazó casos, la acción imprime al final la orden de la noche
+siguiente (la del 5), con la misma `GSA_SALIDAS` exportada:
+
+```bash
+CASOS="<los que quedaron>" bash modelo_base/run_servidor.sh gsa_directo
+```
+
+Para traerlo, en el servidor, con prioridad baja, solo esa carpeta y sus
+registros (sin la caché):
+
+```bash
+cd ~/bslopez/sistemabl
+nice -n 19 ionice -c 3 tar czf gsa_directo_h1_2026-10-04.tar.gz \
+  --exclude=SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04/cache \
+  SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04 \
+  modelo_base/logs/gsa_directo_*_2026-10-0[4-6]_*.log
+```
+
+Y en la máquina de trabajo (PowerShell, en la raíz del repositorio):
+
+```powershell
+scp insuasti@bunnygirl:bslopez/sistemabl/gsa_directo_h1_2026-10-04.tar.gz .
+New-Item -ItemType Directory -Force SALIDAS_SERVIDOR/entrega_gsa_directo_h1_2026-10-04
+tar xzf gsa_directo_h1_2026-10-04.tar.gz -C SALIDAS_SERVIDOR/entrega_gsa_directo_h1_2026-10-04
+```
+
+Nada de esto es canon hasta que se registre en `Documentos/canon_2026-09/`.
+
+### HISTÓRICO: la corrida con C2 como PPA y el P2P colectivo (2 y 3 de octubre)
+
+**Hecha y registrada en el canon (§13.9, entrega
+`entrega_gsa_directo_c2_p2pcol_2026-10-03/`).** Sus órdenes quedan comentadas;
+no se repiten. La corrida vigente es la de H1, arriba.
 
 Desde el 2026-10-02 cada evaluación liquida también **C2 como PPA** (`C2ppa`,
 CANON §14.22) y el **P2P colectivo** (`P2Pcom`, §14.23), con nueve salidas más al
@@ -2071,9 +2161,9 @@ tmux new -s gsa
 cd ~/bslopez/sistemabl
 export MTE_ROOT=$PWD/MedicionesMTE_v3
 export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo
-export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03
-SECO=1 bash modelo_base/run_servidor.sh gsa_directo
-SOLO_HUMO=1 bash modelo_base/run_servidor.sh gsa_directo
+# export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03
+# SECO=1 bash modelo_base/run_servidor.sh gsa_directo
+# SOLO_HUMO=1 bash modelo_base/run_servidor.sh gsa_directo
 ```
 
 `MATRIZ_CANON` es la del 19 de septiembre; si en el servidor se relanzó algo

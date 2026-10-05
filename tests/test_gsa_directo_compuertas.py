@@ -82,6 +82,25 @@ def test_canon_sintetico_al_peso(tmp_path):
     assert filas and all(f[6] for f in filas)
 
 
+def test_h1_de_la_comunidad_al_peso(tmp_path):
+    """2026-10-04: con `h1_canon`, H1 de la comunidad se compara a un peso
+    (CANON §14.26); sin el (el contraste de f_cv = 2) no se compara. Los
+    trece casos tienen su valor en H1_CANON."""
+    canon = _lee(tmp_path)
+    out, pa, net = _evaluado()
+    out["H1"] = cpb.H1_CANON["E0"] + 0.9
+    filas = cpb.compara("E0", out, pa, net, canon, NOMBRES,
+                        h1_canon=cpb.H1_CANON["E0"])
+    assert all(f[6] for f in filas) and any(f[1].startswith("H1") for f in filas)
+    out["H1"] = cpb.H1_CANON["E0"] + 1.1
+    malas = [f for f in cpb.compara("E0", out, pa, net, canon, NOMBRES,
+                                    h1_canon=cpb.H1_CANON["E0"]) if not f[6]]
+    assert len(malas) == 1 and malas[0][1].startswith("H1")
+    assert not any(f[1].startswith("H1")
+                   for f in cpb.compara("E0", out, pa, net, canon, NOMBRES))
+    assert set(cpb.H1_CANON) == set(comun.CASOS)
+
+
 @pytest.mark.parametrize("donde", ["Resumen", "Por_agente"])
 def test_un_peso_de_diferencia_se_detecta(tmp_path, donde):
     canon = _lee(tmp_path)

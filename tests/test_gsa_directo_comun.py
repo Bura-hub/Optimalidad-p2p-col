@@ -20,8 +20,9 @@ def test_b_es_catorce_y_seis_entradas():
     assert comun.B == 14
     assert comun.PROBLEMA["num_vars"] == 6
     assert len(comun.SALIDAS_D75) == 14
-    # 2026-10-02: C2ppa y P2Pcom y sus siete brechas, AL FINAL.
-    assert len(comun.SALIDAS) == 14 + 2 + 7
+    # 2026-10-02: C2ppa y P2Pcom y sus siete brechas, AL FINAL; 2026-10-04:
+    # H1 y sus cuatro brechas, detras.
+    assert len(comun.SALIDAS) == 14 + 2 + 7 + 1 + 4
     assert comun.SALIDAS[:14] == comun.SALIDAS_D75
 
 
@@ -92,10 +93,10 @@ def test_opciones_de_los_casos():
 
 
 def test_columnas_por_institucion():
-    assert len(comun.salidas_institucion(comun.INSTITUCIONES)) == 5 * 10
-    assert len(comun.salidas_institucion(comun.nombres_caso("SINU"))) == 4 * 10
+    assert len(comun.salidas_institucion(comun.INSTITUCIONES)) == 5 * 16
+    assert len(comun.salidas_institucion(comun.nombres_caso("SINU"))) == 4 * 16
     cols = comun.columnas_salida(comun.INSTITUCIONES)
-    assert cols[:23] == list(comun.SALIDAS) and "C2" in cols
+    assert cols[:28] == list(comun.SALIDAS) and "C2" in cols
     assert len(cols) == len(set(cols))
 
 
@@ -147,3 +148,22 @@ def test_salidas_de_d75_sin_cambiar_y_las_nuevas_al_final():
     assert set(comun.BRECHAS_NUEVAS) <= set(comun.BRECHAS_INSTITUCION)
     # «C2» sigue siendo la identidad de CAL-52, no el PPA.
     assert comun.IDENTIDADES == ("C2",) and "C2ppa" not in comun.IDENTIDADES
+
+
+def test_h1_al_final_sin_tocar_las_anteriores():
+    """2026-10-04: H1 (§14.26) y sus cuatro brechas van detras de las 23
+    del 2 de octubre; por institucion, ademas, H1 compensado contra C4 y C1,
+    que en la comunidad no existe (la compensacion suma cero)."""
+    assert comun.SALIDAS[23:] == ("H1", "H1_menos_C4", "H1_menos_C1",
+                                  "H1_menos_P2P", "H1_menos_P2Pcom")
+    assert comun.BRECHAS_H1 == {"H1_menos_C4": ("H1", "C4"),
+                                "H1_menos_C1": ("H1", "C1"),
+                                "H1_menos_P2P": ("H1", "P2P"),
+                                "H1_menos_P2Pcom": ("H1", "P2Pcom")}
+    assert "H1" in comun.NIVELES and "H1comp" not in comun.SALIDAS
+    assert comun.BRECHAS_INSTITUCION["H1comp_menos_C4"] == ("H1comp", "C4")
+    assert comun.BRECHAS_INSTITUCION["H1comp_menos_C1"] == ("H1comp", "C1")
+    assert list(comun.BRECHAS_INSTITUCION)[:10] == (
+        ["P2P_menos_C1", "P2P_menos_C4", "P2P_menos_C5"]
+        + list(comun.BRECHAS_NUEVAS))
+    assert comun.UMBRAL_NUMERAL1_KW == 100.0

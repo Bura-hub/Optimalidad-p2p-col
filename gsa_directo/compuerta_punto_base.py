@@ -13,11 +13,18 @@ y lo compara con el canon (la matriz por reposo del 2026-09-19):
     horas cuantales                    almacen y registro de la          exactas
                                        compuerta de salida (D71)
     retiros de la via por reposo       0 (D67)                           exactos
+    H1 de la comunidad (2026-10-04)    CANON §14.26, «H1 fondo»          al peso (**)
 
 (*) La tolerancia del beneficio es la menor entre 1e-6 relativa (la del
 diseno) y medio peso: con 1e-6 sola, sobre 46 MCOP pasarian 46 (COP) de
 diferencia, y el criterio es «al peso». Medido el 2026-09-26 en los trece
 casos: 4,3e-16 relativa como maximo.
+
+(**) Un peso (1 COP): la referencia, `hibrido_13casos.csv` (grupo e1/H1 de
+HUELLAS.csv), liquida con las series del almacen en float32, como la del P2P
+colectivo (`tests/test_gsa_directo_mecanismos.py`). Los trece valores van
+copiados abajo (H1_CANON), porque ni Documentos/ ni SALIDAS_SERVIDOR/ viajan
+al servidor.
 
 y el contraste determinista del apartado 5.3: E0 con f_cv = 2 y el resto en
 1 frente al caso CV2 del canon.
@@ -66,6 +73,26 @@ TOL_REL = 1e-6
 TOL_PESO = 0.5
 TOL_KWH = 0.01
 TOL_PARTE = 5e-4
+TOL_H1 = 1.0
+# H1 de la comunidad en el punto base, columna `H1_fondo_COP` de las filas
+# «comunidad» de `SALIDAS_SERVIDOR/hibrido_por_planta_2026-10-04/
+# hibrido_13casos.csv` (CANON §14.26; huella af06aaf3...575ea en HUELLAS.csv,
+# grupo e1/H1), con todos sus decimales.
+H1_CANON = {
+    "E0": 46199822.585076,
+    "E1": 135733987.851992,
+    "E2": 178063146.00827,
+    "E3": 226346074.397384,
+    "E4": 202245432.824942,
+    "E5": 236605370.97466,
+    "P1": 34880612.355926,
+    "P2": 311826260.047478,
+    "K1": 46329111.095278,
+    "I1": 111259975.257139,
+    "N1": 197982999.792925,
+    "CV2": 45926603.336912,
+    "SINU": 34870380.804689,
+}
 PATRON_CUANTAL = re.compile(r"Horas «cuantal» \(D71\):\s*(\d+)")
 SIN_REFERENCIA = " (SIN REFERENCIA)"
 # sha256 del libro `outputs/resultados_comparacion.xlsx` de cada caso de la
@@ -219,7 +246,8 @@ def lee_canon(dir_caso: Path, nombres: list, registros=None,
 
 # ── Comparacion ─────────────────────────────────────────────────────────────
 def compara(etiqueta: str, out: dict, por_agente: dict, net: dict,
-            canon: dict, nombres: list, permite_omitir: bool = False) -> list:
+            canon: dict, nombres: list, permite_omitir: bool = False,
+            h1_canon=None) -> list:
     """Lista de (etiqueta, que, canon, evaluado, diferencia, tolerancia, ok).
 
     Una comprobacion cuyo dato de referencia falta (el registro D71 que no
@@ -263,6 +291,10 @@ def compara(etiqueta: str, out: dict, por_agente: dict, net: dict,
     anota("horas cuantales (registro D71)", canon["cuantal_reg"],
           out["n_cuantal"], 0.0)
     anota("retiros (D67)", 0.0, out["retiros"], 0.0)
+    # H1 (§14.26) solo en el punto base de cada caso, no en el contraste de
+    # E0 con f_cv = 2 (`h1_canon` None): alli H1 es otro numero.
+    if h1_canon is not None:
+        anota("H1 comunidad (CANON §14.26)", h1_canon, out["H1"], TOL_H1)
     return filas
 
 
@@ -380,7 +412,9 @@ def ejecuta(argv=None) -> int:
         seg = time.time() - t1
         tiempos[etiqueta] = seg
         filas = compara(etiqueta, out, pa, net, canon, ins.nombres,
-                        permite_omitir=args.permite_omitir)
+                        permite_omitir=args.permite_omitir,
+                        h1_canon=(H1_CANON[caso_canon]
+                                  if etiqueta == caso_canon else None))
         todas.extend(filas)
         malas = [f for f in filas if not f[6]]
         ben = [f for f in filas if f[1].startswith(("Resumen", "Por_agente"))

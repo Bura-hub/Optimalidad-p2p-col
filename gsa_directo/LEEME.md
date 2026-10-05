@@ -58,6 +58,26 @@ importarlos):
   institución en los 13 casos (≤ 0,75 COP la comunidad: la referencia usa el almacén en
   float32). La compuerta del punto base sigue en verde. Cuesta unos 0,05 s por
   evaluación (1 a 2 %).
+
+### Desde el 2026-10-04: H1, el crédito mutualizado
+
+- **`H1`**, el autogenerador colectivo de crédito mutualizado (CANON §14.26, «H1
+  fondo», la lectura exacta y la que se cita): sin intercambio, toda la inyección al
+  fondo de C4; cada kWh se deduce por el numeral del art. 25 de **su planta de
+  origen** (κ·Cv hasta 100 kW de capacidad instalada, κ·Cv + Θ por encima) y el fondo
+  se reparte por mes «primero cada miembro su propia exportación; el sobrante, a quien
+  todavía importa». No usa los flujos del mercado: es exacto en cada punto.
+- **Cinco salidas más, al final**: el nivel y cuatro brechas (`H1_menos_C4`, `_C1`,
+  `_P2P`, `_P2Pcom`), que entran al Sobol, a la P(inversión) y al CV. Por institución,
+  esas cuatro y H1 con la compensación de quien cede crédito (`H1comp_menos_C4`,
+  `_C1`); la compensación suma cero, de modo que en la comunidad `H1comp` es `H1`.
+- **Guardas en cada evaluación**: la fórmula conserva la energía en cada mes (lo
+  asignado es lo inyectado, lo cedido es lo recibido, nadie recibe más que su
+  importación restante), la deducción queda en [κ·Cv, κ·Cv + Θ] y la compensación
+  suma cero; si no, la evaluación falla en voz alta.
+- **Comprobado en local** (`tests/test_gsa_directo_mecanismos.py`): las funciones
+  portadas son las de `hibrido_por_planta.py` sobre datos sintéticos, y en el punto
+  base H1 y H1 compensado reproducen `hibrido_13casos.csv` por institución.
 - **La corrida va a otra carpeta** (`GSA_SALIDAS` en el lanzador): la del 2026-09-27 tiene
   las columnas viejas, el lanzador se niega a reutilizar una carpeta con ellas y
   `correr.py --reanudar` también (código 2).
@@ -88,7 +108,7 @@ En el servidor, solo con el lanzador, que pone la contención:
 
 ```bash
 export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo    # la del 19 de septiembre; se comprueba
-export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03   # desde el 2026-10-02
+export GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04   # desde el 2026-10-04 (con H1)
 SECO=1 bash modelo_base/run_servidor.sh gsa_directo
 bash modelo_base/run_servidor.sh gsa_directo
 ```

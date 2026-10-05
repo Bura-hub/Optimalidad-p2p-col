@@ -12,6 +12,9 @@ este modulo (entradas, rangos, salidas, n) son los aprobados, tal cual.
   significado de ninguna de D75: los niveles de C2 como PPA (`C2ppa`, CANON
   §14.22) y del P2P colectivo (`P2Pcom`, §14.23) y sus siete brechas, que
   tambien se guardan por institucion.
+- Desde el 2026-10-04, cinco mas detras: el nivel de H1, el credito
+  mutualizado (§14.26), y sus cuatro brechas; por institucion, ademas, H1
+  con la compensacion contra C4 y contra C1.
 - Los trece casos de la matriz, con la MISMA opcion que `CASOS_MATRIZ` de
   `modelo_base/run_servidor.sh` (una prueba lo comprueba), y el n de cada uno
   (D77): 2 048 en E0, E2 y E4; 512 en los demas. El Sobol corre en doce
@@ -113,10 +116,35 @@ ROTULOS_SALIDAS = {
     "P2Pcom": "P2P colectivo (propuesta, punto PC, §14.23)",
     "C2ppa": "C2 como PPA a la media de XM (punto P, §14.22)",
 }
+# ── H1, el credito mutualizado (2026-10-04, CANON §14.26) ───────────────────
+# Otra vez AL FINAL, sin tocar ninguna de las anteriores. `H1` es «H1 fondo»
+# de `hibrido_por_planta.py`, la lectura exacta y la que se cita: sin
+# intercambio, toda la inyeccion al fondo de C4, deducida por el numeral del
+# art. 25 de la planta de origen y repartida por mes «primero lo propio».
+# `H1comp` es H1 con la compensacion de quien cede credito: suma cero, de
+# modo que en la comunidad es H1 y solo se guarda por institucion.
+NIVELES_H1 = ("H1",)
+BRECHAS_H1 = {
+    "H1_menos_C4": ("H1", "C4"),
+    "H1_menos_C1": ("H1", "C1"),
+    "H1_menos_P2P": ("H1", "P2P"),
+    "H1_menos_P2Pcom": ("H1", "P2Pcom"),
+}
+BRECHAS_H1_INSTITUCION = {
+    **BRECHAS_H1,
+    "H1comp_menos_C4": ("H1comp", "C4"),
+    "H1comp_menos_C1": ("H1comp", "C1"),
+}
+ROTULOS_SALIDAS["H1"] = ("H1, credito mutualizado sin intercambio (punto H1, "
+                         "§14.26)")
+ROTULOS_SALIDAS["H1comp"] = "H1 con la compensacion de quien cede credito"
+# El numeral 1 del art. 25 de la CREG 174, por capacidad instalada (§14.26).
+UMBRAL_NUMERAL1_KW = 100.0
 # Todas las brechas de comunidad, las de D75 primero y en su orden.
-BRECHAS = {**BRECHAS, **BRECHAS_NUEVAS}
-NIVELES = NIVELES + NIVELES_NUEVOS
-SALIDAS = SALIDAS_D75 + NIVELES_NUEVOS + tuple(BRECHAS_NUEVAS)   # 14 + 9
+BRECHAS = {**BRECHAS, **BRECHAS_NUEVAS, **BRECHAS_H1}
+NIVELES = NIVELES + NIVELES_NUEVOS + NIVELES_H1
+SALIDAS = (SALIDAS_D75 + NIVELES_NUEVOS + tuple(BRECHAS_NUEVAS)  # 14 + 9
+           + NIVELES_H1 + tuple(BRECHAS_H1))                     # + 5
 # Se guardan y no entran al Sobol: C2 coincide con P2P en el agregado
 # (CAL-52) y se comprueba como identidad; los conteos son las guardas.
 IDENTIDADES = ("C2",)
@@ -126,6 +154,7 @@ BRECHAS_INSTITUCION = {
     "P2P_menos_C4": ("P2P", "C4"),
     "P2P_menos_C5": ("P2P", "C5"),
     **BRECHAS_NUEVAS,
+    **BRECHAS_H1_INSTITUCION,
 }
 # Lo que fija el P2P colectivo (§14.23): el umbral de la capacidad por
 # usuario del art. 18 y el tope de la suma (1 MW) del art. 20, SIN la regla
@@ -136,8 +165,9 @@ INSTITUCIONES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
 def salidas_institucion(nombres) -> list:
-    """Las brechas por institucion, `<brecha>__<institucion>`; 50 con las
-    cinco y 40 en SINU (las 3 de D75 y las 7 de C2ppa y P2Pcom)."""
+    """Las brechas por institucion, `<brecha>__<institucion>`; 80 con las
+    cinco y 64 en SINU (las 3 de D75, las 7 de C2ppa y P2Pcom y las 6 de
+    H1)."""
     return [f"{b}__{n}" for n in nombres for b in BRECHAS_INSTITUCION]
 
 

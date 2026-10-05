@@ -60,6 +60,13 @@ bolsa, el Cv y los peajes con sus factores) y las funciones del nucleo:
 
 Una guarda en cada evaluacion exige que la liquidacion portada, sin
 intercambio y en el caso 2, sea el C4 del motor institucion por institucion.
+
+Desde el 2026-10-04, ademas, `H1`, el autogenerador colectivo de credito
+mutualizado (CANON §14.26, «H1 fondo», la lectura exacta): sin intercambio,
+toda la inyeccion al fondo de C4, deducida por el numeral del art. 25 de la
+planta de origen y repartida por mes «primero lo propio». `H1comp` es H1 con
+la compensacion por contrato civil de quien cede credito; suma cero, de modo
+que solo existe por institucion. No usa los flujos del mercado.
 """
 from __future__ import annotations
 
@@ -547,6 +554,172 @@ def valor_c2_ppa(G, D, CU, pp: float) -> np.ndarray:
     return (au * CU).sum(axis=1) + float(pp) * s.sum(axis=1)
 
 
+# ── H1, el autogenerador colectivo de credito mutualizado (2026-10-04) ──────
+# Porta, sin importarlo (lee HUELLAS.csv y el almacen al cargar), «H1 fondo»
+# de `reformateo/documento/scripts/articulo/hibrido_por_planta.py` (CANON
+# §14.26), la lectura exacta y la que se cita: sin intercambio, toda la
+# inyeccion al fondo de C4; cada kWh se deduce por el numeral del art. 25 de
+# la CREG 174 de SU PLANTA DE ORIGEN (kappa*Cv hasta 100 kW de capacidad
+# instalada, kappa*Cv + Theta por encima), y el fondo se reparte por mes
+# «primero cada miembro su propia exportacion; el sobrante, a quien todavia
+# importa». La compensacion por contrato civil (quien cede credito cobra la
+# bolsa del mes ponderada por el perfil del fondo) suma cero: solo mueve el
+# reparto. La equivalencia la comprueban las pruebas
+# (`tests/test_gsa_directo_mecanismos.py`) contra las funciones del guion y,
+# en el punto base, contra `SALIDAS_SERVIDOR/hibrido_por_planta_2026-10-04/`.
+def numeral_planta(cap, umbral_kw: float = comun.UMBRAL_NUMERAL1_KW
+                   ) -> np.ndarray:
+    """(N,) numeral del art. 25 de la CREG 174 de cada planta por su
+    capacidad instalada: 1 hasta `umbral_kw` (incluido), 2 por encima."""
+    cap = np.asarray(cap, dtype=float).reshape(-1)
+    if not np.isfinite(cap).all() or (cap < 0).any():
+        raise ValueError(f"capacidades no validas: {cap}")
+    return np.where(cap <= umbral_kw, 1, 2).astype(int)
+
+
+def pde_primero_propio(S_h: np.ndarray, D_h: np.ndarray, mes) -> tuple:
+    """({mes: (N,) pesos}, {mes: traza}) de la formula «primero lo propio»
+    por mes, como `hibrido_por_planta.pde_primero_propio`: propio =
+    min(S, D); el sobrante X = S - propio se entrega, hasta min(sum X,
+    sum R), en proporcion a la importacion restante R = D - propio; lo que
+    sobra vuelve a su dueno en proporcion a X. Un mes sin inyeccion cae al
+    reparto igual."""
+    S_h, D_h = np.asarray(S_h, dtype=float), np.asarray(D_h, dtype=float)
+    if S_h.shape != D_h.shape or (S_h < 0).any() or (D_h < 0).any():
+        raise ValueError("inyeccion o importacion con forma distinta o "
+                         "negativas")
+    mes = np.asarray(mes)
+    N = S_h.shape[0]
+    W, TR = {}, {}
+    for m in np.unique(mes):
+        S = S_h[:, mes == m].sum(axis=1)
+        D = D_h[:, mes == m].sum(axis=1)
+        propio = np.minimum(S, D)
+        X = S - propio
+        R = D - propio
+        pool, RR = float(X.sum()), float(R.sum())
+        entrega = min(pool, RR)
+        recibido = entrega * R / RR if RR > 0.0 else np.zeros(N)
+        devuelto = (pool - entrega) * X / pool if pool > 0.0 else np.zeros(N)
+        cedido = entrega * X / pool if pool > 0.0 else np.zeros(N)
+        asignado = propio + recibido + devuelto
+        tot = float(S.sum())
+        W[m] = asignado / tot if tot > 0.0 else np.full(N, 1.0 / N)
+        TR[m] = dict(S=S, D=D, propio=propio, X=X, R=R, pool=pool,
+                     entrega=entrega, recibido=recibido, devuelto=devuelto,
+                     cedido=cedido, asignado=asignado)
+    return W, TR
+
+
+def fraccion_numeral2(TR: dict, n2: np.ndarray) -> dict:
+    """{mes: (N,)} fraccion de lo asignado a cada miembro que viene de plantas
+    del numeral 2: lo propio y lo devuelto, de su planta; lo recibido, del
+    sobrante de todas en proporcion a X (`fraccion_numeral2_traza`)."""
+    n2 = np.asarray(n2, dtype=float)
+    out = {}
+    for m, t in TR.items():
+        mezcla = (float((t["X"] * n2).sum()) / t["pool"] if t["pool"] > 0.0
+                  else 0.0)
+        num = t["propio"] * n2 + t["recibido"] * mezcla + t["devuelto"] * n2
+        a = t["asignado"]
+        f = np.where(a > 0.0, num / np.where(a > 0.0, a, 1.0), n2)
+        out[m] = np.clip(f, 0.0, 1.0)
+    return out
+
+
+def deduccion_por_origen(frac2: dict, cvm: np.ndarray, tolls: np.ndarray,
+                         mes) -> np.ndarray:
+    """(N, T) kappa*Cv_j + Theta_j por la fraccion del numeral 2 de lo que
+    recibe j (`ded_por_origen`). `cvm` ya lleva kappa y f_cv; `tolls`,
+    f_peaje. Con fraccion 0 es el numeral 1 y con 1 el numeral 2, al bit."""
+    cvm, tolls = np.asarray(cvm, dtype=float), np.asarray(tolls, dtype=float)
+    mes = np.asarray(mes)
+    extra = np.zeros_like(tolls)
+    for m, f in frac2.items():
+        h = mes == m
+        extra[:, h] = tolls[:, h] * np.asarray(f, dtype=float)[:, None]
+    return cvm + extra
+
+
+def colectivo_pesos(iny: np.ndarray, ret: np.ndarray, CU: np.ndarray,
+                    ded: np.ndarray, mes, pb: np.ndarray, pesos: dict
+                    ) -> tuple:
+    """Como `colectivo_igual`, con el PDE de cada mes en `pesos` ({mes:
+    (N,)}). Devuelve (valor, exceso), (N, T)."""
+    from core.opciones_externas import reparto_anexo4
+    N, T = iny.shape
+    mes = np.asarray(mes)
+    val = np.zeros((N, T))
+    exs = np.zeros((N, T))
+    pb = np.asarray(pb, dtype=float).reshape(-1)
+    for m in np.unique(mes):
+        h = np.flatnonzero(mes == m)
+        w = np.asarray(pesos[m], dtype=float)
+        if abs(float(w.sum()) - 1.0) > 1e-9 or (w < 0).any():
+            raise ValueError(f"PDE del mes {m} que no suma 1: {w}")
+        asign = w[:, None] * iny[:, h].sum(axis=0)[None, :]
+        cr, ex, _ = reparto_anexo4(asign, ret[:, h])
+        pr = CU[:, h].mean(axis=1) - ded[:, h].mean(axis=1)
+        val[:, h] = cr * pr[:, None] + np.where(ex > 0, ex * pb[None, h], 0.0)
+        exs[:, h] = ex
+    return val, exs
+
+
+def compensacion_h1(TR: dict, S_h: np.ndarray, pb: np.ndarray, mes
+                    ) -> np.ndarray:
+    """(N,) COP: quien cede credito cobra, y quien lo recibe paga, la bolsa
+    del mes ponderada por el perfil horario del fondo (sum_h S_h pb_h /
+    sum_h S_h) por lo cedido o lo recibido (`precio_compensacion` y
+    `compensacion`). Suma cero."""
+    SR = np.asarray(S_h, dtype=float).sum(axis=0)
+    pb = np.asarray(pb, dtype=float).reshape(-1)
+    mes = np.asarray(mes)
+    N = len(next(iter(TR.values()))["S"])
+    out = np.zeros(N)
+    for m, t in TR.items():
+        h = mes == m
+        tot = float(SR[h].sum())
+        precio = float((SR[h] * pb[h]).sum()) / tot if tot > 0.0 else 0.0
+        out += precio * (t["cedido"] - t["recibido"])
+    return out
+
+
+def valor_h1(G, D, CU, cvm, tolls, cap, mes, pb) -> tuple:
+    """((N,) beneficio de H1, (N,) compensacion) por institucion (CANON
+    §14.26, «H1 fondo»): autoconsumo a la tarifa y toda la inyeccion al
+    fondo con el reparto «primero lo propio» y la deduccion de la planta de
+    origen. Falla en voz alta si la formula no conserva la energia, si la
+    deduccion sale de [kappa*Cv, kappa*Cv + Theta] o si la compensacion no
+    suma cero."""
+    G, D = np.maximum(G, 0.0), np.maximum(D, 0.0)
+    au = np.minimum(G, D)
+    s = np.maximum(G - D, 0.0)
+    d = np.maximum(D - G, 0.0)
+    if float(np.asarray(cap, dtype=float).sum()) > comun.LIMITE_COLECTIVO_KW:
+        raise ValueError("H1: la comunidad pasa de 1 MW; no aplica")
+    n2 = (numeral_planta(cap) == 2).astype(float)
+    W, TR = pde_primero_propio(s, d, mes)
+    for m, t in TR.items():
+        esc = max(1.0, float(t["S"].sum()))
+        if (abs(float(t["asignado"].sum() - t["S"].sum())) > 1e-9 * esc
+                or abs(float(t["cedido"].sum() - t["recibido"].sum()))
+                > 1e-9 * esc
+                or (t["recibido"] > t["R"] + 1e-9 * esc).any()
+                or (t["cedido"] > t["X"] + 1e-9 * esc).any()):
+            raise ValueError(f"H1: la formula no conserva la energia en el "
+                             f"mes {m}")
+    ded = deduccion_por_origen(fraccion_numeral2(TR, n2), cvm, tolls, mes)
+    cvm = np.asarray(cvm, dtype=float)
+    if not ((ded >= cvm - 1e-9).all()
+            and (ded <= cvm + np.asarray(tolls, dtype=float) + 1e-9).all()):
+        raise ValueError("H1: deduccion fuera de [kappa*Cv, kappa*Cv + Theta]")
+    col, _ = colectivo_pesos(s, d, CU, ded, mes, pb, W)
+    comp = compensacion_h1(TR, s, pb, mes)
+    if abs(float(comp.sum())) > 1e-6 * max(1.0, float(np.abs(comp).sum())):
+        raise ValueError("H1: la compensacion no suma cero")
+    return (au * CU + col).sum(axis=1), comp
+
+
 def inicia_proceso() -> None:
     """Inicializador de cada proceso del pool: el regimen no regulado es
     ESTADO GLOBAL de `data.cedenar_tariff`, y un proceso nuevo no lo hereda
@@ -601,8 +774,9 @@ def _evalua(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
 
 
 def _evalua_todo(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
-    """(salidas, `ComparisonResult`, beneficio por institucion de C2ppa y
-    P2Pcom). El tercero no va en `cr`, que es el del motor tal cual."""
+    """(salidas, `ComparisonResult`, beneficio por institucion de C2ppa,
+    P2Pcom, H1 y H1comp). El tercero no va en `cr`, que es el del motor tal
+    cual."""
     from core.ems_p2p import EMSP2P, AgentParams, GridParams, SolverParams
     from core.opciones_externas import deduccion_art25, piso_residual
     from data.base_case_data import GRID_PARAMS_REAL
@@ -716,9 +890,16 @@ def _evalua_todo(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
               else deduccion_pcom(1, f["cvm"], f["tolls"]))
     b_pcom, _ = valor_p2p_colectivo(G_klim, D, v, q, pag, techo, ded_pc,
                                     ins.mes_m, bolsa)
-    pa = {**pa, "C2ppa": b_c2, "P2Pcom": b_pcom}
+    # ── H1, credito mutualizado (§14.26, «H1 fondo»), 2026-10-04 ─────────
+    # Sin intercambio: no usa los flujos del mercado, solo las series y las
+    # deducciones con sus factores.
+    b_h1, comp_h1 = valor_h1(G_klim, D, techo, f["cvm"], f["tolls"], ins.cap,
+                             ins.mes_m, bolsa)
+    b_h1c = b_h1 + comp_h1
+    pa = {**pa, "C2ppa": b_c2, "P2Pcom": b_pcom, "H1": b_h1, "H1comp": b_h1c}
     out["C2ppa"] = float(b_c2.sum())
     out["P2Pcom"] = float(b_pcom.sum())
+    out["H1"] = float(b_h1.sum())
     out["energia"] = energia
     out["excedente"] = excedente
     out["parte_vendedor"] = (prima / excedente if excedente > 0
@@ -743,7 +924,7 @@ def _evalua_todo(ins, x, mu, bolsa_cruda, b_factor, despacho="piso") -> tuple:
     if no_finitas:
         raise ValueError(f"salida no finita: {', '.join(no_finitas)}")
     return ({c: out[c] for c in cols}, cr,
-            {"C2ppa": b_c2, "P2Pcom": b_pcom})
+            {"C2ppa": b_c2, "P2Pcom": b_pcom, "H1": b_h1, "H1comp": b_h1c})
 
 
 def evalua_detalle(ins: Insumos, x, mu: float = 1.0, bolsa_cruda=None,
@@ -780,8 +961,9 @@ def _evalua_con_agentes(ins, x, mu, bolsa_cruda):
 def evalua_mecanismos_nuevos(ins: Insumos, x, mu: float = 1.0,
                              bolsa_cruda=None, silencio: bool = True) -> tuple:
     """Como `evalua`, y ademas el beneficio por institucion (N,) de C2ppa y
-    P2Pcom (2026-10-02), para las pruebas del punto base contra los puntos P
-    y PC. No cambia lo que devuelven `evalua` ni `evalua_detalle`."""
+    P2Pcom (2026-10-02) y de H1 y H1comp (2026-10-04), para las pruebas del
+    punto base contra los puntos P, PC y H1. No cambia lo que devuelven
+    `evalua` ni `evalua_detalle`."""
     with _silencio(silencio):
         out, _, nuevos = _evalua_todo(ins, x, mu, bolsa_cruda, 1.0)
     return out, {k: np.asarray(v, dtype=float).copy()

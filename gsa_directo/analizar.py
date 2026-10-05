@@ -338,8 +338,12 @@ ORDEN_INFORME = ("P2P_menos_C4", "P2Pcol_menos_C1", "C4_menos_C1",
                  "P2Pcom_menos_C4", "P2Pcom_menos_C1", "P2Pcom_menos_P2P",
                  "C2ppa_menos_C1", "C2ppa_menos_C4", "C2ppa_menos_P2P",
                  "P2Pcom_menos_C2ppa",
+                 # 2026-10-04: H1, el credito mutualizado (§14.26).
+                 "H1_menos_C4", "H1_menos_C1", "H1_menos_P2P",
+                 "H1_menos_P2Pcom",
                  "parte_vendedor", "excedente", "energia", "P2P",
-                 "P2P_colectivo", "C1", "C3", "C4", "C5", "P2Pcom", "C2ppa")
+                 "P2P_colectivo", "C1", "C3", "C4", "C5", "P2Pcom", "C2ppa",
+                 "H1")
 
 
 def informe(r: dict, caso: str, meta: dict) -> str:
@@ -400,7 +404,14 @@ def informe(r: dict, caso: str, meta: dict) -> str:
           "cada punto, no se vuelven a simular con el piso del colectivo: "
           "la aproximacion se declara (§14.23 y registro del 2026-10-02) "
           "para I1 y N1 (la planta de UCC cambia de numeral), E4, E5 y P2 "
-          "y los meses con credito agotado.", "",
+                 "y los meses con credito agotado.",
+          "- **H1** (2026-10-04) es el autogenerador colectivo de credito "
+          "mutualizado (punto H1, CANON §14.26, «H1 fondo»): sin intercambio, "
+          "toda la inyeccion al fondo de C4, deducida por el numeral del art. "
+          "25 de la planta de origen y repartida por mes «primero lo propio». "
+          "No usa los flujos del mercado, de modo que es exacto en cada "
+          "punto. Por institucion se guarda tambien con la compensacion de "
+          "quien cede credito (`H1comp`), que en la comunidad suma cero.", "",
           f"## Indices totales (ST) con n = {nmax}, semiancho al 95 %", "",
           "| Salida | " + " | ".join(r["entradas"]) + " | ST(e_G) + ST(e_D) |",
           "|---|" + "---:|" * (len(r["entradas"]) + 1)]

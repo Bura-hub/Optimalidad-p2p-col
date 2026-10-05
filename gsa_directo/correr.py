@@ -129,7 +129,9 @@ def evalua_falso(ins, x, idx: int = -1) -> dict:
            "C3": base * 0.92 - 1e4 * f_b, "C4": base * 0.96 - 2e5 * f_p,
            "C5": base * 0.95 - 5e4 * f_b, "P2P_colectivo": base * 0.96
            - 1.5e5 * f_p, "P2Pcom": base * 1.01 - 1e5 * f_p,
-           "C2ppa": base * 0.95 + 1e5 * e_g}
+           "C2ppa": base * 0.95 + 1e5 * e_g,
+           "H1": base * 0.99 - 8e4 * f_p}
+    out["H1comp"] = out["H1"]
     out["energia"] = 4592.0 * e_g
     out["excedente"] = 3e5 * f_cv
     out["parte_vendedor"] = 0.54 + 0.01 * np.sin(f_cv)
@@ -138,8 +140,8 @@ def evalua_falso(ins, x, idx: int = -1) -> dict:
     out.update(n_horas_mercado=1126.0, n_cuantal=0.0, n_sin_ganancia=0.0,
                retiros=0.0)
     for k, nombre in enumerate(ins.nombres):
-        for b in comun.BRECHAS_INSTITUCION:
-            out[f"{b}__{nombre}"] = out[b] / 5.0 + 1e3 * (k - 2)
+        for b, (a, c) in comun.BRECHAS_INSTITUCION.items():
+            out[f"{b}__{nombre}"] = (out[a] - out[c]) / 5.0 + 1e3 * (k - 2)
     return {c: float(out[c]) for c in comun.columnas_salida(ins.nombres)}
 
 
@@ -730,7 +732,8 @@ def ejecuta(argv=None) -> int:
           f"{base['P2P']:,.2f} · C1 {base['C1']:,.2f} · energia "
           f"{base['energia']:,.3f} · parte del vendedor "
           f"{base['parte_vendedor']:.4f} · cuantales {base['n_cuantal']:.0f}"
-          f" · P2Pcom {base['P2Pcom']:,.2f} · C2ppa {base['C2ppa']:,.2f}")
+          f" · P2Pcom {base['P2Pcom']:,.2f} · C2ppa {base['C2ppa']:,.2f}"
+          f" · H1 {base['H1']:,.2f}")
 
     carpeta.mkdir(parents=True, exist_ok=True)
     import scipy

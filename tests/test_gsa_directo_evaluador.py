@@ -150,7 +150,7 @@ def dia(datos):
 def test_un_dia_salidas_finitas_y_sin_cuantales(dia):
     y = evaluador.evalua(dia, comun.PUNTO_BASE)
     cols = comun.columnas_salida(dia.nombres)
-    assert list(y) == cols and len(cols) == 14 + 9 + 1 + 4 + 50
+    assert list(y) == cols and len(cols) == 14 + 9 + 5 + 1 + 4 + 80
     assert all(np.isfinite(v) for v in y.values())
     assert y["n_cuantal"] == 0 and y["retiros"] == 0
     assert y["C2"] == pytest.approx(y["P2P"], rel=1e-9)

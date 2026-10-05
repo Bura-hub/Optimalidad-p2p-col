@@ -161,9 +161,9 @@ def test_matriz_canon_explicita():
 
 
 def _orden_del_3_de_octubre():
-    """La orden de dia del 3 de octubre, tal cual la escribe MONTAJE, con la
-    carpeta de salidas que exporta su bloque (2026-10-02: la corrida con
-    C2ppa y P2Pcom; la orden de septiembre quedo como historico comentado)."""
+    """La orden de dia vigente, tal cual la escribe MONTAJE, con la carpeta
+    de salidas que exporta su bloque (2026-10-04: la corrida con H1; las de
+    septiembre y del 3 de octubre quedaron como historico comentado)."""
     import shlex
     texto = (RAIZ / "modelo_base" / "MONTAJE_SERVIDOR.md").read_text(
         encoding="utf-8")
@@ -186,8 +186,8 @@ def test_la_orden_del_3_de_octubre_en_seco():
     los pasos 1 a 4 y no lanza el Sobol, sin escribir nada, y lo manda a la
     carpeta nueva que exporta MONTAJE."""
     env, salidas = _orden_del_3_de_octubre()
-    assert env == {"SOLO_HUMO": "1"}
-    assert salidas.startswith("SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_")
+    assert env == {"SOLO_HUMO": "1", "TOPE_NOCHE_H": "10"}
+    assert salidas.startswith("SALIDAS_SERVIDOR/gsa_directo_h1_")
     antes = _listado()
     rc, out = _corre("gsa_directo", GSA_SALIDAS=salidas, GSA_DIR_PRUEBA="",
                      **env)
@@ -211,7 +211,7 @@ def test_el_paso_2_no_hereda_las_variables_de_la_accion():
                OMITIR_SIN_REFERENCIA="1", TOLERA_FALLOS="1", DESDE="E2",
                RESERVA_OK="1", PARA_EN_FALLO="1",
                MATRIZ_CANON="no/es/la/matriz",
-               GSA_SALIDAS="SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03")
+               GSA_SALIDAS="SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04")
     r = subprocess.run([sys.executable, "-m", "pytest", str(Path(__file__)),
                         "-q", "-p", "no:cacheprovider"],
                        cwd=RAIZ, env=env, capture_output=True, text=True,
@@ -269,10 +269,11 @@ def test_gsa_salidas_fuera_de_salidas_servidor_se_rechaza(malo):
 
 
 def test_carpeta_con_corridas_de_las_salidas_viejas_se_rechaza(tmp_path):
-    """2026-10-02: si la carpeta de salidas tiene una corrida de antes de
-    C2ppa y P2Pcom (la del 27 de septiembre en el servidor), la accion para
-    con codigo 2 antes de escribir nada y da la orden con GSA_SALIDAS; con
-    una corrida que ya las tiene, sigue."""
+    """2026-10-02 y 2026-10-04: si la carpeta de salidas tiene una corrida
+    de antes de H1 (la del 27 de septiembre o la del 3 de octubre, con C2ppa
+    y P2Pcom, en el servidor), la accion para con codigo 2 antes de escribir
+    nada y da la orden con GSA_SALIDAS; con una corrida que ya lo tiene,
+    sigue."""
     caso = tmp_path / "E0"
     caso.mkdir()
     meta = caso / "muestras_E0_n2048_s42.meta.json"
@@ -281,9 +282,15 @@ def test_carpeta_con_corridas_de_las_salidas_viejas_se_rechaza(tmp_path):
     rc, out = _corre("gsa_directo", GSA_DIR_PRUEBA=tmp_path.as_posix())
     assert _listado() == antes
     assert rc == 2, out
-    assert "sin C2ppa ni P2Pcom" in out and "GSA_SALIDAS=" in out
+    assert "(sin H1)" in out and "GSA_SALIDAS=" in out
     assert "--- 3/7" not in out
-    meta.write_text('{"columnas": ["P2P", "C2", "P2Pcom", "C2ppa"]}',
+    # la del 3 de octubre (con C2ppa y P2Pcom, sin H1) tambien se rechaza;
+    # «H1_menos_C4» no cuenta como H1
+    meta.write_text('{"columnas": ["P2P", "C2", "P2Pcom", "C2ppa", '
+                    '"H1_menos_C4"]}', encoding="utf-8")
+    rc, out = _corre("gsa_directo", GSA_DIR_PRUEBA=tmp_path.as_posix())
+    assert rc == 2 and "(sin H1)" in out, out
+    meta.write_text('{"columnas": ["P2P", "C2", "P2Pcom", "C2ppa", "H1"]}',
                     encoding="utf-8")
     rc, out = _corre("gsa_directo", GSA_DIR_PRUEBA=tmp_path.as_posix())
     assert rc == 0, out

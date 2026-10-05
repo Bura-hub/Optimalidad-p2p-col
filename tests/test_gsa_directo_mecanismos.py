@@ -1,5 +1,6 @@
-"""Pruebas de C2 como PPA (C2ppa, CANON §14.22) y del P2P colectivo (P2Pcom,
-§14.23) en el evaluador del GSA directo (2026-10-02).
+"""Pruebas de C2 como PPA (C2ppa, CANON §14.22), del P2P colectivo (P2Pcom,
+§14.23) y de H1, el credito mutualizado (§14.26), en el evaluador del GSA
+directo (2026-10-02 y 2026-10-04).
 
 Actividades 4.1 y 4.2 (las brechas contra los mecanismos).
 
@@ -18,12 +19,14 @@ accion):
   `p2p_comunitario.valor_comunitario` sobre los mismos datos sinteticos.
 
 Con datos (LENTAS: `-k "not lenta"` las salta; el servidor no tiene los
-puntos P y PC). En el punto base, todos los factores en 1, el evaluador
-reproduce C2ppa de `SALIDAS_SERVIDOR/c2_ppa_2026-10-02/` y P2Pcom de
-`SALIDAS_SERVIDOR/p2p_comunitario_2026-10-02/`, institucion por institucion y
-en la comunidad, en E0 (caso 1, nadie agota), E2 (caso 1, credito agotado en
-parte de los meses) y E4 (caso 2), y las salidas de D75 no cambian frente al
-`punto_base.csv` del canon (entrega del 2026-09-27).
+puntos P, PC y H1). En el punto base, todos los factores en 1, el evaluador
+reproduce C2ppa de `SALIDAS_SERVIDOR/c2_ppa_2026-10-02/`, P2Pcom de
+`SALIDAS_SERVIDOR/p2p_comunitario_2026-10-02/` y H1 de
+`SALIDAS_SERVIDOR/hibrido_por_planta_2026-10-04/`, institucion por
+institucion y en la comunidad, en LOS TRECE CASOS de la tesis (no solo los
+cinco del articulo: el caso 2 del art. 20 en E4, E5 y P2, plantas mixtas en
+I1 y N1, sin Udenar en SINU), y las salidas de D75 no cambian frente al
+`punto_base.csv` del canon (entrega del 2026-09-27). Unos 4 (s) por caso.
 
 TOLERANCIAS. Las del paquete en el punto base (`compuerta_punto_base`: la
 menor entre 1e-6 relativa y medio peso), salvo P2Pcom de la COMUNIDAD, que se
@@ -217,7 +220,7 @@ def _referencias():
     return p, pc
 
 
-@pytest.mark.parametrize("caso", ["E0", "E2", "E4"])
+@pytest.mark.parametrize("caso", list(comun.ORDEN_CASOS))
 def test_punto_base_reproduce_p_y_pc_lenta(datos, caso):
     p, pc = _referencias()
     ins = evaluador.prepara_caso(caso, datos)
@@ -231,7 +234,7 @@ def test_punto_base_reproduce_p_y_pc_lenta(datos, caso):
                                       abs=1e-6)
     assert ins.pp_c2 == pytest.approx(287.41, abs=0.005)
     assert ins.caso_pcom == int(pc.loc["comunidad", "caso_art20"])
-    assert ins.caso_pcom == (2 if caso == "E4" else 1)
+    assert ins.caso_pcom == (2 if caso in ("E4", "E5", "P2") else 1)
     assert ins.cinac_kw == pytest.approx(float(pc.loc["comunidad",
                                                       "cinac_kw"]), abs=1e-5)
     # C2ppa: al peso del paquete, por institucion y en la comunidad
@@ -268,7 +271,7 @@ def test_punto_base_reproduce_p_y_pc_lenta(datos, caso):
             <= 2 * TOL_PESO + 1.0
 
 
-@pytest.mark.parametrize("caso", ["E0", "E2", "E4"])
+@pytest.mark.parametrize("caso", list(comun.ORDEN_CASOS))
 def test_punto_base_de_d75_sin_cambio_lenta(datos, caso):
     """Las salidas de D75, los conteos y C2 del punto base son las del canon
     (`base/punto_base.csv` de la entrega del 2026-09-27), con las
@@ -292,3 +295,124 @@ def test_punto_base_de_d75_sin_cambio_lenta(datos, caso):
         for b in ("P2P_menos_C1", "P2P_menos_C4", "P2P_menos_C5"):
             k = f"{b}__{nombre}"
             assert abs(y[k] - float(ref[k])) <= 2 * TOL_PESO, k
+
+
+# ── H1, el credito mutualizado (2026-10-04, CANON §14.26) ───────────────────
+GUION_H1 = (RAIZ / "reformateo" / "documento" / "scripts" / "articulo"
+            / "hibrido_por_planta.py")
+H1_CSV = (RAIZ / "SALIDAS_SERVIDOR" / "hibrido_por_planta_2026-10-04"
+          / "hibrido_13casos.csv")
+CAP_MIXTA = np.array([17.55, 150.209928, 17.55, 17.55])   # como I1
+
+
+def test_numeral_de_cada_planta_por_su_capacidad():
+    np.testing.assert_array_equal(
+        evaluador.numeral_planta([17.55, 100.0, 100.01, 150.209928]),
+        [1, 1, 2, 2])
+    with pytest.raises(ValueError):
+        evaluador.numeral_planta([17.55, -1.0])
+
+
+def test_h1_conserva_la_energia_y_la_compensacion_suma_cero():
+    """La formula reparte lo inyectado de cada mes, nadie recibe mas que su
+    importacion restante y la compensacion suma cero."""
+    x = _sinteticos()
+    s = np.maximum(x["G"] - x["D"], 0.0)
+    d = np.maximum(x["D"] - x["G"], 0.0)
+    W, TR = evaluador.pde_primero_propio(s, d, x["mes"])
+    for m, t in TR.items():
+        assert t["asignado"].sum() == pytest.approx(t["S"].sum(), rel=1e-12)
+        assert t["cedido"].sum() == pytest.approx(t["recibido"].sum(),
+                                                  rel=1e-12, abs=1e-9)
+        assert (t["recibido"] <= t["R"] + 1e-9).all()
+        assert W[m].sum() == pytest.approx(1.0, abs=1e-12)
+    b, comp = evaluador.valor_h1(x["G"], x["D"], x["CU"], x["Cv"], x["Th"],
+                                 CAP_MIXTA, x["mes"], x["pb"])
+    assert np.isfinite(b).all() and abs(comp.sum()) < 1e-6
+    # con todas las plantas en el numeral 1 la deduccion es kappa*Cv
+    frac = evaluador.fraccion_numeral2(TR, np.zeros(x["N"]))
+    np.testing.assert_array_equal(
+        evaluador.deduccion_por_origen(frac, x["Cv"], x["Th"], x["mes"]),
+        x["Cv"])
+    with pytest.raises(ValueError, match="1 MW"):
+        evaluador.valor_h1(x["G"], x["D"], x["CU"], x["Cv"], x["Th"],
+                           np.full(x["N"], 300.0), x["mes"], x["pb"])
+
+
+def test_colectivo_pesos_con_el_pde_igual_es_colectivo_igual():
+    x = _sinteticos()
+    s = np.maximum(x["G"] - x["D"], 0.0)
+    d = np.maximum(x["D"] - x["G"], 0.0)
+    igual = {m: np.full(x["N"], 1.0 / x["N"]) for m in np.unique(x["mes"])}
+    a = evaluador.colectivo_pesos(s, d, x["CU"], x["Cv"], x["mes"], x["pb"],
+                                  igual)
+    b = evaluador.colectivo_igual(s, d, x["CU"], x["Cv"], x["mes"], x["pb"])
+    for u, v in zip(a, b):
+        np.testing.assert_allclose(u, v, rtol=1e-12, atol=1e-9)
+
+
+@pytest.mark.skipif(not (GUION_H1.exists() and HUELLAS.exists()),
+                    reason="sin el guion del punto H1 o sin HUELLAS.csv")
+@pytest.mark.parametrize("cap", [CAP_MIXTA, np.full(4, 17.55),
+                                 np.full(4, 122.85)])
+def test_h1_portado_es_el_del_punto_h1(cap):
+    """Sobre datos sinteticos, con plantas mixtas, todas del numeral 1 y
+    todas del 2, H1 y su compensacion son los de «H1 fondo» de
+    `hibrido_por_planta.py` (kappa ya dentro del Cv)."""
+    sys.path.insert(0, str(GUION_H1.parent))
+    spec = importlib.util.spec_from_file_location("hibrido_por_planta",
+                                                  GUION_H1)
+    hb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hb)
+    x = _sinteticos()
+    N, T = x["N"], x["T"]
+    G, D, CU, pb, mes = x["G"], x["D"], x["CU"], x["pb"], x["mes"]
+    s, d, au = np.maximum(G - D, 0), np.maximum(D - G, 0), np.minimum(G, D)
+    n2 = (hb.numeral_planta(cap) == 2).astype(float)
+    W0, TR0 = hb.pde_primero_propio(s, d, mes)
+    ded0 = hb.ded_por_origen(hb.fraccion_numeral2_traza(TR0, n2), 1.0,
+                             x["Cv"], x["Th"], mes)
+    cero = np.zeros((N, T))
+    ref = hb.valor_hibrido(au, s, d, cero, cero, CU, cero, cero, ded0, mes,
+                           pb, W0, "prueba")["val"]
+    comp_ref = hb.compensacion(TR0, hb.precio_compensacion(s, pb, mes))
+    b, comp = evaluador.valor_h1(G, D, CU, x["Cv"], x["Th"], cap, mes, pb)
+    np.testing.assert_allclose(b, ref, rtol=1e-12, atol=1e-6)
+    np.testing.assert_allclose(comp, comp_ref, rtol=1e-12, atol=1e-6)
+
+
+@pytest.mark.parametrize("caso", list(comun.ORDEN_CASOS))
+def test_punto_base_reproduce_h1_lenta(datos, caso):
+    """En el punto base, H1 y H1 compensado por institucion y H1 de la
+    comunidad son los de `hibrido_13casos.csv` (§14.26), y sus brechas las
+    del punto H1, en los trece casos. I1 y N1 tienen plantas a los dos lados
+    de 100 kW; la comunidad tambien es la de H1_CANON de la compuerta."""
+    if not H1_CSV.exists():
+        pytest.skip("sin las salidas del punto H1")
+    h = pd.read_csv(H1_CSV, keep_default_na=False, na_values=[""])
+    h = h[h.caso == caso].set_index("institucion")
+    ins = evaluador.prepara_caso(caso, datos)
+    out, nuevos = evaluador.evalua_mecanismos_nuevos(ins, comun.PUNTO_BASE)
+    assert list(h.index[:-1]) == ins.nombres
+    ref = h.loc[ins.nombres, "H1_fondo_COP"].to_numpy(dtype=float)
+    assert np.abs(nuevos["H1"] - ref).max() <= TOL_PESO
+    ref_c = h.loc[ins.nombres, "H1_fondo_compensado_COP"].to_numpy(dtype=float)
+    assert np.abs(nuevos["H1comp"] - ref_c).max() <= TOL_PESO
+    assert abs(out["H1"] - float(h.loc["comunidad", "H1_fondo_COP"])) \
+        <= TOL_COMUNIDAD_PCOM
+    assert out["H1"] == pytest.approx(nuevos["H1"].sum(), abs=1e-6)
+    from gsa_directo import compuerta_punto_base as cpb
+    assert cpb.H1_CANON[caso] == float(h.loc["comunidad", "H1_fondo_COP"])
+    cm = h.loc["comunidad"]
+    tol_b = TOL_COMUNIDAD_PCOM + 2 * TOL_PESO
+    for b, col in (("H1_menos_C4", "brecha_H1_fondo_menos_C4_COP"),
+                   ("H1_menos_C1", "brecha_H1_fondo_menos_C1_COP"),
+                   ("H1_menos_P2P", "brecha_H1_fondo_menos_P2P_COP"),
+                   ("H1_menos_P2Pcom", "brecha_H1_fondo_menos_P2Pcom_COP")):
+        assert abs(out[b] - float(cm[col])) <= tol_b, (b, out[b], cm[col])
+    for nombre in ins.nombres:
+        for b, col in (("H1_menos_C4", "brecha_H1_fondo_menos_C4_COP"),
+                       ("H1comp_menos_C1",
+                        "brecha_H1_fondo_compensado_menos_C1_COP")):
+            assert abs(out[f"{b}__{nombre}"] - float(h.loc[nombre, col])) \
+                <= 2 * TOL_PESO + 1.0, (b, nombre)

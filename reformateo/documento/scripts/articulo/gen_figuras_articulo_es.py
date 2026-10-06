@@ -140,7 +140,9 @@ MARCAS = {
     "fig4_gsa_inversion_tesis": {"0", "20", "40", "60", "80", "100", "80100", "95", "2 048", "2048", "2 048"},  # n = 2 048 (gsa__<c>__n)
 }
 MARCAS["fig1_horas_E0"] = MARCAS["fig_hora_E0"] | {"13", "5", "10"}  # 13:00 y marcas del eje de energía
-HORAS = {"fig_hora_E0", "fig1_horas_E0"}                     # salen del almacén, no de cifras.csv
+HORAS = {"fig_hora_E0", "fig1_horas_E0"}
+MARCAS["fig3_atribucion"] = {"0", "50", "100", "1", "10"}  # marcas del eje y la regla del 10 %
+SOLO_EJE = {"fig3_atribucion"}  # solo imprime marcas de eje (IMPRESOS lo controla); la de −50 no es cifra del canon                     # salen del almacén, no de cifras.csv
 RES: list[dict] = []
 IMPRESOS: dict[str, set[str]] = {}                          # números que cada figura escribe
 HORA: dict = {}                                             # datos de la hora, ya con sus compuertas
@@ -869,6 +871,91 @@ def fig2_dos() -> None:
         "efecto sobre el crédito = P2P) y C4 + cargos evitados = C1"])
 
 
+def _atrib_ax(ax, titulo: str, k_pri: str, k_des: str, k_sh: str, d: str, GE, filas: list) -> None:
+    """Diagrama de puntos de la atribución en un eje (ver fig_atribucion)."""
+    casos = list(CASOS_ART)
+    for y, c in enumerate(reversed(casos)):
+        pri, des, sh = (V(k.format(c=c), d) for k in (k_pri, k_des, k_sh))
+        exige(abs(sh - (pri + des) / 2) <= 0.6, f"{d}: Shapley no es la media de los dos órdenes en {c}")
+        ax.plot([min(pri, des), max(pri, des)], [y, y], color=GE.APOYO, lw=3.5, solid_capstyle="round", zorder=1)
+        ax.plot([pri], [y], marker=">", ms=4.5, color=GE.TINTA, ls="none", zorder=3)
+        ax.plot([des], [y], marker="<", ms=4.5, mfc="white", mec=GE.TINTA, mew=0.9, ls="none", zorder=3)
+        ax.plot([sh], [y], marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], ls="none", zorder=4)
+        filas.append(dict(caso=c, paso=titulo, base_MCOP=None, altura_MCOP=None,
+                          primero_pct=pri, despues_pct=des, shapley_pct=sh))
+    ax.axvline(50, color=GE.NEUTRO, lw=0.6, ls=(0, (3, 2)), zorder=0)
+    ax.axvline(0, color="#CFCFCF", lw=0.5, zorder=0)
+    ax.set_yticks(range(len(casos)))
+    ax.set_yticklabels(list(reversed(casos)))
+    ax.set_ylim(-0.6, len(casos) - 0.4)
+    ax.set_xlim(-80, 105)
+    ax.set_title(titulo, fontsize=FS, loc="left", pad=2)
+    ax.tick_params(axis="y", length=0, labelsize=FS)
+    ax.tick_params(axis="x", labelsize=FS)
+    ax.grid(axis="x", color="#EAEAEA", lw=0.5, zorder=0)
+    ax.grid(axis="y", visible=False)
+    for lado in ("top", "right"):
+        ax.spines[lado].set_visible(False)
+
+
+def fig2_tres() -> None:
+    """Variante de la Fig. 2 (2026-10-05): las dos cascadas y, como tercer panel, la atribución
+    a los supuestos (mercado P2P) y a los dos cambios (P2P colectivo)."""
+    nombre = d = "fig2_cascadas_atrib"
+    GE = G.E
+    fig = plt.figure(figsize=(ANCHO_PAG, 2.15))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.12, 1.12, 0.84], height_ratios=[1, 1], wspace=0.27, hspace=0.75,
+                          left=0.078, right=0.995, top=0.9, bottom=0.2)
+    axa = fig.add_subplot(gs[:, 0])
+    axb = fig.add_subplot(gs[:, 1])
+    axc1 = fig.add_subplot(gs[0, 2])
+    axc2 = fig.add_subplot(gs[1, 2], sharex=axc1)
+    filas = _cascada(axa, "E0", d, "(a) E0: la comunidad medida")
+    filas += _cascada(axb, "E3", d, "(b) E3: la mayor escala bajo 100 kW")
+    cortos = ["C4", "cargos", "ahorro", "crédito", "P2P", "P2P\ncol."]
+    for ax in (axa, axb):
+        E.aplicar_estilo_ejes(ax, ylabel="Beneficio neto (MCOP)" if ax is axa else "")
+        ax.set_xticks(range(len(cortos)), cortos)
+        ax.grid(axis="x", visible=False)
+        ax.tick_params(axis="x", labelsize=FS, length=0)
+        ax.tick_params(axis="y", labelsize=FS)
+        _corte(ax)
+        ax.yaxis.set_major_formatter(T._FormatoEs(useOffset=False))
+        for t in list(ax.texts):                # en el panel estrecho: «nivel de C4» abrevia y «C1: …» sale
+            if t.get_text() == "nivel de C4":
+                t.set_text("C4")
+            elif t.get_text().startswith("C1:"):
+                t.remove()
+    _atrib_ax(axc1, "(c) mercado P2P: supuesto 1 (%)", "atr__{c}__texto_s1_pct", "atr__{c}__inverso_s1_pct",
+              "atr__{c}__shapley_s1_pct", d, GE, filas)
+    _atrib_ax(axc2, "(d) P2P col.: sin la regla (%)", "pcom__{c}__sin10_pct_dir",
+              "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh", d, GE, filas)
+    plt.setp(axc1.get_xticklabels(), visible=False)
+    axc2.set_xticks([-50, 0, 50, 100])
+    ley = [
+        Line2D([], [], ls="none", marker=">", ms=4.5, color=GE.TINTA, label="primero"),
+        Line2D([], [], ls="none", marker="<", ms=4.5, mfc="white", mec=GE.TINTA, label="después"),
+        Line2D([], [], ls="none", marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], label="Shapley"),
+    ]
+    fig.legend(handles=ley, loc="lower right", ncol=3, frameon=False, fontsize=FS, handletextpad=0.2,
+               columnspacing=0.7, borderaxespad=0.05, bbox_to_anchor=(0.995, 0.0))
+    MARCAS.setdefault(d, set())
+    for ax in (axa, axb):
+        lo, hi = ax.get_ylim()
+        for yt in ax.get_yticks():
+            if lo <= yt <= hi:
+                MARCAS[d].update({f"{yt:.1f}".replace(".", ","), f"{yt:g}", f"{yt:.0f}"})
+    MARCAS[d].update({"100", "1", "2", "3", "0", "50", "10"})
+    SOLO_EJE.add(d)
+    IMPRESOS.setdefault(d, set()).add("50")   # la marca −50 del eje de (c) y (d)
+    T.menos_tipografico(fig)
+    guardar(fig, nombre, pd.DataFrame(filas), "pag", [
+        "variante de la Fig. 2 (2026-10-05): las cascadas de E0 y E3 con rótulos cortos y, en (c) y (d), la "
+        "atribución de fig3_atribucion (claves atr__* y pcom__*__sin10_pct_*)",
+        "compuertas: cada cascada cierra al peso y C4 + cargos evitados = C1; Shapley es la media de los dos "
+        "órdenes en cada caso"])
+
+
 # ── Una hora de E0 en el eje de precios (pieza F2) ──────────────────────────
 def fig_hora() -> None:
     nombre = d = "fig_hora_E0"
@@ -1388,12 +1475,364 @@ def _mapa_gsa(nombre: str, casos: list, brechas: list, caja: str, alto: float) -
         "letra de 8 pt (IEEE)"])
 
 
+def fig_atribucion() -> None:
+    """Atribución de la ventaja sobre C4 (2026-10-05, a pedido del autor).
+
+    Panel (a): en el mercado P2P, la parte de P2P − C4 que se atribuye al
+    supuesto 1 (residual por miembro) por el orden en que se añade primero
+    (el del texto), por el inverso y por Shapley, en los cinco casos del
+    artículo (claves atr__<caso>__{texto,inverso,shapley}_s1_pct; CANON §14.21).
+    Panel (b): en el P2P colectivo, la parte de P2P colectivo − C4 que se
+    atribuye a quitar la regla del 10 % (claves pcom__<caso>__sin10_pct_{dir,inv,sh}).
+    La otra parte es el complemento a 100 %, así que basta un punto por reparto."""
+    nombre = "fig3_atribucion"
+    GE = G.E
+    IMPRESOS[nombre] = {"0", "50", "100"}
+    casos = list(CASOS_ART)
+    filas = []
+    fig, (a1, a2) = plt.subplots(2, 1, figsize=(ANCHO_COL, 2.3), sharex=True,
+                                 gridspec_kw=dict(hspace=0.5, left=0.15, right=0.98, top=0.925, bottom=0.235))
+    paneles = [
+        (a1, "(a) Mercado P2P: parte del supuesto 1", "atr__{c}__texto_s1_pct", "atr__{c}__inverso_s1_pct",
+         "atr__{c}__shapley_s1_pct"),
+        (a2, "(b) P2P colectivo: parte de quitar la regla del 10" + chr(92) + "%", "pcom__{c}__sin10_pct_dir",
+         "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh"),
+    ]
+    for ax, titulo, k_pri, k_des, k_sh in paneles:
+        for y, c in enumerate(reversed(casos)):
+            pri, des, sh = (V(k.format(c=c), nombre) for k in (k_pri, k_des, k_sh))
+            exige(abs(sh - (pri + des) / 2) <= 0.6, f"{nombre}: Shapley no es la media de los dos órdenes en {c}")
+            ax.plot([min(pri, des), max(pri, des)], [y, y], color=GE.APOYO, lw=4.5, solid_capstyle="round", zorder=1)
+            ax.plot([pri], [y], marker=">", ms=5.5, color=GE.TINTA, ls="none", zorder=3)
+            ax.plot([des], [y], marker="<", ms=5.5, mfc="white", mec=GE.TINTA, mew=1.0, ls="none", zorder=3)
+            ax.plot([sh], [y], marker="D", ms=4, color=GE.MECANISMOS["P2P"], ls="none", zorder=4)
+            filas.append(dict(panel=titulo[1], caso=c, primero_pct=pri, despues_pct=des, shapley_pct=sh))
+        ax.axvline(50, color=GE.NEUTRO, lw=0.7, ls=(0, (3, 2)), zorder=0)
+        ax.axvline(0, color="#CFCFCF", lw=0.6, zorder=0)
+        ax.set_yticks(range(len(casos)))
+        ax.set_yticklabels(list(reversed(casos)))
+        ax.set_ylim(-0.6, len(casos) - 0.4)
+        ax.set_title(titulo.replace(chr(92), ""), loc="left", fontsize=FS, fontweight="bold", pad=3)
+        ax.tick_params(axis="y", length=0)
+        ax.grid(axis="x", color="#EAEAEA", lw=0.5, zorder=0)
+        for lado in ("top", "right"):
+            ax.spines[lado].set_visible(False)
+    a2.set_xlim(-80, 105)
+    a2.set_xticks([-50, 0, 50, 100])
+    a2.set_xlabel("Parte de la ventaja sobre C4 (%)", labelpad=1)
+    ley = [
+        Line2D([], [], ls="none", marker=">", ms=5, color=GE.TINTA, label="si se añade primero"),
+        Line2D([], [], ls="none", marker="<", ms=5, mfc="white", mec=GE.TINTA, label="si se añade después"),
+        Line2D([], [], ls="none", marker="D", ms=4, color=GE.MECANISMOS["P2P"], label="Shapley"),
+    ]
+    fig.legend(handles=ley, loc="lower center", ncol=3, frameon=False, fontsize=FS, handletextpad=0.3,
+               columnspacing=0.9, borderaxespad=0.1)
+    T.menos_tipografico(fig)
+    guardar(fig, nombre, pd.DataFrame(filas), "col", [
+        "panel a: atr__<caso>__texto_s1_pct (orden del texto, el supuesto 1 primero), atr__<caso>__inverso_s1_pct "
+        "y atr__<caso>__shapley_s1_pct; panel b: pcom__<caso>__sin10_pct_dir, _inv y _sh (CANON §14.21 y §14.23)",
+        "compuerta: Shapley es la media de los dos órdenes en cada caso y panel (tolerancia del redondeo de las "
+        "claves en %)",
+        "la otra parte de cada ventaja es el complemento a 100 %: el supuesto 2 en (a), el intercambio exento en (b)"])
+
+
 def fig4() -> None:
     _mapa_gsa("fig4_gsa_inversion", CASOS_ART, BRECHAS_ART, "col", 2.50)
 
 
 def fig4_tesis() -> None:
     _mapa_gsa("fig4_gsa_inversion_tesis", CASOS_TES, BRECHAS_TES, "pag", 5.20)
+
+
+# ── Propuesta de Fig. 3 (2026-10-05): el margen de cada brecha en la caja ───
+# Encargo de rediseño de la Fig. 3 del artículo (fig4_gsa_inversion, que no se
+# toca). En lugar de la probabilidad de inversión (9), la distribución de
+# Γ(x)/Γ(x0) sobre las 2 n_s filas A y B de la muestra de Saltelli (la primera
+# y la última de cada bloque de 14, las mismas de (9) y de gsa_directo/
+# analizar.py, filas_ab): 0 es el cambio de signo y 1 el punto base. Es
+# independiente del sentido de la resta, como P(inversión). Lee las muestras
+# con huella (HUELLAS.csv, grupos gsa/<caso> y gsa2/<caso>) y, antes de
+# dibujar, recalcula P(inversión) y el punto base y los compara con las claves
+# gsa__* de cifras.csv. Ninguna de las tres figuras imprime cifras: solo marcas
+# de eje (SOLO_EJE).
+GSA_ENTREGA = {   # grupo de huellas -> (entrega, carpeta dentro de la entrega)
+    "gsa": ("entrega_gsa_directo_completo_2026-09-27", "SALIDAS_SERVIDOR/gsa_directo"),   # CANON §13.1
+    "gsa2": ("entrega_gsa_directo_c2_p2pcol_2026-10-03",                                  # CANON §13.9.1
+             "SALIDAS_SERVIDOR/gsa_directo_c2_p2pcol_2026-10-03"),
+}
+# brecha de la figura -> (grupo, columna de la muestra). El P2P colectivo de
+# hoy es P2Pcom, de la corrida del 2026-10-02 (gsa2); la columna
+# P2P_colectivo y P2Pcol_menos_C1 de las dos entregas son el viejo mercado por
+# el colectivo (CANON §13.9, nota de nombres) y no se usan.
+GSA_COLUMNA = {
+    "P2P_C1": ("gsa", "P2P_menos_C1"), "P2P_C4": ("gsa", "P2P_menos_C4"), "C4_C1": ("gsa", "C4_menos_C1"),
+    "P2Pcom_C1": ("gsa2", "P2Pcom_menos_C1"), "P2Pcom_C4": ("gsa2", "P2Pcom_menos_C4"),
+}
+GSA_COMUNES = ["P2P_menos_C1", "P2P_menos_C4", "C4_menos_C1"]   # al bit en las dos (CANON §13.9.2)
+GSA_B = 14                                    # filas por bloque (2 × 6 + 2): A la primera, B la última
+HUELLAS_CANON = RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv"
+ROT_MARGEN = {"P2P_C1": "P2P − C1", "P2P_C4": "P2P − C4", "P2Pcom_C1": "P2P col. − C1",
+              "P2Pcom_C4": "P2P col. − C4", "C4_C1": "C1 − C4"}
+ROT_MARGEN_2 = {"P2P_C1": "P2P\n− C1", "P2P_C4": "P2P\n− C4", "P2Pcom_C1": "P2P col.\n− C1",
+                "P2Pcom_C4": "P2P col.\n− C4", "C4_C1": "C1\n− C4"}
+BRECHAS_MARGEN = ["P2P_C1", "P2P_C4", "P2Pcom_C1", "P2Pcom_C4", "C4_C1"]
+C_SIN_INV = G.E.MECANISMOS["P2P"]             # no cambia de signo en ningún punto de la caja
+C_CON_INV = G.E.ALERTA                        # cambia de signo en parte de la caja
+C_ZONA_INV = "#EDEDED"                        # fondo de Γ(x)/Γ(x0) < 0
+_MUESTRAS: dict = {}
+_MARGEN: dict = {}
+
+
+def _fichero_gsa(g: str, rel: str) -> Path:
+    """Ruta de un fichero de la entrega `g`, con su huella de HUELLAS.csv."""
+    ent, sub = GSA_ENTREGA[g]
+    ruta = f"{sub}/{rel}"
+    hu = pd.read_csv(HUELLAS_CANON)
+    fila = hu[(hu.ruta == ruta) & hu.grupo.str.startswith(g + "/")]
+    exige(len(fila) == 1, f"GSA: {ruta} no tiene una huella del grupo {g}/ en HUELLAS.csv")
+    p = RAIZ / "SALIDAS_SERVIDOR" / ent / ruta
+    exige(p.is_file() and sha(p) == fila.sha256.iloc[0], f"GSA: {p} no tiene su huella")
+    return p
+
+
+def _muestra_gsa(g: str, c: str, n: int) -> pd.DataFrame:
+    """Muestra de Saltelli del caso, ordenada por idx y con la máscara de las filas A y B."""
+    if (g, c) in _MUESTRAS:
+        return _MUESTRAS[(g, c)]
+    import json
+    meta = json.loads(_fichero_gsa(g, f"{c}/muestras_{c}_n{n}_s42.meta.json").read_text(encoding="utf-8"))
+    exige(meta["caso"] == c and meta["n_base"] == n and meta["B"] == GSA_B and meta["M"] == GSA_B * n
+          and meta["semilla"] == 42, f"GSA {g} {c}: el .meta.json no es el de n = {n}, B = {GSA_B}, semilla 42")
+    cols = sorted({col for gg, col in GSA_COLUMNA.values() if gg == g} | set(GSA_COMUNES))
+    df = pd.read_csv(_fichero_gsa(g, f"{c}/muestras_{c}_n{n}_s42.csv"), usecols=["idx", "motivo"] + cols)
+    df = df.sort_values("idx").reset_index(drop=True)
+    exige(len(df) == GSA_B * n and (df.idx.to_numpy() == np.arange(GSA_B * n)).all(),
+          f"GSA {g} {c}: la muestra no tiene las {GSA_B * n} filas 0..M−1")
+    exige(df.motivo.isna().all(), f"GSA {g} {c}: hay evaluaciones fallidas")
+    exige(np.isfinite(df[cols].to_numpy(float)).all(), f"GSA {g} {c}: valores no finitos")
+    df["ab"] = (df.idx % GSA_B == 0) | (df.idx % GSA_B == GSA_B - 1)
+    exige(int(df.ab.sum()) == 2 * n, f"GSA {g} {c}: las filas A y B no son 2 n")
+    _MUESTRAS[(g, c)] = df
+    return df
+
+
+def _margen_gsa(casos: list, brechas: list, d: str) -> pd.DataFrame:
+    """Cuantiles de Γ(x)/Γ(x0) en las filas A y B, con la compuerta de coincidencia."""
+    base = {g: pd.read_csv(_fichero_gsa(g, "base/punto_base.csv")).set_index("caso") for g in GSA_ENTREGA}
+    filas = []
+    for c in casos:
+        n = int(V(f"gsa__{c}__n", d))
+        for col in GSA_COMUNES:                    # lo común de las dos corridas, al bit
+            exige(np.array_equal(_muestra_gsa("gsa", c, n)[col].to_numpy(float),
+                                 _muestra_gsa("gsa2", c, n)[col].to_numpy(float)),
+                  f"GSA {c} {col}: las corridas del 27-sep y del 02-oct no coinciden al bit")
+        for b in brechas:
+            g, col = GSA_COLUMNA[b]
+            if (c, b) not in _MARGEN:
+                df = _muestra_gsa(g, c, n)
+                y = df.loc[df.ab, col].to_numpy(float)
+                x0 = float(base[g].loc[c, col])
+                exige(x0 != 0 and abs(x0 / 1e6 - V(f"gsa__{c}__{b}__base", d)) <= PESO,
+                      f"GSA {c} {b}: el punto base no es la clave gsa__{c}__{b}__base")
+                p = 100.0 * float(np.mean(np.sign(y) != np.sign(x0)))
+                pk, lo, hi = (V(f"gsa__{c}__{b}__{s}", d) for s in ("p", "lo", "hi"))
+                exige(abs(p - pk) <= 1e-9 and lo <= pk <= hi,
+                      f"GSA {c} {b}: P(inversión) recalculada {p} frente a la clave {pk}")
+                r = y / x0
+                exige((p == 0) == bool(r.min() > 0), f"GSA {c} {b}: P(inversión) y el mínimo no concuerdan")
+                q = np.percentile(r, [0, 5, 50, 95, 100])
+                _MARGEN[(c, b)] = dict(caso=c, brecha=b, grupo_huellas=g, columna=col, n_filas_AB=y.size,
+                                       base_COP=x0, p_inversion_pct=p, r_min=q[0], r_p05=q[1], r_p50=q[2],
+                                       r_p95=q[3], r_max=q[4])
+            filas.append(_MARGEN[(c, b)])
+    ok(f"{d}: P(inversión) recalculada de las filas A y B = claves gsa__*__p de cifras.csv en "
+       f"{len(casos)} × {len(brechas)} celdas; punto base = gsa__*__base; muestras con huella")
+    return pd.DataFrame(filas)
+
+
+def _barra_margen(ax, y: float, f: dict, alto: float, lim: tuple) -> None:
+    """Barra del percentil 5 al 95 y línea de los extremos; punta si se sale del eje."""
+    from matplotlib.patches import Rectangle
+    col = C_CON_INV if f["r_min"] < 0 else C_SIN_INV
+    a, b = max(f["r_min"], lim[0]), min(f["r_max"], lim[1])
+    ax.plot([a, b], [y, y], color=col, lw=0.8, solid_capstyle="butt", zorder=3)
+    p5, p95 = max(f["r_p05"], lim[0]), min(f["r_p95"], lim[1])
+    ax.add_patch(Rectangle((p5, y - alto / 2), p95 - p5, alto, fc=col, ec="none", zorder=4))
+    for v, borde, marca in ((f["r_min"], lim[0], "<"), (f["r_max"], lim[1], ">")):
+        fuera = v < borde if marca == "<" else v > borde
+        ax.plot([borde if fuera else v], [y], ls="none", marker=marca if fuera else "|",
+                ms=3.2 if fuera else 3.0, mew=0.8, color=col, zorder=5, clip_on=False)
+
+
+def _ejes_margen(ax, lim: tuple, marcas: list, d: str) -> None:
+    pad = 0.035 * (lim[1] - lim[0])           # las puntas de lo que se sale quedan dentro del eje
+    ax.axvspan(lim[0] - pad, 0, color=C_ZONA_INV, lw=0, zorder=0)
+    ax.axvline(0, color="#222222", lw=0.8, zorder=2)
+    ax.axvline(1, color=G.E.NEUTRO, lw=0.7, ls=(0, (3, 2)), zorder=2)
+    ax.set_xlim(lim[0] - pad, lim[1] + pad)
+    ax.set_xticks(marcas, [f"{m:g}".replace("-", "−") for m in marcas])
+    IMPRESOS.setdefault(d, set()).update(f"{abs(m):g}" for m in marcas)
+    MARCAS.setdefault(d, set()).update(f"{abs(m):g}" for m in marcas)
+    ax.tick_params(axis="x", length=2, pad=1.5)
+    for lado in ("top", "right"):
+        ax.spines[lado].set_visible(False)
+
+
+def _leyenda_margen(fig, y0: float = 0.0, extremos: bool = True) -> None:
+    from matplotlib.patches import Patch as _P
+    h = [_P(fc=C_SIN_INV, ec="none", label="no cambia de signo"),
+         _P(fc=C_CON_INV, ec="none", label="cambia de signo en parte de la caja")]
+    fig.legend(handles=h, loc="lower center", bbox_to_anchor=(0.5, y0), ncol=2, frameon=False, fontsize=FS,
+               handlelength=1.1, handleheight=0.6, handletextpad=0.35, columnspacing=0.9, borderaxespad=0.1)
+
+
+def fig3_gsa_margen() -> None:
+    """Alternativa A: quince filas (cinco casos × las tres brechas frente a C4),
+    cada una con la barra del percentil 5 al 95 de Γ(x)/Γ(x0) y sus extremos."""
+    d = "fig3_gsa_margen"
+    casos, brechas = list(CASOS_ART), ["P2P_C4", "P2Pcom_C4", "C4_C1"]
+    datos = _margen_gsa(casos, brechas, d)
+    lim, marcas = (-1.5, 2.5), [-1, 0, 1, 2]
+    paso, hueco = 1.0, 0.55
+    ys, etiquetas, grupos = [], [], []
+    y = 0.0
+    for i, c in enumerate(casos):
+        y0 = y
+        for b in brechas:
+            ys.append(y)
+            etiquetas.append(ROT_MARGEN[b])
+            y += paso
+        grupos.append((c, (y0 + y - paso) / 2, y0, y - paso))
+        y += hueco
+    alto_fig = 2.45
+    fig = plt.figure(figsize=(ANCHO_COL, alto_fig))
+    izq, der, arr, aba = 1.02 / ANCHO_COL, 0.08 / ANCHO_COL, 0.20 / alto_fig, 0.52 / alto_fig
+    ax = fig.add_axes([izq, aba, 1 - izq - der, 1 - aba - arr])
+    _ejes_margen(ax, lim, marcas, d)
+    for (_, f), yy in zip(datos.iterrows(), ys):
+        _barra_margen(ax, yy, f.to_dict(), 0.52, lim)
+    ax.set_yticks(ys, etiquetas)
+    ax.tick_params(axis="y", length=0, pad=2)
+    ax.set_ylim(ys[-1] + 0.7, -0.7)
+    x_caso = (0.03 - izq * ANCHO_COL) / ((1 - izq - der) * ANCHO_COL)   # 0,03 in del borde, en ejes
+    for k, (c, ym, ya, yb) in enumerate(grupos):
+        ax.text(x_caso, ym, c, transform=ax.get_yaxis_transform(),
+                ha="left", va="center", fontsize=FS, fontweight="bold", color=E.COLOR_TEXTO)
+        if k:
+            ax.plot([x_caso, 1], [ya - (paso + hueco) / 2] * 2, color="#D0D0D0", lw=0.5, zorder=1,
+                    transform=ax.get_yaxis_transform(), clip_on=False)
+    ax.spines["left"].set_visible(False)
+    ax.text(0, -0.9, "inversión ", ha="right", va="bottom", fontsize=FS, color=E.COLOR_TEXTO)
+    ax.text(1, -0.9, " punto base", ha="left", va="bottom", fontsize=FS, color=E.COLOR_TEXTO)
+    ax.set_xlabel("Brecha en la caja relativa al punto base, Γ(x)/Γ(x$_0$)", labelpad=1.5)
+    _leyenda_margen(fig)
+    T.menos_tipografico(fig)
+    SOLO_EJE.add(d)
+    guardar(fig, d, datos, "col", _procedencia_margen(
+        "alternativa A: 15 filas, los cinco casos del artículo × P2P − C4, P2P colectivo − C4 y C1 − C4 "
+        "(las dos ventajas sobre C4 y la comparación regulatoria); barra del percentil 5 al 95, línea de los "
+        "extremos (punta si se sale del eje, de −1,5 a 2,5)"))
+
+
+def fig3_gsa_rejilla() -> None:
+    """Alternativa C: la rejilla 5 × 5 de la Fig. 3 actual, con una barra de
+    margen en cada celda en lugar de la probabilidad de inversión."""
+    d = "fig3_gsa_rejilla"
+    casos, brechas = list(CASOS_ART), list(BRECHAS_MARGEN)
+    datos = _margen_gsa(casos, brechas, d)
+    lim, marcas = (-1.5, 2.5), [0, 1, 2]
+    alto_fig = 2.17
+    fig = plt.figure(figsize=(ANCHO_COL, alto_fig))
+    izq, der, arr, aba, hueco = 0.40, 0.05, 0.32, 0.56, 0.07      # pulgadas
+    w = (ANCHO_COL - izq - der - hueco * (len(brechas) - 1)) / len(brechas)
+    ejes = []
+    for j, b in enumerate(brechas):
+        ax = fig.add_axes([(izq + j * (w + hueco)) / ANCHO_COL, aba / alto_fig, w / ANCHO_COL,
+                           (alto_fig - aba - arr) / alto_fig])
+        _ejes_margen(ax, lim, marcas, d)
+        ax.set_xticks([-1], minor=True)
+        ax.tick_params(axis="x", which="minor", length=1.5)
+        for i, c in enumerate(casos):
+            f = datos[(datos.caso == c) & (datos.brecha == b)].iloc[0].to_dict()
+            _barra_margen(ax, i, f, 0.42, lim)
+        ax.set_ylim(len(casos) - 0.5, -0.5)
+        ax.set_yticks(range(len(casos)), casos if j == 0 else [""] * len(casos))
+        ax.tick_params(axis="y", length=0, pad=2)
+        for s in ("left",):
+            ax.spines[s].set_visible(False)
+        ax.set_title(ROT_MARGEN_2[b], fontsize=FS, pad=3, linespacing=1.0)
+        ejes.append(ax)
+    fig.text((izq + (ANCHO_COL - izq - der) / 2) / ANCHO_COL, 0.29 / alto_fig,
+             "$\Gamma(\mathbf{x})/\Gamma(\mathbf{x}_0)$ en la caja: 0, cambio de signo; 1, punto base",
+             ha="center", va="center", fontsize=FS, color=E.COLOR_TEXTO)
+    _leyenda_margen(fig, 0.0)
+    T.menos_tipografico(fig)
+    SOLO_EJE.add(d)
+    guardar(fig, d, datos, "col", _procedencia_margen(
+        "alternativa C: la rejilla 5 × 5 de la Fig. 3 actual (cinco casos × cinco brechas), con la barra del "
+        "percentil 5 al 95 y la línea de los extremos en cada celda; eje de −1,5 a 2,5 (punta si se sale), "
+        "marcas en 0, 1 y 2"))
+
+
+def fig3_gsa_minimo() -> None:
+    """Alternativa B: compacta. Por brecha, el peor punto de la caja
+    (mín. Γ(x)/Γ(x0)) en cada caso; a la izquierda del 0, se invierte."""
+    d = "fig3_gsa_minimo"
+    casos, brechas = list(CASOS_ART), list(BRECHAS_MARGEN)
+    datos = _margen_gsa(casos, brechas, d)
+    lim, marcas = (-2.0, 1.2), [-2, -1, 0, 1]
+    forma = {"E0": "o", "E3": "s", "E4": "D", "I1": "^", "SINU": "v"}
+    color = {"E0": A.OI["negro"], "E3": A.OI["azul"], "E4": A.OI["bermellon"], "I1": A.OI["verde"],
+             "SINU": A.OI["purpura"]}
+    alto_fig = 1.50
+    fig = plt.figure(figsize=(ANCHO_COL, alto_fig))
+    izq, der, arr, aba = 0.80 / ANCHO_COL, 0.10 / ANCHO_COL, 0.30 / alto_fig, 0.33 / alto_fig
+    ax = fig.add_axes([izq, aba, 1 - izq - der, 1 - aba - arr])
+    _ejes_margen(ax, lim, marcas, d)
+    desv = np.linspace(-0.28, 0.28, len(casos))
+    for j, b in enumerate(brechas):
+        if j:
+            ax.axhline(j - 0.5, color="#E2E2E2", lw=0.5, zorder=1)
+        for k, c in enumerate(casos):
+            v = float(datos[(datos.caso == c) & (datos.brecha == b)].r_min.iloc[0])
+            fuera = v < lim[0]
+            ax.plot([lim[0] if fuera else v], [j + desv[k]], ls="none",
+                    marker="<" if fuera else forma[c], ms=3.6, mew=0.6, mfc=color[c], mec=color[c],
+                    zorder=5, clip_on=False)
+    ax.set_yticks(range(len(brechas)), [ROT_MARGEN[b] for b in brechas])
+    ax.tick_params(axis="y", length=0, pad=2)
+    ax.set_ylim(len(brechas) - 0.5, -0.5)
+    ax.spines["left"].set_visible(False)
+    ax.set_xlabel("Peor punto de la caja, mín. Γ(x)/Γ(x$_0$)", labelpad=1.5)
+    h = [Line2D([], [], ls="none", marker=forma[c], ms=3.6, mfc=color[c], mec=color[c], label=c) for c in casos]
+    fig.legend(handles=h, loc="upper center", bbox_to_anchor=(0.5 + (izq - der) / 2, 1.0), ncol=5,
+               frameon=False, fontsize=FS, handletextpad=0.15, columnspacing=0.8, borderaxespad=0.1)
+    T.menos_tipografico(fig)
+    SOLO_EJE.add(d)
+    guardar(fig, d, datos, "col", _procedencia_margen(
+        "alternativa B (compacta): por brecha, el mínimo de Γ(x)/Γ(x0) en las filas A y B de cada caso; "
+        "a la izquierda del 0 la brecha cambia de signo en algún punto; I1, C1 − C4 se sale del eje por la "
+        "izquierda (punta)"))
+
+
+def _procedencia_margen(que: str) -> list[str]:
+    return [
+        que,
+        "propuesta del 2026-10-05 para la Fig. 3 del artículo (fig4_gsa_inversion, que no se toca); no se "
+        "dibuja en el artículo hasta que el autor la apruebe",
+        "datos: las muestras de Saltelli con huella de HUELLAS.csv, grupos gsa/<caso> "
+        "(entrega_gsa_directo_completo_2026-09-27: P2P − C1, P2P − C4, C4 − C1) y gsa2/<caso> "
+        "(entrega_gsa_directo_c2_p2pcol_2026-10-03, la corrida del 2026-10-02: P2Pcom − C1 y P2Pcom − C4, el "
+        "P2P colectivo de hoy); punto base de base/punto_base.csv de cada entrega",
+        "filas: solo las A y B de cada bloque de 14 (idx mod 14 en {0, 13}), las 2 n_s independientes de (9), "
+        "como gsa_directo/analizar.py (filas_ab)",
+        "compuertas: P(inversión) recalculada = gsa__<caso>__<brecha>__p de cifras.csv; punto base = "
+        "gsa__<caso>__<brecha>__base al peso; P(inversión) nula si y solo si el mínimo de Γ(x)/Γ(x0) es "
+        "positivo; P2P − C1, P2P − C4 y C4 − C1 iguales al bit en las dos corridas (CANON §13.9.2); "
+        "metadatos n, B = 14 y semilla 42; ninguna evaluación fallida",
+        "Γ(x)/Γ(x0) no depende del sentido de la resta, como P(inversión): C4 − C1 se rotula «C1 − C4»",
+        "ninguna cifra impresa: solo marcas de eje (SOLO_EJE)",
+    ]
 
 
 def desde_ingles(func: str, nombre: str, alto: float | None) -> None:
@@ -1443,6 +1882,89 @@ def desde_ingles(func: str, nombre: str, alto: float | None) -> None:
     ok(f"{nombre}: CSV idéntico byte a byte al de la figura inglesa")
 
 
+# ── Resumen gráfico del envío (2026-10-06) ──────────────────────────────────
+DIR_RG = RAIZ / "Documentos" / "articulo_latam" / "v2_es" / "resumen_grafico"
+
+
+def resumen_grafico() -> None:
+    """Resumen gráfico que pide IEEE LatAm: PNG de al menos 1328 × 531 px a 300 ppp
+    (proporción 2,5:1). Tres paneles: de dónde sale la ventaja en E0, el P2P
+    colectivo sobre C4 en los cinco casos y lo que la norma tendría que definir."""
+    nombre = d = "resumen_grafico"
+    W, Hh = ANCHO_PAG, ANCHO_PAG / 2.5
+    fig = plt.figure(figsize=(W, Hh))
+    fig.text(0.006, 0.975, "¿De dónde sale el valor de un mercado P2P en una comunidad energética colombiana?",
+             ha="left", va="top", fontsize=FS_TIT + 1, fontweight="bold", color=E.COLOR_TEXTO)
+    fig.text(0.006, 0.895, f"Cinco instituciones de Pasto, {TX('horas_total', d)} horas medidas, frente a la "
+             "autogeneración individual (C1) y la colectiva (C4)",
+             ha="left", va="top", fontsize=FS, color=E.COLOR_TEXTO_SUAVE)
+    # (a) la cascada de E0, la comunidad medida
+    axa = fig.add_axes([0.62 / W, 0.62 / Hh, 3.30 / W, 1.42 / Hh])
+    filas = _cascada(axa, "E0", d, "(a) De C4 al mercado P2P en la comunidad medida (MCOP)")
+    E.aplicar_estilo_ejes(axa, ylabel="")
+    axa.grid(axis="x", visible=False)
+    axa.tick_params(axis="x", labelsize=FS, length=0)
+    axa.tick_params(axis="y", labelsize=FS)
+    _corte(axa)
+    axa.yaxis.set_major_formatter(T._FormatoEs(useOffset=False))
+    axa.set_title(axa.get_title(loc="left"), fontsize=FS, loc="left", pad=4, fontweight="bold")
+    # (b) el P2P colectivo sobre C4 en los cinco casos
+    axb = fig.add_axes([4.40 / W, 0.62 / Hh, 1.12 / W, 1.42 / Hh])
+    casos = list(CASOS_ART)
+    vals = [V(f"com__{c}__P2Pcom_C4_pct", d) for c in casos]
+    axb.barh(range(len(casos)), vals, height=0.6, color=C2_PCOL, edgecolor="#333333", lw=0.5, zorder=3)
+    for i, c in enumerate(casos):
+        axb.text(vals[i] + 0.6, i, TX(f"com__{c}__P2Pcom_C4_pct", d), ha="left", va="center",
+                 fontsize=FS, color=E.COLOR_TEXTO)
+        filas.append(dict(caso=c, paso="P2P colectivo − C4 (% de C4)", base_MCOP=0.0, altura_MCOP=vals[i]))
+    axb.set_yticks(range(len(casos)), casos)
+    axb.set_ylim(len(casos) - 0.5, -0.5)
+    axb.set_xlim(0, 40)
+    axb.set_xticks([0, 10, 20])
+    E.aplicar_estilo_ejes(axb, ylabel="")
+    axb.grid(axis="y", visible=False)
+    axb.tick_params(axis="y", length=0, labelsize=FS)
+    axb.tick_params(axis="x", labelsize=FS)
+    axb.set_title("(b) P2P colectivo sobre C4\n(% de C4, sin invertirse\nen la caja de sensibilidad)",
+                  fontsize=FS, loc="left", pad=4, fontweight="bold")
+    # (c) lo que la norma tendría que definir
+    axc = fig.add_axes([5.64 / W, 0.10 / Hh, 1.50 / W, 2.05 / Hh])
+    axc.set_axis_off()
+    axc.set_xlim(0, 1)
+    axc.set_ylim(0, 1)
+    axc.text(0.0, 0.97, "(c) Lo que la norma\ntendría que definir", ha="left", va="top", fontsize=FS,
+             fontweight="bold", color=E.COLOR_TEXTO)
+    for y, txt in ((0.70, "Qué cargos paga\nlo intercambiado"),
+                   (0.44, "Cómo se liquida la\nenergía que cada\nmiembro no intercambia")):
+        axc.add_patch(FancyBboxPatch((0.0, y - 0.11), 0.98, 0.22, boxstyle="round,pad=0,rounding_size=0.03",
+                                     fc="#EAF4EF", ec=C2_PCOL, lw=0.8, zorder=2, transform=axc.transAxes))
+        axc.text(0.49, y, txt, ha="center", va="center", fontsize=FS, color=E.COLOR_TEXTO, zorder=3)
+    axc.text(0.0, 0.18, "Sin ninguna, el mercado P2P\nno supera a C4. El P2P\ncolectivo las fija dentro de C4.",
+             ha="left", va="center", fontsize=FS, color=E.COLOR_TEXTO_SUAVE)
+    MARCAS.setdefault(d, set())
+    lo, hi = axa.get_ylim()
+    for yt in axa.get_yticks():
+        if lo <= yt <= hi:
+            MARCAS[d].update({f"{yt:.1f}".replace(".", ","), f"{yt:g}", f"{yt:.0f}"})
+    MARCAS[d].update({"0", "10", "20", "1", "4"})           # marcas del eje (b); C1 y C4
+    # horas_total (6 144): pypdf devuelve el separador de millares como espacio duro
+    MARCAS[d].update({"6144", "6 144", "6 144", "6 144", "6 144"})
+    guardar(fig, nombre, pd.DataFrame(filas), "pag", [
+        "resumen gráfico del envío a IEEE LatAm: proporción 2,5:1 (mínimo 1328 × 531 px a 300 ppp); "
+        "(a) la cascada de E0 de la Fig. 2, (b) P2P colectivo − C4 en % de C4 por caso (Tabla III), "
+        "(c) las dos definiciones de IV-D y las conclusiones; letra de 8 pt o más",
+        "compuertas: las de la cascada (cierra al peso) y la de los números impresos"])
+    DIR_RG.mkdir(parents=True, exist_ok=True)
+    from PIL import Image
+    with Image.open(DIR_SAL / f"{nombre}.png") as im:
+        im2 = im.convert("RGB")
+        w300 = round(W * 300)
+        im2 = im2.resize((w300, round(w300 / 2.5)), Image.LANCZOS)
+        im2.save(DIR_RG / "resumen_grafico.png", dpi=(300, 300))
+        exige(im2.size[0] >= 1328 and im2.size[1] >= 531, f"resumen gráfico: {im2.size} px, por debajo de 1328 × 531")
+    ok(f"resumen gráfico en {DIR_RG.name}/resumen_grafico.png, {im2.size[0]} × {im2.size[1]} px a 300 ppp")
+
+
 # ── Comprobaciones de las salidas ───────────────────────────────────────────
 def comprueba() -> None:
     from PIL import Image
@@ -1474,7 +1996,7 @@ def comprueba() -> None:
                 malos.append(f"{x.texto} (punto decimal)")
             elif n in IMPRESOS and forma not in IMPRESOS[n]:
                 malos.append(f"{x.texto} (no lo escribe ninguna clave de la figura)")
-            elif n not in HORAS and not fuentes.presente(x):
+            elif n not in HORAS and n not in SOLO_EJE and not fuentes.presente(x):
                 malos.append(f"{x.texto} (no está en cifras.csv)")
         exige(not malos, f"{n}: números impresos no justificados: {malos}")
         print(f"  {n:<20} {r['caja']:<4} {w:.5f} × {h:.3f} in  PNG {px[0]} × {px[1]} px  "
@@ -1500,6 +2022,8 @@ def main() -> int:
     fig2()
     rc_articulo()
     fig2_dos()        # Fig. 2 vigente desde el 2026-10-03 (dos cascadas, E0 y E3); fig2() queda por sus compuertas
+    rc_articulo()
+    fig2_tres()       # variante: las cascadas con la atribución (2026-10-05)
     fig_hora()
     rc_articulo()
     fig_horas_col()   # Fig. 1 del artículo desde el 2026-10-05: dos horas de E0, una columna
@@ -1508,7 +2032,17 @@ def main() -> int:
     rc_articulo()
     fig4()
     rc_articulo()
+    fig_atribucion()   # atribución a los supuestos (2026-10-05)
+    rc_articulo()
     fig4_tesis()
+    rc_articulo()
+    fig3_gsa_margen()  # propuestas de Fig. 3 (2026-10-05): el margen de cada brecha en la caja
+    rc_articulo()
+    fig3_gsa_rejilla()
+    rc_articulo()
+    fig3_gsa_minimo()
+    rc_articulo()
+    resumen_grafico()  # resumen gráfico del envío (2026-10-06)
     comprueba()
     print("[gen_figuras_articulo_es] FIGURAS EN ESPAÑOL ESCRITAS")
     return 0

@@ -11863,3 +11863,594 @@ Con C2 sin número, S17 a S22 vuelven a corresponder con C.17 a C.22, como ya de
   - sale «with data metered by the MTE project», porque el proyecto ya se nombra;
   - «the regulatory assessment of energy communities in Latin America» pasa a «the regulation of energy communities».
 - **Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-339 · Conclusiones depuradas (2026-10-05)
+
+**Decisión del autor:** aplicar las seis correcciones; todas caben juntas en 9 páginas.
+
+1. **Los cargos evitados y el supuesto 1.** «Los cargos evitados son del 80 al 85 % de la ventaja. Es lo que vale el supuesto 1 si se añade primero. Si se añade después, vale mucho menos, el 19 % en E0». Antes no decía que los cargos evitados son el supuesto 1 añadido primero.
+2. **Sin ninguna de las dos definiciones.** «Sin ninguna, el mercado P2P no supera a C4», que es lo que dice IV-D. La cifra «entre un 0,02 y un 0,96 % por debajo de C4» se quedó sin respaldo en el cuerpo al salir el párrafo de IV-A (C-337); la tesis la conserva.
+3. **La caja.** «Ningún punto de la caja de sensibilidad».
+4. **La recomendación final** añade la razón: «…cargos que dejan de pagarse y que, si la tarifa no cambia, pagan los demás usuarios». Desde C-336 es la única recomendación del artículo.
+5. **Lo que queda por medir:** «el mercado con solo el supuesto 1 en los casos en que C1 solo lo acota por debajo», en lugar de «…donde C1 es su cota inferior».
+6. **El tercer modelo de la tesis** «aplica a cada kWh del fondo la deducción del numeral de la planta que lo generó», en lugar de «deduce cada kWh del fondo con el numeral de su planta».
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-340 · El análisis de sensibilidad con la terminología de la literatura y la fórmula (9) definida (2026-10-05)
+
+**Qué pidió el autor:** revisar los títulos de los componentes del análisis de sensibilidad, empezando por «La caja», y la sección entera con su fórmula.
+
+**Diagnóstico:**
+- «La caja» no es término de la literatura. En el análisis de sensibilidad global (Saltelli) se habla de factores de entrada y sus rangos, que forman el espacio de entrada, un hipercubo.
+- El primer título terminaba en punto y los otros dos seguían la frase con coma.
+- En la fórmula (9), $\mathbf{x}_r$ y el indicador $\mathbf{1}[\cdot]$ no estaban definidos.
+- Las 14 evaluaciones por punto no tenían razón.
+- «La generación y la demanda medidas (de 0,95 a 1,05)» no decía que son dos factores con el mismo rango.
+
+**Artículo (III-E):**
+- «Tiene tres componentes».
+- **Factores.** El título pasa a «Los factores y sus rangos.»; la generación medida y la demanda medida van «cada una de 0,95 a 1,05»; «Todas sus combinaciones forman el espacio de entrada, la caja de sensibilidad». El término «caja» se conserva en el resto del artículo, que lo usa diez veces, y queda anclado a su nombre en la literatura.
+- **Diseño muestral.** El título pasa a «El diseño muestral.» con «Es el de Saltelli»; «Cada punto exige 14 evaluaciones del modelo, dos por cada factor más dos».
+- **Probabilidad de inversión.** Pasa a «Para cada brecha Γ …, es la fracción…».
+- **Fórmula (9).** Antes de ella va «Con $\mathbf{x}_r$ los seis factores del punto $r$ y $\mathbf{x}_0$ los del punto base», y después «donde $\mathbf{1}[\cdot]$ vale 1 si la condición se cumple y 0 si no. Su intervalo al 95 % sale del remuestreo de los puntos».
+- **Quedan solo en la tesis, por espacio:** «los independientes de la muestra», que explica por qué se cuentan solo A y B, «de la caja» y «completas».
+
+**Tesis:** los mismos títulos («Los factores y sus rangos.», «El diseño muestral.», «La probabilidad de inversión.»), «cuatro componentes», el espacio de entrada como la caja de sensibilidad, y $\mathbf{x}_r$ y $\mathbf{1}[\cdot]$ definidos junto a la fórmula.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-341 · Segunda pasada al análisis de sensibilidad (2026-10-05)
+
+**Qué pidió el autor:** confirmar que los componentes del análisis de sensibilidad tienen ya el nivel del resto. No lo tenían. Quedaban cuatro fallas:
+1. el ítem 1 empezaba con un fragmento sin verbo, «uniformes e independientes» era jerga, y no decía que los factores de generación y de demanda son errores de medición;
+2. la apertura, «pone a prueba el signo», no decía qué se varía;
+3. «matrices» e «índices de Sobol» se usaban sin presentarlos;
+4. los rangos no tienen justificación. La tesis tampoco la da más allá de notas breves, así que queda señalado y sin cambio.
+
+**Decisión del autor:** aplicar 1 y «matrices de puntos» (3a), quitando «La columna «Para qué» de la tabla dice qué muestra cada uno», que solo describía la tabla. La apertura concreta (2) y la definición de los índices de Sobol (3b) quedan fuera del artículo: medido, cada una lo lleva a 10 páginas incluso sin esa frase.
+
+**Artículo:**
+- «Son seis factores que multiplican insumos del modelo y valen 1 en el punto base, es decir, en el modelo sin perturbar. Multiplican … y un error de medición en la generación y otro en la demanda (cada uno de 0,95 a 1,05), uniformes e independientes».
+- «Sus dos matrices de puntos, A y B».
+
+**Tesis:**
+- la apertura concreta: «varía a la vez los insumos inciertos del modelo para ver si alguna brecha cambia de signo. Se aplica en 12 casos…»;
+- «matrices de puntos». Los índices de Sobol ya estaban definidos («reparten entre los factores la variación de cada brecha»).
+
+**Comprobaciones:**
+- Artículo: 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- Tesis: compila sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-342 · Cada elemento del artículo y de la tesis dice para qué está (2026-10-05)
+
+**Qué pidió el autor:** el análisis de sensibilidad (III-E) no se entendía porque cada componente entraba en los detalles sin decir para qué sirve. Se revisaron con ese criterio el artículo y la tesis entera, anexos incluidos: listas, párrafos, figuras, tablas, ecuaciones, supuestos, métricas, datos técnicos y referencias. La corrección dice primero el propósito, en una frase corta. Sin cifras nuevas ni contenido que el documento no tenga.
+
+**Tesis** (`tesis_entrega.tex` y anexos B, C y F):
+- **I-B.** El párrafo de Colombia empieza por «el intercambio se ha estudiado desde el usuario y desde la tarifa».
+- **II.** La Tabla I «sirve de mapa para el resto del documento». Sale «su umbral», porque la tabla no tiene esa columna desde el 2026-10-02.
+- **II-A.** Abre con «Dos precios entran en casi toda liquidación, la bolsa y la tarifa». El COT, «que deja una duda en la deducción (sección II-D)».
+- **II-B.** «Lo que vale hoy el exceso lo fija una regla transitoria», antes de la Resolución CREG 101 087.
+- **III-B.** El factor de capacidad «compara el rendimiento de plantas iguales».
+- **IV-C.** «La forma cerrada necesita saber cómo es el reposo de la dinámica. Esta subsección lo deduce.»
+- **IV-E.** «La rama cuantal resuelve las horas en que la forma cerrada no es un reposo estable de la dinámica regularizada.»
+- **IV-F.** La validación se hizo «para ver si esta llega a ella».
+- **V-B.** El rango del precio de XM «dice si el precio que iguala a un mecanismo es realista».
+- **V-D.**
+  - Cada contrafáctico cambia un solo supuesto de C4, «para medir cuánto pesa».
+  - «Otras métricas completan la comparación.» El Gini, glosado («cuán parejo reparte cada uno el beneficio entre las instituciones»).
+  - El precio de la justicia «dice qué parte del beneficio del mercado cuesta la equidad de C4».
+  - El factor de coincidencia «mide el valor sistémico que pedía la propuesta».
+- **VI-E.** «Los subperíodos dicen si la ventaja depende de las condiciones del mes, es decir, de cuánto se genera, cuánto se demanda y cuánto paga la bolsa.»
+- **VII-A.**
+  - Cada componente dice lo que aporta, como la versión A de III-E del artículo: «Dicen qué se varía y cuánto», «Dice en qué puntos de la caja se corre el modelo», «Dice con qué frecuencia cambia el signo de una brecha».
+  - «cuasialeatorios, es decir, repartidos de forma pareja por la caja»; las 14 simulaciones por punto son «para separar el efecto de cada factor».
+  - El coeficiente de variación «mide la estabilidad que la propuesta esperaba del mercado».
+- **VII-B.**
+  - $\mu$, «que ningún dato estima, se prueba a la mitad y al doble».
+  - La bolsa de 2024 «prueba un año real y no solo un factor».
+  - $\sigma$ «no se mide sino que se declara, así que se barre en 39 simulaciones».
+- **VIII-F.** Brasil y Chile: «Dos esquemas de la región lo muestran.»
+- **Anexo B.** La figura de los perfiles dice primero lo que explica, por qué en una misma hora unas venden y otras compran. La corrección de la bolsa pierde el «Además»: «La sección III-C remite aquí, por último, la corrección de la bolsa».
+- **Anexo C.** La réplica del caso de la autora «sirve para comprobar el núcleo en un caso que no sale de este trabajo».
+- **Anexo F.** El kWh de la Tabla II: «Un solo kWh muestra cómo el orden cambia la atribución». La tabla del coeficiente de variación: «Sirve para ver si el mercado es más estable que los regulados, como esperaba la propuesta».
+
+**Artículo, sin costo** (siete cambios, en dos grupos, cada uno con 9 páginas y la holgura intacta):
+1. **II.** «Como referencias sin crédito reporta…» (C2, C3 y C5 no acreditan).
+2. **II-E.**
+   - Abre con «Todos los mecanismos se comparan con una misma medida».
+   - Después: «Esa medida es el beneficio neto del miembro…».
+3. **III-B, paso 2.** «Para fijar el precio mínimo de la hora, cada piso de vendedor… se prueba como tal.»
+4. **III-C.** «Para ver de dónde viene, la ventaja del mercado P2P sobre C4 se parte, con ellos, de modo exacto en tres términos.»
+5. **IV-C.** «Como el despacho por piso es una regla declarada, se midió su peso. En las horas en que sobra oferta, otra regla baja hasta en un 13 % la ventaja del mercado P2P sobre C1.»
+6. **Pie de la Fig. 1.** «…, que ilustran los tres pasos del mercado.»
+7. **Pie de la Fig. 3.** «…, es decir, con qué frecuencia cambia su signo, …»
+
+**La holgura del artículo, medida de nuevo.** Cabe una línea más, es decir, un párrafo de una línea. Dos no caben. El `\vspace*{-k\baselineskip}` delante de `\section{Conclusiones}` cuenta una línea de más. Entre dos párrafos de las Conclusiones, en cambio, equivale a k líneas de texto. Por eso, desde aquí, los costos se dan con la segunda medida.
+
+**Queda propuesto en el artículo** (costo: líneas que habría que liberar además de la holgura de una línea; detalle en el informe de la sesión, `proposito_informe.md`):
+- **III-E, versión A de `c342_gsa.py`:** 4 líneas. **Versión B:** 4 también, de modo que la definición de los índices de Sobol y «Dice con qué frecuencia cambia el signo» salen gratis frente a la B. Caben juntas:
+  - A con S04 o con S03 (holgura de una línea);
+  - B con S04 o con S03 (dos líneas), con S11 (una) o con S23 (cinco).
+  - A con S11, y A o B con S10 y S12, pasan a 10 páginas.
+- **I, párrafo 2:** «La literatura mide esas ganancias. Los modelos de teoría de juegos las reportan…»: 4.
+- **II, convención de citas:** «…con su texto vigente. Para abreviar, «art. 25»…»: 4.
+- **III-B, cotas:** «…lo que obtendría sin el mercado, para que nadie pierda por participar»: 4.
+- **III-E, casos:** «Los casos escalan la comunidad medida.»: 1.
+- **IV-A:** «El precio interno solo reparte ese ahorro y deja a los vendedores…»: 1.
+- **III-C:** «Así se mide cada uno.»: 1.
+- Antes de la página 5, el costo va a saltos (4 líneas por una), porque mueve las tablas y figuras.
+
+**Candidatos a salir, para liberar espacio** (de III-C en adelante, medidos solos; sin salvedades del canon):
+- **5 líneas cada uno:**
+  - S04, el párrafo 3 de III-D, que IV-A repite;
+  - S03, «Así, la regla recoge los dos supuestos…» de III-D;
+  - S11, la apertura de IV-C, que repiten la Introducción, IV-A y las Conclusiones;
+  - S23, el umbral por capacidad instalada de III-D, con su única cita, CREG 901 079.
+- **3 líneas cada uno:**
+  - S10, «Frente al mercado P2P, deja más en E3, E4 e I1…» de IV-B;
+  - S12, la primera frase de IV-D, párrafo 2, que repiten las Conclusiones;
+  - S15, el tercer modelo de la tesis en las Conclusiones.
+- **2 líneas:** S13, «, sabiendo que la ventaja es, casi toda, cargos…» de las Conclusiones, alternativa a S12.
+- **1 línea cada uno:**
+  - S01, las pérdidas en el supuesto 2;
+  - S02, la comparación con los coeficientes españoles;
+  - S14, «Este trabajo mide el costo de la regla, no su propósito»;
+  - S17, «Sin ninguna, el mercado P2P no supera a C4».
+- **0 líneas solos y 3 juntos:** S05, S06, S07, S08, S09, S25 y S26, siete repeticiones de tablas, pies o III-C.
+- **En grupo:**
+  - S04 con S10, 6 líneas;
+  - S04 con S12, 6;
+  - S03 con S04, 6;
+  - S04 con S10 y S12, 8;
+  - S04 con S11, 8.
+
+**Sin dato en el documento, anotado y sin cambio:**
+- por qué E0, E2 y E4 llevan $n_{\mathrm{s}} = 2\,048$ y los demás 512;
+- por qué la validación compara en los tiempos equivalentes 80 y 160;
+- los rangos de los factores, salvo el de tarifa (ya señalado en C-341).
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, BibTeX sin avisos, vetadas LIMPIA, cifras LIMPIO, holgura de una línea, como antes.
+- **Tesis:** 77 páginas (31 hasta las referencias, como antes), 0 Overfull, 0 indefinidas. Vetadas LIMPIA en `tesis_entrega.tex` y en los anexos B, C y F.
+- **Números fuera de comentarios, sin cambio.** Solo cambia la puntuación tras «2025» y «295,23», y aparecen dos etiquetas, «C4,» y `sec:marco-101099`.
+- **Respaldo:** `antes_c342/`.
+- **Guiones:**
+  - `c342_lib.py`, `c342_proposito.py` y `c342_extra.py`, las correcciones del artículo;
+  - `c342_aplica_art.py`, que las aplica;
+  - `c342_parrafos.py`, las líneas por párrafo;
+  - `c342_costo.py` y `c342_espacio.py`, el costo y las líneas liberadas;
+  - `c342_tesis.py`, la tesis;
+  - `c342_numeros.py`, los números fuera de comentarios.
+
+### C-343 · El análisis de sensibilidad dice para qué sirve cada componente (2026-10-05)
+
+**Qué pidió el autor:** que los componentes del análisis de sensibilidad se entiendan a partir de lo anterior, diciendo primero qué se espera de cada uno. Aprobó la versión A, que medida en C-342 costaba 4 líneas más que la línea libre, y quitar S04 para hacerle sitio.
+
+**Artículo (III-E):**
+- **La apertura:** «Un análisis de sensibilidad global comprueba si alguna brecha cambia de signo cuando los insumos inciertos del modelo varían a la vez».
+- **Los factores y sus rangos:** «Dicen qué se varía y cuánto». Cuatro factores multiplican el Cv, la bolsa, el CU y los cargos de red Θ. Los otros dos son errores de medición en la generación y en la demanda. Cada factor varía de forma uniforme en su rango, independiente de los demás, y vale 1 en el punto base. Todas sus combinaciones forman la caja de sensibilidad.
+- **El diseño muestral:** «Dice en qué puntos de la caja se corre el modelo».
+  - Son $2n_s$ puntos cuasialeatorios, es decir, repartidos de forma pareja por la caja, en las matrices A y B.
+  - En cada punto el modelo se corre 14 veces, dos por factor más dos, para separar el efecto de cada factor.
+  - Así se obtienen también los índices de Sobol, que reparten la variación de cada brecha entre los factores, pero aquí basta el signo.
+- **La probabilidad de inversión:** «Dice con qué frecuencia cambia el signo».
+- **Sale S04,** el párrafo de III-D sobre los dos cambios del P2P colectivo que se solapan. IV-A da esos dos cambios con Shapley y por los dos órdenes.
+
+**Tesis:** los cuatro componentes ya llevan el mismo criterio desde C-342.
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-344 · IV-A reorganizada en el orden de la descomposición (2026-10-05)
+
+**Qué pidió el autor:** una redacción más intuitiva y ordenada de IV-A, que tenía un nivel alto.
+
+**Artículo:**
+- **E0.** Primero dice cuánto deja el mercado (46,50 MCOP, 2,01 más que C4). Después parte la ventaja por los términos de (8) y la Fig. 2(a), en su orden: cargos evitados, ahorro del intercambio y efecto sobre el crédito. El 0,542 pasa a «0,542 de cada peso de ese ahorro». Antes abría con la conclusión y mezclaba el orden de las cifras.
+- **Los supuestos.** Primero cada uno por sí solo, después por qué el que se añade segundo aporta poco, y al final Shapley. Desaparecen las elipsis («Con solo el 2, 1,62»).
+- **El P2P colectivo.** Dice cuáles son sus dos cambios, que se quedaron sin presentar al salir S04 en C-343, y sigue el mismo esquema que los supuestos.
+- **Espacio.** La versión compacta costaba 4 líneas. Con la decisión del autor (opción B) salen:
+  - **IV-D:** «La ventaja es, casi toda, cargos que la comunidad deja de pagar y que, si la tarifa no cambia, pagan los demás usuarios [Baroche]». Las Conclusiones lo repiten, y Baroche sigue citado en la Introducción.
+  - **IV-B:** «Frente al mercado P2P, deja más en E3, E4 e I1, por 4,53, 1,99 y 12,84 MCOP. En E0 y SINU queda 0,02 MCOP o menos por debajo». IV-C da I1, E4 y que en E0 y SINU casi lo iguala; se pierde el 4,53 de E3, que sigue en la tesis.
+
+**Tesis.** «Los vendedores se quedan con 0,542 de cada peso del ahorro del intercambio, por encima de su piso, y los compradores con el resto».
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** compila sin Overfull ni indefinidas, vetadas LIMPIA.
+
+### C-345 · La parte del vendedor en porcentaje (2026-10-05)
+
+**Qué preguntó el autor:** qué es «0,542». Es una fracción: la parte del vendedor de E0 (CANON, `parte_vendedor_E0` = 0,5418), es decir, el PSR de Chacón. De cada peso que ahorra el intercambio, el 54,2 % queda en los vendedores, por encima de su piso, y el resto en los compradores. Escrita en fracción no se entendía, y en la tesis convivía con «el 54,2 %».
+
+**Cambio:** la parte del vendedor se escribe en porcentaje, con un decimal, en toda la prosa.
+- **Artículo, IV-A:** «El precio interno deja el 54,2 % de ese ahorro a los vendedores y el resto a los compradores». La versión con «por encima de su piso» llevaba el artículo a 10 páginas. Que el ahorro del intercambio se mide desde el piso ya está en III-C.
+- **Tesis:**
+  - «se quedan con el 54,2 % del ahorro del intercambio, por encima de su piso»;
+  - «es del 54,2 % en E0. Es el PSR del documento extenso»;
+  - «del 54,0 al 54,2 %»;
+  - «del 54,2 al 13,2 %»;
+  - «Va del 13,2 % en E5 al 62,8 % en K1».
+- **Anexos:** el anexo C dice «el 54,2 % en E0» y el anexo F, «del 54,2 al 54,6 %».
+- **Sin cambio:** la columna de la tabla de E0 a E5 del anexo F queda en fracción, porque es un dato tabular.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA en el cuerpo y en los anexos C y F.
+
+### C-346 · Shapley definido donde aparece por primera vez (2026-10-05)
+
+**Qué preguntó el autor:** dónde se define el valor de Shapley.
+
+**Hallazgo:**
+- **Artículo:** se define en III-C («…la media de los dos, que es el valor de Shapley [22], es decir, lo que vale cada supuesto por sí solo menos la mitad de lo que comparten»). La Introducción ya lo nombra antes, sin cita.
+- **Tesis:** aparece por primera vez sin definir, en el P2P colectivo («…y su media, el valor de Shapley [cita]»). La definición llega más adelante, en la descomposición.
+
+**Cambios:**
+- **Tesis:** la definición pasa a la primera aparición: «…que con dos cambios es el valor de Shapley [cita], es decir, lo que vale cada cambio por sí solo menos la mitad de lo que comparten». En la descomposición queda «…y su media, el valor de Shapley».
+- **Artículo:** la Introducción cita a Shapley en su primera mención («…y por su promedio de Shapley [22]»). La definición sigue en III-C.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-347 · La figura de la atribución a los supuestos (2026-10-05)
+
+**Qué pidió el autor:** ver si algunos resultados se explican mejor con una gráfica que, además, ahorre espacio.
+
+**Figura:** `fig3_atribucion` (3,49 × 2,30 in). La genera `fig_atribucion()` en `gen_figuras_articulo_es.py`.
+- **Panel (a):** la parte de P2P − C4 que se atribuye al supuesto 1, en los cinco casos del artículo, si se añade primero (el orden del texto), si se añade después y por Shapley (claves `atr__<caso>__{texto,inverso,shapley}_s1_pct`).
+- **Panel (b):** lo mismo para quitar la regla del 10 % en el P2P colectivo (claves `pcom__<caso>__sin10_pct_{dir,inv,sh}`).
+- **Por qué es un diagrama de puntos y no barras apiladas:** E4 e I1 tienen partes negativas, porque allí C1 − C4 < 0.
+- **Compuertas propias:** Shapley es la media de los dos órdenes en cada caso y panel. Como la figura solo imprime marcas de eje, entra en `SOLO_EJE`: la marca de −50 no es cifra del canon.
+
+**Dónde quedó:**
+- **Artículo:** no entra. Medida en cuatro posiciones, recolocaba los flotantes y costaba más de 10 líneas, aun acortando el texto que reemplazaba.
+- **Tesis:** el autor la aprobó en la opción A. Va en la sección de la descomposición de la ventaja (C-348).
+
+### C-348 · Lo que queda solo en la tesis y en qué se usa el espacio del artículo (2026-10-05)
+
+**Decisión del autor:** aplicar la opción A del informe `solo_tesis_informe.md` (scratchpad de la sesión). Salen del artículo cinco pasajes que la tesis ya conserva, y el espacio se usa en explicaciones que faltaban.
+
+**Artículo, lo que sale:**
+- **T03, Introducción:** el mapa de secciones, «La Sección II plantea el problema; …».
+- **T13, Sección III:** el párrafo de entrada, «La solución mide un mercado P2P con dos supuestos declarados…». Los supuestos los enuncian II-D y III-C.
+- **T33, IV-A:** «La ventaja del mercado P2P sobre C4 es de 35,85 MCOP, el 20,29 % de C4». Las dos cifras siguen en la Tabla III.
+- **T35, IV-B:** por qué C2 pierde ante C1 y gana en E4. La tesis lo da más completo, con el precio que lo iguala, 684,17 COP/kWh.
+- **T36, IV-C:** la apertura, «El valor de un mercado P2P en Colombia viene, sobre todo, de cómo se liquida…», que repetían el resumen, la Introducción, IV-A y las Conclusiones. La frase siguiente pasa a «El P2P colectivo convierte en una regla la liquidación del mercado P2P».
+
+**Artículo, lo que entra:**
+- **A03, III-E. Enmienda un error introducido en C-333:**
+  - **Antes decía** que, al escalar a la vez la generación y la demanda, el valor crece en proporción «salvo en dos umbrales», el numeral 2 y que un miembro agote su crédito. Si las dos series crecen juntas, nadie agota su crédito.
+  - **Ahora dice:** «Si la generación y la demanda se escalan juntas, el valor de cada mecanismo crece en proporción, salvo cuando una planta pasa de 100 kW y va al numeral 2. Por eso los casos de escala multiplican solo la generación, con lo que algún miembro agota, además, su crédito.» Es lo que dice la tesis.
+- **A11, III-B (P16):** «régimen» definido: «es decir, de cada grupo de horas según qué compradores quedan en el piso, en el techo o entre los dos». El criterio del 95 % de la validación lo usaba sin definir.
+- **A04, IV-B, E4:**
+  - **Texto:** «Con la misma deducción, su fondo acredita a quien todavía importa parte del excedente que C1 manda a la bolsa: C4 manda a ella 143 215,52 kWh, y C1, 155 100,20.»
+  - **Fuente:** claves `exc__E4__C4_kwh` y `exc__E4__C1_kwh`, CANON §14.25.
+  - **Sin monto en pesos:** la energía no es el valor (§14.25).
+- **III-C, el origen de los cargos evitados (C-329):** «Con plantas en el numeral 1, son los cargos de red que C4 descuenta en el caso 2 (Sección II-B)».
+- **Grupo 5:**
+  - **P21:** «…no depende del precio, porque los pagos internos suman cero»;
+  - **el gestor comunitario, presentado (C-336):** «un gestor comunitario [4], que coordina los intercambios sin vender energía, solo repartiría pagos internos que suman cero»;
+  - **el precio único:** «el que conserva el ingreso del reposo»;
+  - **P10:** «…como autogenerador colectivo (C4). Cada miembro tiene una frontera comercial, …, y todas tienen un solo comercializador (art. 10)».
+- **Espacio:**
+  - Se midió tras cada grupo y todo cupo; no hubo que quitar nada del grupo 5.
+  - Sin ecuaciones nuevas.
+  - Las citas no cambian: 24 referencias.
+  - La Tabla II pasa a la página 3.
+
+**Tesis (`tesis_entrega.tex`):**
+- **A04.** Donde dice que en E4 y E5 C4 supera a C1 (sección de la comunidad frente a los mecanismos regulados) se añaden:
+  - el mismo porqué en energía, «C4 manda a ella 143 215,52 kWh, y C1, 155 100,20»;
+  - la salvedad: «Lo que ese crédito vale en pesos no se midió aparte, de modo que la diferencia de 2,61 MCOP no se atribuye entera a esa energía».
+- **A03.** Ya estaba bien dicho y no cambia: la homogeneidad de grado uno en la generación y la demanda juntas, y una matriz que cruza el umbral y el agotamiento del crédito.
+- **La figura de atribución:**
+  - **Ficheros:** `fig3_atribucion` (pdf, png, csv y fuente.txt), copiada de `articulo_latam/v2_es/figuras/` a `Tesis_entrega/figuras/`, como las demás figuras del artículo.
+  - **Dónde:** en «De dónde sale la ventaja» (`fig:atribucion`, Figura 3), con su pie.
+  - **Remisiones:** se cita en las cifras de los dos órdenes de E0, el panel (a) del mercado y el (b) del P2P colectivo, y junto a las tablas de los dos órdenes del anexo F. Las cifras del texto se conservan.
+- **Lo que sale del artículo ya está en la tesis:**
+  - el porqué de C2, en la sección de la comunidad frente a los regulados;
+  - los 35,85 MCOP;
+  - la liquidación como origen de la ventaja;
+  - los supuestos.
+
+**Comprobaciones:**
+- **Artículo:**
+  - 9 páginas, 0 Overfull, 0 indefinidas, 0 avisos de BibTeX;
+  - vetadas LIMPIA y cifras-es LIMPIO;
+  - números fuera de comentarios: solo salen 35,85 y 20,29, y entran 143 215,52 y 155 100,20.
+  - Los Underfull pasan de 4 a 6. Uno es el hueco bajo la Tabla II en la página 3, a la vista aceptable.
+- **Tesis:**
+  - 77 páginas (31 hasta las referencias, como antes), 0 Overfull, 0 indefinidas;
+  - vetadas LIMPIA en `tesis_entrega.tex`; no se tocó ningún anexo;
+  - números: solo entran los de la frase de E4 (143 215,52, 155 100,20 y 2,61) y los de las etiquetas.
+- **Respaldo:** `antes_c348/` en el scratchpad.
+- **Guiones:** `c348_aplica.py` y `c348_numeros.py`.
+- No se hicieron commits, no se lanzaron subagentes y no se corrió pytest.
+
+### C-349 · La Fig. 2 con la atribución como tercer panel (2026-10-05)
+
+**Qué pidió el autor:** tener en el artículo la figura de atribución (C-347). Sola no cabía: costaba de 14 a 16 líneas. El autor eligió el camino 2: hacerla tercer panel de la Fig. 2, que ya ocupa el ancho de la página.
+
+**Figura:** `fig2_cascadas_atrib` (7,14 × 2,15 in; `fig2_tres()` en `gen_figuras_articulo_es.py`).
+- **(a) y (b):** las cascadas de E0 y E3, con rótulos cortos: C4, cargos, ahorro, crédito, P2P y P2P col. Sin la etiqueta «C1: …», porque el tope de la barra de cargos es C1.
+- **(c) y (d):** la atribución, en un panel más estrecho. Se conservan las compuertas de las dos figuras: cada cascada cierra al peso, y Shapley es la media de los dos órdenes.
+- **Sin cambio:** `fig2_cascadas_E0_E3` (de dos paneles) sigue generándose.
+
+**Artículo:**
+- **Pie de la Fig. 2:** explica los cuatro paneles y los términos de los rótulos cortos.
+- **Texto:**
+  - los párrafos de los órdenes en IV-A y IV-B se acortan y remiten a (c) y (d), como en la prueba de C-347;
+  - IV-B: «domina quitar la regla del 10 % por los dos órdenes (Fig. 2(d))».
+
+**Comprobaciones:** 9 páginas, con al menos 6 líneas de holgura antes de las Conclusiones; 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-350 · La Fig. 3 pasa a mostrar el margen de cada brecha (2026-10-05)
+
+**Qué pidió el autor:** buscar una mejor representación de la Fig. 3 (análisis de sensibilidad), que se veía mal y aportaba poco.
+
+**Auditoría** (`scratchpad/fig_gsa_informe.md`):
+- **Lo que aportaba el mapa:** de 25 celdas, 22 valían 0, y dos de los tres valores no nulos ya estaban en IV-C. No mostraba cuánto margen queda antes del cambio de signo, que varía mucho entre brechas: P2P − C1 y P2P colectivo − C1 bajan en E3 hasta el 12 y el 7 % de su valor base sin invertirse.
+- **Compuerta:** las 25 probabilidades de inversión, recalculadas con las filas A y B de las muestras con huella, coinciden con el mapa, con `cifras.csv` y con `inversion_<caso>.csv`. Las brechas del P2P colectivo salen de la corrida del 2026-10-02.
+
+**Decisión del autor:** la alternativa C, `fig3_gsa_rejilla` (3,49 × 2,17 in; `fig3_gsa_rejilla()` en el generador).
+- **Qué es:** la rejilla de 5 casos × 5 brechas, con una barra por celda: la brecha en la caja relativa a su punto base, del percentil 5 al 95, con los extremos. En naranja, las que cambian de signo en parte de la caja.
+- **Ajustes:** marcas en 0, 1 y 2; el rótulo, con $\mathbf{x}$ en negrita, como en (9).
+- **Sin imprimir:** la figura no imprime cifras, solo marcas de eje.
+- **Alternativas guardadas en el generador:** A (`fig3_gsa_margen`) y B (`fig3_gsa_minimo`). El mapa anterior (`fig4_gsa_inversion`) se sigue generando para la tesis.
+
+**Artículo:**
+- **Pie nuevo.**
+- **IV-C:**
+  - abre con «La Fig. 3 muestra cuánto se acerca cada brecha a cambiar de signo en la caja».
+  - la oración de C1 − C4 suma «y en I1, en el 76,37 %» (`gsa__I1__C4_C1__p`), que antes solo estaba en la figura.
+- **Márgenes no citados:** los márgenes que se leen en la figura no están en el canon. El texto no los cita. Si se citaran, antes habría que registrarlos (propuesta en el informe, §5).
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO; el generador pasa todas sus compuertas.
+
+### C-351 · «Contrafáctico» pasa a «escenario hipotético» (2026-10-05)
+
+**Qué pidió el autor:** cambiar «contrafáctico» por una palabra más normal en todo el artículo y la tesis.
+
+**Cambio:**
+- «contrafáctico» pasa a «escenario hipotético», o a «hipotético» cuando acompaña a un nombre: «un C4 hipotético de 11 fronteras», «colectivo hipotético», «variantes hipotéticas».
+- Se descartó «caso hipotético», porque «caso» ya nombra el caso 1 o 2 del art. 20 y los casos E0 a SINU.
+
+**Alcance:** 27 líneas.
+- **Artículo:** 2 líneas, más la nota de la Tabla I.
+- **Tesis:** 11 líneas en el cuerpo, entre ellas los títulos de dos subsecciones, y 13 en los anexos A, B, D, E y F.
+
+**Sin tocar:** los nombres de ficheros y carpetas (`\url{}`), las etiquetas (`sec:des-contrafacticos`) y los comentarios.
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA y cifras LIMPIO.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas.
+- **Vetadas** LIMPIA en el cuerpo y en los anexos tocados.
+
+### C-352 · La sección IV del artículo, revisada entera con las correcciones anteriores (2026-10-05)
+
+**Qué pidió el autor:** que toda la sección de Resultados tenga la redacción de lo ya corregido y resultados igual de válidos, empezando por las dos preguntas al regulador de IV-D.
+
+**Validez.** Un verificador contrastó cada cifra de IV con su clave de `cifras.csv` y el `CANON.md` (qué brecha, qué caso, qué orden). Ninguna afirmación era errónea; cinco eran imprecisas y se corrigen:
+- **IV-B, E4:** «el ahorro (5,80) supera la ventaja» no decía cuál ni por qué. Pasa a «supera por sí solo la ventaja sobre C4, de 3,56, porque los cargos evitados restan 2,61» (`com__E4__P2P_C4`, `com__E4__C1_C4`).
+- **IV-B:** la salvedad «C1 solo acota por debajo» vale también en E3 (`atr__E3__c1_esquina_exacta = 0`). Pasa a «Con crédito agotado (E3, E4 e I1)…».
+- **IV-A, E3:** «y no solo el Cv» era impreciso: antes del corte el ahorro es el Cv más la diferencia de tarifas. Se dan las dos bandas medias, 65,01 y 549,77 COP/kWh (`corte__E3__ancho_antes`, `corte__E3__ancho_tras`).
+- **IV-D:** el C4 de 11 fronteras suma seis sin planta, siete en SINU, que tiene cuatro miembros (`caso__SINU__n_miembros`).
+- **IV-D:** «La lectura opuesta no se midió» vale para ese C4, no para el P2P colectivo de I1, cuyo 10,95 la usa. Pasa a «Para él, la lectura opuesta, que las deja en el numeral 2, no se midió».
+
+**Redacción:**
+- **Preguntas al regulador:** la entrada define primero el C4 hipotético y ya no anuncia las respuestas. La 1 compara 1,66 con los cargos evitados (1,71), dice «El artículo mide cuánto cuesta la regla, no qué protege» y cierra con la respuesta del P2P colectivo. La 2 se reformula («¿Aplica el caso 1 la deducción del numeral 1 también a las plantas de más de 100 kW?»), dice que el P2P colectivo adopta la lectura literal y explica por qué ese C4 supera al mercado: esas plantas descuentan solo el Cv, cuando en el mercado su residual paga también cargos de red.
+- **IV-A:** por qué importa el orden (los dos supuestos libran de los cargos del caso 2 a lo transado, el 76 % en E0); Shapley dice a qué supuesto va cada cifra, en el mercado y en el P2P colectivo.
+- **IV-B:** I1 explica el paso que faltaba (capacidad por usuario hasta 100 kW, caso 1, lectura literal); E4, que pasa de 100 kW por usuario; el primer grupo dice «de la ventaja sobre C4»; «Los porcentajes del primer grupo» en lugar de «Esos porcentajes».
+- **IV-C:** el primer párrafo abre con la comparación y explica E0 y SINU por el Cv del caso 1; «su ventaja» en I1, que antes apuntaba a E3; la fragilidad de C4 frente a C1 en una frase, sin el inciso «que depende de que se exima al intercambio».
+
+**Compensación de espacio:**
+- La frase del despacho sale de IV-C y se une a III-B, donde ya se declaraba la regla: «Otras reglas bajan hasta un 13 % la ventaja del mercado P2P sobre C1, sin cambiar el signo de ninguna brecha» (CANON §14.5).
+- El pie de la Fig. 3 pierde «A la izquierda del 0, la brecha cambia de signo», que el eje ya dice.
+- «C3 es el menor de todos» pasa a «C3 es el menor»; la regla del tres, con dos puntos; `\looseness=-1` en párrafos nuevos.
+
+**Tesis (lo que ayuda a entender):**
+- Preguntas abiertas: la entrada define el autogenerador hipotético (seis fronteras sin planta, siete en SINU) y deja de anunciar las respuestas; las preguntas 1 y 2 como en el artículo, con las cifras de los 13 casos; la 2 remite a la sección de la ventaja para la lectura opuesta medida en el P2P colectivo de I1 y N1.
+- Introducción: el ahorro desde el corte, «y no el Cv más la diferencia de tarifas que ahorra antes del corte».
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas con una línea de holgura, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO; los tres canon INTACTOS.
+- **Tesis:** 77 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-353 · Foto nueva del autor en el artículo (2026-10-05)
+
+**Qué pidió el autor:** recortar la foto nueva (`brayanL.png`, 1 254 × 1 254 px, con gafas y fondo gris liso) para que encuadre y quede del tamaño correcto.
+
+**Cambio:** recorte a 4:5 con la altura completa (1 003 × 1 254 px, centrado en la cara) y reducción a 600 × 750 px a 600 ppp, el formato de las fotos de los asesores. Se guarda como `Brayan_Lopez_4x5.jpg`, el nombre que usa la biografía. **Comprobación:** 9 páginas, 0 Overfull, 0 indefinidas.
+
+### C-354 · Conclusiones del artículo rehechas, con el análisis para la regulación colombiana (2026-10-05)
+
+**Qué pidió el autor:** conclusiones muy buenas, basadas en todo el trabajo y en particular en el mercado P2P, con un análisis real para Colombia y su normativa, tras una revisión detallada con todas las correcciones históricas del artículo.
+
+**Revisión previa** (informe del revisor, con la guía de C-233 a C-353). Fallos de las conclusiones anteriores:
+- «Es lo que vale el supuesto 1 si se añade primero… el 19 % si se añade después» se leía como válido en los tres casos con C1 sobre C4. En E3, C1 solo es cota inferior (`atr__E3__c1_esquina_exacta` = 0) y el supuesto 1 añadido después da el 87 % (`atr__E3__inverso_s1_pct`).
+- «La ventaja es, casi toda, cargos que dejan de pagarse» solo vale en E0; en E4 e I1 domina el intercambio.
+- «Pagan los demás usuarios» no está medido: pasa a condicional y citado (Abada).
+- Faltaban la escala, el P2P colectivo frente al mercado P2P, el diagnóstico regulatorio y las dos preguntas con su costo.
+
+**Conclusiones nuevas, en cinco párrafos:**
+1. La respuesta: el valor viene de cómo se liquida, no del precio; 2,01 MCOP sobre C4 con reparto igual y 0,30 sobre C1; con plantas del numeral 1, del 80 al 85 % de la ventaja son cargos evitados.
+2. La escala: en E3, lo vendido desde el corte (43,33 %) da el 86,60 % del ahorro; en E4, C1 paga cargos de red y queda bajo C4, de forma frágil, y la ventaja sale del intercambio.
+3. El P2P colectivo: qué cambia, de 0,38 a 40,38 MCOP sobre C4 sin invertirse; frente al mercado P2P, casi lo iguala en E0 y SINU y gana en E3, en I1 y, de forma frágil, en E4.
+4. La regulación colombiana, un diagnóstico y una tarea: con cinco fronteras la regla del 10 % lleva a C4 al caso 2 (1,71 MCOP en E0 frente a C1); declarar qué cargos paga lo intercambiado y cómo se liquida la energía que cada miembro no intercambia; liquidar como en C1 ya lo permite la CREG 174, lo nuevo es eximir lo intercambiado, cuyo costo no desaparece; las dos preguntas del art. 20, con 1,66 y 33,99 MCOP.
+5. Alcance, límites y pendientes, con la frase de datos.
+
+**Compensación de espacio (decisión del autor: «cuerpo a la tesis» y quitar dos referencias):**
+- IV-D: sale el párrafo «El P2P colectivo declara las dos cosas…» (lo dicen III-D y las conclusiones); el primero queda en «Sin declarar qué cargos paga lo intercambiado y cómo se liquida la energía que cada miembro no intercambia, el mercado P2P se liquida en C4 y no lo supera…».
+- IV-B, E4: salen los kWh a la bolsa (143 215,52 y 155 100,20); queda la razón. Siguen en la tesis.
+- Pie de la Fig. 2: sale el paréntesis con los nombres de los tres términos.
+- Introducción: salen Paudel et al. (2019) y Cárdenas-Álvarez et al. (2022), las dos referencias menos necesarias; el artículo pasa de 24 a 22 referencias.
+- Conclusiones: salen la frase del P2P mutualizado de la tesis y «el mercado con solo el supuesto 1» de los pendientes.
+
+**Tesis:** las conclusiones suman «Implicaciones para la regulación colombiana», con el diagnóstico, la tarea, la CREG 174, quién pagaría la exención y las dos preguntas con las cifras de los 13 casos (1,66 MCOP; hasta 35,63 en E5, en los cinco casos con plantas de más de 100 kW).
+
+**Comprobaciones:**
+- **Artículo:** 9 páginas justas, 22 referencias, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+- **Tesis:** 78 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-355 · «Declarar» y sus variantes, por un verbo más natural según el caso (2026-10-05)
+
+**Qué pidió el autor:** «declara» y sus variantes se usaban de más y no son la palabra más natural; buscar en cada caso una alternativa en el artículo y la tesis.
+
+**Criterio, según quién hace la acción:**
+- **El regulador o la norma** (lo que debe quedar escrito): «definir» («definir qué cargos paga lo intercambiado», «dos definiciones», «Lo que la norma tendría que definir»); «establecer» («establece en la tarifa que el intercambio no paga cargos», «una regla que establece que…»); «fijar» («fijar la exención en la tarifa», «que fije las dos respuestas»); «adoptar» («si el regulador adopta las dos respuestas»); «exención explícita».
+- **La CREG cuando dice su propósito:** «expresó», «propósito expresado».
+- **El porcentaje del art. 9 y 19:** «porcentaje informado», «si no se informa», «puede informarse como una fórmula»; el instalador «reporta» el transformador.
+- **Las reglas del trabajo** (forma cerrada, despacho, saturación): «regla adoptada»; «la regla se fija porque la dinámica no la decide».
+- **Los supuestos y valores del trabajo:** «supuestos explícitos», «presupuesto fijado», «se fija» (σ), «perfil horario supuesto», «comercializador supuesto», «rangos supuestos», «valores fijados», «atajos explícitos», «aproximación explícita», «excepción explícita»; «escenario hipotético» sin adjetivo; «se señala», «se documenta», «indica».
+- **Resumen en inglés de la tesis:** «adopted rule».
+
+**Alcance:** 85 usos. Artículo: 9 líneas y la Tabla I. Tesis: cuerpo y anexos A a F. No se tocan los comentarios ni la etiqueta `sec:impl-declarar`.
+
+**Comprobaciones:** artículo en 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO; tesis en 78 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA.
+
+### C-356 · Las conclusiones del artículo, con la forma de las de Chacón (2026-10-05)
+
+**Qué pidió el autor:** adaptar las conclusiones a la forma de Chacón et al. (IEEE LatAm, 2025, y SEGAN, 2026) donde se pueda, conservando las cifras que deben contarse.
+
+**La forma de Chacón:** abren con lo que se hizo («En este trabajo fue implementado…»), siguen con lo que se obtiene y lo que implica, y cierran con un párrafo propio de trabajos futuros («Para futuros trabajos se espera…»). Casi no repiten cifras.
+
+**Conclusiones nuevas, en tres párrafos (sustituyen a las cinco de C-354):**
+1. **Lo que se hizo y lo que se obtuvo:** el mercado P2P en forma cerrada frente a los mecanismos de la regulación colombiana, en 6 144 horas de cinco instituciones de Pasto tratadas como comunidad; el valor viene de cómo se liquida; 2,01 MCOP sobre C4 con reparto igual y 0,30 sobre C1; del 80 al 85 % de cargos evitados con plantas de hasta 100 kW y el ahorro del intercambio con plantas mayores; ninguna de las dos ventajas cambia de signo en la caja, en parte por construcción y solo con los dos supuestos.
+2. **Lo que implica para la regulación colombiana:** la regla del 10 % con cinco fronteras (1,71 MCOP en E0 frente a C1); qué tendría que definir la norma; la CREG 174 ya permite liquidar como en C1, lo nuevo es eximir lo intercambiado y quién pagaría; el P2P colectivo (de 0,38 a 40,38 MCOP sobre C4, sin invertirse); las dos preguntas del art. 20 (1,66 y 33,99 MCOP).
+3. **Trabajos futuros**, que absorben los límites: el costo de la exención, el de operar el mercado, otras comunidades y un año completo; los contratos en lugar de las tarifas publicadas, un solo comercializador y el corte de cada hora; la forma cerrada, hoy una regla adoptada, en más horas que la muestra de E0; la frase de datos.
+
+**Salen de las conclusiones** (siguen en los resultados): el corte en E3 (43,33 y 86,60 %), la fragilidad de C4 frente a C1 en E4 y el P2P colectivo frente al mercado P2P por caso.
+
+**Comprobaciones:** 9 páginas con al menos dos líneas de holgura, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO. La tesis conserva sus conclusiones por objetivo, que pide el formato MaIE.
+
+### C-357 · Las conclusiones del artículo, con las observaciones del árbitro (2026-10-06)
+
+**Qué pidió el autor:** que un revisor profesional revisara las conclusiones de C-356. Las doce observaciones se aplican, la primera en la versión que conserva las cifras.
+
+**Errores mayores:**
+1. «cuyas respuestas mueven 1,66 MCOP… y 33,99 en E4»: el 33,99 es la ventaja del C4 hipotético de 11 fronteras sobre el mercado P2P con la lectura literal, no lo que mueve la respuesta, y las preguntas no se enunciaban. Pasa a: «El art. 20 deja abiertas dos preguntas. La primera es si la regla del 10 % debe decidir el caso con menos de 11 fronteras, algo que a la comunidad medida le cuesta 1,66 MCOP. La segunda es si el caso 1 descuenta solo el Cv a las plantas de más de 100 kW, con lo que un C4 hipotético de 11 fronteras supera al mercado P2P por 33,99 MCOP en E4.»
+2. «Liquidar a cada miembro como en C1 ya lo permite la CREG 174. Lo nuevo es eximir…» contradecía II-D y III-C: la CREG 174 permite C1 sin mercado, y el supuesto 1 tampoco está contemplado. Pasa a: «Sin mercado, C1 ya liquida a cada miembro. Lo nuevo es liquidar así el residual y eximir lo intercambiado, que usa la red.»
+3. Omisión: «Como los supuestos se solapan, allí cualquiera da por sí solo casi toda la ventaja sobre C4», para que el 80-85 % no se lea como lo que vale el supuesto 1 (CANON §14.21).
+
+**Imprecisiones y claridad:**
+- «Si la tarifa no cambia, lo pagarían los demás usuarios» pasa a «Eximirlo podría subir la tarifa de los demás usuarios», que es lo que dice Abada.
+- Sale «Para la regulación colombiana, el resultado indica qué tendría que definirse».
+- «una comunidad con plantas pequeñas pierde 1,71 MCOP» pasa a «en la comunidad medida, C4 deja 1,71 MCOP menos que C1, casi todo en cargos de red».
+- «Con plantas mayores» pasa a «Con alguna planta mayor (E4 e I1)»; «Con plantas de hasta 100 kW» pasa a «En los tres casos con plantas de hasta 100 kW», sin «casi todos de red».
+- «Ninguna de las dos ventajas» pasa a «Ni P2P − C1 ni P2P − C4 cambian de signo en la caja de sensibilidad. Es en parte por construcción y vale solo con los dos supuestos.»
+- «El valor del mercado P2P» pasa a «La ventaja»; «Para que el intercambio aporte valor» pasa a «Para que el mercado P2P supere a C4»; «hace las dos cosas» pasa a «adopta esas dos definiciones».
+- «con los mecanismos que permite la regulación colombiana» pasa a «con la autogeneración individual (C1) y la colectiva (C4) de la regulación colombiana».
+- Trabajos futuros: «cuánto pagarían los demás usuarios por eximir al intercambio, cuánto cuesta operar el mercado P2P y cuánto vale este en otras comunidades y en un año completo»; «el corte de cada hora» pasa a «un corte que no conozca de antemano los totales del mes», porque el corte es uno por miembro y mes.
+
+**Resumen en inglés:** «0.02–0.96 % below collective self-generation», que salió del cuerpo en C-337, pasa a «the market does not beat collective self-generation in any of the five cases».
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-358 · Enlace al código y hueco bajo la Tabla II (2026-10-06)
+
+**Qué pidió el autor:** resolver lo que faltaba del manuscrito antes del envío.
+
+- **Código.** La revista exige al enviar un enlace a GitHub con los guiones («Link-to-Code»), así que «el código se publicará tras la aceptación» la contradecía. Pasa a «El código está en \url{https://github.com/Bura-hub/Optimalidad-p2p-col}. Las series del MTE se pueden pedir a los autores, con las condiciones del proyecto», como la tesis.
+- **Hueco bajo la Tabla II (página 3).** La columna derecha quedaba corta porque el título de la Sección III no cabía y el espacio sobrante se repartía bajo la tabla. Sale la frase de transición «Con esas cifras, la Sección III plantea la solución»; el título y el comienzo de III-A suben a la página 3.
+
+**Comprobaciones:** 9 páginas, 0 Overfull, 0 indefinidas, vetadas LIMPIA, cifras LIMPIO.
+
+### C-359 · Carta al editor y resumen gráfico del envío (2026-10-06)
+
+**Qué pidió el autor:** preparar los archivos del envío que exige IEEE LatAm y que estaban desactualizados (versión inglesa del 29 de septiembre).
+
+- **Resumen gráfico** (`Documentos/articulo_latam/v2_es/resumen_grafico/resumen_grafico.png`, 2142 × 857 px a 300 ppp, proporción 2,5:1; la revista pide al menos 1328 × 531). Lo genera `resumen_grafico()` en `gen_figuras_articulo_es.py`, con las compuertas del generador (letra ≥ 8 pt, cifras justificadas, cascada que cierra al peso). Tres paneles: (a) la cascada de E0 de C4 al mercado P2P y al P2P colectivo; (b) P2P colectivo − C4 en % de C4 en los cinco casos (Tabla III), sin invertirse en la caja; (c) las dos definiciones que la norma tendría que hacer. Título: «¿De dónde sale el valor de un mercado P2P en una comunidad energética colombiana?».
+- **Carta al editor** (`Documentos/articulo_latam/v2_es/carta/carta_editor.tex`, una página, en español): los cuatro aportes de la introducción con las cifras del artículo, la relevancia regulatoria (las dos definiciones y las dos preguntas del art. 20), el trabajo previo del WEEF y la tesis, originalidad, el enlace al código, CRediT propuesto. Entre corchetes quedan la fecha, el ID del envío, el DOI del WEEF, los revisores sugeridos y la declaración de IA, que pone el autor.
+
+**Comprobaciones:** generador con todas sus compuertas; carta en una página, 0 Overfull, vetadas LIMPIA, cifras LIMPIO.
+
+### C-360 · La tesis a 18 páginas, con el estilo del artículo, y los anexos en un documento aparte (2026-10-06)
+
+**Qué pidió el autor:** llevar a la tesis el estilo, las decisiones y las correcciones del artículo, en la proporción y la escala de la tesis; limitarla a 18 páginas; separar los anexos en otro documento; alinearla al formato de la maestría y a la propuesta; y darle el formato de la plantilla de la propuesta (`Propuesta_de_Tesis_MAIE_BL.zip`) y de la tesis de Chacón.
+
+**Método:** seis redactores, uno por bloque (portada e introducción; marco y datos; modelo; escenarios; desempeño; sensibilidad, implicaciones y conclusiones), con un encargo común (`scratchpad/tesis360/ENCARGO_COMUN.md`): la guía de estilo de C-233 a C-359, el canon, la propuesta y el art. 6 del Acuerdo 021. Cada uno dejó su cuerpo nuevo, lo que pasa al anexo G y un informe. Ensamblaje, compilación, compuertas, un jurado simulado (30 hallazgos, «aprobable con modificaciones de forma») y la aplicación de 29 de ellos.
+
+**Resultado:**
+- **`tesis_entrega.tex`: 17 páginas con referencias** (antes 32). Secciones I a IX en el orden del art. 6 y de los objetivos de la propuesta; conclusiones por objetivo con la forma de C-356 y C-357; resumen en español (el abstract inglés sigue sin imprimirse, decisión T1).
+- **`anexos_tesis.tex`: 67 páginas**, con portada, índice, anexos A a F y el anexo G nuevo, «Complementos del cuerpo» (lo que salió del cuerpo, una subsección por tema, cada una dice qué sección amplía), y su propia bibliografía.
+- **Referencias cruzadas** con `xr-hyper`: la tesis cita los anexos con el prefijo `A-` y los anexos, la tesis, con `T-`.
+- **Formato:** citas en morado (RGB 128, 0, 128) y referencias internas en azul (RGB 6, 95, 143), como la plantilla de la propuesta y la tesis de Chacón; se conservan la capitular, los logotipos y el pie MaIE.
+- **Vuelven al cuerpo** la Fig. 1 de la comunidad, la tabla del kWh y el Algoritmo de la forma cerrada (pedidos del autor, C-303). Quedan en el anexo G la lista de cambios frente al modelo base (C-286) y las tablas de cotas y del ejemplo de banda (C-288, C-301).
+- **Cambios de contenido señalados por los redactores:** los tres grupos de casos van por el numeral de las plantas, como en el artículo (el primer grupo pasa del «79 al 96 %» al «79 al 86 %», porque N1 deja de estar en él); la salvedad de C1 como cota inferior se extiende a los 13 casos (exacto solo en E0, K1, CV2 y SINU); la forma común de liquidación sustituye a las cuatro ecuaciones largas del cuerpo; salen dos afirmaciones inexactas («cinco mecanismos terminan en el art. 25» y «los cargos evitados son un piso del mercado»).
+- **Makefile y LEEME:** límite de 18 páginas y compilación de los dos documentos.
+
+**Pendiente del autor:** el marcador «[agradecimientos personales del autor]».
+
+**Comprobaciones:** los dos documentos con 0 errores, 0 referencias indefinidas, 0 etiquetas duplicadas y 0 Overfull; vetadas LIMPIA y cifras LIMPIO en la tesis y en el anexo G; canon 2026-09 INTACTO.
+
+### C-361 · La cuenta de las evaluaciones del análisis de sensibilidad (2026-10-06)
+
+El jurado de C-360 vio que «en cada punto, el modelo se corre 14 veces» no cuadra con las 150 528 evaluaciones: los puntos son las 2n_s filas de A y B, y las 14 corridas son por cada par de filas (10 752 pares × 14). Artículo (III-E) y tesis: «Con cada par de filas de A y B, el modelo se corre 14 veces, dos por factor más dos». Artículo en 9 páginas, 0 Overfull; zip de Overleaf regenerado.
+
+### C-362 · Correos de los asesores (2026-10-06)
+
+El autor confirma los correos: `ad_pantoja@udenar.edu.co` y `gdobando@udenar.edu.co`. El artículo decía `gobando@`; pasa a `gdobando@`. La tesis y el documento de anexos ya los tenían bien. LEEME de la tesis al día; zip de Overleaf regenerado. Artículo en 9 páginas, 0 Overfull.
+
+### C-363 · Numeración de las subsecciones de la tesis como en IEEE y en la tesis de Chacón (2026-10-06)
+
+**Qué vio el autor:** los títulos de las subsecciones salían «VII-D.» en lugar de «D.».
+
+**Causa:** el reglamento (Acuerdo 021, art. 6) solo pide seguir el formato de artículos IEEE; la clase IEEEtran ya titula las subsecciones con la letra sola («A.», «B.») y deja la forma completa («VII-D») para las citas en el texto, como hace la tesis de Chacón («Section II-B6»). El paquete babel en español sustituía esa forma de título por la numeración completa.
+
+**Cambio:** opción `es-nosectiondot` de babel en `tesis_entrega.tex` y `anexos_tesis.tex`. Los títulos salen «A. Motivación y definición del problema», los subapartados «1)», y las citas en el texto siguen siendo «sección VII-D». En los anexos, los títulos siguen «A.1.», «A.4.1.».
+
+**Comprobaciones:** tesis en 17 páginas, anexos en 67; 0 errores, 0 indefinidas, 0 duplicadas y 0 Overfull en los dos.
+
+### C-364 · Estilo de la tesis igualado a la tesis de Chacón y al artículo (2026-10-06)
+
+**Qué pidió el autor:** revisar con detalle el estilo que haga falta.
+
+**Comparación página por página con la tesis de Chacón** (`Documentos/Modelo_Base_Sofía_Chacon.pdf`): coinciden portada, resumen y palabras clave en negrita, títulos en versalitas, subsecciones en cursiva con la letra sola (C-363), «Figura N:» y «Tabla I:», algoritmo, numeración de ecuaciones, referencias, pie MaIE y enlaces de color (C-360). Se corrigen tres diferencias:
+1. **Negritas dentro de los párrafos:** 11 oraciones destacadas en negrita («El orden entre C4 y C1, en cambio, es frágil.», «La regulación vigente no contempla ninguno de los dos supuestos.», etc.) pasan a texto normal. Chacón y el artículo no destacan oraciones; la negrita queda solo en los rótulos de las listas.
+2. **Preguntas al regulador** (VIII-C): de negrita a cursiva, como en el artículo.
+3. **Cierre numerado y en el orden de Chacón:** X. Disponibilidad de código y datos, XI. Agradecimientos, XII. Nota de responsabilidad (antes sin número y con la nota antes de los agradecimientos).
+
+**Documento de anexos:** el índice pasa a negro (los enlaces del índice salían en azul).
+
+**Comprobaciones:** tesis en 17 páginas, anexos en 67; 0 errores, 0 indefinidas, 0 duplicadas y 0 Overfull en los dos.
+
+### C-365 · Estilo del artículo en la tesis y sus anexos: sin rayas, «;» y «:» repartidos, sin cadenas de «, y» (2026-10-06)
+
+**Qué pidió el autor:** evitar la raya (em dash), repartir bien «;» y «:» y llevar a la tesis las demás reglas de estilo del artículo.
+
+**Rayas y guiones:** la cita del objetivo 1 de la propuesta pasa de rayas a paréntesis («(preferencias de usuario, costos de producción)»); «par comprador--vendedor» pasa a «par de comprador y vendedor» en la tesis y los anexos C, E y G (C-299); los rangos de la tabla de factores del anexo G pasan a «de 0,25 a 2». Las opciones de línea de órdenes del anexo A (`--data`, `--fichero`) se conservan, porque son código.
+
+**Puntuación y cadenas** (dos correctores en paralelo, con `scratchpad/tesis360/ENCARGO_ESTILO.md`, la guía F de C-233 a C-364):
+- Cuerpo de la tesis: «;» 2 → 0; «:» 37 → 32 (2,5 por mil); «, y» entre oraciones 28 → 16 (las que quedan son enumeraciones); 0 rayas, «además» y «conviene».
+- Anexo G: «;» 7 → 0; «:» 27 → 20; «, y» 28 → 14; sin «además» ni «conviene».
+- Anexos A a F: «:» del A de 6,80 a 6,06 por mil y del F de 3,78 a 1,88; «;» en 0 de A a E y 3 en F; «, y» de 50 a 20; los siete «además» fuera.
+- También: oraciones de más de 40 palabras partidas, elipsis y pronombres sin referente resueltos, dos sintaxis invertidas deshechas, «mercado P2P» donde «mercado» se prestaba a confusión, «colectivo» suelto a «C4» o «autogenerador colectivo», «manda» a «domina» (C-311), dos glosas nuevas con «es decir» (el Cv y la energía firme).
+
+**Sin cambio** en cifras, etiquetas, referencias, citas, comentarios ni ecuaciones (comprobado contra `scratchpad/tesis360/antes_c365/`).
+
+**Comprobaciones:** tesis en 17 páginas y anexos en 67; 0 errores, 0 indefinidas, 0 duplicadas, 0 Overfull; vetadas LIMPIA en los ocho ficheros; cifras LIMPIO en la tesis y el anexo G (los huérfanos de B, C y F son los mismos de antes); canon 2026-09 INTACTO.
+
+### C-366 · Lo que faltaba frente a la propuesta: hipótesis, beneficio intangible e incentivo a consumir (2026-10-06)
+
+**Qué pidió el autor:** completar la tesis para que sustente todo lo de la propuesta original (`Documentos/Propuesta de tesis Brayan Lopez.pdf`), con lo que se puede medir hoy.
+
+**1. Las hipótesis de la propuesta (anexo D, subsección nueva D.4, Tabla D.6).** Las nueve hipótesis de la sección VII de la propuesta, con su veredicto y la cifra que lo sostiene: cumplidas o confirmadas (calibración, con otra respuesta; ventaja sobre C4 para la comunidad; factibilidad y deserción; criterios regulatorios), mixtas o matizadas (equidad; robustez ante el riesgo regulatorio de C4), refutada (la reasignación, por el spread), no confirmada (la autosuficiencia) y parcial (la convergencia, pendiente de la corrida de esta noche).
+
+**2. Actividad 3.3, beneficio monetario e intangible** (medición nueva, CANON §14.31, grupo e1/IA, `SALIDAS_SERVIDOR/intangibles_autoconsumo_2026-10-06/`, guion `reformateo/documento/scripts/articulo/intangibles_autoconsumo.py`, pruebas `tests/test_intangibles_autoconsumo.py`):
+- satisfacción: la demanda es la misma en los siete mecanismos, así que la utilidad de consumo del modelo base no los distingue (ΔU = 0);
+- aversión al riesgo: prima de media y CVaR (β de 0,05 a 0,20, 0,10 central, rango de la revisión de la actividad 1.2): la ventaja del mercado P2P sobre C4 baja entre el 1,5 % (P1) y el 24 % (K1) en 12 de los 13 casos, sin cambiar de signo en ninguno; en I1 la prima favorece al mercado;
+- equidad: el Gini y el precio de la justicia ya medidos (CANON §14.6).
+
+**3. Incentivo a consumir en el sitio** (misma medición): estimación posterior por elasticidad (de −0,197 a −0,468, −0,37 central): el consumo inducido va del 0,007 % (SINU) al 0,77 % (E4) de la demanda; la autosuficiencia sube como mucho 0,17 puntos (I1); en C1 a C4 es cero.
+
+**En la tesis:** VI-E suma «Beneficio intangible (actividad 3.3): no cambia el resultado» y el 0,77 % en autosuficiencia; el anexo G suma «El beneficio intangible y el incentivo a consumir en el sitio» (`anx:g-intangibles`, Tabla G de la prima y del consumo inducido); en el anexo D la actividad 3.3 pasa a «completado», el recuento a «seis completas y cuatro con una parte sin cubrir», y la fila de autosuficiencia de la Tabla D.6 lleva el 0,77 %.
+
+**Cita pendiente:** la revisión de la actividad 1.2 atribuye el rango del coeficiente de aversión a «Guerrero et al. (2024)» sin ficha completa ni DOI. No se cita en la tesis hasta verificarla; el texto remite a la revisión.
+
+**Pendiente esta noche (servidor):** la ampliación de la validación de la convergencia (actividades 1.1 y 4.2) y la tarifa en niveles extremos (4.1).
+
+**Comprobaciones:** tesis en 17 páginas, anexos en 69; 0 errores, 0 indefinidas, 0 duplicadas, 0 Overfull; vetadas LIMPIA y cifras LIMPIO en la tesis y en los anexos D y G; los tres canon INTACTOS (informe del analista). Por un error de copia, las copias de respaldo de C-365 de los anexos D y G (`scratchpad/tesis360/antes_c365/`) quedaron sobrescritas con su versión ya corregida; las de C-360 siguen intactas.

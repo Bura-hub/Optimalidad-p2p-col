@@ -547,10 +547,19 @@ def informe_muerte(muertes, rss, t_rss, ruta=MEMINFO,
 def corre_plan(pendientes, total, procesos, salida, tope_total=0.0,
                trabajo_fn=None, fabrica=None,
                por_proceso_gb=MEMORIA_POR_PROCESO_GB, max_muertes=MAX_MUERTES,
-               meminfo=MEMINFO, proc=PROC, muestreo_s=MUESTREO_S) -> dict:
+               meminfo=MEMINFO, proc=PROC, muestreo_s=MUESTREO_S,
+               omite_fn=None) -> dict:
     """Corre las `pendientes` [(indice, spec)] en un pool y escribe `salida`
     despues de cada corrida. Sobrevive a un trabajador muerto (ver el
     docstring del modulo).
+
+    `omite_fn(spec, resultados)` (2026-10-06, la parada por futilidad de la
+    validacion ampliada) se consulta justo antes de someter cada corrida, con
+    los resultados que ya hay. Si devuelve un texto, la corrida NO se somete:
+    se anota como hecha, con `msg` «OMITIDA <texto>», `omitida` True y sin
+    puntos de control, de modo que no queda como faltante y el veredicto no
+    la cuenta en ningun denominador (no tiene veredicto ni es FALLA). Con None
+    (el defecto) no cambia nada.
 
     `trabajo_fn` es la funcion de cada corrida (`trabajo`) y `fabrica(n)` abre
     el pool (un `ProcessPoolExecutor` de n procesos); las dos se cambian en las
@@ -619,6 +628,16 @@ def corre_plan(pendientes, total, procesos, salida, tope_total=0.0,
                     if i is None:
                         break                # solo quedan sospechosas y ya
                     n, sp = cola[i]          # hay una en vuelo
+                    motivo = omite_fn(sp, resultados) if omite_fn else None
+                    if motivo:
+                        cola.pop(i)
+                        print(f"=== OMITIDA [{n}/{total}] {sp['caso']} "
+                              f"{sp['fecha']} {sp['etq']}: {motivo}",
+                              flush=True)
+                        registra(dict(spec=sp, msg=f"OMITIDA {motivo}",
+                                      omitida=True, filas=[], veredicto={},
+                                      cerrada={}, seg=0.0), n)
+                        continue
                     try:
                         fu = ex.submit(trabajo_fn, sp)
                     except BrokenProcessPool:
@@ -798,10 +817,16 @@ def main(argv=None) -> int:
 
     plan = corre_plan(pendientes, total, args.procesos, salida,
                       tope_total=args.tope_total,
-                      por_proceso_gb=args.memoria_por_proceso)
+                      por_proceso_gb=args.memoria_por_proceso,
+                      omite_fn=getattr(mod, "omite", None))
     resultados, hechos = plan["resultados"], plan["hechos"]
     print(f"  {len(hechos)} corridas en {plan['seg']:.0f} s; JSON en {salida}",
           flush=True)
+    omitidas = sum(1 for r in resultados if r.get("omitida"))
+    if omitidas:
+        print(f"  {omitidas} corridas OMITIDAS por la regla de parada de la "
+              f"medicion (`omite` de su guion): cuentan como hechas y no "
+              f"entran en ningun denominador", flush=True)
     if plan["muertes"]:
         print(f"  el pool murio {plan['muertes']} veces: "
               f"{len(plan['reencoladas'])} sospechosas volvieron a la cola una "

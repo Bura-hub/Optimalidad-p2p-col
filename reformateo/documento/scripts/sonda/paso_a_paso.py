@@ -47,8 +47,22 @@ AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 def carga(cobertura: str, comercializador: str | None = None,
           piso: str = "tramo", factor_generacion: float | None = None,
-          factor_cv: float | None = 1.0):
+          factor_cv: float | None = 1.0,
+          factor_demanda: float | None = None,
+          escala_agente: str | None = None, neto_cero: bool = False,
+          excluir_agente: str | None = None):
     """Series, tarifas por agente, bolsa y estado de permuta.
+
+    `factor_demanda`, `escala_agente`, `neto_cero` y `excluir_agente`
+    (2026-10-06, la validacion ampliada del reposo: muestra estratificada por
+    caso) son las opciones del mismo nombre de `main_simulation.py`, en el
+    mismo orden que alli: primero se retira la institucion de
+    `excluir_agente` (C-176, justo despues de cargar), despues se escala la
+    comunidad con `data.escalado.escala_comunidad` (spec 4.11). Con los
+    defectos (None, None, False, None) ninguna rama corre y la carga queda
+    IDENTICA AL BIT. Lo que asegura que una hora cargada asi es la del
+    almacen es `selecciona_horas.py`, que compara regimen y piso del juego de
+    cada hora con lo que la corrida guardo y descarta la que no coincide.
 
     `comercializador` es un CONTRAFACTUAL de H-45: pone a las cinco con el
     mismo comercializador en vez de cuatro con ASC y una con Cedenar. A
@@ -100,8 +114,31 @@ def carga(cobertura: str, comercializador: str | None = None,
     D, G, idx = loader.load(verbose=False)
     N = D.shape[0]
     nombres = AGENTES[:N]
+    if excluir_agente:
+        # Como main_simulation.py (C-176): se recorta antes de que de estas
+        # series cuelguen el escalado, la tarifa y las cotas.
+        fuera = [n.strip() for n in excluir_agente.split(",") if n.strip()]
+        malos = [n for n in fuera if n not in nombres]
+        if malos:
+            raise ValueError(f"excluir_agente: {malos} no esta entre {nombres}")
+        quedan = [i for i, n in enumerate(nombres) if n not in fuera]
+        D, G = D[quedan], G[quedan]
+        nombres = [nombres[i] for i in quedan]
     factores = None
-    if factor_generacion is not None and float(factor_generacion) != 1.0:
+    escala_extra = ((factor_demanda is not None
+                     and float(factor_demanda) != 1.0)
+                    or bool(escala_agente) or bool(neto_cero))
+    if escala_extra:
+        from data.escalado import escala_comunidad, lee_escala_agente
+        D, G, factores = escala_comunidad(
+            D, G, nombres,
+            factor_generacion=(1.0 if factor_generacion is None
+                               else float(factor_generacion)),
+            factor_demanda=(1.0 if factor_demanda is None
+                            else float(factor_demanda)),
+            generacion_por_agente=lee_escala_agente(escala_agente),
+            neto_cero=bool(neto_cero))
+    elif factor_generacion is not None and float(factor_generacion) != 1.0:
         from data.escalado import escala_comunidad
         D, G, factores = escala_comunidad(
             D, G, nombres, factor_generacion=float(factor_generacion))

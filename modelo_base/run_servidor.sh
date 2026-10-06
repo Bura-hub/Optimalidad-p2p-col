@@ -67,6 +67,14 @@
 #   SECO=1 bash modelo_base/run_servidor.sh gsa_directo          <- imprime las ordenes, no toca el disco
 #   GSA_SALIDAS=SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04 ... gsa_directo   <- otra carpeta de salidas (la corrida con H1)
 #
+#   --- la noche del 2026-10-06: B4 y B5 -----------------------------------
+#   MATRIZ_CANON=<matriz del 19-09> bash modelo_base/run_servidor.sh tarifa_extrema   <- la CU en 0,5 / 0,75 / 1 / 1,5 / 2, trece casos, ~10 min
+#   bash modelo_base/run_servidor.sh validacion_ampliada   <- M-A2: hasta 40 horas por regimen, estratificadas por caso, k = 1 000 hasta teq 160
+#   RETOMA=<k> bash modelo_base/run_servidor.sh validacion_ampliada   <- la noche siguiente, desde la corrida k del plan
+#   SECO=1 bash modelo_base/run_servidor.sh validacion_ampliada       <- imprime las ordenes, no toca el disco
+#   bash modelo_base/run_servidor.sh recoger tarifa_extrema           <- solo su carpeta y sus registros
+#   bash modelo_base/run_servidor.sh recoger validacion_ampliada      <- idem
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
@@ -195,7 +203,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|gsa_directo|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|validacion_ampliada|gsa_directo|tarifa_extrema|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -380,6 +388,24 @@ GSA_DIR="${GSA_DIR%/}"
 if [[ "${SECO:-0}" == "1" && -n "${GSA_DIR_PRUEBA:-}" ]]; then
   GSA_DIR="$GSA_DIR_PRUEBA"
 fi
+# B4 y B5 (2026-10-06): donde escriben `validacion_ampliada` (la validacion
+# del reposo estratificada por regimen y caso, M-A2) y `tarifa_extrema` (la CU
+# en 0,5, 0,75, 1,5 y 2 en los trece casos). Viven aqui por la misma razon que
+# los de arriba: `recoger` los necesita. Las dos, DENTRO de SALIDAS_SERVIDOR/.
+VAL2="${AMPLIADA_SALIDAS:-SALIDAS_SERVIDOR/validacion_ampliada}"
+TARIFA_DIR="${TARIFA_SALIDAS:-SALIDAS_SERVIDOR/tarifa_extrema}"
+for _d in "$VAL2" "$TARIFA_DIR"; do
+  if [[ "$_d" != SALIDAS_SERVIDOR/?* || "$_d" == *..* || "$_d" == *" "* ]]; then
+    echo "AMPLIADA_SALIDAS y TARIFA_SALIDAS tienen que ser carpetas dentro de" \
+         "SALIDAS_SERVIDOR/, sin '..' ni espacios: '$_d'" >&2
+    exit 2
+  fi
+done
+VAL2="${VAL2%/}"
+TARIFA_DIR="${TARIFA_DIR%/}"
+# Los trece casos en el orden de CASOS_MATRIZ, para la seleccion de M-A2.
+CASOS_AMPLIADA="E0 E1 E2 E3 E4 E5 P1 P2 K1 I1 N1 CV2 SINU"
+
 CASOS_GSA="E0 E2 E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU"
 CASOS_DISENO_GSA=" E0 E2 E4 "
 # Presupuesto del diseno por evaluacion (ms), para los topes en seco: el humo
@@ -2783,6 +2809,355 @@ print(" ".join(sorted(palancas)))
     echo "  y las identidades."
     ;;
 
+  validacion_ampliada)
+    # B4 (2026-10-06), actividades 1.1 y 4.2: la validacion del reposo
+    # AMPLIADA (M-A2). La del 19 de septiembre no decidio ningun regimen
+    # (CANON §9 y §14.5): muestra solo de E0, 41 horas, y 72 de 106 corridas
+    # cortadas por su tope de 3 600 (s) antes de teq 160. Esta da a cada
+    # regimen hasta AMPLIACION_HORAS (40) horas, repartidas por turno entre los
+    # trece casos, con el MISMO criterio y la MISMA tolerancia (veredicto.py,
+    # sin cambios), un solo brazo acelerado (k = 1 000) y un tope por corrida
+    # de AMPLIACION_TOPE_S (10 800 s). El diseno, las cuentas de tiempo y la
+    # lectura parcial estan en el docstring de
+    # reformateo/documento/scripts/sonda/consenso/medicion_ampliada.py y en el
+    # de lectura_ampliada.py.
+    #
+    # Seis pasos, todos por corre():
+    #   1. la matriz de los almacenes es la del canon (huellas de los libros);
+    #   2. el lado derecho del arnes frente al del motor, con dos horas mas de
+    #      los casos nuevos (SINU e I1); si difiere, se para con 3;
+    #   3. la muestra de cada caso (selecciona_horas.py, comprobada contra el
+    #      almacen); la que ya esta en la carpeta se reutiliza;
+    #   4. M-A2 (corre_mediciones.py), dentro de `timeout`: el tope de
+    #      SOMETIMIENTO es lo que quede hasta las 07:00 de Bogota menos el tope
+    #      de una corrida y 15 min (o TOPE_GLOBAL_S); las que estan en vuelo
+    #      terminan con su propio tope. La parada por futilidad del guion
+    #      deja de someter un regimen ya decidido;
+    #   5. el veredicto de siempre (veredicto.py) sobre todos los JSON;
+    #   6. la lectura parcial (lectura_ampliada.py): x de n, Wilson al 95 % y
+    #      el estado de cada regimen; y la recogida.
+    #
+    # PARA_EN_FALLO=0 A PROPOSITO, como en validacion_reposo: una hora que no
+    # llega es un resultado. Solo paran el canon (2) y el arnes (3).
+    # RETOMA=<k>: la noche siguiente, desde la corrida k del plan (el registro
+    # de M-A2 la imprime), con la muestra que ya esta y la parada por
+    # futilidad contando lo de antes (AMPLIACION_PREVIOS).
+    export PARA_EN_FALLO=0
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    # CLAUDE.md: las largas, de noche. Entre las 07:00 y las 21:00 de Bogota
+    # no se lanza (DIA_OK=1 lo fuerza, con la plataforma avisada). La hora de
+    # Bogota con el desfase fijo POSIX (UTC-5, sin horario de verano): no
+    # depende de que la maquina tenga tzdata.
+    _hora_co="$(TZ='<-05>5' date +%H)"
+    if (( 10#$_hora_co >= 7 && 10#$_hora_co < 21 )) \
+        && [[ "${DIA_OK:-0}" != "1" ]]; then
+      echo "  Son las ${_hora_co} h en Bogota: validacion_ampliada es larga y va de"
+      echo "  noche (CLAUDE.md). Lanzala despues de las 21:00, o con DIA_OK=1 y la"
+      echo "  plataforma avisada."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+    fi
+    CONS="$SONDA/consenso"
+    ALMACENES="${ALMACENES:-$MATRIZ_REPOSO}"
+    export AMPLIACION_HORAS="${AMPLIACION_HORAS:-40}"
+    export AMPLIACION_TOPE_S="${AMPLIACION_TOPE_S:-10800}"
+    export AMPLIACION_SIN_ACELERAR="${AMPLIACION_SIN_ACELERAR:-0}"
+    POR_CASO="${POR_CASO:-8}"
+    # La memoria por proceso: 1 GB, la de la noche del 18 al 19 de septiembre
+    # (16 procesos en el scope de 16G durante 12,7 h, ningun trabajador
+    # muerto, y el arnes ya no guarda cada paso: tarea 4f). Con 1,5, el
+    # defecto de corre_mediciones, serian 10 procesos.
+    export MEMORIA_POR_PROCESO_GB="${MEMORIA_POR_PROCESO_GB:-1.0}"
+    if ! [[ "$AMPLIACION_HORAS" =~ ^[0-9]+$ && "$AMPLIACION_TOPE_S" =~ ^[0-9]+$ \
+            && "$POR_CASO" =~ ^[0-9]+$ ]]; then
+      echo "  AMPLIACION_HORAS, AMPLIACION_TOPE_S y POR_CASO son enteros"
+      exit 2
+    fi
+    RETOMA="${RETOMA:-}"
+    if [[ -n "$RETOMA" && ! "$RETOMA" =~ ^[0-9]+$ ]]; then
+      echo "  RETOMA=$RETOMA no es un indice del plan"
+      exit 2
+    fi
+    # El tope de SOMETIMIENTO (s): hasta las 07:00 de Bogota, menos el tope de
+    # una corrida y 15 min, de modo que la ultima en vuelo termine antes.
+    _ahora="$(date +%s)"
+    if (( 10#$_hora_co >= 12 )); then
+      _fin="$(TZ='<-05>5' date -d 'tomorrow 07:00' +%s)"
+    else
+      _fin="$(TZ='<-05>5' date -d 'today 07:00' +%s)"
+    fi
+    TOPE_SOMETE="${TOPE_GLOBAL_S:-$(( _fin - _ahora - AMPLIACION_TOPE_S - 900 ))}"
+    if (( TOPE_SOMETE < 600 )); then
+      echo "  El tope de sometimiento sale en $TOPE_SOMETE s: no queda noche para una"
+      echo "  corrida de $AMPLIACION_TOPE_S s antes de las 07:00. TOPE_GLOBAL_S lo fija."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      TOPE_SOMETE=600
+    fi
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    crea_dir "$VAL2"
+    CODIGOS=()
+
+    echo "=== VALIDACION AMPLIADA DEL REPOSO (M-A2, B4) ==="
+    echo "    MTE_ROOT    = $MTE_ROOT"
+    echo "    almacenes   = $ALMACENES   (la matriz canonica del 19 de septiembre)"
+    echo "    salidas     = $VAL2"
+    echo "    horas       = hasta $AMPLIACION_HORAS por regimen (AMPLIACION_HORAS), $POR_CASO por regimen y caso en la seleccion"
+    echo "    brazo       = k = 1 000 hasta teq 160, tope $AMPLIACION_TOPE_S s por corrida (AMPLIACION_TOPE_S)"
+    echo "    sin acelerar= ${AMPLIACION_SIN_ACELERAR} (AMPLIACION_SIN_ACELERAR=1 anade k = 1 en los grupos libres)"
+    echo "    procesos    = $PROCS (como mucho $PROCS_MAX; MEMORIA_POR_PROCESO_GB=$MEMORIA_POR_PROCESO_GB)"
+    echo "    memoria     = ${MEMORIA_TESIS:-SIN tope duro (lo pone la contencion, solo en Linux)}"
+    echo "    sometimiento= $TOPE_SOMETE s (hasta las 07:00 de Bogota menos una corrida y 15 min; TOPE_GLOBAL_S)"
+    echo "    retoma      = ${RETOMA:-no (desde la corrida 0)}"
+    echo
+
+    echo "--- 1/6 · los almacenes son los de la matriz del canon"
+    corre "validacion_ampliada_canon" "$CONS/lectura_ampliada.py" \
+          --comprueba-canon "$ALMACENES"
+    CODIGOS+=("canon=${CODIGO_CORRE}")
+    if [[ "${CODIGO_CORRE}" != "seco" && "${CODIGO_CORRE}" != "0" ]]; then
+      echo "  === LOS ALMACENES NO SON LOS DEL CANON: se para (codigo 2) ==="
+      exit 2
+    fi
+
+    echo
+    echo "--- 2/6 · el lado derecho del arnes frente al del motor"
+    echo "    Las cuatro horas de siempre y dos de los casos nuevos (SINU, cuatro"
+    echo "    instituciones; I1, con UCC a neto cero): al bit en todas las ramas."
+    corre "validacion_ampliada_lado_derecho" "$CONS/arnes.py" \
+          E0 "2025-05-09 13:00" E0 "2025-05-10 10:00" K1 "2025-05-11 08:00" \
+          E4 "2025-05-07 07:00" SINU "2025-09-07 13:00" I1 "2025-10-01 13:00"
+    CODIGOS+=("lado_derecho=${CODIGO_CORRE}")
+    if [[ "${CODIGO_CORRE}" != "seco" && "${CODIGO_CORRE}" != "0" ]]; then
+      echo "  === EL ARNES SE DESVIO DEL MOTOR, O NO SE PUDO COMPROBAR: se para ==="
+      echo "  Mira $LOGS/validacion_ampliada_lado_derecho_<fecha>.log"
+      exit 3
+    fi
+
+    echo
+    echo "--- 3/6 · la muestra de cada caso, comprobada contra su almacen"
+    SELECCION_MAL=()
+    for CASO in $CASOS_AMPLIADA; do
+      if [[ -f "$VAL2/horas_${CASO}.json" && "${REHACE_MUESTRA:-0}" != "1" ]]; then
+        echo "    $CASO: se usa $VAL2/horas_${CASO}.json, que ya esta"
+        CODIGOS+=("horas_$CASO=ya_estaba")
+        continue
+      fi
+      if [[ -n "$RETOMA" ]]; then
+        echo "  RETOMA=$RETOMA y falta $VAL2/horas_${CASO}.json: el plan cambiaria"
+        echo "  y el indice no valdria. Se para."
+        if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      fi
+      if [[ ! -d "$ALMACENES/$CASO/almacen" && "${SECO:-0}" != "1" ]]; then
+        echo "  AVISO: no esta $ALMACENES/$CASO/almacen; $CASO queda fuera de la muestra"
+        CODIGOS+=("horas_$CASO=sin_almacen"); SELECCION_MAL+=("$CASO")
+        continue
+      fi
+      corre "validacion_ampliada_horas_${CASO}" "$CONS/selecciona_horas.py" \
+            --almacen "$ALMACENES/$CASO/almacen" --caso "$CASO" --cobertura m1 \
+            --por-regimen "$POR_CASO" --maximo "$POR_CASO" \
+            --salida "$VAL2/horas_${CASO}.json"
+      CODIGOS+=("horas_$CASO=${CODIGO_CORRE}")
+      if [[ "${CODIGO_CORRE}" != "seco" && "${CODIGO_CORRE}" != "0" ]]; then
+        SELECCION_MAL+=("$CASO")
+      fi
+    done
+
+    echo
+    echo "--- 4/6 · M-A2: la forma cerrada frente a la dinamica, por regimen y caso"
+    # El plan depende de la muestra y de estas dos variables: un retome con
+    # otras cambiaria los indices. Se guardan en $VAL2/PLAN la primera noche y
+    # se comprueban al retomar.
+    _plan="AMPLIACION_HORAS=$AMPLIACION_HORAS AMPLIACION_SIN_ACELERAR=$AMPLIACION_SIN_ACELERAR"
+    if [[ -f "$VAL2/PLAN" ]]; then
+      if [[ "$(cat "$VAL2/PLAN")" != "$_plan" ]]; then
+        echo "  $VAL2 se planifico con «$(cat "$VAL2/PLAN")» y ahora es «$_plan»:"
+        echo "  los indices del plan no valdrian. Usa las mismas, u otra AMPLIADA_SALIDAS."
+        exit 2
+      fi
+    elif [[ -n "$RETOMA" ]]; then
+      echo "  RETOMA=$RETOMA sin $VAL2/PLAN: no se sabe con que plan se corrio. Se para."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+    elif [[ "${SECO:-0}" == "1" ]]; then
+      printf '  [SECO] %s > %q\n' "$_plan" "$VAL2/PLAN"
+    else
+      printf '%s\n' "$_plan" > "$VAL2/PLAN"
+    fi
+    _previos=()
+    shopt -s nullglob
+    for _j in "$VAL2"/m_a2*.json; do _previos+=("$_j"); done
+    shopt -u nullglob
+    if [[ -n "$RETOMA" ]]; then
+      SALIDA_MA2="$VAL2/m_a2_desde${RETOMA}.json"
+      AMPLIACION_PREVIOS="$(IFS=,; echo "${_previos[*]}")"
+      export AMPLIACION_PREVIOS
+      echo "    retoma desde la corrida $RETOMA; la parada por futilidad cuenta:"
+      echo "    ${AMPLIACION_PREVIOS:-(ningun JSON previo)}"
+      if [[ -e "$SALIDA_MA2" && "${SECO:-0}" != "1" ]]; then
+        echo "  $SALIDA_MA2 ya existe: no se pisa. Mira el indice de RETOMA."
+        exit 2
+      fi
+    else
+      SALIDA_MA2="$VAL2/m_a2.json"
+      unset AMPLIACION_PREVIOS
+      if [[ -e "$SALIDA_MA2" && "${SECO:-0}" != "1" ]]; then
+        echo "  $SALIDA_MA2 ya existe: para seguir, RETOMA=<k> (el registro de la"
+        echo "  noche anterior dice k); para empezar de cero, otra AMPLIADA_SALIDAS."
+        exit 2
+      fi
+    fi
+    ENVOLTURA=()
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      ENVOLTURA=(timeout --kill-after=300 "$(( TOPE_SOMETE + AMPLIACION_TOPE_S + 900 ))")
+    fi
+    corre "validacion_ampliada_m_a2" "$CONS/corre_mediciones.py" \
+          --medicion medicion_ampliada --salida "$SALIDA_MA2" \
+          --procesos "$PROCS" --tope-total "$TOPE_SOMETE" --horas "$VAL2" \
+          --desde "${RETOMA:-0}"
+    ENVOLTURA=()
+    CODIGO_MA2="${CODIGO_CORRE}"
+    CODIGOS+=("m_a2=${CODIGO_CORRE}")
+
+    echo
+    echo "--- 5/6 · el veredicto de siempre (veredicto.py) sobre todos los JSON de M-A2"
+    _todos=()
+    shopt -s nullglob
+    for _j in "$VAL2"/m_a2*.json; do _todos+=("$_j"); done
+    shopt -u nullglob
+    if [[ "${SECO:-0}" == "1" && ${#_todos[@]} -eq 0 ]]; then _todos=("$SALIDA_MA2"); fi
+    if [[ ${#_todos[@]} -gt 0 ]]; then
+      corre "validacion_ampliada_veredicto" "$CONS/veredicto.py" "${_todos[@]}" \
+            --horas "$VAL2" --salida "$VAL2/veredicto_m_a2.txt"
+      CODIGOS+=("veredicto=${CODIGO_CORRE}")
+      echo
+      echo "--- 6/6 · la lectura parcial: x de n, Wilson al 95 % y el estado de cada regimen"
+      corre "validacion_ampliada_lectura" "$CONS/lectura_ampliada.py" "${_todos[@]}" \
+            --horas "$VAL2" --salida "$VAL2/lectura_m_a2.txt" \
+            --csv "$VAL2/lectura_m_a2.csv"
+      CODIGOS+=("lectura=${CODIGO_CORRE}")
+    else
+      echo "  ningun JSON de M-A2 en $VAL2: no hay veredicto ni lectura"
+      CODIGOS+=("veredicto=sin_json" "lectura=sin_json")
+    fi
+
+    echo
+    bash "$0" recoger validacion_ampliada
+    echo
+    echo "=== VALIDACION AMPLIADA: codigos ${CODIGOS[*]} ==="
+    if [[ ${#SELECCION_MAL[@]} -gt 0 ]]; then
+      echo "  === AVISO: la seleccion de ${SELECCION_MAL[*]} no salio limpia: mira"
+      echo "  $LOGS/validacion_ampliada_horas_<caso>_<fecha>.log antes de leer nada"
+      echo "  de esos casos ==="
+    fi
+    if [[ "$CODIGO_MA2" == "4" ]]; then
+      _log="$(ultimo_registro validacion_ampliada_m_a2)"
+      _k="$(grep -oE 'RETOMA con:  --desde [0-9]+' "$_log" 2>/dev/null | tail -n 1 | grep -oE '[0-9]+$' || true)"
+      echo "  M-A2 INCOMPLETA (el tope de sometimiento dejo corridas del plan)."
+      echo "  La noche siguiente, en tmux y con las mismas variables:"
+      echo "    RETOMA=${_k:-<k del registro>} bash $0 validacion_ampliada"
+    elif [[ "$CODIGO_MA2" != "0" && "$CODIGO_MA2" != "seco" ]]; then
+      echo "  === M-A2 salio con $CODIGO_MA2 (124/137: la corto su esperador; 1: el"
+      echo "  pool murio tres veces). Mira $LOGS/validacion_ampliada_m_a2_<fecha>.log ==="
+    fi
+    echo "  Lee: $VAL2/lectura_m_a2.txt (el estado de cada regimen) y"
+    echo "  $VAL2/veredicto_m_a2.txt (la tabla de siempre)."
+    ;;
+
+  tarifa_extrema)
+    # B5 (2026-10-06), actividad 4.1: la tarifa (CU) en niveles extremos. La
+    # propuesta pide variar «el precio de bolsa o de red hasta niveles
+    # extremos»; el GSA movio la tarifa solo entre 0,9 y 1,1 (CANON §13.2).
+    # Contrastes deterministas en los trece casos con f_tarifa en
+    # FACTORES_CU (0,5 0,75 1 1,5 2) y las otras cinco entradas en 1, con el
+    # MISMO evaluador del GSA directo (gsa_directo/tarifa_extrema.py; su
+    # docstring dice que mide y como). Unos 10 (min) con 16 procesos.
+    #
+    #   1. la compuerta del punto base (la del GSA, sin cambios) contra
+    #      MATRIZ_CANON, escrita en la carpeta propia; si no esta en verde,
+    #      para;
+    #   2. los contrastes; f = 1 tiene que reproducir el canon AL PESO (contra
+    #      la matriz y contra el punto_base.csv del paso 1). Codigo 1: el
+    #      control en rojo; 3: alguna evaluacion extrema fallo con su motivo
+    #      (por ejemplo, piso negativo: la tarifa ya no cubre la deduccion
+    #      del art. 25), que es un resultado y no para;
+    #   3. la recogida, solo esta carpeta y sus registros.
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    if [[ -z "${MATRIZ_CANON:-}" ]]; then
+      echo "  MATRIZ_CANON no esta definido: el control f = 1 necesita la matriz por"
+      echo "  reposo del canon (la del 19 de septiembre), explicita. En el servidor:"
+      echo "    MATRIZ_CANON=$MATRIZ_REPOSO"
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      MATRIZ_CANON="<MATRIZ_CANON>"
+    fi
+    if [[ ! -d "$MATRIZ_CANON" && "${SECO:-0}" != "1" ]]; then
+      echo "  FALTA $MATRIZ_CANON"
+      exit 2
+    fi
+    FACTORES_CU="${FACTORES_CU:-0.5 0.75 1 1.5 2}"
+    for _f in $FACTORES_CU; do
+      if ! [[ "$_f" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        echo "  FACTORES_CU: '$_f' no es un factor"
+        exit 2
+      fi
+    done
+    if [[ " $FACTORES_CU " != *" 1 "* ]]; then
+      echo "  FACTORES_CU tiene que llevar 1: es el control"
+      exit 2
+    fi
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    crea_dir "$TARIFA_DIR/base"
+    echo "=== TARIFA EN NIVELES EXTREMOS (B5) ==="
+    echo "    MTE_ROOT  = $MTE_ROOT"
+    echo "    canon     = $MATRIZ_CANON"
+    echo "    factores  = $FACTORES_CU (FACTORES_CU)"
+    echo "    procesos  = $PROCS (como mucho $PROCS_MAX)"
+    echo "    salidas   = $TARIFA_DIR"
+    echo
+    echo "--- 1/3 · la compuerta del punto base (trece casos al peso contra el canon)"
+    PARA_EN_FALLO=1 corre "tarifa_extrema_punto_base" \
+          gsa_directo/compuerta_punto_base.py --matriz "$MATRIZ_CANON" \
+          --salida "$TARIFA_DIR/base/punto_base.csv" --cache "$TARIFA_DIR/cache" || {
+      cod=$?
+      echo "  La compuerta del punto base NO esta en verde (codigo $cod): se para."
+      exit "$cod"
+    }
+    echo
+    echo "--- 2/3 · los contrastes de la tarifa"
+    ENVOLTURA=()
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      ENVOLTURA=(timeout --kill-after=300 "${TOPE_TARIFA_S:-3600}")
+    fi
+    # shellcheck disable=SC2086
+    PARA_EN_FALLO=0 corre "tarifa_extrema" gsa_directo/tarifa_extrema.py \
+          --matriz "$MATRIZ_CANON" \
+          --referencia-base "$TARIFA_DIR/base/punto_base.csv" \
+          --factores $FACTORES_CU --procesos "$PROCS" \
+          --salida-dir "$TARIFA_DIR" --cache "$TARIFA_DIR/cache"
+    ENVOLTURA=()
+    COD_TARIFA="${CODIGO_CORRE}"
+    echo
+    echo "--- 3/3 · la recogida"
+    bash "$0" recoger tarifa_extrema
+    echo
+    case "$COD_TARIFA" in
+      0|seco) echo "=== TARIFA EXTREMA TERMINADA (codigo $COD_TARIFA): control al peso ===" ;;
+      3) echo "=== TARIFA EXTREMA TERMINADA CON EVALUACIONES FALLIDAS (codigo 3): cada una"
+         echo "    con su motivo en $TARIFA_DIR/resumen.txt; el control esta al peso ===" ;;
+      1) echo "=== TARIFA EXTREMA: CONTROL EN ROJO (codigo 1): NINGUNA cifra vale ===" ;;
+      *) echo "=== TARIFA EXTREMA salio con $COD_TARIFA (124/137: la corto su esperador) ===" ;;
+    esac
+    echo "  Lee $TARIFA_DIR/resumen.txt; las cifras, en tarifa_extrema_comunidad.csv"
+    echo "  y tarifa_extrema_instituciones.csv. Nada es canon hasta registrarlo."
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -2821,6 +3196,7 @@ print(" ".join(sorted(palancas)))
     # SALIDAS_SERVIDOR/matriz, la matriz. Van dentro de SALIDAS_SERVIDOR, que
     # entra entero en el tar; aqui se comprueba que existen antes, y que
     # quedaron en el tar despues.
+    TAR_EXCLUIR=()
     DE="${2:-}"
     if [[ -z "$DE" ]]; then
       if [[ -d SALIDAS_SERVIDOR/matriz ]]; then DE="matriz"; else DE="oficial"; fi
@@ -2968,8 +3344,39 @@ print(" ".join(sorted(palancas)))
                     "$GSA_DIR/base/deterministas.csv"
                     "$(ultimo_registro gsa_directo_punto_base)")
         ;;
+      validacion_ampliada)
+        # B4: la muestra de cada caso, los JSON de M-A2, el veredicto y la
+        # lectura. SOLO esta carpeta y sus registros, no SALIDAS_SERVIDOR
+        # entero (que en el servidor pesa gigas).
+        for CASO in $CASOS_AMPLIADA; do
+          ESPERADOS+=("$VAL2/horas_${CASO}.json")
+        done
+        ESPERADOS+=("$VAL2/m_a2.json" "$VAL2/veredicto_m_a2.txt"
+                    "$VAL2/lectura_m_a2.txt" "$VAL2/lectura_m_a2.csv"
+                    "$(ultimo_registro validacion_ampliada_lado_derecho)"
+                    "$(ultimo_registro validacion_ampliada_m_a2)")
+        QUE=("$VAL2")
+        shopt -s nullglob
+        QUE+=("$LOGS"/validacion_ampliada_*.log)
+        shopt -u nullglob
+        ;;
+      tarifa_extrema)
+        # B5: los dos CSV, el resumen, el punto base y los dos registros; sin
+        # la cache del MTE. SOLO esta carpeta y sus registros.
+        ESPERADOS+=("$TARIFA_DIR/base/punto_base.csv"
+                    "$TARIFA_DIR/tarifa_extrema_comunidad.csv"
+                    "$TARIFA_DIR/tarifa_extrema_instituciones.csv"
+                    "$TARIFA_DIR/resumen.txt"
+                    "$(ultimo_registro tarifa_extrema_punto_base)"
+                    "$(ultimo_registro tarifa_extrema)")
+        QUE=("$TARIFA_DIR")
+        shopt -s nullglob
+        QUE+=("$LOGS"/tarifa_extrema_*.log)
+        shopt -u nullglob
+        TAR_EXCLUIR=(--exclude="$TARIFA_DIR/cache")
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo o gsa_directo"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo, validacion_ampliada, gsa_directo o tarifa_extrema"
         exit 2
         ;;
     esac
@@ -3025,7 +3432,8 @@ print(" ".join(sorted(palancas)))
     fi
     echo "  recogiendo: ${QUE[*]}"
     for d in "${QUE[@]}"; do
-      [[ -d "$d" ]] || { echo "  AVISO: falta $d"; }
+      # -e: desde B4 y B5, QUE lleva tambien registros sueltos (ficheros).
+      [[ -e "$d" ]] || { echo "  AVISO: falta $d"; }
     done
 
     # Subproyecto 2: modo en seco. `matriz` encadena esta accion como su
@@ -3033,11 +3441,12 @@ print(" ".join(sorted(palancas)))
     # empaquetaba de verdad todo SALIDAS_SERVIDOR: se detecto armando esta
     # misma tarea, un tar.gz de 65 MB con 2827 ficheros reales.
     if [[ "${SECO:-0}" == "1" ]]; then
-      echo "  [SECO] tar czf $DEST ${QUE[*]}"
+      echo "  [SECO] tar czf $DEST ${TAR_EXCLUIR[*]+${TAR_EXCLUIR[*]}} ${QUE[*]}"
       exit 0
     fi
 
-    tar czf "$DEST" "${QUE[@]}"
+    # B5: sin la cache del MTE (`tarifa_extrema`); vacia en las demas.
+    tar czf "$DEST" ${TAR_EXCLUIR[@]+"${TAR_EXCLUIR[@]}"} "${QUE[@]}"
     echo "  resultados en $DEST"
     LISTA="$(tar tzf "$DEST")"
     # Sin tuberias: con `set -o pipefail`, `grep -q` cierra la tuberia al

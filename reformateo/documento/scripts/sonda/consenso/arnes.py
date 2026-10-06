@@ -124,6 +124,10 @@ def clave(x):
 
 
 _CACHE = {}
+# Los casos de la matriz que el arnes carga con la opcion generica (ver
+# `carga`); E0, E4, E5, CV2 y K1 tienen su rama propia desde 2026-09-18.
+CASOS_EXTRA = ("E1", "E2", "E3", "P1", "P2", "I1", "N1", "SINU")
+CASOS_ARNES = ("E0", "E4", "E5", "CV2", "K1") + CASOS_EXTRA
 
 
 def carga(caso):
@@ -157,6 +161,21 @@ def carga(caso):
             dat = _carga("m1", factor_generacion=1.0)
         finally:
             xdl.MTEDataLoader.load = orig
+    elif caso in CASOS_EXTRA:
+        # 2026-10-06 (la validacion ampliada, muestra estratificada por caso):
+        # los otros ocho casos de la matriz, con la MISMA opcion que
+        # CASOS_MATRIZ del lanzador, leida por `gsa_directo.comun`, que una
+        # prueba ata a esa lista. Los cinco de arriba no cambian (al bit).
+        # Que la hora cargada asi sea la del almacen lo comprueba
+        # `selecciona_horas.py` (regimen y piso del juego, hora por hora).
+        from gsa_directo import comun as _comun
+        op = _comun.opciones_caso(caso)
+        dat = _carga("m1", factor_generacion=op["factor_generacion"],
+                     factor_cv=op["factor_cv"],
+                     factor_demanda=op["factor_demanda"],
+                     escala_agente=op["escala_agente"],
+                     neto_cero=op["neto_cero"],
+                     excluir_agente=op["excluir_agente"])
     else:
         raise ValueError(caso)
     mapa = {clave(x): k for k, x in enumerate(dat["idx"])}

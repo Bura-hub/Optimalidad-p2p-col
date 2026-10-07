@@ -1,98 +1,109 @@
 # Análisis de optimalidad y validación regulatoria de mercados P2P en Colombia
 
-Tesis de maestría en Ingeniería Electrónica, Universidad de Nariño, 2026.
+Código de la tesis de maestría y del artículo que se deriva de ella.
 
-- **Autor:** Brayan S. Lopez-Mendez
-- **Asesores:** M.Sc. Andrés Pantoja y M.Sc. Germán Obando
-- **Modelo base:** Chacón et al. (2025), el mercado entre pares por dinámica de replicador
+- **Tesis:** *Análisis de optimalidad y validación regulatoria de mercados P2P
+  en Colombia*. Maestría en Ingeniería Electrónica, Universidad de Nariño, 2026.
+- **Artículo:** *Peer-to-Peer Energy Trading in Colombian Energy Communities:
+  Network Charges, Settlement Rules, and a Collective Alternative*, preparado para
+  IEEE Latin America Transactions.
+- **Autor:** Brayan S. López-Méndez. **Asesores:** Andrés Pantoja y Germán Obando.
+- **Modelo base:** Chacón et al. (2025), el mercado entre pares por dinámica de
+  replicador y relajación lagrangiana.
+- **Datos:** proyecto MTE, «Desarrollo de un modelo transaccional de energía no
+  convencional de múltiples agentes para el departamento de Nariño» (BPIN
+  2021000100499).
+
+Un solo repositorio sirve a la tesis y al artículo, porque los dos usan el
+mismo motor, la misma liquidación y el mismo conjunto de resultados. El
+artículo toma 5 de los 13 casos de la tesis (sección
+[Cómo reproducir el artículo](#cómo-reproducir-el-artículo)).
 
 ---
 
-## Qué hace este repositorio
+## Qué hace
 
 Simula un mercado de energía entre pares (P2P) en una comunidad de cinco
-instituciones de Pasto con generación solar, y lo compara con los mecanismos
-que la regulación colombiana ofrece para el mismo excedente: la autogeneración
-individual, el contrato bilateral, la venta en bolsa, la autogeneración
-colectiva y la autogeneración remota. Cada mecanismo se liquida como lo
-liquida su norma, hora a hora o mes a mes, con las mediciones reales del
-proyecto MTE (abril a diciembre de 2025, 6144 horas).
+instituciones de Pasto con generación solar y lo compara con los mecanismos
+que la regulación colombiana ofrece para el mismo excedente. Cada mecanismo se
+liquida como lo liquida su norma, hora a hora o mes a mes, con las mediciones
+del proyecto MTE (abril a diciembre de 2025, 6144 horas).
 
-El mercado es el juego de Stackelberg entre vendedores y compradores del
-modelo base, con dinámica de replicador y relajación lagrangiana. Con datos
-reales, el mercado de cada hora se resuelve en el **reposo de ese juego,
-regularizado y calculado en forma cerrada**; la integración de la dinámica
-queda para validarlo y dibujar su convergencia.
+La pregunta es qué parte de la ventaja del mercado sobre la autogeneración
+colectiva viene del mercado y qué parte de dos supuestos de liquidación que la
+regulación vigente no contempla: que el residual de cada miembro se liquide
+por su cuenta y que el intercambio interno no pague cargos de red. De ahí sale
+una regla propuesta, el **P2P colectivo**, que da esas dos respuestas dentro
+de la autogeneración colectiva.
 
-**Estado (28 de septiembre de 2026).** La corrida canónica es la **matriz de
-trece casos del 19 de septiembre**, por la vía del reposo. Sobre ella se
-registraron después el análisis de sensibilidad global (GSA directo, D73 a
-D79) y las mediciones del 27 y el 28 de septiembre. Todo ello forma el canon
-de la tesis, que se comprueba con huellas `sha256` antes de citar cualquier
-cifra. Este documento no publica cifras de resultados: salen de ese canon.
-
-**El canon, las mediciones del MTE y el manuscrito no son públicos.** Las
-mediciones son datos del proyecto MTE sobre instituciones concretas, y el
-canon (`Documentos/canon_2026-09/`, con las entregas del servidor en
-`SALIDAS_SERVIDOR/`) y el manuscrito (`Documentos/FinalTesisV2/`) los
-contienen institución por institución. Por esa privacidad, `Documentos/`,
-`SALIDAS_SERVIDOR/` y `MedicionesMTE_v3/` están en `.gitignore`, y este
-repositorio publica solo el código y su documentación de proceso.
+**Qué es público y qué no.** Este repositorio publica el código y su
+documentación de proceso. Las mediciones del MTE son datos del proyecto sobre
+instituciones concretas, así que no se publican. Tampoco el conjunto de
+resultados con huella (el canon, `Documentos/canon_2026-09/`, con las entregas
+del servidor en `SALIDAS_SERVIDOR/`) ni los manuscritos, que los contienen
+institución por institución. Por eso `Documentos/`, `SALIDAS_SERVIDOR/` y
+`MedicionesMTE_v3/` están en `.gitignore`. Las mediciones se pueden pedir a los
+autores, con las condiciones del proyecto. Este documento no publica cifras de
+resultados.
 
 ---
 
 ## El modelo
 
-**El juego es el del modelo base.** Juego de Stackelberg con dinámica de
-replicador y relajación lagrangiana, con las dos poblaciones integradas en
-una sola ecuación diferencial, como el fichero original. La fidelidad se
-comprueba con una prueba dorada contra el caso publicado (7 de 7, por la vía
-alternada, que es el defecto de `SolverParams`), con dos apartamientos <!-- vetada-ok: la prueba dorada corre por la alternada -->
-declarados: la forma agregada del término de competencia y el peso del
-jugador virtual.
+**El juego es el del modelo base.** Vendedores y compradores con dinámica de
+replicador y relajación lagrangiana, con las dos poblaciones integradas en una
+sola ecuación diferencial, como el fichero original. El modelo base lo
+presenta como un juego de Stackelberg. La tesis muestra que su condición de
+equilibrio tiene estructura de Nash. La fidelidad se comprueba con una prueba
+dorada contra el caso publicado (7 de 7, por la vía alternada, el defecto de <!-- vetada-ok: la prueba dorada corre por la alternada -->
+`SolverParams`), con dos apartamientos declarados: la forma agregada del
+término de competencia y el peso del jugador virtual.
 
 **El mercado de cada hora se resuelve en el reposo, no integrando** (D48,
 CAL-53, ADR 0060). Con un vendedor y varios compradores, la dinámica oscila
-alrededor de un reposo que no alcanza (H-87); con una regularización
-entrópica en el replicador del vendedor, de μ = 1 (COP/kWh), sí llega (H-90).
-El motor calcula ese reposo directamente (`--metodo reposo`, el defecto con
-datos reales):
+alrededor de un reposo que no alcanza (H-87). Con una regularización entrópica
+en el replicador del vendedor, de μ = 1 (COP/kWh), sí llega (H-90). El motor
+calcula ese reposo directamente (`--metodo reposo`, el defecto con datos
+reales):
 
 - **El piso del juego es el del vendedor marginal** (D63), el último que hace
   falta para cubrir la demanda. Los vendedores despachan por su alternativa
-  regulada, y una caminata competitiva sobre los pisos decide quién entra y
-  cuánta energía se transa; la hora sin ganancia posible queda sin mercado.
-- **El nivel del precio es una primitiva declarada**: un presupuesto que suma,
-  por comprador, el piso más una fracción σ de su banda, con σ = (I − 1)/I
-  por defecto y un barrido de σ (D50).
+  regulada. Una caminata competitiva sobre los pisos decide quién entra y
+  cuánta energía se transa. La hora sin ganancia posible queda sin mercado.
+- **El nivel del precio lo fija un presupuesto**, que suma, por comprador, el
+  piso más una fracción σ de su banda, con σ = (I − 1)/I por defecto y un
+  barrido de σ (D50). El presupuesto decide el reparto, no el beneficio de la
+  comunidad.
 - **Cada comprador liquida al precio uniforme de la hora** que conserva el
   ingreso del reposo, sin pasar de su techo (D51).
 - **En las horas frágiles, la rama cuantal** (D71). Donde la forma cerrada no
   es un reposo estable de la dinámica regularizada, se publica el reposo con
-  μ = 1; en las horas reales cambia solo el reparto entre compradores.
+  μ = 1. En las horas reales cambia solo el reparto entre compradores.
   `--mu-cuantal 0` apaga la rama.
 
 **La dinámica solo valida.** La vía **acoplada**, que integra precios y
 cantidades juntos (LSODA con tolerancias relativa y absoluta de 1e-6, las del
-original, H-51), queda para validar el reposo y dibujar su convergencia. La
-validación contra la dinámica regularizada no verificó ningún régimen con el
-criterio fijado de antemano, de modo que la forma cerrada es una **regla
-declarada** en todos los regímenes, con confirmación puntual en una muestra
-de E0 (C-225).
+original, H-51), queda para validar el reposo y dibujar su convergencia. Con
+el criterio fijado de antemano (95 % de las horas de cada régimen dentro de
+tolerancia, con cinco como mínimo), ningún régimen quedó verificado, ni en la
+primera muestra de E0 ni en la validación ampliada a los 13 casos (C-368). La
+forma cerrada es, por tanto, una **regla adoptada** en todos los regímenes.
+Donde la dinámica no llega, lo que se aparta es sobre todo el precio, no la
+energía transada.
 
-**La banda de precios es aporte de esta tesis.** Donde el modelo base tiene dos
-constantes exógenas, aquí hay dos cotas medidas de la regulación:
+**La banda de precios es aporte de esta tesis.** Donde el modelo base tiene
+dos constantes exógenas, aquí hay dos cotas medidas de la regulación:
 
 - **El techo** es el costo unitario de prestación del servicio (CU) de cada
   comprador, mes a mes.
 - **El piso** es la alternativa regulada de cada vendedor, según el artículo 25
-  de la Resolución CREG 174 y el Anexo 4 de la Resolución CREG 101 072: el
-  excedente se reconoce como crédito hasta la importación del mes y, desde la
+  de la Resolución CREG 174 y el Anexo 4 de la Resolución CREG 101 072. El
+  excedente se reconoce como crédito hasta la importación del mes. Desde la
   hora en que la inyección acumulada la alcanza, se valora a la bolsa de cada
   hora.
 
 Con esas dos cotas, para una planta de hasta 100 (kW) el ancho de la banda es
-exactamente el componente de comercialización de la tarifa; entre 100 (kW) y
+exactamente el componente de comercialización de la tarifa. Entre 100 (kW) y
 1 (MW) se le suman los cargos de transmisión, distribución, pérdidas y
 restricciones.
 
@@ -103,42 +114,52 @@ restricciones.
   queda como **guarda inerte** (D67): los retiros deben ser cero, y uno solo
   detiene la corrida;
 - el **techo por comprador en la liquidación**, para que nadie pague dentro de
-  la comunidad más de lo que le costaría la misma energía en la red. Con la
-  liquidación uniforme del reposo no llega a actuar; en la vía acoplada se <!-- vetada-ok: la acoplada queda para validar -->
-  conserva;
+  la comunidad más de lo que le costaría la misma energía en la red;
 - un **paso de tiempo explícito**.
 
-**Y lo que protege la corrida:**
+**Lo que protege la corrida:**
 
 - **Plazo de 15 minutos por hora** en el lazo paralelo, en cualquier vía (una
   hora por reposo tarda milisegundos).
 - **Código de salida 3** si alguna hora terminó con excepción, si la
   participación retiró a algún vendedor o si las horas vencidas por el plazo
   pasan del 1 %, para que una cadena de corridas se detenga.
-- En la vía acoplada, además: **parada por estacionario** con horizonte <!-- vetada-ok: la acoplada queda para validar -->
-  doble hasta 0,4 dentro de un presupuesto de evaluaciones, **piso de 1e-10
-  para la oferta dentro de la dinámica** (H-84) y **corte al primer valor no
-  finito**.
+- En la vía acoplada, **parada por estacionario** con horizonte doble hasta <!-- vetada-ok: la acoplada queda para validar -->
+  0,4 dentro de un presupuesto de evaluaciones, **piso de 1e-10 para la oferta
+  dentro de la dinámica** (H-84) y **corte al primer valor no finito**.
 
 ---
 
-## Los escenarios regulatorios
+## Los mecanismos que se comparan
 
-| Columna | Qué liquida | Norma |
-|---|---|---|
-| **P2P** | El mercado entre pares. El excedente que no se coloca recibe el mismo trato que en C1. | |
-| **P2P colectivo** | El mismo mercado liquidado por la vía de la autogeneración colectiva, en dos niveles. | CREG 101 072 |
-| **C1** | Autogeneración individual: crédito con la importación del mes, corte en la hora en que la inyección acumulada la alcanza y exceso a la bolsa horaria. Se deduce el componente de comercialización hasta 100 (kW) de capacidad (numeral 1), y además transmisión, distribución, pérdidas y restricciones entre 100 (kW) y 1 (MW) (numeral 2). | CREG 174, art. 25; CREG 101 072, Anexo 4; CREG 101 087, art. 1 lit. i |
-| **C2** | Contrato bilateral interno entre los miembros, al punto medio de la banda de cada pareja, liquidado hora a hora. Lo que el contrato no firma sigue el art. 25, como el residual del mercado. | Ninguna propia; no es el art. 23 num. 2 lit. a de la CREG 174 (C-217) |
-| **C3** | Exposición íntegra a la bolsa de cada hora, descontados los costos del mercado mayorista. Es el contrafáctico declarado. | |
-| **C4** | Autogeneración colectiva, liquidada mes a mes, con el exceso valorado a la bolsa de la hora del corte y reparto igual entre los miembros. | CREG 101 072; CREG 101 087, art. 1 lit. ii |
-| **C5** | Autogeneración remota: cada hora se despacha por contrato el mínimo entre la inyección y la importación agregadas, al precio de contratos de XM. Queda como referencia del régimen horario, **no elegible** para esta comunidad (C-228). | CREG 101 099, arts. 16 a 21 |
+Los nombres son los de la tesis y el artículo. La última columna dice dónde
+se calcula cada uno.
 
-Los libros de resultados llevan además la columna `C4_mensual`, que desde <!-- vetada-ok: se declara como alias -->
-C-175 es un alias exacto de C4 y no se cuenta aparte (C-218).
+| Mecanismo | Qué liquida | Norma | Dónde |
+|---|---|---|---|
+| **Mercado P2P** | El mercado entre pares. El residual de cada miembro se liquida como en C1 y el intercambio interno no paga cargos: los dos supuestos que la regulación vigente no contempla. | | `main_simulation.py`, columna `P2P` |
+| **P2P colectivo** | La regla propuesta. El intercambio no paga cargos ni entra al fondo común. Al fondo va solo el residual, repartido como en C4, sin la regla del 10 %. | propuesta sobre la CREG 101 072 | `reformateo/documento/scripts/articulo/p2p_comunitario.py` (`P2Pcom`) |
+| **P2P mutualizado** | Escenario hipotético. Deduce cada kWh del fondo con el numeral de la planta que lo inyectó y solo exime del Cv al intercambio del numeral 1. | propuesta | `reformateo/documento/scripts/articulo/hibrido_por_planta.py` (`H1`) |
+| **C1** | Autogeneración individual: crédito con la importación del mes, corte en la hora en que la inyección acumulada la alcanza y exceso a la bolsa horaria. Se deduce el Cv hasta 100 (kW) (numeral 1), y también transmisión, distribución, pérdidas y restricciones entre 100 (kW) y 1 (MW) (numeral 2). | CREG 174, art. 25; CREG 101 072, Anexo 4; CREG 101 087, art. 1 lit. i | `scenarios/scenario_c1_creg174.py` |
+| **C2** | El contrato PPA de la propuesta: cada institución vende todo su excedente horario a precio pactado, sin crédito. | CREG 174, art. 23 | `reformateo/documento/scripts/articulo/c2_ppa.py` (`C2ppa`) |
+| **C3** | Escenario hipotético sin norma: el excedente a la bolsa de cada hora, menos los costos del mercado mayorista. | | `scenarios/scenario_c3_spot.py` |
+| **C4** | Autogeneración colectiva, liquidada mes a mes, con el fondo repartido en partes iguales y la deducción del caso del art. 20. | CREG 101 072; CREG 101 087, art. 1 lit. ii | `scenarios/scenario_c4_creg101072.py` |
+| **C5** | Autogeneración remota: cada hora se despacha por contrato el mínimo entre la inyección y la importación agregadas. Es una referencia del régimen horario, **no elegible** para esta comunidad (C-228). | CREG 101 099, arts. 16 a 21 | `scenarios/scenario_c5_agr_creg101099.py` |
+
+C2, C3 y C5 son referencias secundarias, sin crédito. El P2P colectivo, el
+P2P mutualizado y el PPA se calculan como derivados del canon, sin volver a
+simular el mercado: leen los flujos del mercado P2P de cada hora y
+comprueban la huella de cada artefacto antes de leerlo.
+
+**Columnas heredadas.** Los libros de `main_simulation.py` llevan todavía
+tres columnas que la tesis ya no usa con ese nombre:
+- `C2`, el contrato bilateral interno al punto medio de la banda (`scenario_c2_bilateral.py`), que la tesis sustituyó por el PPA de la propuesta;
+- `P2P colectivo`, el mercado liquidado por la vía del colectivo en dos niveles (`scenario_p2p_colectivo.py`), que la tesis sustituyó por la regla del `P2Pcom`;
+- `C4_mensual`, que desde C-175 es un alias exacto de C4 y no se cuenta aparte (C-218). <!-- vetada-ok: se declara como alias -->
 
 La ficha de cada escenario, con su fórmula, sus precios y los supuestos que no
-vienen de la norma, está en [`reformateo/documento/ESCENARIOS.md`](reformateo/documento/ESCENARIOS.md).
+vienen de la norma, está en
+[`reformateo/documento/ESCENARIOS.md`](reformateo/documento/ESCENARIOS.md).
 
 ---
 
@@ -162,13 +183,12 @@ para desarrollo.
 **Los datos no están en el repositorio.**
 
 - **Mediciones del proyecto MTE.** Van en la carpeta `MedicionesMTE_v3/` de la
-  raíz, o donde indique la variable de entorno `MTE_ROOT`. Son datos del
-  proyecto y no se publican.
+  raíz, o donde indique la variable de entorno `MTE_ROOT`.
 - **Serie de precios de contratos de XM.** Va en
   `data/XM_Energía y Precios transados en contratos con destino a Mercado Regulado y No Regulado.xlsx`.
   Es pública, del portal de XM, pero el `.gitignore` excluye los `.xlsx`. Sin
   ella falla toda corrida que incluya C5.
-- **Ficheros del modelo base.** La prueba dorada los necesita; sin ellos salta
+- **Ficheros del modelo base.** La prueba dorada los necesita. Sin ellos salta
   sus comprobaciones y lo dice.
 
 ---
@@ -190,7 +210,7 @@ python -u main_simulation.py --data real --full --include-c5 --no-regulado \
     --out-dir SALIDAS_SERVIDOR/matriz_reposo/E0
 ```
 
-Opciones que conviene conocer (todas en `python main_simulation.py --help`):
+Las opciones principales (todas en `python main_simulation.py --help`):
 
 | Opción | Qué hace |
 |---|---|
@@ -209,10 +229,8 @@ Opciones que conviene conocer (todas en `python main_simulation.py --help`):
 | `--desde`, `--hasta` | Una ventana acotada del horizonte. |
 | `--procesos N` | Cuántos procesos abre el mercado. En el servidor, como mucho 16. |
 
-En la matriz canónica, con 16 procesos en el servidor, cada caso completo tardó
-entre 58,6 y 70,1 (s). En la máquina de trabajo se corren solo pruebas,
-compuertas y humos de un día; las corridas completas van al servidor por su
-lanzador.
+En la máquina de trabajo se corren solo pruebas, compuertas y humos de un
+día. Las corridas completas van al servidor por su lanzador.
 
 ---
 
@@ -233,38 +251,99 @@ uno una corrida completa:
 | CV2 | el componente de comercialización por 2 |
 | SINU | la comunidad sin la Universidad de Nariño |
 
-Se corren en un servidor Linux con `modelo_base/run_servidor.sh`, en este orden:
+Se corren en un servidor Linux con `modelo_base/run_servidor.sh`:
 
 ```bash
 export MTE_ROOT=$PWD/MedicionesMTE_v3
 bash modelo_base/run_servidor.sh compuertas          # las pruebas y compuertas del motor
 bash modelo_base/run_servidor.sh matriz_reposo       # las trece corridas por el reposo, cada una con su compuerta de salida
 bash modelo_base/run_servidor.sh barrido_sigma       # las trece con σ = 0, 0,5 y 1
-bash modelo_base/run_servidor.sh validacion_reposo   # el reposo frente a la dinámica regularizada (M-A a M-G)
 MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo \
   bash modelo_base/run_servidor.sh gsa_directo       # el Sobol directo sobre el reposo (D73 a D79)
-bash modelo_base/run_servidor.sh recoger matriz_reposo   # el tar de vuelta, con su comprobación
+MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo \
+  bash modelo_base/run_servidor.sh tarifa_extrema    # el CU de la mitad al doble, en los trece casos
+MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo \
+  bash modelo_base/run_servidor.sh validacion_ampliada   # el reposo frente a la dinámica, hasta 40 horas por régimen
+bash modelo_base/run_servidor.sh recoger <accion>    # el tar de vuelta, con su comprobación
 ```
 
-`DESDE=<caso>` retoma `matriz_reposo` desde ese caso. Con `SECO=1` delante,
-cualquier acción imprime las órdenes que correría sin ejecutar ni escribir
-nada. Las acciones `matriz`, `sonda79` y `humo_linux` son de la vía acoplada: <!-- vetada-ok: acciones históricas del lanzador -->
-produjeron la matriz del 15 de septiembre, superada, y se conservan para
-comparar.
+- `DESDE=<caso>` retoma `matriz_reposo` desde ese caso, y `RETOMA=<k>` retoma
+  `validacion_ampliada` desde la integración `k` de su plan.
+- Con `SECO=1` delante, cualquier acción imprime las órdenes que correría sin
+  ejecutar ni escribir nada.
+- Cada registro abre con el commit en uso, el número de ficheros versionados
+  con cambios y la orden exacta (C-369).
+- Las acciones `matriz`, `sonda79` y `humo_linux` son de la vía acoplada: <!-- vetada-ok: acciones históricas del lanzador -->
+  produjeron la matriz del 15 de septiembre, superada, y se conservan para
+  comparar.
 
 **El servidor es compartido con una plataforma en producción.** El lanzador se
 contiene solo: se vuelve a lanzar encerrado en la mitad alta de los núcleos,
 con `nice 19`, `ionice` ociosa y un tope duro de memoria, y recorta a esa mitad
-un `PROCS` mayor. Nada pesado se lanza en ese servidor fuera del lanzador.
+un `PROCS` mayor. Si el usuario no tiene `linger`, se niega a arrancar fuera de
+`tmux` o `screen`, porque el tope de memoria moriría al cerrar la sesión. La
+validación ampliada se niega a arrancar de día salvo con `DIA_OK=1`. Nada pesado
+se lanza en ese servidor fuera del lanzador.
 
 El montaje completo, qué mirar en cada paso y cómo retomar una cadena
 detenida están en
 [`modelo_base/MONTAJE_SERVIDOR.md`](modelo_base/MONTAJE_SERVIDOR.md).
 
-De las mediciones del 27 y el 28 de septiembre, solo el barrido de σ corrió
-en el servidor (`barrido_sigma`). Las demás no vuelven a correr la matriz:
-son guiones de `reformateo/documento/scripts/` que leen los almacenes del
-canon o llaman al evaluador del GSA, y se corrieron en local.
+---
+
+## Las mediciones derivadas
+
+Buena parte de los resultados no vuelve a correr la matriz. Son guiones que
+leen los almacenes del canon, comprueban antes su huella contra
+`Documentos/canon_2026-09/HUELLAS.csv` y fallan en voz alta. Por eso solo
+corren donde está el canon, que no es público.
+
+En [`reformateo/documento/scripts/articulo/`](reformateo/documento/scripts/articulo/):
+
+| Guion | Qué calcula |
+|---|---|
+| `p2p_comunitario.py`, `p2pcom_exacto.py`, `p2p_colectivo_derivados.py` | El P2P colectivo, la regla propuesta. |
+| `hibrido_por_planta.py`, `h2_exacto.py` | El P2P mutualizado (H1) y su segunda etapa. |
+| `c2_ppa.py` | El contrato PPA de la propuesta. |
+| `atribucion_supuestos.py` | Cuánto de la ventaja del mercado sobre C4 se atribuye a cada supuesto, en los dos órdenes. |
+| `corte_fondo_derivados.py`, `prevision_corte.py` | El corte del crédito y el fondo común. |
+| `intangibles_autoconsumo.py` | El beneficio intangible y el incentivo a consumir en el sitio (actividad 3.3). |
+| `cifras_articulo.py` | La tabla de cifras con huella de la que sale toda cifra del artículo. |
+| `gen_figuras_articulo_es.py`, `gen_figuras_articulo.py` | Las figuras del artículo, en español y en inglés. |
+
+En [`reformateo/documento/scripts/`](reformateo/documento/scripts/) están las
+demás: la descomposición, el spread, los subperíodos, el retiro de un miembro,
+el umbral de 100 (kW), la deserción y el peso de la regla de despacho, entre
+otras. En [`gsa_directo/`](gsa_directo/) están el análisis de sensibilidad
+global y la tarifa en niveles extremos. En
+[`reformateo/documento/scripts/sonda/consenso/`](reformateo/documento/scripts/sonda/consenso/)
+está la validación de la forma cerrada con la dinámica.
+
+---
+
+## Cómo reproducir el artículo
+
+El artículo usa 5 de los 13 casos: **E0, E3, E4, I1 y SINU**. Todas sus cifras
+salen de una sola tabla con huella, y todas sus figuras de un solo guion:
+
+```bash
+# 1. La matriz y los derivados del canon (en el servidor, ver arriba)
+# 2. La tabla de cifras del artículo, desde el canon
+python -u reformateo/documento/scripts/articulo/cifras_articulo.py
+# 3. Las figuras, desde esa tabla
+python -u reformateo/documento/scripts/articulo/gen_figuras_articulo_es.py
+```
+
+La versión del código que acompaña al envío queda marcada con una etiqueta de
+git, `articulo-latam-v1`. Para reproducir el artículo meses después, se parte
+de esa etiqueta y no de `main`:
+
+```bash
+git checkout articulo-latam-v1
+```
+
+Sin las mediciones del MTE, que se piden a los autores, se pueden correr el
+caso sintético, las pruebas y las compuertas que no leen el canon.
 
 ---
 
@@ -274,48 +353,26 @@ canon o llaman al evaluador del GSA, y se corrieron en local.
 bash modelo_base/run_servidor.sh compuertas
 ```
 
-corre las dieciocho compuertas (la prueba dorada entre ellas), los veintiséis
-ficheros de pruebas del motor y las dos horas rápidas de la compuerta de la
-dinámica regularizada, y se detiene en la primera que falle. Cada prueba
-también se puede correr sola:
+corre las compuertas del motor (la prueba dorada entre ellas), sus ficheros de
+pruebas y las dos horas rápidas de la compuerta de la dinámica regularizada, y
+se detiene en la primera que falle. Cada prueba también se puede correr sola:
 
 ```bash
 python -m pytest tests/test_piso_P.py -q
 ```
 
-**No conviene correr `pytest tests/` entero.** `tests/test_full_simulation_preflight.py`
-contiene una corrida con datos reales que escribe en `outputs/` y `graficas/`;
-se corre solo con su filtro:
+**No se corre `pytest tests/` entero.** `tests/test_full_simulation_preflight.py`
+contiene una corrida con datos reales que escribe en `outputs/` y `graficas/`.
+Se corre solo con su filtro:
 
 ```bash
 python -m pytest tests/test_full_simulation_preflight.py -q -k "suma or banner or propaga or construye or pasa"
 ```
 
----
-
-## Las cifras y las figuras de la tesis
-
-Toda cifra de la tesis que el canon no escribe tal cual sale de un guion de
-[`reformateo/documento/scripts/`](reformateo/documento/scripts/). Ninguno
-simula: leen artefactos del canon, comprueban antes su huella contra
-`Documentos/canon_2026-09/HUELLAS.csv` y fallan en voz alta. Por eso solo
-corren donde está el canon, que no es público.
-
-| Guion | Qué hace |
-|---|---|
-| `cifras_datos_cap04.py` | Las cifras descriptivas del dato del capítulo 4, desde el cargador y el almacén de E0 (C-229). |
-| `cifras_cap07.py` | Las cifras derivadas del capítulo 7, la comparación de desempeño (C-230). |
-| `cifras_cap08.py` | Las cifras derivadas del capítulo 8, la sensibilidad y la robustez, desde el GSA (C-231). |
-| `gen_tesis_figuras.py` | Las figuras de los capítulos 4 a 6, cada una con su `.csv`, su `.mat` y su `.fuente.txt`. |
-| `compuerta_vetadas.py` | Busca en un Markdown cifras, rutas y citas de canon superados; sale con 1 si encuentra alguna (C-221). |
-| `compila_tesis.ps1` | Compila el manuscrito a PDF o a Word con pandoc (C-222). |
-
-```bash
-PYTHONUNBUFFERED=1 python -u reformateo/documento/scripts/cifras_cap07.py
-python reformateo/documento/scripts/compuerta_vetadas.py [fichero.md ...]
-powershell -File reformateo/documento/scripts/compila_tesis.ps1           # PDF
-powershell -File reformateo/documento/scripts/compila_tesis.ps1 -Word     # .docx
-```
+**Antes de citar una cifra,** el canon se comprueba con sus verificadores
+(`Documentos/canon_2026-09/verificar_canon_2026-09.py`, que debe imprimir
+`CANON 2026-09 INTACTO`). `reformateo/documento/scripts/compuerta_vetadas.py`
+busca en un manuscrito cifras, rutas y citas de resultados superados (C-221).
 
 ---
 
@@ -327,7 +384,7 @@ powershell -File reformateo/documento/scripts/compila_tesis.ps1 -Word     # .doc
   hermanos para reproducirla en MATLAB.
 - **El almacén** (con `--almacen`): en Parquet, las tablas de horas, flujos
   entre pares, agentes y liquidación por escenario, más un `almacen.json`. La
-  vía acoplada escribe además las trayectorias de la integración; la del <!-- vetada-ok: la acoplada queda para validar -->
+  vía acoplada escribe también las trayectorias de la integración. La del <!-- vetada-ok: la acoplada queda para validar -->
   reposo no integra y no las escribe.
 
 Con `--out-dir`, todo va a esa carpeta en vez de la raíz.
@@ -339,13 +396,14 @@ Con `--out-dir`, todo va a esa carpeta en vez de la raíz.
 ```
 main_simulation.py     el orquestador: carga, mercado, escenarios, análisis y figuras
 core/                  el motor: juego, reposo en forma cerrada, integrador acoplado, liquidación, almacén
-scenarios/             C1 a C5 y el mercado por la vía del colectivo
+scenarios/             C1 a C5 y las columnas heredadas
 data/                  cargadores de las mediciones, tarifas, bolsa, escalado y capacidad
 analysis/              factibilidad, optimalidad, equidad, sensibilidad
+gsa_directo/           el análisis de sensibilidad global y la tarifa en niveles extremos
 visualization/         figuras
 tests/                 pruebas y compuertas
 modelo_base/           el lanzador del servidor y su montaje
-reformateo/documento/  el documento de proceso, sus registros y los guiones de cifras
+reformateo/documento/  el documento de proceso, sus registros y los guiones de cifras y derivados
 ```
 
 ---
@@ -357,8 +415,29 @@ En [`reformateo/documento/`](reformateo/documento/):
 | Fichero | Qué contiene |
 |---|---|
 | `HALLAZGOS.md` | Lo que se encontró, numerado (H-xx), aplicado o no. |
-| `CORRECCIONES.md` | Cada corrección del código, numerada (C-xxx), con su prueba. |
+| `CORRECCIONES.md` | Cada corrección del código, de la tesis y del artículo, numerada (C-xxx), con su prueba. |
 | `ESCENARIOS.md` | La ficha de cada escenario contra su norma. |
-| `MODELO_DEFINITIVO.md` | Qué es el modelo hoy: la configuración al 2026-09-19 (el reposo, el piso marginal y la rama cuantal), con las precisiones fechadas del 27 y el 28 de septiembre. |
+| `MODELO_DEFINITIVO.md` | Qué es el modelo hoy: el reposo, el piso marginal y la rama cuantal. |
 | `PARAMETROS.md` | De dónde sale cada parámetro y cómo se defiende. |
 | `main.tex` y `sections/` | El documento de proceso. |
+
+---
+
+## Cómo citar
+
+Tesis:
+
+```
+B. S. López-Méndez, «Análisis de optimalidad y validación regulatoria de
+mercados P2P en Colombia», tesis de maestría, Maestría en Ingeniería
+Electrónica, Universidad de Nariño, Pasto, 2026.
+```
+
+Código (con la etiqueta de la versión usada):
+
+```
+B. S. López-Méndez, Optimalidad-p2p-col, código de la tesis y del artículo,
+2026. [En línea]. Disponible: https://github.com/Bura-hub/Optimalidad-p2p-col
+```
+
+La cita del artículo se añadirá cuando se publique.

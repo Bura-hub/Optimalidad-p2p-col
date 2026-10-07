@@ -237,6 +237,13 @@ SALIDAS="$SONDA/salidas"
 LOGS="modelo_base/logs"
 crea_dir "$SALIDAS" "$LOGS"
 
+# C-369 (2026-10-07, H-TE-1 y VA-1): el commit con que corre. La tarifa extrema
+# y la validacion ampliada salieron sin el HEAD en ningun registro, y el canon
+# tuvo que atarlas por la huella de los guiones. Se lee una vez al arrancar y
+# corre() lo escribe al principio de cada registro.
+PROC_HEAD="$(git rev-parse HEAD 2>/dev/null || echo desconocido)"
+PROC_SUCIOS="$(git status --short 2>/dev/null | grep -vc '^??' || true)"
+
 # Subproyecto 2 (D25): donde `sonda79` escribe los veredictos de H-79 y donde
 # `matriz` los lee. Una variable de entorno permite apuntar a otro directorio
 # en la comprobacion en seco, sin tocar el de la corrida real.
@@ -585,9 +592,15 @@ corre() {
   local log="$LOGS/${nombre}_$(marca).log"
   echo "  -> $nombre   (log: $log)"
   local codigo=0
+  # C-369: la procedencia va en las dos primeras lineas del registro, con «#»
+  # delante para que ninguna lectura del registro la tome por salida.
+  {
+    echo "# procedencia: commit $PROC_HEAD; ficheros versionados con cambios: $PROC_SUCIOS"
+    echo "# orden: $PY -u -W ignore $*"
+  } > "$log"
   # -u: sin bufer (regla principal de CLAUDE.md, H-80). Si se detiene una
   # corrida larga a mitad, el log ya tiene lo que alcanzo a escribir.
-  ${ENVOLTURA[@]+"${ENVOLTURA[@]}"} "$PY" -u -W ignore "$@" > "$log" 2>&1 \
+  ${ENVOLTURA[@]+"${ENVOLTURA[@]}"} "$PY" -u -W ignore "$@" >> "$log" 2>&1 \
     || codigo=$?
   CODIGO_CORRE="$codigo"
 

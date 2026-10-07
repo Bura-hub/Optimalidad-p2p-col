@@ -12454,3 +12454,44 @@ El autor confirma los correos: `ad_pantoja@udenar.edu.co` y `gdobando@udenar.edu
 **Pendiente esta noche (servidor):** la ampliación de la validación de la convergencia (actividades 1.1 y 4.2) y la tarifa en niveles extremos (4.1).
 
 **Comprobaciones:** tesis en 17 páginas, anexos en 69; 0 errores, 0 indefinidas, 0 duplicadas, 0 Overfull; vetadas LIMPIA y cifras LIMPIO en la tesis y en los anexos D y G; los tres canon INTACTOS (informe del analista). Por un error de copia, las copias de respaldo de C-365 de los anexos D y G (`scratchpad/tesis360/antes_c365/`) quedaron sobrescritas con su versión ya corregida; las de C-360 siguen intactas.
+
+### C-367 · La tarifa en niveles extremos (actividad 4.1) (2026-10-06)
+
+**Qué pedía la propuesta:** variar los precios de bolsa o de red hasta niveles extremos. El análisis global solo movía el CU de 0,9 a 1,1.
+
+**Medición nueva** (CANON §14.32, grupo e1/TE, `SALIDAS_SERVIDOR/tarifa_extrema_2026-10-06/`, guion `gsa_directo/tarifa_extrema.py` del commit f02fb5d; corrida en el servidor el 2026-10-06, 14:45): factor de tarifa 0,5; 0,75; 1; 1,5 y 2 en los 13 casos, con bolsa, Cv y cargos de red en 1; control al peso con f = 1 en los 13.
+- P2P − C1, P2P − C4 y P2P colectivo − C4 no cambian de signo en ninguno de los 65 puntos evaluados.
+- C1 − C4 cambia en E4, E5, I1 y P2; C2 (PPA) − C1 en nueve casos.
+- Con f = 0,5, E4, E5 y P2 no se evalúan: la deducción del numeral 2 (Cv + Θ) deja negativo el crédito de permuta (umbral 0,59); se añadió f = 0,6.
+- Pares bajo C4: 25 → 32 de 64 (mercado P2P) y 13 → 23 (P2P colectivo) con f = 2.
+
+**En la tesis:** VII-B suma un párrafo; el anexo G suma la subsección «La tarifa en niveles extremos» (`anx:g-tarifa`, Tabla G.5, cifras comprobadas contra el CSV, 0 discrepancias) y corrige la frase de los límites; el anexo F quita «La tarifa extrema» de lo no medido; en el anexo D la actividad 4.1 sigue parcial (dinámica con precios extremos, entrada, equidad en la caja) con la tarifa ya cubierta, la fila 4.1 de lo prometido suma la tarifa, la lista de lo no medido pierde la tarifa y la fila de factibilidad de la Tabla D.6 suma el piso negativo.
+
+**Hallazgo H-TE-1 (no aplicado):** ni el lanzador ni el guion escriben el commit en uso; el canon lo ata por el guion de f02fb5d y el resumen regenerado al byte.
+
+**Respaldo:** `Documentos/Tesis_entrega/antes_c367/`.
+
+### C-368 · La validación ampliada de la forma cerrada con la dinámica (actividades 1.1 y 4.2) (2026-10-07)
+
+**Medición nueva** (CANON §14.33, grupo e1/VA, `SALIDAS_SERVIDOR/validacion_ampliada_2026-10-06/`, guiones de `reformateo/documento/scripts/sonda/consenso/` del commit f02fb5d; corrida en el servidor del 2026-10-06 16:32 al 2026-10-07 02:25, 16 procesos con contención): hasta 40 horas por régimen en los 13 casos, V3a acelerada k = 1 000 hasta teq 160, tope de 3 h por integración, criterio de veredicto.py sin cambios (95 % dentro en teq 80 y 160, mínimo cinco) y parada por futilidad.
+- 141 de 280 integraciones hechas, 139 omitidas por futilidad, 0 fallas, 20 cortadas por el tope.
+- Dentro: cuantal 23/27, interiores 31/40, excluidos 13/16, un comprador 12/17, compradores cortos 12/20, topados 4/10, suma que no cabe 4/11; en total 99/141. **Ningún régimen verificado**: la forma cerrada sigue siendo regla adoptada en todos.
+- Diagnóstico: la energía transada coincide en todas las horas comparadas; 16 de las 22 horas fuera lo están solo por el precio de un comprador que recibe energía; en un comprador, la forma cerrada cobra el piso (106 a 114 COP/kWh, vendedor marginal fuera de permuta) y la dinámica sube al techo; 15 de las 20 cortadas ya estaban dentro en teq 80, y aun contándolas ningún régimen llega al 95 %.
+
+**En la tesis:** «17 de las 18 horas de E0» se sustituye por la muestra de los 13 casos en el cuerpo (aportes, `sec:modelo-validacion`, discusión, conclusión del objetivo 1) y en los anexos D (método, actividades 1.1 y 4.2, pendientes, fila de convergencia de la Tabla D.6, que sigue en «parcial»), F (fila P2P) y G (forma cerrada, «Lo que la dinámica no alcanzó», condiciones habilitantes). El anexo C reescribe `anx:c-validacion` con las dos mediciones (la de E0 queda como primera) y la Tabla `tab:anx-c-validacion`, y actualiza su síntesis.
+
+**Corrección de un dato del anexo C (VA-3):** decía que la dinámica usó «el costo del vendedor igual a su piso»; en M-A y M-A2 no hay `b_vend` en la especificación y `corre_mediciones.py` deja entonces el costo nivelado. Ahora dice «el costo nivelado del vendedor». El costo igual al piso es solo el brazo «alternativa» de M-B.
+
+**Pendientes:** VA-1 (el lanzador no escribe el HEAD, segunda vez tras H-TE-1); VA-7 (la regla 6 de `CLAUDE.md` sigue citando «17 de 18»); filas de TE, IA y VA en las tablas de entregas del anexo A (VA-6).
+
+**Comprobaciones:** tesis en 17 páginas y anexos en 70; 0 indefinidas, 0 Overfull; vetadas LIMPIA en los cinco ficheros; sin cifras huérfanas nuevas; los tres canon INTACTOS. **Respaldo:** `Documentos/Tesis_entrega/antes_c368/`.
+
+### C-369 · La validación ampliada en los artículos, en CLAUDE.md y el commit en cada registro del lanzador (2026-10-07)
+
+**Artículo en español** (`v2_es`, sección III, forma cerrada): «la confirma en una muestra de la comunidad medida, donde llegó a ella en 17 de las 18 horas» pasa a «llegó a ella en 99 de 141 horas muestreadas en los 13 casos de [tesis]. Donde no llega, difiere sobre todo el precio, no la energía». Sigue en 9 páginas; vetadas LIMPIA, cifras LIMPIO; zip de Overleaf regenerado. Respaldo en `manuscrito/antes_c369/`.
+
+**Artículo en inglés** (`v2`, límites): «confirmed by the dynamics in 17 of the 18 E0 hours integrated to the end» pasa a «matched by the dynamics in 99 of 141 hours sampled across 13 cases» («reached by the dynamics» es rótulo vetado, C-225). Sigue en 9 páginas; vetadas en inglés LIMPIA. Respaldo en `manuscrito/antes_c369/`.
+
+**CLAUDE.md, regla 6:** la cifra que se cita es la de CANON §14.33 (99 de 141 horas en los 13 casos); «17 de las 18» queda solo como primera medición del anexo C y no se suma (VA-7).
+
+**Lanzador (H-TE-1, VA-1):** `run_servidor.sh` lee al arrancar `git rev-parse HEAD` y el número de ficheros versionados con cambios, y `corre()` los escribe con la orden en las dos primeras líneas de cada registro, con «#» delante. El modo en seco no cambia. Comprobado: sintaxis, 56 pruebas del lanzador (`test_validacion_ampliada`, `test_gsa_directo_lanzador`, `test_matriz_mecanismo_lanzador`) sin escrituras nuevas en `modelo_base/` ni `SALIDAS_SERVIDOR/`, y un `corre()` real sobre un directorio temporal.

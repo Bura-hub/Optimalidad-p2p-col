@@ -75,6 +75,16 @@
 #   bash modelo_base/run_servidor.sh recoger tarifa_extrema           <- solo su carpeta y sus registros
 #   bash modelo_base/run_servidor.sh recoger validacion_ampliada      <- idem
 #
+#   --- la noche del 2026-10-07: EQ, DX y CA (los parciales de 1.1 y 4.1) ----
+#   MATRIZ_CANON=<matriz del 19-09> bash modelo_base/run_servidor.sh cierre_parciales   <- EQ con 16 procesos (~35 min) y despues CA (4) y DX (12) a la vez, hasta las 07:00
+#   MATRIZ_CANON=<matriz del 19-09> bash modelo_base/run_servidor.sh equidad_caja   <- EQ sola: el Gini dentro de la caja del GSA, doce casos, 1 024 puntos cada uno
+#   REANUDAR=1 MATRIZ_CANON=... bash modelo_base/run_servidor.sh equidad_caja       <- sigue donde quedo
+#   bash modelo_base/run_servidor.sh dinamica_extrema   <- DX sola: M-A2X, la forma cerrada frente a la dinamica con la bolsa x4 y la tarifa x0,5/0,6 y x2
+#   RETOMA=<k> bash modelo_base/run_servidor.sh dinamica_extrema   <- la noche siguiente, desde la corrida k del plan
+#   bash modelo_base/run_servidor.sh caso_autora        <- CA sola: M-G repetida con el tope que le falto (8 corridas, 4 procesos)
+#   SECO=1 MATRIZ_CANON=... bash modelo_base/run_servidor.sh cierre_parciales       <- imprime las ordenes, no toca el disco
+#   bash modelo_base/run_servidor.sh recoger cierre_parciales   <- las tres carpetas y sus registros en un tar
+#
 #   bash modelo_base/run_servidor.sh recoger            <- arma el tar de vuelta
 #   bash modelo_base/run_servidor.sh recoger matriz     <- y comprueba lo de matriz
 #   bash modelo_base/run_servidor.sh recoger arranque   <- y comprueba lo de arranque
@@ -203,7 +213,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|validacion_ampliada|gsa_directo|tarifa_extrema|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|validacion_ampliada|gsa_directo|tarifa_extrema|equidad_caja|dinamica_extrema|caso_autora|cierre_parciales|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -412,6 +422,56 @@ VAL2="${VAL2%/}"
 TARIFA_DIR="${TARIFA_DIR%/}"
 # Los trece casos en el orden de CASOS_MATRIZ, para la seleccion de M-A2.
 CASOS_AMPLIADA="E0 E1 E2 E3 E4 E5 P1 P2 K1 I1 N1 CV2 SINU"
+
+# EQ, DX y CA (2026-10-07): donde escriben `equidad_caja` (el Gini dentro de
+# la caja del GSA), `dinamica_extrema` (M-A2X, la forma cerrada frente a la
+# dinamica con precios extremos) y `caso_autora` (M-G repetida con el tope que
+# le falto). Viven aqui por la misma razon que los de arriba: `recoger` los
+# necesita. Las tres, DENTRO de SALIDAS_SERVIDOR/.
+EQ_DIR="${EQUIDAD_SALIDAS:-SALIDAS_SERVIDOR/equidad_caja}"
+DX_DIR="${EXTREMA_SALIDAS:-SALIDAS_SERVIDOR/dinamica_extrema}"
+CA_DIR="${AUTORA_SALIDAS:-SALIDAS_SERVIDOR/caso_autora}"
+for _d in "$EQ_DIR" "$DX_DIR" "$CA_DIR"; do
+  if [[ "$_d" != SALIDAS_SERVIDOR/?* || "$_d" == *..* || "$_d" == *" "* ]]; then
+    echo "EQUIDAD_SALIDAS, EXTREMA_SALIDAS y AUTORA_SALIDAS tienen que ser" \
+         "carpetas dentro de SALIDAS_SERVIDOR/, sin '..' ni espacios: '$_d'" >&2
+    exit 2
+  fi
+done
+EQ_DIR="${EQ_DIR%/}"
+DX_DIR="${DX_DIR%/}"
+CA_DIR="${CA_DIR%/}"
+# La referencia de cada punto de la caja de EQ: el GSA con H1 (CANON §13.10).
+GSA_REF="${GSA_REFERENCIA:-SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04}"
+
+# CLAUDE.md: las largas, de noche. Sale con 2 si son entre las 07:00 y las
+# 21:00 de Bogota y no hay DIA_OK=1 (en seco solo avisa). La hora de Bogota con
+# el desfase fijo POSIX (UTC-5, sin horario de verano): no depende de tzdata.
+solo_de_noche() {
+  local h
+  h="$(TZ='<-05>5' date +%H)"
+  if (( 10#$h >= 7 && 10#$h < 21 )) && [[ "${DIA_OK:-0}" != "1" ]]; then
+    echo "  Son las ${h} h en Bogota: $1 va de noche (CLAUDE.md). Lanzala"
+    echo "  despues de las 21:00, o con DIA_OK=1 y la plataforma avisada."
+    if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+  fi
+  return 0
+}
+
+# Los segundos que faltan hasta las 07:00 de Bogota (las de manana si son mas
+# de las 12:00), en HASTA_LAS_7.
+hasta_las_7() {
+  local h ahora fin
+  h="$(TZ='<-05>5' date +%H)"
+  ahora="$(date +%s)"
+  if (( 10#$h >= 12 )); then
+    fin="$(TZ='<-05>5' date -d 'tomorrow 07:00' +%s)"
+  else
+    fin="$(TZ='<-05>5' date -d 'today 07:00' +%s)"
+  fi
+  HASTA_LAS_7=$(( fin - ahora ))
+  return 0
+}
 
 CASOS_GSA="E0 E2 E4 E1 E3 E5 P1 P2 K1 I1 N1 SINU"
 CASOS_DISENO_GSA=" E0 E2 E4 "
@@ -3171,6 +3231,496 @@ print(" ".join(sorted(palancas)))
     echo "  y tarifa_extrema_instituciones.csv. Nada es canon hasta registrarlo."
     ;;
 
+  equidad_caja)
+    # EQ (2026-10-07), actividades 3.3 y 4.1: el Gini del beneficio por
+    # institucion dentro de la caja del GSA (gsa_directo/equidad_caja.py; su
+    # docstring dice que mide y como). Las filas A y B de los EQUIDAD_NBASE
+    # (512) primeros bloques de la muestra del GSA en los doce casos del Sobol
+    # (CV2 fuera): 12 288 evaluaciones, unos 35 (min) con 16 procesos.
+    #
+    #   1. la compuerta del punto base (la del GSA, sin cambios) contra
+    #      MATRIZ_CANON, escrita en la carpeta propia; si no esta en verde,
+    #      para;
+    #   2. la caja: el punto base de cada caso AL PESO contra el canon y el
+    #      punto_base.csv del paso 1 (con el control en rojo no corre nada mas,
+    #      codigo 1), y cada punto contra su fila del GSA con H1 (GSA_REFERENCIA,
+    #      SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04; codigo 1 si difiere).
+    #      Codigo 3: alguna evaluacion fallo con su motivo; 4: el tope de
+    #      sometimiento (hasta las 07:00 de Bogota menos 15 min) dejo puntos,
+    #      y REANUDAR=1 la noche siguiente sigue donde quedo;
+    #   3. la recogida, solo esta carpeta y sus registros.
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    if [[ -z "${MATRIZ_CANON:-}" ]]; then
+      echo "  MATRIZ_CANON no esta definido: el control del punto base necesita la"
+      echo "  matriz por reposo del canon (la del 19 de septiembre). En el servidor:"
+      echo "    MATRIZ_CANON=$MATRIZ_REPOSO"
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      MATRIZ_CANON="<MATRIZ_CANON>"
+    fi
+    if [[ ! -d "$MATRIZ_CANON" && "${SECO:-0}" != "1" ]]; then
+      echo "  FALTA $MATRIZ_CANON"
+      exit 2
+    fi
+    EQUIDAD_NBASE="${EQUIDAD_NBASE:-512}"
+    if ! [[ "$EQUIDAD_NBASE" =~ ^[0-9]+$ ]] || (( EQUIDAD_NBASE < 1 )) \
+        || (( (EQUIDAD_NBASE & (EQUIDAD_NBASE - 1)) != 0 )); then
+      echo "  EQUIDAD_NBASE=$EQUIDAD_NBASE: tiene que ser una potencia de dos (los"
+      echo "  bloques de la muestra de Saltelli del GSA)"
+      exit 2
+    fi
+    if [[ -n "${CASOS:-}" ]]; then
+      for _c in $CASOS; do
+        if [[ " $CASOS_GSA " != *" $_c "* ]]; then
+          echo "  CASOS: '$_c' no es ninguno de los doce casos del Sobol ($CASOS_GSA;"
+          echo "  CV2 queda fuera, como en el GSA)"
+          exit 2
+        fi
+      done
+    fi
+    _ref_gsa=(--referencia-gsa "$GSA_REF")
+    if [[ "${SIN_REFERENCIA_GSA:-0}" == "1" ]]; then
+      _ref_gsa=()
+      echo "  AVISO: SIN_REFERENCIA_GSA=1: los puntos NO se comparan con el GSA"
+    elif [[ ! -d "$GSA_REF" && "${SECO:-0}" != "1" ]]; then
+      echo "  FALTA $GSA_REF (el GSA con H1, la referencia de cada punto)."
+      echo "  GSA_REFERENCIA=<carpeta> la apunta a otro sitio; SIN_REFERENCIA_GSA=1"
+      echo "  corre sin ella (solo con el control del punto base)."
+      exit 2
+    fi
+    _reanuda=()
+    if [[ -f "$EQ_DIR/equidad_puntos.csv" ]]; then
+      if [[ "${REANUDAR:-0}" == "1" ]]; then
+        _reanuda=(--reanudar)
+      elif [[ "${SECO:-0}" != "1" ]]; then
+        echo "  $EQ_DIR/equidad_puntos.csv ya existe: REANUDAR=1 sigue donde quedo;"
+        echo "  para empezar de cero, otra EQUIDAD_SALIDAS."
+        exit 2
+      fi
+    fi
+    solo_de_noche equidad_caja
+    hasta_las_7
+    TOPE_EQ="${TOPE_EQUIDAD_S:-$(( HASTA_LAS_7 - 900 ))}"
+    if (( TOPE_EQ < 600 )); then
+      echo "  El tope de sometimiento sale en $TOPE_EQ s: no queda noche. TOPE_EQUIDAD_S lo fija."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      TOPE_EQ=600
+    fi
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    crea_dir "$EQ_DIR/base"
+    # shellcheck disable=SC2206
+    _casos_eq=(${CASOS:-$CASOS_GSA})
+    echo "=== LA EQUIDAD DENTRO DE LA CAJA DEL GSA (EQ) ==="
+    echo "    MTE_ROOT  = $MTE_ROOT"
+    echo "    canon     = $MATRIZ_CANON"
+    echo "    GSA       = ${_ref_gsa[1]:-SIN referencia} (GSA_REFERENCIA)"
+    echo "    casos     = ${_casos_eq[*]} (CASOS)"
+    echo "    n         = $EQUIDAD_NBASE bloques, filas A y B: $(( 2 * EQUIDAD_NBASE )) puntos por caso (EQUIDAD_NBASE)"
+    echo "    procesos  = $PROCS (como mucho $PROCS_MAX)"
+    echo "    sometim.  = $TOPE_EQ s (hasta las 07:00 de Bogota menos 15 min; TOPE_EQUIDAD_S)"
+    echo "    salidas   = $EQ_DIR"
+    echo "    reanuda   = ${_reanuda[*]:-no}"
+    echo
+    echo "--- 1/3 · la compuerta del punto base (trece casos al peso contra el canon)"
+    if [[ -f "$EQ_DIR/base/punto_base.csv" && -n "${_reanuda[*]:-}" ]]; then
+      echo "    se usa $EQ_DIR/base/punto_base.csv, que ya esta (reanuda)"
+    else
+      PARA_EN_FALLO=1 corre "equidad_caja_punto_base" \
+            gsa_directo/compuerta_punto_base.py --matriz "$MATRIZ_CANON" \
+            --salida "$EQ_DIR/base/punto_base.csv" --cache "$EQ_DIR/cache" || {
+        cod=$?
+        echo "  La compuerta del punto base NO esta en verde (codigo $cod): se para."
+        exit "$cod"
+      }
+    fi
+    echo
+    echo "--- 2/3 · la caja: el Gini y la clase frente a C4 en cada punto"
+    ENVOLTURA=()
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      ENVOLTURA=(timeout --kill-after=300 "$(( TOPE_EQ + 1800 ))")
+    fi
+    PARA_EN_FALLO=0 corre "equidad_caja" gsa_directo/equidad_caja.py \
+          --matriz "$MATRIZ_CANON" \
+          --referencia-base "$EQ_DIR/base/punto_base.csv" \
+          ${_ref_gsa[@]+"${_ref_gsa[@]}"} --casos "${_casos_eq[@]}" \
+          --n-base "$EQUIDAD_NBASE" --procesos "$PROCS" \
+          --tope-total "$TOPE_EQ" --salida-dir "$EQ_DIR" \
+          --cache "$EQ_DIR/cache" ${_reanuda[@]+"${_reanuda[@]}"}
+    ENVOLTURA=()
+    COD_EQ="${CODIGO_CORRE}"
+    echo
+    echo "--- 3/3 · la recogida"
+    bash "$0" recoger equidad_caja
+    echo
+    case "$COD_EQ" in
+      0|seco) echo "=== EQUIDAD EN LA CAJA TERMINADA (codigo $COD_EQ): controles al peso ===" ;;
+      3) echo "=== EQUIDAD EN LA CAJA TERMINADA CON EVALUACIONES FALLIDAS (codigo 3): cada"
+         echo "    una con su motivo en $EQ_DIR/resumen.txt ===" ;;
+      4) echo "=== EQUIDAD EN LA CAJA INCOMPLETA (codigo 4): la noche siguiente, en tmux:"
+         echo "    REANUDAR=1 MATRIZ_CANON=$MATRIZ_CANON bash $0 equidad_caja ===" ;;
+      1) echo "=== EQUIDAD EN LA CAJA: CONTROL EN ROJO (codigo 1): NINGUNA cifra vale ===" ;;
+      *) echo "=== EQUIDAD EN LA CAJA salio con $COD_EQ (124/137: la corto su esperador) ===" ;;
+    esac
+    echo "  Lee $EQ_DIR/resumen.txt; las cifras, en equidad_resumen.csv y"
+    echo "  equidad_puntos.csv. Nada es canon hasta registrarlo."
+    case "$COD_EQ" in 0|seco|3|4) ;; *) exit "$COD_EQ" ;; esac
+    ;;
+
+  dinamica_extrema)
+    # DX (2026-10-07), actividades 1.1 y 4.1: la forma cerrada frente a la
+    # dinamica con PRECIOS EXTREMOS (M-A2X). El mismo brazo de M-A2 (V3a,
+    # k = 1 000 hasta teq 160) y el mismo veredicto.py, sin cambios, en horas
+    # con la bolsa x4, la tarifa x0,5 (0,6 en E4, E5 y P2) y x2. El diseno, en
+    # el docstring de reformateo/documento/scripts/sonda/consenso/
+    # medicion_extrema.py.
+    #
+    # Cinco pasos, todos por corre():
+    #   1. la seleccion (selecciona_extrema.py): el motor del evaluador del
+    #      GSA con los factores de cada familia, las horas por regimen y cada
+    #      una comprobada con el arnes (regimen, piso del juego y energia); la
+    #      que ya esta en la carpeta se reutiliza;
+    #   2. el lado derecho, al bit: con los factores en 1, el de siempre, y
+    #      con los de cada familia, el del motor en las diez ramas; si
+    #      difiere, se para con 3;
+    #   3. M-A2X (corre_mediciones.py), dentro de `timeout`: el tope de
+    #      SOMETIMIENTO es lo que quede hasta las 07:00 de Bogota menos una
+    #      corrida (EXTREMA_TOPE_S) y 15 min;
+    #   4. el veredicto de siempre (veredicto.py);
+    #   5. la lectura por regimen y familia de precio (lectura_extrema.py),
+    #      con la de M-A2 al lado si esta; y la recogida.
+    # PARA_EN_FALLO=0 A PROPOSITO, como en validacion_ampliada: una hora que no
+    # llega es un resultado. Solo paran la seleccion (2) y el lado derecho (3).
+    # RETOMA=<k>: la noche siguiente, desde la corrida k del plan.
+    export PARA_EN_FALLO=0
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    CONS="$SONDA/consenso"
+    export EXTREMA_HORAS="${EXTREMA_HORAS:-10}"
+    export EXTREMA_TOPE_S="${EXTREMA_TOPE_S:-10800}"
+    export EXTREMA_FUTILIDAD="${EXTREMA_FUTILIDAD:-0}"
+    export EXTREMA_REGIMENES="${EXTREMA_REGIMENES:-interiores un_comprador topados compradores_cortos}"
+    export EXTREMA_FAMILIAS="${EXTREMA_FAMILIAS:-bolsa4 tarifa_baja tarifa2}"
+    EXTREMA_POR_CASO="${EXTREMA_POR_CASO:-3}"
+    export MEMORIA_POR_PROCESO_GB="${MEMORIA_POR_PROCESO_GB:-1.0}"
+    if ! [[ "$EXTREMA_HORAS" =~ ^[0-9]+$ && "$EXTREMA_TOPE_S" =~ ^[0-9]+$ \
+            && "$EXTREMA_POR_CASO" =~ ^[0-9]+$ ]] || (( EXTREMA_HORAS < 5 )); then
+      echo "  EXTREMA_HORAS (>= 5), EXTREMA_TOPE_S y EXTREMA_POR_CASO son enteros"
+      exit 2
+    fi
+    for _f in $EXTREMA_FAMILIAS; do
+      case "$_f" in bolsa4|tarifa_baja|tarifa2) ;;
+        *) echo "  EXTREMA_FAMILIAS: '$_f' no vale; use bolsa4, tarifa_baja o tarifa2"; exit 2 ;;
+      esac
+    done
+    for _r in $EXTREMA_REGIMENES; do
+      case "$_r" in cuantal|compradores_cortos|excluidos|un_comprador|suma_no_cabe|interiores|topados) ;;
+        *) echo "  EXTREMA_REGIMENES: '$_r' no es un regimen de M-A2"; exit 2 ;;
+      esac
+    done
+    RETOMA="${RETOMA:-}"
+    if [[ -n "$RETOMA" && ! "$RETOMA" =~ ^[0-9]+$ ]]; then
+      echo "  RETOMA=$RETOMA no es un indice del plan"
+      exit 2
+    fi
+    solo_de_noche dinamica_extrema
+    hasta_las_7
+    TOPE_SOMETE="${TOPE_GLOBAL_S:-$(( HASTA_LAS_7 - EXTREMA_TOPE_S - 900 ))}"
+    if (( TOPE_SOMETE < 600 )); then
+      echo "  El tope de sometimiento sale en $TOPE_SOMETE s: no queda noche para una"
+      echo "  corrida de $EXTREMA_TOPE_S s antes de las 07:00. TOPE_GLOBAL_S lo fija."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      TOPE_SOMETE=600
+    fi
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    crea_dir "$DX_DIR"
+    CODIGOS=()
+    echo "=== LA DINAMICA CON PRECIOS EXTREMOS (M-A2X, DX) ==="
+    echo "    MTE_ROOT    = $MTE_ROOT"
+    echo "    salidas     = $DX_DIR"
+    echo "    familias    = $EXTREMA_FAMILIAS (EXTREMA_FAMILIAS; tarifa_baja es 0,6 en E4, E5 y P2)"
+    echo "    regimenes   = $EXTREMA_REGIMENES (EXTREMA_REGIMENES)"
+    echo "    horas       = hasta $EXTREMA_HORAS por regimen y familia (EXTREMA_HORAS), $EXTREMA_POR_CASO por regimen, caso y familia en la seleccion"
+    echo "    brazo       = k = 1 000 hasta teq 160, tope $EXTREMA_TOPE_S s por corrida (EXTREMA_TOPE_S)"
+    echo "    futilidad   = $EXTREMA_FUTILIDAD (EXTREMA_FUTILIDAD=1 la activa)"
+    echo "    procesos    = $PROCS (como mucho $PROCS_MAX; MEMORIA_POR_PROCESO_GB=$MEMORIA_POR_PROCESO_GB)"
+    echo "    memoria     = ${MEMORIA_TESIS:-SIN tope duro (lo pone la contencion, solo en Linux)}"
+    echo "    sometimiento= $TOPE_SOMETE s (hasta las 07:00 de Bogota menos una corrida y 15 min; TOPE_GLOBAL_S)"
+    echo "    retoma      = ${RETOMA:-no (desde la corrida 0)}"
+    echo
+
+    echo "--- 1/5 · la seleccion: el motor con los factores y cada hora comprobada con el arnes"
+    _faltan=0
+    for _f in $EXTREMA_FAMILIAS; do
+      for CASO in $CASOS_AMPLIADA; do
+        [[ -f "$DX_DIR/horas_${CASO}__${_f}.json" ]] || _faltan=$(( _faltan + 1 ))
+      done
+    done
+    if [[ "$_faltan" == "0" && "${REHACE_MUESTRA:-0}" != "1" ]]; then
+      echo "    se usan los horas_<caso>__<familia>.json que ya estan en $DX_DIR"
+      CODIGOS+=("seleccion=ya_estaba")
+    else
+      if [[ -n "$RETOMA" ]]; then
+        echo "  RETOMA=$RETOMA y faltan $_faltan ficheros de seleccion: el plan cambiaria."
+        echo "  Se para."
+        if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      fi
+      # shellcheck disable=SC2086
+      corre "dinamica_extrema_seleccion" "$CONS/selecciona_extrema.py" \
+            --familias $EXTREMA_FAMILIAS --regimenes $EXTREMA_REGIMENES \
+            --por-regimen "$EXTREMA_POR_CASO" --procesos "$PROCS" \
+            --salida-dir "$DX_DIR" --cache "$DX_DIR/cache"
+      CODIGOS+=("seleccion=${CODIGO_CORRE}")
+      if [[ "${CODIGO_CORRE}" != "seco" && "${CODIGO_CORRE}" != "0" ]]; then
+        echo "  === LA SELECCION NO SALIO LIMPIA (codigo ${CODIGO_CORRE}): se para. Mira"
+        echo "  $LOGS/dinamica_extrema_seleccion_<fecha>.log ==="
+        exit 2
+      fi
+    fi
+
+    echo
+    echo "--- 2/5 · el lado derecho: al bit con los factores en 1 y frente al motor con los de cada familia"
+    # shellcheck disable=SC2086
+    corre "dinamica_extrema_lado_derecho" "$CONS/lado_derecho_extremo.py" \
+          --horas "$DX_DIR" --familias $EXTREMA_FAMILIAS
+    CODIGOS+=("lado_derecho=${CODIGO_CORRE}")
+    if [[ "${CODIGO_CORRE}" != "seco" && "${CODIGO_CORRE}" != "0" ]]; then
+      echo "  === EL LADO DERECHO DIFIERE, O NO SE PUDO COMPROBAR: se para ==="
+      echo "  Mira $LOGS/dinamica_extrema_lado_derecho_<fecha>.log"
+      exit 3
+    fi
+
+    echo
+    echo "--- 3/5 · M-A2X: la forma cerrada frente a la dinamica, por regimen y familia de precio"
+    _plan="EXTREMA_HORAS=$EXTREMA_HORAS EXTREMA_FUTILIDAD=$EXTREMA_FUTILIDAD EXTREMA_REGIMENES=${EXTREMA_REGIMENES// /,} EXTREMA_FAMILIAS=${EXTREMA_FAMILIAS// /,}"
+    if [[ -f "$DX_DIR/PLAN" ]]; then
+      if [[ "$(cat "$DX_DIR/PLAN")" != "$_plan" ]]; then
+        echo "  $DX_DIR se planifico con «$(cat "$DX_DIR/PLAN")» y ahora es «$_plan»:"
+        echo "  los indices del plan no valdrian. Usa las mismas, u otra EXTREMA_SALIDAS."
+        exit 2
+      fi
+    elif [[ -n "$RETOMA" ]]; then
+      echo "  RETOMA=$RETOMA sin $DX_DIR/PLAN: no se sabe con que plan se corrio. Se para."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+    elif [[ "${SECO:-0}" == "1" ]]; then
+      printf '  [SECO] %s > %q\n' "$_plan" "$DX_DIR/PLAN"
+    else
+      printf '%s\n' "$_plan" > "$DX_DIR/PLAN"
+    fi
+    _previos=()
+    shopt -s nullglob
+    for _j in "$DX_DIR"/m_a2x*.json; do _previos+=("$_j"); done
+    shopt -u nullglob
+    if [[ -n "$RETOMA" ]]; then
+      SALIDA_DX="$DX_DIR/m_a2x_desde${RETOMA}.json"
+      EXTREMA_PREVIOS="$(IFS=,; echo "${_previos[*]}")"
+      export EXTREMA_PREVIOS
+      if [[ -e "$SALIDA_DX" && "${SECO:-0}" != "1" ]]; then
+        echo "  $SALIDA_DX ya existe: no se pisa. Mira el indice de RETOMA."
+        exit 2
+      fi
+    else
+      SALIDA_DX="$DX_DIR/m_a2x.json"
+      unset EXTREMA_PREVIOS
+      if [[ -e "$SALIDA_DX" && "${SECO:-0}" != "1" ]]; then
+        echo "  $SALIDA_DX ya existe: para seguir, RETOMA=<k> (el registro de la"
+        echo "  noche anterior dice k); para empezar de cero, otra EXTREMA_SALIDAS."
+        exit 2
+      fi
+    fi
+    ENVOLTURA=()
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      ENVOLTURA=(timeout --kill-after=300 "$(( TOPE_SOMETE + EXTREMA_TOPE_S + 900 ))")
+    fi
+    corre "dinamica_extrema_m_a2x" "$CONS/corre_mediciones.py" \
+          --medicion medicion_extrema --salida "$SALIDA_DX" \
+          --procesos "$PROCS" --tope-total "$TOPE_SOMETE" --horas "$DX_DIR" \
+          --desde "${RETOMA:-0}"
+    ENVOLTURA=()
+    CODIGO_DX="${CODIGO_CORRE}"
+    CODIGOS+=("m_a2x=${CODIGO_CORRE}")
+
+    echo
+    echo "--- 4/5 · el veredicto de siempre (veredicto.py) sobre todos los JSON de M-A2X"
+    _todos=()
+    shopt -s nullglob
+    for _j in "$DX_DIR"/m_a2x*.json; do _todos+=("$_j"); done
+    shopt -u nullglob
+    if [[ "${SECO:-0}" == "1" && ${#_todos[@]} -eq 0 ]]; then _todos=("$SALIDA_DX"); fi
+    if [[ ${#_todos[@]} -gt 0 ]]; then
+      corre "dinamica_extrema_veredicto" "$CONS/veredicto.py" "${_todos[@]}" \
+            --horas "$DX_DIR" --salida "$DX_DIR/veredicto_m_a2x.txt"
+      CODIGOS+=("veredicto=${CODIGO_CORRE}")
+      echo
+      echo "--- 5/5 · la lectura por regimen y familia de precio"
+      _base=()
+      if [[ -f "$VAL2/lectura_m_a2.csv" ]]; then _base=(--base "$VAL2/lectura_m_a2.csv"); fi
+      corre "dinamica_extrema_lectura" "$CONS/lectura_extrema.py" "${_todos[@]}" \
+            --horas "$DX_DIR" ${_base[@]+"${_base[@]}"} \
+            --salida "$DX_DIR/lectura_m_a2x.txt" --csv "$DX_DIR/lectura_m_a2x.csv"
+      CODIGOS+=("lectura=${CODIGO_CORRE}")
+    else
+      echo "  ningun JSON de M-A2X en $DX_DIR: no hay veredicto ni lectura"
+      CODIGOS+=("veredicto=sin_json" "lectura=sin_json")
+    fi
+
+    echo
+    bash "$0" recoger dinamica_extrema
+    echo
+    echo "=== DINAMICA CON PRECIOS EXTREMOS: codigos ${CODIGOS[*]} ==="
+    if [[ "$CODIGO_DX" == "4" ]]; then
+      _log="$(ultimo_registro dinamica_extrema_m_a2x)"
+      _k="$(grep -oE 'RETOMA con:  --desde [0-9]+' "$_log" 2>/dev/null | tail -n 1 | grep -oE '[0-9]+$' || true)"
+      echo "  M-A2X INCOMPLETA (el tope de sometimiento dejo corridas del plan)."
+      echo "  La noche siguiente, en tmux y con las mismas variables:"
+      echo "    RETOMA=${_k:-<k del registro>} bash $0 dinamica_extrema"
+    elif [[ "$CODIGO_DX" != "0" && "$CODIGO_DX" != "seco" ]]; then
+      echo "  === M-A2X salio con $CODIGO_DX (124/137: la corto su esperador; 1: el"
+      echo "  pool murio tres veces). Mira $LOGS/dinamica_extrema_m_a2x_<fecha>.log ==="
+    fi
+    echo "  Lee: $DX_DIR/lectura_m_a2x.txt y $DX_DIR/veredicto_m_a2x.txt."
+    ;;
+
+  caso_autora)
+    # CA (2026-10-07), actividad 1.1: M-G, el caso de seis agentes de la
+    # autora con la dinamica regularizada, repetida con el tope que le falto
+    # (medicion_autora.py; su docstring dice que corrida fue, que dijo y por
+    # que esta es la que es). Ocho corridas: las dos horas, las dos formas del
+    # jugador virtual, k = 1 000 y k = 100, sin los brazos k = 1 (no caben en
+    # una noche); el juicio de M-G contra la tabla, sin cambios.
+    #   1. M-G repetida (corre_mediciones.py), con AUTORA_PROCESOS (4) y un tope
+    #      por corrida AUTORA_TOPE_S (7 h, o lo que quede hasta las 07:00 menos
+    #      15 min), dentro de `timeout`;
+    #   2. el veredicto de M-G (veredicto.py llama a medicion_chacon.veredicto);
+    #   y la recogida.
+    export PARA_EN_FALLO=0
+    CONS="$SONDA/consenso"
+    export MEMORIA_POR_PROCESO_GB="${MEMORIA_POR_PROCESO_GB:-1.0}"
+    AUTORA_PROCESOS="${AUTORA_PROCESOS:-4}"
+    if ! [[ "$AUTORA_PROCESOS" =~ ^[0-9]+$ ]] || (( AUTORA_PROCESOS < 1 )); then
+      echo "  AUTORA_PROCESOS=$AUTORA_PROCESOS no es un entero positivo"
+      exit 2
+    fi
+    if (( AUTORA_PROCESOS > PROCS )); then AUTORA_PROCESOS="$PROCS"; fi
+    solo_de_noche caso_autora
+    hasta_las_7
+    _tope_ca=$(( HASTA_LAS_7 - 900 ))
+    if (( _tope_ca > 25200 )); then _tope_ca=25200; fi
+    export AUTORA_TOPE_S="${AUTORA_TOPE_S:-$_tope_ca}"
+    if ! [[ "$AUTORA_TOPE_S" =~ ^[0-9]+$ ]] || (( AUTORA_TOPE_S < 3600 )); then
+      echo "  AUTORA_TOPE_S=$AUTORA_TOPE_S: hace falta al menos 3 600 s por corrida (la"
+      echo "  de 2026-09-18 ya se corto en 3 600); no queda noche, o no es un entero."
+      if [[ "${SECO:-0}" != "1" ]]; then exit 2; fi
+      AUTORA_TOPE_S=3600
+    fi
+    if [[ -e "$CA_DIR/m_g2.json" && "${SECO:-0}" != "1" ]]; then
+      echo "  $CA_DIR/m_g2.json ya existe: no se pisa; otra AUTORA_SALIDAS."
+      exit 2
+    fi
+    TIMEOUT_GNU=0
+    if timeout --version >/dev/null 2>&1; then TIMEOUT_GNU=1; fi
+    crea_dir "$CA_DIR"
+    echo "=== EL CASO DE LA AUTORA CON EL TOPE SUFICIENTE (M-G repetida, CA) ==="
+    echo "    salidas   = $CA_DIR"
+    echo "    corridas  = 8: 22:00 y 14:00, barrera y precio, k = 1 000 y k = 100 (sin k = 1)"
+    echo "    tope      = $AUTORA_TOPE_S s por corrida (AUTORA_TOPE_S)"
+    echo "    procesos  = $AUTORA_PROCESOS (AUTORA_PROCESOS; MEMORIA_POR_PROCESO_GB=$MEMORIA_POR_PROCESO_GB)"
+    echo
+    echo "--- 1/2 · M-G repetida"
+    # Ninguna corrida se somete si no puede terminar con su tope antes de las
+    # 07:00 menos 15 min, y el esperador corta todo a las 07:00 menos 5 min:
+    # de dia no queda nada corriendo. Lo que ya termino esta en el JSON.
+    _somete_ca=$(( HASTA_LAS_7 - 900 - AUTORA_TOPE_S ))
+    if (( _somete_ca < 60 )); then _somete_ca=60; fi
+    ENVOLTURA=()
+    if [[ "$TIMEOUT_GNU" == "1" ]]; then
+      _espera_ca=$(( HASTA_LAS_7 - 300 ))
+      if (( _espera_ca < AUTORA_TOPE_S + 600 )); then
+        _espera_ca=$(( AUTORA_TOPE_S + 600 ))
+      fi
+      ENVOLTURA=(timeout --kill-after=300 "$_espera_ca")
+    fi
+    corre "caso_autora_m_g2" "$CONS/corre_mediciones.py" \
+          --medicion medicion_autora --salida "$CA_DIR/m_g2.json" \
+          --procesos "$AUTORA_PROCESOS" --tope-total "$_somete_ca" \
+          --horas "$CA_DIR"
+    ENVOLTURA=()
+    COD_CA="${CODIGO_CORRE}"
+    echo
+    echo "--- 2/2 · el juicio de M-G contra la tabla"
+    if [[ -f "$CA_DIR/m_g2.json" || "${SECO:-0}" == "1" ]]; then
+      corre "caso_autora_veredicto" "$CONS/veredicto.py" "$CA_DIR/m_g2.json" \
+            --horas "$CA_DIR" --salida "$CA_DIR/veredicto_m_g2.txt"
+    else
+      echo "  no hay $CA_DIR/m_g2.json: no hay veredicto"
+    fi
+    echo
+    bash "$0" recoger caso_autora
+    echo
+    echo "=== CASO DE LA AUTORA: M-G repetida salio con $COD_CA ==="
+    echo "  Lee $CA_DIR/veredicto_m_g2.txt (M-G CONTRA LA TABLA, al final)."
+    ;;
+
+  cierre_parciales)
+    # La noche del 2026-10-07: EQ, y despues CA y DX A LA VEZ, sin pasar nunca
+    # de PROCS (16) procesos ni salir del scope de memoria de la contencion
+    # (las tres acciones se lanzan desde aqui, con CONTENIDO ya puesto).
+    #   1. equidad_caja con PROCS procesos (unos 35 min);
+    #   2. caso_autora con AUTORA_PROCESOS (4) en segundo plano y
+    #      dinamica_extrema con PROCS - AUTORA_PROCESOS (12), hasta las 07:00.
+    # Cada una deja sus registros y su tar; los codigos, al final. En seco, las
+    # tres en serie, para ver las ordenes.
+    AUTORA_PROCESOS="${AUTORA_PROCESOS:-4}"
+    if ! [[ "$AUTORA_PROCESOS" =~ ^[0-9]+$ ]] || (( AUTORA_PROCESOS < 1 )) \
+        || (( AUTORA_PROCESOS >= PROCS )); then
+      echo "  AUTORA_PROCESOS=$AUTORA_PROCESOS: tiene que ser un entero entre 1 y PROCS - 1 ($(( PROCS - 1 )))"
+      exit 2
+    fi
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    solo_de_noche cierre_parciales
+    _dx_procs=$(( PROCS - AUTORA_PROCESOS ))
+    echo "=== LA NOCHE DE LOS PARCIALES: EQ con $PROCS procesos; despues CA con"
+    echo "    $AUTORA_PROCESOS y DX con $_dx_procs a la vez (nunca mas de $PROCS) ==="
+    echo
+    echo "##### 1/2 · EQ"
+    _cod_eq=0
+    bash "$0" equidad_caja || _cod_eq=$?
+    if [[ "$_cod_eq" != "0" ]]; then
+      echo "  EQ salio con $_cod_eq; CA y DX siguen (no dependen de EQ)"
+    fi
+    echo
+    echo "##### 2/2 · CA ($AUTORA_PROCESOS procesos) y DX ($_dx_procs) a la vez"
+    _cod_ca=0
+    _cod_dx=0
+    if [[ "${SECO:-0}" == "1" ]]; then
+      PROCS="$AUTORA_PROCESOS" AUTORA_PROCESOS="$AUTORA_PROCESOS" bash "$0" caso_autora || _cod_ca=$?
+      PROCS="$_dx_procs" bash "$0" dinamica_extrema || _cod_dx=$?
+    else
+      _consola_ca="$LOGS/cierre_parciales_caso_autora_$(marca).consola"
+      echo "  CA en segundo plano; su consola, en $_consola_ca"
+      PROCS="$AUTORA_PROCESOS" AUTORA_PROCESOS="$AUTORA_PROCESOS" \
+        bash "$0" caso_autora > "$_consola_ca" 2>&1 &
+      _pid_ca=$!
+      PROCS="$_dx_procs" bash "$0" dinamica_extrema || _cod_dx=$?
+      wait "$_pid_ca" || _cod_ca=$?
+      tail -n 15 "$_consola_ca" | sed 's/^/  CA| /'
+    fi
+    echo
+    echo "=== LA NOCHE DE LOS PARCIALES: EQ=$_cod_eq CA=$_cod_ca DX=$_cod_dx ==="
+    echo "  Recoge las tres en un solo tar: bash $0 recoger cierre_parciales"
+    ;;
+
   tanda)
     # Las tres mediciones nuevas seguidas, que es lo que se subio a medir.
     N="${2:-200}"
@@ -3388,8 +3938,46 @@ print(" ".join(sorted(palancas)))
         shopt -u nullglob
         TAR_EXCLUIR=(--exclude="$TARIFA_DIR/cache")
         ;;
+      equidad_caja|dinamica_extrema|caso_autora|cierre_parciales)
+        # EQ, DX y CA (2026-10-07): sus CSV, JSON, veredictos, lecturas y
+        # registros; sin la cache del MTE. SOLO sus carpetas y sus registros.
+        QUE=()
+        if [[ "$DE" == "equidad_caja" || "$DE" == "cierre_parciales" ]]; then
+          ESPERADOS+=("$EQ_DIR/base/punto_base.csv" "$EQ_DIR/equidad_puntos.csv"
+                      "$EQ_DIR/equidad_resumen.csv" "$EQ_DIR/resumen.txt"
+                      "$(ultimo_registro equidad_caja_punto_base)"
+                      "$(ultimo_registro equidad_caja)")
+          QUE+=("$EQ_DIR")
+          TAR_EXCLUIR+=(--exclude="$EQ_DIR/cache")
+        fi
+        if [[ "$DE" == "dinamica_extrema" || "$DE" == "cierre_parciales" ]]; then
+          ESPERADOS+=("$DX_DIR/PLAN" "$DX_DIR/m_a2x.json"
+                      "$DX_DIR/veredicto_m_a2x.txt" "$DX_DIR/lectura_m_a2x.txt"
+                      "$DX_DIR/lectura_m_a2x.csv"
+                      "$(ultimo_registro dinamica_extrema_seleccion)"
+                      "$(ultimo_registro dinamica_extrema_lado_derecho)"
+                      "$(ultimo_registro dinamica_extrema_m_a2x)")
+          QUE+=("$DX_DIR")
+          TAR_EXCLUIR+=(--exclude="$DX_DIR/cache")
+        fi
+        if [[ "$DE" == "caso_autora" || "$DE" == "cierre_parciales" ]]; then
+          ESPERADOS+=("$CA_DIR/m_g2.json" "$CA_DIR/veredicto_m_g2.txt"
+                      "$(ultimo_registro caso_autora_m_g2)")
+          QUE+=("$CA_DIR")
+        fi
+        shopt -s nullglob
+        case "$DE" in
+          equidad_caja) QUE+=("$LOGS"/equidad_caja_*.log) ;;
+          dinamica_extrema) QUE+=("$LOGS"/dinamica_extrema_*.log) ;;
+          caso_autora) QUE+=("$LOGS"/caso_autora_*.log) ;;
+          cierre_parciales)
+            QUE+=("$LOGS"/equidad_caja_*.log "$LOGS"/dinamica_extrema_*.log
+                  "$LOGS"/caso_autora_*.log "$LOGS"/cierre_parciales_*.consola) ;;
+        esac
+        shopt -u nullglob
+        ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo, validacion_ampliada, gsa_directo o tarifa_extrema"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo, validacion_ampliada, gsa_directo, tarifa_extrema, equidad_caja, dinamica_extrema, caso_autora o cierre_parciales"
         exit 2
         ;;
     esac

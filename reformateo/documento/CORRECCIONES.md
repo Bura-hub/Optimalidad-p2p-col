@@ -12495,3 +12495,70 @@ El autor confirma los correos: `ad_pantoja@udenar.edu.co` y `gdobando@udenar.edu
 **CLAUDE.md, regla 6:** la cifra que se cita es la de CANON §14.33 (99 de 141 horas en los 13 casos); «17 de las 18» queda solo como primera medición del anexo C y no se suma (VA-7).
 
 **Lanzador (H-TE-1, VA-1):** `run_servidor.sh` lee al arrancar `git rev-parse HEAD` y el número de ficheros versionados con cambios, y `corre()` los escribe con la orden en las dos primeras líneas de cada registro, con «#» delante. El modo en seco no cambia. Comprobado: sintaxis, 56 pruebas del lanzador (`test_validacion_ampliada`, `test_gsa_directo_lanzador`, `test_matriz_mecanismo_lanzador`) sin escrituras nuevas en `modelo_base/` ni `SALIDAS_SERVIDOR/`, y un `corre()` real sobre un directorio temporal.
+
+### C-370 · Los hallazgos de estilo y coherencia del informe de jurado y la regla de parada de la validación (2026-10-07)
+
+**Origen:** informe de jurado del 2026-10-07 (`scratchpad/tesis360/jurado_2026-10-07.md`), sección 2.B completa (E-G1, E-G2, E-I1 a E-I7, E-M1 a E-M10) y, de la sección 2.A, solo C-I7. Cada cifra nueva se comprobó en su fuente, no en el informe.
+
+**C-I7, la regla de parada frente a los recuentos de la tabla de validación** (anexo C, `anx:c-validacion`, y cuerpo, `sec:modelo-validacion`). Causa confirmada en `modelo_base/logs/validacion_ampliada_m_a2_2026-10-06_1638.log`: las 139 líneas `=== OMITIDA` salen al someter cada hora; en los siete regímenes, todas las horas que terminaron después de la tercera en contra tenían índice de plan menor que la primera omitida, es decir, ya estaban sometidas. En los interiores no hay ninguna omitida, porque su tercera en contra llegó después de someter la última hora del plan (279). Seis regímenes juntaron más de tres en contra (cuantal 4, un comprador 5, topados 6, suma que no cabe 7, compradores cortos 8, interiores 9). El anexo C dice ahora que el régimen dejaba de tomar horas nuevas y que las ya en curso en los 16 procesos se integraron hasta el final; el cuerpo, «dejó de tomar horas nuevas».
+
+**Graves.**
+- E-G1: los trabajos futuros ya no piden «más horas que la muestra de E0», sino contrastar la forma cerrada con la dinámica sin acelerar y en los topados y la suma que no cabe (40 y 36 %, CANON §14.33).
+- E-G2: §VI (entrada) incluye los beneficios intangibles en la actividad 3.3 y dice que se miden aparte, en lugar de «sin los beneficios intangibles».
+
+**Importantes.**
+- E-I1: el 0,77 % es el de ε = −0,37. Cuerpo (VI-E), anexo D (Tabla D.6) y anexo G dan la elasticidad; el anexo G añade el rango de E4, del 0,41 al 0,98 % (CANON §14.31, comprobado: 0,773 × 0,197/0,37 y × 0,468/0,37); el cuerpo añade que la autosuficiencia sube menos de 0,2 puntos si la cubre la comunidad (0,17 en I1).
+- E-I2: el anexo G atribuía al PPA la media de la bolsa; ahora, la media de los contratos de XM (287,41 COP/kWh, `c2_ppa.py`, `pp_media`, y CANON §14.22).
+- E-I3: anexos C y G separan las dos mediciones: las 20 horas del despacho son de la primera; el 4 de 11 de la saturación, de la segunda (CANON §14.5 y §14.33).
+- E-I4: conclusiones del objetivo 3 con la prima de riesgo (baja como mucho un 24 %, sin cambiar de signo) y la satisfacción; del objetivo 4 con la tarifa de la mitad al doble.
+- E-I5 (anexo A): la Tabla de entregas suma las 13 entregas de octubre que faltaban (GSA con C2 y el P2P colectivo, corte y fondo, fondo por planta, previsión del corte, GSA con H1, hora resuelta, las dos matrices con su piso y sus dos liquidaciones, IA, TE y VA), con huellas recontadas en `HUELLAS.csv` por grupo (109, 3, 3, 3, 107, 3, 271, 3, 271, 3, 7, 6 y 36: 825) y commits de CANON §13.9, §13.10 y §14.25 a §14.33 y de las constantes `*_CODIGO` del verificador. La nota suma 1 546, 1 567 y 2 392, que es el total del fichero. La fila L y la tabla de guiones pasan a 3 462 cifras, 204 artefactos y 68 compuertas (CANON l. 3079). La tabla del bloque 10 suma los puntos S, P, PC, PD, CF, H1, PV, HR, H2, PCX, IA, TE y VA; la de bloques, los bloques 11 a 14 que el verificador ya tiene («diez bloques» pasa a «catorce» en dos sitios).
+- E-I6: el anexo C suma las dos salvedades de CANON §14.33 (dinámica acelerada; muestra inclinada hacia abril, 83 de 141 horas de abril y 21 de mayo, recontadas en `m_a2.json`); el cuerpo, «con la dinámica acelerada y una muestra inclinada hacia abril».
+- E-I7: la prima del anexo G es «un supuesto de esta medición», no una «regla adoptada»; VI-E da β = 0,10, que sube en I1 y que no cambia de signo ni con β = 0,20.
+
+**Menores.**
+- E-M1: el anexo G ya no habla de «18 páginas».
+- E-M2: seis «es decir» menos en el cuerpo (art. 9, horizonte, agotamiento del crédito, emparejamiento, punto base, supuesto 1); queda en 1,46 por mil.
+- E-M3: el pie de la Figura de las cascadas baja de 121 a 100 palabras (sin el eje cortado ni «en el horizonte»); «El resto es del supuesto~2» y «El resto es del intercambio exento» pasan al texto de §VI-C.
+- E-M4: el anexo G dice «salvo en I1 y E4», con E4 de 4,14 a 2,08 MCOP entre 0,6 y el doble.
+- E-M5: la Tabla G de la tarifa suma la columna f = 1 de P2P − C1, desde `tarifa_extrema_comunidad.csv`.
+- E-M6: anexo D (Tabla D.2) «desde 0,6 veces en E4, E5 y P2»; anexo B, «de 0,5 a 2» en el contraste de la tarifa.
+- E-M7: como C-I5 no se aplicó, se cambió la regla de la matriz: un estado «completado» puede ir seguido de su precisión.
+- E-M8: «mercado entre pares» pasa a «mercado P2P» en el anexo E; «vía legal» a «forma legal» en el pie y la cabecera de la Tabla F del cuarto grupo.
+- E-M9: dos cadenas con «, y» partidas (introducción y P2P mutualizado).
+- E-M10: la fila 1 de la Tabla D.6 remite a `T-sec:datos-parametros`; la 4, a `T-sec:des-equidad`.
+
+**Cifras del informe que no coincidían con su fuente:**
+- E-M5: E3 con f = 1 vale 6,7647 MCOP en el CSV, así que se puso 6,76 y no el 6,77 del informe (que redondeaba el 6,765 del canon).
+- E-I5: el informe daba la fila L «sin commit», como CANON l. 3079; el verificador (`E1_L_CODIGO`) y la procedencia de e1/L citan `c072a99` sin cambios pendientes, así que el anexo A pone `c072a99` y dice que siguen sin commit los guiones de S, P, PC, PD, PV y HR. **Queda para el autor corregir CANON l. 3079**, que no se tocó.
+- E-I5: el informe no listaba `entrega_matriz_p2pcom_2026-10-05/` (271 huellas, bloque 14). Se añadió porque sin ella la suma no da el total de `HUELLAS.csv`.
+
+**Comprobaciones:** tesis en 17 páginas hasta el fin de las referencias, anexos en 71; 0 indefinidas, 0 duplicadas y 0 Overfull en los dos; vetadas LIMPIA en los ocho ficheros; cifras sin huérfanos nuevos frente a `antes_c370/` en los ocho (los mismos 4, 28, 9, 1, 118 y 52 del cuerpo y los anexos B, C, D, F y G; A y E LIMPIO); CANON 2026-09 INTACTO; «es decir» en 1,46 por mil y ningún pie de más de 100 palabras. **Respaldo:** `Documentos/Tesis_entrega/antes_c370/`.
+
+### C-371 · Impactos y riesgos del modelo transaccional (actividades 4.1.1 y 4.1.2 del proyecto MTE) (2026-10-07)
+
+**Qué pidió el autor:** responder a la Supervisión del proyecto MTE, que verificará que la tesis (medio de verificación de las actividades 4.1.1 y 4.1.2) dedique una parte a cómo el estudio contribuye a identificar los impactos y riesgos del modelo, e incluir algo de impactos en el artículo (actividad 4.1.1). Tope de la tesis: 18 páginas más 2 para esta parte (20). Fuentes: `Documentos/Tesis_entrega/RiesgoseImpactos/` (Informes Técnicos 2 y 3 del proyecto y el plan de trabajo).
+
+**Tesis:** sección nueva IX «Impactos y riesgos del modelo transaccional» (`sec:impactos-riesgos`), antes de las conclusiones, de unas 1,5 páginas:
+- impactos (4.1.1): económico y de la comunidad; distributivo (25 de 64 pares bajo C4, el presupuesto decide el reparto, Gini); ambiental casi nulo porque el mercado no cambia la energía, con el consumo inducido de 0,41 a 0,98 % en E4, de signo contrario a la reducción del 5 % que el Informe Técnico 2 supone; replicación que no escala en proporción (umbral de 100 kW y fronteras); intangibles;
+- riesgos (4.1.2): Tabla `tab:riesgos` que cruza RPN-02, RPN-01, RPN-05, RE-01, RE-03, RSO-01/RSO-04, RF-01 y RTT-05 del Informe Técnico 3 con lo medido, más un riesgo funcional nuevo (que el mecanismo de precios no converja), y la cadena regulatoria a financiera;
+- cuatro estrategias (promoción del P2P colectivo ante la CREG, mitigación distributiva, indicador de riesgo, replicación por capacidad y fronteras).
+Ninguna cifra nueva del modelo: todas ya estaban en la tesis o en CANON §14.31-14.32. Las de la infraestructura y las valoraciones V citan los Informes Técnicos 2 y 3, añadidos a `referencias.bib` (`LopezMendez2026IT2`, `LopezMendez2026IT3`). La introducción anuncia la sección y las conclusiones la recogen en un párrafo.
+
+**Artículo (v2_es):** párrafo de impactos al final de las implicaciones regulatorias (actividad 4.1.1): el mercado no cambia la generación ni la demanda, de modo que las emisiones evitadas son las de las plantas; cambian el valor y su reparto; el consumo inducido es menor del 1 % en E4; el riesgo mayor es el regulatorio. Se corrige también el trabajo futuro que pedía «más horas que la muestra de E0» (ahora, la dinámica sin acelerar). Compensación para seguir en 9 páginas: se quitan el detalle de la energía a la bolsa en E3, la glosa del gestor comunitario, se condensa la frase de la robustez, se acorta la salvedad de la lectura opuesta del numeral 2, los trabajos futuros y la frase de los datos del MTE.
+
+**Comprobaciones:** tesis en 19 páginas hasta el fin de las referencias (tope 20), 0 indefinidas, 0 Overfull; anexos en 71; artículo en 9 páginas; vetadas LIMPIA y cifras sin huérfanos nuevos en la tesis y LIMPIO en el artículo; estilo dentro del perfil. Respaldos en `Documentos/Tesis_entrega/antes_c371/` y `manuscrito/antes_c371/`.
+
+### C-372 · Impactos y riesgos como parte propia de la tesis; el artículo vuelve a como estaba (2026-10-07)
+
+**Qué pidió el autor:** que la sección no mencione números de actividad ni los informes técnicos del proyecto, sino que se lea de forma natural como parte de la tesis; y que el artículo quede sin impactos ni riesgos, como estaba.
+
+**Tesis:** la sección IX «Impactos y riesgos del modelo transaccional» se reescribe sin códigos de actividad, sin los informes técnicos ni sus códigos y valoraciones de riesgo, y sin las cifras de la infraestructura (emisiones evitadas, reducción supuesta del consumo, escenarios de réplica). Abre con por qué un modelo transaccional se juzga también por sus impactos y riesgos, y separa la infraestructura, igual con cualquier mecanismo. La Tabla `tab:riesgos` nombra cada riesgo por su clase (regulatorio, económico, social, funcional, escalabilidad). Las estrategias son «para quien implemente el modelo». La introducción y las conclusiones la mencionan sin códigos. Se quitan de `referencias.bib` las dos entradas de los informes técnicos.
+
+**Artículo:** se restituye desde `manuscrito/antes_c371/` (con C-369 incluido); el zip de Overleaf se regeneró. Queda en el artículo, como estaba, el trabajo futuro «confirmar la forma cerrada… en más horas que la muestra de E0».
+
+**Comprobaciones:** tesis en 19 páginas (tope 20), 0 indefinidas, 0 Overfull; anexos sin indefinidas ni Overfull; vetadas LIMPIA; cifras con los mismos 4 huérfanos de antes; «es decir» 1,36 por mil; artículo en 9 páginas.
+
+### C-373 · Trabajo futuro del artículo y DOI del WEEF (2026-10-07)
+
+- **Artículo (v2_es), trabajos futuros:** «confirmar la forma cerrada, hoy una regla adoptada, en más horas que la muestra de E0» pasa a «contrastar la forma cerrada, hoy una regla adoptada, con la dinámica sin acelerar», coherente con la validación en los 13 casos (CANON §14.33) que el artículo ya cita. Sigue en 9 páginas; vetadas LIMPIA; zip de Overleaf regenerado.
+- **DOI del WEEF:** el autor confirma que todavía no existe, porque el evento acaba de celebrarse. Se quita la nota «DOI por confirmar» («DOI to be provided» en inglés) de `Lopez2026WEEF` en los `referencias.bib` de la tesis, del artículo en español y del artículo en inglés. Tesis en 19 páginas y artículos en 9, sin avisos de BibTeX.

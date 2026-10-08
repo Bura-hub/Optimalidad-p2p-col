@@ -12,7 +12,8 @@ bolsa x4, la tarifa x0,5 o 0,6 y x2):
      con el resultado de cada una de las 6 144 horas (`EMSP2P.run` se
      intercepta, no se reimplementa);
   2. agrupa las horas por el regimen que les da el motor y muestrea, con
-     semilla, las de los regimenes pedidos;
+     semilla y en el orden del sorteo (no el cronologico, que inclino la
+     muestra de M-A2 hacia abril), las de los regimenes pedidos;
   3. COMPRUEBA cada hora con el arnes, cargada con los mismos factores
      (`arnes.hora_de(caso, fecha, precios)`, que pasa por
      `paso_a_paso.carga(factor_bolsa, factor_tarifa)`): el reposo en forma
@@ -172,8 +173,11 @@ def selecciona(caso, familia, regimenes, por_reg, semilla, datos=None) -> dict:
             examen[g] = dict(examinadas=0, descartadas=0, motivos={})
             continue
         ancho = min(len(cand), 2 * por_reg)
-        elegidas = sorted(rng.choice(len(cand), size=ancho,
-                                     replace=False).tolist())
+        # En el ORDEN DEL SORTEO, no en el cronologico: M-A2 tomaba la
+        # primera hora de cada caso en orden de fecha y su muestra se inclino
+        # hacia abril (CANON §14.33, salvedades). Aqui la primera de cada
+        # caso es una hora al azar del horizonte.
+        elegidas = rng.choice(len(cand), size=ancho, replace=False).tolist()
         buenas, motivos = [], {}
         examinadas = 0
         for i in elegidas:

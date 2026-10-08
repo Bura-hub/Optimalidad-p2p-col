@@ -12611,3 +12611,139 @@ Aplicados con las recomendaciones dadas al autor, que pidió seguir con ellos.
 - **Anexo D:** celdas de las actividades 1.1 (el caso de la autora, con su resultado) y 4.1 (la equidad medida; faltan la dinámica con precios extremos, en curso, y la entrada de participantes; sigue «parcial»); pendientes 1 y 3; filas de la equidad y de la sensibilidad con índices globales en la tabla de hipótesis.
 
 **Comprobaciones:** tesis en 19 páginas hasta el fin de las referencias, anexos en 73; 0 indefinidas, 0 multiplicadas, 0 Overfull y 0 avisos de BibTeX en los dos; vetadas LIMPIA en los cinco `.tex`; sin cifras huérfanas nuevas frente a `antes_c376/` (4, 3, 1, 117 y 51, las mismas); CANON 2026-09, 2026-08 y de junio INTACTOS.
+
+### C-377 (cuerpo) · Revisión final del cuerpo de la tesis antes de la entrega (2026-10-08)
+
+**Qué se pidió:** revisión final de `Documentos/Tesis_entrega/tesis_entrega.tex` (solo el cuerpo) con el estilo del artículo (guía F de `conclusiones_revision.md`, `ESTILO_AUTOR.md`, GUIA §10 y C-233 a C-376), el Acuerdo 021 (art. 6), la propuesta de tesis y la coherencia interna, con la sección IX revisada en detalle. Indicación del autor durante la revisión: los agradecimientos, solo a la Universidad de Nariño y al proyecto MTE. Los anexos los revisa otro revisor y no se tocaron. Respaldo previo: `Documentos/Tesis_entrega/antes_c377/`.
+
+**Agradecimientos (indicación del autor).** Quedan solo la Universidad de Nariño y su Maestría en Ingeniería Electrónica, y el proyecto MTE con su financiación (CTeI-SGR y Minciencias, BPIN 2021000100499). Sale «También a Udenar, Unimar, la UCC, el HUDN y Unicesmag, que permitieron medir sus fronteras.». «Udenar» pasa a «la Universidad de Nariño», con su nombre completo.
+
+**Reglamento (Acuerdo 021, art. 6).** El cuerpo tiene título, resumen (195 palabras), palabras clave, introducción con motivación y problema, estado del arte, objetivos, propuesta y aportes e impacto, secciones de desarrollo, resultados y discusión, conclusiones por objetivo, agradecimientos y referencias, con los anexos en documento aparte. No faltaba ningún elemento. Solo se corrigió el comentario de cabecera, que daba el límite de 18 páginas (ahora 20, decisión del 2026-10-07).
+
+**Cambios por sección.**
+- **I. Introducción.** El anuncio de la sección IX pasa de «Objetivos» a «Impacto», donde se lee como parte del impacto: «reúne los impactos económicos, sociales y ambientales del modelo transaccional y los riesgos que pueden hacerlo fallar». En el aporte 6, «ningún régimen» pasa a «ningún régimen de precios», porque el término aún no está definido allí.
+- **III. Datos.** «la forma logarítmica de su pago» pasa a «del pago del comprador» (pronombre sin referente).
+- **IV. Modelo.** «Sus autores lo presentan como un juego de Stackelberg» pasa a «presentan el juego como uno de Stackelberg» («lo» sin referente tras el párrafo anterior).
+- **V. Escenarios.** La Figura 1 se presenta con «La Figura 1 muestra C1, C4 y las dos reglas con núcleo P2P que siguen» al cerrar V-B (antes solo se citaba por paneles, entre paréntesis).
+- **VI. Desempeño.** La entrada dice qué subsecciones responden a los niveles 1 (monetario: VI-A a VI-C, con los intangibles en VI-E) y 2 (equidad, precio de la justicia y autosuficiencia: VI-D) de la propuesta, y se parte en dos párrafos. VI-C abre con «La Figura 2 muestra esa partición en E0 y E3 y lo que vale cada supuesto según el orden en que se añade». VI-D remite a VII-A, que repite la comparación de equidad en la caja. El cierre de VI-E dice que la sección VII responde los resultados esperados de factibilidad, condiciones extremas y riesgo regulatorio. Se parte el párrafo de 209 palabras de los porcentajes del primer grupo.
+- **VII. Sensibilidad.** VII-A abre con «La Figura 3 muestra la probabilidad de inversión de cada brecha en los 12 casos» (antes «(Figura 3)» pospuesta). En el párrafo de la equidad en la caja: «donde domina» pasa a «donde el mercado P2P domina a C4 en el punto base», «la caja la cambia» a «la caja cambia esa clase», y una frase nueva dice que lo que cambia es la desigualdad, no el beneficio, porque en ningún punto el mercado P2P ni el P2P colectivo dejan menos que C4 (CANON §14.35). VII-B: «Queda por medir si la dinámica converge con esos precios extremos (anexo D)», sin afirmar su resultado, que sigue en curso. Se parte el párrafo antes de la deserción. VII-C: la entrada de miembros nuevos, que la propuesta también contemplaba, figura como no medida, y se parte el párrafo antes de las 54 comunidades. VII-D: la convergencia a un equilibrio estable, condición habilitante de la actividad 4.2, no quedó verificada en ningún régimen de precios (remite a IV-D).
+- **VIII. Implicaciones.** En los límites, «Tampoco se midieron la entrada de miembros nuevos ni la convergencia de la dinámica con precios extremos». Se parte el párrafo de 204 palabras antes de «El estudio cubre una sola comunidad».
+- **IX. Impactos y riesgos.**
+  - El impacto distributivo suma la equidad en la caja: en E3, E4, P1 y P2, donde el mercado P2P reparte con menos desigualdad en el punto base, la caja le quita esa ventaja en más de un tercio de los puntos (VII-A).
+  - El consumo inducido se armoniza con VI-E: del 0,41 al 0,98 % en E4 según la elasticidad, con el 0,77 % en su valor central. «el ahorro que se suele esperar de que una comunidad vea su consumo» pasa a «atribuir a que».
+  - «cuatro clases: regulatorios, económicos, sociales y funcionales» pasa a «cinco clases… y de escalabilidad», porque la tabla tiene una fila de escalabilidad.
+  - Tabla de riesgos:
+    - fila «cambian las normas»: «Ninguna brecha de la comunidad» pasa a «Ninguna brecha del mercado P2P con C1, C4 o C5 ni la del P2P colectivo con C4», como dice VII-C. C1 − C4 y el mercado sin supuestos sí se mueven;
+    - fila del operador de red: «El P2P mutualizado limita la exención al numeral 1» era inexacta, porque no exime de cargos de red. Pasa a «no exime al intercambio de cargos de red, solo del Cv en el numeral 1» (VIII-D);
+    - fila de precios adversos: «del mercado P2P»;
+    - fila social: «En E3, E4, P1 y P2, la ventaja en equidad sobre C4 depende de los precios» (§14.35);
+    - fila de datos incompletos: «Ese tratamiento sesga en contra del mercado P2P. / Medido. No cambia el signo de las conclusiones» afirmaba una medición que no existe. El anexo G (`anx:g-datos`) solo da el sentido: «casi todo lo que el tratamiento mueve… hace el mercado más pequeño». Pasa a «Casi todo lo que el tratamiento mueve hace el mercado P2P más pequeño. / El sesgo va en contra de la ventaja del mercado P2P, así que no la explica»;
+    - fila de convergencia: «Con precios extremos, su convergencia no se midió».
+  - Tras la tabla:
+    - «La definición de qué cargos paga lo intercambiado decide el signo…» nombraba una sola de las dos definiciones. Pasa a las dos, que «fijan casi toda la ventaja». Sin ninguna, «esa ventaja… casi desaparece y su signo es frágil» (VI-C, VIII-A);
+    - se parte la cadena «…no siempre llega a su reposo, y un mercado que no converge no publica precios».
+- **X. Conclusiones.**
+  - **Objetivo 3:** suma el nivel 2, que no estaba. El mercado P2P domina a C4 en 8 de 13 casos. En los otros cinco, la equidad de C4 cuesta del 1,2 al 13,6 %. La autosuficiencia no distingue a los mecanismos y el factor de coincidencia del mercado P2P supera al de C4 en los 13. El texto se parte en tres párrafos.
+  - **Objetivo 4:** suma la equidad en la caja. La comparación con C4 da lo mismo que en el punto base en al menos el 95 % de la caja en 8 de 12 casos, pero no en E3, E4, P1 y P2. Se parte en dos párrafos.
+  - **Impactos y riesgos:** se parte la cadena «…que arrastra al económico, y el P2P colectivo es su mitigación concreta».
+  - **Implicaciones:** se parten en dos párrafos, antes de las preguntas del art. 20.
+  - **Trabajos futuros:** «en los regímenes de topados y de suma que no cabe» usaba nombres que el cuerpo no define. Pasa a «en los regímenes de precios en que llegó a ella en menos de la mitad de las horas». Suman «con precios extremos» y «medir la entrada de miembros nuevos».
+- **Introducción, estado del arte:** se parte el párrafo de 188 palabras antes de «Esos trabajos diseñan la regla».
+
+**Propuesta de tesis, comprobación.**
+- Cada actividad tiene su respuesta en el cuerpo o remite al anexo: 1.0 a III y anexo B; 1.1 a IV; 1.2 a III-parámetros; 2.1 y 2.2 a V; 3.1 a III; 3.2 a VI-A y VI-B; 3.3 a VI-C a VI-E; 4.1 a VII; 4.2 a IV-E, VII-D y VIII.
+- Los niveles 1 y 2 están ahora explícitos.
+- El precio de la justicia, la autosuficiencia y el factor de coincidencia están en VI-D y VI-E. La descomposición del bienestar del modelo base (§14.34) está en VI-E y en el objetivo 3.
+- La tarifa extrema (§14.32) está en VII-B. La equidad en la caja (§14.35) está en VII-A, IX y el objetivo 4.
+- La deserción está en VII-B. El riesgo regulatorio de C4 (retiro, 100 kW, regla del 10 %) está en VII-C. La optimalidad cualitativa está en IV-E.
+- La dinámica con precios extremos queda «por medir», sin resultado. La entrada de participantes queda como no medida en VII-C y en los límites, y como trabajo futuro.
+
+**Anotado sin aplicar (contenido):** ninguna conclusión cambia. Dos observaciones para el autor:
+1. El perfil de oraciones sigue más corto que el del corpus de 2026: 19,1 palabras por oración frente a 22-27. Es el registro del artículo, que el autor aprobó, así que no se forzó.
+2. Quedan párrafos de 130 a 180 palabras, entre ellos «Su deducción no la fija cada planta», «La segunda razón pesa en I1 y N1» y «En el punto base». Partirlos más costaría líneas sin ganar claridad.
+
+**Para el revisor de los anexos:**
+1. El anexo F (l. 1237, fila P2P de las condiciones) dice que la convergencia con precios extremos «no se midió», y el anexo D (l. 181 y 206) dice «en curso». Hay que unificar el término. El cuerpo dice «queda por medir» y «no se midieron».
+2. El anexo G (`anx:g-datos`, l. 278-279) da el sentido del sesgo del tratamiento del dato, no su tamaño. La fila de la tabla de riesgos del cuerpo ya no dice «medido». Si el anexo tiene una medición de ese efecto, el cuerpo podría volver a citarla.
+
+**Comprobaciones:**
+- `pwsh -File Makefile.ps1 -Final`: cuerpo de 19 páginas hasta el fin de las referencias (tope 20), con 0 citas y 0 referencias indefinidas, 0 Overfull y 0 avisos de BibTeX. Los 5 Underfull son los de antes.
+- Vetadas: LIMPIA.
+- Cifras: los mismos 4 huérfanos que `antes_c377/` (318 093,0 y 63 573,8 kWh, 13,2 y 62,8 %). Ninguno es nuevo.
+- `medir_estilo.py`: 0 rayas, «es decir» en 1,38 por mil, «;» en 0,07 por mil, «:» en prosa en 2,46 por mil, y cero «conviene», «cabe destacar», primera persona u oraciones que abren con cifra.
+- Ninguna cifra nueva: las añadidas al objetivo 3 y a la sección IX ya estaban en el cuerpo (VI-D, VI-E y VII-A).
+
+### C-378 · Revisión final de los anexos para la entrega: estilo del artículo, entregas de octubre y estado de la propuesta (2026-10-08)
+
+**Qué se pidió:** revisar los anexos A a G y `anexos_tesis.tex` antes de la entrega con cuatro criterios: el estilo del artículo (guía F de C-233 a C-376, `ESTILO_AUTOR.md`, GUIA §10), el Acuerdo 021, la propuesta (anexo D al día de hoy) y la coherencia con el cuerpo y con el canon. Las correcciones de forma se aplican y las de contenido que cambien una conclusión se anotan. El cuerpo no se toca, porque lo revisa otro revisor en paralelo. Respaldo previo: `Documentos/Tesis_entrega/antes_c377/`.
+
+**Reglamento.** El Acuerdo 021 (art. 6, lit. j) solo pide los anexos como parte final y deja fuera del límite de páginas a los anexos. No fija nada más para ellos. Cada anexo abre con su propósito y remite al cuerpo con `\ref{T-…}`. La única subsección del anexo G que no decía qué sección amplía era la de la descomposición del bienestar, y ahora lo dice.
+
+**Anexo A.**
+- La Tabla de entregas suma `equidad_caja_2026-10-07/` (d004749, 6 huellas: `e1/EQ` 4 y `eq/logs` 2, punto EQ) y `caso_autora_2026-10-07/` (d004749, 5: `e1/CA` 2 y `ca/logs` 3, punto CA). La nota pasa a «Las 16 entregas posteriores suman 841, de modo que `HUELLAS.csv` tiene 2 408», recontado en el fichero (2 408 filas; 1 567 + 841), con su comentario de fuente al día.
+- La Tabla de puntos del bloque 10 suma EQ (acción `equidad_caja`, `gsa_directo/equidad_caja.py`) y CA (acción `caso_autora`, `sonda/consenso/medicion_autora.py`).
+- La Tabla de acciones del lanzador suma `matriz_mecanismo` (las matrices del P2P mutualizado y del P2P colectivo, CANON §14.29 y §14.30), `validacion_ampliada`, `tarifa_extrema` y `cierre_parciales` (EQ y CA. Lanza también la dinámica con precios extremos, que se da como no medida a la fecha de entrega y fuera del canon). La fila de `gsa_directo` incluye las dos repeticiones de octubre.
+- Dos contradicciones resueltas. La primera: «las excepciones son el barrido de σ y la validación» pasa a la lista completa de lo que corrió en el servidor. La segunda: «El canon solo admite las que se corrieron con el árbol limpio», que chocaba con los seis puntos sin commit de la subsección del canon, pasa a «con dos excepciones», con remisión. También se añade que desde el 7 de octubre el lanzador escribe el commit en las primeras líneas de cada registro (C-369).
+- «Este documento» se precisa donde se refería a la tesis: el límite de 20 páginas es del documento de tesis, «sin contar los anexos». Las doce figuras son «de la tesis y de sus anexos». Las cifras de las que habla el anexo son «de la tesis y de sus anexos».
+
+**Anexo B.** En la Tabla de mecanismos, «P2P, mercado entre pares» pasa a «Mercado P2P». El párrafo que anunciaba «dos detalles» y daba tres se parte en dos. Los dos detalles de las series quedan en uno y la corrección de la bolsa pasa a un párrafo propio.
+
+**Anexo C.**
+- «el mercado entre pares» pasa a «el mercado P2P».
+- «Cinco mecanismos terminan en el art. 25» contradecía la nota de la Tabla de mecanismos del anexo B («Cuatro») y C-360. Pasa a «Cuatro de los siete mecanismos, C1, el mercado P2P, C4 y el P2P colectivo, terminan en el art. 25 […], como el mercado sin ningún supuesto».
+- «reparto del excedente entre el comprador y los vendedores» pasa a «reparto del ahorro», como en el cuerpo (C-374, C-I6).
+- Dos oraciones que abrían con «Y» se reescriben («En cada hora…», «Tampoco compara…»).
+- La síntesis decía que la dinámica «la confirma en 99 de 141 horas». Pasa a «llega a ella en 99 de 141 horas, sin que ningún régimen cumpla el criterio» (CANON §14.33, regla 6 de CLAUDE.md).
+
+**Anexo D (frente a la propuesta).** Recuento comprobado contra la Tabla de la matriz: seis actividades completas (1.0, 1.2, 2.1, 3.1, 3.2 y 3.3) y cuatro parciales (1.1, 2.2, 4.1 y 4.2), igual que en el texto y en la síntesis.
+- Fila 1.2 de la Tabla del objetivo 1: la aversión al riesgo del modelo base es la forma logarítmica del pago, sin parámetro que inferir, y su valor se calcula en la descomposición del bienestar (CANON §14.34, C-375). Remite al anexo G.
+- Fila 4.1 de la Tabla del objetivo 4: suma la equidad dentro de la caja (1 024 puntos por caso, §14.35). La razón decía «cubre y amplía lo prometido», en contradicción con el estado «parcial». Pasa a «salvo la convergencia de la dinámica con precios extremos, no medida a la fecha de entrega (la medición está en curso)».
+- Fila del riesgo regulatorio de C4: «la entrada de participantes no se midió».
+- Celda 3.3 de la matriz: la equidad se mide también dentro de la caja.
+- Cambios de lectura, punto 4: «Hasta octubre» pasa a «Hasta el 2 de octubre». «las de la vía antigua» pasa a «las del mercado sin ningún supuesto» (C-234, la vía legal antigua deja de ser mecanismo).
+- Celda 4.1 de la matriz y pendiente 3: la misma fórmula para la dinámica con precios extremos («no medida a la fecha de entrega; la medición está en curso»), sin afirmar su resultado. El caso de la autora (§14.36), la tarifa extrema (§14.32), la validación ampliada (§14.33), la entrada sin medir y la factura no obtenida ya estaban y se conservan.
+
+**Anexo E.**
+- «El mismo día se fijaron tres cosas más», una cuenta anunciada en prosa con un «Y» inicial, pasa a lista con rótulos (el nombre, la atribución, las mediciones).
+- «desde el 2026-10-02» pasa a «desde el 2 de octubre de 2026».
+- En la Tabla de preguntas al comité, «el autor» (siete celdas) pasa a «el trabajo» (regla 1 del estilo).
+
+**Anexo F.**
+- El párrafo del Gini en E0 tenía sintaxis invertida («reparten con menos desigualdad que el mercado C2…»). Pasa a «En E0, el mercado P2P reparte con más desigualdad que C4 y también que otros cuatro mecanismos: …».
+- Dos pronombres sin referente («lo domina», «Su factor de coincidencia») se sustituyen por su sujeto.
+- «manda a la bolsa» pasa a «lleva a la bolsa» (tres sitios).
+- «Las 216 horas cuantales desaparecen con los dos comercializadores» decía lo contrario de lo medido. Pasa a «con un solo comercializador, sea el A o el B» (CANON §14.12). La parte del vendedor sube «con cualquiera de los dos».
+- La convergencia con precios extremos («no se midió») queda con la fórmula común, en la Tabla de condiciones y en la lista final.
+
+**Anexo G.**
+- C-361 no había llegado al anexo. «Cada punto exige 14 simulaciones completas» pasa a «Con cada par de filas de A y B, el modelo se corre 14 veces», como en el cuerpo. Sale además una frase repetida («Ninguna de las 150 528 evaluaciones falló»).
+- El párrafo de la aversión al riesgo en los parámetros queda con sujeto expreso: «El modelo base sitúa la aversión al riesgo en el pago logarítmico del comprador, pero esa lectura no se sostiene».
+- Otros arreglos de forma:
+  - «Este fija» pasa a «El presupuesto fija».
+  - «Aquí se añaden cinco precisiones», que eran seis, pasa a «las precisiones que siguen».
+  - «ocho de los 11» pasa a «8 de los 11» (regla 11).
+  - «…del art. 25, y esa deducción…» pasa a «…, pero esa deducción…».
+  - «las dos respuestas» pasa a «las dos definiciones».
+  - «manda» pasa a «lleva» en siete sitios.
+  - «~\%» pasa a «\%» en cinco sitios, como en el resto del documento.
+- La subsección de la descomposición del bienestar abre con «Amplía la sección~\ref{T-sec:des-esperados}».
+- Los límites suman la convergencia con precios extremos con la fórmula común, y «la factura real» pasa de «no se midió» a «no se obtuvo».
+
+**Coherencia con lo que pidió el controlador.** La fórmula «no medida a la fecha de entrega; la medición está en curso» se aplica igual en A, D, F y G para la dinámica con precios extremos, coherente con el cuerpo («queda por medir»). Sobre el P2P mutualizado, los anexos dicen lo mismo que la tabla de riesgos del cuerpo: el anexo G (reglas 3, cambios a la norma y viabilidad) y la Tabla F del P2P mutualizado dicen que no exime de cargos de red, solo del Cv al intercambio del numeral 1.
+
+**Sin cambio:** cifras, etiquetas, ecuaciones, citas y comentarios de fuente. Las únicas cifras nuevas en prosa son los recuentos de huellas (6, 5, 16, 841 y 2 408) y el 1 024 de §14.35, todos del canon o de `HUELLAS.csv`, con su comentario.
+
+**Anotado sin aplicar (para el autor):**
+- Los anexos A y B citan como fuente de la capacidad instalada el «informe 4 del proyecto MTE» (`Fajardo2026Informe4`). Es la única mención de un informe del proyecto en los anexos. Se conserva porque es la fuente de un dato y no una actividad del proyecto (C-372 retiró los informes técnicos 2 y 3 de la sección de impactos). El autor decide si basta con «un informe del proyecto MTE».
+- CANON l. 3079 sigue diciendo que la fila L está «sin commit» (pendiente desde C-370).
+- El comentario de cabecera de `anexos_tesis.tex` dice «límite del autor, 18». Es solo un comentario y no sale en el PDF, pero el límite vigente es 20 (Makefile y C-371).
+- «El mercado» sin «P2P»: no se recorrió entero (unas 100 apariciones en F y G). Solo se cambió donde se podía confundir con el mercado sin ningún supuesto.
+- Anexo G, límites: «Quedan por medir las decisiones discretas» convive con los contrastes deterministas que ya miden algunas (μ, σ, la bolsa de 2024). El autor decide si se precisa cuáles quedan.
+
+**Lo que pide cambios en el cuerpo:** ninguno. Las frases del cuerpo que se cotejaron coinciden con los anexos: las 14 corridas por par de filas, la convergencia con precios extremos «queda por medir», la validación en 99 de 141 horas, la equidad en la caja, el caso de la autora y el P2P mutualizado.
+
+**Comprobaciones:**
+- `Makefile.ps1 -Documento anexos_tesis`: 74 páginas (antes 73). En `anexos_tesis.log`, 0 referencias indefinidas, 0 multiplicadas y 0 Overfull. El «FALLO: el .aux no tiene la etiqueta fin-referencias» es el esperado.
+- Compuerta de vetadas: LIMPIA en los siete anexos.
+- `cifras-es` contra `cifras.csv` y `CANON.md`: sin huérfanos nuevos frente a `antes_c377/` en ninguno de los siete (A y E LIMPIO; B 27, C 3, D 1, F 117 y G 51, los mismos de antes).
+- Perfil de estilo: 0 rayas; «;» de 0 a 1,07 por mil; «:» de 0,84 a 4,44 por mil; «es decir» 1,38 por mil en el total; ningún «además», «conviene» ni «cabe destacar»; ningún «el autor» en la prosa.

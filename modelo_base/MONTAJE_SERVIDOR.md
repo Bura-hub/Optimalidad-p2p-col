@@ -2291,6 +2291,54 @@ Nada de esto es canon hasta que se liquide H2 y se registre en
 
 ---
 
+## La noche de los parciales: EQ, DX y CA (desde el 7 de octubre)
+
+Tres mediciones que cierran partes «parciales» de las actividades 1.1 y 4.1.
+Cada una tiene su acción y `cierre_parciales` las encadena sin pasar de 16
+procesos ni salir del scope de memoria de la contención:
+
+| Acción | Qué mide | Procesos | Tiempo |
+|---|---|---:|---|
+| `equidad_caja` (EQ) | el Gini del beneficio por institución y la clase del par frente a C4 en las filas A y B de la muestra del GSA (12 casos, 1 024 puntos cada uno), con el punto base al peso contra el canon y cada punto contra su fila del GSA con H1 | 16 | ~35 (min) |
+| `caso_autora` (CA) | M-G repetida con el tope que le faltó (k = 1 000 y k = 100, sin k = 1) | 4 | hasta las 07:00 |
+| `dinamica_extrema` (DX) | M-A2X: la forma cerrada frente a la dinámica con la bolsa ×4 y la tarifa ×0,5 (0,6 en E4, E5 y P2) y ×2 | 12 | hasta las 07:00 |
+
+Antes, en el servidor:
+
+```bash
+cd ~/bslopez/sistemabl
+git fetch origin
+git pull --ff-only origin main
+git log --oneline -1
+ls SALIDAS_SERVIDOR/matriz_reposo SALIDAS_SERVIDOR/gsa_directo_h1_2026-10-04/E0 \n   SALIDAS_SERVIDOR/validacion_ampliada_2026-10-06/lectura_m_a2.csv
+~/bslopez/mercado-p2p/scripts/estado_servidor.sh
+```
+
+Después de las 21:00 de Bogotá, en tmux:
+
+```bash
+tmux new -s parciales
+cd ~/bslopez/sistemabl
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+export MATRIZ_CANON=SALIDAS_SERVIDOR/matriz_reposo
+export EQUIDAD_SALIDAS=SALIDAS_SERVIDOR/equidad_caja_2026-10-07
+export EXTREMA_SALIDAS=SALIDAS_SERVIDOR/dinamica_extrema_2026-10-07
+export AUTORA_SALIDAS=SALIDAS_SERVIDOR/caso_autora_2026-10-07
+export AMPLIADA_SALIDAS=SALIDAS_SERVIDOR/validacion_ampliada_2026-10-06   # solo para leer M-A2 al lado de DX
+SECO=1 bash modelo_base/run_servidor.sh cierre_parciales
+bash modelo_base/run_servidor.sh cierre_parciales
+```
+
+Por la mañana, `bash modelo_base/run_servidor.sh recoger cierre_parciales`
+deja las tres carpetas y sus registros, sin las cachés, en
+`modelo_base/resultados_<fecha>.tar.gz`. Si DX quedó incompleta (código 4),
+la noche siguiente se retoma con las mismas variables:
+`RETOMA=<k> bash modelo_base/run_servidor.sh dinamica_extrema` (el registro
+dice k). Si EQ quedó incompleta, `REANUDAR=1 bash modelo_base/run_servidor.sh
+equidad_caja`. Nada de esto es canon hasta registrarlo.
+
+---
+
 ## Lo que este paquete NO hace
 
 - **No decide por ti.** Las tres mediciones nuevas dejan cifras; la

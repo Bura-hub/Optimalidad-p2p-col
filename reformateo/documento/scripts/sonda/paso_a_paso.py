@@ -45,13 +45,35 @@ sys.path.insert(0, str(DOC / "scripts"))
 AGENTES = ["Udenar", "Mariana", "UCC", "HUDN", "Cesmag"]
 
 
+def _factor(f, nombre: str) -> float:
+    """Un factor de precio finito y positivo, o falla en voz alta."""
+    v = float(f)
+    if not np.isfinite(v) or v <= 0.0:
+        raise ValueError(f"{nombre}={f!r}; tiene que ser un numero finito y "
+                         f"positivo")
+    return v
+
+
 def carga(cobertura: str, comercializador: str | None = None,
           piso: str = "tramo", factor_generacion: float | None = None,
           factor_cv: float | None = 1.0,
           factor_demanda: float | None = None,
           escala_agente: str | None = None, neto_cero: bool = False,
-          excluir_agente: str | None = None):
+          excluir_agente: str | None = None,
+          factor_bolsa: float | None = None,
+          factor_tarifa: float | None = None):
     """Series, tarifas por agente, bolsa y estado de permuta.
+
+    `factor_bolsa` y `factor_tarifa` (2026-10-07, la dinamica con precios
+    extremos, DX) son `f_bolsa` y `f_tarifa` del GSA directo, aplicados como
+    `gsa_directo.evaluador.aplica_factores`: la bolsa CRUDA por el factor y el
+    techo PES de la 101 066 DESPUES; el techo (N, T) de cada comprador por el
+    factor. Del techo cuelgan el piso de permuta (tarifa menos la deduccion
+    del art. 25) y el limite economico de generacion; la deduccion, el tramo
+    de permuta y el peaje no se mueven. Con None (el defecto) ninguna rama
+    corre y la carga queda IDENTICA AL BIT; con 1.0 la multiplicacion corre y
+    tambien queda al bit (x * 1.0 == x en coma flotante), que es lo que
+    comprueba la prueba del lado derecho de la dinamica extrema.
 
     `factor_demanda`, `escala_agente`, `neto_cero` y `excluir_agente`
     (2026-10-06, la validacion ampliada del reposo: muestra estratificada por
@@ -144,6 +166,11 @@ def carga(cobertura: str, comercializador: str | None = None,
             D, G, nombres, factor_generacion=float(factor_generacion))
 
     techo = pi_gs_per_agent_hourly(nombres, idx)          # (N, T)
+    if factor_tarifa is not None:
+        # DX: el techo por el factor, como `aplica_factores` (techo = pi_gs ·
+        # f_tarifa). Va ANTES del piso, que cuelga de el.
+        techo = np.asarray(techo, dtype=float) * _factor(factor_tarifa,
+                                                         "factor_tarifa")
     comp = cu_components_per_agent_hourly(nombres, idx)
     cvm = comp["Cvm"]
     # D7: el componente de comercializar por un factor, que es el caso CV2 de
@@ -164,6 +191,10 @@ def carga(cobertura: str, comercializador: str | None = None,
     if llaves.tz is not None:
         llaves = llaves.tz_localize(None)
     bolsa = b.set_index("ts")["Precio_COP_kWh"].reindex(llaves).to_numpy(float)
+    if factor_bolsa is not None:
+        # DX: la serie CRUDA por el factor; el techo PES, abajo, DESPUES, como
+        # `aplica_bolsa` del evaluador del GSA.
+        bolsa = bolsa * _factor(factor_bolsa, "factor_bolsa")
     # C-154: la corrida le aplica a esta serie el techo de escasez de la
     # Resolucion CREG 101 066 en su nivel superior, y la sonda no lo hacia.
     # Muerde en 20 horas de 6.144 y ninguna de las veinte tiene vendedor, de

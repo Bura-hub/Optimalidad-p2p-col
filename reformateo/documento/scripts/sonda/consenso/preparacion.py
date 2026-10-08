@@ -138,6 +138,8 @@ def prepara(spec, e0=None) -> dict:
 
     Claves de `spec` que se leen aqui:
       caso, fecha          la hora (`arnes.hora_de`);
+      precios              opcional (DX): {"f_bolsa": ..., "f_tarifa": ...},
+                           la hora con la bolsa y el techo escalados;
       cerrada              opciones del reposo de referencia (por defecto las
                            de produccion);
       referencias          dict nombre -> opciones del reposo, para comparar
@@ -153,7 +155,13 @@ def prepara(spec, e0=None) -> dict:
     Devuelve dict(e, precios0, referencias, base, avisos, sin_mercado).
     """
     if e0 is None:
-        e0 = A.hora_de(spec["caso"], spec["fecha"])
+        # DX (2026-10-07): `precios`, los factores de la bolsa y del techo
+        # (`arnes.lee_precios`); sin la clave, la hora de siempre, al bit.
+        if spec.get("precios") is None:
+            e0 = A.hora_de(spec["caso"], spec["fecha"])
+        else:
+            e0 = A.hora_de(spec["caso"], spec["fecha"],
+                           precios=spec["precios"])
     avisos = []
     op_base = dict(spec.get("cerrada", {}))
     if spec.get("sigma") is not None:

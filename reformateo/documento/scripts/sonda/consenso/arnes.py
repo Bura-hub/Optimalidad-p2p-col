@@ -130,11 +130,50 @@ CASOS_EXTRA = ("E1", "E2", "E3", "P1", "P2", "I1", "N1", "SINU")
 CASOS_ARNES = ("E0", "E4", "E5", "CV2", "K1") + CASOS_EXTRA
 
 
-def carga(caso):
-    if caso in _CACHE:
-        return _CACHE[caso]
-    from paso_a_paso import carga as _carga
+# DX (2026-10-07, la dinamica con precios extremos): los dos factores de
+# precio del GSA directo que la carga acepta, y su valor neutro.
+FACTORES_PRECIO = ("f_bolsa", "f_tarifa")
+
+
+def lee_precios(precios) -> tuple | None:
+    """(f_bolsa, f_tarifa) de un diccionario de factores de precio, o None
+    sin el. Falla en voz alta con una clave que no es de FACTORES_PRECIO o un
+    factor que no es finito y positivo."""
+    if precios is None:
+        return None
+    if not isinstance(precios, dict):
+        raise ValueError(f"precios={precios!r}; se esperaba un diccionario")
+    malas = sorted(set(precios) - set(FACTORES_PRECIO))
+    if malas:
+        raise ValueError(f"precios: claves desconocidas {malas}; use "
+                         f"{FACTORES_PRECIO}")
+    fuera = []
+    for k in FACTORES_PRECIO:
+        v = float(precios.get(k, 1.0))
+        if not np.isfinite(v) or v <= 0.0:
+            raise ValueError(f"precios: {k}={precios.get(k)!r} no es finito "
+                             f"y positivo")
+        fuera.append(v)
+    return tuple(fuera)
+
+
+def carga(caso, precios=None):
+    """La carga del caso, como `paso_a_paso.carga`. Con `precios` (DX), la
+    MISMA carga con la bolsa y el techo escalados (`factor_bolsa` y
+    `factor_tarifa` de `paso_a_paso.carga`, que replican `aplica_factores`
+    del evaluador del GSA), en su propia entrada de la cache. Sin `precios`,
+    todo como siempre, al bit."""
+    fp = lee_precios(precios)
+    llave = caso if fp is None else (caso, fp)
+    if llave in _CACHE:
+        return _CACHE[llave]
+    from paso_a_paso import carga as _carga0
     import data.xm_data_loader as xdl
+    if fp is None:
+        _carga = _carga0
+    else:
+        def _carga(*a, **k):
+            return _carga0(*a, factor_bolsa=fp[0], factor_tarifa=fp[1], **k)
     if caso == "E0":
         dat = _carga("m1", factor_generacion=1.0)
     elif caso == "E4":
@@ -179,7 +218,7 @@ def carga(caso):
     else:
         raise ValueError(caso)
     mapa = {clave(x): k for k, x in enumerate(dat["idx"])}
-    _CACHE[caso] = (dat, mapa)
+    _CACHE[llave] = (dat, mapa)
     return dat, mapa
 
 
@@ -204,8 +243,8 @@ def entradas(dat, K):
                 fecha=str(dat["idx"][K]))
 
 
-def hora_de(caso, fecha):
-    dat, mapa = carga(caso)
+def hora_de(caso, fecha, precios=None):
+    dat, mapa = carga(caso, precios)
     return entradas(dat, mapa[fecha])
 
 
@@ -533,12 +572,17 @@ def caso_chacon(hora="22"):
 _hora_de_real = hora_de
 
 
-def hora_de(caso, fecha):          # noqa: F811
+def hora_de(caso, fecha, precios=None):          # noqa: F811
+    if caso in ("CHACON", "SINTETICA") and precios is not None:
+        raise ValueError(f"{caso}: el caso publicado y la hora sintetica no "
+                         f"llevan factores de precio")
     if caso == "CHACON":
         return caso_chacon(fecha)
     if caso == "SINTETICA":
         return caso_pisos_distintos()
-    return _hora_de_real(caso, fecha)
+    if precios is None:
+        return _hora_de_real(caso, fecha)
+    return _hora_de_real(caso, fecha, precios)
 
 
 # ------------------------------------------------- comprobacion contra el motor

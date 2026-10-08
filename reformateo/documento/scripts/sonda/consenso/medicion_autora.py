@@ -25,7 +25,10 @@ la que es:
   - 22:00, barrera, k = 1 000 (NUEVA): el brazo de M-A2. En local, el
     2026-10-07, llego a teq 20 en 210 s con los precios a 1 COP/kWh de la
     forma cerrada (833,65 x 3; 1 249,04; 1 250); unas nueve veces mas barata
-    que k = 100. Es la que con mas seguridad da la lectura esta noche.
+    que k = 100. En teq 80 (1 459 s en local) estaba en la forma cerrada
+    (|dp| = 1,5e-3, |dq| = 2,6e-6) pero con |dq/dt| = 9,3e-3: el reparto
+    vibra sobre el reposo, y la quietud puede no cumplirse. Si es asi, el
+    juicio lo dice y no se relaja; la lectura la daria el brazo k = 100.
   - k = 1, las cuatro: NO SE REPITEN. Sus cortes terminan en teq 40 por
     diseno y la quietud se lee entre teq 20 y 40; en 3 600 s llegaron a teq 2
     (22:00) y a teq 1 (14:00), y el costo crece ~3,7 veces por duplicacion

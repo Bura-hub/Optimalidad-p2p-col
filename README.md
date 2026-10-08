@@ -4,7 +4,7 @@ Código de la tesis de maestría y del artículo que se deriva de ella.
 
 - **Tesis:** *Análisis de optimalidad y validación regulatoria de mercados P2P
   en Colombia*. Maestría en Ingeniería Electrónica, Universidad de Nariño, 2026.
-- **Artículo:** *Peer-to-Peer Energy Trading in Colombian Energy Communities:
+- **Artículo:** *Peer-to-Peer Energy Markets for Colombian Energy Communities:
   Network Charges, Settlement Rules, and a Collective Alternative*, preparado para
   IEEE Latin America Transactions.
 - **Autor:** Brayan S. López-Méndez. **Asesores:** Andrés Pantoja y Germán Obando.

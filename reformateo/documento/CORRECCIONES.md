@@ -12747,3 +12747,224 @@ Aplicados con las recomendaciones dadas al autor, que pidió seguir con ellos.
 - Compuerta de vetadas: LIMPIA en los siete anexos.
 - `cifras-es` contra `cifras.csv` y `CANON.md`: sin huérfanos nuevos frente a `antes_c377/` en ninguno de los siete (A y E LIMPIO; B 27, C 3, D 1, F 117 y G 51, los mismos de antes).
 - Perfil de estilo: 0 rayas; «;» de 0 a 1,07 por mil; «:» de 0,84 a 4,44 por mil; «es decir» 1,38 por mil en el total; ningún «además», «conviene» ni «cabe destacar»; ningún «el autor» en la prosa.
+
+### C-379 · Referencias del artículo en español antes del envío a IEEE LatAm (2026-10-08)
+
+**Qué se pidió:** revisar las referencias contra los lineamientos de la revista («DOI information of every reference is MANDATORY»; «Inadequate references are grounds to decline the submission») y aplicar las tres medidas propuestas: explicarlo en la carta, compactar las referencias sin DOI y volver a citar referencias arbitradas ya verificadas.
+
+**Comprobación.** Los 33 DOI de `v2_es/manuscrito/referencias.bib` resuelven en Crossref (HTTP 200). Antes del cambio el artículo citaba 22 referencias, 11 con DOI y 11 sin él. Las que no tienen DOI no lo tienen porque no existe: normas de la CREG, una ley, datos de XM y los dos trabajos previos de los autores.
+
+**Cambios en el artículo** (`v2_es/manuscrito/articulo_es.tex` y `referencias.bib`; respaldo en `manuscrito/antes_c379/`):
+- Las dos fuentes de XM, que se citan en la misma frase, pasan a una sola entrada (`XM2026Datos`).
+- Los títulos traducidos de seis normas de la CREG y de la Ley 2294 se acortan al objeto de cada norma.
+- Se vuelven a citar cinco referencias arbitradas del `.bib`, ya verificadas, sin cifras nuevas, como apoyo de frases existentes:
+  - Parag y Sovacool 2016 (prosumidores), en la apertura.
+  - Tushar et al. 2020 (panorama del P2P), junto a Sousa et al.
+  - Paudel et al. 2019 (juego de Stackelberg entre vendedores y compradores con dinámica evolutiva, según su resumen), en una oración nueva antes de la de Chacón et al.
+  - Gautier et al. 2018 (traslado de los costos de red a los demás usuarios), junto a Abada et al. en la introducción.
+  - McRae y Wolak 2021 (recuperación por kWh de los costos de red en Colombia, uso ya dado en `v2`), junto a Abada et al. en la discusión.
+- Para seguir en 9 páginas se reduce en 24 pt el espacio entre biografías (`\vspace{-24pt}`), sin tocar el texto.
+- Resultado: 26 referencias, 16 con DOI y 10 sin él.
+
+**Carta** (`v2_es/carta/cover_letter.docx` y `.pdf`, desde `carta_en_docx.js`): nuevo párrafo «References without a DOI». Explica que 10 de las 26 no tienen DOI porque no existe (seis normas y documentos de la CREG, una ley, los datos públicos de XM y los dos trabajos previos), que cada una lleva URL oficial y fecha de consulta, y que el DOI del WEEF se añadirá cuando la memoria lo asigne. La carta pasa a 2 páginas (formato libre).
+
+**Compuertas:**
+- `Makefile.ps1 -Final`: 9 páginas, 0 citas y 0 referencias indefinidas, 0 Overfull.
+- `cifras-es` contra `cifras.csv` y `CANON.md`: LIMPIO.
+- `compuerta_vetadas.py --fichero`: LIMPIA.
+- Nombres de comercializadores: 0.
+
+**Copias actualizadas:** `envio/subir/PDF_manuscript.pdf` y `articulo_es_overleaf.zip` (rehecho con la misma forma; compila en 9 páginas; el anterior queda en `antes_c379/`).
+
+**Envío:** ID 11297 puesto en `video/video_abstract.tex`, `video/video_abstract_una_pagina.tex` (que ahora usa `graphical_abstract_en.png` y queda en 1 página) y `envio/enlace_codigo.tex`. Diapositivas del video en PNG de 1920 × 1080 en `video/diapositivas_png/`.
+
+### C-380 · Título del artículo: «Energy Markets for» en lugar de «Energy Trading in» (2026-10-08)
+
+**Qué se pidió:** revisar con detenimiento si «trading» es el término adecuado en el título.
+
+**Por qué se cambia:**
+- El hallazgo central es que el valor del mercado no viene del intercambio, sino de cómo se liquida: los pagos internos se cancelan y el precio no importa.
+- El cuerpo dice «mercado P2P» 36 veces, el resumen dice *peer-to-peer market*, la propuesta se llama *collective peer-to-peer market* y la tesis, «Mercados P2P».
+- «in Colombian Energy Communities» sugería un estudio de comunidades ya registradas, mientras que el resumen aclara que las cinco instituciones se tratan como comunidad «although not registered as such». «for» lo presenta como un análisis para el marco colombiano.
+- El subtítulo se mantiene.
+
+**Título nuevo:** *Peer-to-Peer Energy Markets for Colombian Energy Communities: Network Charges, Settlement Rules, and a Collective Alternative*.
+
+**Dónde:**
+- el artículo (`\title` y `\markboth`) y su zip de Overleaf;
+- `gen_resumen_grafico_en.py` y el PNG regenerado;
+- `video/video_abstract.tex` (con las 11 diapositivas en PNG) y `video_abstract_una_pagina.tex`;
+- `envio/enlace_codigo.tex` y `envio/metadatos_envio.md`;
+- `carta/carta_editor.tex` y `carta/cover_letter.docx`/`.pdf`;
+- `envio/subir/`;
+- el `README.md` del repositorio.
+
+**Compuertas:** `Makefile.ps1 -Final` da 9 páginas, sin referencias indefinidas y sin Overfull. Los demás PDF salen sin Overfull: el del video y el del código en 1 página, las diapositivas en 11.
+
+
+### C-381 · La dinámica con precios extremos (DX) en el canon, la tesis y los anexos (2026-10-08)
+
+**Qué se pidió:** registrar la corrida DX (M-A2X), que el autor trajo en `resultados_2026-10-08_1407.tar.gz`. Había que hacerlo en el canon (§14.37, huellas y punto del bloque 10) y reemplazar en la tesis y los anexos toda mención de la DX como pendiente.
+
+**Lo medido** (de `lectura_m_a2x.csv` y `.txt`, comprobado contra los dos JSON):
+- **El plan.** Cuatro regímenes (interiores, un comprador, topados y compradores cortos) por tres familias de precio (bolsa ×4, tarifa ×0,5, que es ×0,6 en E4, E5 y P2, y tarifa ×2), con diez horas cada uno: 120 corridas de la dinámica acelerada de M-A2 con el criterio de ADR 0060 sin cambios y sin parada por futilidad.
+- **La lectura.** 74 de 120 horas dentro, 27 sin teq 160 (cortadas por el tope de 10 800 s, todas de compradores cortos y topados) y 19 fuera.
+- **Los rótulos.** Dos combinaciones con el rótulo final «reposo verificado (n = 10)», un comprador con bolsa ×4 e interiores con tarifa ×2. Las otras diez quedan en regla declarada, del 30 al 90 %.
+- **La energía.** Es la de la forma cerrada en todas las corridas, a menos de 2·10⁻⁸ kWh.
+- **Un comprador.** Repite la separación por el piso de §14.33.
+
+**Una premisa del encargo que los ficheros no sostienen.** El encargo decía que «reposo verificado (n = 10)» tenía estado «no completo» y que n = 10 no cierra el criterio del 95 %. En los ficheros, el estado de esas dos combinaciones es «completo», es decir, rótulo final. La columna que dice «no» es `eval` (n ≥ 20, desde donde el 95 % admite una hora en contra). Con diez horas el criterio exige las diez, y esas dos las tienen.
+
+Se escribió lo que dicen los ficheros: dos combinaciones cumplen el criterio con sus diez horas. Ningún **régimen** queda verificado, porque esos dos no cumplen con las otras dos familias ni con los precios del punto base (§14.33). La forma cerrada sigue siendo regla adoptada en todos los regímenes. La trampa que se registra en §14.37 es la correcta: «reposo verificado (n = 10)» se cita solo con su familia y su n, nunca como verificación del régimen.
+
+**Dos detalles de los ficheros, registrados en §14.37:**
+- Las corridas 72 a 81 están en los dos JSON, porque la reanudación empezó en la 71. Son iguales salvo el tiempo de reloj; la lectura y el veredicto cuentan cada hora una vez.
+- En E3 2025-06-06 07:00 (topados, tarifa ×2), el campo `final` del JSON marca la hora dentro porque solo mira teq 160. La lectura la cuenta fuera, porque en teq 80 el precio se aparta 1,87 COP/kWh. Manda la lectura.
+
+**Canon** (`Documentos/canon_2026-09/`; copias previas en el scratchpad de la sesión):
+- `CANON.md`: §14.37 nueva, con qué mide, la fuente, las compuertas de la corrida, lo que comprueba el bloque 10, la prueba de detección, las tres tablas, lo que dice, la frase citable, lo que no se cita y las salvedades. Además, un párrafo «Ampliado otra vez el 2026-10-08» en la cabecera y la nota de recuento de §11 (2 462 ficheros; el grupo `e1/` tiene 1 036).
+- `HUELLAS.csv`: 54 filas nuevas, 45 de `e1/DX` y 9 de `dx/logs`. Pasa de 2 408 a 2 462 filas.
+- `verificar_canon_2026-09.py`: punto «DX» en `E1_PUNTOS` y `E1_FUNCIONES`, constantes `E1_DX_*` (commit d004749, tomado de la primera línea de los nueve registros), `_e1_dx_regenera` y `e1_dx`. Lo que hace el punto:
+  - comprueba los registros y la procedencia;
+  - con los ocho guiones de d004749 leídos con `git show`, regenera byte a byte `lectura_m_a2x.txt`, `lectura_m_a2x.csv` y `veredicto_m_a2x.txt` desde los dos JSON;
+  - comprueba los JSON, las repetidas y la especificación de cada corrida;
+  - recalcula el recuento por grupo desde las distancias guardadas, con Wilson y el desglose por caso;
+  - comprueba las cortadas, la energía y las horas fuera de un comprador.
+
+  Se añadieron también `E1_N_FICHEROS` + 45, el salto de `dx/` en el bloque 1, su etiqueta en el informe y la línea de la cabecera del guion.
+- **Prueba de detección**, sobre una copia fuera del repositorio:
+  - una hora de interiores con tarifa ×2 puesta fuera hace fallar la regeneración, el recuento, Wilson, el desglose por caso, los totales y las horas fuera solo por el precio;
+  - un rótulo de 90 % cambiado a 91 % hace fallar la regeneración y el registro de la lectura.
+
+**Tesis** (`Documentos/Tesis_entrega/tesis_entrega.tex`; respaldo en `antes_c381/`):
+- La validación (sección de la rama cuantal y la validación): «Otra muestra, de 120 horas con la bolsa cuatro veces la de 2025 y la tarifa a la mitad y al doble, dio 74. Solo dos de las doce combinaciones de régimen y precio cumplieron el criterio, cada una con sus diez horas.», antes de «La forma cerrada es, por tanto, una regla adoptada en todos los regímenes».
+- Sensibilidad: «Queda por medir si la dinámica converge con esos precios extremos (anexo D)» pasa a «Con esos precios extremos, la dinámica llegó a ella en 74 de 120 horas, con la misma energía (anexo C)».
+- Límites: «Tampoco se midieron la entrada de miembros nuevos ni la convergencia de la dinámica con precios extremos» pasa a «Tampoco se midió la entrada de miembros nuevos».
+- Tabla de riesgos, fila de la convergencia: «Con precios extremos, su convergencia no se midió» pasa a «… en 99 de 141 horas con los precios del punto base y en 74 de 120 con precios extremos, siempre con la misma energía».
+- Trabajo futuro: sale «con precios extremos» de lo que falta contrastar.
+
+**Anexos** (respaldo en `antes_c381/anexos/`):
+- **A.** Fila de `cierre_parciales` en la tabla de acciones, sin «no medida a la fecha de entrega» y con la retoma del 8. Fila nueva de `dinamica_extrema_2026-10-07/` en la tabla de entregas (d004749, 54 huellas, bloque 10, DX). La nota de la tabla pasa a 17 entregas, 895 huellas y 2 462 en `HUELLAS.csv`. Fila DX en la tabla de puntos.
+- **C.** «Dos mediciones» pasa a «tres». Dos párrafos nuevos sobre la tercera medición, con la Tabla `tab:anx-c-extrema`: régimen por punto base, bolsa ×4, tarifa ×2 y tarifa ×0,5. Un párrafo sobre dónde no llega: 11 de 19 solo por el precio, la separación por el piso de un comprador y las cortadas de compradores cortos.
+- **D.**
+  - Fila de la actividad 4.1 en la tabla de cambios: añade la convergencia con precios extremos en 120 horas y queda en «cubre y amplía lo prometido».
+  - Celda 4.1 de la matriz: «Con precios extremos, la dinámica llega a la forma cerrada en 74 de 120 horas, con la misma energía, y ningún régimen pasa el criterio»; sigue parcial solo por la entrada de participantes.
+  - Celda 4.2 y fila de la hipótesis de convergencia: suman «y en 74 de 120 con precios extremos».
+  - El punto de lo que la medición dejó como regla adoptada suma «ni con precios extremos».
+  - El punto de lo que no se midió deja solo la entrada de participantes y la salida de dos a la vez.
+- **F.** Párrafo de la sensibilidad a precios extremos: el resultado en lugar del ítem «no medida… en curso». Fila P2P de las condiciones: «con precios extremos llega en 74 de 120, también con la misma energía».
+- **G.** En la validación, compradores cortos con precios extremos: 3 de 10 en cada familia, porque 20 de sus 30 integraciones no alcanzaron el tiempo equivalente 160. En la síntesis de la actividad 4.1 y en los límites del P2P mutualizado sale «en curso».
+
+**Compuertas:**
+- `verificar_canon_2026-09.py`: CANON 2026-09 INTACTO (bloque 10 con «DX ok» y 1 036 ficheros `e1/`). `verificar_canon_2026-08.py`: CANON 2026-08 INTACTO. `verificar_canon.py`: CANON INTACTO.
+- `Makefile.ps1 -Final`: cuerpo de 19 páginas (tope 20), 0 citas y 0 referencias indefinidas, 0 Overfull, 0 avisos de BibTeX, los 5 Underfull de antes.
+- `Makefile.ps1 -Documento anexos_tesis`: 76 páginas (antes 74), 0 Overfull, 0 indefinidas. El «FALLO: el .aux no tiene la etiqueta fin-referencias» es el esperado.
+- `compuerta_vetadas.py --fichero`: LIMPIA en el cuerpo y en los anexos A, C, D, F y G.
+- `cifras-es` contra `cifras.csv` y `CANON.md`: los mismos huérfanos que antes, sin ninguno nuevo (cuerpo 4, A 0, C 3, D 1, F 117 y G 51).
+- `medir_estilo.py`: 0 rayas; «;» en 0,07 por mil en el cuerpo y 0 en el anexo C; cero «conviene», «cabe destacar», primera persona u oraciones que abren con cifra.
+
+**PDF finales:** `Tesis_Lopez-Mendez_MaIE_2026.pdf` (19 págs.) y `Anexos_Lopez-Mendez_MaIE_2026.pdf` (76 págs.), copiados de nuevo.
+
+### C-382 · Revisión de los archivos del envío y estilo de lo añadido en C-381 (2026-10-08)
+
+**Archivos del envío (ID 11297):**
+- `PDF_manuscript.pdf`: 9 páginas, tamaño carta, todas las fuentes incrustadas y ninguna Type 3. Se añaden los metadatos de título y autores (`\hypersetup`), sin cambio de maquetación. `Makefile.ps1 -Final`: 9 páginas, 0 indefinidas, 0 Overfull. El zip de Overleaf se rehace.
+- `PDF_video_abstract.pdf`: lleva el enlace https://youtu.be/i4Ue_-ZafcE. YouTube lo sirve sin iniciar sesión (oEmbed 200, título con «submission 11297»). Con `\urlstyle{same}`, el enlace sale en la fuente del texto, porque la fuente de máquina de escribir T1 se incrustaba como Type 3 (mapa de bits, `ectt1095.pk`). Se añaden metadatos. Una página, sin Overfull.
+- `LAT.mp4`: 208,4 s (menos de 3 min 30 s), 1920 × 1080, 30 cps, H.264, audio estéreo a 48 kHz.
+- El guion del video (`video/guion_video.md`) se reescribe con las expresiones del artículo. Corrige la razón de la regla del 10 % («con cinco miembros, no todos pueden recibir menos del 10 % del reparto») y dice las unidades. Dura 206 s.
+
+**Estilo de lo añadido en C-381.** Se parten las cadenas con «, y» y se usan conectores causales donde la frase dice una consecuencia:
+- en el cuerpo, el trabajo futuro;
+- en el anexo C, la tercera medición (tres frases);
+- en el anexo D, la fila 4.1 y la lista de lo no medido;
+- en el anexo F, la frase de los precios extremos.
+- «en el 80» pasa a «en el tiempo equivalente 80».
+
+**Compuertas:**
+- `compuerta_vetadas.py --fichero`: LIMPIA en el cuerpo y en los anexos C, D y F.
+- `medir_estilo.py` sobre el cuerpo: 0 rayas, 19,1 palabras por oración, «es decir» 1,38 por mil, «;» 0,07 por mil, sin muletillas.
+- Tesis: 19 páginas, 0 indefinidas, 0 Overfull.
+- Anexos: 76 páginas, 0 Overfull, 0 indefinidas.
+- PDF finales copiados de nuevo a `Tesis_Lopez-Mendez_MaIE_2026.pdf` y `Anexos_Lopez-Mendez_MaIE_2026.pdf`.
+
+### C-383 · La tesis no dice que algo falta: alcance, resultado o extensión (2026-10-08)
+
+**Qué se pidió:** que en ningún punto de la tesis ni de los anexos se diga que algo falta, queda pendiente, no se hizo o no se midió. Cada mención se reescribe como resultado, como alcance o método, o como línea de trabajo futuro. No se borra ningún hecho que sostenga una afirmación ni se declara hecho nada que no se hizo.
+
+**Criterio de la propuesta para el estado de las actividades** (`Documentos/PropuestaTesis.txt`, líneas 395-467):
+- 2.2 pide los algoritmos de flujos y métricas, no un contraste con factura.
+- 4.1 pide sensibilidad, factibilidad, precios extremos con convergencia, deserción y el riesgo de C4 por retiro y por escalamiento sobre 100 kW, todo medido; la entrada de participantes no está en la propuesta.
+- 1.1 y 4.2 piden analizar factibilidad, convergencia y optimalidad; su conclusión es que la forma cerrada queda como regla adoptada.
+- Las diez actividades pasan a «completado», cada una con su resultado o su precisión.
+
+**Ediciones** (respaldo en `Documentos/Tesis_entrega/antes_c383/`):
+- **Cuerpo (11):**
+  - «las dos definiciones pendientes» y «que faltan» pasan a «que la regulación vigente no contempla».
+  - El costo de la regla para los demás usuarios pasa a «la extensión natural del trabajo».
+  - La regla de saturación pasa a «también es una regla adoptada».
+  - El crédito de E4 queda escrito como lo que reúne la diferencia de 2,61 MCOP.
+  - Sale «la entrada de miembros nuevos, que la propuesta también contemplaba, no se midió».
+  - Quién financia los cargos pasa a «una decisión tarifaria del regulador», también en la tabla de riesgos.
+  - Las dos lecturas del numeral se escriben como lo que se midió.
+  - En los límites, «quedan fuera del alcance».
+  - Los trabajos futuros se escriben como extensiones.
+- **Anexo A (2):** la tarifa publicada como alcance; «para repetirla desde fuera se necesita el dato».
+- **Anexo B (10):** la subsección pasa a «Los supuestos y las fuentes de cada elemento»; cada punto se escribe como supuesto o como fuente.
+- **Anexo C (3):** la regla de saturación como regla adoptada, dos veces; la primera medición del caso de la autora contada como resultado (seis cortes por el tope y dos al arrancar).
+- **Anexo D (13):**
+  - las cuatro actividades parciales pasan a «completado», con su resultado;
+  - la subsección pasa a «El alcance de los resultados» (etiqueta `anx:d-alcance`);
+  - la síntesis dice «las diez actividades están completas»;
+  - en la tabla del objetivo 4 sale «la entrada de participantes no se midió», y la pregunta abierta pasa a ser «de la norma».
+- **Anexo E (1):** D19 queda «cumplida en el oráculo; las instituciones no tienen factura pública».
+- **Anexo F (4):** el mercado con solo el supuesto 1 como extensión; el retiro del P2P colectivo como método; sale «la causa no se midió»; la lista de lo no medido pasa a extensiones naturales.
+- **Anexo G (17):**
+  - el código CIIU queda en «probablemente»;
+  - las horas sin lectura se dicen como dato;
+  - los costos del mercado mayorista se toman del fichero;
+  - el inventario declara seis supuestos;
+  - «Dónde la dinámica no llega a la forma cerrada»;
+  - la regla de saturación como regla adoptada;
+  - la deserción de Udenar en N1 sin la causa;
+  - la convergencia como resultado;
+  - la lista de lo no medido pasa a extensiones;
+  - el P2P mutualizado con su alcance;
+  - la operación en dos tiempos como propuesta descrita;
+  - los límites en detalle, con extensiones;
+  - el C4 de 11 fronteras «bajo la lectura literal del art. 20, que deja abiertas las preguntas».
+
+**Recuento** (`falta`, `faltan`, `queda por`, `no se midi`, `sin medir`, `pendiente`, `parcial`, `en curso`, `no se consigui`, `no se alcanz`, `sin contraste`, `no se pudo`, `no alcanz`, `a la fecha de entrega`, `no se hizo`, `quedó sin`, `queda sin`, `no cubre`, sin comentarios): 99 antes y 58 después. Las 58 son usos legítimos:
+- «independiente»;
+- «queda por debajo» o «por encima»;
+- la acción `cierre_parciales`;
+- datos parciales de medidores y meses;
+- mecanismos del modelo («lo que le falta», «importación pendiente», «el faltante»);
+- «quedó sin objeto» en el anexo E;
+- «no cubre la deducción»;
+- «la falta de marca» en notas de tabla;
+- procesos «en curso»;
+- el umbral de tiempo equivalente 160;
+- «la falta de un marco» regulatorio.
+
+**Compuertas:**
+- `compuerta_vetadas.py --fichero`: LIMPIA en el cuerpo y en los anexos A a G.
+- `cifras-es`: 0 huérfanos nuevos frente a `antes_c383/` (cuerpo 4, A 0, B 26, C 3, D 1, E 0, F 117 y G 51, los mismos de antes).
+- `medir_estilo.py`: 0 rayas; «;» en 0,07 por mil en el cuerpo y 0 en B, D y G; ninguna muletilla.
+- Cuerpo: 19 páginas, 0 indefinidas, 0 Overfull.
+- Anexos: 75 páginas (antes 76), 0 Overfull y 0 indefinidas.
+- PDF copiados a `Tesis_Lopez-Mendez_MaIE_2026.pdf` y `Anexos_Lopez-Mendez_MaIE_2026.pdf`.
+
+### C-384 · Revisores sugeridos en la carta al editor (2026-10-08)
+
+**Qué se pidió:** completar los tres revisores sugeridos que pide IEEE LatAm: doctorado, lectores del idioma del artículo, sin vínculo con la Universidad de Nariño y sin coautorías con los autores. El autor eligió a los tres.
+
+**Revisores** (perfiles públicos consultados el 2026-10-08):
+1. **Maximiliano Bueno-López.** Universidad Tecnológica de Pereira, m.bueno3@utp.edu.co. Doctorado en la UNAM. Su Google Scholar muestra 14 coautores, sin Pantoja ni Obando.
+2. **Carlos Adrián Correa-Flórez.** Universidad Distrital, ccorreaf@udistrital.edu.co. Doctorado en Mines Paris. Sus 20 coautores visibles no incluyen a Pantoja ni a Obando.
+3. **José Lenin Morillo.** Universidad de los Andes, jl.morillo79@uniandes.edu.co (correo dado por el autor). Doctorado en los Andes. Sus coautores conocidos son Pérez, Anderson, Cadena y Zéphyr.
+
+Las listas de coautores son parciales; el autor queda de confirmarlas con los asesores.
+
+**Carta.** Se reemplaza el marcador amarillo por el párrafo «Suggested reviewers» con los tres revisores en una lista alineada a la izquierda (`carta_en_docx.js`). `cover_letter.docx` y `.pdf` pasan a 2 páginas, sin marcadores. La copia del envío queda en `envio/subir/PDF_letter_to_editor.pdf`.
+
+**Envío completado (2026-10-08).** El autor terminó el envío 11297 en latamt.ieeer9.org («Submission complete»), en la sección *Electric Energy*, con los cuatro archivos de `v2_es/envio/subir/`. Los metadatos salen de `envio/metadatos_envio.md`, con las 26 referencias regeneradas del `.bbl` (`envio/referencias_ojs.txt`). Los autores, en orden, son López-Méndez (contacto principal), Pantoja y Obando. Las autorizaciones de ORCID quedaron pedidas por correo. El acuse de la revista llega al correo del autor.

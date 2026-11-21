@@ -48,6 +48,9 @@
 #   PISO_MECANISMO=h1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- lo mismo con el de H1, en SALIDAS_SERVIDOR/matriz_h1
 #   PISO_MECANISMO=p2pcom bash modelo_base/run_servidor.sh matriz_mecanismo   <- con el piso del fondo del P2P colectivo, en SALIDAS_SERVIDOR/matriz_p2pcom
 #   PISO_MECANISMO=h2 DESDE=P1 bash modelo_base/run_servidor.sh matriz_mecanismo   <- retoma desde ese caso
+#   HASTA=05:30 bash modelo_base/run_servidor.sh revision_r1_resuelta   <- revision r1 (AE-5 y AE-4): las 81 corridas, en orden de prioridad
+#   ESQUINA=solo1 CASOS="E3 E4 I1" bash modelo_base/run_servidor.sh matriz_esquina   <- una esquina del factorial, en SALIDAS_SERVIDOR/matriz_esquina_solo1
+#   CORTE=secuencial_pronostico CASOS="E3" bash modelo_base/run_servidor.sh matriz_corte   <- un corte del piso, en SALIDAS_SERVIDOR/matriz_corte_<corte>
 #   MECANISMO_SALIDAS=SALIDAS_SERVIDOR/matriz_h2_<fecha> PISO_MECANISMO=h2 ... matriz_mecanismo   <- otra carpeta
 #
 #   --- la validacion del reposo (2026-09-17): M-A a M-G -------------------
@@ -213,7 +216,7 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."          # raiz del repositorio
 
-ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|barrido_sigma|validacion_reposo|validacion_ampliada|gsa_directo|tarifa_extrema|equidad_caja|dinamica_extrema|caso_autora|cierre_parciales|reparto|juntar|recoger}"
+ACCION="${1:?falta la accion: entorno|compuertas|caso|competencia|eficiencia|todo|techo|escenario|pesovirtual|tanda|tramo|piso|decision|canonica|oficial|humo_linux|sonda79|matriz|arranque|convergencia|matriz_reposo|matriz_mecanismo|matriz_esquina|matriz_corte|revision_r1_resuelta|barrido_sigma|validacion_reposo|validacion_ampliada|gsa_directo|tarifa_extrema|equidad_caja|dinamica_extrema|caso_autora|cierre_parciales|reparto|juntar|recoger}"
 
 # Ronda de arreglo 1 (2026-09-14): crea un directorio, o dice que lo haria.
 # Misma idea que el modo en seco de corre(), mas abajo, pero para mkdir: con
@@ -371,6 +374,151 @@ escribe_mecanismo() {
     return 0
   fi
   printf '%s\n' "$PISO_MEC" > "$MATRIZ_MEC/MECANISMO"
+}
+
+# Revision r1 del articulo (AE-5 y AE-4, 2026-11-21): donde escriben
+# `matriz_esquina` (la esquina del factorial de los dos supuestos,
+# --esquina) y `matriz_corte` (el corte del piso, --corte-piso). Las dos son
+# `matriz_mecanismo` con otra opcion del motor; cada carpeta lleva un fichero
+# (ESQUINA o CORTE) que impide retomarla con otro valor. Diseno en
+# Documentos/articulo_latam/v2_es/revision_r1/diseno_mediciones_completas.md.
+# Viven aqui porque `recoger` los necesita.
+ESQ_R1="${ESQUINA:-}"
+CORTE_R1="${CORTE:-}"
+MATRIZ_ESQ="${ESQUINA_SALIDAS:-SALIDAS_SERVIDOR/matriz_esquina_${ESQ_R1}}"
+MATRIZ_ESQ="${MATRIZ_ESQ%/}"
+MATRIZ_COR="${CORTE_SALIDAS:-SALIDAS_SERVIDOR/matriz_corte_${CORTE_R1}}"
+MATRIZ_COR="${MATRIZ_COR%/}"
+# El orden de prioridad del diseno (seccion 4.3): si la noche se corta, se
+# pierde lo ultimo. 81 corridas en total.
+R1_PRIMERO="E3 E4 I1 E0 SINU"
+R1_CORTE_PRIMERO="E3 E4 I1 E5"
+R1_RESTO_FACTORIAL="E1 E2 E5 P1 P2 K1 N1 CV2"
+R1_RESTO_CORTE="E1 E2 P1 N1"
+R1_CONTROLES="P2 K1 CV2"
+
+# Comprueba una carpeta de la revision r1 (la de la esquina o la del corte):
+# dentro de SALIDAS_SERVIDOR/, sin '..' ni espacios, nunca la del canon ni
+# la de otra matriz; con el fichero marcador de otro valor, se rechaza.
+valida_carpeta_r1() {
+  local dir="$1" marcador="$2" valor="$3" etiqueta="$4"
+  if [[ "$dir" != SALIDAS_SERVIDOR/?* || "$dir" == *..* || "$dir" == *" "* ]]; then
+    echo "  ${etiqueta}_SALIDAS tiene que ser una carpeta dentro de" \
+         "SALIDAS_SERVIDOR/, sin '..' ni espacios: '$dir'" >&2
+    exit 2
+  fi
+  if [[ "$dir" == "$MATRIZ_REPOSO" || "$dir" == "$MATRIZ_VIEJA" \
+        || "$dir" == SALIDAS_SERVIDOR/matriz_h1* || "$dir" == SALIDAS_SERVIDOR/matriz_h2* \
+        || "$dir" == SALIDAS_SERVIDOR/matriz_p2pcom* ]]; then
+    echo "  $dir es una matriz ya registrada y no se pisa" >&2
+    exit 2
+  fi
+  if [[ -f "$dir/$marcador" ]]; then
+    local previo
+    previo="$(tr -d '[:space:]' < "$dir/$marcador")"
+    if [[ "$previo" != "$valor" ]]; then
+      echo "  $dir se corrio con $marcador='$previo', no con '$valor': usa" \
+           "otra carpeta (${etiqueta}_SALIDAS)" >&2
+      exit 2
+    fi
+  fi
+}
+
+valida_esquina() {
+  case "$ESQ_R1" in
+    p2p|solo1|solo2|ninguno) ;;
+    *) echo "  ESQUINA tiene que ser p2p, solo1, solo2 o ninguno, no '$ESQ_R1'" >&2
+       exit 2 ;;
+  esac
+  if [[ "${SECO:-0}" == "1" && -n "${ESQUINA_DIR_PRUEBA:-}" ]]; then
+    MATRIZ_ESQ="$ESQUINA_DIR_PRUEBA"
+  fi
+  valida_carpeta_r1 "$MATRIZ_ESQ" ESQUINA "$ESQ_R1" ESQUINA
+}
+
+valida_corte() {
+  case "$CORTE_R1" in
+    iterado|secuencial_pronostico|secuencial_saldo) ;;
+    *) echo "  CORTE tiene que ser iterado, secuencial_pronostico o" \
+            "secuencial_saldo, no '$CORTE_R1' (el corte del mes es la matriz" \
+            "del canon)" >&2
+       exit 2 ;;
+  esac
+  if [[ "${SECO:-0}" == "1" && -n "${CORTE_DIR_PRUEBA:-}" ]]; then
+    MATRIZ_COR="$CORTE_DIR_PRUEBA"
+  fi
+  valida_carpeta_r1 "$MATRIZ_COR" CORTE "$CORTE_R1" CORTE
+}
+
+# Escribe el fichero marcador, o dice que lo haria (SECO).
+escribe_marcador_r1() {
+  local dir="$1" marcador="$2" valor="$3"
+  if [[ "${SECO:-0}" == "1" ]]; then
+    printf '  [SECO] %s > %q\n' "$valor" "$dir/$marcador"
+    return 0
+  fi
+  printf '%s\n' "$valor" > "$dir/$marcador"
+}
+
+# Los casos pedidos, en CASOS_R1 ("caso:opciones", en el orden de CASOS o,
+# sin CASOS, en el de CASOS_MATRIZ). Un caso que no esta entre los trece se
+# rechaza en voz alta antes de correr nada.
+casos_r1() {
+  CASOS_R1=()
+  local c par hallado
+  if [[ -z "${CASOS:-}" ]]; then
+    CASOS_R1=("${CASOS_MATRIZ[@]}")
+    return 0
+  fi
+  for c in $CASOS; do
+    hallado=""
+    for par in "${CASOS_MATRIZ[@]}"; do
+      if [[ "${par%%:*}" == "$c" ]]; then hallado="$par"; break; fi
+    done
+    if [[ -z "$hallado" ]]; then
+      echo "  CASOS: '$c' no es ninguno de los trece casos de la matriz" >&2
+      exit 2
+    fi
+    CASOS_R1+=("$hallado")
+  done
+}
+
+# HASTA=HH:MM: no se empieza un caso nuevo pasada esa hora. La ventana va de
+# la hora en que arranco la accion (R1_INICIO, que se hereda) hasta HASTA, y
+# puede cruzar la medianoche (19:00 a 05:30). Devuelve 0 si ya paso.
+R1_INICIO="${R1_INICIO:-$(date +%H%M)}"
+export R1_INICIO
+pasada_hasta() {
+  [[ -z "${HASTA:-}" ]] && return 1
+  if ! [[ "$HASTA" =~ ^([01][0-9]|2[0-3]):[0-5][0-9]$ ]]; then
+    echo "  HASTA tiene que ser HH:MM, no '$HASTA'" >&2
+    exit 2
+  fi
+  local h=$((10#${HASTA/:/})) i=$((10#$R1_INICIO)) n=$((10#$(date +%H%M)))
+  if (( h > i )); then
+    (( n >= h || n < i ))
+  else
+    (( n >= h && n < i ))
+  fi
+}
+
+# La plataforma MTE tiene que responder antes de empezar (CLAUDE.md). Si el
+# guion de estado no esta en esta maquina, se avisa y se sigue; si esta y
+# falla, la accion no empieza. En SECO solo se dice.
+plataforma_respira() {
+  local guion="${ESTADO_SERVIDOR:-$HOME/bslopez/mercado-p2p/scripts/estado_servidor.sh}"
+  if [[ "${SECO:-0}" == "1" ]]; then
+    echo "  [SECO] comprobaria la plataforma con $guion"
+    return 0
+  fi
+  if [[ ! -x "$guion" ]]; then
+    echo "  AVISO: no esta $guion; no se comprueba la plataforma MTE"
+    return 0
+  fi
+  if ! "$guion"; then
+    echo "  La plataforma MTE no respira segun $guion: no se empieza" >&2
+    return 1
+  fi
 }
 
 # D73 a D79 (2026-09-26): donde escribe `gsa_directo` y los casos que corre,
@@ -1904,6 +2052,191 @@ print(" ".join(sorted(palancas)))
     echo "=== MATRIZ CON EL PISO DE ${PISO_MEC^^} COMPLETA ==="
     echo "  Un caso o una compuerta de salida que falla detiene la cadena; se"
     echo "  retoma con:  PISO_MECANISMO=$PISO_MEC DESDE=<caso> bash $0 matriz_mecanismo"
+    ;;
+
+  matriz_esquina|matriz_corte)
+    # Revision r1 del articulo (AE-5 y AE-4, 2026-11-21). Es `matriz_mecanismo`
+    # con estos cambios:
+    #
+    #   - matriz_esquina: ESQUINA (p2p, solo1, solo2 o ninguno) es obligatoria
+    #     y la orden de cada caso es la del canon mas `--esquina`; escribe en
+    #     $MATRIZ_ESQ/<caso> con un fichero ESQUINA;
+    #   - matriz_corte: CORTE (iterado, secuencial_pronostico o
+    #     secuencial_saldo) es obligatoria y la orden es la del canon mas
+    #     `--corte-piso`; escribe en $MATRIZ_COR/<caso> con un fichero CORTE;
+    #   - CASOS acota y ordena los casos; HASTA=HH:MM no empieza un caso nuevo
+    #     pasada esa hora (sale con 4 y dice como retomar);
+    #   - antes de empezar, la plataforma MTE tiene que responder;
+    #   - SIN_COMPUERTAS=1 salta las compuertas iniciales (la accion
+    #     `revision_r1_resuelta` las corre una vez) y SIN_RECOGER=1 la
+    #     recogida final.
+    #
+    # Se conservan la contencion heredada (systemd-run con MemoryMax, taskset,
+    # nice 19, ionice ociosa, PROCS como mucho la mitad de los nucleos),
+    # --include-c5 --no-regulado --analisis-ligero, las opciones del reposo,
+    # DESDE, el codigo 3 (D38), la compuerta de salida de cada caso y SECO.
+    # La hoja Resumen de una esquina NO es la esquina: se liquida en casa.
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ "$ACCION" == "matriz_esquina" ]]; then
+      valida_esquina
+      R1_DIR="$MATRIZ_ESQ"; R1_MARCADOR=ESQUINA; R1_VALOR="$ESQ_R1"
+      R1_OPCION=(--esquina "$ESQ_R1"); R1_NOMBRE="esquina_${ESQ_R1}"
+      R1_RETOMA="ESQUINA=$ESQ_R1"
+    else
+      valida_corte
+      R1_DIR="$MATRIZ_COR"; R1_MARCADOR=CORTE; R1_VALOR="$CORTE_R1"
+      R1_OPCION=(--corte-piso "$CORTE_R1"); R1_NOMBRE="corte_${CORTE_R1}"
+      R1_RETOMA="CORTE=$CORTE_R1"
+    fi
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    casos_r1
+    _lista=()
+    for par in "${CASOS_R1[@]}"; do _lista+=("${par%%:*}"); done
+    valida_desde "${_lista[@]}"
+    pasada_hasta && { echo "  HASTA=$HASTA ya paso: no se empieza"; exit 4; }
+
+    echo "=== REVISION R1 · $ACCION · ${R1_MARCADOR} = $R1_VALOR · casos: ${_lista[*]} ==="
+    echo "    MTE_ROOT = $MTE_ROOT"
+    echo "    procesos del mercado = $PROCS"
+    echo "    salidas  = $R1_DIR   (la del canon, $MATRIZ_REPOSO, no se toca)"
+    echo "    hasta    = ${HASTA:-sin tope}"
+    echo
+    plataforma_respira || exit 2
+
+    if [[ "${SIN_COMPUERTAS:-0}" != "1" ]]; then
+      echo "--- 1/3 · compuertas"
+      bash "$0" compuertas
+      corre "pytest_test_invariancia_r1_ae45" -m pytest \
+            "tests/test_invariancia_r1_ae45.py" -q
+    else
+      echo "--- 1/3 · compuertas: ya corridas (SIN_COMPUERTAS=1)"
+    fi
+
+    echo
+    echo "--- 2/3 · las corridas, cada una con su compuerta de salida"
+    crea_dir "$R1_DIR"
+    escribe_marcador_r1 "$R1_DIR" "$R1_MARCADOR" "$R1_VALOR"
+    SALTAR="${DESDE:-}"
+    for par in "${CASOS_R1[@]}"; do
+      CASO="${par%%:*}"; EXTRA="${par#*:}"
+      if [[ -n "$SALTAR" ]]; then
+        if [[ "$CASO" == "$SALTAR" ]]; then
+          SALTAR=""
+        else
+          echo "  ... salta $CASO (DESDE=$DESDE)"
+          continue
+        fi
+      fi
+      if pasada_hasta; then
+        echo
+        echo "  HASTA=$HASTA: no se empieza $CASO. Retoma con:"
+        echo "    $R1_RETOMA CASOS=\"${CASOS:-}\" DESDE=$CASO bash $0 $ACCION"
+        exit 4
+      fi
+      DIR="$R1_DIR/$CASO"
+      ALM="$DIR/almacen"
+      crea_dir "$ALM"
+      echo
+      echo "  --- $CASO  ->  $DIR"
+      corre "${R1_NOMBRE}_${CASO}" main_simulation.py \
+            --data real --full --include-c5 --no-regulado \
+            --metodo reposo --modo-presupuesto sigma \
+            --regla-precio uniforme --despacho-vendedores piso \
+            "${R1_OPCION[@]}" \
+            --analisis-ligero --almacen "$ALM" \
+            ${EXTRA:+$EXTRA} --out-dir "$DIR" || {
+        cod=$?
+        echo
+        echo "  $CASO salio con codigo $cod (3: D38, como en matriz_reposo)."
+        echo "  Mira las lineas [R1], [C-190], [D24], [D48] y [D38] de su registro"
+        echo "  ($LOGS/${R1_NOMBRE}_${CASO}_<fecha>.log) y retoma con:"
+        echo "    $R1_RETOMA CASOS=\"${CASOS:-}\" DESDE=$CASO bash $0 $ACCION"
+        exit "$cod"
+      }
+      corre "${R1_NOMBRE}_compuerta_${CASO}" \
+            "$SONDA/compuertas_matriz_reposo.py" "$ALM" \
+            --cobertura m1 --caso "$CASO" || {
+        cod=$?
+        echo
+        echo "  La compuerta de salida de $CASO no paso (codigo $cod). El almacen"
+        echo "  esta escrito; la lista de fallos va al final de"
+        echo "  $LOGS/${R1_NOMBRE}_compuerta_${CASO}_<fecha>.log. Retoma con:"
+        echo "    $R1_RETOMA CASOS=\"${CASOS:-}\" DESDE=$CASO bash $0 $ACCION"
+        exit "$cod"
+      }
+    done
+
+    echo
+    if [[ "${SIN_RECOGER:-0}" != "1" ]]; then
+      echo "--- 3/3 · la recogida"
+      bash "$0" recoger "$ACCION"
+    else
+      echo "--- 3/3 · la recogida: al final de la cadena (SIN_RECOGER=1)"
+    fi
+    echo
+    echo "=== REVISION R1 · $ACCION · ${R1_MARCADOR} = $R1_VALOR COMPLETA ==="
+    ;;
+
+  revision_r1_resuelta)
+    # Revision r1 del articulo (2026-11-21): las 81 corridas de AE-5 y AE-4 en
+    # el orden de prioridad del diseno (seccion 4.3), para una noche:
+    #
+    #   1. las compuertas, una vez;
+    #   2. las cuatro esquinas en E3, E4, I1, E0 y SINU (20);
+    #   3. iterado y secuencial_saldo en E3, E4, I1 y E5, y
+    #      secuencial_pronostico en esos y en E0 y SINU (14);
+    #   4. las cuatro esquinas en los otros ocho casos (32);
+    #   5. el corte en E1, E2, P1 y N1 (12) y los controles P2, K1 y CV2 (3).
+    #
+    # Cada paso es `matriz_esquina` o `matriz_corte` con CASOS; HASTA vale para
+    # todos (orden de la noche: HASTA=05:30). Un paso que falla o que se queda
+    # sin tiempo detiene la cadena y dice como retomar. La recogida, al final.
+    set -e
+    export PARA_EN_FALLO=1
+    if [[ -z "${MTE_ROOT:-}" ]]; then
+      echo "  MTE_ROOT no esta definido. Exportalo antes:"
+      echo "    export MTE_ROOT=\$PWD/MedicionesMTE_v3"
+      exit 2
+    fi
+    echo "=== REVISION R1 RESUELTA · AE-5 y AE-4 · 81 corridas · hasta ${HASTA:-sin tope} ==="
+    plataforma_respira || exit 2
+    echo "--- compuertas (una vez)"
+    bash "$0" compuertas
+    corre "pytest_test_invariancia_r1_ae45" -m pytest \
+          "tests/test_invariancia_r1_ae45.py" -q
+    PASOS=()
+    for e in p2p solo1 solo2 ninguno; do PASOS+=("matriz_esquina|ESQUINA=$e|$R1_PRIMERO"); done
+    for c in iterado secuencial_saldo; do PASOS+=("matriz_corte|CORTE=$c|$R1_CORTE_PRIMERO"); done
+    PASOS+=("matriz_corte|CORTE=secuencial_pronostico|$R1_CORTE_PRIMERO E0 SINU")
+    for e in p2p solo1 solo2 ninguno; do PASOS+=("matriz_esquina|ESQUINA=$e|$R1_RESTO_FACTORIAL"); done
+    for c in iterado secuencial_saldo; do PASOS+=("matriz_corte|CORTE=$c|$R1_RESTO_CORTE"); done
+    PASOS+=("matriz_corte|CORTE=secuencial_pronostico|$R1_RESTO_CORTE $R1_CONTROLES")
+    for paso in "${PASOS[@]}"; do
+      IFS='|' read -r _acc _var _casos <<< "$paso"
+      echo
+      echo "--- $_acc $_var · $_casos"
+      cod=0
+      env "$_var" CASOS="$_casos" SIN_COMPUERTAS=1 SIN_RECOGER=1 \
+          bash "$0" "$_acc" || cod=$?
+      if [[ $cod -ne 0 ]]; then
+        echo
+        echo "  === DETENIDO en $_acc $_var (codigo $cod; 4 es HASTA) ==="
+        echo "  Retoma ese paso con la orden que imprimio arriba y despues los"
+        echo "  siguientes de esta lista, o la cadena entera (cada carpeta se"
+        echo "  retoma con su marcador y DESDE)."
+        bash "$0" recoger revision_r1_resuelta || true
+        exit "$cod"
+      fi
+    done
+    echo
+    bash "$0" recoger revision_r1_resuelta
+    echo
+    echo "=== REVISION R1 RESUELTA COMPLETA ==="
     ;;
 
   barrido_sigma)
@@ -3828,6 +4161,43 @@ print(" ".join(sorted(palancas)))
         done
         ESPERADOS+=("$MATRIZ_MEC/MECANISMO")
         ;;
+      matriz_esquina|matriz_corte|revision_r1_resuelta)
+        # Revision r1 (AE-5 y AE-4): el almacen de cada caso, el registro de
+        # su compuerta de salida y el fichero marcador de cada carpeta. Con
+        # `revision_r1_resuelta`, las cuatro esquinas en los trece casos y el
+        # corte en los suyos; si no, la esquina o el corte de la orden, con
+        # CASOS si se dio.
+        _pares_r1=()
+        if [[ "$DE" == "matriz_esquina" ]]; then
+          valida_esquina; casos_r1
+          for par in "${CASOS_R1[@]}"; do _pares_r1+=("$MATRIZ_ESQ|ESQUINA|esquina_${ESQ_R1}|${par%%:*}"); done
+        elif [[ "$DE" == "matriz_corte" ]]; then
+          valida_corte; casos_r1
+          for par in "${CASOS_R1[@]}"; do _pares_r1+=("$MATRIZ_COR|CORTE|corte_${CORTE_R1}|${par%%:*}"); done
+        else
+          for e in p2p solo1 solo2 ninguno; do
+            for c in $R1_PRIMERO $R1_RESTO_FACTORIAL; do
+              _pares_r1+=("SALIDAS_SERVIDOR/matriz_esquina_$e|ESQUINA|esquina_$e|$c")
+            done
+          done
+          for k in iterado secuencial_saldo secuencial_pronostico; do
+            _cs="$R1_CORTE_PRIMERO $R1_RESTO_CORTE"
+            [[ "$k" == "secuencial_pronostico" ]] && _cs="$_cs E0 SINU $R1_CONTROLES"
+            for c in $_cs; do
+              _pares_r1+=("SALIDAS_SERVIDOR/matriz_corte_$k|CORTE|corte_$k|$c")
+            done
+          done
+        fi
+        _vistos=" "
+        for p in "${_pares_r1[@]}"; do
+          IFS='|' read -r _d _m _n _c <<< "$p"
+          ESPERADOS+=("$_d/$_c/almacen")
+          ESPERADOS+=("$(ultimo_registro "${_n}_compuerta_${_c}")")
+          if [[ "$_vistos" != *" $_d "* ]]; then
+            ESPERADOS+=("$_d/$_m"); _vistos="$_vistos$_d "
+          fi
+        done
+        ;;
       barrido_sigma)
         # D50: lo que exista de cada sigma y cada caso, con aviso de lo que
         # falte: el almacen y el registro de su compuerta de salida.
@@ -3977,7 +4347,7 @@ print(" ".join(sorted(palancas)))
         shopt -u nullglob
         ;;
       *)
-        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, barrido_sigma, validacion_reposo, validacion_ampliada, gsa_directo, tarifa_extrema, equidad_caja, dinamica_extrema, caso_autora o cierre_parciales"
+        echo "  recoger: corrida desconocida '$DE'; use matriz, oficial, arranque, convergencia, matriz_reposo, matriz_mecanismo, matriz_esquina, matriz_corte, revision_r1_resuelta, barrido_sigma, validacion_reposo, validacion_ampliada, gsa_directo, tarifa_extrema, equidad_caja, dinamica_extrema, caso_autora o cierre_parciales"
         exit 2
         ;;
     esac
@@ -3998,7 +4368,8 @@ print(" ".join(sorted(palancas)))
     # una compuerta de salida existe aunque falle. Se avisa en voz alta, pero
     # no se aborta: recoger lo que hay sirve tambien cuando algo fallo.
     if [[ "$DE" == "matriz_reposo" || "$DE" == "barrido_sigma" \
-          || "$DE" == "matriz_mecanismo" ]]; then
+          || "$DE" == "matriz_mecanismo" || "$DE" == "matriz_esquina" \
+          || "$DE" == "matriz_corte" || "$DE" == "revision_r1_resuelta" ]]; then
       for esperado in "${ESPERADOS[@]}"; do
         if [[ -d "$esperado" && "$esperado" == */figuras_foro ]]; then
           shopt -s nullglob dotglob

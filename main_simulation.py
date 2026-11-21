@@ -657,7 +657,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          factor_generacion: float = 1.0, factor_demanda: float = 1.0,
          escala_agente: str = None, neto_cero: bool = False,
          factor_cv: float = 1.0,
-         piso_mecanismo: str = "c1"):
+         piso_mecanismo: str = "c1",
+         # Revision r1 del articulo (AE-5 y AE-4, 2026-11-21), apagadas por
+         # defecto: la esquina del factorial de los dos supuestos y el corte
+         # del piso. Con "p2p" y "mes" el camino es el de siempre, bit a bit.
+         esquina: str = "p2p", corte_piso: str = "mes"):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -959,6 +963,24 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # depende del mes y ese modo no tiene calendario. Ahi el piso sigue
     # siendo el escalar, y hay que declararlo donde se publique.
     pi_gb_agente = None
+    # Revision r1 (AE-5 y AE-4): las dos opciones nuevas se rechazan en voz
+    # alta en las combinaciones que no estan definidas. Con sus defectos no
+    # entran en ningun `if` de abajo.
+    cargo_comprador_m = None
+    if esquina != "p2p" or corte_piso != "mes":
+        if esquina != "p2p" and corte_piso != "mes":
+            raise SystemExit("--esquina y --corte-piso no se combinan "
+                             "(decisiones del 2026-11-21)")
+        if piso_mecanismo != "c1":
+            raise SystemExit("--esquina y --corte-piso solo van con "
+                             "--piso-mecanismo c1")
+        if not (use_real_data and (full_horizon or single_day)):
+            raise SystemExit("--esquina y --corte-piso necesitan datos reales "
+                             "con calendario (--full o --day): el corte hx "
+                             "depende del mes")
+        if metodo != "reposo":
+            raise SystemExit("--esquina y --corte-piso estan definidas para la "
+                             "via por reposo (--metodo reposo), la del canon")
     if use_real_data:
         idx_piso = index_full if full_horizon else (idx_day if single_day
                                                     else None)
@@ -993,11 +1015,32 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 ded_fondo_m = cvm_m + (tolls_m if _caso2 else 0.0)
                 print(f"    [P2Pcom] Piso del fondo igual: deduccion del caso "
                       f"{2 if _caso2 else 1} del art. 20 sin la regla del 10 %.")
-            pi_gb_agente, en_permuta_m = _piso_mec(
-                G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
-                np.asarray(pi_bolsa, dtype=float), mes_m,
-                mecanismo=piso_mecanismo, capacidad_kw=cap,
-                deduccion_fondo=ded_fondo_m)
+            if esquina == "p2p":
+                pi_gb_agente, en_permuta_m = _piso_mec(
+                    G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
+                    np.asarray(pi_bolsa, dtype=float), mes_m,
+                    mecanismo=piso_mecanismo, capacidad_kw=cap,
+                    deduccion_fondo=ded_fondo_m)
+            else:
+                # Revision r1 (AE-5): la esquina del factorial. El piso del
+                # residual y el cargo del comprador (kappa*Cv + Theta con su
+                # tarifa) de core/opciones_externas.piso_esquina.
+                from core.opciones_externas import deduccion_caso2, piso_esquina
+                ded4_m = deduccion_caso2(cvm_m, tolls_m)
+                pi_gb_agente, en_permuta_m, cargo_comprador_m = piso_esquina(
+                    esquina, G, D, np.asarray(pi_gs_arg, dtype=float), ded_m,
+                    ded4_m, np.asarray(pi_bolsa, dtype=float), mes_m)
+                print(f"    [R1] Esquina {esquina} del factorial de los dos "
+                      f"supuestos (AE-5): "
+                      + {"solo1": "residual por miembro; lo intercambiado "
+                                  "paga kappa*Cv + Theta del comprador",
+                         "solo2": "intercambio exento; residual al colectivo "
+                                  "en el caso 2 con el PDE propio",
+                         "ninguno": "lo intercambiado paga kappa*Cv + Theta "
+                                    "del comprador; todo al colectivo en el "
+                                    "caso 2"}[esquina]
+                      + ". La hoja Resumen NO es esta esquina: se liquida "
+                        "aparte sobre el almacen.")
             if piso_mecanismo != "c1":
                 print(f"    [H2] Piso del vendedor con el mecanismo {piso_mecanismo}. "
                       f"Los escenarios de la hoja Resumen NO son ese mecanismo: "
@@ -1007,6 +1050,9 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     grid = GridParams(**grid_params,
                       pi_gs_agente=pi_gs_arg if use_real_data else None,
                       pi_gb_agente=pi_gb_agente)
+    if cargo_comprador_m is not None:
+        # Revision r1 (AE-5): solo en las esquinas sin el supuesto 2.
+        grid.cargo_comprador = cargo_comprador_m
     # D68: el costo del vendedor por su alternativa necesita el piso medido de
     # CADA vendedor, que es la matriz `pi_gb_agente`. Aqui ya se sabe si la
     # corrida la trae, cosa que `SolverParams` no puede saber al construirse.
@@ -1177,7 +1223,47 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     print(f"    [D24] Plazo por hora del mercado: {_plazo_txt} (desde que la "
           f"hora empieza a correr; la vencida queda sin resolver)")
     ems    = EMSP2P(agents, grid, solver)
-    p2p_results, G_klim, D_star = ems.run(D, G)
+    if corte_piso == "mes":
+        p2p_results, G_klim, D_star = ems.run(D, G)
+    else:
+        # Revision r1 (AE-4): el corte del piso con lo que se sabe en cada
+        # hora (core/corte_secuencial.py). El piso que de verdad se uso pasa a
+        # la rejilla y a `pi_gb_agente`, para que el almacen y el resumen lo
+        # registren.
+        from core.corte_secuencial import resuelve_iterado, resuelve_secuencial
+        _cu_c = np.asarray(pi_gs_arg, dtype=float)
+        _t_c = time.time()
+        if corte_piso == "iterado":
+            p2p_results, G_klim, D_star, pi_gb_agente, _hist = resuelve_iterado(
+                ems, D, G, _cu_c, ded_m, np.asarray(pi_bolsa, dtype=float),
+                mes_m, en_permuta_m)
+            _ult = _hist[-1] if _hist else {}
+            print(f"    [R1] Corte iterado (AE-4): {len(_hist)} iteraciones; "
+                  f"horas-vendedor que cambian de marca por iteracion: "
+                  f"{[h['cambian'] for h in _hist]}; "
+                  + ("convergio" if _ult.get("convergio") else
+                     "CICLO, se conservan los dos ultimos estados" if
+                     _ult.get("ciclo") else "NO convergio en el tope"))
+        else:
+            from core.market_prep import compute_generation_limit as _cgl
+            p2p_results, pi_gb_agente, _marcas, _seg = resuelve_secuencial(
+                ems, D, G, _cu_c, ded_m, np.asarray(pi_bolsa, dtype=float),
+                mes_m, regla=corte_piso, procesos=procesos,
+                plazo_hora_s=solver.plazo_hora_s)
+            G_klim = np.zeros_like(np.asarray(G, dtype=float))
+            for _k in range(G.shape[1]):
+                G_klim[:, _k] = _cgl(G[:, _k], agents.a, agents.b, agents.c,
+                                     _cu_c[:, _k])
+            D_star = np.asarray(D, dtype=float)
+            _vende_c = np.maximum(G - D, 0.0) > 1e-9
+            print(f"    [R1] Corte {corte_piso} (AE-4): {len(_seg)} meses en "
+                  f"cadena, {max(_seg):.2f} s el mas largo; horas-vendedor con "
+                  f"piso en bolsa: {int(np.sum(_vende_c & ~_marcas))} "
+                  f"(con el corte del mes: "
+                  f"{int(np.sum(_vende_c & ~en_permuta_m))})")
+        grid.pi_gb_agente = pi_gb_agente
+        print(f"    [R1] Mercado con el corte {corte_piso}: "
+              f"{time.time() - _t_c:.1f} s")
     # D24: el motor ya lista las horas vencidas; aqui se dice que les pasa.
     # Solo las del plazo, no cualquier motivo: una hora con excepcion (mas
     # abajo) tambien trae `motivo` no vacio y no vencio ningun plazo.
@@ -1272,6 +1358,12 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                       inicio=(str(idx_alm[0].date()) if idx_alm is not None
                               else "2025-04-04"),
                       paso_horas=float(paso))
+        if cargo_comprador_m is not None:
+            # Revision r1 (AE-5): el cargo de la esquina, junto al almacen,
+            # para la liquidacion de la esquina y la compuerta de salida.
+            os.makedirs(almacen, exist_ok=True)
+            np.save(os.path.join(almacen, "cargo_comprador.npy"),
+                    np.asarray(cargo_comprador_m, dtype=float))
         te_m = (None if not use_real_data
                 else np.atleast_2d(np.asarray(pi_gs_arg, dtype=float)))
         _piso_m = (None if pi_gb_agente is None
@@ -1368,8 +1460,14 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
                 **columnas_reposo(r, agent_names))
             alm.anota_flujos(
                 k, P, pi, r.seller_ids, r.buyer_ids, agent_names,
+                # Revision r1 (AE-5): con cargo del comprador, el techo del
+                # flujo es el que vio el juego (tarifa menos cargo), para que
+                # las identidades de la compuerta de salida se lean igual; la
+                # tabla de agentes conserva la tarifa bruta.
                 techo_i=(None if te_m is None or te_m.shape[0] == 1
-                         else te_m[r.buyer_ids, k]),
+                         else te_m[r.buyer_ids, k] if cargo_comprador_m is None
+                         else te_m[r.buyer_ids, k]
+                         - cargo_comprador_m[r.buyer_ids, k]),
                 piso_j=(None if pi_gb_agente is None
                         else np.asarray(pi_gb_agente,
                                         dtype=float)[r.seller_ids, k]),
@@ -1405,7 +1503,10 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # la especificacion piden censar.
     if metodo == "reposo":
         print(f"    [D48] " + linea_resumen_reposo(
-            resumen_reposo(p2p_results, pi_gs_arg, dt=paso,
+            resumen_reposo(p2p_results,
+                           (pi_gs_arg if cargo_comprador_m is None else
+                            np.asarray(pi_gs_arg, dtype=float)
+                            - cargo_comprador_m), dt=paso,
                            # el piso de cada vendedor, el mismo que recibe
                            # el juego; sin matriz, el escalar de siempre
                            piso=(pi_gb_agente if pi_gb_agente is not None
@@ -2823,7 +2924,12 @@ def _generate_progress_report(cr, p2p_results, G_klim, D, G,
             "mide en H-103.",
             "",
             f"- Precio P2P nunca menor que bolsa: **{'Sí' if fa_des.condition_never_met else 'No'}**",
-            f"- Umbral crítico precio bolsa: **{fa_des.critical_pgb_threshold:.0f} COP/kWh**",
+            # Revision r1 (AE-5): una corrida sin ninguna hora con mercado
+            # (la esquina solo1 donde nadie agota su credito) deja el umbral
+            # en None; antes el reporte se caia. Con umbral, la misma linea.
+            (f"- Umbral crítico precio bolsa: **{fa_des.critical_pgb_threshold:.0f} COP/kWh**"
+             if fa_des.critical_pgb_threshold is not None else
+             "- Umbral crítico precio bolsa: **sin horas con mercado**"),
             "",
             "### FA-2: Cumplimiento CREG 101 072/2025",
             "",
@@ -3003,6 +3109,27 @@ if __name__ == "__main__":
                          "del intercambio (h1: la deduccion de su planta; h2: "
                          "solo en el numeral 2). p2pcom: el fondo del P2P "
                          "colectivo, reparto igual, intercambio exento")
+    ap.add_argument("--esquina", dest="esquina",
+                    choices=["p2p", "solo1", "solo2", "ninguno"],
+                    default="p2p",
+                    help="Revision r1 (AE-5): la esquina del factorial de los "
+                         "dos supuestos de liquidacion (CANON §14.21). p2p "
+                         "(defecto, el canon): los dos. solo1: el residual por "
+                         "miembro y lo intercambiado paga kappa*Cv + Theta del "
+                         "comprador. solo2: intercambio exento y residual al "
+                         "colectivo en el caso 2 con el PDE propio. ninguno: "
+                         "las dos cosas. La hoja Resumen NO es la esquina: se "
+                         "liquida aparte sobre el almacen")
+    ap.add_argument("--corte-piso", dest="corte_piso",
+                    choices=["mes", "iterado", "secuencial_pronostico",
+                             "secuencial_saldo"], default="mes",
+                    help="Revision r1 (AE-4): como se fija el corte hx que "
+                         "entra en el piso del vendedor. mes (defecto, el "
+                         "canon): antes del mercado con los totales del mes. "
+                         "iterado: punto fijo con los residuales resueltos. "
+                         "secuencial_pronostico / secuencial_saldo: hora a "
+                         "hora con el saldo FIFO real y el pronostico lineal "
+                         "o el saldo conocido (core/corte_secuencial.py)")
     ap.add_argument("--paper-meters", action="store_true",
                     help="CAL-36: escenario M3 sub-medidores (demanda = circuito "
                          "PV, cobertura ~89%%; mismos medidores del paper CAL-28)")
@@ -3524,7 +3651,8 @@ if __name__ == "__main__":
              factor_demanda=lee_factor(args.factor_demanda),
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv),
-             piso_mecanismo=args.piso_mecanismo)
+             piso_mecanismo=args.piso_mecanismo,
+             esquina=args.esquina, corte_piso=args.corte_piso)
     else:
         _, _p2p = main(
              use_real_data=(args.data == "real"),
@@ -3562,7 +3690,8 @@ if __name__ == "__main__":
              factor_demanda=lee_factor(args.factor_demanda),
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv),
-             piso_mecanismo=args.piso_mecanismo)
+             piso_mecanismo=args.piso_mecanismo,
+             esquina=args.esquina, corte_piso=args.corte_piso)
 
     # ── D38: el codigo de salida, DESPUES de escribir todo ────────────────
     # `main` ya escribio todas sus salidas y cerro el almacen. Solo aqui, en

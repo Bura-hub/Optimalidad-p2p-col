@@ -206,6 +206,30 @@ def _valida_dinamica(mu_entropia, nivel_acoplado, costo_vendedor="lcoe",
                              costo_vendedor=costo_vendedor,
                              piso_juego=piso_juego)
 
+
+def _valida_cargo_comprador(cargo, techo_m, N: int, T: int,
+                            hay_techo: bool = True):
+    """Revision r1 (AE-5): valida `GridParams.cargo_comprador` en voz alta
+    (H-50, C-184). None (defecto) devuelve None y no toca nada. Si no, exige
+    el techo por agente, forma (N, T), valores finitos y no negativos y, con
+    el techo a mano, que la tarifa menos el cargo siga siendo positiva."""
+    if cargo is None:
+        return None
+    if techo_m is None and not hay_techo:
+        raise ValueError("cargo_comprador necesita el techo por agente "
+                         "(pi_gs_agente): el cargo se resta al techo de cada "
+                         "comprador")
+    c = np.asarray(cargo, dtype=float)
+    if c.shape != (N, T):
+        raise ValueError(f"cargo_comprador tiene forma {c.shape}; se esperaba "
+                         f"({N}, {T})")
+    if not np.all(np.isfinite(c)) or np.any(c < 0.0):
+        raise ValueError("cargo_comprador con valores no finitos o negativos")
+    if techo_m is not None and np.any(np.asarray(techo_m, float) - c <= 0.0):
+        raise ValueError("cargo_comprador deja la tarifa menos el cargo en "
+                         "cero o por debajo en alguna hora")
+    return c
+
 # ── Barra de progreso ─────────────────────────────────────────────────────────
 # Usa tqdm si está instalado; si no, implementación propia sin dependencias.
 
@@ -337,6 +361,19 @@ class GridParams:
     # debajo del suyo. Eso es H-43 y se resuelve con la restriccion de
     # participacion, que decide QUIEN ENTRA en vez de acotar el precio.
     pi_gb_agente: Optional[np.ndarray] = None
+
+    # Revision r1 del articulo (AE-5, 2026-11-21): el cargo que paga cada kWh
+    # que el comprador recibe dentro, matriz (N, T) en COP/kWh, o None.
+    #
+    # Sirve para las esquinas del factorial de los dos supuestos en que lo
+    # intercambiado NO esta exento (CANON §14.21, columna v10): el comprador
+    # paga la deduccion del caso 2 del art. 20 de la CREG 101 072 con su
+    # tarifa, de modo que en el juego su techo es su tarifa menos el cargo.
+    # Solo baja el techo del COMPRADOR en el trabajo de la hora; el limite de
+    # generacion de la ec. (1) sigue con el techo bruto (con a = 0, un techo
+    # por debajo de b anularia la generacion). Con None (defecto) el camino es
+    # el de siempre, bit a bit.
+    cargo_comprador: Optional[np.ndarray] = None
 
 
 @dataclass
@@ -2068,6 +2105,12 @@ class EMSP2P:
             """El techo que rige la hora k: vector por agente o el escalar."""
             return gr.pi_gs if techo_m is None else techo_m[:, k]
 
+        # Revision r1 (AE-5): el cargo del comprador, si se dio. Solo se valida
+        # aqui; se resta al techo del comprador al armar cada trabajo.
+        cargo_m = _valida_cargo_comprador(getattr(gr, "cargo_comprador", None),
+                                          techo_m, N, T,
+                                          hay_techo=techo_m is not None)
+
         # ── Y el piso, por vendedor si se dio (H-49) ──────────────────────
         piso_m = gr.pi_gb_agente
         if piso_m is not None:
@@ -2099,6 +2142,8 @@ class EMSP2P:
             # bloque comprador, el solucionador acoplado y la liquidacion.
             techo_k = (gr.pi_gs if techo_m is None
                        else techo_m[bids, k] if bids else gr.pi_gs)
+            if cargo_m is not None and bids:
+                techo_k = techo_k - cargo_m[bids, k]
             # H-49: al juego entra el MENOR de los pisos de los vendedores de
             # la hora, porque por debajo de el no vende nadie. No es el piso
             # de cada vendedor: eso no cabe en una dinamica indexada por
@@ -2421,11 +2466,17 @@ class EMSP2P:
         _, sids, bids = classify_agents(G_klim_k, D[:, k])
         pj = (None if gr.pi_gb_agente is None or not sids
               else np.asarray(gr.pi_gb_agente, dtype=float)[sids, k].copy())
+        techo_b = (gr.pi_gs if gr.pi_gs_agente is None or not bids
+                   else np.asarray(gr.pi_gs_agente, dtype=float)[bids, k])
+        # Revision r1 (AE-5): el mismo cargo del comprador que en `run`.
+        cargo_m = _valida_cargo_comprador(
+            getattr(gr, "cargo_comprador", None), None, D.shape[0], D.shape[1],
+            hay_techo=gr.pi_gs_agente is not None)
+        if cargo_m is not None and bids:
+            techo_b = techo_b - cargo_m[bids, k]
         return _run_hour_worker((k, G_klim_k, D[:, k].copy(), G[:, k].copy(),
                                   sids, bids, ag.a, ag.b, ag.lam, ag.theta, ag.etha,
-                                  (gr.pi_gs if gr.pi_gs_agente is None or not bids
-                                   else np.asarray(gr.pi_gs_agente,
-                                                   dtype=float)[bids, k]),
+                                  techo_b,
                                   (gr.pi_gb if pj is None else float(np.min(pj))),
                                   sv.tau, sv.tau_buyers, sv.t_span, sv.n_points,
                                   sv.stackelberg_iters, sv.stackelberg_tol, sv.stackelberg_max,

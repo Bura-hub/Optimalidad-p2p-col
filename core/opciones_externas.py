@@ -330,6 +330,121 @@ def piso_mecanismo(G, D, cu, deduccion, bolsa, etiqueta_mes,
     return piso, en_permuta
 
 
+# ── Revision r1 del articulo (AE-5, 2026-11-21): las cuatro esquinas ──────
+# El factorial de los dos supuestos de liquidacion del mercado P2P (CANON
+# §14.21; articulo, seccion «Los supuestos de liquidacion»):
+#   supuesto 1: el residual de cada miembro se liquida por miembro, fuera de
+#               C4, con el art. 25 y el numeral de su planta;
+#   supuesto 2: lo intercambiado no paga cargos de red ni Cv.
+# Sin el supuesto 1 el residual va al colectivo en el caso 2 del art. 20 (la
+# regla del 10 % vigente), con el PDE propio (art. 19). Sin el supuesto 2 lo
+# intercambiado paga la deduccion del caso 2, kappa·Cv + Theta, con la tarifa
+# del COMPRADOR (decisiones del 2026-11-21). Nada de esto cambia `piso_mecanismo`
+# ni el camino por defecto: con la esquina "p2p" se llama a `piso_residual`
+# exactamente como hoy.
+
+ESQUINAS = ("p2p", "solo1", "solo2", "ninguno")
+
+
+def deduccion_caso2(cvm: np.ndarray, tolls: np.ndarray) -> np.ndarray:
+    """(N, T) la deduccion del caso 2 del art. 20 de la CREG 101 072,
+    kappa·Cv + Theta, para todos los miembros. `cvm` ya lleva kappa (el
+    factor de --factor-cv), como en `deduccion_art25`. Rechaza peajes no
+    finitos en voz alta (H-50)."""
+    cvm = np.asarray(cvm, dtype=float)
+    t = np.broadcast_to(np.asarray(tolls, dtype=float), cvm.shape)
+    if not (np.isfinite(cvm).all() and np.isfinite(t).all()):
+        raise ValueError("la deduccion del caso 2 tiene valores no finitos "
+                         "(revisar la tabla de tarifas del mes)")
+    return cvm + t
+
+
+def _pesos_mensuales(x: np.ndarray, etiqueta_mes: np.ndarray) -> np.ndarray:
+    """(N, T) la parte de cada miembro en el total del mes de `x`; un mes sin
+    nada reparte por igual (no hay fondo que repartir)."""
+    x = np.asarray(x, dtype=float)
+    N, T = x.shape
+    w = np.empty((N, T))
+    etiquetas = np.asarray(etiqueta_mes)
+    for mes in np.unique(etiquetas):
+        h = etiquetas == mes
+        tot = x[:, h].sum(axis=1)
+        s = float(tot.sum())
+        w[:, h] = (tot / s if s > 0.0 else np.full(N, 1.0 / N))[:, None]
+    return w
+
+
+def piso_colectivo(G, D, cu, ded_caso2, bolsa, etiqueta_mes,
+                   base: str = "residual"):
+    """Piso del vendedor cuando lo que no vende dentro va al colectivo en el
+    caso 2 con el PDE propio (esquinas sin el supuesto 1). Devuelve (piso
+    (N, T), en_permuta (N, T)).
+
+    La parte de cada miembro en el fondo de la hora es w_n,m · S_h, con el
+    perfil horario del fondo (supuesto declarado, CANON §14.25), y se corta
+    con el Anexo 4 contra su importacion del mes. Antes del corte el piso es
+    la tarifa menos `ded_caso2`; desde el, la bolsa de la hora.
+
+    - ``residual`` (v01, solo el supuesto 2): w de la inyeccion residual,
+      S_h la inyeccion residual de todos, contra la importacion residual;
+    - ``bruta`` (v00, ninguno; `run_p2p_colectivo`): w de lo comprado mas lo
+      exportado sin colocar, S_h la inyeccion bruta de todos, contra la
+      importacion bruta.
+
+    Supuesto declarado, el mismo de `piso_residual`: series residuales
+    aproximadas (`residual_proporcional`) y totales del mes (CANON §14.27)."""
+    if base not in ("residual", "bruta"):
+        raise ValueError(f"base {base!r}; se esperaba 'residual' o 'bruta'")
+    G = np.asarray(G, dtype=float)
+    D = np.asarray(D, dtype=float)
+    bolsa = np.asarray(bolsa, dtype=float).reshape(-1)
+    iny_r, ret_r = residual_proporcional(G, D)
+    if base == "residual":
+        w = _pesos_mensuales(iny_r, etiqueta_mes)
+        perfil, ret = iny_r.sum(axis=0), ret_r
+    else:
+        exc = np.maximum(G - D, 0.0)
+        dfc = np.maximum(D - G, 0.0)
+        w = _pesos_mensuales((dfc - ret_r) + iny_r, etiqueta_mes)
+        perfil, ret = exc.sum(axis=0), dfc
+    asign = w * perfil[None, :]
+    en_permuta = tramo_permuta(G, D, etiqueta_mes, iny=asign, ret=ret)
+    piso = piso_por_vendedor(np.asarray(cu, dtype=float),
+                             np.asarray(ded_caso2, dtype=float), bolsa,
+                             en_permuta)
+    if not np.isfinite(piso).all():
+        raise ValueError("piso del colectivo no finito")
+    return piso, en_permuta
+
+
+def piso_esquina(esquina: str, G, D, cu, ded_art25, ded_caso2, bolsa,
+                 etiqueta_mes):
+    """El piso del vendedor y el cargo del comprador de cada esquina del
+    factorial. Devuelve (piso (N, T), en_permuta (N, T), cargo (N, T) o None).
+
+    ============  ==========================  ===============================
+    esquina       piso (residual)             cargo de lo intercambiado
+    ============  ==========================  ===============================
+    ``p2p``       `piso_residual` (canon)     ninguno
+    ``solo1``     `piso_residual`             ded_caso2 del comprador
+    ``solo2``     `piso_colectivo` residual   ninguno
+    ``ninguno``   `piso_colectivo` bruta      ded_caso2 del comprador
+    ============  ==========================  ===============================
+    """
+    if esquina not in ESQUINAS:
+        raise ValueError(f"esquina {esquina!r}; se esperaba una de {ESQUINAS}")
+    if esquina in ("p2p", "solo1"):
+        piso, en_permuta = piso_residual(G, D, cu, ded_art25, bolsa,
+                                         etiqueta_mes)
+    else:
+        piso, en_permuta = piso_colectivo(
+            G, D, cu, ded_caso2, bolsa, etiqueta_mes,
+            base="residual" if esquina == "solo2" else "bruta")
+    cargo = (None if esquina in ("p2p", "solo2")
+             else np.asarray(ded_caso2, dtype=float).copy())
+    return piso, en_permuta, cargo
+
+
 def piso_por_vendedor(cu: np.ndarray, deduccion: np.ndarray, bolsa: np.ndarray,
                       en_permuta: np.ndarray) -> np.ndarray:
     """Matriz (N, T) con la opcion de fuera de cada vendedor en cada hora.

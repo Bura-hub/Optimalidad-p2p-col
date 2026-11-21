@@ -259,5 +259,210 @@ def main() -> None:
     print(f"ok {png} {ancho}x{alto} px, {dpi:.0f} ppp, {tam:.2f} MB")
 
 
+def main_r1():
+    """Resumen gráfico de la revisión r1 (2026-11-21, comentario 9 del revisor C):
+    menos texto y el resultado en cifras. La cascada de E0, de la autogeneración
+    colectiva al mercado P2P, con los cargos evitados y el ahorro del
+    intercambio, y la regla P2P colectiva. Cifras de
+    SALIDAS_SERVIDOR/cifras_articulo_2026-09-30/cifras.csv (e1/L) y la conversión
+    a dólares de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv (e1/AR1,
+    CANON §14.40). Salida: graphical_abstract_r1.png y .pdf."""
+    import csv
+    import hashlib
+
+    def cifras(rel, grupo, ruta):
+        p = RAIZ / "SALIDAS_SERVIDOR" / rel
+        with open(RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv", encoding="utf-8", newline="") as fh:
+            h = [f for f in csv.DictReader(fh) if f["grupo"] == grupo and f["ruta"] == ruta]
+        assert len(h) == 1 and hashlib.sha256(p.read_bytes()).hexdigest() == h[0]["sha256"], f"huella de {rel}"
+        with open(p, encoding="utf-8", newline="") as fh:
+            return {f["clave"]: f["valor"] for f in csv.DictReader(fh)}
+
+    L = cifras("cifras_articulo_2026-09-30/cifras.csv", "e1/L", "cifras_articulo_2026-09-30/cifras.csv")
+    R = cifras("articulo_r1_2026-11-21/cifras.csv", "e1/AR1", "articulo_r1_2026-11-21/cifras.csv")
+    c4, evit, ahorro, p2p = (float(L[k]) for k in ("com__E0__C4", "com__E0__C1_C4", "com__E0__banda", "com__E0__P2P"))
+    pcol_c4 = float(L["com__E0__P2Pcom_C4"])
+    sin10 = float(L["com__E0__C4sin10"]) - c4
+    usd = float(R["usd__com__E0__P2P_C4"])
+    assert abs(c4 + evit + ahorro - p2p) < 1e-4, "la cascada de E0 no cierra"
+    pct = 100 * evit / (p2p - c4)
+    assert round(pct) == 85 and round(usd) == 500 and f"{sin10:.2f}" == "1.66"
+
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.axis("off")
+    # franja de cabecera: el resultado en una línea
+    ax.add_patch(Rectangle((0, H - 0.95), W, 0.95, fc=AZUL_T, ec="none", zorder=1))
+    ax.text(W / 2, H - 0.475, f"P2P market with two settlement assumptions: +{p2p - c4:.2f} MCOP (USD {usd:.0f}) "
+            "over collective self-generation", ha="center", va="center", fontsize=15.5, fontweight="bold",
+            color="white")
+    # izquierda: la comunidad medida
+    for i in range(5):
+        edificio(ax, 0.45 + i * 0.52, 2.55, w=0.42, h=0.40)
+    ax.text(1.70, 2.05, "5 institutions", ha="center", va="center", fontsize=13, fontweight="bold", color=TXT)
+    ax.text(1.70, 1.68, "6,144 metered hours (2025)", ha="center", va="center", fontsize=11.5, color=SUAVE)
+    # centro: la cascada de E0 (MCOP)
+    x0, y0, alto = 3.9, 1.35, 2.75
+    base = c4 - 0.55
+    esc = alto / (p2p - base + 0.25)
+    yb = lambda v: y0 + (v - base) * esc
+    ancho, paso = 0.95, 1.45
+    barras = [
+        (0, base, c4, "#9A9A9A", f"{c4:.2f}", "Collective\nself-generation"),
+        (1, c4, c4 + evit, C1, f"+{evit:.2f}", f"Avoided charges\n({pct:.0f} %)"),
+        (2, c4 + evit, p2p, PCOL, f"+{ahorro:.2f}", "Trade"),
+        (3, base, p2p, P2P, f"{p2p:.2f}", "P2P market"),
+    ]
+    for i, lo, hi, col, num, rot in barras:
+        ax.add_patch(Rectangle((x0 + i * paso, yb(lo)), ancho, yb(hi) - yb(lo), fc=col, ec="#333333", lw=1.0, zorder=3))
+        ax.text(x0 + i * paso + ancho / 2, yb(hi) + 0.10, num, ha="center", va="bottom", fontsize=14,
+                fontweight="bold", color=TXT)
+        ax.text(x0 + i * paso + ancho / 2, y0 - 0.12, rot, ha="center", va="top", fontsize=11.5, color=TXT,
+                linespacing=1.1)
+    ax.plot([x0 - 0.15, x0 + 3 * paso + ancho + 0.15], [y0, y0], color="#333333", lw=1.0, zorder=4)
+    ax.plot([x0 + ancho, x0 + 3 * paso], [yb(c4), yb(c4)], color="#777777", lw=1.0, ls=(0, (4, 2)), zorder=2)
+    ax.text(x0 - 0.22, y0 + alto / 2, "Net benefit (million COP)", ha="center", va="center", rotation=90, fontsize=11,
+            color=SUAVE)
+    # derecha: la regla propuesta
+    xr = 10.35
+    caja(ax, xr - 0.15, 1.15, 2.85, 2.95, C4_PF, C4, lw=1.4, r=0.10, z=1)
+    ax.text(xr + 1.275, 3.72, "Collective P2P rule", ha="center", va="center", fontsize=13.5, fontweight="bold",
+            color=C4)
+    ax.text(xr + 1.275, 3.05, f"+{pcol_c4:.2f} MCOP", ha="center", va="center", fontsize=19, fontweight="bold",
+            color=TXT)
+    # Ronda 2 de la revisión (exactitud, N3): la cifra es un solo orden de la
+    # atribución, quitar la regla primero y sin intercambio, y así se rotula.
+    ax.text(xr + 1.275, 2.35, f"{sin10:.2f} of them from dropping\nthe 10 % share rule,\nwith no trading",
+            ha="center", va="center",
+            fontsize=11.5, color=TXT, linespacing=1.15)
+    ax.text(xr + 1.275, 1.55, "over collective self-generation", ha="center", va="center", fontsize=10.5,
+            color=SUAVE)
+    flecha(ax, (x0 + 3 * paso + ancho + 0.35, 2.65), (xr - 0.25, 2.65), color="#8A9BAA", lw=2.2, ms=16)
+    # pie: el hallazgo
+    ax.add_patch(Rectangle((0, 0), W, 0.62, fc="#EEF3F7", ec="none", zorder=1))
+    ax.text(W / 2, 0.31, "The value comes from how energy is settled, not from the price.", ha="center",
+            va="center", fontsize=13.5, fontweight="bold", color=AZUL_T)
+
+    SALIDA.mkdir(parents=True, exist_ok=True)
+    png = SALIDA / "graphical_abstract_r1.png"
+    fig.savefig(png, dpi=DPI, facecolor="white")
+    fig.savefig(SALIDA / "graphical_abstract_r1.pdf", facecolor="white")
+    palabras = sum(len(t.get_text().split()) for t in ax.texts)
+    plt.close(fig)
+    from PIL import Image
+    Image.open(png).convert("RGB").save(png, dpi=(DPI, DPI))
+    im = Image.open(png)
+    alto_px, ancho_px = im.size[1], im.size[0]
+    tam = png.stat().st_size / 1e6
+    assert im.mode == "RGB" and alto_px >= 531 and ancho_px >= 1328 and abs(ancho_px / alto_px - 2.5) < 0.01
+    assert tam <= 5.0 and im.info.get("dpi", (0, 0))[0] >= 300
+    print(f"ok {png} {ancho_px}x{alto_px} px, {im.info['dpi'][0]:.0f} ppp, {tam:.2f} MB, {palabras} palabras")
+
+
+def main_r2():
+    """Resumen gráfico principal de la revisión (ronda 1, 2026-11-21): sin gráfica
+    de barras ni eje, como pide la página de envíos de la revista. Una franja
+    única representa la ventaja del mercado P2P sobre la autogeneración colectiva
+    en la comunidad medida, 2,01 MCOP, partida en proporción en los cargos
+    evitados (1,71) y el ahorro del intercambio (0,30). MCOP se define en la
+    cabecera. La cascada de `main_r1` queda como alternativa. Cifras de
+    SALIDAS_SERVIDOR/cifras_articulo_2026-09-30/cifras.csv (e1/L) y la conversión
+    a dólares de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv (e1/AR1,
+    CANON §14.40). Salida: graphical_abstract_r2.png y .pdf."""
+    import csv
+    import hashlib
+
+    def cifras(rel, grupo, ruta):
+        p = RAIZ / "SALIDAS_SERVIDOR" / rel
+        with open(RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv", encoding="utf-8", newline="") as fh:
+            h = [f for f in csv.DictReader(fh) if f["grupo"] == grupo and f["ruta"] == ruta]
+        assert len(h) == 1 and hashlib.sha256(p.read_bytes()).hexdigest() == h[0]["sha256"], f"huella de {rel}"
+        with open(p, encoding="utf-8", newline="") as fh:
+            return {f["clave"]: f["valor"] for f in csv.DictReader(fh)}
+
+    L = cifras("cifras_articulo_2026-09-30/cifras.csv", "e1/L", "cifras_articulo_2026-09-30/cifras.csv")
+    R = cifras("articulo_r1_2026-11-21/cifras.csv", "e1/AR1", "articulo_r1_2026-11-21/cifras.csv")
+    c4, evit, ahorro, p2p = (float(L[k]) for k in ("com__E0__C4", "com__E0__C1_C4", "com__E0__banda", "com__E0__P2P"))
+    pcol_c4 = float(L["com__E0__P2Pcom_C4"])
+    sin10 = float(L["com__E0__C4sin10"]) - c4
+    usd = float(R["usd__com__E0__P2P_C4"])
+    total = p2p - c4
+    assert abs(evit + ahorro - total) < 1e-4, "las dos partes no suman la ventaja de E0"
+    pct = 100 * evit / total
+    assert round(pct) == 85 and round(usd) == 500 and f"{sin10:.2f}" == "1.66" and f"{total:.2f}" == "2.01"
+
+    fig = plt.figure(figsize=(W, H))
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.axis("off")
+    # cabecera: el resultado en una línea, con MCOP definido
+    ax.add_patch(Rectangle((0, H - 0.95), W, 0.95, fc=AZUL_T, ec="none", zorder=1))
+    ax.text(W / 2, H - 0.475, f"P2P market with two settlement assumptions: +{total:.2f} million Colombian pesos "
+            f"(MCOP), USD {usd:.0f}", ha="center", va="center", fontsize=15.5, fontweight="bold", color="white")
+    # izquierda: la comunidad medida
+    for i in range(5):
+        edificio(ax, 0.42 + i * 0.56, 2.72, w=0.46, h=0.42)
+    ax.text(1.77, 2.28, "5 institutions", ha="center", va="center", fontsize=14, fontweight="bold", color=TXT)
+    ax.text(1.77, 1.90, "6,144 metered hours (2025)", ha="center", va="center", fontsize=12, color=SUAVE)
+    # centro: una franja única, partida en proporción
+    x0, x1, y0, alto = 3.75, 9.55, 2.25, 0.95
+    xm = x0 + (x1 - x0) * evit / total
+    ax.text((x0 + x1) / 2, y0 + alto + 0.42, "Advantage over collective self-generation", ha="center", va="center",
+            fontsize=14, fontweight="bold", color=TXT)
+    ax.add_patch(Rectangle((x0, y0), xm - x0, alto, fc=C1, ec="#333333", lw=1.0, zorder=3))
+    ax.add_patch(Rectangle((xm, y0), x1 - xm, alto, fc=PCOL, ec="#333333", lw=1.0, zorder=3))
+    ax.text((x0 + xm) / 2, y0 + alto / 2, f"{evit:.2f} MCOP", ha="center", va="center", fontsize=19,
+            fontweight="bold", color="white", zorder=4)
+    ax.text((xm + x1) / 2, y0 + alto / 2, f"{ahorro:.2f}", ha="center", va="center", fontsize=17, fontweight="bold",
+            color=TXT, zorder=4)
+    ax.text((x0 + xm) / 2, y0 - 0.33, f"Avoided charges ({pct:.0f} %)", ha="center", va="center", fontsize=13.5,
+            color=TXT)
+    ax.text((xm + x1) / 2, y0 - 0.33, f"Trade ({100 - pct:.0f} %)", ha="center", va="center", fontsize=13.5,
+            color=TXT)
+    # derecha: la regla propuesta
+    xr = 10.35
+    caja(ax, xr - 0.15, 1.30, 2.85, 2.75, C4_PF, C4, lw=1.4, r=0.10, z=1)
+    ax.text(xr + 1.275, 3.68, "Collective P2P rule", ha="center", va="center", fontsize=13.5, fontweight="bold",
+            color=C4)
+    ax.text(xr + 1.275, 3.08, f"+{pcol_c4:.2f} MCOP", ha="center", va="center", fontsize=19, fontweight="bold",
+            color=TXT)
+    ax.text(xr + 1.275, 2.66, "over collective self-generation", ha="center", va="center", fontsize=11,
+            color=SUAVE)
+    # Ronda 2 de la revisión (exactitud, N3): la cifra es un solo orden de la
+    # atribución, quitar la regla primero y sin intercambio, y así se rotula.
+    ax.text(xr + 1.275, 1.90, f"{sin10:.2f} of them from dropping\nthe 10 % share rule,\nwith no trading",
+            ha="center", va="center",
+            fontsize=12, color=TXT, linespacing=1.15)
+    flecha(ax, (x1 + 0.12, y0 + alto / 2), (xr - 0.25, y0 + alto / 2), color="#8A9BAA", lw=2.2, ms=16)
+    # pie: el hallazgo
+    ax.add_patch(Rectangle((0, 0), W, 0.72, fc="#EEF3F7", ec="none", zorder=1))
+    ax.text(W / 2, 0.36, "The value comes from how energy is settled, not from the price.", ha="center",
+            va="center", fontsize=14.5, fontweight="bold", color=AZUL_T)
+
+    SALIDA.mkdir(parents=True, exist_ok=True)
+    png = SALIDA / "graphical_abstract_r2.png"
+    fig.savefig(png, dpi=DPI, facecolor="white")
+    fig.savefig(SALIDA / "graphical_abstract_r2.pdf", facecolor="white")
+    palabras = sum(len(t.get_text().split()) for t in ax.texts)
+    plt.close(fig)
+    from PIL import Image
+    Image.open(png).convert("RGB").save(png, dpi=(DPI, DPI))
+    im = Image.open(png)
+    alto_px, ancho_px = im.size[1], im.size[0]
+    tam = png.stat().st_size / 1e6
+    assert im.mode == "RGB" and alto_px >= 531 and ancho_px >= 1328 and abs(ancho_px / alto_px - 2.5) < 0.01
+    assert tam <= 5.0 and im.info.get("dpi", (0, 0))[0] >= 300
+    print(f"ok {png} {ancho_px}x{alto_px} px, {im.info['dpi'][0]:.0f} ppp, {tam:.2f} MB, {palabras} palabras")
+
+
 if __name__ == "__main__":
-    main()
+    import sys
+    if "--r2" in sys.argv[1:]:
+        main_r2()
+    elif "--r1" in sys.argv[1:]:
+        main_r1()
+    else:
+        main()

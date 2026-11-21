@@ -956,6 +956,121 @@ def fig2_tres() -> None:
         "órdenes en cada caso"])
 
 
+# ── Fig. 2 de la revisión r1 del artículo (2026-11-21) ──────────────────────
+DIR_R1 = RAIZ / "SALIDAS_SERVIDOR" / "articulo_r1_2026-11-21"
+
+
+def _cifras_r1() -> pd.Series:
+    """Las cifras de las mediciones de la revisión r1 (CANON §14.40, grupo
+    e1/AR1), con la huella de `cifras.csv` comprobada contra HUELLAS.csv."""
+    p = DIR_R1 / "cifras.csv"
+    h = pd.read_csv(RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv")
+    f = h[(h.grupo == "e1/AR1") & (h.ruta == "articulo_r1_2026-11-21/cifras.csv")]
+    exige(len(f) == 1 and sha(p) == f.sha256.iloc[0], "cifras.csv de articulo_r1 no tiene la huella e1/AR1")
+    c = pd.read_csv(p)
+    return pd.to_numeric(c.set_index("clave").valor)
+
+
+def fig2_r1() -> None:
+    """Fig. 2 del artículo revisado: la de `fig2_tres` con (i) un eje derecho en
+    miles de dólares en las dos cascadas, con la TRM media del horizonte
+    (`trm__media_horizonte`), y (ii) en (c), una raya vertical en la fila de E3, E4 e I1
+    con el valor de Shapley del supuesto 1 cuando el mercado que solo tiene ese
+    supuesto se liquida sobre los mismos intercambios en vez de medirse con C1.
+    Parte de C4, como la atribución publicada: es `m2__<caso>__cota_shapley_s1_min`
+    sobre `com__<caso>__P2P_C4` (ronda 1 de la revisión: la misma base que el eje)."""
+    nombre = d = "fig2_cascadas_atrib_r1"
+    GE = G.E
+    R1 = _cifras_r1()
+    trm = float(R1["trm__media_horizonte"])
+    fig = plt.figure(figsize=(ANCHO_PAG, 2.15))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.12, 1.12, 0.66], height_ratios=[1, 1], wspace=0.50, hspace=0.66,
+                          left=0.078, right=0.985, top=0.905, bottom=0.215)
+    axa = fig.add_subplot(gs[:, 0])
+    axb = fig.add_subplot(gs[:, 1])
+    axc1 = fig.add_subplot(gs[0, 2])
+    axc2 = fig.add_subplot(gs[1, 2], sharex=axc1)
+    filas = _cascada(axa, "E0", d, "(a) E0: la comunidad medida")
+    filas += _cascada(axb, "E3", d, "(b) E3: la mayor escala bajo 100 kW")
+    cortos = ["C4", "cargos", "ahorro", "crédito", "P2P", "P2P\ncol."]
+    MARCAS.setdefault(d, set())
+    IMPRESOS.setdefault(d, set())
+    for ax, paso in ((axa, 0.2), (axb, 5.0)):
+        E.aplicar_estilo_ejes(ax, ylabel="Beneficio neto (MCOP)" if ax is axa else "")
+        ax.set_xticks(range(len(cortos)), cortos)
+        ax.grid(axis="x", visible=False)
+        ax.tick_params(axis="x", labelsize=FS, length=0)
+        ax.tick_params(axis="y", labelsize=FS)
+        _corte(ax)
+        ax.yaxis.set_major_formatter(T._FormatoEs(useOffset=False))
+        for t in list(ax.texts):
+            if t.get_text() == "nivel de C4":
+                t.set_text("C4")
+            elif t.get_text().startswith("C1:"):
+                t.remove()
+        # eje derecho en miles de dólares: 1 MCOP = 1000 / TRM miles de USD
+        k = 1000.0 / trm
+        sec = ax.secondary_yaxis("right", functions=(lambda y, k=k: y * k, lambda u, k=k: u / k))
+        lo, hi = ax.get_ylim()
+        marcas = [float(u) for u in np.arange(np.ceil(lo * k / paso + 1) * paso, hi * k, paso)]
+        sec.set_yticks(marcas)
+        dec = 1 if paso < 1 else 0
+        rot = [f"{u:.{dec}f}".replace(".", ",") for u in marcas]
+        sec.set_yticklabels(rot)
+        sec.tick_params(axis="y", labelsize=FS, length=2, pad=1.5)
+        sec.spines["right"].set_visible(True)
+        MARCAS[d].update(rot)
+        IMPRESOS[d].update(rot)
+        sec.set_ylabel("mil USD", fontsize=FS, labelpad=1.5, color=E.COLOR_TEXTO)
+        filas.append(dict(caso="E0" if ax is axa else "E3", paso="eje derecho: miles de USD por MCOP",
+                          base_MCOP=None, altura_MCOP=k))
+    _atrib_ax(axc1, "(c) P2P: supuesto 1 (%)", "atr__{c}__texto_s1_pct", "atr__{c}__inverso_s1_pct",
+              "atr__{c}__shapley_s1_pct", d, GE, filas)
+    _atrib_ax(axc2, "(d) P2P col.: sin regla (%)", "pcom__{c}__sin10_pct_dir",
+              "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh", d, GE, filas)
+    casos = list(CASOS_ART)
+    for c in ("E3", "E4", "I1"):                      # donde C1 solo acota por debajo (CANON §14.21 y §14.40)
+        y = len(casos) - 1 - casos.index(c)
+        s1 = float(R1[f"m2__{c}__cota_shapley_s1_min"])
+        s2 = float(R1[f"m2__{c}__cota_shapley_s2_max"])
+        total = V(f"com__{c}__P2P_C4", d)
+        exige(abs(s1 + s2 - total) <= 1e-4, f"{d}: en {c}, el Shapley sobre los mismos intercambios no suma P2P − C4")
+        exige(s1 >= V(f"atr__{c}__shapley_s1", d) - 1e-6, f"{d}: en {c}, el valor con C1 no es la cota inferior")
+        pct = 100.0 * s1 / total
+        exige(-90 < pct < 105, f"{d}: la raya de {c} cae fuera del eje ({pct:.1f})")
+        axc1.plot([pct], [y], marker="|", ms=9.5, mew=1.5, color=GE.TINTA, ls="none", zorder=6)
+        filas.append(dict(caso=c, paso="(c) Shapley desde C4 con «solo el supuesto 1» sobre los mismos intercambios",
+                          base_MCOP=None, altura_MCOP=None, shapley_pct=pct))
+    axc1.set_xlim(-92, 105)                           # el triángulo de E4 (−73,2 %) entero dentro del eje
+    plt.setp(axc1.get_xticklabels(), visible=False)
+    axc2.set_xticks([-50, 0, 50, 100])
+    ley = [
+        Line2D([], [], ls="none", marker=">", ms=4.5, color=GE.TINTA, label="primero"),
+        Line2D([], [], ls="none", marker="<", ms=4.5, mfc="white", mec=GE.TINTA, label="después"),
+        Line2D([], [], ls="none", marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], label="Shapley"),
+        Line2D([], [], ls="none", marker="|", ms=9.5, mew=1.5, color=GE.TINTA, label="mismos intercambios"),
+    ]
+    fig.legend(handles=ley, loc="lower right", ncol=4, frameon=False, fontsize=FS, handletextpad=0.2,
+               columnspacing=0.7, borderaxespad=0.05, bbox_to_anchor=(0.995, 0.0))
+    for ax in (axa, axb):
+        lo, hi = ax.get_ylim()
+        for yt in ax.get_yticks():
+            if lo <= yt <= hi:
+                MARCAS[d].update({f"{yt:.1f}".replace(".", ","), f"{yt:g}", f"{yt:.0f}"})
+    MARCAS[d].update({"100", "1", "2", "3", "0", "50", "10"})
+    SOLO_EJE.add(d)
+    IMPRESOS[d].add("50")
+    T.menos_tipografico(fig)
+    guardar(fig, nombre, pd.DataFrame(filas), "pag", [
+        "Fig. 2 de la revisión r1 del artículo (2026-11-21): la de fig2_cascadas_atrib con un eje derecho en miles "
+        f"de dólares en (a) y (b), con la TRM media del horizonte ({trm:.2f} COP/USD, clave trm__media_horizonte "
+        "de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv, grupo e1/AR1), y en (c) una raya vertical en la fila de "
+        "E3, E4 e I1 con m2__<caso>__cota_shapley_s1_min sobre com__<caso>__P2P_C4: Shapley desde C4 con el mercado "
+        "que solo tiene el supuesto 1 liquidado sobre los mismos intercambios (CANON §14.40)",
+        "compuertas: las de fig2_cascadas_atrib, la huella e1/AR1 de cifras.csv, que las dos partes sumen "
+        "P2P − C4, que el valor medido con C1 sea la cota inferior y que la raya caiga dentro del eje"])
+
+
 # ── Una hora de E0 en el eje de precios (pieza F2) ──────────────────────────
 def fig_hora() -> None:
     nombre = d = "fig_hora_E0"
@@ -1131,8 +1246,10 @@ def _datos_hora(fecha: str) -> dict:
                 proc=[*r_ag, *r_fl, *r_h])
 
 
-def _panel_hora(fig, gs, d: dict, letra: str, hora: str, GE, rotulos_eje: bool = True) -> None:
-    """Un panel: arriba, el eje de precios; abajo, la energía en orden de mérito."""
+def _panel_hora(fig, gs, d: dict, letra: str, hora: str, GE, rotulos_eje: bool = True,
+                dy_titulo: float = 0.62) -> None:
+    """Un panel: arriba, el eje de precios; abajo, la energía en orden de mérito.
+    `dy_titulo` es la altura del título sobre el borde del eje, en unidades del eje."""
     ax = fig.add_subplot(gs[0])
     ae = fig.add_subplot(gs[1])
     fmt = lambda z: G.num(z, 2)
@@ -1160,7 +1277,7 @@ def _panel_hora(fig, gs, d: dict, letra: str, hora: str, GE, rotulos_eje: bool =
     top = nv + nc + 0.6 + 0.55
     ax.text(pj - 1, top, fmt(pj), ha="right", va="bottom", fontsize=FS, color=GE.TINTA)
     ax.text(pu + 1, top, fmt(pu), ha="left", va="bottom", fontsize=FS, color=GE.MECANISMOS["P2P"])
-    ax.text(lo - 0.5, top + 0.62, f"({letra}) {hora}, {d['corto']}", ha="left", va="bottom",
+    ax.text(lo - 0.5, top + dy_titulo, f"({letra}) {hora}, {d['corto']}", ha="left", va="bottom",
             fontsize=FS_TIT, fontweight="bold", color=E.COLOR_TEXTO, clip_on=False,
             transform=ax.transData)
     ax.set_xlim(lo, hi)
@@ -1216,8 +1333,9 @@ def _panel_hora(fig, gs, d: dict, letra: str, hora: str, GE, rotulos_eje: bool =
         IMPRESOS.setdefault("fig1_horas_E0", set()).add(fmt(z))
 
 
-def fig_horas_col() -> None:
+def fig_horas_col(alto: float = 4.45, nombre: str = "fig1_horas_E0") -> None:
     """Fig. 1 del artículo desde el 2026-10-05: dos horas de E0 del mismo día a una columna.
+    Con `alto` y `nombre` distintos (opción --r1) escribe una variante más baja.
 
     (a) 14 de abril de 2025, 13:00: sobra sol, compradores cortos. Se despacha
     por piso: Unicesmag, el de piso más bajo, vende todo; HUDN y Udenar empatan en
@@ -1228,9 +1346,9 @@ def fig_horas_col() -> None:
     Cada panel muestra el piso del juego (ec. del piso del juego), el volumen
     como lado corto (ec. del volumen) y, en la tira de energía, el orden de
     mérito y de servicio con lo que queda sin transar."""
-    nombre = "fig1_horas_E0"
     GE = G.E
     IMPRESOS[nombre] = set()
+    IMPRESOS["fig1_horas_E0"] = set()
     a = _datos_hora("2025-04-14 13:00:00")
     b = _datos_hora("2025-04-14 16:00:00")
     exige(a["corto"] == "compradores cortos" and b["corto"] == "vendedores cortos",
@@ -1238,11 +1356,21 @@ def fig_horas_col() -> None:
     exige("HUDN" in set(a["ven"].agente) and "HUDN" in set(b["com"].agente), "HUDN ya no cambia de papel")
     exige(abs(b["vol"] - float(HORA["salida"].volumen_kWh.iloc[0])) <= 1e-4,
           "la hora de las 16:00 no es la de fig_hora_E0")
-    fig = plt.figure(figsize=(ANCHO_COL, 4.45))
-    gs = fig.add_gridspec(5, 1, height_ratios=[1.6, 0.5, 0.02, 1.6, 0.5], hspace=0.5,
-                          left=0.215, right=0.985, top=0.94, bottom=0.225)
-    _panel_hora(fig, [gs[0], gs[1]], a, "a", "13:00", GE, rotulos_eje=False)
-    _panel_hora(fig, [gs[3], gs[4]], b, "b", "16:00", GE)
+    fig = plt.figure(figsize=(ANCHO_COL, alto))
+    if nombre == "fig1_horas_E0":
+        gs = fig.add_gridspec(5, 1, height_ratios=[1.6, 0.5, 0.02, 1.6, 0.5], hspace=0.5,
+                              left=0.215, right=0.985, top=0.94 if alto == 4.45 else 1 - 0.267 / alto,
+                              bottom=0.225 if alto == 4.45 else 1.0 / alto)
+        _panel_hora(fig, [gs[0], gs[1]], a, "a", "13:00", GE, rotulos_eje=False)
+        _panel_hora(fig, [gs[3], gs[4]], b, "b", "16:00", GE)
+    else:
+        # Variante de la revisión (ronda 1, 2026-11-21): una fila de aire entre el eje de precios y la
+        # franja de energía de (b), para que «Precio (COP/kWh)» no quede detrás de la franja, y el
+        # título de cada panel más alto, para que no toque la cifra del piso del juego.
+        gs = fig.add_gridspec(6, 1, height_ratios=[1.6, 0.5, 0.26, 1.6, 0.10, 0.5], hspace=0.42,
+                              left=0.215, right=0.985, top=1 - 0.33 / alto, bottom=1.0 / alto)
+        _panel_hora(fig, [gs[0], gs[1]], a, "a", "13:00", GE, rotulos_eje=False, dy_titulo=1.25)
+        _panel_hora(fig, [gs[3], gs[5]], b, "b", "16:00", GE, dy_titulo=1.25)
     ley = [
         Line2D([], [], ls="none", marker="^", markersize=5.5, color=GE.TINTA, label="piso del vendedor"),
         Line2D([], [], ls="none", marker="|", markersize=8, mew=1.6, color=GE.TINTA, label="techo (CU)"),
@@ -1272,6 +1400,11 @@ def fig_horas_col() -> None:
                               precio_reposo_COP_kWh=float(c.reposo), precio_pagado_COP_kWh=float(c.precio),
                               disponible_kWh=float(c.faltante), transado_kWh=float(c.compra_p2p),
                               piso_juego_COP_kWh=d["pj"], precio_uniforme_COP_kWh=d["pu"], volumen_kWh=d["vol"]))
+    if nombre != "fig1_horas_E0":                       # variante: mismas marcas, números y claves
+        IMPRESOS[nombre] = IMPRESOS["fig1_horas_E0"]
+        MARCAS[nombre] = MARCAS["fig1_horas_E0"]
+        HORAS.add(nombre)
+        A.USADAS[nombre] = set(A.USADAS.get("fig1_horas_E0", set()))
     guardar(fig, nombre, pd.DataFrame(filas), "col", [
         "dos horas de E0 del 14 de abril de 2025 (13:00, compradores cortos; 16:00, vendedores cortos), "
         "leídas del almacén con huella; la de las 16:00 es la de fig_hora_E0 y la Figura 5.1 de la tesis",
@@ -1337,7 +1470,9 @@ def fig3() -> None:
     h["P2Pcom_C4"] = ax.scatter(x, pcomc4, marker="D", s=13, color=A.C_COL, edgecolor="#000000", lw=0.5,
                                 zorder=6)
     ax.axhline(0, color="#333333", lw=0.7, zorder=4)
-    ax.set_xticks(x, casos)
+    # 2026-10-24 (auditoría de exactitud, G-1): a 8 pt, «CV2» y «SINU» se
+    # tocaban en el eje; los rótulos se giran 45° (solo composición)
+    ax.set_xticks(x, casos, rotation=45, ha="right", rotation_mode="anchor")
     ax.tick_params(axis="x", labelsize=FS)
     ax.tick_params(axis="y", labelsize=FS)
     ax.set_xlim(-0.6, len(casos) - 0.4)
@@ -1734,14 +1869,12 @@ def fig3_gsa_margen() -> None:
         "extremos (punta si se sale del eje, de −1,5 a 2,5)"))
 
 
-def fig3_gsa_rejilla() -> None:
+def fig3_gsa_rejilla(alto_fig: float = 2.17, d: str = "fig3_gsa_rejilla") -> None:
     """Alternativa C: la rejilla 5 × 5 de la Fig. 3 actual, con una barra de
     margen en cada celda en lugar de la probabilidad de inversión."""
-    d = "fig3_gsa_rejilla"
     casos, brechas = list(CASOS_ART), list(BRECHAS_MARGEN)
     datos = _margen_gsa(casos, brechas, d)
     lim, marcas = (-1.5, 2.5), [0, 1, 2]
-    alto_fig = 2.17
     fig = plt.figure(figsize=(ANCHO_COL, alto_fig))
     izq, der, arr, aba, hueco = 0.40, 0.05, 0.32, 0.56, 0.07      # pulgadas
     w = (ANCHO_COL - izq - der - hueco * (len(brechas) - 1)) / len(brechas)
@@ -2006,7 +2139,39 @@ def comprueba() -> None:
     exige("Unicesmag" in t1 and "Unimar" in t1, "fig1_comunidad: no rotula «Unicesmag» y «Unimar»")
 
 
+def main_r1() -> int:
+    """Opción --r1 (revisión r1 del artículo, 2026-11-21): escribe SOLO las tres
+    figuras del manuscrito revisado, con nombres propios, y no toca las demás:
+    fig1_horas_E0_r1 y fig3_gsa_rejilla_r1 (las mismas, un 10 % más bajas) y
+    fig2_cascadas_atrib_r1 (eje en dólares y raya de Shapley sobre los mismos
+    intercambios). Desde la ronda 1 de la revisión, las tres con el alto de la
+    versión enviada."""
+    import tempfile
+    global DIR_SAL
+    T.TRAD.update(TRAD_NUEVOS)
+    A.compuertas_comunidad()
+    exige(sha(CIFRAS) == A.SHA, "cifras.csv no tiene la huella e1/L")
+    real = DIR_SAL
+    with tempfile.TemporaryDirectory() as tmp:           # fig_hora() deja HORA; su salida no se conserva
+        DIR_SAL = Path(tmp)
+        rc_articulo()
+        fig_hora()
+    DIR_SAL = real
+    RES.clear()
+    rc_articulo()
+    fig_horas_col(4.45, "fig1_horas_E0_r1")              # ronda 1: recuperan el alto de la versión enviada
+    rc_articulo()
+    fig3_gsa_rejilla(2.17, "fig3_gsa_rejilla_r1")
+    rc_articulo()
+    fig2_r1()
+    comprueba()
+    print("[gen_figuras_articulo_es] FIGURAS DE LA REVISIÓN R1 ESCRITAS")
+    return 0
+
+
 def main() -> int:
+    if "--r1" in sys.argv[1:]:
+        return main_r1()
     IMPRESOS["fig1_comunidad"] = set()                   # Fig. 1: ninguna cifra
     IMPRESOS["fig1_mercados"] = set()
     T.TRAD.update(TRAD_NUEVOS)                           # solo en este proceso

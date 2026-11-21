@@ -2158,8 +2158,12 @@ print(" ".join(sorted(palancas)))
         echo "    $R1_RETOMA CASOS=\"${CASOS:-}\" DESDE=$CASO bash $0 $ACCION"
         exit "$cod"
       }
+      # compuerta_r1.py delega en compuertas_matriz_reposo.py si hay alguna
+      # hora resuelta; si no hay ninguna (la esquina solo1 donde ningun par
+      # gana), comprueba que no hubo mercado por esa razon y que el mercado
+      # vale C1 al peso, y falla si la corrida simplemente no resolvio nada.
       corre "${R1_NOMBRE}_compuerta_${CASO}" \
-            "$SONDA/compuertas_matriz_reposo.py" "$ALM" \
+            "$SONDA/compuerta_r1.py" "$ALM" \
             --cobertura m1 --caso "$CASO" || {
         cod=$?
         echo
@@ -2204,11 +2208,21 @@ print(" ".join(sorted(palancas)))
       exit 2
     fi
     echo "=== REVISION R1 RESUELTA · AE-5 y AE-4 · 81 corridas · hasta ${HASTA:-sin tope} ==="
+    # El retome (2026-11-21, tras la noche detenida en esquina_solo1 E0):
+    # RETOMA_PASO=<VAR=valor> (p. ej. ESQUINA=solo1) salta los pasos de la
+    # lista anteriores al primero con esa variable, y RETOMA_CASO=<caso> le
+    # pasa DESDE a ese paso, y solo a el. SIN_COMPUERTAS=1 salta las
+    # compuertas iniciales (ya en verde en la corrida que se retoma).
     plataforma_respira || exit 2
-    echo "--- compuertas (una vez)"
-    bash "$0" compuertas
-    corre "pytest_test_invariancia_r1_ae45" -m pytest \
-          "tests/test_invariancia_r1_ae45.py" -q
+    if [[ "${SIN_COMPUERTAS:-0}" != "1" ]]; then
+      echo "--- compuertas (una vez)"
+      bash "$0" compuertas
+      corre "pytest_test_invariancia_r1_ae45" -m pytest \
+            "tests/test_invariancia_r1_ae45.py" -q
+    else
+      echo "--- compuertas: ya corridas (SIN_COMPUERTAS=1)"
+    fi
+    _saltando="${RETOMA_PASO:-}"
     PASOS=()
     for e in p2p solo1 solo2 ninguno; do PASOS+=("matriz_esquina|ESQUINA=$e|$R1_PRIMERO"); done
     for c in iterado secuencial_saldo; do PASOS+=("matriz_corte|CORTE=$c|$R1_CORTE_PRIMERO"); done
@@ -2216,19 +2230,39 @@ print(" ".join(sorted(palancas)))
     for e in p2p solo1 solo2 ninguno; do PASOS+=("matriz_esquina|ESQUINA=$e|$R1_RESTO_FACTORIAL"); done
     for c in iterado secuencial_saldo; do PASOS+=("matriz_corte|CORTE=$c|$R1_RESTO_CORTE"); done
     PASOS+=("matriz_corte|CORTE=secuencial_pronostico|$R1_RESTO_CORTE $R1_CONTROLES")
+    if [[ -n "$_saltando" ]]; then
+      _hay=""
+      for paso in "${PASOS[@]}"; do
+        IFS='|' read -r _acc _var _casos <<< "$paso"
+        [[ "$_var" == "$_saltando" ]] && _hay=1
+      done
+      if [[ -z "$_hay" ]]; then
+        echo "  RETOMA_PASO=$_saltando no es ningun paso de la lista" >&2
+        exit 2
+      fi
+    fi
     for paso in "${PASOS[@]}"; do
       IFS='|' read -r _acc _var _casos <<< "$paso"
+      _desde=()
+      if [[ -n "$_saltando" ]]; then
+        if [[ "$_var" != "$_saltando" ]]; then
+          echo "  ... salta $_acc $_var · $_casos (RETOMA_PASO=$_saltando)"
+          continue
+        fi
+        _saltando=""
+        if [[ -n "${RETOMA_CASO:-}" ]]; then _desde=(DESDE="$RETOMA_CASO"); fi
+      fi
       echo
-      echo "--- $_acc $_var · $_casos"
+      echo "--- $_acc $_var · $_casos ${_desde[*]:-}"
       cod=0
-      env "$_var" CASOS="$_casos" SIN_COMPUERTAS=1 SIN_RECOGER=1 \
-          bash "$0" "$_acc" || cod=$?
+      env -u DESDE "$_var" CASOS="$_casos" SIN_COMPUERTAS=1 SIN_RECOGER=1 \
+          ${_desde[@]+"${_desde[@]}"} bash "$0" "$_acc" || cod=$?
       if [[ $cod -ne 0 ]]; then
         echo
         echo "  === DETENIDO en $_acc $_var (codigo $cod; 4 es HASTA) ==="
-        echo "  Retoma ese paso con la orden que imprimio arriba y despues los"
-        echo "  siguientes de esta lista, o la cadena entera (cada carpeta se"
-        echo "  retoma con su marcador y DESDE)."
+        echo "  Retoma la cadena desde ahi, sin repetir lo que esta en verde, con:"
+        echo "    SIN_COMPUERTAS=1 RETOMA_PASO=$_var RETOMA_CASO=<el caso de DESDE"
+        echo "    de la orden de arriba> HASTA=${HASTA:-HH:MM} bash $0 revision_r1_resuelta"
         bash "$0" recoger revision_r1_resuelta || true
         exit "$cod"
       fi
@@ -4380,7 +4414,7 @@ print(" ".join(sorted(palancas)))
           fi
         fi
         if [[ -f "$esperado" && "$esperado" == */*compuerta_*.log ]]; then
-          if ! grep -qE "^COMPUERTA MATRIZ REPOSO .* EN VERDE" "$esperado"; then
+          if ! grep -qE "^COMPUERTA (MATRIZ REPOSO|SIN MERCADO) .* EN VERDE" "$esperado"; then
             echo "  === AVISO: la compuerta de salida NO termino EN VERDE: $esperado ==="
           fi
         fi

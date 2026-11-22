@@ -12968,3 +12968,497 @@ Las listas de coautores son parciales; el autor queda de confirmarlas con los as
 **Carta.** Se reemplaza el marcador amarillo por el párrafo «Suggested reviewers» con los tres revisores en una lista alineada a la izquierda (`carta_en_docx.js`). `cover_letter.docx` y `.pdf` pasan a 2 páginas, sin marcadores. La copia del envío queda en `envio/subir/PDF_letter_to_editor.pdf`.
 
 **Envío completado (2026-10-08).** El autor terminó el envío 11297 en latamt.ieeer9.org («Submission complete»), en la sección *Electric Energy*, con los cuatro archivos de `v2_es/envio/subir/`. Los metadatos salen de `envio/metadatos_envio.md`, con las 26 referencias regeneradas del `.bbl` (`envio/referencias_ojs.txt`). Los autores, en orden, son López-Méndez (contacto principal), Pantoja y Obando. Las autorizaciones de ORCID quedaron pedidas por correo. El acuse de la revista llega al correo del autor.
+
+### C-385 · Versión del artículo en español para la supervisión del MTE, con impactos y riesgos (2026-10-20)
+
+Tipo: estilo | dato (sin cifras nuevas fuera del canon)
+
+**Qué se pidió:** una versión alternativa del artículo en español para la supervisión del proyecto MTE, que no se envía a ninguna revista. Tiene que responder, como la tesis, a la identificación de los impactos socioambientales del modelo transaccional (con estrategias que promuevan sus beneficios y mitiguen sus problemas) y de sus riesgos operativos, funcionales y ambientales. Sin códigos de actividad, sin informes ni documentos del proyecto, sin decir que algo falta o no se midió y sin mencionar el uso de IA. El manuscrito sometido (envío 11297) no se toca.
+
+**Dónde:** `Documentos/articulo_latam/v2_es_ambiental/`, copia de `v2_es/manuscrito/` y `v2_es/figuras/` con la misma estructura relativa (`\graphicspath{{../figuras/}}`). El principal se renombró a `manuscrito/articulo_es_ambiental.tex`. Se borraron de la copia los PDF y auxiliares viejos (`articulo_es.*`, `articulo_es_revisiones.pdf`) y las carpetas `antes_c369`, `antes_c371` y `antes_c379`. El encabezado lleva un comentario que la declara versión para la supervisión del MTE, distinta del manuscrito sometido. El PDF no lleva ninguna marca visible.
+
+**Qué se añadió:**
+- Sección V nueva, «Impactos y riesgos del modelo transaccional» (`sec:impactos`), antes de las conclusiones. Un párrafo de entrada; cuatro impactos en lista (económico; social o distributivo, con el reparto entre instituciones, la parte del vendedor y el Gini; ambiental, con el efecto rebote; replicación y escala); un párrafo que presenta la tabla y cuatro estrategias (promover la regla, acordar el reparto, acotar el efecto rebote, planificar la réplica). Sustancia de `sec:impactos-riesgos` de la tesis, adaptada a los cinco casos. Lo de los 13 casos lleva su base («en los 13 casos de~\cite{LopezMendez2026Thesis}»).
+- Tabla IV nueva, `tablas/tabla_riesgos.tex`, de una columna, sin rayas verticales, con «Riesgo», «Lo que el estudio midió» y «Mitigación»: regulatorio, económico, social, operativo (datos incompletos), funcional (precios que no convergen), ambiental (efecto rebote) y escalabilidad.
+- Una frase en el *abstract*: «Since the market leaves generation and demand unchanged, its environmental impact is small: the internal price would raise consumption by under 1 % in the case of largest effect, and its main risks are regulatory and distributive.»
+- Un quinto aporte en la introducción («El artículo hace cinco aportes»).
+- En las conclusiones: «El impacto del mercado P2P es económico y distributivo, no ambiental, porque no cambia la energía. Su riesgo mayor es el regulatorio, que el P2P colectivo mitiga. La forma cerrada mitiga el de su mecanismo de precios, que la dinámica no llegue al reposo.» En trabajos futuros: «El efecto rebote estimado se contrastaría con el consumo de los compradores con el mercado en operación.»
+
+**Qué se condensó** (sin quitar ninguna salvedad: la forma cerrada como regla adoptada, «en parte por construcción», «solo con los dos supuestos» y la comunidad supuesta siguen):
+- Discusión, primer párrafo: sale «Así, la comunidad manda a la bolsa 63 633,82 kWh en lugar de los 72 114,11 del mercado P2P» (que además usaba «manda a la bolsa»), y se acortan dos frases.
+- Segunda pregunta del art. 20: «Para él, la lectura opuesta, que las deja en el numeral 2, no se midió» → «La lectura opuesta, que las deja en el numeral 2, queda fuera del alcance del artículo».
+- Conclusiones: las dos preguntas del art. 20 quedan en una frase sin cifras (salen 1,66 y 33,99, que siguen en IV-D). «Falta, por último, contrastar la forma cerrada…» → «Por último, se deja recomendado contrastar la forma cerrada…».
+
+**Cifras nuevas y su fuente:** del 4,9 al 96,2 % (parte del vendedor de E0; CANON §14.4, 0,049 a 0,962), Gini menor que C4 en E3, E4 y SINU y mayor en E0 e I1 (`cifras.csv`, claves `gini__*`), cuatro de cinco instituciones bajo C4 en E0 (CANON §12) y 25 de 64 pares (`cifras.csv`, `pares_bajo_C4`), del 0,41 al 0,98 % y 0,77 % en E4 y menos de 0,2 puntos de autosuficiencia (CANON §14.31), 866 horas y 59,3 % (CANON §14.17), 99 de 141 (CANON §14.33), 74 de 120 (CANON §14.37), 33,50 MCOP (CANON §14.11), la tarifa de la mitad al doble donde es evaluable (CANON §14.32). Cada una lleva su `% cifra-ok`, copiado de la tesis cuando la tesis lo tenía.
+
+**Páginas:** 10. No cupo en 9: la sección nueva ocupa unos dos tercios de página y lo condensado libera unas seis líneas. Para volver a 9 habría que retirar una figura o una subsección entera, lo que no se pidió.
+
+**Comprobaciones:**
+- `compuerta_vetadas.py --fichero`: LIMPIA en `articulo_es_ambiental.tex` y en `tablas/tabla_riesgos.tex`.
+- `cifras-es` contra `cifras.csv` y `CANON.md`: LIMPIO en los dos.
+- `medir_estilo.py`: 0 rayas; «;» en 0,14 por mil; 20,1 palabras por oración; «es decir» en 2,44 por mil (el artículo sometido, 2,49); ninguna muletilla, ninguna oración que abra con cifra, ninguna primera persona.
+- Ninguna aparición de «ASC», «CEDENAR», «4.1.1» ni «4.1.2» en el `.tex` ni en sus tablas (se anonimizó también el comentario de `tablas/tabla_kwh.tex` de la copia).
+- Compilación con `Makefile.ps1 -Documento articulo_es_ambiental`: 10 páginas, 0 citas y 0 referencias indefinidas, 0 Overfull, 0 avisos de BibTeX, 0 `multiply defined`. Con `-Final` sale con el código 3 solo por pasar de 9 páginas.
+- Original intacto: las huellas sha256 de `v2_es/manuscrito/articulo_es.tex` (c79c324a…edfa) y `articulo_es.pdf` (e8cc20c0…128f) son las mismas antes y después. `git status` no cambia salvo este registro.
+
+### C-386 · Póster y presentaciones de la expo-póster JOIN FACING (2026-10-22)
+
+Tipo: producto nuevo (sin cifras nuevas fuera del canon) | estilo
+
+**Qué se pidió:** un póster en la plantilla oficial del «I Encuentro de Expo-Póster de Emprendimiento e Innovación Tecnológica» (Facultad de Ingeniería, Udenar) y una presentación más completa de su contenido, en tres formatos: el tipo Slides de Claude con el estilo de la presentación del HUDN, Beamer con el formato del artículo (el de las diapositivas del video del envío 11297) y el póster `.pptx`. Todo muy entendible, con la redacción del autor, y en `Poster/`. Además, escalar al repositorio el paquete de estilo actualizado (`Poster/paquete_estilo_autor.zip`).
+
+**Qué se hizo:**
+- Paquete de estilo: `Documentos/paquete_estilo_autor/` se actualizó con el zip del 17 de octubre. Entran `10_MATEMATICAS_Y_PROCESO.md` (lenguaje llano en lo matemático) y `fuentes/unir_paquete.py`, y cambian `00`, `03`, `04` (cada columna se gana su lugar), `07`, `09` y el archivo único. La versión anterior quedó en `_antes_2026-10-22/`.
+- `Poster/contenido_poster.md`: fuente única del texto y de las cifras de los tres productos (versión 3), con la tabla «De dónde sale cada cifra».
+- `Poster/scripts/figuras_poster.py`: cuatro figuras simplificadas (`ventaja_e0`, `trece_casos`, `metodo`, `mecanismos`) en versión de póster, a escala 1:1, y en versión `_diapo`, todas con `.csv` y `.fuente.txt` y las claves de `cifras.csv`.
+- `Poster/Poster_P2P_Expoposter.pptx` y `.pdf` (73 × 100 cm), construidos con `Poster/scripts/construir_poster.py` sobre la plantilla, que no se toca. Estado: «En curso», por decisión del autor.
+- `Poster/presentacion_beamer/presentacion_poster.tex` y `.pdf` (17 diapositivas, formato de `video_abstract.tex`).
+- Versión Slides (17 diapositivas, estilo del HUDN: marfil, azul tinta, ámbar, Source Serif 4 e IBM Plex Sans), con las gráficas dibujadas en elementos nativos de la diapositiva. Sus fuentes están en `Poster/presentacion_slides/`.
+
+**Revisiones** (informes en `Poster/revision/`): cotejo de cifras contra el canon y revisión de estilo del contenido; revisión final de fondo y estilo de los tres productos; revisión final de diseño y legibilidad. Correcciones de fondo aplicadas:
+- los 1,71 millones de pesos son cargos de red evitados, no también de comercialización;
+- los dos supuestos se enuncian donde se citan sus cifras;
+- la sensibilidad no se invierte «en parte por construcción» y en 12 de los 13 casos;
+- la regla del P2P colectivo depende de la capacidad instalada por miembro (arts. 18 y 20 de la CREG 101 072), no de la planta;
+- la forma cerrada es regla adoptada y la dinámica no siempre llega a ella;
+- el repositorio público tiene solo código y las mediciones se piden a los autores;
+- «25 de 64» se cita con el mercado P2P;
+- el rótulo de N1 no habla de un año, porque el horizonte no lo es.
+El póster pasó de 889 a 657 palabras de cuerpo, con letra de 26 pt.
+
+**Comprobaciones:** `verificar_canon_2026-09.py`, INTACTO. `compuerta_vetadas.py --fichero`: LIMPIA en el `.tex`, en el texto del póster y en el de las diapositivas. `medir_estilo.py` en el Beamer: 0 rayas, 0 «;», 17,9 palabras por oración. Beamer sin ningún Overfull. Póster sin desbordes, comprobado en PowerPoint.
+
+**Cambio de enfoque (mismo día, a pedido del autor):** «no tiene que ser sobre todo el trabajo… una parte pequeña… en donde sean visibles los resultados». El póster y las dos presentaciones pasan a tratar solo del **P2P colectivo** y sus resultados. La versión sobre toda la tesis quedó en `Poster/_version_toda_la_tesis/`.
+- `contenido_poster.md` v5, revisado contra el canon en `revision/revision_cifras_v4.md`. Tiene una sección «Texto corto del póster» porque el texto completo no cabía a 26 pt.
+- **Figuras nuevas:**
+  - `hoy_vs_p2pcol`, la protagonista: por caso, el mercado P2P liquidado como C4 (entre −0,96 y +1,69 %) frente al P2P colectivo (del 1,1 al 22,9 %);
+  - `reformas_e0`: 1,99 millones de pesos repartidos en 1,03 y 0,97, por Shapley;
+  - `c4_vs_p2pcol`.
+- **Cifras destacadas:** 13 de 13 casos, 117 de 117 meses, 51 de 64 pares y 10 de 13 casos que domina.
+- **Correcciones de fondo:**
+  - el nombre fijado «mercado P2P liquidado como C4»;
+  - la causa: los pagos internos suman cero y toda la energía se liquida como el excedente de C4;
+  - 100 kW por usuario y 1 MW en total;
+  - la robustez en 12 casos, con los flujos del mercado P2P, y la fragilidad de la ventaja frente al mercado P2P (hasta el 71 % en E5);
+  - «pesan casi lo mismo» solo por Shapley y en E0;
+  - el Mensaje comparado con C4;
+  - el título de [6] corregido.
+- **Resultado:** el póster tiene 505 palabras de cuerpo y cabe a 26 pt. El Beamer tiene 15 páginas, sin ningún Overfull. Slides tiene 15 diapositivas. Las compuertas salen limpias.
+
+### C-387 · Revisión de la tesis con la voz del autor, sin señales de escritura de IA y contra la propuesta (2026-10-24)
+
+Tipo: estilo | cobertura (sin cifras nuevas fuera del canon)
+
+**Qué se pidió:** «revisa la tesis, la ultima version que tenemos teniendo en cuenta que se debe reescribir lo necesario teniendo en cuenta mi estilo de redaccion… y evita todo lo que esta aqui (https://en.wikipedia.org/wiki/Wikipedia:Signs_of_AI_writing) y recuerda que debe responder a todo lo planteado en mi propuesta».
+
+**Qué se hizo:**
+- **Regla nueva del paquete de estilo:** `Documentos/paquete_estilo_autor/11_SENALES_DE_ESCRITURA_IA.md`, con las señales de la guía de Wikipedia adaptadas al español académico. Recoge:
+  - el vocabulario de IA en español;
+  - los gerundios de valoración;
+  - los paralelismos negativos huecos;
+  - las tríadas decorativas;
+  - las cautelas de plantilla;
+  - la variación elegante;
+  - la negrita y las listas con rótulo;
+  - los cierres de plantilla.
+- **Ocho revisiones en solo lectura**, en `reformateo/documento/revision_tesis_2026-10-24/`, con sus informes y sus propuestas en JSON:
+  - una de cobertura de la propuesta: 119 elementos, de los que 68 están respondidos, 32 respondidos con cambio de método, 13 respondidos sin decirlo y 6 sin responder;
+  - cuatro del cuerpo;
+  - tres de los anexos.
+- **Aplicación con `aplicar_propuestas.py`:** cada texto original tenía que aparecer una sola vez, y se conservó el fin de línea de cada archivo. Se aplicaron:
+  - 330 cambios: 310 de forma y 20 de fondo aprobados;
+  - después, 29 de la verificación independiente (`verificacion_final.md`), con 6 de fondo.
+  - Quedaron descartadas 10 propuestas que solo quitaban códigos de actividad y la que quitaba la fecha de entrega.
+- **Códigos de actividad:** los de la propuesta (1.0 a 4.2) se conservan, porque son la trazabilidad de la tesis. Las propuestas que los quitaban se rehicieron.
+- **«Contrato interno»:** sale de todos los anexos (C-241).
+- **Cobertura de la propuesta:** queda cerrada con texto breve:
+  - la respuesta al problema central en las conclusiones, con su doble condición: la norma y el costo de operar;
+  - las exclusiones del alcance técnico (flujo de potencia, seguridad informática, almacenamiento y vehículos eléctricos);
+  - las filas nuevas de las Tablas D.1, D.3 y D.4 y de la tabla de hipótesis (equidad frente a C1–C3, robustez frente a C1 y C4);
+  - la consistencia de unidades (anexo B), las variables derivadas, las restricciones físicas y las premisas de la propuesta (anexo G);
+  - el cronograma (anexo D).
+- **Fondo corregido** por la verificación:
+  - la regla de servicio del reparto;
+  - quién agota el crédito;
+  - el enunciado de las condiciones de primer orden;
+  - el alcance de «la literatura»;
+  - la fila de robustez del anexo D, que queda solo frente a C1 y C4.
+
+**Comprobaciones:**
+- `verificar_canon_2026-09.py` da INTACTO.
+- `compuerta_vetadas.py --fichero` sale LIMPIA en el cuerpo y en los siete anexos.
+- **Cuerpo**, con `Makefile.ps1 -Final`: 20 páginas hasta el fin de las referencias, en el límite; 0 Overfull, 0 citas y referencias indefinidas.
+- **Anexos:** 76 páginas, 0 Overfull, 0 indefinidas.
+- **`medir_estilo.py` del cuerpo:**
+  - palabras, de 14 541 a 15 102;
+  - palabras por oración, de 19,1 a 19,3;
+  - oraciones de más de 40 palabras, del 2,9 al 1,9 %;
+  - «;», de 0,07 a 0,00 por mil;
+  - «es decir», de 1,38 a 1,32 por mil;
+  - 0 rayas.
+- Ninguna salvedad obligatoria se perdió: la verificación las contó antes y después.
+- **Respaldo:** `Documentos/Tesis_entrega/antes_c387/`, con los .tex y los PDF del 8 de octubre. Los PDF de entrega con nombre se actualizaron.
+
+### C-388 · Resultados que responden a la propuesta: auditoría y cierre (2026-10-24)
+
+Tipo: fondo | resultados | exactitud (cifras solo de artefactos canónicos con huella)
+
+**Qué se pidió:** «revisa con detalle que estamos mostrando los resultados adecuados que respondan de forma perfecta a todo lo planteado; analiza qué falta y lo tratamos de una vez».
+
+**Tres auditorías en solo lectura** (`reformateo/documento/revision_tesis_2026-10-24/`):
+- `auditoria_resultados.md`: 36 resultados prometidos, de los que 22 son adecuados, 13 parciales y 1 ausente. El ausente es la entrada de miembros, que la tesis declara fuera del alcance.
+- `auditoria_exactitud.md`: 12 figuras y 74 tablas. Ninguna de unas 2 100 celdas cotejadas difiere de su fuente. Hubo un error de contenido, en la Tabla F.20.
+- `auditoria_objetivos.md`: 40 elementos. La pregunta no tenía respuesta explícita en el resumen ni en las conclusiones.
+
+**Aplicado**, con `aplicar_propuestas.py`:
+- **Objetivos (19 propuestas, 5 de fondo):**
+  - el resumen y las conclusiones responden a la pregunta: con la norma vigente, sin los dos supuestos, el mercado P2P queda entre el −0,96 y el +1,69 % de C4, de modo que no justifica su complejidad; con los dos, deja del 1,1 al 20,5 % más, y si eso basta depende del costo de operar, que queda fuera del alcance;
+  - «más que cualquier mecanismo regulado», en lugar de «otro mecanismo»;
+  - el veredicto del retiro de un miembro se reparte en sus dos partes;
+  - el coeficiente de variación ya no se califica «por décimas»;
+  - cifras en la conclusión del objetivo 2;
+  - el resultado de optimalidad;
+  - los veredictos de los resultados esperados con su razón.
+- **Exactitud (46 propuestas, 16 de fondo):**
+  - la Tabla F.20, con los valores de E4 de `desercion_c1_por_fbolsa.csv`;
+  - frases de los anexos F y G alineadas con sus tablas;
+  - el Anexo 4 atribuido a la CREG 101 072 en la Tabla B.6, como en la Tabla I;
+  - la orden de cifras-es del anexo A, que ahora imprime LIMPIO;
+  - la interpretación de la Fig. C.2;
+  - el 20,5 % rotulado como de E2.
+  - La Fig. F.2 se regeneró con los rótulos del eje girados y el mismo CSV (sha256 igual). El anexo A lo dice. La carpeta del artículo sometido no se tocó.
+- **Resultados nuevos en los anexos (19 propuestas)**, con `reformateo/documento/scripts/tesis/tablas_resultados_anexos.py`. Las 40 fuentes se comprobaron contra `HUELLAS.csv`, y las tablas quedan en `anexos/tablas/` con su `.fuente.txt`:
+  - roles de vendedor y comprador por institución en E0 (Tabla F.14);
+  - brecha del P2P colectivo con C4 por institución (F.16);
+  - spread estático en los 13 casos (G.4);
+  - terciles de demanda (G.5);
+  - autoconsumo y autosuficiencia en los 13 casos (F.6);
+  - Gini de los siete mecanismos (F.5);
+  - la columna de rango en la Tabla G.1;
+  - datos por institución (B.2);
+  - el umbral de 100 kW (G.9);
+  - los índices de Sobol por métrica (Fig. F.4, `figuras/sobol_metricas.*`);
+  - frases de límites operativos.
+- **No aplicado:**
+  - P15, la deserción frente al precio interno en E4, reservada para el autor;
+  - P2, P10 y P16, que piden agregaciones nuevas que habría que registrar antes en el canon.
+
+**Comprobaciones:**
+- `verificar_canon_2026-09.py` da INTACTO.
+- `compuerta_vetadas.py --fichero` sale LIMPIA en el cuerpo, en los siete anexos y en las ocho tablas generadas.
+- `cifras-es`, con la orden del anexo A, imprime LIMPIO en el cuerpo y en los siete anexos.
+- **Cuerpo**, con `Makefile.ps1 -Final`: 20 páginas, 0 Overfull y 0 indefinidas.
+- **Anexos:** 80 páginas, 0 Overfull y 0 indefinidas.
+- Los PDF de entrega con nombre se actualizaron. Los del 8 de octubre siguen en `antes_c387/`.
+
+### C-389 · El objetivo 1, «definitivamente bien abarcado»: los parámetros del modelo base en el canon y en la tesis (2026-10-24)
+
+Tipo: fondo | canon | parámetros (Actividades 1.1 y 1.2)
+
+**Qué se pidió:** registrar en el canon las pruebas del objetivo 1 (`SALIDAS_SERVIDOR/parametros_modelo_base_2026-10-24/`) y llevar a la tesis la revisión, la calibración y el efecto de los parámetros del modelo base, con los arreglos T1 a T7 de `auditoria_objetivo1.md` y la sección 5 de `auditoria_modelo_original.md`.
+
+**Canon (§14.38, punto PMB).**
+- Respaldo previo en `Documentos/canon_2026-09/_antes_14_38/`.
+- `HUELLAS.csv`: 88 filas `e1/PMB` (2 550 en total), con la sha256 calculada en la sesión. Las 82 del borrador coinciden byte a byte. Las seis restantes son los cinco documentos de la carpeta y `logs/junta.log`, que el bloque 10 exige porque recorre la carpeta entera. El fichero va con LF, no con CRLF como decía §11.
+- `verificar_canon_2026-09.py`: punto «PMB» en `E1_PUNTOS` y `e1_pmb` en `E1_FUNCIONES`. Comprueba los 16 guiones de `GUIONES.csv` en disco, la unión de `cifras.csv`, los registros, y recalcula sin guiones la ec. (16) desde el almacén `flujos`, las tablas de Fisher desde `m_a2.json` y `m_a2x.json` y el b recalibrado desde §14.17. La prueba de detección, con cuatro alteraciones en una copia, da cuatro fallos.
+- **Corrección al borrador:** P3 leyó solo `m_a2x.json` (81 corridas). Con las 120 del plan, las horas de un comprador son 47, con la separación completa (0 de 13 y 34 de 34, p = 7,1·10⁻¹²). Va en las salvedades de §14.38 y lo recalcula el bloque 10.
+- Las tres compuertas dan INTACTO.
+
+**Tesis.**
+- Respaldo en `Documentos/Tesis_entrega/antes_c389/`.
+- Anexo G, subsección nueva `anx:g-parametros`: la revisión de las cuatro áreas, la Tabla `tab:parametros` rehecha con ocho columnas y las filas de c_j y de la aversión al riesgo, la derivación y la prueba de la invariancia, la cobertura del costo (Tabla G nueva), los valores propuestos (Tabla G nueva) y su efecto. Corrige «de 210 a 225 en la literatura» y la procedencia de 100, 0,5 y 0,01, que son del código en MATLAB.
+- Anexo C: remisión a esa subsección, la descripción de ω y de las señales filtradas (N4, N5), las dos horas fuera explicadas por κ y la relación entre el piso y b_j en las horas de un comprador, como asociación con su prueba de Fisher.
+- Anexo A: la entrega PMB en las tablas de entregas y del bloque 10, 2 550 huellas, siete puntos sin commit y la fuente nueva en la orden de cifras-es.
+- Cuerpo: la conclusión del objetivo 1 da los valores propuestos y remite al anexo; la frase de los parámetros remite a la subsección nueva.
+- `referencias.bib`: 13 entradas nuevas, ninguna repetida.
+- `Documentos/Revision_Bibliografica_Act_1_2.md`: nota de que está superada (T7).
+
+**Comprobaciones:** cuerpo en 20 páginas, 0 Overfull y 0 indefinidas; anexos en 85 páginas, 0 Overfull y 0 indefinidas (queda el «Float too large» de la Tabla D del anexo D, que ya estaba); vetadas LIMPIA y cifras-es LIMPIO en el cuerpo y en los anexos A, C y G.
+
+**No aplicado:** T1 (b) y T7 de `ORDENES_SERVIDOR.md` siguen sin correr; la tesis las da como extensión. Los PDF con nombre de entrega no se regeneraron.
+
+### C-390 · Tesis autocontenida en 20 páginas, revisión por rondas y póster de la expo (2026-11-04 a 2026-11-06)
+
+Tipo: fondo | forma | estilo | figuras | póster (Actividades 1.0 a 4.2)
+
+**Qué se pidió:** cubrir la lista de 30 puntos del autor (`revision_tesis_2026-11/revisiones/mensaje.md`) con una tesis autocontenida de 20 páginas según el Acuerdo 021, fiel a la propuesta, sin overselling, con el paquete de estilo del autor y sin señales de escritura de IA. Debía revisarse con varios revisores hasta un material adecuado. A mitad del ciclo se pidió además revisar el póster de JOIN FACING con el mismo método, con una gráfica de la metodología en bloques, y escribir su guion oral.
+
+**Canon (§14.39, punto NOV).** Mediciones N1 a N8 de `reformateo/documento/scripts/tesis_nov/mediciones_tesis_nov.py` en `SALIDAS_SERVIDOR/revision_tesis_2026-11-04/` (1 302 cifras, 16 ficheros con huella). N3 se corrigió para no restar el COT (C1 = CU − Cv; C4 caso 2 = CU − Cv − Θ). La ganancia de Unicesmag se atribuye a su tarifa de comprador. Las tres compuertas dan INTACTO.
+
+**Tesis.** Respaldo previo en `Documentos/Tesis_entrega/antes_c390/` y PDF de entrega del 24-oct en `antes_c390/entrega_2026-10-24/`.
+- Cuerpo reescrito, de r1 a r12 (`revision_tesis_2026-11/revisiones/versiones/`), con los procesos como flotantes «Proceso», el caso explicado de la hora 256 y abril, y figuras nuevas de `figuras_tesis.py`.
+- Hallazgos de fondo corregidos durante las rondas:
+  - la forma cerrada es una regla adoptada y no un equilibrio de Nash, y tampoco es óptima como asignación (captura de 0,892 a 0,995);
+  - el ahorro máximo del despacho vale por hora y no para el beneficio liquidado;
+  - el umbral del costo de operar el mercado es de 0,30 MCOP en E0 frente a C1;
+  - «8 de 13» en equidad lleva la salvedad de P2 y CV2 y de σ;
+  - el tope del exceso del Anexo 4 es el ponderado, y el superior queda como supuesto explícito (38 horas sin exportación, sin cambio de cifras);
+  - el P2P mutualizado queda definido;
+  - la superioridad sobre C4 en los 13 casos lleva la salvedad de que es en parte por construcción;
+  - el ODS 7 «se relaciona con» la rebaja;
+  - las nueve piezas que cambian frente al modelo base van en lista.
+- Anexos sin rastros del proceso de elaboración, sin identificadores internos y sin comillas fuera de las referencias. Las 93 pruebas de invariancia figuran «a pedido de los autores», porque `tests/test_invariancia_parametros_modelo_base.py` no está versionado.
+
+**Revisión.** Once rondas de diez revisores (jurado, cuestionador, prerrequisitos 1-7, 8-14 y 15-20, cifras, resolutor, estilo, rastros de IA y diseño), con informes `rondaN_*.md` y tratamientos `rondaN_tratamiento.md`. Adecuados por ronda: 1, 3, 1, 5, 4, 6, 3, 8, 6, 8 y 6. Cifras dio ADECUADO de la ronda 8 a la 11. Por decisión del autor (2026-11-05, en `decisiones.md`), la corrección de la ronda 11 (r12) es la versión final, sin más rondas.
+
+**Comprobaciones sobre r12:**
+- 20 páginas hasta el fin de las referencias, 0 Overfull, 0 indefinidas;
+- anexos en 84 páginas;
+- cifras-es LIMPIO y vetadas LIMPIA en el cuerpo y en los siete anexos;
+- pdffonts sin Type 3;
+- las tres compuertas del canon INTACTO.
+`Tesis_Lopez-Mendez_MaIE_2026.pdf` y `Anexos_Lopez-Mendez_MaIE_2026.pdf` son ahora r12.
+
+**Póster.** Revisión por rondas en `Poster/revision/ronda_2026-11/`: 10 rondas, una auditoría de 190 cambios prometidos y decisiones fijas en `decisiones_fijas.txt`. Versión aprobada v15: `Poster/Poster_P2P_Expoposter.*`, con respaldo en `versiones/APROBADA_v15.*`. Lleva la figura nueva `metodo_bloques`, de cinco círculos con íconos y la ficha del P2P colectivo en verde. Los `*_diapo.*` de las presentaciones quedan idénticos. Guion oral en `Poster/guion_poster.md`, con cuatro revisiones de fidelidad y estilo.
+
+**Servidor (5-nov).** T7, el barrido de μ: diferencia de energía 0 kWh y ninguna brecha cambia de signo. T1 (b): 15 de 15 cumplen la predicción. T8, el caso de Chacón hasta teq 160, quedó corriendo.
+
+**No aplicado:**
+- la prueba de lectura del autor sobre r12;
+- registrar T7 y T1 en CANON §14.38 y T8 en §14.36;
+- el cambio del anexo C de «asociación» a «causa»;
+- el commit de los guiones nuevos y de la prueba de invariancia;
+- las mejoras abiertas de los informes de la ronda 11.
+
+### C-391 · Las pruebas del servidor del 5 de noviembre en el canon: T7, T1 (b) y T8 (2026-11-06)
+
+Tipo: canon | parámetros (Actividades 1.1 y 1.2)
+
+**Qué se pidió:** registrar en el canon T7, T1 (b) y T8, corridas en `bunnygirl` el 2026-11-05 (`SALIDAS_SERVIDOR/servidor_2026-11-05/`), para que la compuerta de 2026-09 vuelva a dar INTACTO, y escribir la justificación de las pruebas de los parámetros para el jurado.
+
+**Canon.**
+- Respaldo previo en `Documentos/canon_2026-09/_antes_servidor_2026-11-05/`.
+- `HUELLAS.csv`: 17 filas nuevas al final, con LF y sha256 de la sesión (2 583 en total). Tres en `e1/PMB` (`t7_mu.csv`, `t1_servidor.json`, `t1_servidor_lectura.csv`), dos en `e1/CA` (`caso_autora_2026-11/`) y doce en el grupo nuevo `sv/2026-11-05`, con la ruta relativa a la raíz. `ENCARGO_REGISTRO.txt` queda sin huella.
+- `verificar_canon_2026-09.py`: `caso_autora_2026-11` en el punto CA de `E1_PUNTOS`; `E1_N_FICHEROS` + 5 (1 145); el bloque 1 salta `sv/`; `_e1_pmb_t7`, `_e1_pmb_t1`, `_e1_ca3` (regenera `veredicto_m_g3.txt` con los guiones de d004749, byte a byte) y el punto nuevo `SV`. La prueba de detección, con cuatro alteraciones en una copia en `%TEMP%`, da fallos en T7, T1, T8 y SV.
+- `CANON.md`: nota en §11, T8 en §14.36 y los puntos 8 (T1 (b)) y 9 (T7) de §14.38, con lo que dicen, sus frases citables, trampas y salvedades.
+- Las tres compuertas dan INTACTO.
+
+**Hallazgos.**
+- T1 (b): 15 de 15 cumplen la predicción, pero una de las cinco contrapruebas (E0, 2025-06-29 13:00) no arranca, porque el piso más 100 (814,07) queda sobre el techo (802,27). Cuenta como fuera por la regla fijada. La causa queda probada en las horas de un comprador, no en las 141.
+- T1 (b) corrió de día: la espera hasta las 19:00 se interrumpió («Terminated» en la consola). Corrió contenida, en 329 s y con 10 procesos.
+- T8: discrepancia de criterio. `ORDENES.md` §3 lo resume como |dq/dt| ≤ 10⁻³, pero el juicio de M-G que está en el código desde el 2026-09-18, y que describe §14.36, no mira el reparto en el brazo de precio. Con la condición de `ORDENES.md` queda sin lectura; con el código, quieta, y la tabla da la lectura (c). Se registraron las dos, y la frase citable vale con cualquiera. **Decide el autor** cuál manda antes de tocar el anexo C.
+
+**No aplicado:** la tesis (anexo C, «asociación» → «causa» en las horas de un comprador; T8), el commit de `veredicto.py` corregido (`_a_lista`) y de los guiones sin commit.
+
+**Adenda del 2026-11-06, decisión del autor sobre T8.** Manda el juicio programado de M-G (`tolerancia_quietud`), fijado antes de medir: en el brazo de precio se juzgan el nivel y la parte, no el reparto. `ORDENES.md` lo había resumido mal, con |dq/dt| ≤ 10⁻³. T8 se cita con la lectura (c): cuatro compradores en 114 y uno en 1 250, nivel 545,86 y parte 0,380, sin coincidir con la tabla publicada (225 y 0,098). Se dice que el reparto todavía se mueve (3,7·10⁻³).
+
+Cambios en la tesis, con revisión limitada a esas líneas:
+- VI-E deja de decir «ninguna integración queda quieta»;
+- el anexo C describe el criterio por magnitudes y añade el párrafo de la repetición hasta teq 160.
+
+Comprobaciones:
+- 20 páginas, 0 Overfull y 0 referencias indefinidas;
+- cifras-es LIMPIO y vetadas LIMPIA en el cuerpo y en el anexo C;
+- sin fuentes Type 3;
+- las tres compuertas del canon dan INTACTO.
+
+Versión `versiones/r12a.*`. Los PDF de entrega son ahora r12a. Se actualizaron CANON §14.36 y la justificación.
+
+Corrección de código: `sonda/consenso/veredicto.py` añade `_a_lista`, de modo que el resumen en vivo ya no falla con arreglos de numpy. Se probó con arreglos, listas anidadas, NaN y formas distintas, y el veredicto de `m_g3.json` no cambia.
+
+### C-392 · Las mediciones de la revisión r1 del artículo en el canon: M1 a M8 (2026-11-21)
+
+Tipo: canon | artículo (Actividades 3.3, 4.1 y 4.2)
+
+**Qué se pidió:** las mediciones livianas que contestan a los revisores y al editor asociado del envío 11297 a IEEE Latin America Transactions (decisión «Resubmit for Review»), registradas en el canon. Decisiones del autor del 2026-11-21 (`Documentos/articulo_latam/v2_es/revision_r1/decisiones.md`): solo en local, sin tocar `core/`, `scenarios/` ni `analysis/`, sin servidor y sin suplemento. El diagnóstico previo está en `revision_r1/matriz_comentarios.md`.
+
+**Qué se hizo.**
+- Diez guiones en `reformateo/documento/scripts/articulo_r1/`: `ar1_comun.py`, `m1_liquidacion.py`, `m2_factorial_fijos.py`, `m3_cargos_parciales.py`, `m4a_periodos.py`, `m5_componentes.py`, `m6_dinamica_agentes.py`, `m7_rangos.py`, `m8_trm.py` y `cierre.py`. Ninguno simula. Cada uno comprueba la huella de lo que lee con `atribucion_supuestos.lee`.
+- Salida en `SALIDAS_SERVIDOR/articulo_r1_2026-11-21/`: `cifras.csv` (2 033 cifras), quince tablas, la serie de la TRM en `insumos/`, `GUIONES.csv`, `procedencia.txt` y nueve registros. Tiene 33 compuertas. Dos corridas dan los mismos ficheros byte a byte.
+
+**Canon.**
+- Respaldo previo en `Documentos/canon_2026-09/_antes_articulo_r1/`.
+- `HUELLAS.csv`: 28 filas nuevas del grupo `e1/AR1`, tras las de `e1/NOV`.
+- `verificar_canon_2026-09.py`: `("AR1", ("articulo_r1_2026-11-21",))` en `E1_PUNTOS`, `E1_N_FICHEROS` + 28 (1 173), la función `e1_ar1` y su etiqueta en el bloque 10. Recalcula sin los guiones la TRM media, E0 por tramos desde D72, el Shapley con flujos fijos y los cargos completos desde e1/S, el cierre de los cargos evitados, los recuentos de la validación y la equivalencia de la variante FIFO con el Anexo 4.
+- Prueba de detección sobre una copia en `%TEMP%`: siete alteraciones, las siete detectadas.
+- `CANON.md`: sección nueva §14.40, «AR1: mediciones para la revisión del artículo», con lo que mide cada una, las cifras citables, lo que no se cita y las salvedades.
+- Las tres compuertas daban INTACTO antes y dan INTACTO después.
+
+**Resultados.**
+- **M8.** TRM media de los 256 días del horizonte: 4 019,25 COP/USD (datos.gov.co, conjunto `mcec-87by`, descarga del 2026-11-21). P2P − C4 de E0 son 500 USD; los cargos evitados, 426 USD, y el ahorro del intercambio, 74 USD.
+- **M4a.** P2P − C4 de E0 es positiva los nueve meses. El 86,1 % de la ventaja está de abril a agosto, con la generación de Udenar reconstruida: 6,76 % de C4, frente al 1,48 % de septiembre a diciembre. Por kWh inyectado la ventaja es casi la misma (336,1 y 325,1 COP/kWh). La generación de Udenar por día no cambia entre tramos (61,6 y 63,2 kWh); cambia la demanda de su circuito (135,7 y 226,0 kWh).
+- **M3.** Con lo intercambiado pagando hasta el total de los cargos de red, la ventaja sobre C4 del mercado P2P y del P2P colectivo no cambia de signo en ninguno de los 13 casos. La ventaja sobre C1 cambia con los flujos fijos en seis casos, en E0 con el 23 % de los cargos. Con salida, en E0 el intercambio se apaga desde el 52 %.
+- **M5.** En E0, 1,659 de los 1,714 MCOP de cargos evitados son cargos de red: distribución 0,939, transmisión 0,338, restricciones 0,237 y pérdidas 0,145.
+- **M6.** La energía total coincide en las 261 horas comparadas. En las 22 horas fuera de la validación ampliada, la dinámica da a los vendedores un 35,9 % más de ingreso, que pagan los compradores.
+- **M2 acotada.** Con los flujos fijos, el Shapley del supuesto 1 pasa de 30,17 a 31,23 MCOP en E3, de −1,24 a 0,06 en E4 y de 0,33 a 1,53 en I1. La interacción es de 0,13 MCOP como mucho.
+- **M1 acotada.** Una liquidación con saldo hora a hora que cubre primero el exceso más antiguo reproduce el Anexo 4 hora por hora. Con el orden contrario, P2P − C4 cambia un +0,37 % en E3, un +0,54 % en E4 y un +0,17 % en I1, sin cambio de signo.
+- **M7.** Dos rangos de la caja son supuestos (el Cv descontado y los errores de medición) y tres se sustentan en datos (bolsa, tarifa y cargos de red).
+
+**Hallazgos que debilitan una afirmación del artículo.**
+- El 4,52 % de C4 de E0 es una media de dos tramos muy distintos (6,76 y 1,48 %). El artículo no lo dice.
+- «El mercado sin supuestos queda tan cerca de C4 que los dos órdenes parten de C4» no vale igual en I1, donde queda 1,05 MCOP por debajo, el 16 % de la ventaja.
+- En E4, el Shapley negativo del supuesto 1 (−1,24 MCOP) pasa a positivo con los flujos fijos.
+- El ahorro del intercambio de E0 no resiste una cuarta parte de los cargos de red con los flujos fijos.
+
+**No aplicado:** el artículo, la respuesta a los revisores y la carta. El factorial con el mercado resuelto en cada esquina y la liquidación con un piso calculado hora a hora exigen un piso nuevo en el núcleo y no se hicieron. Los guiones quedan sin commit. Falta contrastar la media de la TRM con la serie de la página del Banco de la República si el artículo lo cita como fuente.
+
+## C-393 · Respuesta a los revisores del artículo IEEE LatAm, envío 11297 (2026-11-21)
+
+**Qué cambia.** El manuscrito en español enviado el 8 de octubre (`Documentos/articulo_latam/v2_es/`) pasa a la versión revisada para el reenvío, con la respuesta punto por punto y la carta al editor en inglés. Todo está en `v2_es/revision_r1/`: decisiones, criterio, matriz de comentarios, propuesta aprobada, tratamientos, recortes, cobertura y pendientes del autor. El paquete de reenvío está en `subir/`. El respaldo de lo enviado está en `v2_es/_enviado_2026-10-08/`, con su `SHA256.txt`.
+
+**Cifras.** Salen del canon, incluida la §14.40 (C-392). No hubo mediciones nuevas después de C-392. Los Shapley de E3, E4 e I1 se dan desde C4 (31,17, −0,17 y 1,00 MCOP). La diferencia entre C4 y el mercado sin supuestos se reparte por mitades entre los dos supuestos. En E4 no queda determinado el signo, y en E4 e I1 no queda determinado cuál supuesto domina con el mercado resuelto. La validación son 141 horas: 99 llegan, 22 no llegan y 20 las cortó el tope de tiempo. La captura en los cinco casos va del 95,7 al 99,5 %.
+
+**Método.** Tres rondas, la última de confirmación. Los revisores trabajaron sin antecedentes y en solo lectura, en cuatro papeles: estilo con `PROMPT_REVISION_ARTICULO.md`, exactitud, presentación, y árbitro que hace de editor asociado y de revisor C. Los bloqueantes por ronda fueron 34, luego 17 y luego 3 de redacción; todos tratados y ninguno rechazado. Decisión final del árbitro simulado: aceptar. Editor asociado: 6 de 6 contestados. Revisor C: 12 de 13, con C-5 a medias sin bloquear.
+
+**Compuertas al cierre:**
+- las tres del canon en INTACTO;
+- vetadas LIMPIA;
+- `cifras-es` LIMPIO en el texto y las tres tablas;
+- manuscrito de 9 páginas, con la versión limpia y la resaltada iguales palabra por palabra;
+- el ZIP compila desde cero al mismo texto.
+
+**Pendiente del autor** (en `pendientes_autor.md`):
+- copiar el abstract nuevo en la plataforma;
+- revisar los recortes de `recortes_r2.md` y `recortes_r3.md`;
+- confirmar el quinto aporte y la salvedad de IV-B;
+- el formulario de derechos firmado;
+- las coautorías de los especialistas sugeridos;
+- el estado de la tesis;
+- el contraste de la TRM con el Banco de la República;
+- el commit de los guiones de `articulo_r1/`.
+
+## C-394 · AE-5 y AE-4 con el mercado resuelto, el tope del precio único y la auditoría del código (2026-11-21)
+
+Tipo: núcleo (opciones apagadas) | canon | artículo (Actividades 2.2 y 3.3)
+
+**Qué se pidió.** Medir lo que el editor asociado pidió en AE-5 y AE-4 con el mercado resuelto, no con los flujos fijos de §14.40. Registrar el tope del precio único que midió la comprobación de r4. Contrastar todo con el artículo y la respuesta. Decisiones del autor: `revision_r1/decisiones.md`, «mediciones completas de AE-4 y AE-5».
+
+**Qué se hizo.**
+
+- **Código, apagado por defecto** (commits 57fbb55 y abf83ab; la prueba `tests/test_invariancia_r1_ae45.py` da el árbol igual al bit a 9436d0f con las opciones apagadas):
+  - `GridParams.cargo_comprador`;
+  - `piso_esquina`;
+  - `core/corte_secuencial.py`;
+  - `--esquina` y `--corte-piso`;
+  - las acciones `matriz_esquina`, `matriz_corte` y `revision_r1_resuelta`.
+- **81 corridas en el servidor**, el 2026-11-21, todas en verde.
+- **Auditoría independiente** (`revision_r1/auditoria_codigo_ae45.md`): dos bloqueantes y quince mejoras.
+  - **B1.** En los casos con corte, el corte del piso de solo1 supone el lado corto entero. Se añade su punto fijo: `--esquina solo1 --corte-piso iterado`, la única combinación admitida.
+  - **B2.** El iterado cicla en 5 casos. Se añade `--max-iter-corte` (8 por defecto) para correr el otro estado del ciclo, y el lanzador lo corre solo cuando la línea `[R1]` dice CICLO; el mensaje falso «se conservan los dos estados» se corrige.
+  - **M1.** La compuerta de la especificación (`especificacion_r1.py` y `compuerta_r1.py --canon`) y cuatro pruebas: `test_piso_esquina_trece.py`, `test_corte_secuencial.py`, `test_esquinas_supuestos.py` y `test_matriz_esquina_lanzador.py`.
+  - Atendidas también M3, M4, M8, M11 y M12.
+- **Liquidación y registro.** `reformateo/documento/scripts/articulo_r1/` `ar2_comun.py`, `m2r_factorial_resuelto.py`, `m1r_corte_secuencial.py`, `m9_tope_precio.py` y `cierre_r2.py`, sin commit. Escriben en `SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/` (849 cifras y 16 compuertas). La especificación da 81 de 81 en verde.
+
+**Canon.**
+
+- Respaldo en `Documentos/canon_2026-09/_antes_articulo_r1_resuelta/`.
+- `HUELLAS.csv`: 13 filas de `e1/AR2` y 1 719 de `r1m/`.
+- Verificador:
+  - punto «AR2» del bloque 10, `E1_N_FICHEROS` + 13 y la función `e1_ar2`;
+  - bloque 15, `r1m_bloque`;
+  - el bloque 1 salta `r1m/`.
+- Prueba de detección: 9 de 9.
+- `CANON.md`: §14.41 y una línea de remisión en §14.40.
+- Las tres compuertas, INTACTO antes y después.
+
+**Resultados.**
+
+- **Sin supuestos y con el mercado resuelto, la esquina «ninguno» supera a C4 en E0 (+0,080 MCOP) y en SINU (+0,017)**, y en 7 de los 13 casos.
+- El Shapley de E0 desde C4 pasa a 1,07 y 0,94 MCOP (artículo: 1,05 y 0,96).
+- Con el corte hora a hora y la regla principal, P2P − C4 cambia entre el 0,00 y el +0,52 % en los ocho casos con corte, sin ningún signo.
+- El tope actúa en E0 en 294 de 1 126 horas; el ingreso se conserva y nadie cobra bajo su piso.
+
+**El retome de B1 y B2** (commit e1a0e40, 24 corridas, 33 compuertas en verde en el servidor).
+
+- solo1 se corrió con el punto fijo de su corte en los 8 casos con corte, y en los 6 que ciclan, con los dos estados.
+- El iterado del corte se corrió con los dos estados en E2, E3, E4, N1 y P1.
+- Liquidación en la misma carpeta: 1 488 cifras y 18 compuertas, con la especificación en 81 de 81 y 24 de 24.
+- Registro:
+  - grupo `r1r/` de `HUELLAS.csv` (523 ficheros) y bloque 16 del verificador;
+  - el bloque 15 separa los registros del retome por su grupo;
+  - el punto AR2 recalcula los intervalos;
+  - prueba de detección: 13 de 13.
+- §14.41 queda completa, sin nada pendiente.
+
+**Resultados del retome.**
+
+- El punto fijo sube v10 poco. En E3 pasa de 206,666 a 206,807 MCOP, y los dos estados del ciclo difieren en 0,007 MCOP como mucho.
+- Ningún intervalo cruza el cero ni cambia el supuesto que domina.
+- Shapley desde C4 (antes, el artículo):
+  - E3: 30,70 y 5,15 (30,17 y 5,68);
+  - E4: −0,15 y 3,71 (−1,24 y 4,80);
+  - I1: 1,18 y 5,29 (0,33 y 6,14).
+- Domina el supuesto 2 en E4 e I1. La cota de la respuesta «between 31.17 and 33.55» de E3 no se cumple; la del artículo («como mucho 33,55») sí.
+- El iterado del corte cambia P2P − C4 entre el −0,06 y el +0,23 %.
+
+**No aplicado:** el artículo, la respuesta y la carta. Lo que cambia de sentido (la esquina «ninguno» sobre C4 en E0 y SINU, y que el mercado ya se resolvió) decide el autor cómo entra.
+
+**El art. 10 y la esquina «ninguno» (2026-11-22).** Un árbitro objetó que v00 tiene dos comercializadores dentro de un autogenerador colectivo, cuando el art. 10, num. 1, de la CREG 101 072 exige uno (`revision_r1/art10_comercializadores.md`). Decisión del autor: se declara sin otra corrida; el canon conserva las dos tarifas, como C4 (H-97); se dice que con un solo comercializador esa esquina iguala a C4 en E0 y SINU.
+
+- Guion nuevo `m10_un_comercializador.py` (en `cierre_r2.py`, entre m2r y m1r): sin simular, sobre los almacenes de «ninguno» (`r1m/`) y el canon. Revisado frente al cálculo del otro agente: los comercializadores salen de las tarifas y no del nombre de Unicesmag; C4 se reproduce con las mismas funciones; la descomposición se comprueba contra la banda de los pares cruzados; la cifra se marca exacta solo donde nadie tiene exceso con ningún PDE.
+- Cifras (MCOP): con un solo comercializador, A o B, v00 − C4 = **0,000 en E0 y en SINU, exacto** (`m10__E0__un_comercializador_A`, `_B`; ídem SINU). El +0,080 de E0 = **+0,019 de los pares cruzados** (su banda, 19 030 COP) **+ 0,061 del PDE con dos tarifas** (`m10__E0__termino_cruzados`, `m10__E0__termino_pde_dos_tarifas`). En SINU, +0,019 y −0,002. E3, E4 e I1 (−0,130/−0,125, −0,441/−0,290, −1,845/−1,452) son indicativas: hay corte y exceso; no se citan.
+- Registro: §14.41, punto 4, y una línea en §14.3 y §14.23; punto AR2 del verificador con el chequeo de m10 (15 ficheros en e1/AR2, 13 guiones en `GUIONES.csv`); prueba de detección ampliada con 4 alteraciones de m10.
+
+**No aplicado:** el artículo y la respuesta. Las frases que permite están en `revision_r1/resultados_ae45.md`, punto 1b.
+
+## C-395 · Cierre de la r4 del artículo IEEE LatAm, envío 11297 (2026-11-21 a 2026-11-22)
+
+Tipo: artículo | lanzador | documentación (Actividades 2.2, 3.3, 4.1 y 4.2)
+
+**Qué se pidió.** Llevar al artículo, la respuesta y la carta las corridas con el mercado resuelto de C-394, pasarlo por rondas de confirmación y dejar listo el paquete de reenvío. El reenvío vence el 5 de diciembre de 2026. Cada cambio, con su antes, su después y su estado, está en `Documentos/articulo_latam/v2_es/revision_r1/cambios_r4.md` (cambios 1 a 52 y filas r4a a r4d). La versión final está en `versiones/r4_final/`.
+
+**La corrida con el mercado resuelto** (2026-11-21, `revision_r1_resuelta`, commits 57fbb55 y abf83ab).
+
+- Son 81 corridas: las cuatro esquinas del factorial en los 13 casos y las tres variantes del corte en los casos con corte y en los de control.
+- Se detuvo a las 17:43 con código 2 en la esquina solo1 de E0. La compuerta de salida se negaba a juzgar un almacén sin ninguna hora resuelta. `compuerta_r1.py` distingue «ningún par gana» de «no se resolvió nada», y la cadena se retomó a las 18:10 desde ese punto.
+- Las 81 compuertas quedaron en verde: 77 la del reposo y 4 la de sin mercado.
+- Dos arranques posteriores (20:32 y 20:34) se bloquearon por una alarma falsa de la plataforma: `plataforma_respira()` heredaba `OMP_NUM_THREADS=1`. Se sorteó con un guion de estado fuera del repositorio y se corrigió al cerrar.
+
+**La auditoría del código** (`revision_r1/auditoria_codigo_ae45.md`). Dos bloqueantes y quince mejoras.
+
+- **B1.** En los casos con corte, el piso de la esquina solo1 suponía que se transa el lado corto entero, y en E1, E2, E3, P1 y N1 el corte real llega antes. Se añade el punto fijo de su corte (`--esquina solo1 --corte-piso iterado`).
+- **B2.** El iterado del corte cicla en E2, E3, E4, N1 y P1. Se añade `--max-iter-corte`, con el que el lanzador corre el otro estado del ciclo.
+- **M1.** La compuerta de la especificación (`especificacion_r1.py`) y cuatro pruebas nuevas.
+- Commit e1a0e40: 67 pruebas en verde y el árbol igual al bit con las opciones apagadas.
+
+**El retome** (desde las 20:39, dentro de tmux). Son 24 corridas, solo las afectadas por B1 y B2, con 33 compuertas en verde. El canon las registra en el grupo `r1r/` y el bloque 16 del verificador, y la §14.41 queda completa.
+
+**El art. 10.** Un árbitro objetó que la esquina «ninguno» lleva dos comercializadores dentro de un autogenerador colectivo, cuando el art. 10, num. 1, de la CREG 101 072 exige uno. El autor decidió declararlo sin otra corrida.
+
+- Con un solo comercializador, esa esquina iguala a C4 en E0 y SINU, exactamente (`m10_un_comercializador.py`, §14.41, punto 4).
+- En E0, sus +0,080 MCOP sobre C4 son 0,019 de los pares cruzados y 0,061 del porcentaje de reparto con dos tarifas.
+- Entra en III-C, IV-D, las conclusiones, el abstract, AE-5, C-5, C-13 y el punto 6 de la carta. No cupo en la nota de la Tabla III.
+
+**El resumen gráfico híbrido.** Es el original enviado con menos texto, de 141 a 121 palabras, con letra mínima de 10 a 11 pt.
+
+- Una franja naranja de E0 da los 2,01 MCOP (USD 500), repartidos en 1,71 de cargos evitados (85 %) y 0,30 de ahorro del intercambio (15 %).
+- Los círculos 1 y 2 numeran a la vez los cambios del P2P colectivo y las dos definiciones que pide la norma.
+- La línea bajo la cifra pasó por tres versiones con las cifras nuevas. La v5, la que se sube, dice «without them, no gain over C4 with one retailer» (sha256 `b703f9bd…d885`). La cascada alternativa salió del paquete.
+
+**Las rondas de confirmación.**
+
+- **Ronda de r4, sobre r4c**, con cuatro papeles sin antecedentes. Exactitud dio 3 bloqueantes, estilo 14, presentación 1 (el ZIP desfasado) y el árbitro, cambios menores. Todos se trataron en r4d (`r4_tratamiento.md`).
+- **Confirmación r4e.** Exactitud cerró los 3. Estilo cerró 11, dejó B4 abierto por espacio y encontró dos defectos nuevos en B6 y B7, más el nombre del objeto en IV-D (N1). Se corrigieron en r4f. Su N2 se rechazó con razón, porque el PNG subido ya era la v5.
+- El árbitro aceptó, condicionado a la cláusula del 23 % en IV-C. Entró en r4_final, junto con la frase de la carta sobre la variante del saldo (cambios 45 y 46).
+
+**Cifras que cambiaron** (claves `m2r__*`, `m1r__*`, `m9__*` y `m10__*`, CANON §14.41).
+
+- El Shapley de E0 desde C4 pasa de 1,05 y 0,96 MCOP a 1,07 y 0,94. El de SINU, de 0,18 y 0,20 a 0,19 y 0,20.
+- Con el mercado que solo tiene el supuesto 1 también resuelto, el supuesto 1 vale 30,70 MCOP en E3, −0,15 en E4 y 1,18 en I1. El 2 vale 5,15, 3,71 y 5,29. En el artículo enviado eran cotas.
+- En el abstract, «more than 80 %» pasa a «79 to 85 %».
+- Con el corte hora a hora y el pronóstico lineal, P2P − C4 cambia entre el 0,00 y el +0,52 % en los ocho casos con corte. Con solo el saldo conocido, entre el −0,21 y el +2,87 %. Ninguno cambia de signo.
+- El tope del precio único actúa en E0 en 294 de las 1 126 horas con mercado. Lo trasladado entre compradores es el 1,68 % del ahorro del intercambio.
+- La Fig. 2(c) se regeneró con el mercado resuelto. El rombo de E0 pasa del 52,34 al 53,25 % y el de I1, del 5,12 al 6,26 %.
+
+**Cifras que cambiaron de sentido.**
+
+- **Sin ningún supuesto, el mercado ya no queda por debajo de C4 en los cinco casos.** Resuelto, va de 1,03 MCOP por debajo (I1) a 0,08 por encima (E0), y supera a C4 en E0, en SINU y en 7 de los 13 casos. Con un solo comercializador, como exige el art. 10, lo iguala en E0 y SINU.
+- **El mercado se resolvió de nuevo.** Lo que el envío dejaba como trabajo futuro (AE-4 y AE-5) quedó medido. Sale de las conclusiones el corte que no conozca de antemano los totales del mes.
+- **El supuesto que domina queda determinado.** Domina el 1 en E3 y el 2 en E4 e I1, desde C4 y desde el mercado sin supuestos.
+- **La cota de E3 de la respuesta** («between 31.17 and 33.55») no se cumplía y salió.
+- **IV-D** decía que el mercado liquidado en C4 no lo supera. Dice ahora que, con un solo comercializador, lo iguala en E0 y SINU.
+
+**El cierre** (2026-11-22).
+
+- `modelo_base/run_servidor.sh`: `plataforma_respira()` llama al guion de estado con `env -u OMP_NUM_THREADS -u OMP_THREAD_LIMIT`. Probado en seco, sin escrituras, y con un guion simulado que ve 12 núcleos en lugar de 1. `tests/test_matriz_esquina_lanzador.py` y `tests/test_invariancia_r1_ae45.py`: 26 passed.
+- `CLAUDE.md`: tres problemas ya resueltos (la alarma falsa por `OMP_NUM_THREADS`, la corrida fuera de tmux sin *linger* y la compuerta con un almacén sin mercado). `modelo_base/MONTAJE_SERVIDOR.md`: lo de `OMP_NUM_THREADS` y la orden dentro de tmux. `README.md`: la sección «La revisión del artículo».
+- La etiqueta `articulo-latam-v2` entra en C-12 y en el enlace al código. En el manuscrito no cabe, porque pasa a 10 páginas. En C-5 y C-13, «bounding exercise» pasa a «reference computation».
+- `subir/` se rehízo desde la versión final, con `SHA256.txt`. El ZIP lleva el fuente sin comentarios internos y compila desde cero a 9 páginas, con el mismo texto página a página que el PDF limpio, en las dos versiones. Lo descartado está en `versiones/descartados/`.
+- `revision_r1/metadatos_reenvio.md`: el abstract, las index terms y las 24 referencias para la plataforma, generados del PDF final.
+
+**Estado final.**
+
+- Manuscrito de 9 páginas, igual al bit a `versiones/r4_final/`. La versión resaltada tiene el mismo texto en cada página y ninguna palabra cambiada fuera de `\cambio`.
+- Respuesta de 13 páginas, con el Overfull de 0,77 pt de siempre. Carta de 1 página.
+- Compuertas: las tres del canon INTACTO; `cifras-es` LIMPIO en el tex y las tres tablas, contra los tres `cifras.csv` del artículo y `CANON.md`; vetadas LIMPIA en los cuatro ficheros; `dois`, 48 entradas y 1 fallo, `Chacon2024Multimicrorred`, que no se cita.
+- Pendiente del autor (`revision_r1/pendientes_autor.md`): firmar el formulario, copiar el abstract, las referencias y los metadatos en la plataforma, pasar el ZIP por latexqc.ieee.org y refassist.ieee.org, cambiar la contraseña del servidor y comprobar que la etiqueta está en GitHub.

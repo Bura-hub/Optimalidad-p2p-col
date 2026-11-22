@@ -533,7 +533,11 @@ plataforma_respira() {
   # M11 de la auditoria: no basta el codigo de salida; cualquier linea MAL
   # del guion (carga, plataforma saturada) detiene la accion.
   local _salida _cod=0
-  _salida="$("$guion" 2>&1)" || _cod=$?
+  # Sin OMP_NUM_THREADS ni OMP_THREAD_LIMIT: el lanzador exporta
+  # OMP_NUM_THREADS=1 y `nproc` la obedece, de modo que el guion veria un
+  # solo nucleo, la «mitad de la plataforma» le saldria 0 y daria un MAL
+  # falso (con division por cero).
+  _salida="$(env -u OMP_NUM_THREADS -u OMP_THREAD_LIMIT "$guion" 2>&1)" || _cod=$?
   printf '%s\n' "$_salida"
   if [[ $_cod -ne 0 ]] || printf '%s\n' "$_salida" | grep -qE '^[[:space:]]*MAL'; then
     echo "  La plataforma MTE no respira segun $guion (codigo $_cod o alguna linea MAL): no se empieza" >&2

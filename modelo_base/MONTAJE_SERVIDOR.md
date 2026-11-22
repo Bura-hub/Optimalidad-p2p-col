@@ -98,6 +98,29 @@ a 16 y se avisa. La consola lo dice en su primera línea:
 - La plataforma trae su propio comprobador:
   `~/bslopez/mercado-p2p/scripts/estado_servidor.sh`. Dice si la plataforma
   responde y si la mitad baja de los núcleos tiene holgura.
+- **El lanzador lo corre sin `OMP_NUM_THREADS`** (revisión r1 del artículo,
+  2026-11-21). El lanzador exporta `OMP_NUM_THREADS=1` y `nproc` la obedece:
+  heredada, el comprobador veía un solo núcleo, la mitad de la plataforma le
+  daba 0 y respondía «MAL, la mitad de la plataforma está saturada», con una
+  división por cero, con el servidor ocioso. Bloqueó dos arranques.
+  `plataforma_respira()` lo llama ahora con `env -u OMP_NUM_THREADS -u
+  OMP_THREAD_LIMIT`. Para correrlo a mano desde una consola que tenga esas
+  variables, igual: `env -u OMP_NUM_THREADS -u OMP_THREAD_LIMIT
+  ~/bslopez/mercado-p2p/scripts/estado_servidor.sh`. Ya no hace falta un guion
+  de estado aparte en `ESTADO_SERVIDOR`.
+- **Las corridas largas, dentro de tmux** (ver *linger* arriba). Sin linger,
+  una corrida lanzada con `nohup … &` muere al cerrar el SSH, sin una línea de
+  error en el registro. La orden va dentro de tmux, con la salida redirigida a
+  un fichero de `modelo_base/logs/` y sin tubería:
+
+  ```bash
+  tmux new -s tesis
+  export MTE_ROOT=$PWD/MedicionesMTE_v3
+  HASTA=05:30 bash modelo_base/run_servidor.sh revision_r1_resuelta \
+    > modelo_base/logs/revision_r1_$(date +%F_%H%M).consola 2>&1
+  ```
+
+  Se sale con `Ctrl-b d` y se vuelve con `tmux attach -t tesis`.
 
 **Consecuencia para los tiempos.** Todo lo que este documento mide con 30
 procesos ahora corre con 16, y tarda del orden del doble. Los topes por

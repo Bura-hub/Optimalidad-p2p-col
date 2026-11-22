@@ -458,9 +458,310 @@ def main_r2():
     print(f"ok {png} {ancho_px}x{alto_px} px, {im.info['dpi'][0]:.0f} ppp, {tam:.2f} MB, {palabras} palabras")
 
 
+SALIDA_R4 = RAIZ / "Documentos" / "articulo_latam" / "v2_es" / "revision_r1" / "resumen_grafico" / "v5"
+
+
+def main_r4():
+    """Resumen gráfico híbrido de la revisión r1, versión v3 (2026-11-21,
+    comentario C-9; decisiones en revision_r1/resumen_grafico/decisiones_fijas.txt
+    y tratamiento de la ronda 1 en ronda1_tratamiento.md). La base es el
+    original (modo por defecto): las cuatro partes, sus colores y su título,
+    con menos texto, íconos y letra más grandes, y el «Key finding» del pie
+    cambiado por una franja única de E0. La franja da P2P − C4 con los dos
+    supuestos (2,01 MCOP, USD 500), partida en 1,71 de cargos evitados y 0,30
+    de ahorro del intercambio, en la familia naranja del mercado P2P, y dice que
+    sin los supuestos el mercado queda por debajo de C4 en los cinco casos.
+    Cifras de SALIDAS_SERVIDOR/cifras_articulo_2026-09-30/cifras.csv (e1/L) y de
+    SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv (e1/AR1, CANON §14.40),
+    con su huella, y el mercado sin los supuestos con un solo comercializador
+    (art. 10 de la CREG 101 072) de
+    SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/cifras.csv (e1/AR2,
+    CANON §14.41, punto 4). Salida en SALIDA_R4 (v5/): graphical_abstract_r4.png,
+    .pdf y graphical_abstract_r4_gris.png. La v1 a la v4 (v1/ a v4/) las
+    dibujaron versiones anteriores de esta función; la v3 añadió la ronda 2 (la
+    comunidad en el rótulo de la franja, MCOP a 11 pt y las diagonales más
+    cortas), la v4 cambió la línea de debajo de la cifra por el rango con el
+    mercado resuelto y la v5 la cambia por «without them, no gain over C4 with
+    one retailer». No usa ni cambia lo que dibujan main, main_r1 y main_r2."""
+    import csv
+    import hashlib
+
+    def cifras(rel, grupo, ruta):
+        p = RAIZ / "SALIDAS_SERVIDOR" / rel
+        with open(RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv", encoding="utf-8", newline="") as fh:
+            h = [f for f in csv.DictReader(fh) if f["grupo"] == grupo and f["ruta"] == ruta]
+        assert len(h) == 1 and hashlib.sha256(p.read_bytes()).hexdigest() == h[0]["sha256"], f"huella de {rel}"
+        with open(p, encoding="utf-8", newline="") as fh:
+            return {f["clave"]: f["valor"] for f in csv.DictReader(fh)}
+
+    L = cifras("cifras_articulo_2026-09-30/cifras.csv", "e1/L", "cifras_articulo_2026-09-30/cifras.csv")
+    R = cifras("articulo_r1_2026-11-21/cifras.csv", "e1/AR1", "articulo_r1_2026-11-21/cifras.csv")
+    total = float(L["com__E0__P2P_C4"])
+    evit = float(L["com__E0__C1_C4"])
+    ahorro = float(L["com__E0__banda"])
+    usd = float(R["usd__com__E0__P2P_C4"])
+    trm = float(R["trm__media_horizonte"])
+    horas = int(float(L["horas_total"]))
+    casos = ("E0", "E3", "E4", "I1", "SINU")
+    pcom = {c: float(L[f"com__{c}__P2Pcom_C4"]) for c in casos}    # P2P colectivo (la alternativa) − C4
+    # mercado sin los supuestos − C4 en E0 con un solo comercializador, A o B
+    # (art. 10 de la CREG 101 072; CANON §14.41, punto 4)
+    R2 = cifras("articulo_r1_resuelta_2026-11-21/cifras.csv", "e1/AR2", "articulo_r1_resuelta_2026-11-21/cifras.csv")
+    un_com = {k: float(R2[f"m10__E0__un_comercializador_{k}"]) for k in ("A", "B")}
+    exacto = float(R2["m10__E0__exacto"])
+    # compuertas: la franja cierra, las cifras impresas son las del canon
+    assert abs(evit + ahorro - total) < 1e-4, "las dos partes no suman la ventaja de E0"
+    assert abs(float(L["com__E0__P2P"]) - float(L["com__E0__C4"]) - total) < 1e-9
+    assert abs(total * 1e6 / trm - usd) < 1e-6, "USD 500 no sale de la TRM media"
+    pct = 100 * evit / total
+    assert round(pct) == round(float(L["com__E0__C1C4_share"])) == 85
+    assert f"{total:.2f}" == "2.01" and f"{evit:.2f}" == "1.71" and f"{ahorro:.2f}" == "0.30"
+    assert round(usd) == 500 and f"{trm:.2f}" == "4019.25" and horas == 6144
+    assert all(v > 0 for v in pcom.values()), "el P2P colectivo no supera a C4 en los cinco casos"
+    # «no gain over C4 with one retailer»: cero con cualquiera de los dos
+    # (A da −7·10⁻¹⁵ MCOP, redondeo de coma flotante) y la igualdad es exacta
+    assert all(abs(v) < 1e-9 for v in un_com.values()), un_com
+    assert exacto == 1.0, exacto
+
+    VERDE_O = "#00785A"   # verde de C4 oscurecido: texto blanco legible en la insignia
+    P2P_CL = "#F19E55"    # naranja claro de la familia del P2P (validador dataviz: pasa)
+    MIN_PT = 10.0
+
+    fig = plt.figure(figsize=(W, H), dpi=100)
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.axis("off")
+    rend = fig.canvas.get_renderer()
+
+    def ancho(t):
+        """Ancho en pulgadas (unidades del eje) de un texto ya dibujado."""
+        return t.get_window_extent(rend).width / fig.dpi
+
+    def torre(cx, y, s=1.0, color="#6E6E6E"):
+        pts = [(cx - 0.13 * s, y), (cx - 0.03 * s, y + 0.42 * s), (cx + 0.03 * s, y + 0.42 * s),
+               (cx + 0.13 * s, y)]
+        ax.add_patch(Polygon(pts, closed=False, fill=False, ec=color, lw=1.5, zorder=4))
+        for yy, dx in ((y + 0.30 * s, 0.15 * s), (y + 0.40 * s, 0.11 * s)):
+            ax.plot([cx - dx, cx + dx], [yy, yy], color=color, lw=1.5, zorder=4)
+        ax.plot([cx - 0.09 * s, cx + 0.06 * s], [y + 0.12 * s, y + 0.24 * s], color=color, lw=0.9, zorder=4)
+        ax.plot([cx + 0.09 * s, cx - 0.06 * s], [y + 0.12 * s, y + 0.24 * s], color=color, lw=0.9, zorder=4)
+
+    def casa(cx, y, color, s=0.28):
+        ax.add_patch(Rectangle((cx - s / 2, y), s, s * 0.75, fc="#FFFFFF", ec=color, lw=1.8, zorder=4))
+        ax.add_patch(Polygon([(cx - s / 2 - 0.035, y + s * 0.75), (cx + s / 2 + 0.035, y + s * 0.75),
+                              (cx, y + s * 1.25)], closed=True, fc=PANEL, ec="#3D5A73", lw=1.0, zorder=4))
+
+    def edif(x, y, w=0.50, h=0.44):
+        ax.add_patch(Rectangle((x, y), w, h, fc="#FFFFFF", ec="#8C8C8C", lw=1.4, zorder=3))
+        for i in range(3):
+            for j in range(2):
+                ax.add_patch(Rectangle((x + 0.065 + i * 0.135, y + 0.08 + j * 0.17), 0.09, 0.10,
+                                       fc="#D9E2EC", ec="none", zorder=4))
+        ax.add_patch(Polygon([(x + 0.02, y + h + 0.02), (x + w - 0.02, y + h + 0.02),
+                              (x + w - 0.085, y + h + 0.16), (x + 0.085, y + h + 0.16)],
+                             closed=True, fc=PANEL, ec="#3D5A73", lw=1.0, zorder=4))
+        for k in range(1, 4):
+            xa_ = x + 0.02 + k * (w - 0.04) / 4
+            xb_ = x + 0.085 + k * (w - 0.17) / 4
+            ax.plot([xa_, xb_], [y + h + 0.02, y + h + 0.16], color="#3D5A73", lw=0.6, zorder=5)
+
+    def num(x, y, n, color=AZUL_T, r=0.14, fs=11.5):
+        ax.add_patch(Circle((x, y), r, fc=color, ec="none", zorder=6))
+        ax.text(x, y - 0.005, str(n), ha="center", va="center", color="white", fontsize=fs,
+                fontweight="bold", zorder=7)
+
+    def cabecera(x, y, w, texto, color, h=0.34):
+        ax.add_patch(Rectangle((x, y), w, h, fc=color, ec="none", zorder=2))
+        ax.text(x + w / 2, y + h / 2, texto, ha="center", va="center", color="white",
+                fontsize=12.5, fontweight="bold", zorder=3)
+
+    # ---------------- franja del título (la del original, 0,06 in más baja)
+    ax.add_patch(Rectangle((0, H - 0.72), W, 0.72, fc=AZUL_T, ec="none", zorder=1))
+    ax.text(W / 2, H - 0.215, "Peer-to-Peer Energy Markets for Colombian Energy Communities:",
+            ha="center", va="center", color="white", fontsize=15, fontweight="bold")
+    ax.text(W / 2, H - 0.505, "Network Charges, Settlement Rules, and a Collective Alternative",
+            ha="center", va="center", color="white", fontsize=15, fontweight="bold")
+
+    hp = 1.70                        # alto del pie
+    y0, y1 = hp + 0.14, H - 0.82     # zona de los tres bloques
+    ym = (y0 + y1) / 2
+    hc = 0.34                        # alto de las cabeceras
+    # retícula horizontal, la misma arriba y en el pie
+    x1, w1 = 0.22, 3.25
+    x2, w2 = 3.93, 5.24
+    x3, w3 = 9.63, 3.43
+
+    # ---------------- bloque 1: la comunidad medida
+    caja(ax, x1, y0, w1, y1 - y0, "#FFFFFF", "#9AA9B8", lw=1.0)
+    cabecera(x1, y1 - hc, w1, "MEASURED COMMUNITY", "#4A6A86", hc)
+    nombres = ["Udenar", "Unicesmag", "Unimar", "UCC", "HUDN"]
+    paso_e, we = 0.655, 0.50
+    xe0 = x1 + (w1 - (4 * paso_e + we)) / 2
+    yb = 2.86
+    yl = yb + 0.44 + 0.16 + 0.26     # línea de la red
+    ax.plot([x1 + 0.14, x1 + w1 - 0.12], [yl, yl], color="#6E6E6E", lw=1.8, zorder=2)
+    torre(x1 + w1 - 0.30, yl, s=0.80)
+    for i, nom in enumerate(nombres):
+        xx = xe0 + i * paso_e
+        edif(xx, yb, we, 0.44)
+        flecha(ax, (xx + we / 2, yb + 0.63), (xx + we / 2, yl - 0.02), color=REJILLA, lw=1.1,
+               estilo="<|-|>", ms=7, z=2)
+        ax.text(xx + we / 2, yb - 0.17, nom, ha="center", va="center", fontsize=10, color=TXT)
+    ax.text(x1 + w1 / 2, 2.34, "Pasto, Colombia", ha="center", va="center", fontsize=13,
+            fontweight="bold", color=TXT)
+    ax.text(x1 + w1 / 2, 2.05, f"{horas:,} metered hours (Apr–Dec 2025)", ha="center", va="center",
+            fontsize=12, color=SUAVE)
+
+    flecha(ax, (x1 + w1 + 0.06, ym), (x1 + w1 + 0.40, ym), color="#9AA9B8", lw=3.4, ms=21)
+
+    # ---------------- bloque 2: los mecanismos comparados
+    caja(ax, x2, y0, w2, y1 - y0, "#FFFFFF", "#9AA9B8", lw=1.0)
+    cabecera(x2, y1 - hc, w2, "SETTLEMENT RULES COMPARED", "#4A6A86", hc)
+    sub_w = (w2 - 0.40) / 3
+    sb0, sb1 = y0 + 0.08, y1 - hc - 0.08   # alto de las subcajas
+    mecs = [("C1", "Individual\nself-generation", C1, C1_F),
+            ("C4", "Collective\nself-generation", C4, C4_PF),
+            ("P2P", "Peer-to-peer\nmarket", P2P, P2P_F)]
+    yc = 2.92                        # base de las casas
+    yt = 2.40                        # base de las torres de C1 y P2P (alineadas)
+    for k, (cod, nom, col, fondo) in enumerate(mecs):
+        sx = x2 + 0.10 + k * (sub_w + 0.10)
+        caja(ax, sx, sb0, sub_w, sb1 - sb0, fondo, col, lw=1.6)
+        cxm = sx + sub_w / 2
+        ax.text(cxm, sb1 - 0.21, cod, ha="center", va="center", fontsize=17, fontweight="bold",
+                color=col)
+        ax.text(cxm, sb1 - 0.57, nom, ha="center", va="center", fontsize=11, color=TXT,
+                linespacing=1.1)
+        cxs = [sx + sub_w * f for f in (0.16, 0.50, 0.84)]
+        for cx in cxs:
+            casa(cx, yc, col)
+        if k in (0, 2):              # cada miembro con la red
+            torre(cxm, yt, s=0.85)
+            # flechas solo en las diagonales: la vertical central era tan
+            # corta que se leía como un reloj de arena (ronda 1, diseño B3);
+            # la casa del centro queda unida a la torre por un trazo sin puntas
+            for cx in (cxs[0], cxs[2]):
+                # ronda 2 (diseño D2): la punta sale 0,05 in más abajo, sin tocar la
+                # casa, y llega a la cruceta de la torre para que siga siendo diagonal
+                flecha(ax, (cx, yc - 0.08), (cxm + (cx - cxm) * 0.24, yt + 0.27), color=SUAVE, lw=1.6,
+                       ls=(0, (3, 2)), estilo="<|-|>", ms=9)
+            ax.plot([cxm, cxm], [yc - 0.03, yt + 0.37], color=SUAVE, lw=1.6, ls=(0, (2, 1.5)), zorder=3)
+        if k == 1:                   # el excedente va al fondo común
+            for cx in cxs:
+                flecha(ax, (cx, yc - 0.03), (cx, 2.68), color=TXT, lw=1.2, ms=8)
+            caja(ax, sx + 0.14, 2.30, sub_w - 0.28, 0.36, C4_F, C4, lw=1.4, ls=(0, (4, 2)))
+            ax.text(cxm, 2.48, "common fund", ha="center", va="center", fontsize=11.5,
+                    fontweight="bold", color=TXT)
+        if k == 2:                   # el intercambio entre miembros
+            for a, b in ((0, 1), (1, 2)):
+                flecha(ax, (cxs[a] + 0.15, yc + 0.11), (cxs[b] - 0.15, yc + 0.11), color=col, lw=1.8,
+                       estilo="<|-|>", ms=9)
+            ax.text(cxm, 2.15, "not in current\nregulation", ha="center", va="center", fontsize=11.5,
+                    style="italic", color=TXT, linespacing=1.1)
+
+    flecha(ax, (x2 + w2 + 0.06, ym), (x2 + w2 + 0.40, ym), color="#9AA9B8", lw=3.4, ms=21)
+
+    # ---------------- bloque 3: el P2P colectivo, la alternativa del título
+    caja(ax, x3, y0, w3, y1 - y0, "#FFFFFF", C4, lw=1.8)
+    cabecera(x3, y1 - hc, w3, "ALTERNATIVE: COLLECTIVE P2P", C4, hc)
+    xc3 = x3 + w3 / 2
+    cxs = [x3 + w3 * f for f in (0.22, 0.50, 0.78)]
+    yh = 3.72
+    for cx in cxs:
+        casa(cx, yh, PCOL)
+    for a, b in ((0, 1), (1, 2)):
+        flecha(ax, (cxs[a] + 0.16, yh + 0.11), (cxs[b] - 0.16, yh + 0.11), color=PCOL, lw=1.8,
+               estilo="<|-|>", ms=10)
+    t1 = ax.text(xc3, 3.45, "charge-free trade", ha="center", va="center", fontsize=12.5,
+                 fontweight="bold", color="#8A5A00")
+    num(xc3 - ancho(t1) / 2 - 0.24, 3.45, 1)
+    flecha(ax, (xc3, 3.31), (xc3, 3.12), color=TXT, lw=1.4, ms=10)
+    ax.text(xc3 + 0.10, 3.215, "residual", ha="left", va="center", fontsize=12, color=TXT)
+    caja(ax, x3 + 0.30, 2.62, w3 - 0.60, 0.48, C4_F, C4, lw=1.4, ls=(0, (4, 2)))
+    ax.text(xc3, 2.965, "common fund", ha="center", va="center", fontsize=12.5, fontweight="bold",
+            color=TXT)
+    t2 = ax.text(xc3, 2.745, "no 10% share rule", ha="center", va="center", fontsize=12,
+                 fontweight="bold", color=TXT)
+    num(xc3 - ancho(t2) / 2 - 0.24, 2.86, 2)
+    caja(ax, x3 + 0.22, 1.94, w3 - 0.44, 0.58, VERDE_O, VERDE_O, lw=0, r=0.12, z=3)
+    ax.text(xc3, 2.335, f"Above C4 in all {len(pcom)} cases studied", ha="center", va="center",
+            fontsize=13, fontweight="bold", color="white", zorder=4)
+    ax.text(xc3, 2.11, "partly by paying fewer charges", ha="center", va="center",
+            fontsize=12, fontweight="semibold", color="white", zorder=4)
+
+    # ---------------- pie: la franja de E0 y lo que la regulación tendría que definir
+    ax.add_patch(Rectangle((0, 0), W, hp, fc="#EEF3F7", ec="none", zorder=1))
+    xa, xb = x1, x2 + w2             # la franja va bajo los dos primeros paneles
+    # ronda 2 (cifras, B-2): el rótulo dice de qué comunidad es la cifra
+    tr = ax.text(xa, 1.51, "P2P MARKET OVER C4, MEASURED COMMUNITY, WITH TWO SETTLEMENT ASSUMPTIONS",
+                 ha="left", va="center", fontsize=12.5, fontweight="bold", color="#4A6A86")
+    assert xa + ancho(tr) <= xb, "el rótulo de la franja no cabe sobre la barra"
+    t = ax.text(xa, 1.19, f"+{total:.2f} MCOP", ha="left", va="center", fontsize=20, fontweight="bold",
+                color=AZUL_T)
+    ax.text(xa + ancho(t) + 0.14, 1.19, f"(USD {usd:.0f})", ha="left", va="center", fontsize=15,
+            fontweight="bold", color=AZUL_T)
+    ax.text(xa, 0.91, "without them, no gain over C4 with one retailer",
+            ha="left", va="center",
+            fontsize=12, color=TXT)
+    ax.text(xb, 0.91, "MCOP: million Colombian pesos", ha="right", va="center", fontsize=11,
+            color=TXT)
+    # la franja: una barra segmentada alta, sin ejes; anchos en proporción y
+    # fondo entre los dos bloques (skill dataviz, «Segmented bar»)
+    ys, hs, hueco = 0.40, 0.36, 0.03
+    xm = xa + (xb - xa) * evit / total
+    for (u, v, col) in ((xa, xm - hueco / 2, P2P), (xm + hueco / 2, xb, P2P_CL)):
+        ax.add_patch(FancyBboxPatch((u, ys), v - u, hs, boxstyle="round,pad=0,rounding_size=0.04",
+                                    fc=col, ec="none", zorder=3))
+    ax.text(xa + 0.14, ys + hs / 2, f"{evit:.2f}", ha="left", va="center", fontsize=16,
+            fontweight="bold", color="white", zorder=4)
+    ax.text(xm + hueco / 2 + 0.14, ys + hs / 2, f"{ahorro:.2f}", ha="left", va="center", fontsize=16,
+            fontweight="bold", color=TXT, zorder=4)
+    ax.text(xa, 0.20, f"Avoided charges {pct:.0f}%", ha="left", va="center", fontsize=12, color=TXT)
+    ax.text(xb, 0.20, f"Trade saving {100 - pct:.0f}%", ha="right", va="center", fontsize=12,
+            color=TXT)
+    # las dos definiciones, en el orden del artículo, bajo el panel de la alternativa
+    ax.plot([9.40, 9.40], [0.16, 1.56], color="#B8C6D3", lw=1.2, zorder=2)
+    ax.text(x3, 1.51, "REGULATION SHOULD DEFINE", ha="left", va="center", fontsize=12.5,
+            fontweight="bold", color="#4A6A86")
+    num(x3 + 0.14, 1.07, 1)
+    ax.text(x3 + 0.37, 1.07, "charges on traded energy", ha="left", va="center", fontsize=15, color=TXT)
+    num(x3 + 0.14, 0.58, 2)
+    ax.text(x3 + 0.37, 0.58, "settlement of untraded energy", ha="left", va="center", fontsize=15,
+            color=TXT)
+
+    menor = min(t.get_fontsize() for t in ax.texts)
+    assert menor >= MIN_PT, menor
+    fig.canvas.draw()
+    for t in ax.texts:               # ningún texto se sale del lienzo
+        bb = t.get_window_extent(rend)
+        assert bb.x0 >= 0 and bb.x1 <= W * fig.dpi and bb.y0 >= 0 and bb.y1 <= H * fig.dpi, t.get_text()
+    palabras = sum(len(t.get_text().split()) for t in ax.texts)
+    titulo = sum(len(t.get_text().split()) for t in ax.texts[:2])
+
+    SALIDA_R4.mkdir(parents=True, exist_ok=True)
+    png = SALIDA_R4 / "graphical_abstract_r4.png"
+    fig.savefig(png, dpi=DPI, facecolor="white")
+    fig.savefig(SALIDA_R4 / "graphical_abstract_r4.pdf", facecolor="white")
+    plt.close(fig)
+    from PIL import Image
+    Image.open(png).convert("RGB").save(png, dpi=(DPI, DPI))
+    gris = SALIDA_R4 / "graphical_abstract_r4_gris.png"
+    Image.open(png).convert("L").save(gris, dpi=(DPI, DPI))
+    im = Image.open(png)
+    alto_px, ancho_px = im.size[1], im.size[0]
+    tam = png.stat().st_size / 1e6
+    assert im.mode == "RGB" and alto_px >= 531 and ancho_px >= 1328 and abs(ancho_px / alto_px - 2.5) < 0.01
+    assert tam <= 5.0 and im.info.get("dpi", (0, 0))[0] >= 300
+    print(f"ok {png} {ancho_px}x{alto_px} px, {im.info['dpi'][0]:.0f} ppp, {tam:.2f} MB, "
+          f"{palabras} palabras ({titulo} del título), letra mínima {menor} pt")
+
+
 if __name__ == "__main__":
     import sys
-    if "--r2" in sys.argv[1:]:
+    if "--r4" in sys.argv[1:]:
+        main_r4()
+    elif "--r2" in sys.argv[1:]:
         main_r2()
     elif "--r1" in sys.argv[1:]:
         main_r1()

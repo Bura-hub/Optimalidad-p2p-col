@@ -334,16 +334,99 @@ python -u reformateo/documento/scripts/articulo/cifras_articulo.py
 python -u reformateo/documento/scripts/articulo/gen_figuras_articulo_es.py
 ```
 
-La versión del código que acompaña al envío queda marcada con una etiqueta de
-git, `articulo-latam-v1`. Para reproducir el artículo meses después, se parte
-de esa etiqueta y no de `main`:
+La versión del código que acompaña a cada envío queda marcada con una etiqueta
+de git: `articulo-latam-v1` para el envío de octubre y `articulo-latam-v2` para
+la versión revisada (ver la sección siguiente). Para reproducir el artículo
+meses después, se parte de la etiqueta y no de `main`:
 
 ```bash
-git checkout articulo-latam-v1
+git checkout articulo-latam-v2
 ```
 
 Sin las mediciones del MTE, que se piden a los autores, se pueden correr el
 caso sintético, las pruebas y las compuertas que no leen el canon.
+
+---
+
+## La revisión del artículo
+
+La revisión pidió dos cosas que el envío de octubre no resolvía: el reparto
+de la ventaja entre los dos supuestos de liquidación con el mercado **resuelto
+de nuevo** en cada combinación, y un corte del piso del vendedor que no
+conozca de antemano los totales del mes. Las dos se corren con el mismo
+núcleo; las opciones nuevas están apagadas por defecto, y apagadas la corrida
+es la del canon, igual al bit.
+
+| Opción de `main_simulation.py` | Qué hace |
+|---|---|
+| `--esquina {p2p,solo1,solo2,ninguno}` | La combinación de los dos supuestos: los dos (`p2p`, el defecto), solo el primero (lo intercambiado paga el cargo de comercializar y la deducción del comprador), solo el segundo (el residual al colectivo) o ninguno. La hoja `Resumen` de una esquina no es la esquina: se liquida aparte sobre el almacén. |
+| `--corte-piso {mes,iterado,secuencial_pronostico,secuencial_saldo}` | Cómo se fija el corte que entra en el piso del vendedor: con los totales del mes (`mes`, el defecto), por punto fijo, u hora a hora con el saldo real y un pronóstico lineal (la variante principal) o con el saldo conocido. |
+| `--max-iter-corte N` | El tope de iteraciones de `iterado` (8). Si el punto fijo cicla, `N − 2` da el otro estado del ciclo. |
+
+Las acciones del lanzador, con la contención de siempre:
+
+```bash
+export MTE_ROOT=$PWD/MedicionesMTE_v3
+ESQUINA=solo1 CASOS="E0 E3" bash modelo_base/run_servidor.sh matriz_esquina
+CORTE=secuencial_pronostico CASOS=E3 bash modelo_base/run_servidor.sh matriz_corte
+HASTA=05:30 bash modelo_base/run_servidor.sh revision_r1_resuelta   # las 81, en el orden de la noche
+```
+
+- `matriz_esquina` y `matriz_corte` corren la orden del canon de cada caso más
+  `--esquina` o `--corte-piso`, cada una en su carpeta de salidas, con un
+  marcador `ESQUINA` o `CORTE`. `ESQUINA=solo1 ESQUINA_CORTE=iterado` da el
+  punto fijo del corte en esa esquina.
+- `revision_r1_resuelta` corre las compuertas una vez y después las 81
+  corridas en orden de prioridad. Si se detiene, dice cómo retomar:
+  `SIN_COMPUERTAS=1 RETOMA_PASO=<VAR=valor> RETOMA_CASO=<caso>` sigue sin
+  repetir lo que está en verde.
+- Las tres van dentro de `tmux`, con la salida redirigida a un fichero y sin
+  tubería.
+
+Cada corrida pasa por dos compuertas de salida, en
+[`reformateo/documento/scripts/sonda/`](reformateo/documento/scripts/sonda/):
+
+- **`compuerta_r1.py`.** Con alguna hora resuelta, delega en la compuerta de
+  siempre. En una esquina sin mercado, en la que ningún par gana al transar,
+  esa compuerta se negaba a juzgar: esta distingue «ningún par gana» de «no se
+  resolvió nada». Exige el régimen sin ganancia en toda hora, energía cero y
+  P2P igual a C1. Un almacén vacío por plazos vencidos o por agentes sin
+  resolver falla.
+- **`especificacion_r1.py`** (`compuerta_r1.py --canon`). Compara cada corrida
+  con el canon: el cargo y el piso de cada esquina, y que lo que no cambia
+  siga igual. Un cargo o un piso mal puestos fallan, aunque las identidades
+  internas cuadren.
+
+Las cifras salen de los guiones de
+[`reformateo/documento/scripts/articulo_r1/`](reformateo/documento/scripts/articulo_r1/).
+Ninguno simula: leen artefactos con huella y fallan en voz alta.
+
+| Guion | Qué calcula |
+|---|---|
+| `m1_liquidacion.py` a `m9_tope_precio.py` | Las mediciones livianas de la revisión: la liquidación del crédito, el factorial con los flujos fijos, los cargos parciales, los periodos, los componentes, la dinámica agente por agente, los rangos de la sensibilidad, la tasa de cambio y el tope del precio único. |
+| `m10_un_comercializador.py` | La esquina «ninguno» con un solo comercializador, como exige el art. 10 de la CREG 101 072. |
+| `m2r_factorial_resuelto.py`, `m1r_corte_secuencial.py` | El factorial con el mercado resuelto en cada esquina (con Shapley y la interacción) y el corte hora a hora. |
+| `cierre.py`, `cierre_r2.py` | Corren las mediciones en orden, en primer plano, y juntan las cifras, la huella de cada guion y la procedencia. |
+
+**La etiqueta `articulo-latam-v2`** marca el código de la versión revisada:
+el núcleo de la matriz canónica, las tres opciones de arriba, las acciones
+del lanzador, las dos compuertas, sus pruebas
+(`tests/test_matriz_esquina_lanzador.py`, `tests/test_invariancia_r1_ae45.py`
+y las de la esquina y el corte) y los guiones de las cifras. Para reproducir
+las de la revisión:
+
+```bash
+git checkout articulo-latam-v2
+# 1. Las corridas, en el servidor (una noche)
+HASTA=05:30 bash modelo_base/run_servidor.sh revision_r1_resuelta
+# 2. Las cifras, desde las corridas y el canon
+python -u reformateo/documento/scripts/articulo_r1/cierre.py
+python -u reformateo/documento/scripts/articulo_r1/cierre_r2.py
+```
+
+Las mediciones livianas están registradas en el canon en la sección 14.40, y
+las corridas con el mercado resuelto, con su auditoría y su retome, en la
+14.41. El canon no es público.
 
 ---
 

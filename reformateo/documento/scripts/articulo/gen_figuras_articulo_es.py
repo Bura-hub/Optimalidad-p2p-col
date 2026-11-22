@@ -871,11 +871,17 @@ def fig2_dos() -> None:
         "efecto sobre el crédito = P2P) y C4 + cargos evitados = C1"])
 
 
-def _atrib_ax(ax, titulo: str, k_pri: str, k_des: str, k_sh: str, d: str, GE, filas: list) -> None:
-    """Diagrama de puntos de la atribución en un eje (ver fig_atribucion)."""
+def _atrib_ax(ax, titulo: str, k_pri: str, k_des: str, k_sh: str, d: str, GE, filas: list,
+              valores: dict | None = None) -> None:
+    """Diagrama de puntos de la atribución en un eje (ver fig_atribucion).
+    Con `valores` ({caso: (primero, después, Shapley)}, en %), dibuja esos en vez
+    de las claves (solo la Fig. 2 de r4b; sin él, lo de siempre)."""
     casos = list(CASOS_ART)
     for y, c in enumerate(reversed(casos)):
-        pri, des, sh = (V(k.format(c=c), d) for k in (k_pri, k_des, k_sh))
+        if valores is None:
+            pri, des, sh = (V(k.format(c=c), d) for k in (k_pri, k_des, k_sh))
+        else:
+            pri, des, sh = valores[c]
         exige(abs(sh - (pri + des) / 2) <= 0.6, f"{d}: Shapley no es la media de los dos órdenes en {c}")
         ax.plot([min(pri, des), max(pri, des)], [y, y], color=GE.APOYO, lw=3.5, solid_capstyle="round", zorder=1)
         ax.plot([pri], [y], marker=">", ms=4.5, color=GE.TINTA, ls="none", zorder=3)
@@ -971,6 +977,24 @@ def _cifras_r1() -> pd.Series:
     return pd.to_numeric(c.set_index("clave").valor)
 
 
+DIR_R2 = RAIZ / "SALIDAS_SERVIDOR" / "articulo_r1_resuelta_2026-11-21"
+
+
+def _cifras_r2() -> pd.Series:
+    """Las cifras del factorial con el mercado resuelto (CANON §14.41, grupo
+    e1/AR2), con la huella de `cifras.csv` comprobada contra HUELLAS.csv. La
+    tabla repite algunas claves con el mismo valor: se exige que coincidan."""
+    p = DIR_R2 / "cifras.csv"
+    h = pd.read_csv(RAIZ / "Documentos" / "canon_2026-09" / "HUELLAS.csv")
+    f = h[(h.grupo == "e1/AR2") & (h.ruta == "articulo_r1_resuelta_2026-11-21/cifras.csv")]
+    exige(len(f) == 1 and sha(p) == f.sha256.iloc[0], "cifras.csv de articulo_r1_resuelta no tiene la huella e1/AR2")
+    c = pd.read_csv(p)
+    c["valor"] = pd.to_numeric(c.valor)
+    dup = c.groupby("clave").valor.agg(lambda s: s.max() - s.min())
+    exige(float(dup.abs().max()) == 0.0, "cifras.csv de e1/AR2: una clave repetida con dos valores")
+    return c.drop_duplicates("clave").set_index("clave").valor
+
+
 def fig2_r1() -> None:
     """Fig. 2 del artículo revisado: la de `fig2_tres` con (i) un eje derecho en
     miles de dólares en las dos cascadas, con la TRM media del horizonte
@@ -1024,22 +1048,47 @@ def fig2_r1() -> None:
         sec.set_ylabel("mil USD", fontsize=FS, labelpad=1.5, color=E.COLOR_TEXTO)
         filas.append(dict(caso="E0" if ax is axa else "E3", paso="eje derecho: miles de USD por MCOP",
                           base_MCOP=None, altura_MCOP=k))
-    _atrib_ax(axc1, "(c) P2P: supuesto 1 (%)", "atr__{c}__texto_s1_pct", "atr__{c}__inverso_s1_pct",
-              "atr__{c}__shapley_s1_pct", d, GE, filas)
+    # r4b (2026-11-21): (c) con el mercado resuelto en cada esquina (CANON §14.41,
+    # grupo e1/AR2). «Primero» es C1 − C4, como en el artículo (el que solo tiene el
+    # supuesto 1 medido con C1); «después» es P2P − v01 con «solo el 2» resuelto
+    # (m2r__<caso>__v11 − m2r__<caso>__v01), y el rombo, su media. En E0 y SINU, donde
+    # «solo el 1» resuelto no transa y es C1 (compuerta F3), el rombo es el Shapley
+    # resuelto desde C4 (m2r__<caso>__c4_shapley_s1). En E3, E4 e I1, la raya es ese
+    # Shapley resuelto, con «solo el 1» resuelto de nuevo (punto fijo de su corte).
+    R2 = _cifras_r2()
+    val_c = {}
+    for c in CASOS_ART:
+        total = V(f"com__{c}__P2P_C4", d)
+        v11, v01 = float(R2[f"m2r__{c}__v11"]), float(R2[f"m2r__{c}__v01"])
+        exige(abs((v11 - float(R2[f"m2r__{c}__v11_menos_C4"])) - V(f"com__{c}__C4", d)) <= 1e-3,
+              f"{d}: en {c}, la esquina p2p resuelta no parte del C4 del canon")
+        exige(abs(float(R2[f"m2r__{c}__v11_menos_C4"]) - total) <= 1e-3,
+              f"{d}: en {c}, la esquina p2p resuelta no es el P2P − C4 del canon")
+        pri = V(f"atr__{c}__texto_s1_pct", d)
+        des = 100.0 * (v11 - v01) / total
+        val_c[c] = (pri, des, (pri + des) / 2)
+        if c in ("E0", "SINU"):
+            sh = float(R2[f"m2r__{c}__c4_shapley_s1"])
+            exige(abs(100.0 * sh / total - val_c[c][2]) <= 1e-3,
+                  f"{d}: en {c}, el rombo no es el Shapley resuelto desde C4")
+    _atrib_ax(axc1, "(c) P2P: supuesto 1 (%)", "", "", "", d, GE, filas, valores=val_c)
     _atrib_ax(axc2, "(d) P2P col.: sin regla (%)", "pcom__{c}__sin10_pct_dir",
               "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh", d, GE, filas)
     casos = list(CASOS_ART)
-    for c in ("E3", "E4", "I1"):                      # donde C1 solo acota por debajo (CANON §14.21 y §14.40)
+    for c in ("E3", "E4", "I1"):                      # donde C1 solo acota por debajo (CANON §14.41)
         y = len(casos) - 1 - casos.index(c)
-        s1 = float(R1[f"m2__{c}__cota_shapley_s1_min"])
-        s2 = float(R1[f"m2__{c}__cota_shapley_s2_max"])
+        lo, hi = float(R2[f"m2r__{c}__c4_shapley_s1_min"]), float(R2[f"m2r__{c}__c4_shapley_s1_max"])
+        exige(hi - lo <= 0.005, f"{d}: en {c}, los dos estados del ciclo difieren a la cifra publicada")
+        s1 = (lo + hi) / 2
+        s2 = (float(R2[f"m2r__{c}__c4_shapley_s2_min"]) + float(R2[f"m2r__{c}__c4_shapley_s2_max"])) / 2
         total = V(f"com__{c}__P2P_C4", d)
-        exige(abs(s1 + s2 - total) <= 1e-4, f"{d}: en {c}, el Shapley sobre los mismos intercambios no suma P2P − C4")
-        exige(s1 >= V(f"atr__{c}__shapley_s1", d) - 1e-6, f"{d}: en {c}, el valor con C1 no es la cota inferior")
+        exige(abs(s1 + s2 - total) <= 1e-3, f"{d}: en {c}, el Shapley resuelto no suma P2P − C4")
+        exige(s1 >= val_c[c][2] * total / 100.0 - 1e-6,
+              f"{d}: en {c}, el valor con C1 no queda por debajo del resuelto")
         pct = 100.0 * s1 / total
         exige(-90 < pct < 105, f"{d}: la raya de {c} cae fuera del eje ({pct:.1f})")
         axc1.plot([pct], [y], marker="|", ms=9.5, mew=1.5, color=GE.TINTA, ls="none", zorder=6)
-        filas.append(dict(caso=c, paso="(c) Shapley desde C4 con «solo el supuesto 1» sobre los mismos intercambios",
+        filas.append(dict(caso=c, paso="(c) Shapley desde C4 con el mercado resuelto en las cuatro esquinas",
                           base_MCOP=None, altura_MCOP=None, shapley_pct=pct))
     axc1.set_xlim(-92, 105)                           # el triángulo de E4 (−73,2 %) entero dentro del eje
     plt.setp(axc1.get_xticklabels(), visible=False)
@@ -1048,7 +1097,7 @@ def fig2_r1() -> None:
         Line2D([], [], ls="none", marker=">", ms=4.5, color=GE.TINTA, label="primero"),
         Line2D([], [], ls="none", marker="<", ms=4.5, mfc="white", mec=GE.TINTA, label="después"),
         Line2D([], [], ls="none", marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], label="Shapley"),
-        Line2D([], [], ls="none", marker="|", ms=9.5, mew=1.5, color=GE.TINTA, label="mismos intercambios"),
+        Line2D([], [], ls="none", marker="|", ms=9.5, mew=1.5, color=GE.TINTA, label="mercado resuelto"),
     ]
     fig.legend(handles=ley, loc="lower right", ncol=4, frameon=False, fontsize=FS, handletextpad=0.2,
                columnspacing=0.7, borderaxespad=0.05, bbox_to_anchor=(0.995, 0.0))
@@ -1064,11 +1113,16 @@ def fig2_r1() -> None:
     guardar(fig, nombre, pd.DataFrame(filas), "pag", [
         "Fig. 2 de la revisión r1 del artículo (2026-11-21): la de fig2_cascadas_atrib con un eje derecho en miles "
         f"de dólares en (a) y (b), con la TRM media del horizonte ({trm:.2f} COP/USD, clave trm__media_horizonte "
-        "de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv, grupo e1/AR1), y en (c) una raya vertical en la fila de "
-        "E3, E4 e I1 con m2__<caso>__cota_shapley_s1_min sobre com__<caso>__P2P_C4: Shapley desde C4 con el mercado "
-        "que solo tiene el supuesto 1 liquidado sobre los mismos intercambios (CANON §14.40)",
-        "compuertas: las de fig2_cascadas_atrib, la huella e1/AR1 de cifras.csv, que las dos partes sumen "
-        "P2P − C4, que el valor medido con C1 sea la cota inferior y que la raya caiga dentro del eje"])
+        "de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv, grupo e1/AR1). En (c), desde r4b (2026-11-21), "
+        "el mercado resuelto en cada esquina (SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/cifras.csv, grupo "
+        "e1/AR2, CANON §14.41): «primero» es atr__<caso>__texto_s1_pct (C1 − C4), «después» es "
+        "m2r__<caso>__v11 − m2r__<caso>__v01 sobre com__<caso>__P2P_C4, el rombo su media (en E0 y SINU, "
+        "m2r__<caso>__c4_shapley_s1) y la raya de E3, E4 e I1, m2r__<caso>__c4_shapley_s1 (media de _min y _max) "
+        "sobre com__<caso>__P2P_C4, con «solo el supuesto 1» resuelto de nuevo",
+        "compuertas: las de fig2_cascadas_atrib, las huellas e1/AR1 y e1/AR2, que la esquina p2p resuelta sea "
+        "el P2P − C4 del canon, que el rombo de E0 y SINU sea el Shapley resuelto, que las dos partes del Shapley "
+        "resuelto sumen P2P − C4, que el valor medido con C1 quede por debajo, que los dos estados del ciclo "
+        "difieran menos de 0,005 MCOP y que la raya caiga dentro del eje"])
 
 
 # ── Una hora de E0 en el eje de precios (pieza F2) ──────────────────────────

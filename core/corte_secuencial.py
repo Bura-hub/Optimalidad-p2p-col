@@ -158,7 +158,11 @@ def _flujos_hora(r, N: int):
     q = np.zeros(N)
     if r.P_star is not None and r.seller_ids and r.buyer_ids:
         P = np.asarray(r.P_star, dtype=float)
-        if P.size and np.isfinite(P).all():
+        # M3 de la auditoria: un P_star no finito no se trata como «no se
+        # transo»; falla en voz alta (H-50).
+        if P.size and not np.isfinite(P).all():
+            raise ValueError(f"hora {r.k}: P_star no finito")
+        if P.size:
             for a, j in enumerate(r.seller_ids):
                 v[j] = float(P[a, :].sum())
             for b, i in enumerate(r.buyer_ids):

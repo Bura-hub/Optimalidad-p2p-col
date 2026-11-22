@@ -15,7 +15,8 @@ Lo que se prueba:
    orden del canon (`matriz_reposo`): el almacen entero, cada hoja de los
    libros de `outputs/` (la de diagnostico sin la fecha, el commit y la
    orden), cada CSV de `outputs/` y `graficas/` y cada .mat son iguales al
-   bit entre la base y el arbol. Ademas, con `--esquina p2p --corte-piso mes`
+   bit entre la base y el arbol. Ademas, con `--esquina p2p --corte-piso mes
+   --max-iter-corte 8`
    escritos, el arbol da lo mismo que sin ellos.
 2. **Las piezas**, sin datos del proyecto: `piso_esquina("p2p")` es
    `piso_residual` al bit; `GridParams` sin cargo y con `cargo_comprador=None`
@@ -122,7 +123,8 @@ def corridas():
                 base=_corre(wt, caso, tmp / f"base_{caso}"),
                 arbol=_corre(RAIZ, caso, tmp / f"arbol_{caso}"),
                 explicito=_corre(RAIZ, caso, tmp / f"explicito_{caso}",
-                                 ["--esquina", "p2p", "--corte-piso", "mes"]))
+                                 ["--esquina", "p2p", "--corte-piso", "mes",
+                                  "--max-iter-corte", "8"]))
         yield out
     finally:
         _git("worktree", "remove", "--force", str(wt))

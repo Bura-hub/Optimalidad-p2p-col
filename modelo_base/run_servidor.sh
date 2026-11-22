@@ -385,7 +385,11 @@ escribe_mecanismo() {
 # Viven aqui porque `recoger` los necesita.
 ESQ_R1="${ESQUINA:-}"
 CORTE_R1="${CORTE:-}"
-MATRIZ_ESQ="${ESQUINA_SALIDAS:-SALIDAS_SERVIDOR/matriz_esquina_${ESQ_R1}}"
+# B1 de la auditoria (2026-11-21): ESQUINA_CORTE=iterado corre la esquina con
+# el punto fijo de su corte (--corte-piso iterado; solo con ESQUINA=solo1), en
+# SALIDAS_SERVIDOR/matriz_esquina_<esquina>_iterado, sin pisar las corridas.
+ESQ_CORTE="${ESQUINA_CORTE:-}"
+MATRIZ_ESQ="${ESQUINA_SALIDAS:-SALIDAS_SERVIDOR/matriz_esquina_${ESQ_R1}${ESQ_CORTE:+_$ESQ_CORTE}}"
 MATRIZ_ESQ="${MATRIZ_ESQ%/}"
 MATRIZ_COR="${CORTE_SALIDAS:-SALIDAS_SERVIDOR/matriz_corte_${CORTE_R1}}"
 MATRIZ_COR="${MATRIZ_COR%/}"
@@ -402,6 +406,13 @@ R1_CONTROLES="P2 K1 CV2"
 # la de otra matriz; con el fichero marcador de otro valor, se rechaza.
 valida_carpeta_r1() {
   local dir="$1" marcador="$2" valor="$3" etiqueta="$4"
+  # M12 de la auditoria: lista blanca, no negra.
+  if [[ "$dir" != SALIDAS_SERVIDOR/matriz_esquina_?* && "$dir" != SALIDAS_SERVIDOR/matriz_corte_?* \
+        && "${SECO:-0}" != "1" ]]; then
+    echo "  ${etiqueta}_SALIDAS tiene que ser SALIDAS_SERVIDOR/matriz_esquina_* o" \
+         "SALIDAS_SERVIDOR/matriz_corte_*: '$dir'" >&2
+    exit 2
+  fi
   if [[ "$dir" != SALIDAS_SERVIDOR/?* || "$dir" == *..* || "$dir" == *" "* ]]; then
     echo "  ${etiqueta}_SALIDAS tiene que ser una carpeta dentro de" \
          "SALIDAS_SERVIDOR/, sin '..' ni espacios: '$dir'" >&2
@@ -430,10 +441,14 @@ valida_esquina() {
     *) echo "  ESQUINA tiene que ser p2p, solo1, solo2 o ninguno, no '$ESQ_R1'" >&2
        exit 2 ;;
   esac
+  if [[ -n "$ESQ_CORTE" && ( "$ESQ_CORTE" != "iterado" || "$ESQ_R1" != "solo1" ) ]]; then
+    echo "  ESQUINA_CORTE solo admite 'iterado' con ESQUINA=solo1 (B1)" >&2
+    exit 2
+  fi
   if [[ "${SECO:-0}" == "1" && -n "${ESQUINA_DIR_PRUEBA:-}" ]]; then
     MATRIZ_ESQ="$ESQUINA_DIR_PRUEBA"
   fi
-  valida_carpeta_r1 "$MATRIZ_ESQ" ESQUINA "$ESQ_R1" ESQUINA
+  valida_carpeta_r1 "$MATRIZ_ESQ" ESQUINA "${ESQ_R1}${ESQ_CORTE:++$ESQ_CORTE}" ESQUINA
 }
 
 valida_corte() {
@@ -515,8 +530,13 @@ plataforma_respira() {
     echo "  AVISO: no esta $guion; no se comprueba la plataforma MTE"
     return 0
   fi
-  if ! "$guion"; then
-    echo "  La plataforma MTE no respira segun $guion: no se empieza" >&2
+  # M11 de la auditoria: no basta el codigo de salida; cualquier linea MAL
+  # del guion (carga, plataforma saturada) detiene la accion.
+  local _salida _cod=0
+  _salida="$("$guion" 2>&1)" || _cod=$?
+  printf '%s\n' "$_salida"
+  if [[ $_cod -ne 0 ]] || printf '%s\n' "$_salida" | grep -qE '^[[:space:]]*MAL'; then
+    echo "  La plataforma MTE no respira segun $guion (codigo $_cod o alguna linea MAL): no se empieza" >&2
     return 1
   fi
 }
@@ -2080,9 +2100,10 @@ print(" ".join(sorted(palancas)))
     export PARA_EN_FALLO=1
     if [[ "$ACCION" == "matriz_esquina" ]]; then
       valida_esquina
-      R1_DIR="$MATRIZ_ESQ"; R1_MARCADOR=ESQUINA; R1_VALOR="$ESQ_R1"
-      R1_OPCION=(--esquina "$ESQ_R1"); R1_NOMBRE="esquina_${ESQ_R1}"
-      R1_RETOMA="ESQUINA=$ESQ_R1"
+      R1_DIR="$MATRIZ_ESQ"; R1_MARCADOR=ESQUINA; R1_VALOR="${ESQ_R1}${ESQ_CORTE:++$ESQ_CORTE}"
+      R1_OPCION=(--esquina "$ESQ_R1"); R1_NOMBRE="esquina_${ESQ_R1}${ESQ_CORTE:+_$ESQ_CORTE}"
+      if [[ -n "$ESQ_CORTE" ]]; then R1_OPCION+=(--corte-piso "$ESQ_CORTE"); fi
+      R1_RETOMA="ESQUINA=$ESQ_R1${ESQ_CORTE:+ ESQUINA_CORTE=$ESQ_CORTE}"
     else
       valida_corte
       R1_DIR="$MATRIZ_COR"; R1_MARCADOR=CORTE; R1_VALOR="$CORTE_R1"
@@ -2162,9 +2183,12 @@ print(" ".join(sorted(palancas)))
       # hora resuelta; si no hay ninguna (la esquina solo1 donde ningun par
       # gana), comprueba que no hubo mercado por esa razon y que el mercado
       # vale C1 al peso, y falla si la corrida simplemente no resolvio nada.
+      # M1 de la auditoria: con --canon la compuerta comprueba ademas la
+      # especificacion de la esquina o del corte (cargo, piso, C1 y C4 del
+      # canon, p2p y los controles iguales al canon).
       corre "${R1_NOMBRE}_compuerta_${CASO}" \
             "$SONDA/compuerta_r1.py" "$ALM" \
-            --cobertura m1 --caso "$CASO" || {
+            --cobertura m1 --caso "$CASO" --canon "${MATRIZ_CANON:-$MATRIZ_REPOSO}" || {
         cod=$?
         echo
         echo "  La compuerta de salida de $CASO no paso (codigo $cod). El almacen"
@@ -2173,6 +2197,30 @@ print(" ".join(sorted(palancas)))
         echo "    $R1_RETOMA CASOS=\"${CASOS:-}\" DESDE=$CASO bash $0 $ACCION"
         exit "$cod"
       }
+      # B2 de la auditoria: si el corte iterado entra en un ciclo de dos
+      # estados, el almacen guarda el ultimo; el otro se corre aqui, con el
+      # tope de iteraciones que imprime la linea [R1], en <caso>_ciclo.
+      if [[ "${SECO:-0}" != "1" && " ${R1_OPCION[*]} " == *" --corte-piso iterado "* ]]; then
+        _reg="$(ultimo_registro "${R1_NOMBRE}_${CASO}")"
+        _n="$(grep -o 'sale con --max-iter-corte [0-9]*' "$_reg" | grep -o '[0-9]*$' | tail -1 || true)"
+        if [[ -n "$_n" ]]; then
+          echo "  $CASO: ciclo de dos estados; corre el otro con --max-iter-corte $_n"
+          DIRC="$R1_DIR/${CASO}_ciclo"
+          crea_dir "$DIRC/almacen"
+          corre "${R1_NOMBRE}_ciclo_${CASO}" main_simulation.py \
+                --data real --full --include-c5 --no-regulado \
+                --metodo reposo --modo-presupuesto sigma \
+                --regla-precio uniforme --despacho-vendedores piso \
+                "${R1_OPCION[@]}" --max-iter-corte "$_n" \
+                --analisis-ligero --almacen "$DIRC/almacen" \
+                ${EXTRA:+$EXTRA} --out-dir "$DIRC" || exit $?
+          corre "${R1_NOMBRE}_ciclo_compuerta_${CASO}" \
+                "$SONDA/compuerta_r1.py" "$DIRC/almacen" \
+                --cobertura m1 --caso "$CASO" --canon "${MATRIZ_CANON:-$MATRIZ_REPOSO}" || exit $?
+        fi
+      elif [[ "${SECO:-0}" == "1" && " ${R1_OPCION[*]} " == *" --corte-piso iterado "* ]]; then
+        echo "  [SECO] si la linea [R1] de $CASO dice CICLO, correria el otro estado en $R1_DIR/${CASO}_ciclo"
+      fi
     done
 
     echo

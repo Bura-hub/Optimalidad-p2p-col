@@ -661,7 +661,11 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
          # Revision r1 del articulo (AE-5 y AE-4, 2026-11-21), apagadas por
          # defecto: la esquina del factorial de los dos supuestos y el corte
          # del piso. Con "p2p" y "mes" el camino es el de siempre, bit a bit.
-         esquina: str = "p2p", corte_piso: str = "mes"):
+         esquina: str = "p2p", corte_piso: str = "mes",
+         # B2 de la auditoria: el tope de iteraciones del corte iterado. 8 es
+         # el de siempre; con un ciclo, N - 2 (N las iteraciones del ciclo)
+         # da el otro estado del ciclo.
+         max_iter_corte: int = 8):
     t_total_start = time.time()
     print("\n" + "█"*65)
     print("  TESIS: Validación Regulatoria de Mercados P2P en Colombia")
@@ -968,9 +972,16 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
     # entran en ningun `if` de abajo.
     cargo_comprador_m = None
     if esquina != "p2p" or corte_piso != "mes":
-        if esquina != "p2p" and corte_piso != "mes":
-            raise SystemExit("--esquina y --corte-piso no se combinan "
-                             "(decisiones del 2026-11-21)")
+        # B1 de la auditoria (2026-11-21): la esquina solo1 transa mucho menos
+        # que el mercado P2P, y el corte de su piso, calculado con el lado
+        # corto entero (`residual_proporcional`), llega tarde. La unica
+        # combinacion admitida es su punto fijo: --esquina solo1 --corte-piso
+        # iterado. Las demas no estan definidas.
+        if esquina != "p2p" and corte_piso != "mes" and not (
+                esquina == "solo1" and corte_piso == "iterado"):
+            raise SystemExit("--esquina y --corte-piso solo se combinan como "
+                             "--esquina solo1 --corte-piso iterado (el punto "
+                             "fijo del corte de esa esquina)")
         if piso_mecanismo != "c1":
             raise SystemExit("--esquina y --corte-piso solo van con "
                              "--piso-mecanismo c1")
@@ -1236,14 +1247,17 @@ def main(use_real_data=False, full_horizon=False, run_analysis=False,
         if corte_piso == "iterado":
             p2p_results, G_klim, D_star, pi_gb_agente, _hist = resuelve_iterado(
                 ems, D, G, _cu_c, ded_m, np.asarray(pi_bolsa, dtype=float),
-                mes_m, en_permuta_m)
+                mes_m, en_permuta_m, max_iter=max_iter_corte)
             _ult = _hist[-1] if _hist else {}
             print(f"    [R1] Corte iterado (AE-4): {len(_hist)} iteraciones; "
                   f"horas-vendedor que cambian de marca por iteracion: "
                   f"{[h['cambian'] for h in _hist]}; "
                   + ("convergio" if _ult.get("convergio") else
-                     "CICLO, se conservan los dos ultimos estados" if
-                     _ult.get("ciclo") else "NO convergio en el tope"))
+                     f"CICLO entre dos estados: el almacen guarda el ultimo; el "
+                     f"otro sale con --max-iter-corte {max(len(_hist) - 2, 0)}; "
+                     f"no converge y no se cita como punto fijo" if
+                     _ult.get("ciclo") else
+                     f"NO convergio en el tope de {max_iter_corte} iteraciones"))
         else:
             from core.market_prep import compute_generation_limit as _cgl
             p2p_results, pi_gb_agente, _marcas, _seg = resuelve_secuencial(
@@ -3120,6 +3134,11 @@ if __name__ == "__main__":
                          "colectivo en el caso 2 con el PDE propio. ninguno: "
                          "las dos cosas. La hoja Resumen NO es la esquina: se "
                          "liquida aparte sobre el almacen")
+    ap.add_argument("--max-iter-corte", dest="max_iter_corte", type=int,
+                    default=8, metavar="N",
+                    help="Revision r1 (B2): tope de iteraciones de --corte-piso "
+                         "iterado (8, el de siempre). Con un ciclo de N "
+                         "iteraciones, N - 2 da el otro estado del ciclo")
     ap.add_argument("--corte-piso", dest="corte_piso",
                     choices=["mes", "iterado", "secuencial_pronostico",
                              "secuencial_saldo"], default="mes",
@@ -3652,7 +3671,8 @@ if __name__ == "__main__":
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv),
              piso_mecanismo=args.piso_mecanismo,
-             esquina=args.esquina, corte_piso=args.corte_piso)
+             esquina=args.esquina, corte_piso=args.corte_piso,
+             max_iter_corte=args.max_iter_corte)
     else:
         _, _p2p = main(
              use_real_data=(args.data == "real"),
@@ -3691,7 +3711,8 @@ if __name__ == "__main__":
              escala_agente=args.escala_agente, neto_cero=args.neto_cero,
              factor_cv=lee_factor(args.factor_cv),
              piso_mecanismo=args.piso_mecanismo,
-             esquina=args.esquina, corte_piso=args.corte_piso)
+             esquina=args.esquina, corte_piso=args.corte_piso,
+             max_iter_corte=args.max_iter_corte)
 
     # ── D38: el codigo de salida, DESPUES de escribir todo ────────────────
     # `main` ya escribio todas sus salidas y cerro el almacen. Solo aqui, en

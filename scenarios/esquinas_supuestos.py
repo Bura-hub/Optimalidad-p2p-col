@@ -72,7 +72,7 @@ def colectivo(iny, ret, CU, ded, mes, pb, pesos: dict):
     for m in np.unique(mes):
         h = np.flatnonzero(mes == m)
         w = np.asarray(pesos[m], dtype=float)
-        if abs(w.sum() - 1.0) > 1e-9 or (w < 0).any():
+        if not (abs(w.sum() - 1.0) <= 1e-9) or (w < 0).any():   # NaN falla (M4)
             raise ValueError(f"pesos del mes {m} no suman 1")
         asign = w[:, None] * iny[:, h].sum(axis=0)[None, :]
         cr, ex, _ = reparto_anexo4(asign, ret[:, h])
@@ -92,7 +92,9 @@ def liquida_esquina(esquina: str, G, D, v, q, CU, ded1, ded4, mes, pb,
     ded1 = np.asarray(ded1, dtype=float)
     ded4 = np.asarray(ded4, dtype=float)
     s, d = np.maximum(G - D, 0.0), np.maximum(D - G, 0.0)
-    if (v > s + 1e-6).any() or (q > d + 1e-6).any():
+    # 1e-4 kWh: el redondeo float32 del almacen, la misma tolerancia de
+    # `atribucion_supuestos.carga`.
+    if (v > s + 1e-4).any() or (q > d + 1e-4).any():
         raise ValueError("se vende mas que el sobrante o se compra mas que el "
                          "faltante")
     sr, dr = np.maximum(s - v, 0.0), np.maximum(d - q, 0.0)

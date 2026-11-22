@@ -55,6 +55,20 @@ MOTIVO_SIN_MERCADO = "sin mercado esa hora"
 REGIMEN_SIN_GANANCIA = "sin_ganancia"
 TOL_COP = 1.0          # «al peso», la tolerancia del canon para C1 (§14.21)
 TOL_BANDA = 1e-6       # COP/kWh
+ESQ_CARGO = ("solo1", "ninguno")
+CONTROLES = ("E0", "P2", "K1", "CV2", "SINU")
+SIN_CORTE = ("E0", "K1", "CV2", "SINU")          # solo1 no transa: vale C1
+
+
+def _marcador(alm: Path):
+    """(tipo, valor) del marcador de la carpeta de la corrida: ESQUINA o CORTE
+    (en <matriz>/ para <matriz>/<caso>/almacen y <matriz>/<caso>_ciclo/almacen)."""
+    alm = Path(alm)
+    for m in ("ESQUINA", "CORTE"):
+        f = alm.parent.parent / m
+        if f.is_file():
+            return m.lower(), f.read_text(encoding="utf-8").strip()
+    return None, None
 
 
 def _compuerta_de_siempre():
@@ -133,6 +147,10 @@ def sin_mercado(almacen: Path, cobertura: str, caso: str) -> int:
     vend = (a.pivot(index="agente", columns="hora", values="papel").loc[ags] == "vendedor").to_numpy()
     comp = (a.pivot(index="agente", columns="hora", values="papel").loc[ags] == "comprador").to_numpy()
     f_cargo = almacen / "cargo_comprador.npy"
+    # M8 de la auditoria: en solo1 y ninguno el cargo es obligatorio.
+    _tipo, _valor = _marcador(almacen)
+    if _tipo == "esquina" and _valor.split("+")[0] in ESQ_CARGO:
+        exige(f_cargo.is_file(), f"banda: la esquina {_valor} tiene que traer cargo_comprador.npy (M8)")
     cargo = np.load(f_cargo) if f_cargo.is_file() else np.zeros_like(techo)
     exige(cargo.shape == techo.shape and np.isfinite(cargo).all(),
           f"banda: el cargo del comprador ({'cargo_comprador.npy' if f_cargo.is_file() else 'sin fichero: cero'}) "
@@ -180,6 +198,9 @@ def main(argv=None) -> int:
     ap.add_argument("almacen")
     ap.add_argument("--cobertura", default="m1")
     ap.add_argument("--caso", default=None)
+    ap.add_argument("--canon", default=None,
+                    help="la matriz del canon (<caso>/almacen y <caso>/outputs): con ella se comprueba ademas la "
+                         "especificacion de la esquina o del corte (especificacion_r1.py; M1 de la auditoria)")
     args = ap.parse_args(argv)
     if (hasattr(sys.stdout, "reconfigure")
             and str(getattr(sys.stdout, "encoding", "")).lower() != "utf-8"):
@@ -194,8 +215,15 @@ def main(argv=None) -> int:
         return 2
     if bool(h["resuelta"].eq(True).any()):
         argv2 = [str(alm), "--cobertura", args.cobertura, "--caso", caso]
-        return _compuerta_de_siempre().main(argv2)
-    return sin_mercado(alm, args.cobertura, caso)
+        cod = _compuerta_de_siempre().main(argv2)
+    else:
+        cod = sin_mercado(alm, args.cobertura, caso)
+    if args.canon is None:
+        return cod
+    if str(AQUI) not in sys.path:
+        sys.path.insert(0, str(AQUI))
+    from especificacion_r1 import especificacion
+    return max(cod, especificacion(alm, args.cobertura, caso, Path(args.canon)))
 
 
 if __name__ == "__main__":

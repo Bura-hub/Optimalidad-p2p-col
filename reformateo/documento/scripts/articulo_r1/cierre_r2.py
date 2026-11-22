@@ -3,7 +3,7 @@ cierre_r2.py — Corre las mediciones completas de AE-5 y AE-4 y el tope del
 precio único, y junta `cifras.csv`, `GUIONES.csv` y `procedencia.txt`
 (CANON §14.41)
 ===============================================================================
-Corre m2r, m1r y m9, cada una en su proceso y en primer plano; si una falla, se
+Corre m2r, m10, m1r y m9, cada una en su proceso y en primer plano; si una falla, se
 detiene. Antes deja en `logs/canon_antes.log` la salida de
 `verificar_canon_2026-09.py`, que tiene que terminar en INTACTO. Sin fecha en
 ningún fichero: con el mismo árbol, dos corridas dan los mismos ficheros.
@@ -29,13 +29,15 @@ for _flujo in (sys.stdout, sys.stderr):
 RAIZ = Path(__file__).resolve().parents[4]
 AQUI = Path(__file__).resolve().parent
 SALIDA = RAIZ / "SALIDAS_SERVIDOR" / "articulo_r1_resuelta_2026-11-21"
-ORDEN = [("m2r", "m2r_factorial_resuelto.py"), ("m1r", "m1r_corte_secuencial.py"), ("m9", "m9_tope_precio.py")]
+ORDEN = [("m2r", "m2r_factorial_resuelto.py"), ("m10", "m10_un_comercializador.py"), ("m1r", "m1r_corte_secuencial.py"),
+         ("m9", "m9_tope_precio.py")]
 # los guiones de esta medicion y los modulos del proyecto que liquidan
 GUIONES = ["reformateo/documento/scripts/articulo_r1/ar1_comun.py",
            "reformateo/documento/scripts/articulo_r1/ar2_comun.py",
            "reformateo/documento/scripts/articulo_r1/m2r_factorial_resuelto.py",
            "reformateo/documento/scripts/articulo_r1/m1r_corte_secuencial.py",
            "reformateo/documento/scripts/articulo_r1/m9_tope_precio.py",
+           "reformateo/documento/scripts/articulo_r1/m10_un_comercializador.py",
            "reformateo/documento/scripts/articulo_r1/cierre_r2.py",
            "reformateo/documento/scripts/sonda/compuerta_r1.py", "reformateo/documento/scripts/sonda/especificacion_r1.py",
            "scenarios/esquinas_supuestos.py", "analysis/shapley_factorial.py",

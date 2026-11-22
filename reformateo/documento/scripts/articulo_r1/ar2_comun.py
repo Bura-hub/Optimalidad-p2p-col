@@ -36,7 +36,7 @@ CON_CORTE = ["E1", "E2", "E3", "E4", "E5", "P1", "I1", "N1"]
 CONTROLES = ["E0", "P2", "K1", "CV2", "SINU"]
 CASOS_CORTE = {"iterado": CON_CORTE, "secuencial_saldo": CON_CORTE,
                "secuencial_pronostico": CON_CORTE + CONTROLES}
-NUCLEO = {"57fbb55", "abf83ab"}          # el mismo núcleo: abf83ab solo toca el lanzador y la compuerta
+NUCLEO = {"57fbb55", "abf83ab", "e1a0e40"}   # el mismo núcleo; e1a0e40 (retome de B1 y B2) añade la opción del punto fijo de solo1 y --max-iter-corte, apagadas
 
 
 def dir_corrida(tipo: str, valor: str, caso: str) -> Path:
@@ -110,3 +110,18 @@ def bases():
 
 def sha(p: Path) -> str:
     return hashlib.sha256(p.read_bytes()).hexdigest()
+
+# El retome de B1 y B2 (2026-11-21, commit e1a0e40): solo1 con el punto fijo
+# de su corte y el iterado del corte con los dos estados del ciclo. Si la
+# corrida principal entra en ciclo, el otro estado está en <caso>_ciclo.
+RETOME_ESQ = A1.SALIDAS / "matriz_esquina_solo1_iterado"
+RETOME_COR = A1.SALIDAS / "matriz_corte_iterado_b2"
+
+
+def estados(base: Path, caso: str) -> list:
+    """Las carpetas de los estados de una corrida del retome: la principal y,
+    si cicló, la del otro estado."""
+    out = [base / caso]
+    if (base / f"{caso}_ciclo").is_dir():
+        out.append(base / f"{caso}_ciclo")
+    return out

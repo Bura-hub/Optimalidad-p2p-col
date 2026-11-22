@@ -48,8 +48,15 @@ def tol(ref) -> float:
     return max(1.0, 1e-6 * abs(float(ref)))
 
 
-def iteraciones(c: str) -> str:
-    regs = sorted((R.RAIZ / "modelo_base" / "logs").glob(f"corte_iterado_{c}_2026-11-*.log"))
+def iteraciones(c: str, estado: str = "registrado") -> str:
+    """La linea [R1] del registro de la corrida: el de la matriz (17-19 h) o, en
+    un ciclo, el del retome (corte_iterado_<caso> o corte_iterado_ciclo_<caso>)."""
+    pref = "corte_iterado_ciclo_" if estado == "ciclo_b" else "corte_iterado_"
+    regs = sorted((R.RAIZ / "modelo_base" / "logs").glob(f"{pref}{c}_2026-11-21_*.log"))
+    if estado == "registrado":
+        regs = [r for r in regs if r.name.rsplit("_", 1)[1][:2] < "20"]   # los de la matriz, antes del retome
+    else:
+        regs = [r for r in regs if r.name.rsplit("_", 1)[1][:2] >= "20"]
     if not regs:
         return ""
     t = regs[-1].read_text(encoding="utf-8", errors="replace")
@@ -57,18 +64,37 @@ def iteraciones(c: str) -> str:
     return f"{m.group(1)} {m.group(2)} {m.group(3)}" if m else ""
 
 
+CICLAN = ("E2", "E3", "E4", "P1", "N1")       # B2: el iterado de la matriz entra en ciclo
+
+
 def main() -> int:
     med = R.Medicion("m1r", "AE-4: el corte del piso hora a hora, con el mercado resuelto")
     DAT, pb = R.bases()
     med.ok("13 almacenes canónicos con sus compuertas y la bolsa de la caché igual a la reconstruida")
     filas, inst = [], []
+    trabajos = []
     for corte in R.CORTES:
         for c in R.CASOS_CORTE[corte]:
+            if corte == "iterado" and c in CICLAN:
+                # B2: los dos estados del ciclo, del retome; el principal es el de
+                # la matriz al bit (el iterado es determinista)
+                ds = R.estados(R.RETOME_COR, c)
+                med.exige(len(ds) == 2, f"B2 {c}: el retome no trae los dos estados del ciclo")
+                A = R.carga_corrida(med, R.dir_corrida("corte", "iterado", c), c, DAT[c])
+                B = R.carga_corrida(med, ds[0], c, DAT[c])
+                med.exige(np.array_equal(A["v"], B["v"]) and np.array_equal(A["q"], B["q"])
+                          and np.array_equal(A["piso"], B["piso"]),
+                          f"B2 {c}: el estado principal del retome no es el iterado de la matriz al bit")
+                trabajos += [(corte, c, ds[0], "ciclo_a"), (corte, c, ds[1], "ciclo_b")]
+            else:
+                trabajos.append((corte, c, R.dir_corrida("corte", corte, c), "registrado"))
+    for corte, c, d, estado in trabajos:
+        if True:
             L = DAT[c]
             CU, ded1, ded4, mes = L["CU"], L["ded1"], L["ded4"], L["mes"]
             res_c = R.AS.resumen(c)
             C1, C4, P0 = float(res_c["C1"]), float(res_c["C4"]), float(res_c["P2P"])
-            X = R.carga_corrida(med, R.dir_corrida("corte", corte, c), c, L)
+            X = R.carga_corrida(med, d, c, L)
             med.exige(f"--corte-piso {corte}" in X["orden"], f"{c} {corte}: la orden no lleva --corte-piso {corte}")
             for k, ref in (("C1", C1), ("C4", C4)):
                 med.exige(abs(float(X["res"][k]) - ref) <= 1.0, f"S5 {c} {corte}: {k} del libro distinto del canon")
@@ -116,7 +142,8 @@ def main() -> int:
                        horas_vendedor_bolsa=int((vende & ~en_perm).sum()),
                        vendido_bajo_piso_cierre_kwh=kwh_bajo, vendido_bajo_piso_cierre_COP=cop_bajo,
                        vendido_permuta_y_cierre_exceso_kwh=kwh_sobre,
-                       exceso_kwh=float(ex_a.sum()), iteraciones=iteraciones(c) if corte == "iterado" else "")
+                       exceso_kwh=float(ex_a.sum()), estado=estado,
+                       iteraciones=iteraciones(c, estado) if corte == "iterado" else "")
             pares_c1 = pares_c4 = 0
             for n, ag in enumerate(L["ags"]):
                 p_old = float(pa0.loc[ag, "P2P"])
@@ -125,7 +152,7 @@ def main() -> int:
                 cam4 = int(np.sign(round(por[n] - b4)) != np.sign(round(p_old - b4)))
                 pares_c1 += cam1
                 pares_c4 += cam4
-                inst.append(dict(corte=corte, caso=c, institucion=ag, P2P_canon_COP=p_old, P2P_COP=float(por[n]),
+                inst.append(dict(corte=corte, caso=c, estado=estado, institucion=ag, P2P_canon_COP=p_old, P2P_COP=float(por[n]),
                                  C1_COP=b1, C4_COP=b4, signo_C1_cambia=cam1, signo_C4_cambia=cam4))
             fil.update(pares_signo_C1_cambia=pares_c1, pares_signo_C4_cambia=pares_c4)
             filas.append(fil)
@@ -138,32 +165,14 @@ def main() -> int:
     med.ok("S4: en E0, P2, K1, CV2 y SINU el secuencial con pronóstico es la esquina p2p al bit (flujos y piso) y "
            "el canon (1 COP o 1e-6 relativo)")
     med.ok("S7: el piso de toda hora-vendedor de las 29 corridas es la permuta del numeral o la bolsa de la hora")
-    # B2 de la auditoria (2026-11-21): la variante iterada que entra en un
-    # ciclo de dos estados no es un punto fijo; el almacen guarda uno solo. En
-    # esos casos queda PENDIENTE de la corrida del otro estado y no se registra.
-    for f in filas:
-        f["estado"] = ("pendiente_B2_ciclo" if f["corte"] == "iterado" and "CICLO" in str(f["iteraciones"])
-                       else "registrado")
-        if f["estado"] != "registrado":
-            for k in ("P2P_COP", "dif_COP", "P2P_C4_COP", "P2P_C1_COP", "dif_P2P_C4_pct", "dif_P2P_C1_pct",
-                      "transado_kwh", "vendido_bajo_piso_cierre_kwh", "vendido_bajo_piso_cierre_COP",
-                      "vendido_permuta_y_cierre_exceso_kwh", "exceso_kwh"):
-                f[k] = np.nan
-            f["signo_C4_cambia"] = f["signo_C1_cambia"] = f["pares_signo_C1_cambia"] = f["pares_signo_C4_cambia"] = -1
-    pend = {(f["corte"], f["caso"]) for f in filas if f["estado"] != "registrado"}
-    for x in inst:
-        x["estado"] = "pendiente_B2_ciclo" if (x["corte"], x["caso"]) in pend else "registrado"
-        if x["estado"] != "registrado":
-            x["P2P_COP"] = np.nan
-            x["signo_C1_cambia"] = x["signo_C4_cambia"] = -1
+    med.ok("B2: en E2, E3, E4, P1 y N1 el iterado se da con los dos estados del ciclo (retome, e1a0e40); el estado "
+           "principal del retome es el iterado de la matriz al bit (flujos y piso)")
     T = pd.DataFrame(filas)
     med.tabla(T, "m1r_corte.csv")
     med.tabla(pd.DataFrame(inst), "m1r_corte_instituciones.csv")
     fuente = "articulo_r1_resuelta_2026-11-21/m1r_corte.csv"
     for f in filas:
-        if f["estado"] != "registrado":
-            continue
-        p = f"m1r__{f['corte']}__{f['caso']}__"
+        p = f"m1r__{f['corte']}__{f['caso']}__" + ("" if f["estado"] == "registrado" else f["estado"] + "__")
         for k in ("dif", "P2P_C4", "P2P_C4_canon", "P2P_C1", "P2P_C1_canon", "vendido_bajo_piso_cierre"):
             med.pon(p + k, f[f"{k}_COP"] / M, "MCOP", fuente)
         for k in ("dif_P2P_C4_pct", "dif_P2P_C1_pct"):
@@ -175,12 +184,18 @@ def main() -> int:
                   "horas_vendedor_bolsa", "horas_vendedor_bolsa_canon"):
             med.pon(p + k, int(f[k]), "n", fuente)
     for corte in R.CORTES:
-        sub = T[(T.corte == corte) & T.caso.isin(R.CON_CORTE) & (T.estado == "registrado")]
+        sub = T[(T.corte == corte) & T.caso.isin(R.CON_CORTE)]
         med.pon(f"m1r__{corte}__casos_signo_cambia", int(sub.signo_C4_cambia.sum() + sub.signo_C1_cambia.sum()), "n", fuente)
         med.pon(f"m1r__{corte}__dif_P2P_C4_pct_min", float(sub.dif_P2P_C4_pct.min()), "%", fuente)
         med.pon(f"m1r__{corte}__dif_P2P_C4_pct_max", float(sub.dif_P2P_C4_pct.max()), "%", fuente)
         med.pon(f"m1r__{corte}__pares_signo_cambia", int(sub.pares_signo_C1_cambia.sum() + sub.pares_signo_C4_cambia.sum()),
                 "n", fuente)
+    # B2: el intervalo entre los dos estados del ciclo
+    for c in CICLAN:
+        sub = T[(T.corte == "iterado") & (T.caso == c)]
+        for k in ("dif_P2P_C4_pct", "dif_P2P_C1_pct"):
+            med.pon(f"m1r__iterado__{c}__{k}_min", float(sub[k].min()), "%", fuente)
+            med.pon(f"m1r__iterado__{c}__{k}_max", float(sub[k].max()), "%", fuente)
     med.cierra()
     return 0
 

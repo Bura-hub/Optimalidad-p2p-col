@@ -72,9 +72,20 @@ def main() -> int:
                  ("E1", "E2", "E3", "E4", "E5", "P1", "I1", "N1")]
     corridas += [("corte", "secuencial_pronostico", c) for c in
                  ("E1", "E2", "E3", "E4", "E5", "P1", "I1", "N1", "E0", "P2", "K1", "CV2", "SINU")]
+    # el retome de B1 y B2 (e1a0e40): solo1 con el punto fijo de su corte y el
+    # iterado del corte con los dos estados del ciclo (24 corridas)
+    retome = []
+    for base in ("matriz_esquina_solo1_iterado", "matriz_corte_iterado_b2"):
+        for d in sorted((RAIZ / "SALIDAS_SERVIDOR" / base).iterdir()):
+            if d.is_dir():
+                retome.append(("retome", base, d.name))
     esp = []
-    for tipo, v, c in corridas:
-        alm = RAIZ / "SALIDAS_SERVIDOR" / f"matriz_{tipo}_{v}" / c / "almacen"
+    for tipo, v, c in corridas + retome:
+        if tipo == "retome":
+            alm = RAIZ / "SALIDAS_SERVIDOR" / v / c / "almacen"
+            c = c.split("_")[0]
+        else:
+            alm = RAIZ / "SALIDAS_SERVIDOR" / f"matriz_{tipo}_{v}" / c / "almacen"
         r = subprocess.run([sys.executable, "-u", str(gate), str(alm), "--cobertura", "m1", "--caso", c,
                             "--canon", str(canon)], cwd=RAIZ, capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=1200)
@@ -86,8 +97,9 @@ def main() -> int:
             (SALIDA / "logs" / "especificacion_81.log").write_text("\n".join(esp) + "\n", encoding="utf-8", newline="\n")
             raise SystemExit(f"[ar2:cierre] la compuerta de la especificación falla en {tipo} {v} {c}")
     (SALIDA / "logs" / "especificacion_81.log").write_text(
-        "\n".join(esp) + f"\n{len(esp)} de {len(corridas)} corridas EN VERDE\n", encoding="utf-8", newline="\n")
-    print(f"[ar2:cierre] especificación: {len(esp)} de {len(corridas)} corridas en verde", flush=True)
+        "\n".join(esp) + f"\nretome: {len(retome)} de {len(retome)} corridas EN VERDE\n"
+        f"{len(corridas)} de {len(corridas)} corridas EN VERDE\n", encoding="utf-8", newline="\n")
+    print(f"[ar2:cierre] especificación: {len(corridas)} corridas y {len(retome)} del retome en verde", flush=True)
     partes, n_comp, lineas, leidos, insumos = [], 0, [], [], []
     for nom, guion in ORDEN:
         p = SALIDA / f"cifras_{nom}.csv"

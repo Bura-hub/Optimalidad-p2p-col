@@ -1016,7 +1016,22 @@ def fig2_r1() -> None:
     axc2 = fig.add_subplot(gs[1, 2], sharex=axc1)
     filas = _cascada(axa, "E0", d, "(a) E0: la comunidad medida")
     filas += _cascada(axb, "E3", d, "(b) E3: la mayor escala bajo 100 kW")
-    cortos = ["C4", "cargos", "ahorro", "crédito", "P2P", "P2P\ncol."]
+    # Ronda «diez» (2026-11-22, final2_diseno.md, M-1 y M-2), solo en esta figura:
+    # los rótulos del eje x van en dos alturas, porque «ahorro» y «crédito» se
+    # tocaban; en (b), el «+2,61» del efecto sobre el crédito baja bajo su barra,
+    # porque quedaba pegado a «212,52», y el eje se alarga a la derecha para que
+    # «217,05» no toque el eje derecho. `_cascada` no cambia: las otras figuras
+    # que la usan quedan igual.
+    cortos = ["C4", "\ncargos", "ahorro", "\ncrédito", "P2P", "P2P\ncol."]
+    y_cred = V("com__E3__C4", d) + V("com__E3__C1_C4", d) + V("com__E3__banda", d)
+    lo_b, hi_b = axb.get_ylim()
+    sube_b = (hi_b - lo_b) * 0.015                    # el mismo margen de _cascada
+    rot_cred = TX("com__E3__reclas", d, signo=True)
+    movidos = [t for t in axb.texts if t.get_text() == rot_cred and abs(t.get_position()[0] - 3) < 1e-9]
+    exige(len(movidos) == 1, f"{d}: no se encontró el rótulo {rot_cred} del efecto sobre el crédito en (b)")
+    movidos[0].set_y(y_cred - sube_b)
+    movidos[0].set_va("top")
+    axb.set_xlim(-0.55, 5.75)
     MARCAS.setdefault(d, set())
     IMPRESOS.setdefault(d, set())
     for ax, paso in ((axa, 0.2), (axb, 5.0)):

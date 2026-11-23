@@ -458,7 +458,7 @@ def main_r2():
     print(f"ok {png} {ancho_px}x{alto_px} px, {im.info['dpi'][0]:.0f} ppp, {tam:.2f} MB, {palabras} palabras")
 
 
-SALIDA_R4 = RAIZ / "Documentos" / "articulo_latam" / "v2_es" / "revision_r1" / "resumen_grafico" / "v5"
+SALIDA_R4 = RAIZ / "Documentos" / "articulo_latam" / "v2_es" / "revision_r1" / "resumen_grafico" / "v6"
 
 
 def main_r4():
@@ -476,13 +476,15 @@ def main_r4():
     con su huella, y el mercado sin los supuestos con un solo comercializador
     (art. 10 de la CREG 101 072) de
     SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/cifras.csv (e1/AR2,
-    CANON §14.41, punto 4). Salida en SALIDA_R4 (v5/): graphical_abstract_r4.png,
-    .pdf y graphical_abstract_r4_gris.png. La v1 a la v4 (v1/ a v4/) las
+    CANON §14.41, punto 4). Salida en SALIDA_R4 (v6/): graphical_abstract_r4.png,
+    .pdf y graphical_abstract_r4_gris.png. La v1 a la v5 (v1/ a v5/) las
     dibujaron versiones anteriores de esta función; la v3 añadió la ronda 2 (la
     comunidad en el rótulo de la franja, MCOP a 11 pt y las diagonales más
     cortas), la v4 cambió la línea de debajo de la cifra por el rango con el
     mercado resuelto y la v5 la cambia por «without them, no gain over C4 with
-    one retailer». No usa ni cambia lo que dibujan main, main_r1 y main_r2."""
+    one retailer». La v6 (f10f, corrección 8 del lector de g2) añade al rótulo de
+    los cargos evitados que esos cargos ya los evita C1. No usa ni cambia lo que
+    dibujan main, main_r1 y main_r2."""
     import csv
     import hashlib
 
@@ -717,7 +719,9 @@ def main_r4():
             fontweight="bold", color="white", zorder=4)
     ax.text(xm + hueco / 2 + 0.14, ys + hs / 2, f"{ahorro:.2f}", ha="left", va="center", fontsize=16,
             fontweight="bold", color=TXT, zorder=4)
-    ax.text(xa, 0.20, f"Avoided charges {pct:.0f}%", ha="left", va="center", fontsize=12, color=TXT)
+    # v6 (f10f, g2_lector C8): esos cargos ya los evita C1, la opción vigente (C1 − C4 = 1,71)
+    ax.text(xa, 0.20, f"Avoided charges {pct:.0f}%, which C1 already avoids", ha="left", va="center", fontsize=12,
+            color=TXT)
     ax.text(xb, 0.20, f"Trade saving {100 - pct:.0f}%", ha="right", va="center", fontsize=12,
             color=TXT)
     # las dos definiciones, en el orden del artículo, bajo el panel de la alternativa

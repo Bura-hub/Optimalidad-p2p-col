@@ -872,10 +872,13 @@ def fig2_dos() -> None:
 
 
 def _atrib_ax(ax, titulo: str, k_pri: str, k_des: str, k_sh: str, d: str, GE, filas: list,
-              valores: dict | None = None) -> None:
+              valores: dict | None = None, separa: float = 0.0) -> None:
     """Diagrama de puntos de la atribución en un eje (ver fig_atribucion).
     Con `valores` ({caso: (primero, después, Shapley)}, en %), dibuja esos en vez
-    de las claves (solo la Fig. 2 de r4b; sin él, lo de siempre)."""
+    de las claves (solo la Fig. 2 de r4b; sin él, lo de siempre). Con `separa`
+    (en filas; solo la Fig. 2 desde f10f) el triángulo «primero» sube y «después»
+    baja esa fracción de fila, con el rombo de Shapley en el centro, para que se
+    distingan aunque coincidan en el eje; con 0, lo de siempre."""
     casos = list(CASOS_ART)
     for y, c in enumerate(reversed(casos)):
         if valores is None:
@@ -884,16 +887,19 @@ def _atrib_ax(ax, titulo: str, k_pri: str, k_des: str, k_sh: str, d: str, GE, fi
             pri, des, sh = valores[c]
         exige(abs(sh - (pri + des) / 2) <= 0.6, f"{d}: Shapley no es la media de los dos órdenes en {c}")
         ax.plot([min(pri, des), max(pri, des)], [y, y], color=GE.APOYO, lw=3.5, solid_capstyle="round", zorder=1)
-        ax.plot([pri], [y], marker=">", ms=4.5, color=GE.TINTA, ls="none", zorder=3)
-        ax.plot([des], [y], marker="<", ms=4.5, mfc="white", mec=GE.TINTA, mew=0.9, ls="none", zorder=3)
-        ax.plot([sh], [y], marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], ls="none", zorder=4)
+        ms_t, ms_d = (MS_TRI_SEPARA, MS_ROMBO_SEPARA) if separa else (4.5, 3.4)
+        ax.plot([pri], [y + separa], marker=">", ms=ms_t, color=GE.TINTA, ls="none", zorder=3, clip_on=not separa)
+        ax.plot([des], [y - separa], marker="<", ms=ms_t, mfc="white", mec=GE.TINTA, mew=0.9, ls="none", zorder=3,
+                clip_on=not separa)
+        ax.plot([sh], [y], marker="D", ms=ms_d, color=GE.MECANISMOS["P2P"], ls="none", zorder=4)
         filas.append(dict(caso=c, paso=titulo, base_MCOP=None, altura_MCOP=None,
                           primero_pct=pri, despues_pct=des, shapley_pct=sh))
     ax.axvline(50, color=GE.NEUTRO, lw=0.6, ls=(0, (3, 2)), zorder=0)
     ax.axvline(0, color="#CFCFCF", lw=0.5, zorder=0)
     ax.set_yticks(range(len(casos)))
     ax.set_yticklabels(list(reversed(casos)))
-    ax.set_ylim(-0.6, len(casos) - 0.4)
+    # con `separa`, la fila de arriba y la de abajo ganan aire para las marcas desplazadas
+    ax.set_ylim((-0.75, len(casos) - 0.35) if separa else (-0.6, len(casos) - 0.4))
     ax.set_xlim(-80, 105)
     ax.set_title(titulo, fontsize=FS, loc="left", pad=2)
     ax.tick_params(axis="y", length=0, labelsize=FS)
@@ -995,14 +1001,18 @@ def _cifras_r2() -> pd.Series:
     return c.drop_duplicates("clave").set_index("clave").valor
 
 
+RAYA_MS, RAYA_MEW, RAYA_COLOR = 9.8, 1.0, "#A6A6A6"   # f10e: la raya C1 − C4 de la Fig. 2(c); f10l: encima de las marcas; f10m: 9,8 pt, sin tocar las filas vecinas
+SEPARA_FILA = 0.35   # f10f: desplazamiento vertical, en filas, de «primero» (arriba) y «después» (abajo) en la Fig. 2(c) y (d)
+MS_TRI_SEPARA, MS_ROMBO_SEPARA = 4.0, 2.9   # f10f: triángulos y rombo algo menores, para que quepan separados en la fila
+
+
 def fig2_r1() -> None:
     """Fig. 2 del artículo revisado: la de `fig2_tres` con (i) un eje derecho en
     miles de dólares en las dos cascadas, con la TRM media del horizonte
-    (`trm__media_horizonte`), y (ii) en (c), una raya vertical en la fila de E3, E4 e I1
-    con el valor de Shapley del supuesto 1 cuando el mercado que solo tiene ese
-    supuesto se liquida sobre los mismos intercambios en vez de medirse con C1.
-    Parte de C4, como la atribución publicada: es `m2__<caso>__cota_shapley_s1_min`
-    sobre `com__<caso>__P2P_C4` (ronda 1 de la revisión: la misma base que el eje)."""
+    (`trm__media_horizonte`), y (ii) en (c), desde f10d, la atribución con los
+    cuatro mercados resueltos (CANON §14.41) en barras y rombos, y una raya vertical
+    en la fila de E3, E4 e I1 con C1 − C4, la referencia que iguala a C1 el mercado
+    que solo tiene el supuesto 1. Todo sobre `com__<caso>__P2P_C4`."""
     nombre = d = "fig2_cascadas_atrib_r1"
     GE = G.E
     R1 = _cifras_r1()
@@ -1063,56 +1073,77 @@ def fig2_r1() -> None:
         sec.set_ylabel("mil USD", fontsize=FS, labelpad=1.5, color=E.COLOR_TEXTO)
         filas.append(dict(caso="E0" if ax is axa else "E3", paso="eje derecho: miles de USD por MCOP",
                           base_MCOP=None, altura_MCOP=k))
-    # r4b (2026-11-21): (c) con el mercado resuelto en cada esquina (CANON §14.41,
-    # grupo e1/AR2). «Primero» es C1 − C4, como en el artículo (el que solo tiene el
-    # supuesto 1 medido con C1); «después» es P2P − v01 con «solo el 2» resuelto
-    # (m2r__<caso>__v11 − m2r__<caso>__v01), y el rombo, su media. En E0 y SINU, donde
-    # «solo el 1» resuelto no transa y es C1 (compuerta F3), el rombo es el Shapley
-    # resuelto desde C4 (m2r__<caso>__c4_shapley_s1). En E3, E4 e I1, la raya es ese
-    # Shapley resuelto, con «solo el 1» resuelto de nuevo (punto fijo de su corte).
+    # f10d (2026-11-22, decisión del autor): (c) con los cuatro mercados resueltos
+    # (CANON §14.41, grupo e1/AR2) en barras y rombos. «Primero» es v10 − C4, con «solo
+    # el 1» resuelto (punto fijo de su corte; en E3 y E4, la media de los dos estados
+    # del ciclo, que coinciden a dos decimales); «después» es v11 − v01, con «solo el 2»
+    # resuelto; el rombo, su media, es el Shapley resuelto desde C4
+    # (m2r__<caso>__c4_shapley_s1, comprobado en los dos estados). La raya, marca
+    # secundaria, es la referencia que iguala a C1 el mercado que solo tiene el
+    # supuesto 1: C1 − C4 (atr__<caso>__texto_s1_pct), solo en E3, E4 e I1, donde ese
+    # mercado deja más que C1. En E0 y SINU es C1 (compuerta F3) y la raya caería
+    # sobre el triángulo «primero».
     R2 = _cifras_r2()
     val_c = {}
     for c in CASOS_ART:
         total = V(f"com__{c}__P2P_C4", d)
         v11, v01 = float(R2[f"m2r__{c}__v11"]), float(R2[f"m2r__{c}__v01"])
-        exige(abs((v11 - float(R2[f"m2r__{c}__v11_menos_C4"])) - V(f"com__{c}__C4", d)) <= 1e-3,
+        c4 = v11 - float(R2[f"m2r__{c}__v11_menos_C4"])
+        exige(abs(c4 - V(f"com__{c}__C4", d)) <= 1e-3,
               f"{d}: en {c}, la esquina p2p resuelta no parte del C4 del canon")
         exige(abs(float(R2[f"m2r__{c}__v11_menos_C4"]) - total) <= 1e-3,
               f"{d}: en {c}, la esquina p2p resuelta no es el P2P − C4 del canon")
-        pri = V(f"atr__{c}__texto_s1_pct", d)
+        v10_lo, v10_hi = float(R2[f"m2r__{c}__v10_min"]), float(R2[f"m2r__{c}__v10_max"])
+        exige(v10_hi - v10_lo <= 0.005, f"{d}: en {c}, los dos estados del ciclo difieren a la cifra publicada")
+        # el estado de v10 menor da el Shapley del supuesto 1 menor y el del 2 mayor
+        for v10, cola, cola2 in ((v10_lo, "min", "max"), (v10_hi, "max", "min")):
+            sh = 0.5 * ((v10 - c4) + (v11 - v01))
+            exige(abs(sh - float(R2[f"m2r__{c}__c4_shapley_s1_{cola}"])) <= 1e-6,
+                  f"{d}: en {c} ({cola}), el rombo no es el Shapley resuelto desde C4")
+            exige(abs((v11 - c4) - sh - float(R2[f"m2r__{c}__c4_shapley_s2_{cola2}"])) <= 1e-6,
+                  f"{d}: en {c} ({cola}), el Shapley resuelto no suma P2P − C4")
+        v10 = 0.5 * (v10_lo + v10_hi)
+        pri = 100.0 * (v10 - c4) / total
         des = 100.0 * (v11 - v01) / total
         val_c[c] = (pri, des, (pri + des) / 2)
         if c in ("E0", "SINU"):
-            sh = float(R2[f"m2r__{c}__c4_shapley_s1"])
-            exige(abs(100.0 * sh / total - val_c[c][2]) <= 1e-3,
-                  f"{d}: en {c}, el rombo no es el Shapley resuelto desde C4")
-    _atrib_ax(axc1, "(c) P2P: supuesto 1 (%)", "", "", "", d, GE, filas, valores=val_c)
+            exige(abs(pri - V(f"atr__{c}__texto_s1_pct", d)) <= 1e-3,
+                  f"{d}: en {c}, el mercado que solo tiene el supuesto 1 resuelto no es C1")
+    # f10f (g2_diseno.md, C-1): en (c) y (d) las marcas de una fila se tapaban cuando
+    # coincidían en el eje (E3 en los dos paneles, E4 en (d)). Dentro de cada fila,
+    # «primero» sube y «después» baja SEPARA_FILA, con el rombo en el centro y la raya a
+    # toda la altura. Ningún valor cambia: el CSV sale igual al bit.
+    _atrib_ax(axc1, "(c) P2P: supuesto 1 (%)", "", "", "", d, GE, filas, valores=val_c, separa=SEPARA_FILA)
     _atrib_ax(axc2, "(d) P2P col.: sin regla (%)", "pcom__{c}__sin10_pct_dir",
-              "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh", d, GE, filas)
+              "pcom__{c}__sin10_pct_inv", "pcom__{c}__sin10_pct_sh", d, GE, filas, separa=SEPARA_FILA)
     casos = list(CASOS_ART)
-    for c in ("E3", "E4", "I1"):                      # donde C1 solo acota por debajo (CANON §14.41)
+    for c in ("E3", "E4", "I1"):                      # donde ese mercado deja más que C1 (CANON §14.41)
         y = len(casos) - 1 - casos.index(c)
-        lo, hi = float(R2[f"m2r__{c}__c4_shapley_s1_min"]), float(R2[f"m2r__{c}__c4_shapley_s1_max"])
-        exige(hi - lo <= 0.005, f"{d}: en {c}, los dos estados del ciclo difieren a la cifra publicada")
-        s1 = (lo + hi) / 2
-        s2 = (float(R2[f"m2r__{c}__c4_shapley_s2_min"]) + float(R2[f"m2r__{c}__c4_shapley_s2_max"])) / 2
-        total = V(f"com__{c}__P2P_C4", d)
-        exige(abs(s1 + s2 - total) <= 1e-3, f"{d}: en {c}, el Shapley resuelto no suma P2P − C4")
-        exige(s1 >= val_c[c][2] * total / 100.0 - 1e-6,
-              f"{d}: en {c}, el valor con C1 no queda por debajo del resuelto")
-        pct = 100.0 * s1 / total
+        pct = V(f"atr__{c}__texto_s1_pct", d)         # C1 − C4 sobre P2P − C4
+        exige(pct < val_c[c][0], f"{d}: en {c}, C1 − C4 no queda por debajo del supuesto 1 añadido primero")
         exige(-90 < pct < 105, f"{d}: la raya de {c} cae fuera del eje ({pct:.1f})")
-        axc1.plot([pct], [y], marker="|", ms=9.5, mew=1.5, color=GE.TINTA, ls="none", zorder=6)
-        filas.append(dict(caso=c, paso="(c) Shapley desde C4 con el mercado resuelto en las cuatro esquinas",
-                          base_MCOP=None, altura_MCOP=None, shapley_pct=pct))
-    axc1.set_xlim(-92, 105)                           # el triángulo de E4 (−73,2 %) entero dentro del eje
+        # f10e (g1_diseno.md, C1): en E3 la raya caía sobre los dos triángulos y el rombo y
+        # se fundía con ellos. Va detrás de las marcas (zorder 2, sobre la barra y bajo los
+        # triángulos), en gris claro, más fina y más alta que ellas, de modo que asoma por
+        # arriba y por abajo de la fila. Las posiciones no cambian.
+        # f10l (g7_diseno.md, C1): detrás quedaba tapada en E3 por los triángulos y el rombo, y
+        # al tamaño impreso solo asomaba una astilla. Va ENCIMA de todas las marcas (zorder 5,
+        # sobre el rombo, de zorder 4) y más larga (11 pt en vez de 9,5), en el mismo gris.
+        # Ningún valor cambia: el CSV sale igual al bit.
+        # f10m (confirmacion_g7_diseno.md, C1): con 11 pt la de E3 y la de I1 quedaban a 0,2 y
+        # 0,3 pt de la banda de la fila de arriba; con 9,8 pt queda al menos 0,7 pt de blanco y
+        # la marca sigue asomando por arriba y por abajo de los marcadores de su fila.
+        axc1.plot([pct], [y], marker="|", ms=RAYA_MS, mew=RAYA_MEW, color=RAYA_COLOR, ls="none", zorder=5)
+        filas.append(dict(caso=c, paso="(c) C1 − C4: el mercado que solo tiene el supuesto 1 igualado a C1",
+                          base_MCOP=None, altura_MCOP=None, primero_pct=pct))
+    axc1.set_xlim(-92, 105)                           # la raya de E4 (−73,2 %) entera dentro del eje
     plt.setp(axc1.get_xticklabels(), visible=False)
     axc2.set_xticks([-50, 0, 50, 100])
     ley = [
-        Line2D([], [], ls="none", marker=">", ms=4.5, color=GE.TINTA, label="primero"),
-        Line2D([], [], ls="none", marker="<", ms=4.5, mfc="white", mec=GE.TINTA, label="después"),
-        Line2D([], [], ls="none", marker="D", ms=3.4, color=GE.MECANISMOS["P2P"], label="Shapley"),
-        Line2D([], [], ls="none", marker="|", ms=9.5, mew=1.5, color=GE.TINTA, label="mercado resuelto"),
+        Line2D([], [], ls="none", marker=">", ms=MS_TRI_SEPARA, color=GE.TINTA, label="primero"),
+        Line2D([], [], ls="none", marker="<", ms=MS_TRI_SEPARA, mfc="white", mec=GE.TINTA, label="después"),
+        Line2D([], [], ls="none", marker="D", ms=MS_ROMBO_SEPARA, color=GE.MECANISMOS["P2P"], label="Shapley"),
+        Line2D([], [], ls="none", marker="|", ms=RAYA_MS, mew=RAYA_MEW, color=RAYA_COLOR, label="C1 − C4"),
     ]
     fig.legend(handles=ley, loc="lower right", ncol=4, frameon=False, fontsize=FS, handletextpad=0.2,
                columnspacing=0.7, borderaxespad=0.05, bbox_to_anchor=(0.995, 0.0))
@@ -1128,16 +1159,17 @@ def fig2_r1() -> None:
     guardar(fig, nombre, pd.DataFrame(filas), "pag", [
         "Fig. 2 de la revisión r1 del artículo (2026-11-21): la de fig2_cascadas_atrib con un eje derecho en miles "
         f"de dólares en (a) y (b), con la TRM media del horizonte ({trm:.2f} COP/USD, clave trm__media_horizonte "
-        "de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv, grupo e1/AR1). En (c), desde r4b (2026-11-21), "
-        "el mercado resuelto en cada esquina (SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/cifras.csv, grupo "
-        "e1/AR2, CANON §14.41): «primero» es atr__<caso>__texto_s1_pct (C1 − C4), «después» es "
-        "m2r__<caso>__v11 − m2r__<caso>__v01 sobre com__<caso>__P2P_C4, el rombo su media (en E0 y SINU, "
-        "m2r__<caso>__c4_shapley_s1) y la raya de E3, E4 e I1, m2r__<caso>__c4_shapley_s1 (media de _min y _max) "
-        "sobre com__<caso>__P2P_C4, con «solo el supuesto 1» resuelto de nuevo",
+        "de SALIDAS_SERVIDOR/articulo_r1_2026-11-21/cifras.csv, grupo e1/AR1). En (c), desde f10d (2026-11-22), "
+        "los cuatro mercados resueltos (SALIDAS_SERVIDOR/articulo_r1_resuelta_2026-11-21/cifras.csv, grupo "
+        "e1/AR2, CANON §14.41): «primero» es m2r__<caso>__v10 (media de _min y _max) menos C4, «después» es "
+        "m2r__<caso>__v11 − m2r__<caso>__v01, los dos sobre com__<caso>__P2P_C4, y el rombo su media, "
+        "m2r__<caso>__c4_shapley_s1; la raya de E3, E4 e I1 es atr__<caso>__texto_s1_pct (C1 − C4), la "
+        "referencia que iguala a C1 el mercado que solo tiene el supuesto 1",
         "compuertas: las de fig2_cascadas_atrib, las huellas e1/AR1 y e1/AR2, que la esquina p2p resuelta sea "
-        "el P2P − C4 del canon, que el rombo de E0 y SINU sea el Shapley resuelto, que las dos partes del Shapley "
-        "resuelto sumen P2P − C4, que el valor medido con C1 quede por debajo, que los dos estados del ciclo "
-        "difieran menos de 0,005 MCOP y que la raya caiga dentro del eje"])
+        "el P2P − C4 del canon, que el rombo sea el Shapley resuelto desde C4 y que sus dos partes sumen P2P − C4 "
+        "en los dos estados del ciclo, que esos estados difieran menos de 0,005 MCOP, que en E0 y SINU el mercado "
+        "que solo tiene el supuesto 1 resuelto sea C1, que en E3, E4 e I1 C1 − C4 quede por debajo del supuesto 1 "
+        "añadido primero y que la raya caiga dentro del eje"])
 
 
 # ── Una hora de E0 en el eje de precios (pieza F2) ──────────────────────────
@@ -1443,8 +1475,11 @@ def fig_horas_col(alto: float = 4.45, nombre: str = "fig1_horas_E0") -> None:
     ley = [
         Line2D([], [], ls="none", marker="^", markersize=5.5, color=GE.TINTA, label="piso del vendedor"),
         Line2D([], [], ls="none", marker="|", markersize=8, mew=1.6, color=GE.TINTA, label="techo (CU)"),
+        # f10h (g3, lector C7 y árbitro 1): en la variante de la revisión los círculos son el precio
+        # de cada comprador en la forma cerrada, no un reposo del modelo base; la tesis conserva el suyo.
         Line2D([], [], ls="none", marker="o", markersize=4.5, mfc="white", mec=GE.TINTA,
-               label="precio del reposo (modelo base)"),
+               label="precio del reposo (modelo base)" if nombre == "fig1_horas_E0"
+               else "precio de la forma cerrada"),
         Line2D([], [], ls="none", marker="D", markersize=3.6, color=GE.MECANISMOS["P2P"],
                label="precio que paga"),
         Line2D([], [], color=GE.TINTA, lw=0.8, ls=(0, (3, 2)), label="piso del juego"),

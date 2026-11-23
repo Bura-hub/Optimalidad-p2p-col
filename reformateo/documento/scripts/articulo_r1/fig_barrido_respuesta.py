@@ -92,14 +92,14 @@ def main() -> int:
     ax.axhline(0, color=TINTA2, lw=0.8)
     for xm, txt in ((f23 * 100, "23 %"), (f52 * 100, "52 %")):
         ax.axvline(xm, color=TINTA2, lw=0.8, ls=":")
-        ax.text(xm + 1, 2.12, txt, color=TINTA2, fontsize=8, va="bottom")
+        ax.text(xm + 1, 2.12, txt, color=TINTA2, fontsize=8.5, va="bottom")
     ax.plot(x, e0.P2P_fijos_menos_C4 / M, color=AZUL, lw=2, label="over collective (C4), trades fixed")
     ax.plot(x, e0.P2P_salida_menos_C4 / M, color=AZUL, lw=1.2, ls="--", marker="o", ms=4,
             label="over collective (C4), with exit")
     ax.plot(x, e0.P2P_fijos_menos_C1 / M, color=NARANJA, lw=2, label="over individual (C1), trades fixed")
     ax.plot(x, e0.P2P_salida_menos_C1 / M, color=NARANJA, lw=1.2, ls="--", marker="s", ms=4,
             label="over individual (C1), with exit")
-    ax.text(101, salida_c4, "1.71", color=TINTA2, fontsize=8, va="center")
+    ax.text(101, salida_c4, "1.71", color=TINTA2, fontsize=8.5, va="center")
     ax.set_xlim(0, 100)
     ax.set_ylim(-1.15, 2.35)
     ax.set_xlabel("Share of the buyer's network charges paid by traded energy (%)")
@@ -108,7 +108,7 @@ def main() -> int:
     ax.set_axisbelow(True)
     for s in ("top", "right"):
         ax.spines[s].set_visible(False)
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=7.5, frameon=False, ncol=2)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), fontsize=8.5, frameon=False, ncol=2)
     fig.tight_layout()
     DESTINO.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):

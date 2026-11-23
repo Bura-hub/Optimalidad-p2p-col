@@ -13462,3 +13462,9 @@ Tipo: artículo | lanzador | documentación (Actividades 2.2, 3.3, 4.1 y 4.2)
 - Respuesta de 13 páginas, con el Overfull de 0,77 pt de siempre. Carta de 1 página.
 - Compuertas: las tres del canon INTACTO; `cifras-es` LIMPIO en el tex y las tres tablas, contra los tres `cifras.csv` del artículo y `CANON.md`; vetadas LIMPIA en los cuatro ficheros; `dois`, 48 entradas y 1 fallo, `Chacon2024Multimicrorred`, que no se cita.
 - Pendiente del autor (`revision_r1/pendientes_autor.md`): firmar el formulario, copiar el abstract, las referencias y los metadatos en la plataforma, pasar el ZIP por latexqc.ieee.org y refassist.ieee.org, cambiar la contraseña del servidor y comprobar que la etiqueta está en GitHub.
+
+**La TRM del Banco de la República y las instituciones bajo C4 (2026-11-22).** Dos cifras que se van a citar, registradas en §14.41 (puntos 5 y 6), sin simular.
+
+- `m11_trm_banrep.py`: la serie del Banco de la República (SDMX, `BANREP.CIE,DF_TRM,1.0`), guardada con huella en `insumos/trm_banrep_sdmx_DF_TRM.csv` (sha256 `612341ad…8e1b`, la misma de `comprobaciones_r4.md`), da **4 019,25 COP/USD** (`trmbr__media_horizonte`), con **0 días distintos** de los 256 frente a M8 (`trmbr__dias_distintos`). Resuelve la salvedad de §14.40.
+- `m12_miembros_c4.py`: **4 de 5** instituciones de E0 bajo C4 (`miembros__E0__bajo_C4`) y **0** bajo C1 (`miembros__E0__bajo_C1`; la que menos gana, Mariana, +0,0105 MCOP). En los 13 casos, 25 y 0 de 64 pares (`miembros__pares_bajo_C4`, `miembros__pares_bajo_C1`), que reproducen `institucion__P2P_menos_C4__negativos` e `institucion__P2P_menos_C1__negativos` de §14.18.
+- Registro: punto AR2 del verificador (recalcula la media de la copia con huella día a día contra M8 y los recuentos desde `compara_matriz_reposo.csv`), 20 ficheros en e1/AR2, 15 guiones en `GUIONES.csv`, 1 584 cifras y 31 compuertas; prueba de detección con 3 alteraciones más.

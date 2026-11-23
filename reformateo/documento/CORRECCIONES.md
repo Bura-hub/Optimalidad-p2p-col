@@ -13468,3 +13468,22 @@ Tipo: artículo | lanzador | documentación (Actividades 2.2, 3.3, 4.1 y 4.2)
 - `m11_trm_banrep.py`: la serie del Banco de la República (SDMX, `BANREP.CIE,DF_TRM,1.0`), guardada con huella en `insumos/trm_banrep_sdmx_DF_TRM.csv` (sha256 `612341ad…8e1b`, la misma de `comprobaciones_r4.md`), da **4 019,25 COP/USD** (`trmbr__media_horizonte`), con **0 días distintos** de los 256 frente a M8 (`trmbr__dias_distintos`). Resuelve la salvedad de §14.40.
 - `m12_miembros_c4.py`: **4 de 5** instituciones de E0 bajo C4 (`miembros__E0__bajo_C4`) y **0** bajo C1 (`miembros__E0__bajo_C1`; la que menos gana, Mariana, +0,0105 MCOP). En los 13 casos, 25 y 0 de 64 pares (`miembros__pares_bajo_C4`, `miembros__pares_bajo_C1`), que reproducen `institucion__P2P_menos_C4__negativos` e `institucion__P2P_menos_C1__negativos` de §14.18.
 - Registro: punto AR2 del verificador (recalcula la media de la copia con huella día a día contra M8 y los recuentos desde `compara_matriz_reposo.csv`), 20 ficheros en e1/AR2, 15 guiones en `GUIONES.csv`, 1 584 cifras y 31 compuertas; prueba de detección con 3 alteraciones más.
+
+### C-395, adenda · Rondas g1 a g7 y cierre (2026-11-22 a 2026-11-24)
+
+- **Rondas:** siete rondas completas con revisores nuevos (árbitro, exactitud, matemático, diseño, estilo y lector), más una confirmación de los bloques cambiados.
+- **Criterio de cierre** (lo fijó el autor el 2026-11-23): fondo en cero, es decir, árbitro, exactitud, matemático y diseño; de estilo y lector se aplican solo los errores.
+- **Cifras:** sin un error en siete rondas seguidas, con entre 200 y 380 cifras comprobadas en cada una.
+- **Lo que se corrigió verificando contra el código, no contra la tesis:**
+  - σ = (I−1)/I es la media de las pujas con el comprador ficticio en su techo, no la «oferta de apertura». `JoinFinal.m` abre las pujas en I/(I+1).
+  - La dinámica conserva la suma de las I+1 pujas, con la del ficticio.
+  - κ_i sale de la aptitud de `replicator_buyers.py` (βq_i), no de derivar el bienestar de [18], que da (I−1)β.
+  - La regla de saturación actúa siempre que la demanda es el lado corto y hay dos o más compradores. Cuando el lado corto es la oferta, actúa solo si no hay un estado válido.
+  - La validación integra el bloque de [18] (peso de barrera) acelerado, salvo en los multiplicadores de los límites.
+  - En las 5 horas de un solo comprador fuera de tolerancia, el precio sube porque esa esquina es inestable. El recorte de los pesos a 10⁻¹² solo da el empujón inicial.
+  - El intervalo de Wilson de la validación es descriptivo: la muestra es cronológica y se cortó según los resultados.
+- **Lo que se añadió:**
+  - en la respuesta, el apéndice A para los revisores, con la existencia de un equilibrio de Nash generalizado trivial, declarada como nueva y no de [18];
+  - en la introducción, que el C4 de comparación usa dos comercializadores.
+- **Estado final:** final10n. El artículo tiene 10 páginas y la respuesta 23. La etiqueta `articulo-latam-v2` queda en f5b8d8d.
+- **Lo que hay que escalar a la tesis:** `revision_r1/pendientes_autor.md`, sección «Para escalar a la tesis».
